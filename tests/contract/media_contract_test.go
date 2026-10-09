@@ -1,14 +1,28 @@
 package contract_test
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
+	"errors"
+	"image"
+	"image/png"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
@@ -22,6 +36,235 @@ func TestPostgresMediaAssetLifecycle(t *testing.T) {
 		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
 	}
 	runMediaAssetLifecycle(t, database.Postgres, dsn)
+}
+
+func TestSQLiteAdminMediaMutationRoutesCSRFAndPersistence(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "media-admin-metadata.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	runAdminMediaMutationRoutesContract(t, db, database.SQLite)
+}
+
+func TestPostgresAdminMediaMutationRoutesCSRFAndPersistence(t *testing.T) {
+	db := openIsolatedPostgres(t, context.Background())
+	runAdminMediaMutationRoutesContract(t, db, database.Postgres)
+}
+
+func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	if err := database.ApplyMigrations(ctx, db, dialect, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := mediastore.Store{Dialect: dialect, RequireTenantScope: true}
+	alpha, err := tenant.NewScope("metadata-tenant-alpha", "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := tenant.NewScope("metadata-tenant-beta", "beta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alphaCtx := tenant.WithScope(ctx, alpha)
+	betaCtx := tenant.WithScope(ctx, beta)
+	asset := media.Asset{ID: "metadata-route-asset", StorageKey: "metadata-route-asset.png", OriginalFilename: "asset.png", MimeType: "image/png", SizeBytes: 12}
+	if err := database.NewTransactor(db).Within(alphaCtx, func(tx database.Executor) error { return store.CreatePending(alphaCtx, tx, asset) }); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkReady(alphaCtx, db, asset.ID, media.VisibilityPrivate); err != nil {
+		t.Fatal(err)
+	}
+	folder := media.Folder{ID: "metadata-route-folder", Name: "Editorial"}
+	if err := store.CreateFolder(alphaCtx, db, folder); err != nil {
+		t.Fatal(err)
+	}
+
+	uploader, err := media.NewUploader(filepath.Join(t.TempDir(), "uploads"), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mediaHandler := media.HTTPHandler{
+		DB:                 db,
+		Service:            media.Service{Uploader: uploader, Assets: store, Transactions: database.NewTransactor(db)},
+		SettingsRepository: store, SettingsCache: media.NewAdminSettingsCache(), RequireTenantScope: true,
+	}
+	mux := http.NewServeMux()
+	for _, route := range mediaHandler.AdminRoutes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	handler := security.CSRFMiddleware(false, nil)(mux)
+	handler = tenant.NewHostResolver(map[string]tenant.Scope{
+		"alpha.example.test": alpha,
+		"beta.example.test":  beta,
+	}, true).Middleware(handler)
+	serve := func(host, token string) *httptest.ResponseRecorder {
+		form := url.Values{
+			"_csrf": {token}, "focal_x": {"0.25"}, "focal_y": {"0.75"},
+			"folder_id": {folder.ID}, "tags": {"hero, header"},
+		}
+		request := httptest.NewRequest(http.MethodPost, "/admin/media/metadata-route-asset/metadata", strings.NewReader(form.Encode()))
+		request.Host = host
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Tenant-ID", beta.TenantID)
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	invalid := serve("alpha.example.test", "wrong-token")
+	if invalid.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d body=%q", invalid.Code, invalid.Body.String())
+	}
+	before, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || before.FocalX != 0 || before.FocalY != 0 || before.FolderID != "" || len(before.Tags) != 0 {
+		t.Fatalf("invalid CSRF changed metadata: asset=%+v err=%v", before, err)
+	}
+	crossTenant := serve("beta.example.test", "valid-token")
+	if crossTenant.Code != http.StatusBadRequest {
+		t.Fatalf("cross-tenant mutation status=%d body=%q", crossTenant.Code, crossTenant.Body.String())
+	}
+	untouched, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || untouched.FocalX != 0 || untouched.FocalY != 0 || untouched.FolderID != "" || len(untouched.Tags) != 0 {
+		t.Fatalf("cross-tenant request changed metadata: asset=%+v err=%v", untouched, err)
+	}
+	valid := serve("alpha.example.test", "valid-token")
+	if valid.Code != http.StatusSeeOther {
+		t.Fatalf("valid editor mutation status=%d body=%q", valid.Code, valid.Body.String())
+	}
+	after, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || after.FocalX != .25 || after.FocalY != .75 || after.FolderID != folder.ID || len(after.Tags) != 2 || after.Tags[0] != "hero" || after.Tags[1] != "header" {
+		t.Fatalf("persisted metadata=%+v err=%v", after, err)
+	}
+	if _, err := store.Get(betaCtx, db, asset.ID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("other tenant media read=%v, want no row", err)
+	}
+
+	serveVisibility := func(host, token, visibility string) *httptest.ResponseRecorder {
+		form := url.Values{"_csrf": {token}, "visibility": {visibility}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/media/metadata-route-asset/visibility", strings.NewReader(form.Encode()))
+		request.Host = host
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	invalidVisibility := serveVisibility("alpha.example.test", "wrong-token", media.VisibilityPublic)
+	if invalidVisibility.Code != http.StatusForbidden {
+		t.Fatalf("invalid visibility CSRF status=%d body=%q", invalidVisibility.Code, invalidVisibility.Body.String())
+	}
+	unchanged, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || unchanged.Visibility != media.VisibilityPrivate {
+		t.Fatalf("invalid visibility CSRF changed asset=%+v err=%v", unchanged, err)
+	}
+	validVisibility := serveVisibility("alpha.example.test", "valid-token", media.VisibilityPublic)
+	if validVisibility.Code != http.StatusSeeOther {
+		t.Fatalf("valid editor visibility status=%d body=%q", validVisibility.Code, validVisibility.Body.String())
+	}
+	visible, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || visible.Visibility != media.VisibilityPublic {
+		t.Fatalf("persisted visibility asset=%+v err=%v", visible, err)
+	}
+
+	makeUploadRequest := func(token string) *http.Request {
+		var body bytes.Buffer
+		form := multipart.NewWriter(&body)
+		for name, value := range map[string]string{"_csrf": token, "folder_id": folder.ID, "visibility": media.VisibilityPrivate} {
+			if err := form.WriteField(name, value); err != nil {
+				t.Fatal(err)
+			}
+		}
+		file, err := form.CreateFormFile("file", "admin-route-upload.png")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var imageBytes bytes.Buffer
+		if err := png.Encode(&imageBytes, image.NewRGBA(image.Rect(0, 0, 2, 2))); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := io.Copy(file, &imageBytes); err != nil {
+			t.Fatal(err)
+		}
+		if err := form.Close(); err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodPost, "/admin/media", &body)
+		request.Host = "alpha.example.test"
+		request.Header.Set("Content-Type", form.FormDataContentType())
+		request.Header.Set("X-Tenant-ID", beta.TenantID)
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		return request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+	}
+	invalidUpload := httptest.NewRecorder()
+	handler.ServeHTTP(invalidUpload, makeUploadRequest("wrong-token"))
+	if invalidUpload.Code != http.StatusForbidden {
+		t.Fatalf("invalid upload CSRF status=%d body=%q", invalidUpload.Code, invalidUpload.Body.String())
+	}
+	assets, err := store.List(alphaCtx, db, 200)
+	if err != nil || len(assets) != 1 {
+		t.Fatalf("invalid upload changed database assets=%+v err=%v", assets, err)
+	}
+	validUpload := httptest.NewRecorder()
+	handler.ServeHTTP(validUpload, makeUploadRequest("valid-token"))
+	if validUpload.Code != http.StatusSeeOther {
+		t.Fatalf("valid editor upload status=%d body=%q", validUpload.Code, validUpload.Body.String())
+	}
+	assets, err = store.List(alphaCtx, db, 200)
+	if err != nil || len(assets) != 2 {
+		t.Fatalf("uploaded assets=%+v err=%v", assets, err)
+	}
+	var uploaded *media.Asset
+	for i := range assets {
+		if assets[i].OriginalFilename == "admin-route-upload.png" {
+			uploaded = &assets[i]
+			break
+		}
+	}
+	if uploaded == nil || uploaded.Status != "ready" || uploaded.Visibility != media.VisibilityPrivate || uploaded.FolderID != folder.ID || uploaded.MimeType != "image/png" || uploaded.Width != 2 || uploaded.Height != 2 {
+		t.Fatalf("uploaded asset=%+v", uploaded)
+	}
+	if _, err := os.Stat(filepath.Join(uploader.StorageDir, uploaded.ID+".png")); err != nil {
+		t.Fatalf("stored upload file is missing: %v", err)
+	}
+
+	serveSettings := func(host, token string) *httptest.ResponseRecorder {
+		form := url.Values{
+			"_csrf": {token}, "hotlink_protection": {"on"}, "allowed_referer_hosts": {"assets.example.test"},
+			"watermark_opacity": {"40"}, "watermark_margin": {"16"},
+		}
+		request := httptest.NewRequest(http.MethodPost, "/admin/media/settings", strings.NewReader(form.Encode()))
+		request.Host = host
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Tenant-ID", beta.TenantID)
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+	invalidSettings := serveSettings("alpha.example.test", "wrong-token")
+	if invalidSettings.Code != http.StatusForbidden {
+		t.Fatalf("invalid settings CSRF status=%d body=%q", invalidSettings.Code, invalidSettings.Body.String())
+	}
+	if _, found, err := store.LoadAdminSettings(alphaCtx, db); err != nil || found {
+		t.Fatalf("invalid settings CSRF persisted found=%t err=%v", found, err)
+	}
+	validSettings := serveSettings("alpha.example.test", "valid-token")
+	if validSettings.Code != http.StatusSeeOther {
+		t.Fatalf("valid editor settings status=%d body=%q", validSettings.Code, validSettings.Body.String())
+	}
+	settings, found, err := store.LoadAdminSettings(alphaCtx, db)
+	if err != nil || !found || !settings.HotlinkProtection || len(settings.AllowedRefererHosts) != 1 || settings.AllowedRefererHosts[0] != "assets.example.test" || settings.WatermarkOpacity != .4 || settings.WatermarkMargin != 16 {
+		t.Fatalf("persisted settings=%+v found=%t err=%v", settings, found, err)
+	}
+	if _, found, err := store.LoadAdminSettings(betaCtx, db); err != nil || found {
+		t.Fatalf("settings leaked to other tenant found=%t err=%v", found, err)
+	}
 }
 
 func runMediaAssetLifecycle(t *testing.T, dialect database.Dialect, dsn string) {

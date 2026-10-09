@@ -24,6 +24,25 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type editionRoundTripper struct{ handler http.Handler }
+
+func (rt editionRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	if request.Body != nil {
+		defer request.Body.Close()
+	}
+	recorder := httptest.NewRecorder()
+	rt.handler.ServeHTTP(recorder, request)
+	return recorder.Result(), nil
+}
+
+func installEditionTestServer(t *testing.T, handler http.Handler) string {
+	t.Helper()
+	previous := http.DefaultTransport
+	http.DefaultTransport = editionRoundTripper{handler: handler}
+	t.Cleanup(func() { http.DefaultTransport = previous })
+	return "http://edition.test"
+}
+
 func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -45,9 +64,8 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	handler := NewDemoHandler(db)
 	body, _ := json.Marshal(map[string]string{"id": "p-1", "project_code": "P-1", "status": "active", "title": "Demo"})
-	server := httptest.NewServer(handler)
-	defer server.Close()
-	adminIndex, err := http.Get(server.URL + "/admin/resources")
+	baseURL := installEditionTestServer(t, handler)
+	adminIndex, err := http.Get(baseURL + "/admin/resources")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +74,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if adminIndex.StatusCode != http.StatusOK || !bytes.Contains(adminIndexBody, []byte("/admin/resources/project")) || !bytes.Contains(adminIndexBody, []byte("/admin/resources/milestone")) || !bytes.Contains(adminIndexBody, []byte(`class="collection-tile"`)) || !bytes.Contains(adminIndexBody, []byte("</html>")) {
 		t.Fatalf("generated resource missing from Admin index: status=%d", adminIndex.StatusCode)
 	}
-	milestoneCreate, err := http.Post(server.URL+"/api/v1/milestone", "application/json", strings.NewReader(`{"id":"m-1","status":"planned","title":"Golden path"}`))
+	milestoneCreate, err := http.Post(baseURL+"/api/v1/milestone", "application/json", strings.NewReader(`{"id":"m-1","status":"planned","title":"Golden path"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +82,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if milestoneCreate.StatusCode != http.StatusCreated {
 		t.Fatalf("generated milestone API create status=%d", milestoneCreate.StatusCode)
 	}
-	milestoneList, err := http.Get(server.URL + "/admin/resources/milestone")
+	milestoneList, err := http.Get(baseURL + "/admin/resources/milestone")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +91,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if milestoneList.StatusCode != http.StatusOK || !bytes.Contains(milestoneListBody, []byte("Golden path")) {
 		t.Fatalf("new Blueprint resource Admin list status=%d body=%s", milestoneList.StatusCode, milestoneListBody)
 	}
-	post, err := http.Post(server.URL+"/api/v1/project", "application/json", bytes.NewReader(body))
+	post, err := http.Post(baseURL+"/api/v1/project", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +99,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 		t.Fatalf("POST status = %d", post.StatusCode)
 	}
 	_ = post.Body.Close()
-	get, err := http.Get(server.URL + "/api/v1/project/p-1")
+	get, err := http.Get(baseURL + "/api/v1/project/p-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +107,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 		t.Fatalf("GET status = %d", get.StatusCode)
 	}
 	_ = get.Body.Close()
-	listAPI, err := http.Get(server.URL + "/api/v1/project?limit=100&offset=0")
+	listAPI, err := http.Get(baseURL + "/api/v1/project?limit=100&offset=0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +116,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if listAPI.StatusCode != http.StatusOK || !bytes.Contains(listAPIJSON, []byte("Demo")) {
 		t.Fatalf("generated list API status=%d body=%s", listAPI.StatusCode, listAPIJSON)
 	}
-	adminList, err := http.Get(server.URL + "/admin/resources/project")
+	adminList, err := http.Get(baseURL + "/admin/resources/project")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +130,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 		}
 		t.Fatalf("generated Admin list status=%d body=%s", adminList.StatusCode, body[index:min(len(body), index+500)])
 	}
-	adminForm, err := http.Get(server.URL + "/admin/resources/project/new")
+	adminForm, err := http.Get(baseURL + "/admin/resources/project/new")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +141,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	form := url.Values{"id": {"p-admin"}, "project_code": {"P-ADMIN"}, "status": {"active"}, "title": {"From Admin"}, "_csrf": {"edition-demo-csrf"}}
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	createRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/new", strings.NewReader(form.Encode()))
+	createRequest, _ := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/new", strings.NewReader(form.Encode()))
 	createRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	created, err := client.Do(createRequest)
 	if err != nil {
@@ -134,7 +152,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if created.StatusCode != http.StatusSeeOther || created.Header.Get("Location") != "/admin/resources/project" {
 		t.Fatalf("generated Admin create status=%d location=%q body=%s", created.StatusCode, created.Header.Get("Location"), createdBody)
 	}
-	adminList, err = http.Get(server.URL + created.Header.Get("Location"))
+	adminList, err = http.Get(baseURL + created.Header.Get("Location"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +161,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if adminList.StatusCode != http.StatusOK || !bytes.Contains(adminBody, []byte("From Admin")) || !bytes.Contains(adminBody, []byte("</html>")) {
 		t.Fatalf("generated Admin list after create status=%d body=%s", adminList.StatusCode, adminBody)
 	}
-	detail, err := http.Get(server.URL + "/admin/resources/project/p-admin")
+	detail, err := http.Get(baseURL + "/admin/resources/project/p-admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +171,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 		t.Fatalf("generated Admin detail status=%d body=%s", detail.StatusCode, detailBody)
 	}
 	update := url.Values{"project_code": {"P-ADMIN"}, "status": {"active"}, "title": {"Updated in Admin"}, "_csrf": {"edition-demo-csrf"}}
-	updateRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/p-admin", strings.NewReader(update.Encode()))
+	updateRequest, _ := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/p-admin", strings.NewReader(update.Encode()))
 	updateRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	updated, err := client.Do(updateRequest)
 	if err != nil {
@@ -163,7 +181,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if updated.StatusCode != http.StatusSeeOther {
 		t.Fatalf("generated Admin update status=%d", updated.StatusCode)
 	}
-	detail, err = http.Get(server.URL + "/admin/resources/project/p-admin")
+	detail, err = http.Get(baseURL + "/admin/resources/project/p-admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +190,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if detail.StatusCode != http.StatusOK || !bytes.Contains(detailBody, []byte("Updated in Admin")) {
 		t.Fatalf("generated Admin detail after update status=%d body=%s", detail.StatusCode, detailBody)
 	}
-	deleteRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/p-admin/delete", strings.NewReader("_csrf=edition-demo-csrf"))
+	deleteRequest, _ := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/p-admin/delete", strings.NewReader("_csrf=edition-demo-csrf"))
 	deleteRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	deleted, err := client.Do(deleteRequest)
 	if err != nil {
@@ -182,7 +200,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	if deleted.StatusCode != http.StatusSeeOther {
 		t.Fatalf("generated Admin delete status=%d", deleted.StatusCode)
 	}
-	deletedRecord, err := http.Get(server.URL + "/api/v1/project/p-admin")
+	deletedRecord, err := http.Get(baseURL + "/api/v1/project/p-admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,9 +220,8 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 	if _, err := db.ExecContext(context.Background(), generatedcontentblock.MigrationSQL); err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(NewDemoHandler(db))
-	defer server.Close()
-	htmx, err := http.Get(server.URL + "/vendor/htmx/htmx.min.js")
+	baseURL := installEditionTestServer(t, NewDemoHandler(db))
+	htmx, err := http.Get(baseURL + "/vendor/htmx/htmx.min.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +231,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 		t.Fatalf("shared HTMX runtime was not served by the standalone Edition composition: status=%d", htmx.StatusCode)
 	}
 
-	asset, err := http.Get(server.URL + "/edition/assets/editorjs.umd.js")
+	asset, err := http.Get(baseURL + "/edition/assets/editorjs.umd.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +241,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 		t.Fatalf("Edition Editor.js asset was not served: status=%d content-type=%q", asset.StatusCode, asset.Header.Get("Content-Type"))
 	}
 
-	form, err := http.Get(server.URL + "/admin/resources/content_block/new")
+	form, err := http.Get(baseURL + "/admin/resources/content_block/new")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +255,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 
 	document := `{"time":1,"blocks":[{"type":"paragraph","data":{"text":"<b>Safe</b><script>alert(1)</script>"}}],"version":"2.31.6"}`
 	previewForm := url.Values{"_csrf": {demoCSRFToken}, "body": {document}}
-	preview, err := http.Post(server.URL+"/admin/resources/content_block/preview", "application/x-www-form-urlencoded", strings.NewReader(previewForm.Encode()))
+	preview, err := http.Post(baseURL+"/admin/resources/content_block/preview", "application/x-www-form-urlencoded", strings.NewReader(previewForm.Encode()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +265,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 		t.Fatalf("preview was not sanitized/private: status=%d headers=%v body=%s", preview.StatusCode, preview.Header, previewBody)
 	}
 
-	withoutCSRF, err := http.Post(server.URL+"/admin/resources/content_block/preview", "application/x-www-form-urlencoded", strings.NewReader(url.Values{"body": {document}}.Encode()))
+	withoutCSRF, err := http.Post(baseURL+"/admin/resources/content_block/preview", "application/x-www-form-urlencoded", strings.NewReader(url.Values{"body": {document}}.Encode()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +275,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 	}
 
 	requestBody, _ := json.Marshal(map[string]string{"id": "block-1", "title": "Safe block", "body": document})
-	created, err := http.Post(server.URL+"/api/v1/content_block", "application/json", bytes.NewReader(requestBody))
+	created, err := http.Post(baseURL+"/api/v1/content_block", "application/json", bytes.NewReader(requestBody))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +294,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 	}
 
 	invalidBody := `{"id":"block-1","title":"Unsafe update","body":"{\"blocks\":[{\"type\":\"image\",\"data\":{}}]}"}`
-	update, err := http.NewRequest(http.MethodPut, server.URL+"/api/v1/content_block/block-1", strings.NewReader(invalidBody))
+	update, err := http.NewRequest(http.MethodPut, baseURL+"/api/v1/content_block/block-1", strings.NewReader(invalidBody))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +308,7 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 	if updated.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid block update status=%d body=%s", updated.StatusCode, updatedBody)
 	}
-	stored, err := http.Get(server.URL + "/api/v1/content_block/block-1")
+	stored, err := http.Get(baseURL + "/api/v1/content_block/block-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,6 +316,92 @@ func TestProjectEditionBlockEditorAssetPreviewAndSanitizedCRUD(t *testing.T) {
 	var afterRejectedUpdate map[string]any
 	if stored.StatusCode != http.StatusOK || json.NewDecoder(stored.Body).Decode(&afterRejectedUpdate) != nil || afterRejectedUpdate["title"] != "Safe block" {
 		t.Fatalf("rejected update changed the stored record: status=%d record=%#v", stored.StatusCode, afterRejectedUpdate)
+	}
+}
+
+func TestProjectEditionBlockPreviewRejectsInvalidAndOversizedDocuments(t *testing.T) {
+	preview := contentBlockPreviewHandler()
+	serve := func(method, contentType, body string) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(method, "/admin/resources/content_block/preview", strings.NewReader(body))
+		if contentType != "" {
+			request.Header.Set("Content-Type", contentType)
+		}
+		response := httptest.NewRecorder()
+		preview.ServeHTTP(response, request)
+		return response
+	}
+	post := func(values url.Values) *httptest.ResponseRecorder {
+		return serve(http.MethodPost, "application/x-www-form-urlencoded", values.Encode())
+	}
+
+	validBody := `{"blocks":[{"type":"paragraph","data":{"text":"ok"}}]}`
+	cases := []struct {
+		name   string
+		values url.Values
+		status int
+	}{
+		{name: "missing CSRF", values: url.Values{"body": {validBody}}, status: http.StatusForbidden},
+		{name: "duplicate body fields", values: url.Values{"_csrf": {demoCSRFToken}, "body": {validBody, validBody}}, status: http.StatusBadRequest},
+		{name: "malformed JSON", values: url.Values{"_csrf": {demoCSRFToken}, "body": {`{"blocks":[`}}, status: http.StatusBadRequest},
+		{name: "unknown document field", values: url.Values{"_csrf": {demoCSRFToken}, "body": {`{"blocks":[{"type":"paragraph","data":{"text":"ok"}}],"extra":true}`}}, status: http.StatusBadRequest},
+		{name: "unsupported block type", values: url.Values{"_csrf": {demoCSRFToken}, "body": {`{"blocks":[{"type":"image","data":{"text":"x"}}]}`}}, status: http.StatusBadRequest},
+		{name: "empty blocks", values: url.Values{"_csrf": {demoCSRFToken}, "body": {`{"blocks":[]}`}}, status: http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if response := post(tc.values); response.Code != tc.status {
+				t.Fatalf("status=%d body=%q, want %d", response.Code, response.Body.String(), tc.status)
+			}
+		})
+	}
+
+	tooMany := make([]editorBlock, 101)
+	for i := range tooMany {
+		tooMany[i].Type = "paragraph"
+	}
+	tooManyJSON, err := json.Marshal(editorDocument{Blocks: tooMany})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response := post(url.Values{"_csrf": {demoCSRFToken}, "body": {string(tooManyJSON)}}); response.Code != http.StatusBadRequest {
+		t.Fatalf("101 blocks status=%d body=%q", response.Code, response.Body.String())
+	}
+
+	tooLong := editorBlock{Type: "paragraph"}
+	tooLong.Data.Text = strings.Repeat("x", 50001)
+	tooLongJSON, err := json.Marshal(editorDocument{Blocks: []editorBlock{tooLong}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response := post(url.Values{"_csrf": {demoCSRFToken}, "body": {string(tooLongJSON)}}); response.Code != http.StatusBadRequest {
+		t.Fatalf("oversized paragraph status=%d body=%q", response.Code, response.Body.String())
+	}
+
+	largeBlocks := make([]editorBlock, 100)
+	for i := range largeBlocks {
+		largeBlocks[i].Type = "paragraph"
+		largeBlocks[i].Data.Text = strings.Repeat("x", 2700)
+	}
+	largeJSON, err := json.Marshal(editorDocument{Blocks: largeBlocks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(largeJSON) <= maxContentBlockBytes {
+		t.Fatalf("test document size=%d, want > %d", len(largeJSON), maxContentBlockBytes)
+	}
+	if response := post(url.Values{"_csrf": {demoCSRFToken}, "body": {string(largeJSON)}}); response.Code != http.StatusBadRequest {
+		t.Fatalf("oversized document status=%d body=%q", response.Code, response.Body.String())
+	}
+
+	requestBody := "_csrf=" + demoCSRFToken + "&body=" + strings.Repeat("x", maxContentBlockBytes*4+1)
+	if response := serve(http.MethodPost, "application/x-www-form-urlencoded", requestBody); response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized request status=%d body=%q", response.Code, response.Body.String())
+	}
+	if response := serve(http.MethodGet, "", ""); response.Code != http.StatusMethodNotAllowed || response.Header().Get("Allow") != http.MethodPost {
+		t.Fatalf("GET status=%d Allow=%q", response.Code, response.Header().Get("Allow"))
+	}
+	if response := serve(http.MethodPost, "application/json", validBody); response.Code != http.StatusBadRequest {
+		t.Fatalf("wrong content type status=%d", response.Code)
 	}
 }
 
@@ -473,12 +576,11 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if _, err := db.ExecContext(ctx, generatedcontentblock.MigrationSQL); err != nil {
 		t.Fatalf("apply generated content block migration: %v", err)
 	}
-	server := httptest.NewServer(NewHandler(db, "postgres"))
-	defer server.Close()
+	baseURL := installEditionTestServer(t, NewHandler(db, "postgres"))
 
 	postJSON := func(path, body string) *http.Response {
 		t.Helper()
-		response, err := http.Post(server.URL+path, "application/json", strings.NewReader(body))
+		response, err := http.Post(baseURL+path, "application/json", strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -489,7 +591,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 		t.Fatalf("generated PostgreSQL API create status=%d", apiCreate.StatusCode)
 	}
 	_ = apiCreate.Body.Close()
-	adminIndex, err := http.Get(server.URL + "/admin/resources")
+	adminIndex, err := http.Get(baseURL + "/admin/resources")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +610,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 		t.Fatalf("generated PostgreSQL content block API create status=%d", blockCreate.StatusCode)
 	}
 	_ = blockCreate.Body.Close()
-	blockRead, err := http.Get(server.URL + "/api/v1/content_block/pg-block")
+	blockRead, err := http.Get(baseURL + "/api/v1/content_block/pg-block")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +622,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if blockRead.StatusCode != http.StatusOK || !strings.Contains(persistedBlock["body"].(string), "Safe") || strings.Contains(persistedBlock["body"].(string), "<script") {
 		t.Fatalf("PostgreSQL generated block was not stored with sanitized content: status=%d body=%v", blockRead.StatusCode, persistedBlock["body"])
 	}
-	milestoneList, err := http.Get(server.URL + "/admin/resources/milestone?search=PostgreSQL")
+	milestoneList, err := http.Get(baseURL + "/admin/resources/milestone?search=PostgreSQL")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,7 +634,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	create := url.Values{"id": {"pg-admin"}, "project_code": {"PG-ADMIN"}, "status": {"active"}, "title": {"PostgreSQL Admin record"}, "_csrf": {"edition-demo-csrf"}}
-	createResponse, err := client.PostForm(server.URL+"/admin/resources/project/new", create)
+	createResponse, err := client.PostForm(baseURL+"/admin/resources/project/new", create)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,7 +642,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if createResponse.StatusCode != http.StatusSeeOther {
 		t.Fatalf("generated PostgreSQL Admin create status=%d", createResponse.StatusCode)
 	}
-	list, err := http.Get(server.URL + "/admin/resources/project?search=PostgreSQL")
+	list, err := http.Get(baseURL + "/admin/resources/project?search=PostgreSQL")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -551,7 +653,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	}
 
 	update := url.Values{"project_code": {"PG-ADMIN"}, "status": {"active"}, "title": {"Updated PostgreSQL Admin record"}, "_csrf": {"edition-demo-csrf"}}
-	updateResponse, err := client.PostForm(server.URL+"/admin/resources/project/pg-admin", update)
+	updateResponse, err := client.PostForm(baseURL+"/admin/resources/project/pg-admin", update)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -559,7 +661,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if updateResponse.StatusCode != http.StatusSeeOther {
 		t.Fatalf("generated PostgreSQL Admin update status=%d", updateResponse.StatusCode)
 	}
-	deleteResponse, err := client.PostForm(server.URL+"/admin/resources/project/pg-admin/delete", url.Values{"_csrf": {"edition-demo-csrf"}})
+	deleteResponse, err := client.PostForm(baseURL+"/admin/resources/project/pg-admin/delete", url.Values{"_csrf": {"edition-demo-csrf"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -567,7 +669,7 @@ func TestPostgresEditionGeneratedAdminCRUD(t *testing.T) {
 	if deleteResponse.StatusCode != http.StatusSeeOther {
 		t.Fatalf("generated PostgreSQL Admin delete status=%d", deleteResponse.StatusCode)
 	}
-	deleted, err := http.Get(server.URL + "/api/v1/project/pg-admin")
+	deleted, err := http.Get(baseURL + "/api/v1/project/pg-admin")
 	if err != nil {
 		t.Fatal(err)
 	}

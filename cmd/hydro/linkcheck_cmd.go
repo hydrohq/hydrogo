@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -13,6 +14,10 @@ import (
 )
 
 func scanLinksCommand(args []string, stdout, stderr io.Writer) error {
+	return scanLinksCommandWithClient(args, stdout, stderr, nil)
+}
+
+func scanLinksCommandWithClient(args []string, stdout, stderr io.Writer, client *http.Client) error {
 	flags := flag.NewFlagSet("scan-links", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	startURL := flags.String("url", "", "public site URL to scan")
@@ -29,7 +34,7 @@ func scanLinksCommand(args []string, stdout, stderr io.Writer) error {
 	if *startURL == "" {
 		return fmt.Errorf("scan-links requires --url")
 	}
-	findings, err := linkcheck.Crawl(context.Background(), linkcheck.Options{StartURL: *startURL, MaxPages: *maxPages, Concurrency: *concurrency, RequestDelay: *requestDelay, AllowPrivateTargets: *allowPrivate})
+	findings, err := linkcheck.Crawl(context.Background(), linkcheck.Options{StartURL: *startURL, MaxPages: *maxPages, Concurrency: *concurrency, RequestDelay: *requestDelay, AllowPrivateTargets: *allowPrivate, Client: client})
 	if err != nil {
 		return err
 	}

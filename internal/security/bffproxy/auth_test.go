@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/security/bffsession"
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 type loginLimiterStub struct {
@@ -24,7 +25,8 @@ func (l *loginLimiterStub) Allow(key string) bool {
 }
 
 func TestAuthHandlerLoginAndLogoutExchange(t *testing.T) {
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const coreURL = "http://127.0.0.1:19201"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19201": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/auth/login" {
 			if r.Header.Get("Cookie") != "" || r.Header.Get("Authorization") != "" {
 				t.Fatal("browser credentials crossed login boundary")
@@ -45,14 +47,13 @@ func TestAuthHandlerLoginAndLogoutExchange(t *testing.T) {
 			return
 		}
 		http.NotFound(w, r)
-	}))
-	defer core.Close()
-	origin, _ := url.Parse(core.URL)
+	})})
+	origin, _ := url.Parse(coreURL)
 	store, err := bffsession.New(bffsession.Config{CookieName: "bff_sid", TTL: time.Minute, MaxEntries: 2, Secure: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := AuthHandler{CoreOrigin: origin, Store: store}
+	handler := AuthHandler{CoreOrigin: origin, Client: client, Store: store}
 	login := httptest.NewRequest(http.MethodPost, "https://frontend.example/login", strings.NewReader("email=reader%40example.test&password=secret"))
 	login.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	login.Header.Set("Cookie", "attacker=should-not-forward")
@@ -88,14 +89,14 @@ func TestAuthHandlerLoginAndLogoutExchange(t *testing.T) {
 }
 
 func TestAuthHandlerRejectsMissingCoreCookie(t *testing.T) {
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
-	defer core.Close()
-	origin, _ := url.Parse(core.URL)
+	const coreURL = "http://127.0.0.1:19202"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19202": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })})
+	origin, _ := url.Parse(coreURL)
 	store, _ := bffsession.New(bffsession.Config{CookieName: "bff_sid", TTL: time.Minute, MaxEntries: 1})
 	request := httptest.NewRequest(http.MethodPost, "https://frontend.example/login", strings.NewReader("email=a&password=b"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
-	(AuthHandler{CoreOrigin: origin, Store: store}).Login(response, request)
+	(AuthHandler{CoreOrigin: origin, Client: client, Store: store}).Login(response, request)
 	if response.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusBadGateway)
 	}
@@ -103,19 +104,19 @@ func TestAuthHandlerRejectsMissingCoreCookie(t *testing.T) {
 
 func TestAuthHandlerLoginLimiterBlocksBeforeCore(t *testing.T) {
 	coreCalls := 0
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const coreURL = "http://127.0.0.1:19203"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19203": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		coreCalls++
 		http.SetCookie(w, &http.Cookie{Name: "hydro_session", Value: "should-not-be-reached"})
 		w.WriteHeader(http.StatusOK)
-	}))
-	defer core.Close()
-	origin, _ := url.Parse(core.URL)
+	})})
+	origin, _ := url.Parse(coreURL)
 	store, err := bffsession.New(bffsession.Config{CookieName: "bff_sid", TTL: time.Minute, MaxEntries: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	limiter := &loginLimiterStub{}
-	handler := AuthHandler{CoreOrigin: origin, Store: store, LoginLimiter: limiter}
+	handler := AuthHandler{CoreOrigin: origin, Client: client, Store: store, LoginLimiter: limiter}
 	request := httptest.NewRequest(http.MethodPost, "https://frontend.example/login", strings.NewReader("email=Reader%40Example.test&password=secret"))
 	request.RemoteAddr = "203.0.113.9:43122"
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")

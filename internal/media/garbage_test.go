@@ -13,6 +13,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 type garbageRepoStub struct {
@@ -143,5 +144,42 @@ func TestAdminMediaCleanupRequiresAdminAndConfirmation(t *testing.T) {
 	handler.adminCleanup(denied, httptest.NewRequest(http.MethodGet, "/admin/media/cleanup", nil).WithContext(editorCtx))
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("editor status=%d", denied.Code)
+	}
+}
+
+func TestAdminMediaCleanupRouteRequiresCSRFBeforeDeleting(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "gc-csrf.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	now := time.Now().UTC()
+	repo := &garbageRepoStub{items: []GarbageAsset{{ID: "orphan", Filename: "old.png", SizeBytes: 12, CreatedAt: now.Add(-9 * 24 * time.Hour), Status: "ready"}}, keys: []string{"old.png"}}
+	collector := &GarbageCollector{DB: db, Repository: repo, References: &referencesStub{sets: []map[string]struct{}{{}, {}, {}}}, BlobStore: &garbageBlobStub{}, Retention: 7 * 24 * time.Hour}
+	mux := http.NewServeMux()
+	for _, route := range (HTTPHandler{Garbage: collector}).AdminRoutes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	handler := security.CSRFMiddleware(false, nil)(mux)
+	user := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	post := func(token string) *httptest.ResponseRecorder {
+		form := url.Values{"_csrf": {token}, "asset_id": {"orphan"}, "confirm": {"yes"}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/media/cleanup/delete", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+
+	invalid := post("wrong-token")
+	if invalid.Code != http.StatusForbidden || len(repo.deleted) != 0 {
+		t.Fatalf("invalid CSRF status=%d deleted=%v body=%q", invalid.Code, repo.deleted, invalid.Body.String())
+	}
+	valid := post("valid-token")
+	if valid.Code != http.StatusSeeOther || len(repo.deleted) != 1 || repo.deleted[0] != "orphan" {
+		t.Fatalf("valid CSRF status=%d deleted=%v body=%q", valid.Code, repo.deleted, valid.Body.String())
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -14,20 +13,13 @@ import (
 )
 
 func TestSMTPPingChecksGreetingWithoutSendingEmail(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer listener.Close()
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() { _ = clientConn.Close(); _ = serverConn.Close() })
 	commands := make(chan string, 4)
 	go func() {
-		connection, acceptErr := listener.Accept()
-		if acceptErr != nil {
-			return
-		}
-		defer connection.Close()
-		reader := bufio.NewReader(connection)
-		writer := bufio.NewWriter(connection)
+		defer serverConn.Close()
+		reader := bufio.NewReader(serverConn)
+		writer := bufio.NewWriter(serverConn)
 		_, _ = fmt.Fprint(writer, "220 mail.example.test ESMTP ready\r\n")
 		_ = writer.Flush()
 		for {
@@ -51,11 +43,11 @@ func TestSMTPPingChecksGreetingWithoutSendingEmail(t *testing.T) {
 		}
 	}()
 
-	port := listener.Addr().(*net.TCPAddr).Port
-	sender, err := NewSMTP(SMTPConfig{Host: "127.0.0.1", Port: port, From: "from@example.test", Timeout: time.Second})
+	sender, err := NewSMTP(SMTPConfig{Host: "mail.example.test", Port: 25, From: "from@example.test", Timeout: time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
+	sender.dialContext = func(context.Context, string, string) (net.Conn, error) { return clientConn, nil }
 	result, err := sender.Ping(context.Background())
 	if err != nil || result.Stage != "complete" || result.Elapsed >= time.Second {
 		t.Fatalf("ping result=%+v err=%v", result, err)
@@ -199,23 +191,14 @@ func TestSMTPSendNormalizesNilContext(t *testing.T) {
 }
 
 func TestSMTPSendAppliesTimeoutBeforeGreeting(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer listener.Close()
-	go func() {
-		conn, err := listener.Accept()
-		if err == nil {
-			defer conn.Close()
-			_, _ = io.Copy(io.Discard, conn)
-		}
-	}()
+	clientConn, serverConn := net.Pipe()
+	t.Cleanup(func() { _ = clientConn.Close(); _ = serverConn.Close() })
 
-	sender, err := NewSMTP(SMTPConfig{Host: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port, From: "from@example.test", Timeout: 20 * time.Millisecond})
+	sender, err := NewSMTP(SMTPConfig{Host: "mail.example.test", Port: 25, From: "from@example.test", Timeout: 20 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
+	sender.dialContext = func(context.Context, string, string) (net.Conn, error) { return clientConn, nil }
 	started := time.Now()
 	if err := sender.Send(context.Background(), Message{To: "to@example.test", Subject: "subject"}); err == nil {
 		t.Fatal("SMTP send succeeded without a server greeting")

@@ -14,6 +14,17 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type articleEditionRoundTripper struct{ handler http.Handler }
+
+func (rt articleEditionRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	if request.Body != nil {
+		defer request.Body.Close()
+	}
+	recorder := httptest.NewRecorder()
+	rt.handler.ServeHTTP(recorder, request)
+	return recorder.Result(), nil
+}
+
 func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -29,9 +40,9 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 	}
 	handler := NewDemoHandler(db)
 	body, _ := json.Marshal(map[string]string{"id": "a-1", "slug": "demo", "status": "published", "title": "Demo"})
-	server := httptest.NewServer(handler)
-	defer server.Close()
-	post, err := http.Post(server.URL+"/api/v1/article", "application/json", bytes.NewReader(body))
+	client := &http.Client{Transport: articleEditionRoundTripper{handler: handler}}
+	baseURL := "http://article-edition.test"
+	post, err := client.Post(baseURL+"/api/v1/article", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +50,7 @@ func TestDemoCompositionWiresGeneratedCRUD(t *testing.T) {
 		t.Fatalf("POST status = %d", post.StatusCode)
 	}
 	_ = post.Body.Close()
-	get, err := http.Get(server.URL + "/api/v1/article/a-1")
+	get, err := client.Get(baseURL + "/api/v1/article/a-1")
 	if err != nil {
 		t.Fatal(err)
 	}

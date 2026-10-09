@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext } from "@playwright/test";
-import { execFileSync, type ChildProcess } from "node:child_process";
+import { spawnSync, type ChildProcess, type StdioOptions } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -15,6 +15,15 @@ let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 
+function runGo(args: string[], options: { cwd: string; input?: string; stdio?: StdioOptions }): string {
+  const result = spawnSync("go", args, { ...options, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  // This runner can report EPERM after a child completed; a nonzero exit still fails.
+  if (result.status !== 0 || (result.error && result.error.code !== "EPERM")) {
+    throw new Error(`go ${args.join(" ")} failed: ${result.error?.message ?? result.stderr ?? `exit ${result.status}`}`);
+  }
+  return result.stdout ?? "";
+}
+
 test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
   test.beforeAll(async () => {
@@ -27,9 +36,9 @@ test.describe("single Edition administrator management", () => {
     if (dialect === "postgres" && !process.env.HYDRO_PG_PRIVILEGED_ROLE) {
       throw new Error("HYDRO_PG_PRIVILEGED_ROLE must name the PostgreSQL backup operator role for the Admin management run");
     }
-    execFileSync("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runGo(["run", "./cmd/hydro", "migrate", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runGo(["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    runGo(["run", "./tests/e2e/support/seedroles", "--database-dialect", dialect, "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer("go", ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", dialect, "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) } });
@@ -831,6 +840,15 @@ test.describe("single Edition administrator management", () => {
           .filter((target) => target.getBoundingClientRect().height < 44)
           .map((target) => `${target.textContent?.trim() || target.getAttribute("aria-label") || target.tagName}: ${Math.round(target.getBoundingClientRect().height)}px`));
         expect(smallActions, `${route} main actions must be at least 44px high`).toEqual([]);
+        if (route === "/admin/media") {
+          const mediaTargets = page.locator(".media-thumb-overlay .media-overlay-btn");
+          expect(await mediaTargets.count(), "media cards must expose quick actions at narrow viewports").toBeGreaterThan(0);
+          const smallMediaTargets = await mediaTargets.evaluateAll((targets) => targets
+            .filter((target) => target.getClientRects().length > 0)
+            .filter((target) => target.getBoundingClientRect().width < 44 || target.getBoundingClientRect().height < 44)
+            .map((target) => `${target.getAttribute("title") || target.tagName}: ${Math.round(target.getBoundingClientRect().width)}×${Math.round(target.getBoundingClientRect().height)}px`));
+          expect(smallMediaTargets, "media card quick actions must be at least 44×44px").toEqual([]);
+        }
         const smallInfoTargets = await page.locator(".studio-info-tip").evaluateAll((targets) => targets
           .filter((target) => target.getClientRects().length > 0)
           .filter((target) => target.getBoundingClientRect().width < 24 || target.getBoundingClientRect().height < 24)
@@ -845,7 +863,7 @@ test.describe("single Edition administrator management", () => {
     test.setTimeout(120_000);
     const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
     const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
-    const token = execFileSync("go", ["run", "./tests/e2e/support/seedinvite", "--database-dialect", dialect, "--database-dsn", database, "--email", "invited-editor@example.test"], { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const token = runGo(["run", "./tests/e2e/support/seedinvite", "--database-dialect", dialect, "--database-dsn", database, "--email", "invited-editor@example.test"], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] }).trim();
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });

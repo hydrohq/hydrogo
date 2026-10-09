@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 func TestSentryReporterSendsBoundedSanitizedPanicEvent(t *testing.T) {
@@ -17,7 +19,8 @@ func TestSentryReporterSendsBoundedSanitizedPanicEvent(t *testing.T) {
 		auth   string
 		method string
 	}, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const endpoint = "http://127.0.0.1:19094"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19094": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		received <- struct {
 			body   []byte
@@ -25,9 +28,8 @@ func TestSentryReporterSendsBoundedSanitizedPanicEvent(t *testing.T) {
 			method string
 		}{body, r.Header.Get("X-Sentry-Auth"), r.URL.Path}
 		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer server.Close()
-	reporter, err := NewSentryReporter(strings.Replace(server.URL, "http://", "http://public-key@", 1)+"/42", server.Client(), 2)
+	})})
+	reporter, err := NewSentryReporter(strings.Replace(endpoint, "http://", "http://public-key@", 1)+"/42", client, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,13 +75,13 @@ func TestSentryReporterRejectsUnsafeDSN(t *testing.T) {
 
 func TestSentryReporterCapturesServerErrorWithoutRequestDetails(t *testing.T) {
 	received := make(chan []byte, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const endpoint = "http://127.0.0.1:19095"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19095": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		received <- body
 		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer server.Close()
-	reporter, err := NewSentryReporter(strings.Replace(server.URL, "http://", "http://public-key@", 1)+"/project", server.Client(), 1)
+	})})
+	reporter, err := NewSentryReporter(strings.Replace(endpoint, "http://", "http://public-key@", 1)+"/project", client, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
