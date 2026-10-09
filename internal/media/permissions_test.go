@@ -42,16 +42,17 @@ func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T)
 	}
 	csrf := security.CSRFMiddleware(false, nil)(mux)
 	routes := []struct {
-		name   string
-		method string
-		path   string
+		name                 string
+		method               string
+		path                 string
+		usesMediaManageGrant bool
 	}{
-		{name: "list", method: http.MethodGet, path: "/admin/media"},
-		{name: "upload", method: http.MethodPost, path: "/admin/media"},
-		{name: "metadata", method: http.MethodPost, path: "/admin/media/a1/metadata"},
-		{name: "folder", method: http.MethodPost, path: "/admin/media/folders"},
-		{name: "settings", method: http.MethodPost, path: "/admin/media/settings"},
-		{name: "visibility", method: http.MethodPost, path: "/admin/media/a1/visibility"},
+		{name: "list", method: http.MethodGet, path: "/admin/media", usesMediaManageGrant: true},
+		{name: "upload", method: http.MethodPost, path: "/admin/media", usesMediaManageGrant: true},
+		{name: "metadata", method: http.MethodPost, path: "/admin/media/a1/metadata", usesMediaManageGrant: true},
+		{name: "folder", method: http.MethodPost, path: "/admin/media/folders", usesMediaManageGrant: true},
+		{name: "settings", method: http.MethodPost, path: "/admin/media/settings", usesMediaManageGrant: true},
+		{name: "visibility", method: http.MethodPost, path: "/admin/media/a1/visibility", usesMediaManageGrant: true},
 		{name: "cleanup plan", method: http.MethodGet, path: "/admin/media/cleanup"},
 		{name: "cleanup", method: http.MethodPost, path: "/admin/media/cleanup/delete"},
 	}
@@ -61,11 +62,15 @@ func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T)
 	}{
 		{name: "editor denied", user: &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}}},
 		{name: "viewer default", user: &auth.User{ID: "viewer", Active: true, Role: auth.RoleViewer}},
+		{name: "admin explicit media deny", user: &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}}},
 	}
 	for _, user := range users {
 		t.Run(user.name, func(t *testing.T) {
 			for _, route := range routes {
 				t.Run(route.name, func(t *testing.T) {
+					if user.name == "admin explicit media deny" && !route.usesMediaManageGrant {
+						t.Skip("cleanup is guarded by its separate Admin-only capability")
+					}
 					serve := func(token string) *httptest.ResponseRecorder {
 						body := "_csrf=" + token
 						request := httptest.NewRequest(route.method, route.path, strings.NewReader(body))

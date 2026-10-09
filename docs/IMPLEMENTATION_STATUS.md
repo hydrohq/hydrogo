@@ -14,6 +14,11 @@ resource, tenant, and API authorization; read-only Viewer composition is covered
 by SQLite contract tests. The real Chromium session remains an external
 listener-capable gate; see ADR-0365 and the audit plan evidence.
 
+2026-10-09 permission-matrix follow-up: media Admin management routes now have
+valid-CSRF and invalid-CSRF denial assertions for Editor and Viewer defaults
+and an explicit Admin `media.manage` deny override. The cleanup route keeps its
+separate Admin-only boundary. See `admin-permission-matrix-2026-10-08.md`.
+
 ## Tamamlanan ve doğrulanan parçalar
 
 | Alan | Durum | Nasıl kullanılır? | Kanıt |

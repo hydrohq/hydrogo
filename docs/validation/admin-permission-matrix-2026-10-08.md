@@ -101,6 +101,26 @@ Both commands passed locally. This matrix covers denied mutations; successful
 CRUD persistence is covered by the existing Dynamic Collections SQLite
 Chromium journey. It does not claim a PostgreSQL browser result.
 
+## Media Admin explicit permission-deny matrix — 2026-10-09
+
+The real registered media Admin routes now include an active Admin with an
+explicit `media.manage=false` override in addition to an Editor with the same
+deny and a default Viewer. List, upload, metadata, folder, settings, and
+visibility routes return 403 for each user. For mutation routes, a mismatched
+CSRF token is rejected by the production middleware, and a valid CSRF token
+then reaches the media permission boundary and is denied before handler
+dependencies. Media cleanup is intentionally kept as a separate Admin-only
+capability and is not included in the `media.manage` override assertion.
+
+```sh
+go test ./internal/media -run 'TestMediaAccessUsesPermissionOverrides|TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies|TestAdminMediaSettingsPersistAndApplyHotlinkProtection' -count=1
+go vet ./internal/media
+```
+
+Both passed. Existing successful Editor settings persistence and visibility
+tests remain in the same package. This adds the explicit Admin-deny cells for
+media management; it does not close the repository-wide route × role matrix.
+
 ## Admin push broadcast route — 2026-10-08
 
 The successful broadcast test now mounts the real `Handler.Routes()` registry
