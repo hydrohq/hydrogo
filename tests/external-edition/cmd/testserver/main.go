@@ -111,7 +111,9 @@ func main() {
 			role := r.Header.Get("X-Test-Role")
 			return role == "admin" || role == "editor" || role == "viewer"
 		},
-		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
+		CanReadResource: func(r *http.Request, _ adminstudio.Collection) bool {
+			return r.Header.Get("X-Test-Role") != "viewer"
+		},
 		ResourceAccess: func(r *http.Request, _ adminstudio.Collection, id string) adminstudio.ResourceAccess {
 			if r.Header.Get("X-Test-Role") == "viewer" {
 				return adminstudio.ResourceAccess{}
