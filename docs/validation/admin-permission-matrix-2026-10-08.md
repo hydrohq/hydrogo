@@ -220,11 +220,11 @@ permission flow.
 
 Delete and restore requests now go through the registered trash routes, an
 active-session router authorizer, and production CSRF middleware. Wrong tokens
-for both content and submission routes return 403 without calling the service.
-With valid tokens, the matrix verifies Editor's default page permission and
-submission denial, Viewer denial, explicit content-write denial for Editor and
-Admin, explicit site-management denial for Admin, and an explicit site grant
-allowing an Editor to restore a submission.
+and absent tokens for both content and submission routes return 403 without
+calling the service. With valid tokens, the matrix verifies Editor's default
+page permission and submission denial, Viewer denial, explicit content-write
+denial for Editor and Admin, explicit site-management denial for Admin, and an
+explicit site grant allowing an Editor to restore a submission.
 
 ```sh
 go test ./internal/trash/... -count=1
