@@ -957,6 +957,91 @@ func TestSiteStaffNoticeAdminRoutePersistsPrivateValidatedNotice(t *testing.T) {
 	}
 }
 
+func TestSiteCustomCodeAdminRouteIsPrivateAndAdminOnly(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-custom-code-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{DB: db, Store: store, Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/custom-code" || route.Pattern == "GET /admin/site/custom-code" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token, head string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"_csrf": {token}, "custom_head_code": {head}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/custom-code", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertMissing := func() {
+		t.Helper()
+		if _, found, err := store.GetSetting(context.Background(), db, site.CustomCodeSettingKey); err != nil || found {
+			t.Fatalf("unauthorized custom code persisted: found=%t err=%v", found, err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	valid := `<script src="https://www.googletagmanager.com/gtm.js"></script>`
+	if response := post(admin, "wrong-token", valid); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertMissing()
+	for name, user := range map[string]*auth.User{
+		"editor with site permission": {ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}},
+		"inactive admin":              {ID: "inactive", Role: auth.RoleAdmin, Active: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if response := post(user, "valid-token", valid); response.Code != http.StatusForbidden {
+				t.Fatalf("custom code status=%d, want 403", response.Code)
+			}
+			assertMissing()
+		})
+	}
+	if response := post(admin, "valid-token", valid); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/custom-code?saved=1" {
+		t.Fatalf("authorized custom code response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, site.CustomCodeSettingKey)
+	if err != nil || !found || setting.Public || site.CustomCodeFromSetting(setting).Head != valid {
+		t.Fatalf("private custom code=%+v found=%t err=%v", setting, found, err)
+	}
+	publicSettings, err := store.ListPublicSettings(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, publicSetting := range publicSettings {
+		if publicSetting.Key == site.CustomCodeSettingKey {
+			t.Fatal("custom code appeared in the public settings projection")
+		}
+	}
+	getRequest := httptest.NewRequest(http.MethodGet, "/admin/site/custom-code", nil)
+	getRequest = getRequest.WithContext(auth.WithUser(getRequest.Context(), admin))
+	getResponse := httptest.NewRecorder()
+	secured.ServeHTTP(getResponse, getRequest)
+	if getResponse.Code != http.StatusOK || !strings.Contains(getResponse.Body.String(), "www.googletagmanager.com/gtm.js") {
+		t.Fatalf("custom code editor did not read persisted value: status=%d body=%s", getResponse.Code, getResponse.Body.String())
+	}
+	if response := post(admin, "valid-token", `<script src="https://evil.example/steal.js"></script>`); response.Code != http.StatusBadRequest {
+		t.Fatalf("unapproved provider status=%d, want 400", response.Code)
+	}
+	unchanged, found, err := store.GetSetting(context.Background(), db, site.CustomCodeSettingKey)
+	if err != nil || !found || site.CustomCodeFromSetting(unchanged).Head != valid {
+		t.Fatalf("invalid custom code replaced prior value: found=%t err=%v value=%+v", found, err, unchanged)
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()

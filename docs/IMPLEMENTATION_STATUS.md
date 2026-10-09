@@ -256,6 +256,12 @@ projection, and invalid severity or unauthorized/CSRF-denied writes leave the
 previous value unchanged. Remaining Site mutations and PostgreSQL route-level
 tests remain open.
 
+ADR-0324 custom-code admin routes now have SQLite/CSRF integration coverage:
+only an active Admin can save; an Editor with `site.manage=true` is denied;
+approved code round-trips to the editor but remains private; unapproved hosts
+cannot replace the saved value. Other Site route state and PostgreSQL route
+coverage remain open.
+
 Windows'ta:
 
 ```powershell
