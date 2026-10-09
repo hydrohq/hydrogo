@@ -377,6 +377,25 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
 
+### Form working-hours editor persistence — 2026-10-09
+
+The registered `POST /admin/site/forms/{id}/working-hours` route now verifies
+authorization, CSRF, validation and persisted state against SQLite. Invalid
+CSRF, Editor and Admin `site.manage=false` are denied without writes. Unknown
+timezone and reversed hours return 400 without replacing existing state. An
+authorized Admin saves a Europe/Istanbul weekday interval and notice, which
+read back exactly. This proves the route and form store contract, not the
+browser interaction or PostgreSQL route behavior.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -run '^TestSiteFormWorkingHoursRoutePersistsOnlyValidAuthorizedSchedule$' -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go vet ./modules/site/transport
+```
+
 ### Site mail-spool retry success and denial — 2026-10-09
 
 The registered `POST /admin/site/mail/{id}/retry` route now has an integrated

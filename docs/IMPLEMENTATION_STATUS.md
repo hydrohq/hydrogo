@@ -296,6 +296,12 @@ coverage: Admin downloads persisted submissions; Editor is denied; CSV guards
 formula-like values and XLSX stores them as inline text. Browser workflows and
 PostgreSQL route behavior remain open.
 
+The Form Builder working-hours route now has SQLite authorization, CSRF,
+validation and persisted-state coverage: denied requests do not write, invalid
+timezone or reversed interval does not replace settings, and an authorized
+Admin's Istanbul schedule reads back exactly. Browser interaction and
+PostgreSQL route behavior remain open.
+
 Windows'ta:
 
 ```powershell
