@@ -2,7 +2,7 @@
 
 ## Change
 
-Added the Pages and News collection lists to the responsive Admin inventory and to the authenticated WCAG 2.1 A/AA matrix. The lists are now included at 390px, 768px, and 1280px in the responsive spec, and under all four Studio families in light and dark modes in the Admin theme test.
+Added the Pages and News collection lists to the responsive Admin inventory and to the authenticated WCAG 2.1 A/AA matrix. The lists are now included at 390px, 768px, and 1280px in the responsive spec, under all four Studio families in light and dark modes in the Admin theme test, and in the real Admin-session mobile/tablet overflow and touch-target check.
 
 ## Verification
 
