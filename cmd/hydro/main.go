@@ -772,13 +772,27 @@ func resourceCreateFromFlags(args []string, stdout, stderr io.Writer) error {
 	if len(dialects) == 0 {
 		dialects = []string{"sqlite", "postgres"}
 	}
-	spec := generator.Spec{Name: strings.TrimSpace(*name), Table: strings.TrimSpace(*table), Fields: fields, Permissions: permissions, Dialects: dialects, Admin: generator.Admin{Label: strings.TrimSpace(*adminLabel)}}
+	spec := generator.Spec{Name: strings.TrimSpace(*name), Table: strings.TrimSpace(*table), Fields: fields, Permissions: permissions, Dialects: dialects, Admin: generator.Admin{Label: strings.TrimSpace(*adminLabel), UseAsTitle: resourceCreateTitleField(fields)}}
 	lock, err := generator.Generate(*out, spec)
 	if err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(stdout, "resource-created collection=%s out=%s spec_sha256=%s generator=%s\n", spec.Name, *out, lock.SpecSHA256, lock.GeneratorVersion)
 	return err
+}
+
+func resourceCreateTitleField(fields []generator.Field) string {
+	for _, field := range fields {
+		if field.Name == "title" && (field.Type == "string" || field.Type == "text") {
+			return field.Name
+		}
+	}
+	for _, field := range fields {
+		if field.Type == "string" || field.Type == "text" {
+			return field.Name
+		}
+	}
+	return ""
 }
 
 func containsString(values []string, wanted string) bool {
