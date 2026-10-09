@@ -73,6 +73,14 @@ Admin-management Chromium file passed 6/6 on SQLite and PostgreSQL 18.6;
 public login error states and production deployment routes remain open.
 Evidence: `admin-login-confirmation-accessibility-2026-10-09.md`.
 
+2026-10-09 Admin login error follow-up: real invalid-credential submissions
+receive the localized generic 401 alert and passed WCAG 2.1 A/AA in English/
+Turkish and light/dark (4/4). A light-mode contrast failure at 3.08:1 was
+fixed with a darker error token. The complete Admin-management browser file
+passed 7/7 on SQLite and PostgreSQL 18.6; `go test ./internal/ui -count=1`
+and the Impeccable detector passed. MFA/rate-limit states remain open.
+Evidence: `admin-login-error-accessibility-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered
