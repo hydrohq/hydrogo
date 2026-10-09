@@ -93,7 +93,8 @@ a binary rollback.
   affordances, direct valid-CSRF mutation denial, and unchanged persisted data;
   Admin and Editor CRUD remain covered.
 - Opt-in Chromium acceptance checks Viewer shell identity, read-only list and
-  detail, direct mutation denial, unchanged data, axe, and mobile overflow.
+  detail, hidden privileged navigation, direct mutation denial, unchanged data,
+  axe, and mobile overflow.
   Actual browser execution remains an external listener-capable gate.
 - SQLite contract tests and repository guards are required. PostgreSQL data
   behavior is unchanged, but generated Edition PostgreSQL acceptance remains a

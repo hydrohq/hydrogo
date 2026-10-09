@@ -76,6 +76,10 @@ test.describe("independent Edition generated Admin editor journey", () => {
       await expect(viewerPage.locator('body[data-studio-role="viewer"]')).toBeVisible();
       await expect(viewerPage.getByRole("link", { name: "Yeni kayıt" })).toHaveCount(0);
       await expect(viewerPage.getByRole("link", { name: `${title} updated` })).toBeVisible();
+      const viewerNavigation = viewerPage.locator(".studio-sidebar");
+      for (const privilegedPath of ["/admin/users", "/admin/permissions", "/admin/security", "/admin/audit", "/admin/backup", "/admin/developer", "/admin/control", "/admin/operations"]) {
+        await expect(viewerNavigation.locator(`a[href="${privilegedPath}"]`)).toHaveCount(0);
+      }
       await expectNoA11yViolations(viewerPage, "viewer read-only resource list");
 
       const viewerRecordPath = await viewerPage.getByRole("link", { name: `${title} updated` }).getAttribute("href");
