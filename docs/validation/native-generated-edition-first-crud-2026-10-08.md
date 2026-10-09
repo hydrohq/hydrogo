@@ -120,3 +120,30 @@ TMPDIR=/var/tmp npm test -- --project=chromium --workers=1 \
 The PostgreSQL run uses an empty disposable database because the example's
 reviewed migrations are intentionally not idempotent. The temporary PostgreSQL
 container was removed after verification.
+
+## 2026-10-09 native Edition replay
+
+The native Project Edition Chromium CRUD path was rerun against both SQLite
+and PostgreSQL 18 using the Edition's own migration set. Both runs passed 1/1.
+PostgreSQL ran in an isolated temporary cluster with a dedicated app role and
+database; the cluster and its temporary directory were stopped and removed at
+the end of the run. No shared PostgreSQL instance was used.
+
+Commands:
+
+```sh
+cd e2e
+TMPDIR=/var/tmp/hydro-go-tests npm exec playwright test \
+  custom/generated-admin-crud.spec.ts -- --project=chromium --workers=1 \
+  --reporter=line --trace=off
+
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+HYDRO_E2E_DATABASE_DSN='postgres://hydro_app@127.0.0.1:<port>/hydro_project?sslmode=disable' \
+TMPDIR=/var/tmp/hydro-go-tests npm exec playwright test \
+  custom/generated-admin-crud.spec.ts -- --project=chromium --workers=1 \
+  --reporter=line --trace=off
+```
+
+This verifies the pre-composed native Edition's migration/API/Admin browser
+CRUD path. It does not close the clean `hydro project new` scaffold-to-first-
+CRUD acceptance criterion or prove production identity and tenant isolation.
