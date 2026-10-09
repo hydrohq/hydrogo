@@ -16,7 +16,10 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
+	sitesql "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 )
 
 type fakeStore struct{}
@@ -281,6 +284,64 @@ func TestAdminSiteSettingUsesSiteManageOverrides(t *testing.T) {
 				t.Fatalf("setting writes=%d want=%d", store.upserts, wantWrites)
 			}
 		})
+	}
+}
+
+func TestAdminSiteSettingRouteEnforcesCSRFBeforePermission(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-setting-csrf.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	registered := false
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/settings" {
+			mux.Handle(route.Pattern, route.Handler)
+			registered = true
+			break
+		}
+	}
+	if !registered {
+		t.Fatal("POST /admin/site/settings was not registered")
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"HydroGo"}`))
+		request.Header.Set("Content-Type", "application/json")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+
+	if response := post(&auth.User{Role: auth.RoleAdmin, Active: true}, "wrong-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	if _, found, err := store.GetSetting(context.Background(), db, "site.name"); err != nil || found {
+		t.Fatalf("invalid CSRF changed persisted setting: found=%t err=%v", found, err)
+	}
+	if response := post(&auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, "valid-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	if _, found, err := store.GetSetting(context.Background(), db, "site.name"); err != nil || found {
+		t.Fatalf("denied Admin changed persisted setting: found=%t err=%v", found, err)
+	}
+	if response := post(&auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, "valid-token"); response.Code != http.StatusNoContent {
+		t.Fatalf("granted editor status=%d, want 204: %s", response.Code, response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, "site.name")
+	if err != nil || !found || setting.Value != "HydroGo" {
+		t.Fatalf("permitted setting was not persisted: setting=%+v found=%t err=%v", setting, found, err)
 	}
 }
 
