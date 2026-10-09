@@ -948,7 +948,7 @@ func (h GeneratedAdminHandler) renderReadOnlyRecord(w http.ResponseWriter, r *ht
 		if _, err := io.WriteString(out, `</dl>`); err != nil {
 			return err
 		}
-		return ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: "Listeye dön", Class: "button button-quiet"}).Render(ctx, out)
+		return ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: i18n.T(generatedAdminLocale(r), "admin.generated.form.back_to_list"), Class: "button button-quiet"}).Render(ctx, out)
 	})
 	card := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		return ui.Card(ui.CardProps{Title: collection.Label + " · " + displayValue(record[collection.TitleField]), Class: "studio-card", Body: body}).Render(ctx, out)
@@ -1096,7 +1096,7 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 				return err
 			}
 		}
-		fields := generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, h.Options.BlockEditor)
+		fields := generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, generatedAdminLocale(r), h.Options.BlockEditor)
 		formBody := templ.Component(fields)
 		if status == http.StatusUnprocessableEntity || len(fieldErrors) > 0 {
 			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
@@ -1157,9 +1157,9 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 		}
 		return nil
 	})
-	title := "Yeni kayıt · " + collection.Label
+	title := i18n.T(generatedAdminLocale(r), "admin.generated.form.create_title") + " · " + collection.Label
 	if editing {
-		title = "Kaydı düzenle · " + collection.Label
+		title = i18n.T(generatedAdminLocale(r), "admin.generated.form.edit_title") + " · " + collection.Label
 	}
 	if status != 0 {
 		w.WriteHeader(status)
@@ -2011,7 +2011,7 @@ func recordVersion(value any) int64 {
 	return 0
 }
 
-func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit, draftEdit, saveAllowed bool, blockEditor BlockEditorConfig) templ.Component {
+func generatedFormFields(collection Collection, values map[string]string, relationOptions map[string][]ui.SelectOption, id string, editing bool, locale, defaultLocale string, localizedEdit, draftEdit, saveAllowed bool, interfaceLocale string, blockEditor BlockEditorConfig) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if editing && collection.Versioned && !localizedEdit && !draftEdit {
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "version", Value: values["version"]}).Render(ctx, out); err != nil {
@@ -2084,7 +2084,7 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				items := append([]ui.SelectOption(nil), relationOptions[field.ID]...)
 				selected := relationIDsFromValue(values[field.ID], field.Relation.Cardinality)
 				if field.Relation.Cardinality == "one" {
-					items = append([]ui.SelectOption{{Value: "", Label: "Seçin"}}, items...)
+					items = append([]ui.SelectOption{{Value: "", Label: i18n.T(interfaceLocale, "admin.generated.form.choose_relation")}}, items...)
 				}
 				if err := ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Items: items, Selected: selected, Multiple: field.Relation.Cardinality == "many", Required: props.Required}).Render(ctx, out); err != nil {
 					return err
@@ -2127,9 +2127,9 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				return err
 			}
 		}
-		label := "Kaydet"
+		label := i18n.T(interfaceLocale, "admin.generated.form.save")
 		if draftEdit {
-			label = "Taslağı kaydet"
+			label = i18n.T(interfaceLocale, "admin.generated.form.save_draft")
 		}
 		return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Primary, Disabled: !saveAllowed}).Render(ctx, out)
 	})
