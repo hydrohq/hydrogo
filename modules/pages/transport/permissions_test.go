@@ -15,10 +15,16 @@ func TestContentWritePermissionGuardsPageAdminRoutes(t *testing.T) {
 	handler := Handler{}
 	wantedRoutes := []string{
 		"POST /api/pages",
+		"PUT /api/pages/{id}",
+		"POST /api/pages/{id}/publish",
 		"GET /admin/pages/new",
 		"POST /admin/pages",
 		"POST /admin/pages/{id}",
 		"POST /admin/pages/{id}/publish",
+		"POST /admin/pages/{id}/translate",
+		"POST /admin/pages/{id}/revisions/{revision}/restore",
+		"POST /admin/pages/import",
+		"POST /admin/pages/bulk",
 	}
 	routes := make(map[string]http.Handler)
 	for _, route := range handler.Routes() {
@@ -48,6 +54,7 @@ func TestContentWritePermissionGuardsPageAdminRoutes(t *testing.T) {
 			t.Fatalf("invalid route pattern %q", pattern)
 		}
 		path = strings.ReplaceAll(path, "{id}", "page-1")
+		path = strings.ReplaceAll(path, "{revision}", "1")
 		csrfRoute := security.CSRFMiddleware(false, nil)(route)
 		if method != http.MethodGet {
 			for _, csrfCase := range []struct {

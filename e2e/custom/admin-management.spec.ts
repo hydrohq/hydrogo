@@ -698,6 +698,29 @@ test.describe("single Edition administrator management", () => {
       form: { _csrf: restrictedCsrfToken, version: "1" },
     });
     expect(deniedPublishMutation.status()).toBe(403);
+    const deniedTranslateMutation = await restrictedEditor.request.post(`${editPageURL}/translate`, {
+      form: { _csrf: restrictedCsrfToken, locale: "en", title: "Denied translation", body: "Denied body" },
+    });
+    expect(deniedTranslateMutation.status()).toBe(403);
+    const deniedRestoreMutation = await restrictedEditor.request.post(`${editPageURL}/revisions/1/restore`, {
+      form: { _csrf: restrictedCsrfToken },
+    });
+    expect(deniedRestoreMutation.status()).toBe(403);
+    const apiHeaders = { "X-CSRF-Token": restrictedCsrfToken };
+    const deniedAPICreate = await restrictedEditor.request.post(`${baseURL}/api/pages`, {
+      headers: apiHeaders,
+      data: { locale: "en", slug: "denied-api-page", title: "Denied API page", body: "" },
+    });
+    expect(deniedAPICreate.status()).toBe(403);
+    const deniedAPIUpdate = await restrictedEditor.request.put(`${baseURL}/api/pages/${createdPageID}`, {
+      headers: apiHeaders,
+      data: { locale: "en", slug: "role-editor-page", title: "Denied API update", body: "", version: 1 },
+    });
+    expect(deniedAPIUpdate.status()).toBe(403);
+    const deniedAPIPublish = await restrictedEditor.request.post(`${baseURL}/api/pages/${createdPageID}/publish?version=1`, {
+      headers: apiHeaders,
+    });
+    expect(deniedAPIPublish.status()).toBe(403);
     const deniedImportMutation = await restrictedEditor.request.post(`${baseURL}/admin/pages/import`, {
       form: { _csrf: restrictedCsrfToken },
     });
@@ -710,6 +733,10 @@ test.describe("single Edition administrator management", () => {
     const pageAfterDeniedPublish = await page.request.get(`${baseURL}/api/pages/${createdPageID}`);
     expect(pageAfterDeniedPublish.status()).toBe(200);
     expect(await pageAfterDeniedPublish.json()).toMatchObject({ status: "draft", title: "Editor session page" });
+    const finalAdminPageList = await page.request.get(`${baseURL}/admin/pages`);
+    const finalAdminPageListHTML = await finalAdminPageList.text();
+    expect(finalAdminPageListHTML).not.toContain("denied-api-page");
+    expect(finalAdminPageListHTML).not.toContain("Denied translation");
     const deniedSearch = await restrictedEditor.request.get(`${baseURL}/admin/api/search?q=Hydro`);
     expect(deniedSearch.status()).toBe(200);
     const deniedSearchBody = await deniedSearch.json();
