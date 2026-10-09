@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"mime/multipart"
 	"net/http"
@@ -1547,6 +1548,85 @@ func TestPublicFormSubmissionToAdminInboxAndLeadWorkflow(t *testing.T) {
 	final := loadSubmissions()
 	if len(final) != 1 || final[0].Status != "triaged" || final[0].LeadStage != "contacted" || final[0].AssignedTo != "operator-1" {
 		t.Fatalf("persisted inbox/lead workflow=%+v", final)
+	}
+}
+
+func TestLeadNotesRequireSitePermissionAndPersistAuthor(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-lead-notes-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
+	if err := service.Submit(context.Background(), site.Submission{ID: "form-note-001", FormKey: "contact", Email: "customer@example.test", Payload: `{"message":"Help"}`, SourceIPHash: strings.Repeat("a", 64)}); err != nil {
+		t.Fatal(err)
+	}
+	handler := Handler{Service: service, FormsEnabled: true}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/inbox/{id}/notes" || route.Pattern == "GET /admin/site/inbox/{id}/notes" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	list := func(user *auth.User) ([]site.LeadNote, int) {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodGet, "/admin/site/inbox/form-note-001/notes", nil)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			return nil, response.Code
+		}
+		var notes []site.LeadNote
+		if err := json.Unmarshal(response.Body.Bytes(), &notes); err != nil {
+			t.Fatalf("decode lead notes: %v; body=%s", err, response.Body.String())
+		}
+		return notes, response.Code
+	}
+	add := func(user *auth.User, token, note string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"_csrf": {token}, "note": {note}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/inbox/form-note-001/notes", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := add(admin, "wrong-token", "Call customer tomorrow"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF note status=%d, want 403", response.Code)
+	}
+	if response := add(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "valid-token", "Call customer tomorrow"); response.Code != http.StatusForbidden {
+		t.Fatalf("Editor note status=%d, want 403", response.Code)
+	}
+	deniedAdmin := &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := add(deniedAdmin, "valid-token", "Call customer tomorrow"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin note status=%d, want 403", response.Code)
+	}
+	if notes, _ := list(admin); len(notes) != 0 {
+		t.Fatalf("denied note requests persisted notes: %+v", notes)
+	}
+	permittedEditor := &auth.User{ID: "editor-1", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}
+	if response := add(permittedEditor, "valid-token", "Call customer tomorrow"); response.Code != http.StatusCreated {
+		t.Fatalf("permitted Editor note status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response := add(admin, "valid-token", ""); response.Code != http.StatusBadRequest {
+		t.Fatalf("empty note status=%d, want 400", response.Code)
+	}
+	notes, status := list(admin)
+	if status != http.StatusOK || len(notes) != 1 || notes[0].AuthorID != "editor-1" || notes[0].SubmissionID != "form-note-001" || notes[0].Note != "Call customer tomorrow" {
+		t.Fatalf("persisted lead notes=%+v status=%d", notes, status)
+	}
+	if _, status := list(&auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}); status != http.StatusForbidden {
+		t.Fatalf("viewer notes status=%d, want 403", status)
 	}
 }
 
