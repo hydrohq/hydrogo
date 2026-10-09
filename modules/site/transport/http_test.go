@@ -1507,6 +1507,86 @@ func TestSiteFormBuilderAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
 	}
 }
 
+func TestSiteFormWorkingHoursRoutePersistsOnlyValidAuthorizedSchedule(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-working-hours-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	formStore := formssql.Store{Executor: db, Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store, Forms: formStore}
+	initial := forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}}
+	if err := service.SaveForm(context.Background(), initial); err != nil {
+		t.Fatal(err)
+	}
+	handler := Handler{FormsEnabled: true, Service: service}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/forms/{id}/working-hours" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	save := func(user *auth.User, token string, values url.Values) *httptest.ResponseRecorder {
+		t.Helper()
+		values.Set("_csrf", token)
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/forms/contact/working-hours", strings.NewReader(values.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	load := func() forms.Form {
+		t.Helper()
+		form, err := formStore.Get(context.Background(), "contact")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return form
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	valid := url.Values{"timezone": {"Europe/Istanbul"}, "notice": {"We reopen at {time}."}, "open_1": {"09:00"}, "close_1": {"17:00"}}
+	for _, denied := range []struct {
+		name  string
+		user  *auth.User
+		token string
+	}{
+		{name: "invalid CSRF", user: admin, token: "wrong-token"},
+		{name: "Editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
+		{name: "permission denied", user: &auth.User{ID: "denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, token: "valid-token"},
+	} {
+		t.Run(denied.name, func(t *testing.T) {
+			if response := save(denied.user, denied.token, valid); response.Code != http.StatusForbidden {
+				t.Fatalf("denied update status=%d body=%s", response.Code, response.Body.String())
+			}
+			if got := load(); got.WorkingHours != nil {
+				t.Fatalf("denied update persisted schedule: %+v", got.WorkingHours)
+			}
+		})
+	}
+	invalid := url.Values{"timezone": {"Not/AZone"}, "open_1": {"17:00"}, "close_1": {"09:00"}}
+	if response := save(admin, "valid-token", invalid); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid schedule status=%d body=%s", response.Code, response.Body.String())
+	}
+	if got := load(); got.WorkingHours != nil {
+		t.Fatalf("invalid schedule replaced current state: %+v", got.WorkingHours)
+	}
+	if response := save(admin, "valid-token", valid); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/forms?id=contact" {
+		t.Fatalf("authorized schedule status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	saved := load()
+	if saved.WorkingHours == nil || saved.WorkingHours.Timezone != "Europe/Istanbul" || saved.WorkingHours.Days[1] != (forms.DailyHours{Open: "09:00", Close: "17:00"}) || saved.WorkingHours.Notice != "We reopen at {time}." {
+		t.Fatalf("persisted schedule mismatch: %+v", saved.WorkingHours)
+	}
+}
+
 func TestPublicFormSubmissionToAdminInboxAndLeadWorkflow(t *testing.T) {
 	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-public-inbox-workflow.sqlite"))
 	if err != nil {
