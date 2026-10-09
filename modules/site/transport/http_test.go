@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1216,6 +1217,97 @@ func TestSiteRedirectRuleAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
 	}
 	if remaining := list(); len(remaining) != 0 {
 		t.Fatalf("deleted redirect rule remains: %+v", remaining)
+	}
+}
+
+func TestSiteRedirectRuleCSVImportIsAuthorizedAndAllOrNothing(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-redirect-import-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
+	handler := Handler{Service: service}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/redirect-rules/import" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	importCSV := func(user *auth.User, token, csv string) *httptest.ResponseRecorder {
+		t.Helper()
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("file", "redirects.csv")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write([]byte(csv)); err != nil {
+			t.Fatal(err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/redirect-rules/import", &body)
+		request.Header.Set("Content-Type", writer.FormDataContentType())
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	list := func() []site.RedirectRule {
+		t.Helper()
+		rules, err := service.ListRedirectRules(context.Background(), 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rules
+	}
+	assertEmpty := func() {
+		t.Helper()
+		if rules := list(); len(rules) != 0 {
+			t.Fatalf("denied or invalid import persisted rules: %+v", rules)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	validCSV := "pattern,kind,target,status\n/old-a,exact,/new-a,301\n/old-b,exact,/new-b,308\n"
+	if response := importCSV(admin, "wrong-token", validCSV); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertEmpty()
+	if response := importCSV(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "valid-token", validCSV); response.Code != http.StatusForbidden {
+		t.Fatalf("Editor import status=%d, want 403", response.Code)
+	}
+	assertEmpty()
+	deniedAdmin := &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := importCSV(deniedAdmin, "valid-token", validCSV); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin import status=%d, want 403", response.Code)
+	}
+	assertEmpty()
+	invalidCSV := "pattern,kind,target,status\n/valid-first,exact,/target-first,301\n/invalid-second,exact,//evil.example/path,301\n"
+	if response := importCSV(admin, "valid-token", invalidCSV); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid batch status=%d, want 400", response.Code)
+	}
+	assertEmpty()
+	if response := importCSV(admin, "valid-token", validCSV); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/redirect-rules" {
+		t.Fatalf("authorized import status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	rules := list()
+	if len(rules) != 2 || rules[0].Pattern != "/old-a" || rules[0].TargetPath != "/new-a" || rules[0].Status != http.StatusMovedPermanently || rules[1].Pattern != "/old-b" || rules[1].Status != http.StatusPermanentRedirect {
+		t.Fatalf("imported redirect rules=%+v", rules)
+	}
+	if response := importCSV(admin, "valid-token", invalidCSV); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid follow-up batch status=%d, want 400", response.Code)
+	}
+	if unchanged := list(); len(unchanged) != 2 || unchanged[0].Pattern != "/old-a" || unchanged[1].Pattern != "/old-b" {
+		t.Fatalf("failed import partially changed persisted rules: %+v", unchanged)
 	}
 }
 
