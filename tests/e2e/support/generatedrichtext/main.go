@@ -66,6 +66,7 @@ func main() {
 
 	var mu sync.Mutex
 	records := map[string]map[string]any{}
+	failNextArticleWrite := false
 	draft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
 	translationDraft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
 	discardDraft := adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
@@ -124,6 +125,17 @@ func main() {
 			}
 			http.NotFound(w, r)
 			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/v1/article") && r.Method == http.MethodPost {
+			mu.Lock()
+			if failNextArticleWrite {
+				failNextArticleWrite = false
+				mu.Unlock()
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = fmt.Fprint(w, "fixture database host / internal failure")
+				return
+			}
+			mu.Unlock()
 		}
 		if editorialStore != nil {
 			handlePostgresArticleAPI(w, r, editorialStore)
@@ -226,6 +238,12 @@ func main() {
 	mux.HandleFunc("GET /test/editorjs.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		_, _ = w.Write(editorJS)
+	})
+	mux.HandleFunc("POST /__test/fail-next-article-write", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		failNextArticleWrite = true
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.Handle("/api/v1/article", api)
 	mux.Handle("/api/v1/article/", api)
