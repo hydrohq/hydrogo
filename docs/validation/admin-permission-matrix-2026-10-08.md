@@ -120,6 +120,21 @@ HYDRO_E2E_DATABASE_DIALECT=postgres \
   --grep 'editor and viewer sessions enforce' --reporter=line --trace=off
 ```
 
+## Current Admin-management Chromium regression — 2026-10-09
+
+After the page import and XLSX parser changes, the complete Admin-management
+Chromium file passed 5/5 on SQLite in 2.4 minutes. It reran the role/import
+journey, anonymous route access, Admin route accessibility-name and CSRF-less
+mutation checks, mobile/tablet fit, invitation acceptance, and the four Studio
+themes in both color modes. The focused role/import scenario separately passed
+1/1 on PostgreSQL 18.6; the full five-test file was not rerun on PostgreSQL.
+
+```sh
+cd e2e
+TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/admin-management.spec.ts \
+  --project=chromium --workers=1 --reporter=line --trace=off
+```
+
 ## Dynamic Collections mutation CSRF and role matrix — 2026-10-08
 
 The test builds the actual registered Collections router and wraps it with the
