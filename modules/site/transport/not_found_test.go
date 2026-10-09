@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
@@ -49,12 +51,52 @@ func TestNotFoundTrackingAndRedirectConversion(t *testing.T) {
 	if err != nil || len(items) != 1 || items[0].Path != "/missing" || items[0].Hits != 1 {
 		t.Fatalf("not found report=%+v err=%v", items, err)
 	}
-	form := url.Values{"source": {"/missing"}, "target": {"/available"}}
-	request = httptest.NewRequest("POST", "/admin/redirects/convert", strings.NewReader(form.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
-	response = httptest.NewRecorder()
-	handler.convertNotFoundPath(response, request)
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/redirects/convert" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	convert := func(user *auth.User, token, target string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"source": {"/missing"}, "target": {target}, "_csrf": {token}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/redirects/convert", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	for _, denied := range []struct {
+		name  string
+		user  *auth.User
+		token string
+	}{
+		{name: "invalid CSRF", user: admin, token: "wrong-token"},
+		{name: "Editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
+		{name: "permission denied", user: &auth.User{ID: "denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, token: "valid-token"},
+	} {
+		if deniedResponse := convert(denied.user, denied.token, "/available"); deniedResponse.Code != http.StatusForbidden {
+			t.Fatalf("%s convert status=%d body=%s", denied.name, deniedResponse.Code, deniedResponse.Body.String())
+		}
+		if _, ok := registry.Match(tenant.Scope{}, "/missing"); ok {
+			t.Fatalf("%s request registered a redirect", denied.name)
+		}
+		if remaining, err := service.ListNotFound(ctx, 10); err != nil || len(remaining) != 1 {
+			t.Fatalf("%s request changed not-found report: %+v err=%v", denied.name, remaining, err)
+		}
+	}
+	if invalid := convert(admin, "valid-token", ""); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("empty target status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+	if remaining, err := service.ListNotFound(ctx, 10); err != nil || len(remaining) != 1 {
+		t.Fatalf("invalid request changed not-found report: %+v err=%v", remaining, err)
+	}
+	response = convert(admin, "valid-token", "/available")
 	if response.Code != 303 {
 		t.Fatalf("conversion status=%d body=%s", response.Code, response.Body.String())
 	}
