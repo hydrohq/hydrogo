@@ -11,5 +11,5 @@ import (
 // generated Admin registry. The Edition still supplies authorization, CSRF,
 // API, and page rendering boundaries through options.
 func RegisterGeneratedAdmin(mux *http.ServeMux, options adminstudio.GeneratedAdminOptions) error {
-	return adminstudio.RegisterGenerated(mux, AdminRegistry, []string{"article"}, options)
+	return adminstudio.RegisterGenerated(mux, AdminRegistry, []string{"article", "media_article"}, options)
 }

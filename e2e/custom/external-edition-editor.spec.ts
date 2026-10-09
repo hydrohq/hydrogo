@@ -138,6 +138,51 @@ test.describe("independent Edition generated Admin editor journey", () => {
       await viewerContext?.close();
     }
   });
+
+  test("editor selects tenant media and persists its reference", async ({ browser, request }) => {
+    const tenant = `media-e2e-${randomUUID()}`;
+    const headers = { "X-Test-Tenant": tenant, "X-Test-Role": "editor" };
+    const context = await browser.newContext({ extraHTTPHeaders: headers });
+    const page = await context.newPage();
+    await page.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
+
+    try {
+      const response = await page.goto(`${externalOrigin}/admin/resources/media_article/new`);
+      expect(response?.status()).toBe(200);
+      const form = page.locator('form[action="/admin/resources/media_article/new"]');
+      await form.getByRole("button", { name: "Kütüphaneden seç" }).click();
+      const picker = page.getByRole("dialog", { name: "Medya kütüphanesi" });
+      await expect(picker).toBeVisible();
+      const item = page.locator(".admin-media-picker-item");
+      await expect(item).toHaveCount(1);
+      await expectNoA11yViolations(page, "independent Edition media picker");
+      const mediaID = await item.getAttribute("data-asset-id");
+      expect(mediaID).toMatch(/^fixture-[a-f0-9]{16}$/);
+      await item.click();
+      await expect(picker).toBeHidden();
+      await expect(form.getByLabel("Cover media id")).toHaveValue(mediaID!);
+
+      const title = `Media article ${randomUUID()}`;
+      await form.getByLabel("Title").fill(title);
+      await form.locator('button[type="submit"]').click();
+      await expect(page.getByRole("link", { name: title })).toBeVisible();
+      const recordPath = await page.getByRole("link", { name: title }).getAttribute("href");
+      expect(recordPath).toMatch(/^\/admin\/resources\/media_article\//);
+      const apiPath = recordPath!.replace("/admin/resources", "/api/v1");
+      const persisted = await request.get(`${externalOrigin}${apiPath}`, { headers });
+      expect(persisted.status()).toBe(200);
+      expect((await persisted.json()).cover_media_id).toBe(mediaID);
+
+      const crossTenant = await request.post(`${externalOrigin}/api/v1/media_article`, {
+        headers: { "X-Test-Tenant": `${tenant}-other`, "X-Test-Role": "editor" },
+        data: { id: `cross-${randomUUID()}`, title: "Cross tenant reference", cover_media_id: mediaID },
+      });
+      expect(crossTenant.status()).toBe(422);
+      expect((await request.get(`${externalOrigin}${apiPath}`, { headers })).status()).toBe(200);
+    } finally {
+      await context.close();
+    }
+  });
 });
 
 async function expectNoA11yViolations(page: import("@playwright/test").Page, context: string): Promise<void> {

@@ -66,25 +66,28 @@ opened/migrated the database and composed the generated routes before
 `127.0.0.1:8099`. This confirms the remaining E2E blocker is listener access;
 it is not a Playwright assertion result.
 
-## Generated media field integration remains open
+## Generated media field integration
 
-The external Edition Blueprint does not currently declare a media field, and
-its test server does not compose the Core `/api/media` library route used by
-the shared shell's picker. The earlier generated media picker Chromium
-contract uses a synthetic article fixture; it does not prove selection from
-the tenant-scoped Core Media service in a real Edition composition. Close this
-only with a generated Edition media field that selects an authorized asset,
-persists and reads back the Media ID through the generated resource API, and
-rejects cross-tenant or otherwise unauthorized references. The browser gate
-also needs a loopback-capable runner. This report makes no real Media-service
-integration or browser claim for the independent Edition.
+The Edition now has a separate additive `media_article` Blueprint and generated
+resource, leaving the existing `article` migration unchanged. The SQLite HTTP
+contract test verifies that the generated form renders the shared picker,
+tenant-specific fixture assets are listed, an authorized media ID persists and
+reads back through the generated resource API, a forged cross-tenant reference
+is rejected, and the resource itself remains tenant-isolated. The nested module's
+full `go test ./... -count=1 -p 1 -timeout=5m` and `go vet ./...` passed.
+
+This composes a synthetic Edition `/api/media` fixture and tenant-reference
+guard; it does not yet compose the production Core Media service, storage, or
+policy callbacks. A Playwright selection-and-save scenario is added but has not
+run because this environment cannot bind the test server loopback listener.
+PostgreSQL certification for this new resource is also pending a runner with a
+working PostgreSQL listener. Do not treat the synthetic fixture as production
+Media-service integration.
 
 An in-place media field addition to the already generated Project Edition
-article was also rejected by `hydro generate scaffold` because its existing
-generated migration is immutable. No generated files were retained from that
-attempt. Any future example must use a new additive resource or a reviewed
-forward migration with dialect metadata and contract tests; it must not rewrite
-the applied migration.
+article was rejected by `hydro generate scaffold` because its existing generated
+migration is immutable. The new fixture uses a separate additive resource and
+includes dialect migration metadata; it does not rewrite the applied migration.
 
 ## Required text validation and editor feedback
 

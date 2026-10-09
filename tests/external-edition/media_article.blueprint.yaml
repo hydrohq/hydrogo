@@ -1,0 +1,17 @@
+name: media_article
+tenant_scoped: true
+admin:
+  label: Media articles
+  group: content
+  use_as_title: title
+fields:
+  - name: title
+    type: string
+    required: true
+    ui:
+      list: true
+      searchable: true
+  - name: cover_media_id
+    type: media
+    ui:
+      widget: media

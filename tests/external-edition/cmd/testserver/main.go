@@ -4,9 +4,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -18,6 +22,7 @@ import (
 
 	generated "example.com/external-edition/generated"
 	generatedarticle "example.com/external-edition/generated/article"
+	generatedmediaarticle "example.com/external-edition/generated/media_article"
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
@@ -77,21 +82,31 @@ func main() {
 		if _, err := db.ExecContext(context.Background(), generatedarticle.MigrationSQL); err != nil {
 			log.Fatal(err)
 		}
+		if _, err := db.ExecContext(context.Background(), generatedmediaarticle.MigrationSQL); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	mux := http.NewServeMux()
-	if err := generated.RegisterGeneratedResources(mux, generated.GeneratedResourceOptions{
+	registerFixtureMediaRoutes(mux)
+	resourceMux := http.NewServeMux()
+	if err := generated.RegisterGeneratedResources(resourceMux, generated.GeneratedResourceOptions{
 		DB: db, Dialect: *dialect,
 		PolicyFor: func(string) generated.GeneratedResourcePolicy { return resourcePolicy{} },
-		ResolveTenant: func(_ string, r *http.Request) (string, bool) {
+		ResolveTenant: func(resourceID string, r *http.Request) (string, bool) {
+			if resourceID != "article" && resourceID != "media_article" {
+				return "", false
+			}
 			tenant := r.Header.Get("X-Test-Tenant")
 			return tenant, tenant != ""
 		},
 	}); err != nil {
 		log.Fatal(err)
 	}
+	resourceAPI := validateFixtureMediaReference(resourceMux)
+	mux.Handle("/api/v1/", resourceAPI)
 	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
-		API: mux,
+		API: resourceAPI,
 		Authorize: func(r *http.Request) bool {
 			role := r.Header.Get("X-Test-Role")
 			return role == "admin" || role == "editor" || role == "viewer"
@@ -138,4 +153,61 @@ func main() {
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+}
+
+func fixtureMediaID(tenant string) string {
+	digest := sha256.Sum256([]byte(tenant))
+	return "fixture-" + hex.EncodeToString(digest[:8])
+}
+
+func registerFixtureMediaRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/media", func(w http.ResponseWriter, r *http.Request) {
+		if !fixtureRoleAllowed(r.Header.Get("X-Test-Role")) || strings.TrimSpace(r.Header.Get("X-Test-Tenant")) == "" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]string{{
+			"id": fixtureMediaID(r.Header.Get("X-Test-Tenant")), "status": "ready",
+			"mime_type": "image/svg+xml", "original_filename": "edition-cover.svg",
+		}})
+	})
+	mux.HandleFunc("GET /media/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !fixtureRoleAllowed(r.Header.Get("X-Test-Role")) || strings.TrimSpace(r.Header.Get("X-Test-Tenant")) == "" || r.PathValue("id") != fixtureMediaID(r.Header.Get("X-Test-Tenant")) {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/svg+xml")
+		_, _ = fmt.Fprint(w, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24"><rect width="32" height="24" fill="#dbeafe"/></svg>`)
+	})
+}
+
+func fixtureRoleAllowed(role string) bool {
+	return role == "admin" || role == "editor" || role == "viewer"
+}
+
+func validateFixtureMediaReference(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, generatedmediaarticle.MediaArticleRoute) && (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			var payload struct {
+				CoverMediaID string `json:"cover_media_id"`
+			}
+			if err := json.Unmarshal(body, &payload); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			if payload.CoverMediaID != "" && payload.CoverMediaID != fixtureMediaID(r.Header.Get("X-Test-Tenant")) {
+				http.Error(w, "media reference is not available to this tenant", http.StatusUnprocessableEntity)
+				return
+			}
+			r.Body = io.NopCloser(strings.NewReader(string(body)))
+		}
+		next.ServeHTTP(w, r)
+	})
 }

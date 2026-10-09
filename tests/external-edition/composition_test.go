@@ -2,7 +2,9 @@ package externaledition
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 
 	generated "example.com/external-edition/generated"
 	generatedarticle "example.com/external-edition/generated/article"
+	generatedmediaarticle "example.com/external-edition/generated/media_article"
 	adminstudio "github.com/ardaozyildirim/hydrogo/extension/v1/adminstudio"
 	_ "modernc.org/sqlite"
 )
@@ -99,6 +102,9 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if _, err := db.ExecContext(context.Background(), generatedarticle.MigrationSQL); err != nil {
 		t.Fatalf("apply generated SQLite migration: %v", err)
 	}
+	if _, err := db.ExecContext(context.Background(), generatedmediaarticle.MigrationSQL); err != nil {
+		t.Fatalf("apply generated media article SQLite migration: %v", err)
+	}
 
 	missingTenantResolverMux := http.NewServeMux()
 	if err := generated.RegisterGeneratedResources(missingTenantResolverMux, generated.GeneratedResourceOptions{
@@ -118,7 +124,7 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		DB: db, Dialect: "sqlite",
 		PolicyFor: func(string) generated.GeneratedResourcePolicy { return externalResourcePolicy{} },
 		ResolveTenant: func(resourceID string, r *http.Request) (string, bool) {
-			if resourceID != "article" {
+			if resourceID != "article" && resourceID != "media_article" {
 				return "", false
 			}
 			tenant := r.Header.Get("X-Test-Tenant")
@@ -408,4 +414,174 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if adminResponse.Code != http.StatusOK || !strings.Contains(adminResponse.Body.String(), "External tenant record") {
 		t.Fatalf("external Edition Admin did not read the generated record: status=%d body=%s", adminResponse.Code, adminResponse.Body.String())
 	}
+}
+
+func TestExternalEditionGeneratedMediaFieldListsTenantAssetsAndPersistsReference(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	for _, migration := range []string{generatedarticle.MigrationSQL, generatedmediaarticle.MigrationSQL} {
+		if _, err := db.ExecContext(context.Background(), migration); err != nil {
+			t.Fatalf("apply generated SQLite migration: %v", err)
+		}
+	}
+
+	apiMux := http.NewServeMux()
+	apiMux.HandleFunc("GET /api/media", func(w http.ResponseWriter, r *http.Request) {
+		tenant := r.Header.Get("X-Test-Tenant")
+		if tenant == "" || (r.Header.Get("X-Test-Role") != "admin" && r.Header.Get("X-Test-Role") != "editor" && r.Header.Get("X-Test-Role") != "viewer") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]map[string]string{{
+			"id": externalTenantMediaID(tenant), "status": "ready",
+			"mime_type": "image/svg+xml", "original_filename": "edition-cover.svg",
+		}})
+	})
+	if err := generated.RegisterGeneratedResources(apiMux, generated.GeneratedResourceOptions{
+		DB: db, Dialect: "sqlite",
+		PolicyFor: func(string) generated.GeneratedResourcePolicy { return externalResourcePolicy{} },
+		ResolveTenant: func(resourceID string, r *http.Request) (string, bool) {
+			if resourceID != "article" && resourceID != "media_article" {
+				return "", false
+			}
+			tenant := r.Header.Get("X-Test-Tenant")
+			return tenant, tenant != ""
+		},
+	}); err != nil {
+		t.Fatalf("register generated APIs: %v", err)
+	}
+	api := enforceExternalMediaOwnership(apiMux)
+	apiWithRole := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), externalRoleContextKey{}, r.Header.Get("X-Test-Role"))
+		api.ServeHTTP(w, r.WithContext(ctx))
+	})
+	mux := http.NewServeMux()
+	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
+		API: apiWithRole,
+		Authorize: func(r *http.Request) bool {
+			return r.Header.Get("X-Test-Role") == "admin" || r.Header.Get("X-Test-Role") == "editor" || r.Header.Get("X-Test-Role") == "viewer"
+		},
+		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
+		ResourceAccess: func(r *http.Request, _ adminstudio.Collection, id string) adminstudio.ResourceAccess {
+			if r.Header.Get("X-Test-Role") == "viewer" {
+				return adminstudio.ResourceAccess{}
+			}
+			return adminstudio.ResourceAccess{Create: id == "", Update: id != "", Delete: id != ""}
+		},
+		CSRFToken:    func(*http.Request) string { return "edition-token" },
+		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "edition-token" },
+		RenderPage: adminstudio.StudioPageRenderer(func(r *http.Request) adminstudio.PageIdentity {
+			return adminstudio.PageIdentity{UserID: "edition-editor", Email: "editor@example.test", Role: adminstudio.PageRoleEditor}
+		}),
+	}); err != nil {
+		t.Fatalf("register generated Admin: %v", err)
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveWithExternalRole(mux, w, r)
+	})
+
+	form := httptest.NewRequest(http.MethodGet, "/admin/resources/media_article/new", nil)
+	form.Header.Set("X-Test-Tenant", "tenant-a")
+	form.Header.Set("X-Test-Role", "editor")
+	formResponse := httptest.NewRecorder()
+	handler.ServeHTTP(formResponse, form)
+	for _, marker := range []string{`data-media-target="cover_media_id"`, `name="cover_media_id"`, `id="admin-media-picker-modal"`} {
+		if formResponse.Code != http.StatusOK || !strings.Contains(formResponse.Body.String(), marker) {
+			t.Fatalf("generated media form missing %q: status=%d body=%s", marker, formResponse.Code, formResponse.Body.String())
+		}
+	}
+
+	listAssets := func(tenant string) []map[string]string {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodGet, "/api/media", nil)
+		request.Header.Set("X-Test-Tenant", tenant)
+		request.Header.Set("X-Test-Role", "editor")
+		response := httptest.NewRecorder()
+		apiWithRole.ServeHTTP(response, request)
+		var assets []map[string]string
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &assets) != nil || len(assets) != 1 {
+			t.Fatalf("%s media list status=%d body=%s", tenant, response.Code, response.Body.String())
+		}
+		return assets
+	}
+	assetA := listAssets("tenant-a")[0]["id"]
+	assetB := listAssets("tenant-b")[0]["id"]
+	if assetA == "" || assetA == assetB {
+		t.Fatalf("tenant media IDs are not isolated: A=%q B=%q", assetA, assetB)
+	}
+
+	create := func(tenant, id, mediaID string) *httptest.ResponseRecorder {
+		t.Helper()
+		payload, _ := json.Marshal(map[string]string{"id": id, "title": "Tenant media record", "cover_media_id": mediaID})
+		request := httptest.NewRequest(http.MethodPost, generatedmediaarticle.MediaArticleRoute, strings.NewReader(string(payload)))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-Test-Tenant", tenant)
+		request.Header.Set("X-Test-Role", "editor")
+		response := httptest.NewRecorder()
+		apiWithRole.ServeHTTP(response, request)
+		return response
+	}
+	created := create("tenant-a", "media-article-a", assetA)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("tenant media create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var record map[string]any
+	if err := json.Unmarshal(created.Body.Bytes(), &record); err != nil || record["cover_media_id"] != assetA {
+		t.Fatalf("media reference was not persisted: record=%v err=%v", record, err)
+	}
+	if denied := create("tenant-b", "media-article-forged", assetA); denied.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("cross-tenant media reference status=%d body=%s", denied.Code, denied.Body.String())
+	}
+	read := httptest.NewRequest(http.MethodGet, generatedmediaarticle.MediaArticleRoute+"/media-article-a", nil)
+	read.Header.Set("X-Test-Tenant", "tenant-a")
+	read.Header.Set("X-Test-Role", "editor")
+	readResponse := httptest.NewRecorder()
+	apiWithRole.ServeHTTP(readResponse, read)
+	if readResponse.Code != http.StatusOK || !strings.Contains(readResponse.Body.String(), assetA) {
+		t.Fatalf("same-tenant media reference read status=%d body=%s", readResponse.Code, readResponse.Body.String())
+	}
+	crossTenantRead := httptest.NewRequest(http.MethodGet, generatedmediaarticle.MediaArticleRoute+"/media-article-a", nil)
+	crossTenantRead.Header.Set("X-Test-Tenant", "tenant-b")
+	crossTenantRead.Header.Set("X-Test-Role", "editor")
+	crossTenantResponse := httptest.NewRecorder()
+	apiWithRole.ServeHTTP(crossTenantResponse, crossTenantRead)
+	if crossTenantResponse.Code != http.StatusNotFound {
+		t.Fatalf("cross-tenant media article read status=%d body=%s", crossTenantResponse.Code, crossTenantResponse.Body.String())
+	}
+}
+
+func externalTenantMediaID(tenant string) string {
+	digest := sha256.Sum256([]byte(tenant))
+	return "fixture-" + hex.EncodeToString(digest[:8])
+}
+
+func enforceExternalMediaOwnership(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, generatedmediaarticle.MediaArticleRoute) && (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			var payload struct {
+				CoverMediaID string `json:"cover_media_id"`
+			}
+			if err := json.Unmarshal(body, &payload); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			if payload.CoverMediaID != "" && payload.CoverMediaID != externalTenantMediaID(r.Header.Get("X-Test-Tenant")) {
+				http.Error(w, "media reference is not available to this tenant", http.StatusUnprocessableEntity)
+				return
+			}
+			r.Body = io.NopCloser(strings.NewReader(string(body)))
+		}
+		next.ServeHTTP(w, r)
+	})
 }
