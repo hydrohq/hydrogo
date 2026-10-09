@@ -19,9 +19,13 @@ type pingPreviewSender struct {
 	previewSender
 	result PingResult
 	err    error
+	pings  int
 }
 
-func (s *pingPreviewSender) Ping(context.Context) (PingResult, error) { return s.result, s.err }
+func (s *pingPreviewSender) Ping(context.Context) (PingResult, error) {
+	s.pings++
+	return s.result, s.err
+}
 
 func TestTestPreviewSendsTextAndHTMLToAdmin(t *testing.T) {
 	sender := &previewSender{}
@@ -44,6 +48,7 @@ func TestTestPreviewRejectsEditor(t *testing.T) {
 		user  *auth.User
 		token string
 	}{
+		{name: "admin without csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}},
 		{name: "admin with invalid csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, token: "wrong-token"},
 		{name: "editor with valid csrf", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
 		{name: "viewer with valid csrf", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, token: "valid-token"},
@@ -58,6 +63,20 @@ func TestTestPreviewRejectsEditor(t *testing.T) {
 				t.Fatalf("status=%d sent=%+v", rec.Code, sender.message)
 			}
 		})
+	}
+}
+
+func TestTestPreviewSMTPPingRejectsMissingCSRF(t *testing.T) {
+	sender := &pingPreviewSender{}
+	route := protectedMailerMutation(t, "POST /admin/api/mailer/test-preview", TestPreviewHandler{Sender: sender})
+	ctx := auth.WithUser(context.Background(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, Email: "admin@example.test"})
+	request := httptest.NewRequest(http.MethodPost, "/admin/api/mailer/test-preview", strings.NewReader("_action=ping"))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request = withMailerCSRF(request, "").WithContext(ctx)
+	response := httptest.NewRecorder()
+	route.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || sender.pings != 0 || sender.message.To != "" {
+		t.Fatalf("status=%d pings=%d sent=%+v", response.Code, sender.pings, sender.message)
 	}
 }
 
