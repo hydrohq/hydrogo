@@ -1202,8 +1202,9 @@ func TestSiteCustomCodeAdminRouteIsPrivateAndAdminOnly(t *testing.T) {
 	}
 	assertMissing()
 	for name, user := range map[string]*auth.User{
-		"editor with site permission": {ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}},
-		"inactive admin":              {ID: "inactive", Role: auth.RoleAdmin, Active: false},
+		"editor with site permission":       {ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}},
+		"admin with site permission denied": {ID: "denied-admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}},
+		"inactive admin":                    {ID: "inactive", Role: auth.RoleAdmin, Active: false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if response := post(user, "valid-token", valid); response.Code != http.StatusForbidden {
@@ -2006,6 +2007,7 @@ func TestSiteAdminDeepLinksDenyEditorAndViewer(t *testing.T) {
 	}{
 		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}},
 		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}},
+		{name: "admin site permission denied", user: &auth.User{ID: "denied-admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}},
 	}
 	for _, route := range routes {
 		path := strings.NewReplacer("{id}", "test-id", "{locale}", "tr", "{form}", "contact", "{status}", "404").Replace(route)

@@ -187,7 +187,7 @@ func (h Handler) Routes() []Route {
 
 func (h Handler) customCodeAdmin(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
-	return user != nil && user.Active && user.Role == auth.RoleAdmin
+	return user != nil && user.Role == auth.RoleAdmin && auth.Can(user, auth.PermissionSiteManage)
 }
 
 func (h Handler) customCodePage(w http.ResponseWriter, r *http.Request) {
