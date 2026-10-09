@@ -204,8 +204,9 @@ The successful broadcast test now mounts the real `Handler.Routes()` registry
 behind the shared router authorization and production CSRF middleware. An
 active Admin with the matching cookie/header token sends to the selected
 mobile audience; the redirect summary and audit event are checked. A deny
-matrix confirms that a bad token for Admin and valid tokens for Editor and
-Viewer all return 403 without dispatching or recording an audit event.
+matrix confirms missing/invalid tokens for active Admin, inactive Admin, and
+valid tokens for Editor and Viewer return 403/401 as appropriate without
+dispatching or recording an audit event.
 
 ```sh
 go test ./internal/push/... -count=1

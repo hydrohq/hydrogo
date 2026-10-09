@@ -63,26 +63,36 @@ func TestAdminBroadcastRouteRequiresCSRFAndAdminRole(t *testing.T) {
 	}
 	routes := protectedPushRoutes(t, handler)
 	for _, tc := range []struct {
-		name  string
-		role  auth.Role
-		token string
+		name   string
+		role   auth.Role
+		token  string
+		active bool
+		status int
 	}{
-		{name: "admin with invalid token", role: auth.RoleAdmin, token: "wrong-token"},
-		{name: "editor with valid token", role: auth.RoleEditor, token: "csrf-token"},
-		{name: "viewer with valid token", role: auth.RoleViewer, token: "csrf-token"},
+		{name: "admin without token", role: auth.RoleAdmin, active: true},
+		{name: "admin with invalid token", role: auth.RoleAdmin, token: "wrong-token", active: true},
+		{name: "inactive admin with valid token", role: auth.RoleAdmin, token: "csrf-token", status: http.StatusUnauthorized},
+		{name: "editor with valid token", role: auth.RoleEditor, token: "csrf-token", active: true},
+		{name: "viewer with valid token", role: auth.RoleViewer, token: "csrf-token", active: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/admin/push/broadcast", strings.NewReader(url.Values{
 				"title": {"Campaign"}, "body": {"A notice"}, "audience": {"mobile"},
 			}.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			request.Header.Set(security.CSRFHeaderName, tc.token)
+			if tc.token != "" {
+				request.Header.Set(security.CSRFHeaderName, tc.token)
+			}
 			request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
-			request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: string(tc.role), Role: tc.role, Active: true}))
+			request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: string(tc.role), Role: tc.role, Active: tc.active}))
 			response := httptest.NewRecorder()
 			routes.ServeHTTP(response, request)
-			if response.Code != http.StatusForbidden {
-				t.Fatalf("status=%d body=%q, want 403", response.Code, response.Body.String())
+			wantStatus := tc.status
+			if wantStatus == 0 {
+				wantStatus = http.StatusForbidden
+			}
+			if response.Code != wantStatus {
+				t.Fatalf("status=%d body=%q, want %d", response.Code, response.Body.String(), wantStatus)
 			}
 		})
 	}
