@@ -770,6 +770,9 @@ test.describe("single Edition administrator management", () => {
     const page = await context.newPage();
     await page.goto(`${baseURL}/admin/news/new`);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    const media = page.locator(".media-select-field").filter({ has: page.locator('[data-media-target="media_cover_media_id"]') });
+    await expect(media.locator(".media-select-empty span")).toHaveText("No image selected");
+    await expect(media.locator(".media-select-preview img")).toHaveAttribute("alt", "Selected image");
     await page.getByRole("button", { name: "Add item" }).click();
     const row = page.locator("[data-item-list][data-field-name='key_takeaways'] .item-list-row").first();
     await expect(row.locator("input")).toHaveAttribute("placeholder", "Enter an important item…");
@@ -777,6 +780,8 @@ test.describe("single Edition administrator management", () => {
     await expect(row.getByRole("button")).toHaveAccessibleName("Remove item 1 from Önemli Noktalar (Key Takeaways)");
     await context.addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
     await page.reload();
+    await expect(page.locator(".media-select-empty span")).toHaveText("Görsel seçilmedi");
+    await expect(page.locator(".media-select-preview img")).toHaveAttribute("alt", "Seçilen görsel");
     await page.getByRole("button", { name: /Madde ekle/ }).click();
     const turkishRow = page.locator("[data-item-list][data-field-name='key_takeaways'] .item-list-row").first();
     await expect(turkishRow.locator("input")).toHaveAttribute("placeholder", "Önemli bir madde girin…");
