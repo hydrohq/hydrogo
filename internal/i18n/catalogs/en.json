@@ -23,6 +23,8 @@
   "admin.generated.validation.field.invalid": "Check this value and try again.",
   "admin.generated.error.title": "Your changes could not be saved",
   "admin.generated.error.operation": "Your entries are still here. Try saving again in a moment.",
+  "admin.generated.error.delete_title": "This record could not be deleted",
+  "admin.generated.error.delete_operation": "Check whether the record is still listed before trying again.",
   "admin.generated.list.empty": "There are no records in this collection yet.",
   "admin.generated.list.noMatches": "Try changing your search or filters. No records match them."
 }

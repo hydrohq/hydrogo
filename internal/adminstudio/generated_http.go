@@ -979,7 +979,7 @@ func applyDraftFields(collection Collection, record, values map[string]any, loca
 }
 
 func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request, collection Collection, id string, record map[string]any, editing bool) {
-	h.renderFormState(w, r, collection, id, record, editing, nil, nil, 0)
+	h.renderFormState(w, r, collection, id, record, editing, nil, nil, 0, "")
 }
 
 func collectionField(collection Collection, id string) (Field, bool) {
@@ -991,7 +991,7 @@ func collectionField(collection Collection, id string) (Field, bool) {
 	return Field{}, false
 }
 
-func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Request, collection Collection, id string, record map[string]any, editing bool, submitted map[string]string, fieldErrors []ui.FieldValidationError, status int) {
+func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Request, collection Collection, id string, record map[string]any, editing bool, submitted map[string]string, fieldErrors []ui.FieldValidationError, status int, failureKind string) {
 	if h.Options.CSRFToken(r) == "" {
 		http.Error(w, "admin page unavailable", http.StatusServiceUnavailable)
 		return
@@ -1108,9 +1108,13 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 			})
 		} else if status == http.StatusBadGateway {
 			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+				titleKey, messageKey := "admin.generated.error.title", "admin.generated.error.operation"
+				if failureKind == "delete" {
+					titleKey, messageKey = "admin.generated.error.delete_title", "admin.generated.error.delete_operation"
+				}
 				if err := ui.ValidationSummary(ui.ValidationSummaryProps{
-					Title:   i18n.T(generatedAdminLocale(r), "admin.generated.error.title"),
-					Message: i18n.T(generatedAdminLocale(r), "admin.generated.error.operation"),
+					Title:   i18n.T(generatedAdminLocale(r), titleKey),
+					Message: i18n.T(generatedAdminLocale(r), messageKey),
 				}).Render(ctx, out); err != nil {
 					return err
 				}
@@ -2214,7 +2218,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 						return
 					}
 				}
-				h.renderFormState(w, r, collection, id, record, !creating, submittedGeneratedValues(r, collection), fieldErrors, http.StatusUnprocessableEntity)
+				h.renderFormState(w, r, collection, id, record, !creating, submittedGeneratedValues(r, collection), fieldErrors, http.StatusUnprocessableEntity, "")
 				return
 			}
 		}
@@ -2240,10 +2244,15 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 
 func (h GeneratedAdminHandler) renderMutationFailure(w http.ResponseWriter, r *http.Request, collection Collection, id string, creating, deleting bool) {
 	if deleting {
-		h.apiError(w, r)
+		record, err := h.currentResource(r, collection, id)
+		if err != nil {
+			h.apiError(w, r)
+			return
+		}
+		h.renderFormState(w, r, collection, id, record, true, nil, nil, http.StatusBadGateway, "delete")
 		return
 	}
-	h.renderFormState(w, r, collection, id, map[string]any{}, !creating, submittedGeneratedValues(r, collection), nil, http.StatusBadGateway)
+	h.renderFormState(w, r, collection, id, map[string]any{}, !creating, submittedGeneratedValues(r, collection), nil, http.StatusBadGateway, "save")
 }
 
 func submittedGeneratedValues(r *http.Request, collection Collection) map[string]string {
