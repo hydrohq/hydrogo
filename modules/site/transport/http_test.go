@@ -1519,7 +1519,8 @@ func TestSiteFormWorkingHoursRoutePersistsOnlyValidAuthorizedSchedule(t *testing
 	store := sitesql.Store{Dialect: database.SQLite}
 	formStore := formssql.Store{Executor: db, Dialect: database.SQLite}
 	service := &site.Service{Transactions: database.NewTransactor(db), Store: store, Forms: formStore}
-	initial := forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}}
+	baseline := forms.WorkingHours{Timezone: "UTC", Notice: "Existing hours", Days: [7]forms.DailyHours{{}, {Open: "08:00", Close: "16:00"}}}
+	initial := forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}}, WorkingHours: &baseline}
 	if err := service.SaveForm(context.Background(), initial); err != nil {
 		t.Fatal(err)
 	}
@@ -1566,8 +1567,8 @@ func TestSiteFormWorkingHoursRoutePersistsOnlyValidAuthorizedSchedule(t *testing
 			if response := save(denied.user, denied.token, valid); response.Code != http.StatusForbidden {
 				t.Fatalf("denied update status=%d body=%s", response.Code, response.Body.String())
 			}
-			if got := load(); got.WorkingHours != nil {
-				t.Fatalf("denied update persisted schedule: %+v", got.WorkingHours)
+			if got := load().WorkingHours; got == nil || *got != baseline {
+				t.Fatalf("denied update changed schedule: got=%+v want=%+v", got, baseline)
 			}
 		})
 	}
@@ -1575,8 +1576,8 @@ func TestSiteFormWorkingHoursRoutePersistsOnlyValidAuthorizedSchedule(t *testing
 	if response := save(admin, "valid-token", invalid); response.Code != http.StatusBadRequest {
 		t.Fatalf("invalid schedule status=%d body=%s", response.Code, response.Body.String())
 	}
-	if got := load(); got.WorkingHours != nil {
-		t.Fatalf("invalid schedule replaced current state: %+v", got.WorkingHours)
+	if got := load().WorkingHours; got == nil || *got != baseline {
+		t.Fatalf("invalid schedule replaced current state: got=%+v want=%+v", got, baseline)
 	}
 	if response := save(admin, "valid-token", valid); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/forms?id=contact" {
 		t.Fatalf("authorized schedule status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
