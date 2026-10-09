@@ -16,6 +16,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -25,6 +26,12 @@ import (
 type memoryMemberStore struct {
 	members map[string]*members.Member
 	byEmail map[string]*members.Member
+}
+
+type trackedMemberStore struct {
+	*memoryMemberStore
+	activeWrites   int
+	verifiedWrites int
 }
 
 type fixedMemberStore struct {
@@ -94,6 +101,24 @@ func (m *memoryMemberStore) SetActive(_ context.Context, id string, active bool)
 }
 
 func (m *memoryMemberStore) SetEmailVerified(_ context.Context, _ string, _ bool) error {
+	return nil
+}
+
+func (m *trackedMemberStore) SetActive(ctx context.Context, id string, active bool) error {
+	m.activeWrites++
+	return m.memoryMemberStore.SetActive(ctx, id, active)
+}
+
+func (m *trackedMemberStore) SetEmailVerified(_ context.Context, _ string, verified bool) error {
+	m.verifiedWrites++
+	if member, ok := m.members["member-1"]; ok {
+		if verified {
+			now := time.Now()
+			member.EmailVerifiedAt = &now
+		} else {
+			member.EmailVerifiedAt = nil
+		}
+	}
 	return nil
 }
 
@@ -621,5 +646,114 @@ func TestAdminMemberListUsesMemberManageOverrides(t *testing.T) {
 				t.Fatalf("GET /admin/members status=%d want=%d body=%s", res.Code, tc.want, res.Body.String())
 			}
 		})
+	}
+}
+
+func TestAdminMemberMutationRoutesRequirePermissionAndCSRF(t *testing.T) {
+	store := &trackedMemberStore{memoryMemberStore: newMemoryMemberStore()}
+	store.members["member-1"] = &members.Member{ID: "member-1", Email: "member@example.test", Active: true}
+	sessions := newMemorySessionStore()
+	service := members.Service{Members: store, Sessions: sessions, ArgonParams: auth.DefaultArgon2Params}
+	tokenA, sessionA, err := service.CreateSession(context.Background(), "member-1", "browser", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenB, sessionB, err := service.CreateSession(context.Background(), "member-1", "mobile", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler := transport.Handler{Service: service}
+	mux := http.NewServeMux()
+	registered := make(map[string]bool)
+	for _, route := range handler.Routes() {
+		registered[route.Pattern] = true
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	protected := security.CSRFMiddleware(false, nil)(mux)
+	mutationRoutes := []struct {
+		pattern string
+		path    string
+	}{
+		{pattern: "POST /admin/members/{id}", path: "/admin/members/member-1"},
+		{pattern: "POST /admin/members/{id}/active", path: "/admin/members/member-1/active"},
+		{pattern: "POST /admin/members/{id}/verify-email", path: "/admin/members/member-1/verify-email"},
+		{pattern: "POST /admin/members/{id}/resend-verification", path: "/admin/members/member-1/resend-verification"},
+		{pattern: "POST /admin/members/{id}/sessions/{session_id}/revoke", path: "/admin/members/member-1/sessions/" + sessionA.ID + "/revoke"},
+		{pattern: "POST /admin/members/{id}/sessions/revoke-all", path: "/admin/members/member-1/sessions/revoke-all"},
+	}
+	deniedUsers := []struct {
+		name string
+		user *auth.User
+	}{
+		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}},
+		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}},
+		{name: "admin members.manage deny", user: &auth.User{ID: "admin-deny", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: false}}},
+		{name: "inactive admin", user: &auth.User{ID: "inactive", Role: auth.RoleAdmin, Active: false}},
+	}
+	for _, route := range mutationRoutes {
+		if !registered[route.pattern] {
+			t.Fatalf("mutation route %q is not registered", route.pattern)
+		}
+		t.Run(route.pattern, func(t *testing.T) {
+			for _, tc := range deniedUsers {
+				t.Run(tc.name, func(t *testing.T) {
+					form := url.Values{"_csrf": {"csrf-token"}, "active": {"false"}, "verified": {"true"}}
+					request := httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(form.Encode()))
+					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					request.Header.Set(security.CSRFHeaderName, "csrf-token")
+					request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
+					request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+					response := httptest.NewRecorder()
+					protected.ServeHTTP(response, request)
+					if response.Code != http.StatusForbidden {
+						t.Fatalf("valid-CSRF %s request status=%d, want 403; body=%s", tc.name, response.Code, response.Body.String())
+					}
+				})
+			}
+
+			for _, csrfCase := range []struct {
+				name   string
+				body   string
+				header string
+				cookie string
+			}{
+				{name: "missing"},
+				{name: "mismatched", body: "_csrf=wrong-token&active=false&verified=true", header: "wrong-token", cookie: "csrf-token"},
+			} {
+				t.Run("csrf "+csrfCase.name, func(t *testing.T) {
+					request := httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(csrfCase.body))
+					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					if csrfCase.header != "" {
+						request.Header.Set(security.CSRFHeaderName, csrfCase.header)
+					}
+					if csrfCase.cookie != "" {
+						request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: csrfCase.cookie})
+					}
+					request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+					response := httptest.NewRecorder()
+					protected.ServeHTTP(response, request)
+					if response.Code != http.StatusForbidden || !strings.Contains(strings.ToLower(response.Body.String()), "csrf") {
+						t.Fatalf("%s CSRF request status=%d body=%q, want CSRF 403", csrfCase.name, response.Code, response.Body.String())
+					}
+				})
+			}
+		})
+	}
+
+	if store.activeWrites != 0 || store.verifiedWrites != 0 {
+		t.Fatalf("denied requests reached member writes: active=%d email-verified=%d", store.activeWrites, store.verifiedWrites)
+	}
+	member := store.members["member-1"]
+	if !member.Active || member.EmailVerifiedAt != nil {
+		t.Fatalf("denied request changed member state: %+v", member)
+	}
+	for _, token := range []string{tokenA, tokenB} {
+		if _, _, err := service.ValidateSession(context.Background(), token); err != nil {
+			t.Fatalf("denied request revoked a member session: %v", err)
+		}
+	}
+	if sessionA.ID == sessionB.ID {
+		t.Fatal("test requires distinct member sessions")
 	}
 }

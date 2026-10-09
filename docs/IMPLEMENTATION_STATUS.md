@@ -491,3 +491,10 @@ were denied on every collected action. The complete Admin-management browser
 file passed 5/5 on SQLite and PostgreSQL 18.6. This does not cover unrendered
 API-only actions, every module POST, or every Admin permission override.
 Evidence: `docs/validation/admin-permission-matrix-2026-10-08.md`.
+
+2026-10-09: All six registered member-management POST routes now test Editor,
+Viewer, inactive Admin, explicit `admin.members.manage` deny, and missing or
+mismatched CSRF. Denials leave member fields and active sessions unchanged.
+Member transport package tests and vet passed; no database-adapter claim is
+made for this in-memory handler matrix. Evidence:
+`docs/validation/admin-permission-matrix-2026-10-08.md`.
