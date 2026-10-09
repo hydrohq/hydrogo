@@ -227,6 +227,12 @@ CSRF and explicit Admin permission denial persist nothing, while an authorized
 Admin persists the redirect. Redirect-rule CRUD/import and other Site mutation
 routes remain open.
 
+Locale navigation is covered through the registered mutation route and SQLite:
+an explicitly permitted Editor can persist a parent/child tree; Admin readback
+includes hidden entries and the public projection excludes them. Invalid CSRF
+and explicit Admin denial leave the table empty. Other Site mutations and
+PostgreSQL route-level behavior remain open.
+
 Windows'ta:
 
 ```powershell
