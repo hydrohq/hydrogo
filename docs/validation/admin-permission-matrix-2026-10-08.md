@@ -383,21 +383,22 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go vet ./modules/site/transpo
 ### News content permission × CSRF routes — 2026-10-09
 
 The News content-read/write route permission table now runs behind the real
-CSRF middleware. All 13 mutation routes reject a wrong token with 403; all 15
-read/write route cases then use a valid token to check Editor, Viewer grants,
-Admin default/deny, and inactive grant behavior against content permissions.
-The News transport package tests and vet passed. This is route authorization
-evidence only: configured storage, successful writes, and persisted state remain
-covered by separate Edition/browser/contract tests.
+CSRF middleware. All 13 mutation routes reject a missing token and a mismatched
+token with 403; all 15 read/write route cases then use a valid token to check
+Editor, Viewer grants, Admin default/deny, and inactive grant behavior against
+content permissions. The News transport package tests and vet passed. This is
+route authorization evidence only: configured storage, successful writes, and
+persisted state remain covered by separate Edition/browser/contract tests.
 
 ### Pages content permission × CSRF routes — 2026-10-09
 
 The Pages content-write route test now also composes the real CSRF middleware.
-All four mutation routes reject a wrong token with 403; the read/create/update/
-publish route cases then check valid-token Editor, Viewer grant, Admin default/
-deny, and inactive grant behavior. The full Pages transport package and vet
-passed. This verifies authorization routing, not successful DB mutation or
-persisted state. News and Pages follow the same test boundary.
+All four mutation routes reject a missing token and a mismatched token with
+403; the read/create/update/publish route cases then check valid-token Editor,
+Viewer grant, Admin default/deny, and inactive grant behavior. The full Pages
+transport package and vet passed. This verifies authorization routing, not
+successful DB mutation or persisted state. News and Pages follow the same test
+boundary.
 
 ### User-management mutations × CSRF — 2026-10-09
 
