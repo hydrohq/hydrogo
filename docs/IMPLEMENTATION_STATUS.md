@@ -291,8 +291,10 @@ PostgreSQL route-level behavior remain open.
 
 Lead-note create/list is also covered: only permitted Site managers can add a
 note, denied roles and CSRF persist nothing, and returned records retain the
-author identity. Site exports, browser workflows and PostgreSQL route behavior
-remain open.
+author identity. Inbox CSV/XLSX downloads now have registered-route SQLite
+coverage: Admin downloads persisted submissions; Editor is denied; CSV guards
+formula-like values and XLSX stores them as inline text. Browser workflows and
+PostgreSQL route behavior remain open.
 
 Windows'ta:
 

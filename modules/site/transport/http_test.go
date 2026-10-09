@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -106,6 +108,82 @@ func TestInboxXLSXExportIsAvailableToSiteAdmins(t *testing.T) {
 	}
 	if _, err := zip.NewReader(bytes.NewReader(response.Body.Bytes()), int64(response.Body.Len())); err != nil {
 		t.Fatalf("invalid XLSX response: %v", err)
+	}
+}
+
+func TestInboxExportsAreAuthorizedAndSpreadsheetSafe(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-inbox-export.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store}
+	city := `=HYPERLINK("https://evil.test")`
+	if err := service.Submit(context.Background(), site.Submission{ID: "export-001", FormKey: "contact", Email: "customer@example.test", Payload: `{"message":"Help"}`, SourceIPHash: strings.Repeat("a", 64), LocationCity: city}); err != nil {
+		t.Fatal(err)
+	}
+	handler := Handler{DB: db, Store: store, Service: service, FormsEnabled: true}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if strings.Contains(route.Pattern, "/admin/site/inbox/{form}/export.") {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	for _, format := range []string{"csv", "xlsx"} {
+		path := "/admin/site/inbox/contact/export." + format
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		denied := httptest.NewRecorder()
+		mux.ServeHTTP(denied, request)
+		if denied.Code != http.StatusForbidden {
+			t.Errorf("Editor %s export status=%d, want 403", format, denied.Code)
+		}
+
+		request = httptest.NewRequest(http.MethodGet, path, nil)
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("Admin %s export status=%d body=%s", format, response.Code, response.Body.String())
+		}
+		if !strings.Contains(response.Header().Get("Content-Disposition"), "attachment") {
+			t.Errorf("%s export lacks download disposition: %q", format, response.Header().Get("Content-Disposition"))
+		}
+		if format == "csv" {
+			records, err := csv.NewReader(response.Body).ReadAll()
+			if err != nil {
+				t.Fatalf("parse CSV: %v", err)
+			}
+			if len(records) != 2 || records[1][4] != "'"+city {
+				t.Fatalf("CSV formula escaping/data mismatch: %#v", records)
+			}
+			continue
+		}
+		archive, err := zip.NewReader(bytes.NewReader(response.Body.Bytes()), int64(response.Body.Len()))
+		if err != nil {
+			t.Fatalf("open XLSX: %v", err)
+		}
+		var worksheet []byte
+		for _, file := range archive.File {
+			if file.Name == "xl/worksheets/sheet1.xml" {
+				opened, err := file.Open()
+				if err != nil {
+					t.Fatal(err)
+				}
+				worksheet, err = io.ReadAll(opened)
+				_ = opened.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		if len(worksheet) == 0 || bytes.Contains(worksheet, []byte("<f>")) || !bytes.Contains(worksheet, []byte(`t="inlineStr"`)) || !bytes.Contains(worksheet, []byte("=HYPERLINK(&#34;https://evil.test&#34;)")) {
+			t.Fatalf("XLSX worksheet should encode formula-like input as inline text: %s", worksheet)
+		}
 	}
 }
 
