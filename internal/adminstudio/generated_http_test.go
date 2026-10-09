@@ -472,7 +472,9 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 			}
 			return RevisionSnapshot{RevisionSummary: RevisionSummary{Version: 3}, Fields: map[string]string{"title": `<script>alert(1)</script>`}}, nil
 		},
-		CanRestore: func(_ *http.Request, _ Collection, id string, version int64) bool { return id == "a1" && version == 3 },
+		CanRestore: func(r *http.Request, _ Collection, id string, version int64) bool {
+			return r.Header.Get("X-Test-Role") == "admin" && id == "a1" && version == 3
+		},
 		RestoreRevision: func(_ *http.Request, _ Collection, id string, revision, expected int64) error {
 			if id != "a1" || revision != 3 || expected != 4 {
 				return errors.New("unexpected restore arguments")
@@ -498,9 +500,10 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 	if detail.Code != http.StatusOK || strings.Contains(detail.Body.String(), `<script>`) || !strings.Contains(detail.Body.String(), "&lt;script&gt;") {
 		t.Fatalf("revision diff did not escape snapshot: status=%d body=%s", detail.Code, detail.Body.String())
 	}
-	post := func(expected string) *httptest.ResponseRecorder {
+	post := func(expected, role string) *httptest.ResponseRecorder {
 		request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/revisions/3/restore", strings.NewReader("_csrf=csrf-value&expected_version="+expected))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Test-Role", role)
 		response := httptest.NewRecorder()
 		mux.ServeHTTP(response, request)
 		return response
@@ -513,10 +516,15 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 	if deniedRestore.Code != http.StatusForbidden || restored || resourceReads != readsBeforeDeniedRestore {
 		t.Fatalf("revision restore without CSRF was not rejected before reads or writes: status=%d reads=%d restored=%v", deniedRestore.Code, resourceReads, restored)
 	}
-	if response := post("3"); response.Code != http.StatusConflict || restored {
+	if response := post("3", "admin"); response.Code != http.StatusConflict || restored {
 		t.Fatalf("stale restore should conflict before the Edition callback: status=%d restored=%v", response.Code, restored)
 	}
-	if response := post("4"); response.Code != http.StatusSeeOther || !restored {
+	for _, role := range []string{"editor", "viewer"} {
+		if response := post("4", role); response.Code != http.StatusForbidden || restored {
+			t.Fatalf("%s restore should be denied by Edition capability: status=%d restored=%v body=%s", role, response.Code, restored, response.Body.String())
+		}
+	}
+	if response := post("4", "admin"); response.Code != http.StatusSeeOther || !restored {
 		t.Fatalf("restore was not delegated with expected version: status=%d restored=%v body=%s", response.Code, restored, response.Body.String())
 	}
 }
