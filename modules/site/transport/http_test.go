@@ -534,6 +534,70 @@ func TestSiteRedirectAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) 
 	}
 }
 
+func TestSiteNavigationAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-navigation-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/navigation/{locale}" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := `[{"ID":"home","Label":"Ana sayfa","Href":"/","Position":0,"Visible":true},{"ID":"private","Label":"İç sayfa","Href":"/internal","parent_id":"home","Position":1,"Visible":false}]`
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/navigation/tr", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertEmpty := func() {
+		t.Helper()
+		items, err := store.ListAdminNavigation(context.Background(), db, "tr")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(items) != 0 {
+			t.Fatalf("denied mutation persisted navigation: %+v", items)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := post(admin, "wrong-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertEmpty()
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertEmpty()
+	permittedEditor := &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}
+	if response := post(permittedEditor, "valid-token"); response.Code != http.StatusNoContent {
+		t.Fatalf("permitted Editor status=%d body=%s", response.Code, response.Body.String())
+	}
+	adminItems, err := store.ListAdminNavigation(context.Background(), db, "tr")
+	if err != nil || len(adminItems) != 2 || adminItems[1].ParentID != "home" || adminItems[1].Target != "_self" || adminItems[1].Visible {
+		t.Fatalf("persisted admin navigation=%+v err=%v", adminItems, err)
+	}
+	publicItems, err := store.ListNavigation(context.Background(), db, "tr")
+	if err != nil || len(publicItems) != 1 || publicItems[0].ID != "home" {
+		t.Fatalf("public navigation projection=%+v err=%v", publicItems, err)
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()
