@@ -32,6 +32,14 @@ and PostgreSQL 18. This is one create failure path in a test fixture; other
 API failure points and production outage behavior remain open. Evidence:
 `generated-admin-service-error-browser-2026-10-09.md`.
 
+2026-10-09 independent Edition activation follow-up: a third resource generated
+in an independent Edition copy appeared in the existing aggregate Admin/API
+helpers without per-resource composition edits. Chromium create/readback passed
+on SQLite and PostgreSQL 18 after explicit Edition migration application. The
+flags-based resource command now chooses a usable string/text title field;
+clean scaffold to licensed runtime remains open. Evidence:
+`blueprint-independent-edition-autoactivation-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered

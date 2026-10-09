@@ -504,6 +504,43 @@ func TestResourceCreateFromFlagsGeneratesCompleteScaffold(t *testing.T) {
 			t.Fatalf("missing generated %s: %v", name, err)
 		}
 	}
+	manifest, err := os.ReadFile(filepath.Join(root, "generated", "admin_registry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(manifest), `"title_field": "title"`) {
+		t.Fatalf("resource create should make its named title field the Admin record link: %s", manifest)
+	}
+}
+
+func TestResourceCreateFromFlagsUsesFirstTextFieldWhenTitleIsNotNamed(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		fields []string
+		want   string
+	}{
+		{name: "first text fallback", fields: []string{"summary:text", "views:integer", "details:string"}, want: `"title_field": "summary"`},
+		{name: "named title wins", fields: []string{"summary:text", "title:string", "details:text"}, want: `"title_field": "title"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			args := []string{"resource", "create", "--name", "stories", "--out", root}
+			for _, field := range tc.fields {
+				args = append(args, "--field", field)
+			}
+			var stdout, stderr bytes.Buffer
+			if err := run(args, strings.NewReader(""), &stdout, &stderr); err != nil {
+				t.Fatalf("resource create: %v stderr=%s", err, stderr.String())
+			}
+			manifest, err := os.ReadFile(filepath.Join(root, "generated", "admin_registry.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(manifest), tc.want) {
+				t.Fatalf("Admin title field missing %s: %s", tc.want, manifest)
+			}
+		})
+	}
 }
 
 func TestProjectNewAliasGeneratesProject(t *testing.T) {
