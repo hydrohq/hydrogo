@@ -161,6 +161,17 @@ both editor/viewer and media scenarios after the change. The actual browser
 assertions remain unrun because the fixture cannot bind its loopback listener
 in this environment; discovery is not a passing browser result.
 
+## Anonymous and unknown-role route matrix — 2026-10-09
+
+The SQLite composition contract now sends anonymous and unrecognized-role
+requests through Admin index/list/create/detail/update/delete and resource API
+list/detail/create/update/delete. Admin and mutation endpoints return `403`;
+unreadable API record detail returns `404` to conceal record existence. The
+test verifies neither role can create a row or change the existing tenant
+record. The nested Edition suite and `go vet ./...` passed. This closes
+fixture-contract cells only: production session identity and loopback browser
+execution remain open.
+
 ## Viewer direct-create deep-link denial — 2026-10-09
 
 The independent Edition SQLite HTTP contract now requests
