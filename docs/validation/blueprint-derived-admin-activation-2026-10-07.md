@@ -112,3 +112,12 @@ documents that the callback governs UI affordances and direct Admin routes,
 while API authorization remains the boundary for all callers. A generator test
 asserts this guidance is emitted. This is setup documentation and does not
 replace authorization contract tests.
+
+The checklist now makes the safe adoption path explicit: new Edition
+compositions should always bind `ResourceAccess` before exposing the Admin.
+Omitting the optional v1 callback is identified as legacy compatibility that
+shows all basic CRUD actions; the API remains the authorization boundary. The
+generated Project Edition article guide and its artifact lock were regenerated.
+`TestGeneratedRuntimeWiringExplainsEditionCRUDCapabilities`, all
+`internal/generator` and `cmd/hydro` tests, their vet checks, moduleguard,
+migrationguard, and `git diff --check` passed.

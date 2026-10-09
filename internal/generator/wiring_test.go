@@ -33,8 +33,9 @@ func TestGeneratedRuntimeWiringExplainsEditionCRUDCapabilities(t *testing.T) {
 		"Edition authorization callback",
 		"ResourceAccess",
 		"same user, tenant and record rules as the",
-		"leaving it nil preserves legacy all-actions UI",
-		"API remains the",
+		"New Edition compositions should",
+		"displays all basic CRUD actions as a legacy compatibility behavior",
+		"authorization boundary for every caller",
 	} {
 		if !strings.Contains(string(wiring), marker) {
 			t.Errorf("runtime wiring omitted CRUD security guidance %q: %s", marker, wiring)
