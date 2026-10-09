@@ -100,6 +100,8 @@ test.describe("independent Edition generated Admin editor journey", () => {
       const viewerHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "viewer" };
       const viewerList = await request.get(`${externalOrigin}/admin/resources/article`, { headers: viewerHeaders });
       expect(viewerList.status()).toBe(200);
+      const viewerDirectCreate = await request.get(`${externalOrigin}/admin/resources/article/new`, { headers: viewerHeaders });
+      expect(viewerDirectCreate.status()).toBe(403);
       const viewerPage = await viewerContext.newPage();
       await viewerPage.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
       const viewerDocument = await viewerPage.goto(`${externalOrigin}/admin/resources/article`);

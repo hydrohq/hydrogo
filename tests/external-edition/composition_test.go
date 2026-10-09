@@ -240,6 +240,14 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if !strings.Contains(viewerListResponse.Body.String(), "External tenant record") {
 		t.Fatal("generated Admin viewer list did not show the readable tenant record")
 	}
+	viewerNew := httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil)
+	viewerNew.Header.Set("X-Test-Role", "viewer")
+	viewerNew.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerNewResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerNewResponse, viewerNew)
+	if viewerNewResponse.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin allowed a viewer to open the create form directly: status=%d body=%s", viewerNewResponse.Code, viewerNewResponse.Body.String())
+	}
 	viewerDetail := httptest.NewRequest(http.MethodGet, "/admin/resources/article/article-1", nil)
 	viewerDetail.Header.Set("X-Test-Role", "viewer")
 	viewerDetail.Header.Set("X-Test-Tenant", "tenant-a")

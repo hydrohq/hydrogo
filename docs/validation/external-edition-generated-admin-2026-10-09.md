@@ -160,3 +160,13 @@ and update/delete preserve the existing row. Playwright successfully discovers
 both editor/viewer and media scenarios after the change. The actual browser
 assertions remain unrun because the fixture cannot bind its loopback listener
 in this environment; discovery is not a passing browser result.
+
+## Viewer direct-create deep-link denial — 2026-10-09
+
+The independent Edition SQLite HTTP contract now requests
+`GET /admin/resources/article/new` as Viewer and requires `403`, in addition
+to checking that the list omits the create link and the record detail is
+read-only. The Playwright viewer journey makes the same direct request and
+expects `403`. The nested Edition suite and vet passed; the importguard passed
+and Playwright discovered both Edition scenarios. Browser assertions remain
+unrun because the fixture server cannot bind the loopback listener here.
