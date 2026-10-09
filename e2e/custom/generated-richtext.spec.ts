@@ -62,6 +62,13 @@ test.describe("generated rich-text Edition Admin", () => {
     const form = page.locator('form[action="/admin/resources/article/new"]');
     await expect(form.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveAccessibleName("Tags: add item");
     await expect(form.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveText("+ Add item");
+    const englishTags = form.locator('[data-field-name="tags"]');
+    await englishTags.locator(".item-list-add-btn").click();
+    await expect(englishTags.locator(".item-list-input")).toHaveAttribute("placeholder", "Enter an important item…");
+    await expect(englishTags.locator(".item-list-input")).toHaveAccessibleName("Tags 1");
+    await expect(englishTags.locator(".item-list-remove-btn")).toHaveAccessibleName("Remove item 1 from Tags");
+    await englishTags.locator(".item-list-remove-btn").click();
+    await expect(englishTags.locator(".item-list-input")).toHaveCount(0);
     await expect(form.locator(".media-select-empty")).toContainText("No image selected");
     await expect(form.locator(".media-select-preview img")).toHaveAttribute("alt", "Selected image");
     await expect(form.getByRole("button", { name: "Choose from library" })).toBeVisible();
@@ -85,6 +92,11 @@ test.describe("generated rich-text Edition Admin", () => {
     await page.reload();
     const turkishForm = page.locator('form[action="/admin/resources/article/new"]');
     await expect(turkishForm.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveAccessibleName("Tags: madde ekle");
+    const turkishTags = turkishForm.locator('[data-field-name="tags"]');
+    await turkishTags.locator(".item-list-add-btn").click();
+    await expect(turkishTags.locator(".item-list-input")).toHaveAttribute("placeholder", "Önemli bir madde girin…");
+    await expect(turkishTags.locator(".item-list-input")).toHaveAccessibleName("Tags 1");
+    await expect(turkishTags.locator(".item-list-remove-btn")).toHaveAccessibleName("Tags 1 maddesini sil");
     await expect(turkishForm.locator(".media-select-empty")).toContainText("Görsel seçilmedi");
     await expect(turkishForm.locator(".media-select-preview img")).toHaveAttribute("alt", "Seçilen görsel");
     await expect(turkishForm.getByRole("button", { name: "Kütüphaneden seç" })).toBeVisible();

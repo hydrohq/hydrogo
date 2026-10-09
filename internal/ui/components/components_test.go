@@ -51,8 +51,16 @@ func TestItemListEditorEscapesValuesAndUsesSharedAdminContract(t *testing.T) {
 	if err := ItemListEditor(ItemListEditorProps{Label: "Keywords"}).Render(context.Background(), &outWithoutID); err == nil {
 		t.Fatal("item list editor accepted a missing id")
 	}
-	localized := render(t, ItemListEditor(ItemListEditorProps{ID: "keywords", Label: "Keywords", AddLabel: "Add item", AddAriaLabel: "Keywords: add item"}))
-	if !strings.Contains(localized, `aria-label="Keywords: add item">+ Add item`) || strings.Contains(localized, "Madde ekle") {
+	localized := render(t, ItemListEditor(ItemListEditorProps{
+		ID: "keywords", Label: "Keywords", AddLabel: "Add item", AddAriaLabel: "Keywords: add item",
+		ItemPlaceholder: "Enter an important item…", ItemAriaLabelPattern: "{field} {index}", RemoveAriaLabelPattern: "Remove item {index} from {field}",
+	}))
+	for _, want := range []string{`aria-label="Keywords: add item">+ Add item`, `data-item-list-input-placeholder="Enter an important item…"`, `data-item-list-item-aria="{field} {index}"`, `data-item-list-remove-aria="Remove item {index} from {field}"`} {
+		if !strings.Contains(localized, want) {
+			t.Fatalf("localized item-list editor missing %q: %s", want, localized)
+		}
+	}
+	if strings.Contains(localized, "Madde ekle") {
 		t.Fatalf("item list editor ignored the interface locale: %s", localized)
 	}
 }

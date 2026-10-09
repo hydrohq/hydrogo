@@ -2089,8 +2089,11 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			if field.Kind == FieldArray {
 				if err := ui.ItemListEditor(ui.ItemListEditorProps{
 					ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID],
-					AddLabel:     i18n.T(interfaceLocale, "admin.generated.widget.array.add"),
-					AddAriaLabel: fmt.Sprintf(i18n.T(interfaceLocale, "admin.generated.widget.array.add_aria"), field.Label),
+					AddLabel:               i18n.T(interfaceLocale, "admin.generated.widget.array.add"),
+					AddAriaLabel:           fmt.Sprintf(i18n.T(interfaceLocale, "admin.generated.widget.array.add_aria"), field.Label),
+					ItemPlaceholder:        i18n.T(interfaceLocale, "admin.generated.widget.array.item_placeholder"),
+					ItemAriaLabelPattern:   i18n.T(interfaceLocale, "admin.generated.widget.array.item_aria"),
+					RemoveAriaLabelPattern: i18n.T(interfaceLocale, "admin.generated.widget.array.remove_aria"),
 				}).Render(ctx, out); err != nil {
 					return err
 				}
