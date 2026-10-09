@@ -21,9 +21,9 @@ editable block, and axe WCAG 2.1 A/AA results before the CRUD round trip.
 
   ```sh
   cd e2e
-  HYDRO_E2E_EXTERNAL_SERVER=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 \\
-    TMPDIR=/var/tmp/hydro-go-tests npm exec playwright test \\
-    custom/generated-richtext.spec.ts -- --project=chromium --workers=1 \\
+  HYDRO_E2E_EXTERNAL_SERVER=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 \
+    TMPDIR=/var/tmp/hydro-go-tests npm exec playwright test \
+    custom/generated-richtext.spec.ts -- --project=chromium --workers=1 \
     --reporter=line --trace=off
   ```
 
