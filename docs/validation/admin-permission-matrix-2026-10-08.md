@@ -565,3 +565,26 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
+
+## Full Admin-management Chromium regression on PostgreSQL — 2026-10-09
+
+The complete five-test Admin-management browser file passed against a fresh,
+disposable PostgreSQL 18.6 database (5/5, 2.5 minutes). It covered Editor and
+Viewer role boundaries and management journeys, anonymous route access, mobile
+and tablet layouts, invitation acceptance, and the four Studio theme families
+in light/dark mode with axe WCAG 2.1 A/AA checks. The cluster and database were
+temporary and removed after the run.
+
+```sh
+cd e2e
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+  HYDRO_E2E_DATABASE_DSN='postgres://<role>@127.0.0.1:<port>/hydro_admin_e2e?sslmode=disable' \
+  HYDRO_PG_PRIVILEGED_ROLE=<backup-role> TMPDIR=/var/tmp/hydro-go-tests \
+  npx playwright test custom/admin-management.spec.ts --project=chromium \
+  --workers=1 --reporter=line --trace=off
+```
+
+This adds PostgreSQL-backed browser evidence to the previously recorded full
+SQLite run. It still does not establish the exhaustive route × role × each
+mutation × valid/invalid CSRF cross product for every Admin endpoint; that
+acceptance gate remains open.
