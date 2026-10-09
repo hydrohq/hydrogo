@@ -39,6 +39,13 @@ first CRUD remains unmeasured; this timing is not presented as equivalent.
 See the Admin Studio audit plan and
 `docs/validation/blueprint-clean-scaffold-cli-measurement-2026-10-09.md`.
 
+Latest Admin Studio regression after the mobile generated-editor and E2E
+fixture-reset changes: root `go test ./... -count=1 -p 1 -timeout=8m`,
+`go vet ./...`, moduleguard, migrationguard (110 migrations), and four Edition
+importguards passed. `HYDRO_TEST_POSTGRES_URL` was unset for the root Go run;
+PostgreSQL claims are limited to the separately recorded isolated browser
+fixture runs, not the root DB contract suite.
+
 ## Tamamlanan ve doğrulanan parçalar
 
 | Alan | Durum | Nasıl kullanılır? | Kanıt |
