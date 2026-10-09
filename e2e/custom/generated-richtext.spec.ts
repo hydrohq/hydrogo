@@ -135,6 +135,13 @@ test.describe("generated rich-text Edition Admin", () => {
     const mobileMount = mobilePage.locator('[data-editorjs-mount="blocks"]');
     const mobileEditor = mobileMount.locator('.ce-paragraph[contenteditable="true"]').first();
     await expect(mobileEditor).toBeVisible();
+    const mobileRichText = mobilePage.locator(".richtext-editor .ql-editor");
+    await expect(mobileRichText).toBeVisible();
+    const mobileRichTextBox = await mobileRichText.boundingBox();
+    expect(mobileRichTextBox?.height ?? 0, "mobile rich-text editor should not dominate the generated form").toBeLessThanOrEqual(220);
+    expect(mobileRichTextBox?.height ?? 0, "mobile rich-text editor should remain comfortable to edit").toBeGreaterThanOrEqual(140);
+    const mobileRichTextFieldBox = await mobilePage.locator(".richtext-field").first().boundingBox();
+    expect(mobileRichTextFieldBox?.height ?? 0, "mobile rich-text field including its toolbar and metrics should stay compact").toBeLessThanOrEqual(360);
     await expect.poll(() => mobilePage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await expectNoA11yViolations(mobilePage);
     await mobileEditor.fill("Touch generated paragraph.");
