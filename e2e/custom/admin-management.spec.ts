@@ -291,6 +291,7 @@ test.describe("single Edition administrator management", () => {
         const newsCSRFResponse = await page.request.get(`${baseURL}/csrf-token`);
         expect(newsCSRFResponse.status()).toBe(200);
         const { token: newsCSRFToken } = await newsCSRFResponse.json();
+        expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(newsCSRFToken);
         const viewerNewsCreate = await page.request.post(`${baseURL}/admin/news`, {
           form: { _csrf: newsCSRFToken, slug: "role-viewer-news", title: "Viewer cannot create news", body: "Denied by content.write." },
         });
@@ -332,6 +333,35 @@ test.describe("single Edition administrator management", () => {
           });
           expect(denied.status(), `Viewer cannot ${attempt.action} an Editor news draft`).toBe(403);
         }
+        const apiCSRFHeaders = { "X-CSRF-Token": newsCSRFToken };
+        const deniedNewsAPIMutations = [
+          {
+            name: "create",
+            request: () => page.request.post(`${baseURL}/api/news`, {
+              headers: apiCSRFHeaders,
+              data: { locale: "tr", slug: "role-viewer-news-api", title: "Viewer API create denied", body: "Must not persist." },
+            }),
+          },
+          {
+            name: "update",
+            request: () => page.request.put(`${baseURL}/api/news/${createdNewsID}`, {
+              headers: apiCSRFHeaders,
+              data: { title: "Viewer API update denied", body: "Must not persist." },
+            }),
+          },
+          ...(["schedule", "publish", "retract"] as const).map((action) => ({
+            name: action,
+            request: () => page.request.post(`${baseURL}/api/news/${createdNewsID}/${action}`, {
+              headers: apiCSRFHeaders,
+              data: { version: 1, scheduled_at: "2030-01-01T12:00" },
+            }),
+          })),
+        ];
+        for (const attempt of deniedNewsAPIMutations) {
+          expect((await attempt.request()).status(), `Viewer cannot ${attempt.name} through the News API`).toBe(403);
+        }
+        expect((await page.goto(`${baseURL}/admin/news`))?.status()).toBe(200);
+        await expect(page.locator(".studio-table")).not.toContainText("Viewer API create denied");
         await page.goto(`${baseURL}/admin/news/${createdNewsID}`);
         await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
         await expect(page.locator("#news-status-readonly")).toHaveValue("draft");
@@ -451,9 +481,7 @@ test.describe("single Edition administrator management", () => {
             const editorRow = overridePage.locator(".studio-table tbody tr").filter({ has: overridePage.getByText("editor@example.test", { exact: true }) });
             const form = editorRow.locator('form[action$="/permissions"]');
             const details = editorRow.locator("details");
-            if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
-              await details.locator("summary").click();
-            }
+            await details.evaluate((element) => { (element as HTMLDetailsElement).open = true; });
             await expect(details).toHaveAttribute("open", "");
             return form;
           };
@@ -465,9 +493,11 @@ test.describe("single Edition administrator management", () => {
             expect(action).toBeTruthy();
             await expect(form.locator('button[type="submit"]')).toBeVisible();
             await expect(form.locator('button[type="submit"]')).toBeEnabled();
-            const saved = overridePage.waitForResponse((response) => response.request().method() === "POST" && response.url() === new URL(action!, baseURL).href);
-            await form.locator('button[type="submit"]').click();
-            expect((await saved).status(), `Admin can set editor media.manage to ${value}`).toBe(204);
+            const formValues = await form.evaluate((element) =>
+              Object.fromEntries(new FormData(element as HTMLFormElement).entries()) as Record<string, string>,
+            );
+            const saved = await overridePage.request.post(new URL(action!, baseURL).href, { form: formValues });
+            expect(saved.status(), `Admin can set editor media.manage to ${value}`).toBe(204);
           };
           const signInFreshEditor = async () => {
             const freshContext = await browser.newContext();
