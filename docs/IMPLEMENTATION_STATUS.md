@@ -262,6 +262,12 @@ approved code round-trips to the editor but remains private; unapproved hosts
 cannot replace the saved value. Other Site route state and PostgreSQL route
 coverage remain open.
 
+The translation editor now has a tenant-scoped route test: denied CSRF/role/
+permission combinations write nothing, a permitted save is visible through the
+tenant's i18n catalog projection, regional locale tags canonicalize, and
+unknown keys cannot overwrite persisted translations. PostgreSQL and complete
+browser translation journeys remain open.
+
 Windows'ta:
 
 ```powershell
