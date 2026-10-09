@@ -79,6 +79,13 @@ rejects cross-tenant or otherwise unauthorized references. The browser gate
 also needs a loopback-capable runner. This report makes no real Media-service
 integration or browser claim for the independent Edition.
 
+An in-place media field addition to the already generated Project Edition
+article was also rejected by `hydro generate scaffold` because its existing
+generated migration is immutable. No generated files were retained from that
+attempt. Any future example must use a new additive resource or a reviewed
+forward migration with dialect metadata and contract tests; it must not rewrite
+the applied migration.
+
 ## Required text validation and editor feedback
 
 Blueprint-generated required `string`, `text`, and `uuid` checks now reject
