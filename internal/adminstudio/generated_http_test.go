@@ -1085,18 +1085,31 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 		API: api,
 		Authorize: func(r *http.Request) bool {
 			role := r.Header.Get("X-Test-Role")
-			return role == "admin" || role == "editor" || role == "viewer" || role == "unknown"
+			return role == "admin" || role == "editor" || role == "viewer" || role == "unknown" || role == "admin-delete-denied" || role == "editor-readonly" || role == "viewer-create-granted"
 		},
 		CanReadResource: func(*http.Request, Collection) bool { return true },
 		ResourceAccess: func(r *http.Request, _ Collection, id string) ResourceAccess {
-			switch r.Header.Get("X-Test-Role") {
-			case "admin":
-				return ResourceAccess{Create: true, Update: id != "", Delete: id != ""}
-			case "editor":
-				return ResourceAccess{Create: true, Update: id != ""}
-			default:
-				return ResourceAccess{}
+			role := r.Header.Get("X-Test-Role")
+			access := ResourceAccess{}
+			switch role {
+			case "admin", "admin-delete-denied":
+				access = ResourceAccess{Create: true, Update: id != "", Delete: id != ""}
+			case "editor", "editor-readonly":
+				access = ResourceAccess{Create: true, Update: id != ""}
+			case "viewer-create-granted":
+				access = ResourceAccess{}
 			}
+			// These cases model the Edition resolver applying explicit
+			// permission overrides after its role defaults.
+			switch role {
+			case "admin-delete-denied":
+				access.Delete = false
+			case "editor-readonly":
+				access.Create, access.Update = false, false
+			case "viewer-create-granted":
+				access.Create = true
+			}
+			return access
 		},
 		CSRFToken:    func(*http.Request) string { return "csrf-value" },
 		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
@@ -1117,7 +1130,7 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 		{"update", "/admin/resources/article/a1", "title=Updated&_csrf=csrf-value", 1},
 		{"delete", "/admin/resources/article/a1/delete", "_csrf=csrf-value", 2},
 	}
-	for _, role := range []string{"admin", "editor", "viewer", "unknown"} {
+	for _, role := range []string{"admin", "editor", "viewer", "unknown", "admin-delete-denied", "editor-readonly", "viewer-create-granted"} {
 		for _, action := range actions {
 			t.Run(role+"/"+action.name, func(t *testing.T) {
 				if action.name == "create" {
@@ -1131,7 +1144,7 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 				request.Header.Set("X-Test-Role", role)
 				response := httptest.NewRecorder()
 				mux.ServeHTTP(response, request)
-				allowed := role == "admin" || role == "editor" && action.name != "delete"
+				allowed := role == "admin" || role == "editor" && action.name != "delete" || role == "admin-delete-denied" && action.name != "delete" || role == "viewer-create-granted" && action.name == "create"
 				wantStatus := http.StatusForbidden
 				wantMutations := before
 				if allowed {
