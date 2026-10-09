@@ -134,6 +134,7 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
     await page.goto(`${baseURL}/admin/resources/project/new`);
     const create = page.locator('form[action="/admin/resources/project/new"]');
+    await create.getByLabel("Title").fill("HydroGo E2E project");
     await create.locator('button[type="submit"]').click();
     await expect(create.getByLabel("Project code")).toBeFocused();
     expect(await create.getByLabel("Project code").evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true);
@@ -207,8 +208,8 @@ test.describe("generated Edition Admin CRUD", () => {
     await milestoneForm.locator('button[type="submit"]').click();
     expect((await milestoneValidation).status()).toBe(422);
     await expect(page).toHaveURL(/\/admin\/resources\/milestone\/new$/);
-    await expect(page.getByRole("alert")).toContainText("Review these fields");
-    await expect(page.getByText("This field is required.")).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("Bu alanları kontrol edin");
+    await expect(page.getByText("Bu alan zorunludur.")).toBeVisible();
     await expect(milestoneForm.getByLabel("Title")).toHaveValue("   ");
     await expectNoA11yViolations(page, "generated required-field feedback");
     await milestoneForm.getByLabel("Title").fill("Blueprint generated milestone");
