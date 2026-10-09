@@ -129,6 +129,22 @@ mutation checks, mobile/tablet fit, invitation acceptance, and the four Studio
 themes in both color modes. The focused role/import scenario separately passed
 1/1 on PostgreSQL 18.6; the full five-test file was not rerun on PostgreSQL.
 
+## Admin navigation routes × Editor/Viewer follow-up — 2026-10-10
+
+The role-boundary browser case now compares each Editor and Viewer sidebar
+against the full Admin sidebar route inventory. Every link visible to that
+role is opened and expected to return 200; every Admin navigation route hidden
+from that role is requested directly and expected to return 403. This makes
+future Admin navigation routes enter the role gate automatically instead of
+relying only on a hand-maintained restricted-route list.
+
+Playwright discovery passed and listed the updated case (1/1). Browser
+execution was attempted, but the Admin fixture failed to bind `127.0.0.1`
+(`listen EPERM`) before setup and route assertions. Therefore, the new dynamic
+cross-check is authored but not claimed as a passing browser result here. The
+existing Go route-policy, CSRF and capability evidence above remains valid for
+its stated scope.
+
 ```sh
 cd e2e
 TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/admin-management.spec.ts \

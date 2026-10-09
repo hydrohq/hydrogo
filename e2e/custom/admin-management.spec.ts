@@ -284,6 +284,11 @@ test.describe("single Edition administrator management", () => {
         const response = await page.goto(`${baseURL}${path}`);
         expect(response?.status(), `${account.expectedRole} navigation link ${path} must open`).toBe(200);
       }
+      const visibleNavPathSet = new Set(visibleNavPaths);
+      for (const path of adminNavPaths.filter((candidate) => !visibleNavPathSet.has(candidate))) {
+        const response = await page.goto(`${baseURL}${path}`);
+        expect(response?.status(), `${account.expectedRole} must be denied hidden Admin navigation route ${path}`).toBe(403);
+      }
 
       const allowed = await page.goto(`${baseURL}${account.allowedPath}`);
       const accountSettings = await page.goto(`${baseURL}/admin/account`);
