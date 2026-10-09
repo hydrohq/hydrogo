@@ -121,6 +121,30 @@ Both passed. Existing successful Editor settings persistence and visibility
 tests remain in the same package. This adds the explicit Admin-deny cells for
 media management; it does not close the repository-wide route × role matrix.
 
+## Media Admin explicit-deny persisted state — 2026-10-09
+
+The SQLite registered-route contract now executes an active Admin with
+`media.manage=false` against metadata, visibility, upload, and settings
+mutations using valid CSRF. Every request returns 403. SQL readback confirms
+metadata, visibility, and tenant settings stay unchanged; upload leaves both
+the asset table and upload directory unchanged. Existing valid-CSRF Editor
+mutations then succeed and persist, proving the denied requests did not poison
+the success path. The fixture resolves tenant scope from the host and confirms
+cross-tenant access remains isolated.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 GOPROXY=off \
+  go test ./tests/contract -run '^TestSQLiteAdminMediaMutationRoutesCSRFAndPersistence$' -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 GOPROXY=off \
+  go test ./tests/contract -run '^Test(SQLite|Postgres)AdminMediaMutationRoutesCSRFAndPersistence$' -count=1 -p 1 -v
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 GOPROXY=off \
+  go vet ./tests/contract
+```
+
+SQLite passed. The PostgreSQL case was skipped because
+`HYDRO_TEST_POSTGRES_URL` is unset; it is not a PostgreSQL pass. The full
+contract package was not rerun as part of this focused change.
+
 ## Admin push broadcast route — 2026-10-08
 
 The successful broadcast test now mounts the real `Handler.Routes()` registry

@@ -100,7 +100,8 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		"alpha.example.test": alpha,
 		"beta.example.test":  beta,
 	}, true).Middleware(handler)
-	serve := func(host, token string) *httptest.ResponseRecorder {
+	adminDenied := &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}}
+	serveAs := func(host, token string, user *auth.User) *httptest.ResponseRecorder {
 		form := url.Values{
 			"_csrf": {token}, "focal_x": {"0.25"}, "focal_y": {"0.75"},
 			"folder_id": {folder.ID}, "tags": {"hero, header"},
@@ -110,10 +111,13 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		request.Header.Set("X-Tenant-ID", beta.TenantID)
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		request = request.WithContext(auth.WithUser(request.Context(), user))
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		return response
+	}
+	serve := func(host, token string) *httptest.ResponseRecorder {
+		return serveAs(host, token, &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true})
 	}
 	invalid := serve("alpha.example.test", "wrong-token")
 	if invalid.Code != http.StatusForbidden {
@@ -122,6 +126,14 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 	before, err := store.Get(alphaCtx, db, asset.ID)
 	if err != nil || before.FocalX != 0 || before.FocalY != 0 || before.FolderID != "" || len(before.Tags) != 0 {
 		t.Fatalf("invalid CSRF changed metadata: asset=%+v err=%v", before, err)
+	}
+	deniedMetadata := serveAs("alpha.example.test", "valid-token", adminDenied)
+	if deniedMetadata.Code != http.StatusForbidden {
+		t.Fatalf("admin media deny metadata status=%d body=%q", deniedMetadata.Code, deniedMetadata.Body.String())
+	}
+	deniedMetadataState, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || deniedMetadataState.FocalX != 0 || deniedMetadataState.FocalY != 0 || deniedMetadataState.FolderID != "" || len(deniedMetadataState.Tags) != 0 {
+		t.Fatalf("admin media deny changed metadata: asset=%+v err=%v", deniedMetadataState, err)
 	}
 	crossTenant := serve("beta.example.test", "valid-token")
 	if crossTenant.Code != http.StatusBadRequest {
@@ -143,16 +155,19 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		t.Fatalf("other tenant media read=%v, want no row", err)
 	}
 
-	serveVisibility := func(host, token, visibility string) *httptest.ResponseRecorder {
+	serveVisibilityAs := func(host, token, visibility string, user *auth.User) *httptest.ResponseRecorder {
 		form := url.Values{"_csrf": {token}, "visibility": {visibility}}
 		request := httptest.NewRequest(http.MethodPost, "/admin/media/metadata-route-asset/visibility", strings.NewReader(form.Encode()))
 		request.Host = host
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		request = request.WithContext(auth.WithUser(request.Context(), user))
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		return response
+	}
+	serveVisibility := func(host, token, visibility string) *httptest.ResponseRecorder {
+		return serveVisibilityAs(host, token, visibility, &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true})
 	}
 	invalidVisibility := serveVisibility("alpha.example.test", "wrong-token", media.VisibilityPublic)
 	if invalidVisibility.Code != http.StatusForbidden {
@@ -161,6 +176,14 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 	unchanged, err := store.Get(alphaCtx, db, asset.ID)
 	if err != nil || unchanged.Visibility != media.VisibilityPrivate {
 		t.Fatalf("invalid visibility CSRF changed asset=%+v err=%v", unchanged, err)
+	}
+	deniedVisibility := serveVisibilityAs("alpha.example.test", "valid-token", media.VisibilityPublic, adminDenied)
+	if deniedVisibility.Code != http.StatusForbidden {
+		t.Fatalf("admin media deny visibility status=%d body=%q", deniedVisibility.Code, deniedVisibility.Body.String())
+	}
+	deniedVisibilityState, err := store.Get(alphaCtx, db, asset.ID)
+	if err != nil || deniedVisibilityState.Visibility != media.VisibilityPrivate {
+		t.Fatalf("admin media deny changed visibility asset=%+v err=%v", deniedVisibilityState, err)
 	}
 	validVisibility := serveVisibility("alpha.example.test", "valid-token", media.VisibilityPublic)
 	if validVisibility.Code != http.StatusSeeOther {
@@ -171,7 +194,7 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		t.Fatalf("persisted visibility asset=%+v err=%v", visible, err)
 	}
 
-	makeUploadRequest := func(token string) *http.Request {
+	makeUploadRequest := func(token string, user *auth.User) *http.Request {
 		var body bytes.Buffer
 		form := multipart.NewWriter(&body)
 		for name, value := range map[string]string{"_csrf": token, "folder_id": folder.ID, "visibility": media.VisibilityPrivate} {
@@ -198,10 +221,10 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		request.Header.Set("Content-Type", form.FormDataContentType())
 		request.Header.Set("X-Tenant-ID", beta.TenantID)
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		return request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		return request.WithContext(auth.WithUser(request.Context(), user))
 	}
 	invalidUpload := httptest.NewRecorder()
-	handler.ServeHTTP(invalidUpload, makeUploadRequest("wrong-token"))
+	handler.ServeHTTP(invalidUpload, makeUploadRequest("wrong-token", &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
 	if invalidUpload.Code != http.StatusForbidden {
 		t.Fatalf("invalid upload CSRF status=%d body=%q", invalidUpload.Code, invalidUpload.Body.String())
 	}
@@ -209,8 +232,17 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 	if err != nil || len(assets) != 1 {
 		t.Fatalf("invalid upload changed database assets=%+v err=%v", assets, err)
 	}
+	deniedUpload := httptest.NewRecorder()
+	handler.ServeHTTP(deniedUpload, makeUploadRequest("valid-token", adminDenied))
+	if deniedUpload.Code != http.StatusForbidden {
+		t.Fatalf("admin media deny upload status=%d body=%q", deniedUpload.Code, deniedUpload.Body.String())
+	}
+	assets, err = store.List(alphaCtx, db, 200)
+	if err != nil || len(assets) != 1 {
+		t.Fatalf("admin media deny changed uploaded assets=%+v err=%v", assets, err)
+	}
 	validUpload := httptest.NewRecorder()
-	handler.ServeHTTP(validUpload, makeUploadRequest("valid-token"))
+	handler.ServeHTTP(validUpload, makeUploadRequest("valid-token", &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
 	if validUpload.Code != http.StatusSeeOther {
 		t.Fatalf("valid editor upload status=%d body=%q", validUpload.Code, validUpload.Body.String())
 	}
@@ -232,7 +264,7 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		t.Fatalf("stored upload file is missing: %v", err)
 	}
 
-	serveSettings := func(host, token string) *httptest.ResponseRecorder {
+	serveSettingsAs := func(host, token string, user *auth.User) *httptest.ResponseRecorder {
 		form := url.Values{
 			"_csrf": {token}, "hotlink_protection": {"on"}, "allowed_referer_hosts": {"assets.example.test"},
 			"watermark_opacity": {"40"}, "watermark_margin": {"16"},
@@ -242,10 +274,13 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		request.Header.Set("X-Tenant-ID", beta.TenantID)
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		request = request.WithContext(auth.WithUser(request.Context(), user))
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)
 		return response
+	}
+	serveSettings := func(host, token string) *httptest.ResponseRecorder {
+		return serveSettingsAs(host, token, &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true})
 	}
 	invalidSettings := serveSettings("alpha.example.test", "wrong-token")
 	if invalidSettings.Code != http.StatusForbidden {
@@ -253,6 +288,13 @@ func runAdminMediaMutationRoutesContract(t *testing.T, db *sql.DB, dialect datab
 	}
 	if _, found, err := store.LoadAdminSettings(alphaCtx, db); err != nil || found {
 		t.Fatalf("invalid settings CSRF persisted found=%t err=%v", found, err)
+	}
+	deniedSettings := serveSettingsAs("alpha.example.test", "valid-token", adminDenied)
+	if deniedSettings.Code != http.StatusForbidden {
+		t.Fatalf("admin media deny settings status=%d body=%q", deniedSettings.Code, deniedSettings.Body.String())
+	}
+	if _, found, err := store.LoadAdminSettings(alphaCtx, db); err != nil || found {
+		t.Fatalf("admin media deny persisted settings found=%t err=%v", found, err)
 	}
 	validSettings := serveSettings("alpha.example.test", "valid-token")
 	if validSettings.Code != http.StatusSeeOther {
