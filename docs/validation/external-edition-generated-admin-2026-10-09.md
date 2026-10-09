@@ -52,3 +52,9 @@ npx playwright test custom/external-edition-editor.spec.ts --project=chromium --
 The test server uses test identity headers and a fixture policy, not production
 sessions or authorization. SQLite HTTP composition tests passed after the
 change; no live browser or PostgreSQL claim is made.
+
+Local server startup was attempted with the documented SQLite DSN. The fixture
+opened/migrated the database and composed the generated routes before
+`net.Listen` failed with `socket: operation not permitted` on
+`127.0.0.1:8099`. This confirms the remaining E2E blocker is listener access;
+it is not a Playwright assertion result.
