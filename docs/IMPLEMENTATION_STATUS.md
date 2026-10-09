@@ -504,3 +504,9 @@ exercise 24 `admin.members.manage` role/override cells. The member transport
 package and vet passed. This matrix uses in-memory handler contracts and does
 not claim database-adapter coverage. Evidence:
 `docs/validation/admin-permission-matrix-2026-10-08.md`.
+
+2026-10-09: Generated locale-copy authorization tests count callback calls so
+Editor/Viewer and missing-CSRF denials prove no extra persistence call. Focused
+test, full `internal/adminstudio` package, and vet passed. This is in-memory
+callback evidence, not database-adapter certification. See
+`docs/validation/admin-permission-matrix-2026-10-08.md`.

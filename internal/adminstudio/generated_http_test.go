@@ -636,7 +636,7 @@ func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.
 	})
 	var saved map[string]any
 	var savedVersion int64
-	var copied bool
+	copyCalls := 0
 	var renderErr error
 	mux := http.NewServeMux()
 	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
@@ -679,7 +679,7 @@ func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.
 			if id != "a1" || from != "en" || to != "fr" || expected != 2 {
 				return errors.New("wrong copy contract")
 			}
-			copied = true
+			copyCalls++
 			return nil
 		},
 		CSRFToken: func(*http.Request) string { return "csrf-value" }, ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf-value" },
@@ -718,16 +718,16 @@ func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.
 	deniedCopyRequest.Header.Set("X-Test-Role", "admin")
 	deniedCopy := httptest.NewRecorder()
 	mux.ServeHTTP(deniedCopy, deniedCopyRequest)
-	if deniedCopy.Code != http.StatusForbidden || copied {
-		t.Fatalf("locale copy without CSRF was not rejected before storage: status=%d copied=%v", deniedCopy.Code, copied)
+	if deniedCopy.Code != http.StatusForbidden || copyCalls != 0 {
+		t.Fatalf("locale copy without CSRF was not rejected before storage: status=%d copy callbacks=%d", deniedCopy.Code, copyCalls)
 	}
 	copyRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale-copy?locale=fr", strings.NewReader("_csrf=csrf-value&from_locale=en&expected_version=2"))
 	copyRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	copyRequest.Header.Set("X-Test-Role", "admin")
 	copyResponse := httptest.NewRecorder()
 	mux.ServeHTTP(copyResponse, copyRequest)
-	if copyResponse.Code != http.StatusSeeOther || !copied {
-		t.Fatalf("authorized locale copy was not delegated with the current locale version: status=%d copied=%v body=%s", copyResponse.Code, copied, copyResponse.Body.String())
+	if copyResponse.Code != http.StatusSeeOther || copyCalls != 1 {
+		t.Fatalf("authorized locale copy was not delegated with the current locale version: status=%d copy callbacks=%d body=%s", copyResponse.Code, copyCalls, copyResponse.Body.String())
 	}
 	for _, role := range []string{"editor", "viewer"} {
 		localizedWrite := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale?locale=fr", strings.NewReader("_csrf=csrf-value&locale_version=2&title=Forged"))
@@ -743,8 +743,8 @@ func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.
 		localeCopy.Header.Set("X-Test-Role", role)
 		localeCopyResponse := httptest.NewRecorder()
 		mux.ServeHTTP(localeCopyResponse, localeCopy)
-		if localeCopyResponse.Code != http.StatusForbidden || !copied {
-			t.Fatalf("%s locale copy was not denied before persistence: status=%d copied=%v", role, localeCopyResponse.Code, copied)
+		if localeCopyResponse.Code != http.StatusForbidden || copyCalls != 1 {
+			t.Fatalf("%s locale copy was not denied before persistence: status=%d copy callbacks=%d", role, localeCopyResponse.Code, copyCalls)
 		}
 	}
 	list := httptest.NewRecorder()

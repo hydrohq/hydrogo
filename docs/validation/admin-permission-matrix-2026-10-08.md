@@ -670,3 +670,24 @@ GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
 Focused read matrix, complete package tests, and vet passed. The module uses
 in-memory member contracts for this authorization check; it does not add a
 SQLite/PostgreSQL adapter claim.
+
+## Generated locale-copy callback denial assertion — 2026-10-09
+
+The generated localization contract now counts Edition `CopyLocale` callback
+invocations directly. A valid-CSRF Admin copy calls persistence exactly once;
+a missing-CSRF request, and valid-CSRF Editor and Viewer requests, return 403
+without increasing the callback count. This replaces a sticky boolean assertion
+that could not detect an accidental second callback after one successful copy.
+
+```sh
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./internal/adminstudio -run '^TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore$' -count=1 -v
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./internal/adminstudio -count=1
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go vet ./internal/adminstudio
+```
+
+Focused test, full package, and vet passed. This is an in-memory Edition
+callback contract test; it does not claim locale-store SQLite/PostgreSQL
+adapter behavior.
