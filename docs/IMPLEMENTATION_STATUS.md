@@ -407,6 +407,13 @@ matrix for Editor, Viewer, inactive Admin, explicit `users.manage` denial, and
 invalid CSRF. The focused test and complete auth/sqlstore suite pass; browser
 and PostgreSQL remain open.
 
+Generated CRUD API failures now render safe Turkish/English localized copy
+based on the Admin locale. A failure injection with a database URL, host,
+filesystem path, and panic text verifies none reach the response and no
+success redirect is issued. Full Admin Studio/i18n tests and vet passed. The
+plain-body error UX, browser verification, and PostgreSQL remain open; see
+`docs/validation/generated-admin-error-localization-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
