@@ -122,3 +122,24 @@ The `e2e` npm dependencies were installed offline from the local cache with
 both scenarios. A new SQLite fixture DSN again reached `net.Listen` and failed
 with `socket: operation not permitted`. No browser assertions ran; repeat on a
 loopback-capable runner.
+
+## Independent Go module regression — 2026-10-09
+
+The root module suite does not recurse into this nested Edition Go module. Its
+own test suite and vet were therefore run separately after the Admin Studio
+changes:
+
+```sh
+cd tests/external-edition
+GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
+  go test ./... -count=1 -p 1 -timeout=5m
+GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
+  go vet ./...
+cd ../..
+GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin-tests \
+  go run ./tools/importguard -root tests/external-edition
+```
+
+All external module packages passed; vet and the Edition import boundary
+guard exited successfully. This exercises SQLite/in-process HTTP composition;
+it is not the unexecuted Playwright browser journey or PostgreSQL certification.

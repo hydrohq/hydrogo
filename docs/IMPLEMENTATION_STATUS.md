@@ -353,6 +353,11 @@ Edition importguards. This run still had no `HYDRO_TEST_POSTGRES_URL`; see
 [`admin-studio-root-suite-2026-10-09.md`](validation/admin-studio-root-suite-2026-10-09.md)
 for exact commands and the PostgreSQL/browser limits.
 
+Because the root module does not include nested modules, `tests/external-edition`
+was independently rechecked: all its tests, `go vet ./...`, and its Edition
+importguard passed. This is SQLite/in-process composition evidence only; its
+live browser journeys and PostgreSQL adapter remain open.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
