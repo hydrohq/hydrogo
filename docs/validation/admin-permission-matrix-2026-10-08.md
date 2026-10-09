@@ -82,6 +82,24 @@ read-only detail page using escaped field values and no forms. POST update and
 delete remain denied before the API is called. Draft and global-resource
 behavior keep their dedicated policy rules.
 
+## Editor page import success path — 2026-10-09
+
+The authenticated Editor Chromium journey uploads a CSV, maps title/slug/body,
+checks the preview, confirms import, then verifies the new draft in the Admin
+list and reads it back through the Edition API. The same scenario confirms
+Viewer direct GET and valid-CSRF POST are denied. The first run exposed a
+repository bound mismatch: import requests 5,000 existing summaries for
+duplicate detection, but `ListAdmin` rejected any limit above 100 and returned
+503. The summary query now accepts the import's bounded 5,000 maximum; no page
+bodies are selected. A focused repository/transport Go run and Chromium passed
+on SQLite. PostgreSQL successful-import replay is still pending.
+
+```sh
+TMPDIR=/var/tmp/hydro-go-tests go test ./modules/pages/repository/sqlstore ./modules/pages/transport -count=1
+cd e2e
+TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/admin-management.spec.ts --project chromium --workers=1 --grep 'editor and viewer sessions enforce'
+```
+
 ## Dynamic Collections mutation CSRF and role matrix — 2026-10-08
 
 The test builds the actual registered Collections router and wraps it with the

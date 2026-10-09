@@ -19,7 +19,7 @@ import (
 // installations exceeding it should partition sitemap generation by locale.
 const maxSitemapRoutes = 50000
 
-var ErrInvalidListLimit = errors.New("page list limit must be between 1 and 100")
+var ErrInvalidListLimit = errors.New("page list limit is outside the supported range")
 
 func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Page, error) {
 	if db == nil {
@@ -247,7 +247,7 @@ func (s Store) ListRelatedPublished(ctx context.Context, db database.Executor, s
 // ListAdmin returns bounded protected Studio summaries, including unpublished
 // records, without selecting body or block payloads.
 func (s Store) ListAdmin(ctx context.Context, db database.Executor, limit int) ([]pages.Page, error) {
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > 5000 {
 		return nil, ErrInvalidListLimit
 	}
 	if err := database.RequireExecutor(db); err != nil {

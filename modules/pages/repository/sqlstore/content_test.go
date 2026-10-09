@@ -11,11 +11,11 @@ func TestListRejectsUnboundedLimitsBeforeDatabaseAccess(t *testing.T) {
 		if _, err := store.ListPublished(context.Background(), nil, "tr", limit); err != ErrInvalidListLimit {
 			t.Fatalf("published limit %d error = %v", limit, err)
 		}
-		if _, err := store.ListAdmin(context.Background(), nil, limit); err != ErrInvalidListLimit {
-			t.Fatalf("admin limit %d error = %v", limit, err)
-		}
 		if _, err := store.ListPublishedTranslations(context.Background(), nil, "slug", limit); err != ErrInvalidListLimit {
 			t.Fatalf("translation limit %d error = %v", limit, err)
 		}
+	}
+	if _, err := store.ListAdmin(context.Background(), nil, 5001); err != ErrInvalidListLimit {
+		t.Fatalf("admin limit 5001 error = %v", err)
 	}
 }
