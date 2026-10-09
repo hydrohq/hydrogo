@@ -150,7 +150,11 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 			t.Errorf("unexpected API request %s %s", r.Method, r.URL.String())
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `[]`)
+		if r.URL.Query().Get("where[or][0][title][contains]") != "" {
+			_, _ = io.WriteString(w, `[]`)
+			return
+		}
+		_, _ = io.WriteString(w, `[{"id":"p1","title":"Example"}]`)
 	})
 	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
 	request, err := http.NewRequest(http.MethodGet, baseURL+"/admin/resources/project?search=missing", nil)
@@ -167,8 +171,27 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK || !strings.Contains(string(body), "Try changing your search or filters. No records match them.") {
-		t.Fatalf("English search empty state status=%d body=%s", response.StatusCode, body)
+	for _, want := range []string{"Try changing your search or filters. No records match them.", `caption class="visually-hidden">Projects list</caption>`, `<th scope="col" style="text-align:right">Actions</th>`} {
+		if response.StatusCode != http.StatusOK || !strings.Contains(string(body), want) {
+			t.Fatalf("English generated list missing %q: status=%d body=%s", want, response.StatusCode, body)
+		}
+	}
+	listRequest, err := http.NewRequest(http.MethodGet, baseURL+"/admin/resources/project", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listRequest.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	listResponse, err := client.Do(listRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listResponse.Body.Close()
+	listBody, err := io.ReadAll(listResponse.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if listResponse.StatusCode != http.StatusOK || !strings.Contains(string(listBody), `data-label="Actions"`) {
+		t.Fatalf("English generated list row action label status=%d body=%s", listResponse.StatusCode, listBody)
 	}
 }
 

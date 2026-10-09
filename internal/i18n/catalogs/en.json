@@ -30,6 +30,8 @@
   "admin.generated.error.delete_operation": "Check whether the record is still listed before trying again.",
   "admin.generated.list.empty": "There are no records in this collection yet.",
   "admin.generated.list.noMatches": "Try changing your search or filters. No records match them.",
+  "admin.generated.list.caption": "%s list",
+  "admin.generated.list.actions": "Actions",
   "admin.generated.drafts.title": "Drafts",
   "admin.generated.drafts.caption": "Draft list: %s",
   "admin.generated.drafts.actions": "Actions",
