@@ -714,6 +714,140 @@ func TestGeneratedAdminMutationUsesCSRFAndResourceAPI(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true, Localization: true, Drafts: true,
+		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, "review", StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {"review"}, "review": {StatePublished}}},
+		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText, Localized: true, VisibleInList: true}, {ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "review", "published"}}},
+		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiCalls, persistenceCalls := 0, 0
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiCalls++
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"id":"a1","version":1,"title":"Article","status":"published"}`)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: api, Authorize: func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return true },
+		ResourceAccess: func(*http.Request, Collection, string) ResourceAccess {
+			return ResourceAccess{Create: true, Update: true, Delete: true}
+		},
+		CSRFToken:    func(*http.Request) string { return "csrf" },
+		ValidateCSRF: func(*http.Request) bool { return false },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+		CanTransition: func(*http.Request, Collection, map[string]any, PublicationState) bool {
+			persistenceCalls++
+			return true
+		},
+		Transition: func(*http.Request, Collection, map[string]any, PublicationState, int64) error {
+			persistenceCalls++
+			return nil
+		},
+		CanRestore: func(*http.Request, Collection, string, int64) bool { persistenceCalls++; return true },
+		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) {
+			return nil, nil
+		},
+		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+			return RevisionSnapshot{}, nil
+		},
+		RestoreRevision: func(*http.Request, Collection, string, int64, int64) error {
+			persistenceCalls++
+			return nil
+		},
+		Locales: func(*http.Request, Collection) (LocaleOptions, error) {
+			return LocaleOptions{Default: "en", Allowed: []string{"en", "fr"}}, nil
+		},
+		GetLocalized: func(*http.Request, Collection, string, string) (map[string]any, int64, error) {
+			persistenceCalls++
+			return map[string]any{"title": "Article"}, 1, nil
+		},
+		SaveLocalized: func(*http.Request, Collection, string, string, map[string]any, int64) error {
+			persistenceCalls++
+			return nil
+		},
+		ListLocalized: func(*http.Request, Collection, []string, string) (map[string]map[string]any, error) {
+			return nil, nil
+		},
+		CanCopyLocale: func(*http.Request, Collection, string, string) bool { persistenceCalls++; return true },
+		CopyLocale: func(*http.Request, Collection, string, string, string, int64) error {
+			persistenceCalls++
+			return nil
+		},
+		ListDrafts: func(*http.Request, Collection, string, int) ([]DraftDocument, error) { return nil, nil },
+		GetDraft: func(*http.Request, Collection, string, string) (DraftDocument, error) {
+			persistenceCalls++
+			return DraftDocument{}, nil
+		},
+		CanSaveDraft: func(*http.Request, Collection, string, string) bool {
+			persistenceCalls++
+			return true
+		},
+		SaveDraft: func(*http.Request, Collection, string, string, map[string]any, int64, int64) error {
+			persistenceCalls++
+			return nil
+		},
+		CanTransitionDraft: func(*http.Request, Collection, DraftDocument, PublicationState) bool {
+			persistenceCalls++
+			return true
+		},
+		TransitionDraft: func(*http.Request, Collection, string, string, PublicationState, int64, int64) error {
+			persistenceCalls++
+			return nil
+		},
+		CanDiscardDraft: func(*http.Request, Collection, DraftDocument) bool {
+			persistenceCalls++
+			return true
+		},
+		DiscardDraft: func(*http.Request, Collection, string, string, int64) error {
+			persistenceCalls++
+			return nil
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name string
+		path string
+		body string
+	}{
+		{name: "create", path: "/admin/resources/article/new", body: "id=a2&draft_version=0&published_version=0&title=New"},
+		{name: "update", path: "/admin/resources/article/a1", body: "title=Changed"},
+		{name: "delete", path: "/admin/resources/article/a1/delete", body: "_csrf=bad"},
+		{name: "workflow", path: "/admin/resources/article/a1/workflow", body: "target=review&expected_draft_version=1&expected_published_version=1"},
+		{name: "revision restore", path: "/admin/resources/article/a1/revisions/1/restore", body: "expected_version=1"},
+		{name: "locale save", path: "/admin/resources/article/a1/locale?locale=fr", body: "locale_version=1&title=Traduction"},
+		{name: "locale copy", path: "/admin/resources/article/a1/locale-copy?locale=fr", body: "from_locale=en&expected_version=1"},
+		{name: "draft save", path: "/admin/resources/article/a1/draft", body: "draft_version=0&published_version=1&title=Draft"},
+		{name: "draft discard", path: "/admin/resources/article/a1/draft/discard", body: "expected_version=1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			beforeAPI, beforePersistence := apiCalls, persistenceCalls
+			request := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("invalid CSRF status=%d, want 403; body=%s", response.Code, response.Body.String())
+			}
+			if apiCalls != beforeAPI || persistenceCalls != beforePersistence {
+				t.Fatalf("invalid CSRF reached persistence boundary: API calls %d->%d, callbacks %d->%d", beforeAPI, apiCalls, beforePersistence, persistenceCalls)
+			}
+		})
+	}
+}
+
 func TestGeneratedAdminRequiresEditionAuthorizationAndBoundaries(t *testing.T) {
 	registry, _ := NewRegistry([]Collection{{ID: "project", Label: "Projects", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText}}, Actions: []Action{{Label: "Open", Href: "/admin/resources/project"}}}})
 	if err := (GeneratedAdminHandler{Registry: registry}).Register(http.NewServeMux()); err == nil {
