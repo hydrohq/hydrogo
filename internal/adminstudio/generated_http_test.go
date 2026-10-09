@@ -112,6 +112,34 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	}
 }
 
+func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/project" {
+			t.Errorf("unexpected API request %s %s", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[]`)
+	})
+	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
+	request, err := http.NewRequest(http.MethodGet, baseURL+"/admin/resources/project?search=missing", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK || !strings.Contains(string(body), "Try changing your search or filters. No records match them.") {
+		t.Fatalf("English search empty state status=%d body=%s", response.StatusCode, body)
+	}
+}
+
 func TestGeneratedAdminArrayFieldCreatesStructuredListAndRestoresIt(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
 		ID: "article", Label: "Articles", TitleField: "title",
