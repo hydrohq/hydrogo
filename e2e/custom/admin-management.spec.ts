@@ -1752,7 +1752,9 @@ test.describe("single Edition administrator management", () => {
 
     const routes = [
       "/admin",
+      "/admin/pages",
       "/admin/pages/new",
+      "/admin/news",
       "/admin/news/new",
       "/admin/media",
       "/admin/users",

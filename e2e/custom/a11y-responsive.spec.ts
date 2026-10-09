@@ -11,7 +11,9 @@ const publicSurfaces = [
 const adminSurfaces = [
   { name: "admin login", path: "/login", auth: false },
   { name: "admin dashboard", path: "/admin", auth: true },
+  { name: "pages list", path: "/admin/pages", auth: true },
   { name: "page editor", path: "/admin/pages/new", auth: true },
+  { name: "news list", path: "/admin/news", auth: true },
   { name: "news editor", path: "/admin/news/new", auth: true },
   { name: "media library", path: "/admin/media", auth: true },
 ];
