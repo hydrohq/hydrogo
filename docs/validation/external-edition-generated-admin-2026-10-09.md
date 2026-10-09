@@ -116,3 +116,9 @@ migration and route composition completed, but the listener again failed at
 `127.0.0.1:8099` with `socket: operation not permitted`. Playwright `--list`
 passed with 2/2 scenarios using the shared local package; this remains a
 discovery result, not browser execution.
+
+The `e2e` npm dependencies were installed offline from the local cache with
+`npm ci --offline --no-audit --no-fund`, and Playwright independently listed
+both scenarios. A new SQLite fixture DSN again reached `net.Listen` and failed
+with `socket: operation not permitted`. No browser assertions ran; repeat on a
+loopback-capable runner.
