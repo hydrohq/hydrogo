@@ -18,18 +18,31 @@ import (
 
 func TestCollectionRoutesRequireAdmin(t *testing.T) {
 	handler := Handler{Service: collections.Service{}}
-	for _, route := range handler.Routes() {
+	routes := handler.Routes()
+	protected, err := router.New(routes, func(r *http.Request) bool {
+		user := auth.UserFromContext(r.Context())
+		return user != nil && user.Active
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, route := range routes {
 		if route.Access != router.Protected {
 			t.Errorf("route %q access = %v, want protected", route.Pattern, route.Access)
 		}
+		method, path, ok := strings.Cut(route.Pattern, " ")
+		if !ok {
+			t.Fatalf("route %q has no method", route.Pattern)
+		}
+		path = strings.NewReplacer("{collection}", "articles", "{id}", "article-1").Replace(path)
 		for _, role := range []auth.Role{auth.RoleEditor, auth.RoleViewer} {
 			t.Run(route.Pattern+"/"+string(role), func(t *testing.T) {
-				req := httptest.NewRequest(http.MethodGet, "/", nil)
+				req := httptest.NewRequest(method, path, nil)
 				req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "staff", Role: role, Active: true}))
 				recorder := httptest.NewRecorder()
-				route.Handler.ServeHTTP(recorder, req)
+				protected.ServeHTTP(recorder, req)
 				if recorder.Code != http.StatusForbidden {
-					t.Fatalf("status = %d, want forbidden", recorder.Code)
+					t.Fatalf("%s %s status = %d, want forbidden; body=%s", method, path, recorder.Code, recorder.Body.String())
 				}
 			})
 		}
