@@ -588,3 +588,40 @@ This adds PostgreSQL-backed browser evidence to the previously recorded full
 SQLite run. It still does not establish the exhaustive route × role × each
 mutation × valid/invalid CSRF cross product for every Admin endpoint; that
 acceptance gate remains open.
+
+## Rendered privileged mutation target role matrix — 2026-10-09
+
+The Admin-management Chromium journey now inventories `form[method=post]` and
+submit-button `formaction` targets rendered by ten privileged pages:
+`/admin/users`, `/admin/permissions`, `/admin/security`,
+`/admin/security/token-lifetimes`, `/admin/audit`, `/admin/backup`,
+`/admin/control`, `/admin/operations`, `/admin/developer`, and
+`/admin/developer/resources`. It deduplicates same-origin targets, then sends
+an Editor and a Viewer session's valid CSRF token to every collected target;
+each receives 403. The existing journey also submits the common Admin form
+paths without CSRF and confirms 403. This avoids maintaining a second
+hand-written list of privileged form actions.
+
+The focused role journey passed on SQLite and PostgreSQL 18.6. After the
+change, the complete five-test Admin-management Chromium file passed 5/5 on
+SQLite (1.9 minutes) and 5/5 on PostgreSQL 18.6 (2.0 minutes), including
+responsive, invitation, and theme/axe checks. Each PostgreSQL run used a fresh
+disposable local database.
+
+```sh
+cd e2e
+npx playwright test custom/admin-management.spec.ts --project=chromium \
+  --workers=1 --reporter=line --trace=off
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+  HYDRO_E2E_DATABASE_DSN='postgres://<role>@127.0.0.1:<port>/hydro_admin_e2e?sslmode=disable' \
+  HYDRO_PG_PRIVILEGED_ROLE=<backup-role> \
+  npx playwright test custom/admin-management.spec.ts --project=chromium \
+  --workers=1 --reporter=line --trace=off
+```
+
+This is a runtime cross-product for the mutation targets actually rendered by
+the ten listed privileged pages and Editor/Viewer roles. It does not enumerate
+unrendered/API-only actions, every module-owned POST endpoint, Admin explicit
+deny overrides for every permission, or all possible CSRF variants. Those
+broader cells remain open; module contract tests continue to cover their own
+registered routes.
