@@ -526,6 +526,19 @@ func TestAdminShellIncludesAccessibleUXDialogsAndQuickActions(t *testing.T) {
 	}
 }
 
+func TestAdminQuillImageURLFallbackUsesAdminLanguage(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStartLocale(&out, "Studio", "", "", "en"); err != nil {
+		t.Fatal(err)
+	}
+	html := out.String()
+	for _, want := range []string{`<html lang="en"`, `document.documentElement.lang === 'en' ? 'Enter an image URL:' : 'Görsel URL adresini girin:'`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("English Admin shell is missing locale-aware Quill prompt %q", want)
+		}
+	}
+}
+
 func TestBulkToolbarBuildsContextualActionSelector(t *testing.T) {
 	script := adminUXScript()
 	for _, marker := range []string{`data-bulk-choice`, `new Option(action.textContent,action.dataset.bulkAction)`, `actions[choice?.selectedIndex||0]`} {
