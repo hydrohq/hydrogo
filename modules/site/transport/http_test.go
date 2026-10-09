@@ -1985,6 +1985,44 @@ func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	}
 }
 
+func TestSiteAdminDeepLinksDenyEditorAndViewer(t *testing.T) {
+	handler := Handler{FormsEnabled: true, FontsEnabled: true}
+	mux := http.NewServeMux()
+	var routes []string
+	for _, route := range handler.Routes() {
+		method, path, ok := strings.Cut(route.Pattern, " ")
+		if !ok || method != http.MethodGet || route.Public || !strings.HasPrefix(path, "/admin/") {
+			continue
+		}
+		mux.Handle(route.Pattern, route.Handler)
+		routes = append(routes, path)
+	}
+	if len(routes) < 15 {
+		t.Fatalf("registered %d Site Admin deep links, want broad route coverage", len(routes))
+	}
+	deniedUsers := []struct {
+		name string
+		user *auth.User
+	}{
+		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}},
+		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}},
+	}
+	for _, route := range routes {
+		path := strings.NewReplacer("{id}", "test-id", "{locale}", "tr", "{form}", "contact", "{status}", "404").Replace(route)
+		for _, tc := range deniedUsers {
+			t.Run(path+"/"+tc.name, func(t *testing.T) {
+				request := httptest.NewRequest(http.MethodGet, path, nil)
+				request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+				response := httptest.NewRecorder()
+				mux.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("direct deep-link status=%d, want 403; body=%s", response.Code, response.Body.String())
+				}
+			})
+		}
+	}
+}
+
 func TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{
 		FormsEnabled: true,
