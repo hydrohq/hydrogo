@@ -301,3 +301,12 @@ The focused HydroGo role run used `HYDRO_E2E_DATABASE_DIALECT=postgres`, a
 temporary database DSN, and `HYDRO_PG_PRIVILEGED_ROLE=arda`; the separate
 Edition runs used the test server with `--dialect postgres` and the same
 PostgreSQL 18.6 cluster.
+
+## External Edition revalidation after list localization — 2026-10-09
+
+The current workspace revision was rechecked in this independent Go module after
+generated Admin list/status locale wiring changed. All external Edition packages
+passed `go test ./... -count=1 -p 1 -timeout=5m`; `go vet ./...` and
+`tools/importguard -root .` also passed. The checks prove the nested module still
+compiles against the current Core public contract and preserves its import
+boundary. They do not re-run PostgreSQL or browser behavior.
