@@ -53,8 +53,8 @@ func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T)
 		{name: "folder", method: http.MethodPost, path: "/admin/media/folders", usesMediaManageGrant: true},
 		{name: "settings", method: http.MethodPost, path: "/admin/media/settings", usesMediaManageGrant: true},
 		{name: "visibility", method: http.MethodPost, path: "/admin/media/a1/visibility", usesMediaManageGrant: true},
-		{name: "cleanup plan", method: http.MethodGet, path: "/admin/media/cleanup"},
-		{name: "cleanup", method: http.MethodPost, path: "/admin/media/cleanup/delete"},
+		{name: "cleanup plan", method: http.MethodGet, path: "/admin/media/cleanup", usesMediaManageGrant: true},
+		{name: "cleanup", method: http.MethodPost, path: "/admin/media/cleanup/delete", usesMediaManageGrant: true},
 	}
 	users := []struct {
 		name string
@@ -68,9 +68,6 @@ func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T)
 		t.Run(user.name, func(t *testing.T) {
 			for _, route := range routes {
 				t.Run(route.name, func(t *testing.T) {
-					if user.name == "admin explicit media deny" && !route.usesMediaManageGrant {
-						t.Skip("cleanup is guarded by its separate Admin-only capability")
-					}
 					serve := func(token string) *httptest.ResponseRecorder {
 						body := "_csrf=" + token
 						request := httptest.NewRequest(route.method, route.path, strings.NewReader(body))
