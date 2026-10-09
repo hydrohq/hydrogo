@@ -4,7 +4,7 @@ const baseURL = process.env.HYDRO_E2E_BASE_URL ?? "http://127.0.0.1:8090";
 
 const publicSurfaces = [
   { name: "home", path: "/public/pages/tr/demo/html" },
-  { name: "news", "/public/news/tr/html": "/public/news/tr/html", path: "/public/news/tr/html" },
+  { name: "news", path: "/public/news/tr/html" },
   { name: "member login", path: "/member/login" },
 ];
 
@@ -42,19 +42,22 @@ test.describe("P2 Responsive Matrix & Viewport Bounds", () => {
       });
     }
 
-    test(`viewport ${vp.name} on admin login: no horizontal overflow`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto(`${baseURL}/login`, { waitUntil: "domcontentloaded" });
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(1);
+    for (const surface of adminSurfaces) {
+      test(`viewport ${vp.name} on ${surface.name}: no horizontal overflow`, async ({ page }) => {
+        if (surface.auth) {
+          test.skip(!process.env.HYDRO_E2E_STORAGE_STATE, "set HYDRO_E2E_STORAGE_STATE to exercise authenticated Admin layouts");
+        }
+        await page.setViewportSize({ width: vp.width, height: vp.height });
+        const response = await page.goto(`${baseURL}${surface.path}`, { waitUntil: "domcontentloaded" });
+        expect(response?.status()).toBe(200);
+        if (surface.auth) {
+          await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
+          await expect(page.locator("body")).toHaveAttribute("data-studio-role", /.+/);
+        }
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(overflow).toBeLessThanOrEqual(1);
     });
-
-    test(`viewport ${vp.name} on admin dashboard: no horizontal overflow`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto(`${baseURL}/admin`, { waitUntil: "domcontentloaded" });
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(1);
-    });
+    }
   }
 });
 
