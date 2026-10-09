@@ -47,6 +47,30 @@ npx playwright test --project=chromium --workers=1 custom/generated-richtext.spe
 ## Limits
 
 The UI journeys use the local in-process Edition fixture. Production session
-integration, PostgreSQL browser behavior, and deployed Edition error mapping
-remain open. The delete fallback is covered for Turkish and English when the
-record is no longer readable.
+integration and deployed Edition error mapping remain open. The delete
+fallback is covered for Turkish and English when the record is no longer
+readable.
+
+## Full SQLite and PostgreSQL browser replay — 2026-10-09
+
+The complete eight-test Chromium suite passed **8/8 on SQLite** (30.5 seconds)
+and **8/8 on PostgreSQL 18.6** (29.7 seconds). The PostgreSQL run used a fresh
+temporary cluster and application role. The fixture created and dropped an
+isolated schema for its editorial tables; the cluster itself was stopped and
+removed after the run. Covered journeys include Quill create/edit, block editor
+round-trip, failed-save retry, stale-edit conflict, relation/media picker,
+localized drafts, review/publish, and draft discard.
+
+This certifies the browser fixture against both database adapters, not the
+product's generated migration, real customer authorization/session composition,
+or deployed Edition error mapping. `generated-richtext` is an in-process test
+Edition with fixture-owned routes and editorial workflow callbacks.
+
+```sh
+cd e2e
+TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/generated-richtext.spec.ts \
+  --project=chromium --workers=1 --reporter=line --trace=off
+HYDRO_TEST_POSTGRES_URL='postgres://<app-role>@127.0.0.1:<port>/<empty-test-db>?sslmode=disable' \
+  TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/generated-richtext.spec.ts \
+  --project=chromium --workers=1 --reporter=line --trace=off
+```
