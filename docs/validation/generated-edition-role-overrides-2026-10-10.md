@@ -6,9 +6,12 @@ explicit permission overrides through its request policy boundary:
 
 - A Viewer with an explicit create grant can submit the Admin create form;
   the generated API accepts the matching policy decision and SQLite readback
-  confirms the row was persisted.
+  confirms the row was persisted. The collection list shows the create action
+  for that allowed override.
 - An Editor update-deny override and an Admin delete-deny override return 403
   from the Admin route and leave the existing SQLite row unchanged.
+- The Editor's detail view omits the writable form and the Admin detail view
+  omits the denied delete action; read access remains available.
 
 Validation passed:
 
