@@ -94,5 +94,115 @@ databases. Targeted Go tests for `internal/media`, `internal/auth`, and
 the run.
 
 This proves the folder-create capability boundary and persistence on both
-adapters. Other editor media mutations (upload, metadata, visibility, settings,
-and cleanup) still require their own role and persisted-state cases.
+adapters. The contract route checks below now cover successful SQLite
+persistence for upload, metadata, visibility, and settings; their PostgreSQL
+result awaits a configured contract database. Cleanup's handler test uses test
+doubles, so adapter persistence remains open.
+
+## Media route, CSRF, and role deny matrix — 2026-10-08
+
+`internal/media` now mounts the real Admin media route handlers behind the
+production CSRF middleware in an in-memory `http.ServeMux` and tests the
+editor-with-explicit-deny and default viewer cases for list, upload, metadata,
+folder creation, settings, visibility, cleanup planning, and cleanup mutation.
+Every POST rejects a wrong CSRF token in middleware, then rejects the same
+request with a valid token at the role boundary before touching storage
+dependencies. The GET list and cleanup plan are denied at the role boundary.
+The focused Go test passed:
+
+```sh
+go test ./internal/media -run 'TestMediaAccessUsesPermissionOverrides|TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies' -count=1
+```
+
+An additional in-memory route test now submits an invalid token and verifies
+that cleanup does not run, then submits a valid token as an active Admin and
+verifies the cleanup repository receives the deletion. This uses SQLite for
+the collector transaction but test doubles for media metadata and blob
+storage; it is not an adapter persistence or browser result. The expanded
+focused command is:
+
+```sh
+go test ./internal/media -run 'TestMediaAccessUsesPermissionOverrides|TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies|TestAdminMediaCleanupRouteRequiresCSRFBeforeDeleting|TestAdminMediaCleanupRequiresAdminAndConfirmation' -count=1
+```
+
+The settings mutation test now also traverses `AdminRoutes()` and the CSRF
+middleware as an active editor: an invalid token is rejected without saving,
+and a valid token saves settings. Its repository and cache are test doubles,
+so it validates the HTTP/authorization flow rather than durable settings
+storage. The combined focused command is:
+
+```sh
+go test ./internal/media -run 'TestMediaAccessUsesPermissionOverrides|TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies|TestAdminMediaCleanupRouteRequiresCSRFBeforeDeleting|TestAdminMediaCleanupRequiresAdminAndConfirmation|TestAdminMediaSettingsPersistAndApplyHotlinkProtection' -count=1
+```
+
+`tests/contract` now tests the metadata mutation through the real Admin route
+and CSRF middleware against SQLite and PostgreSQL media stores. An invalid
+token leaves the persisted asset unchanged; an active editor with a valid
+token updates focal coordinates, folder, tags, and visibility, which are read
+back from the database. The same route test covers multipart upload: invalid
+CSRF creates no asset row, while a valid editor request writes the file to the
+configured local media directory and persists a ready/private asset assigned
+to its selected folder. It also saves media settings through the route and
+checks their persisted SQLite/PostgreSQL row is visible only in the tenant
+resolved from the host. The SQLite case passed locally. The PostgreSQL case was
+registered but skipped because `HYDRO_TEST_POSTGRES_URL` is not configured in
+this environment; it is not counted as a PostgreSQL result:
+
+```sh
+go test ./tests/contract -run 'Test(SQLite|Postgres)AdminMediaMutationRoutesCSRFAndPersistence' -count=1
+```
+
+PostgreSQL execution and full browser coverage for these mutations remain
+open. The SQLite cleanup adapter gap was closed by the later contract section
+below; PostgreSQL and browser coverage remain open.
+The route test also uses the production host resolver with two tenant host
+mappings. It proves that a forged `X-Tenant-ID` does not change the resolved
+scope, a mutation through the other tenant's host cannot change the asset,
+and the asset remains invisible when read with the other tenant's scope.
+
+These route and contract checks run without opening a network listener; the
+contract test proves successful persisted state on SQLite as described above.
+Rendered browser flows remain unverified here. Earlier SQLite/PostgreSQL
+browser evidence above remains valid for folder creation only; upload,
+metadata, visibility, settings, and cleanup still need browser coverage when
+the fixture can start.
+
+A fresh Playwright attempt for the editor/viewer management scenario used a
+`/tmp` output directory to avoid the repository's read-only Playwright artifact
+directory. The fixture failed before migration or browser startup because
+Node could not start its `go run` child process (`spawnSync go EPERM`). This is
+not a browser pass; the in-memory and database contract tests above are the
+available evidence for this turn.
+
+The full `go test ./internal/media -count=1` package run was also attempted.
+It stopped in the existing `TestPrivateMediaLiveHTTPRejectsAnonymous` test
+because `httptest.NewServer` could not bind a loopback port (`socket:
+operation not permitted`). That test now exercises the same auth/handler
+behavior through an in-memory mux. The full `go test ./internal/media/... -count=1`
+package run passes; this does not verify a real network listener.
+
+## Persistent media cleanup route contract — 2026-10-08
+
+The GC contract now exercises the production cleanup GET/POST handlers through
+the CSRF middleware with a real SQL media repository, tenant-scoped reference
+scanner, and SQLite/PostgreSQL adapter path. It verifies that the preview sums
+the master asset and thumbnail sizes, a content reference hides the asset from
+the plan, an invalid CSRF token leaves database rows and storage keys intact,
+and a valid Admin request deletes both object keys plus the media and variant
+rows. A repeated cleanup request deletes nothing.
+
+`go test ./tests/contract -run 'Test(SQLite|Postgres)MediaGarbageCollectionContract' -count=1`
+passed for SQLite. The PostgreSQL case is registered but skipped locally
+because `HYDRO_TEST_POSTGRES_URL` is unset; this is not PostgreSQL evidence.
+The contract uses a blob-store test double, so provider-specific object deletion
+and a browser journey remain unverified.
+
+### Retry after partial object-store failure
+
+The SQLite contract injects a one-time failure while deleting the thumbnail,
+after the master object was deleted. The Admin route returns 503 and preserves
+the media row in `deleting` state. A second confirmed request retries both
+object keys and removes the media and variant rows; repeating cleanup after
+success deletes nothing. The contract test and `go vet ./tests/contract` pass.
+The PostgreSQL case was not run, and provider-specific idempotency remains
+unverified because the contract uses an object-store test double.

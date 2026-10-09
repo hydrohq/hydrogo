@@ -45,3 +45,21 @@ unprivileged application account and was removed after the run.
 
 The test asset is `@editorjs/editorjs` 2.31.6, `dist/editorjs.umd.js`, from the
 official [Editor.js repository](https://github.com/codex-team/editor.js/).
+
+## Edition preview request boundary
+
+The Project Edition's `contentBlockPreviewHandler` now has a direct handler
+contract for malformed JSON, unknown document fields, duplicate `body`
+parameters, unsupported block types, empty and over-100 block arrays, paragraph
+text over 50 KB, normalized documents over 256 KiB, form requests over 1 MiB,
+wrong methods, wrong content types, and missing CSRF. Each case fails closed
+with its expected 400, 403, 405, or 413 response. These checks use an in-memory
+HTTP request and do not claim a browser preview-rendering result.
+
+Verification:
+
+```sh
+go test ./examples/project-edition/custom -run 'TestProjectEditionBlockPreviewRejectsInvalidAndOversizedDocuments' -count=1
+go test ./examples/project-edition/custom ./examples/project-edition/generated/content_block ./extension/v1/adminstudio ./internal/ui/components -run 'Test(ProjectEditionBlockPreviewRejectsInvalidAndOversizedDocuments|ContentBlockMigrationContract|GeneratedFormUsesEditionBlockEditorAdapter|BlockEditor)' -count=1
+go vet ./examples/project-edition/custom ./examples/project-edition/generated/content_block ./extension/v1/adminstudio ./internal/ui/components
+```
