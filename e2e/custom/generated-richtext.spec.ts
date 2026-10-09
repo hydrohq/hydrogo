@@ -459,7 +459,19 @@ test.describe("generated rich-text Edition Admin", () => {
 
   test("generated draft review and publish flow keeps working copy separate", async ({ page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.context().addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);
     await page.goto(`${baseURL}/admin/resources/story/drafts`);
+    await dismissOnboarding(page);
+    await expect(page.getByRole("heading", { name: "Drafts · Stories" }).first()).toBeVisible();
+    await expect(page.locator(".studio-table thead")).toContainText("Title");
+    await expect(page.locator(".studio-table thead")).toContainText("State");
+    await expect(page.locator(".studio-table thead")).toContainText("Version");
+    await expect(page.getByRole("link", { name: "Open draft" })).toBeVisible();
+    await expect(page.locator(".studio-table .status-pill--draft")).toContainText("Draft");
+    await expectNoA11yViolations(page);
+
+    await page.context().addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
+    await page.reload();
     await dismissOnboarding(page);
     await expect(page.locator(".studio-sidebar")).toBeVisible();
     await expect(page.locator(".studio-sidebar")).toContainText("İÇERİK");
