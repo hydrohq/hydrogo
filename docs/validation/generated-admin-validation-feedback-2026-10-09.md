@@ -108,7 +108,9 @@ search/filter with no matches, and choose Turkish or English using the Admin
 interface locale rather than the content locale. The empty-state text gives a
 clear recovery hint. Go tests cover both locales, empty/search/filter states,
 and the accessible `role="status"` announcement. The existing Chromium CRUD
-journey now expects the no-match message. Generator/UI Go tests and vet passed;
+journey now expects the no-match message. A registered generated-handler test
+also confirms the Admin language cookie selects English even when a content
+locale is not involved. Generated Admin/i18n Go tests and vet passed;
 Impeccable's detector returned no findings. Browser execution is still open:
 this environment has no local Playwright executable and restricted network
 access prevents fetching it; previous Edition browser attempts also hit the
