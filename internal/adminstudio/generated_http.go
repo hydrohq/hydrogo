@@ -422,7 +422,7 @@ func (h GeneratedAdminHandler) generatedLocaleNav(ctx context.Context, out io.Wr
 		return nil
 	}
 	state := localeState(r)
-	if _, err := io.WriteString(out, `<nav class="locale-tabs" aria-label="İçerik dili">`); err != nil {
+	if _, err := fmt.Fprintf(out, `<nav class="locale-tabs" aria-label="%s">`, template.HTMLEscapeString(i18n.T(generatedAdminLocale(r), "admin.generated.locale.navigation"))); err != nil {
 		return err
 	}
 	for _, locale := range state.Options.Allowed {
@@ -451,7 +451,8 @@ func (h GeneratedAdminHandler) generatedLocaleNav(ctx context.Context, out io.Wr
 }
 
 func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
-	if _, err := io.WriteString(out, `<section class="studio-card" aria-labelledby="locale-copy-heading"><h2 id="locale-copy-heading">Dili kopyala</h2>`); err != nil {
+	locale := generatedAdminLocale(r)
+	if _, err := fmt.Fprintf(out, `<section class="studio-card" aria-labelledby="locale-copy-heading"><h2 id="locale-copy-heading">%s</h2>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.locale.copy_heading"))); err != nil {
 		return err
 	}
 	expected := generatedRecordVersion(record)
@@ -469,7 +470,7 @@ func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, o
 			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expected, 10)}).Render(ctx, form); err != nil {
 				return err
 			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: strings.ToUpper(from) + " içeriğini buraya kopyala", Variant: ui.Quiet}).Render(ctx, form)
+			return ui.Button(ui.ButtonProps{Type: "submit", Label: fmt.Sprintf(i18n.T(locale, "admin.generated.locale.copy_action"), strings.ToUpper(from)), Variant: ui.Quiet}).Render(ctx, form)
 		})
 		action := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id)+"/locale-copy", localeState(r).Current)
 		if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
