@@ -1,0 +1,29 @@
+id: "202610090001_site_not_found_rls_guc"
+module: "site"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "03804527ae431e5ea925083b781883a94efcc75170b8eb90596e5831195b2074"
+  postgres: "867494921f489161bc52e21d9d52bd115d635918f110a0e1a5146616bc864110"
+  mysql: "cd09a49328a3ab6fcfbf4862a5161ff2ca2ef5b1901c872585aa37bfcab502a1"
+dependencies:
+  - "202609290008_site_not_found_hits"
+  - "202609200003_postgres_tenant_rls"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The site_not_found_hits table and tenant transaction GUC contract are installed"
+lock_timeout: "Bounded by the migration runner deadline"
+disk_estimate: "No additional storage; PostgreSQL policy expression is replaced atomically"
+compatibility: "Rebinds site missing-path row security to the canonical transaction-local app tenant settings; rows and repository APIs are unchanged"
+smoke:
+  - "Shared PostgreSQL transactions write and read only their bound tenant's missing-path counters"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Forward migration only; restore or forward repair, no data is changed"
