@@ -417,9 +417,9 @@ plain-body error UX, browser verification, and PostgreSQL remain open; see
 Create/update transport or API 5xx failures keep the user in the shared Admin
 shell, show an accessible localized alert, and preserve submitted values and
 CSRF. Delete failures now restore the record's edit form and delete action when
-the record can still be read; otherwise the handler returns the safe short
-response. Turkish/English tests cover all three operations. Browser/PostgreSQL
-remain open; see
+the record can still be read; otherwise they show delete-specific localized
+guidance. Turkish/English tests cover all three operations and the unavailable
+record fallback. Browser/PostgreSQL remain open; see
 `docs/validation/generated-admin-save-recovery-2026-10-09.md`.
 
 ## Sonraki güvenli sıra
