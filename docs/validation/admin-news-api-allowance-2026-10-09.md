@@ -10,11 +10,17 @@ current version, the same Admin schedules the item, publishes it, and retracts
 it. Each response increments the version and reports the expected status; a
 final API read confirms the retracted state and updated content persisted.
 
+The same Admin opens News taxonomy management. Create with missing and
+mismatched CSRF tokens returns `403`. With the valid token the Admin creates a
+term, updates its localized label/slug/kind through the upsert form, and
+deletes it. The taxonomy list is re-read after each operation and confirms the
+stored value changes and final removal.
+
 The focused Chromium role journey passed **1/1 on SQLite** and **1/1 on
 PostgreSQL 18.6**. PostgreSQL used the local `arda` role (`NOSUPERUSER
 NOBYPASSRLS`) against a disposable database that was removed after the run.
 
 This closes the Admin News API create/update/schedule/publish/retract
-allow-path and create missing/mismatched CSRF cells only. Taxonomy writes,
-other module routes, full persisted-state mutation coverage, and production
-Edition identity remain open.
+allow-path, taxonomy term create/update/delete, and the exercised missing/
+mismatched CSRF cells only. Other module routes, full persisted-state mutation
+coverage, and production Edition identity remain open.

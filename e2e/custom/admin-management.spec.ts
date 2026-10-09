@@ -185,6 +185,55 @@ test.describe("single Edition administrator management", () => {
       status: "retracted",
       version: 5,
     });
+    const adminTaxonomyURL = `${baseURL}/admin/news/taxonomy`;
+    expect((await adminPage.goto(adminTaxonomyURL))?.status(), "Admin can open the News taxonomy manager").toBe(200);
+    const taxonomyMissingCSRF = await adminPage.request.post(adminTaxonomyURL, {
+      form: { id: "role-admin-api-term", slug: "role-admin-api-term", kind: "tag", labels_json: '{"tr":"Yönetici etiketi"}' },
+    });
+    expect(taxonomyMissingCSRF.status(), "News taxonomy create rejects missing CSRF").toBe(403);
+    const taxonomyMismatchedCSRF = await adminPage.request.post(adminTaxonomyURL, {
+      form: {
+        _csrf: "deliberately-mismatched-csrf-token",
+        id: "role-admin-api-term",
+        slug: "role-admin-api-term",
+        kind: "tag",
+        labels_json: '{"tr":"Yönetici etiketi"}',
+      },
+    });
+    expect(taxonomyMismatchedCSRF.status(), "News taxonomy create rejects mismatched CSRF").toBe(403);
+    const taxonomyCreate = await adminPage.request.post(adminTaxonomyURL, {
+      maxRedirects: 0,
+      form: {
+        _csrf: adminCSRFToken,
+        id: "role-admin-api-term",
+        slug: "role-admin-api-term",
+        kind: "tag",
+        labels_json: '{"tr":"Yönetici etiketi"}',
+      },
+    });
+    expect(taxonomyCreate.status(), "Admin with valid CSRF can create a taxonomy term").toBe(303);
+    expect((await adminPage.goto(adminTaxonomyURL))?.status()).toBe(200);
+    await expect(adminPage.locator("table tbody")).toContainText("role-admin-api-term");
+    const taxonomyUpdate = await adminPage.request.post(adminTaxonomyURL, {
+      maxRedirects: 0,
+      form: {
+        _csrf: adminCSRFToken,
+        id: "role-admin-api-term",
+        slug: "role-admin-api-term-updated",
+        kind: "category",
+        labels_json: '{"tr":"Yönetici kategorisi"}',
+      },
+    });
+    expect(taxonomyUpdate.status(), "Admin with valid CSRF can update a taxonomy term").toBe(303);
+    expect((await adminPage.goto(adminTaxonomyURL))?.status()).toBe(200);
+    await expect(adminPage.locator("table tbody")).toContainText("role-admin-api-term-updated");
+    const taxonomyDelete = await adminPage.request.post(`${adminTaxonomyURL}/role-admin-api-term/delete`, {
+      maxRedirects: 0,
+      form: { _csrf: adminCSRFToken },
+    });
+    expect(taxonomyDelete.status(), "Admin with valid CSRF can delete a taxonomy term").toBe(303);
+    expect((await adminPage.goto(adminTaxonomyURL))?.status()).toBe(200);
+    await expect(adminPage.locator("table tbody")).not.toContainText("role-admin-api-term");
     await adminPage.goto(`${baseURL}/admin/users`);
     const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string; currentRole: string; currentContentWrite: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
