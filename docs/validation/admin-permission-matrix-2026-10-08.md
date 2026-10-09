@@ -329,8 +329,9 @@ This caught `/admin/site/link-check` returning 503 for denied users when its
 scanner dependency was absent. Authorization now returns 403 before the
 separate authorized-but-unavailable 503 path. The full Site transport package
 and vet passed. This covers registered Forms/Fonts routes; the optional AI
-route is covered separately below, while mail-spool variants and successful
-DB-backed mutation state beyond Site settings remain open.
+summary and mail-spool retry routes are covered separately below. Queue
+rendering and successful DB-backed mutation state beyond Site settings remain
+open.
 
 ### Optional Site AI summary mutation — 2026-10-09
 
@@ -340,11 +341,30 @@ Admin and rejects valid-CSRF Editor, Viewer, Admin `site.manage=false`, and
 inactive Admin with an explicit grant. The checks run through the production
 CSRF middleware and registered `http.ServeMux` route; denial happens before
 service, storage, audit, or provider work. The Site transport package tests and
-vet passed. This does not verify a successful AI summary or mail-spool routes.
+vet passed. This does not verify a successful AI summary or mail-spool queue
+rendering/delivery.
 
 ```sh
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go test ./modules/site/transport -run '^TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage$' -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -count=1 -p 1
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go vet ./modules/site/transport
+```
+
+### Site mail-spool retry success and denial — 2026-10-09
+
+The registered `POST /admin/site/mail/{id}/retry` route now has an integrated
+CSRF and `site.manage` test with a recording spool. Invalid CSRF, Editor,
+Viewer, and Admin `site.manage=false` all return 403 without retrying. An
+authorized Admin with valid CSRF receives the expected redirect and retries
+exactly the requested message once. The Site transport package tests and vet
+passed. Queue rendering and delivery to a real mail service remain unverified.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -run '^TestSiteMailRetryRequiresPermissionAndPersistsOnlyAuthorizedAction$' -count=1 -p 1
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go test ./modules/site/transport -count=1 -p 1
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
