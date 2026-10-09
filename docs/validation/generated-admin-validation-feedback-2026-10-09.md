@@ -74,3 +74,16 @@ leaves the external server/database lifecycle to its caller. This makes the
 browser scenario usable when the test runner cannot bind sockets; the external
 mode itself has not run in this environment because no reachable Edition
 server is available.
+
+## Light-theme error contrast follow-up
+
+Source-level WCAG calculations found `.studio-alert` used the palette's normal
+red text on pale red backgrounds, yielding 4.04:1 in HydroGo, 4.28:1 in shadcn,
+and 4.41:1 in Nova/Aurora. `AdminCSSOverrides` now uses `#991b1b` for light-mode
+alert text. Contrast is 7.28:1–7.60:1 across those four background tokens;
+dark mode retains each theme's existing red text. A Go regression test reads
+the four source palette tokens and checks the 4.5:1 threshold. The focused
+accessibility tests and full `internal/ui` + `internal/adminstudio` packages,
+their `go vet`, and `git diff --check` passed. The existing eight-state browser
+axe assertion still could not execute because the runner cannot bind the
+Edition's loopback server.
