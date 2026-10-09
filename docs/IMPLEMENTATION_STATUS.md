@@ -273,6 +273,11 @@ workflow test. Admin can persist a wildcard rule and remove it; denied CSRF,
 Editor delete, and explicit Admin permission denial leave state unchanged.
 CSV import and PostgreSQL route-level evidence remain open.
 
+CSV redirect import now has multipart route coverage: role/CSRF denials write
+nothing, valid batches persist fully, and a later invalid row prevents the
+entire batch from changing prior data. Live registry/cache and PostgreSQL route
+tests remain open.
+
 Windows'ta:
 
 ```powershell
