@@ -81,6 +81,7 @@ type TextareaProps struct {
 // shell hydrates the rows and synchronizes them to the hidden newline value.
 type ItemListEditorProps struct {
 	ID, Name, Label, Value string
+	AddLabel, AddAriaLabel string
 }
 
 func ItemListEditor(p ItemListEditorProps) templ.Component {
@@ -93,7 +94,15 @@ func ItemListEditor(p ItemListEditorProps) templ.Component {
 		if strings.TrimSpace(name) == "" {
 			name = id
 		}
-		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(p.Label) + `: madde ekle">+ Madde ekle</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
+		addLabel := p.AddLabel
+		if addLabel == "" {
+			addLabel = "Madde ekle"
+		}
+		addAriaLabel := p.AddAriaLabel
+		if addAriaLabel == "" {
+			addAriaLabel = p.Label + ": madde ekle"
+		}
+		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(addAriaLabel) + `">+ ` + esc(addLabel) + `</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
 		_, err := io.WriteString(w, markup)
 		return err
 	})

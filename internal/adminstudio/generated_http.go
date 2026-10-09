@@ -2087,19 +2087,30 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 				continue
 			}
 			if field.Kind == FieldArray {
-				if err := ui.ItemListEditor(ui.ItemListEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]}).Render(ctx, out); err != nil {
+				if err := ui.ItemListEditor(ui.ItemListEditorProps{
+					ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID],
+					AddLabel:     i18n.T(interfaceLocale, "admin.generated.widget.array.add"),
+					AddAriaLabel: fmt.Sprintf(i18n.T(interfaceLocale, "admin.generated.widget.array.add_aria"), field.Label),
+				}).Render(ctx, out); err != nil {
 					return err
 				}
 				continue
 			}
 			if field.Kind == FieldBlocks || field.Widget == "block-editor" {
-				if err := ui.BlockEditor(ui.BlockEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], EditorScript: blockEditor.EditorScript, PreviewURL: blockEditor.PreviewURL}).Render(ctx, out); err != nil {
+				if err := ui.BlockEditor(ui.BlockEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], EditorScript: blockEditor.EditorScript, PreviewURL: blockEditor.PreviewURL, PreviewPending: i18n.T(interfaceLocale, "admin.generated.widget.blocks.preview_pending")}).Render(ctx, out); err != nil {
 					return err
 				}
 				continue
 			}
 			if field.Kind == FieldMedia || field.Widget == "media" {
-				if err := ui.MediaPicker(ui.MediaPickerProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]}).Render(ctx, out); err != nil {
+				if err := ui.MediaPicker(ui.MediaPickerProps{
+					ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID],
+					SelectedImageAlt:  i18n.T(interfaceLocale, "admin.generated.widget.media.selected_image_alt"),
+					EmptySelection:    i18n.T(interfaceLocale, "admin.generated.widget.media.empty"),
+					ChooseFromLibrary: i18n.T(interfaceLocale, "admin.generated.widget.media.choose"),
+					ClearSelection:    i18n.T(interfaceLocale, "admin.generated.widget.media.clear"),
+					OpenLibrary:       i18n.T(interfaceLocale, "admin.generated.widget.media.open_library"),
+				}).Render(ctx, out); err != nil {
 					return err
 				}
 				continue
@@ -2143,7 +2154,18 @@ func generatedFormFields(collection Collection, values map[string]string, relati
 			if len(field.Options) > 0 {
 				component = ui.Select(ui.SelectProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Options: field.Options, Required: props.Required})
 			} else if field.Widget == "richtext" || field.Kind == FieldRichText {
-				component = ui.RichTextEditor(ui.RichTextEditorProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID]})
+				component = ui.RichTextEditor(ui.RichTextEditorProps{
+					ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID],
+					ToolbarLabel:     i18n.T(interfaceLocale, "admin.generated.widget.richtext.toolbar"),
+					BoldLabel:        i18n.T(interfaceLocale, "admin.generated.widget.richtext.bold"),
+					ItalicLabel:      i18n.T(interfaceLocale, "admin.generated.widget.richtext.italic"),
+					UnderlineLabel:   i18n.T(interfaceLocale, "admin.generated.widget.richtext.underline"),
+					LinkLabel:        i18n.T(interfaceLocale, "admin.generated.widget.richtext.link"),
+					ImageLabel:       i18n.T(interfaceLocale, "admin.generated.widget.richtext.image"),
+					BlockQuoteLabel:  i18n.T(interfaceLocale, "admin.generated.widget.richtext.quote"),
+					OrderedListLabel: i18n.T(interfaceLocale, "admin.generated.widget.richtext.ordered_list"),
+					BulletListLabel:  i18n.T(interfaceLocale, "admin.generated.widget.richtext.bullet_list"),
+				})
 			} else if field.Widget == "textarea" {
 				component = ui.Textarea(ui.TextareaProps{ID: field.ID, Name: field.ID, Label: label, Value: values[field.ID], Required: props.Required, Rows: 8})
 			}
