@@ -24,6 +24,17 @@ func TestRenderCreateFormUsesCollectionMetadataAndEscapesValues(t *testing.T) {
 	}
 }
 
+func TestRenderCreateFormProvidesItemListLabelForAccessibleRows(t *testing.T) {
+	collection := Collection{ID: "news", Label: "News", Fields: []Field{{ID: "key_takeaways", Label: "Öne çıkanlar", Kind: FieldText}}, Actions: []Action{{Label: "News", Href: "/admin/news"}}}
+	var out bytes.Buffer
+	if err := RenderCreateForm(&out, FormData{Collection: collection, Action: "/admin/news", CSRFToken: "csrf"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `data-item-list-label="Öne çıkanlar"`) {
+		t.Fatalf("item list label missing: %s", out.String())
+	}
+}
+
 func TestRenderCreateFormRendersSharedMediaPicker(t *testing.T) {
 	collection := Collection{ID: "news", Label: "News", Fields: []Field{{ID: "cover_media_id", Label: "Cover", Kind: FieldText, Widget: "media"}}, Actions: []Action{{Label: "News", Href: "/admin/news"}}}
 	var out bytes.Buffer
