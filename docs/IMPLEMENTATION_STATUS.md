@@ -278,6 +278,11 @@ nothing, valid batches persist fully, and a later invalid row prevents the
 entire batch from changing prior data. Live registry/cache and PostgreSQL route
 tests remain open.
 
+Form Builder schema create/update/delete now exercises the real HTTP routes and
+SQLite form registry. Role/CSRF denials are side-effect free, invalid schemas
+preserve the current version, and authorized CRUD round-trips. Public form
+submission and inbox/lead persistence remain open.
+
 Windows'ta:
 
 ```powershell
