@@ -16,6 +16,7 @@ let tempDir = "";
 let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
+let createdPageID = "";
 let tokenLifetimeBaseline: { passwordReset: string; invitation: string } | undefined;
 let restrictedMutationTargets: string[] = [];
 
@@ -66,7 +67,6 @@ test.describe("single Edition administrator management", () => {
         nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
       })), `${label} WCAG 2.1 A/AA violations`).toEqual([]);
     };
-    let createdPageID = "";
     let createdNewsID = "";
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
