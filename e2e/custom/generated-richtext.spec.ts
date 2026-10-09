@@ -7,9 +7,27 @@ import { spawnServer, stopServer } from "./server-process";
 const repoRoot = path.resolve(process.cwd(), "..");
 let server: ChildProcess | undefined;
 let baseURL = "";
+const externalServer = process.env.HYDRO_E2E_EXTERNAL_SERVER === "1";
+
+function externalFixtureURL(): string {
+  const rawURL = process.env.HYDRO_E2E_BASE_URL?.trim();
+  if (!rawURL) throw new Error("HYDRO_E2E_EXTERNAL_SERVER requires HYDRO_E2E_BASE_URL");
+  const url = new URL(rawURL);
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (url.protocol !== "http:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash || !["localhost", "127.0.0.1", "::1"].includes(hostname)) {
+    throw new Error("HYDRO_E2E_BASE_URL must be a loopback HTTP origin without credentials or a path");
+  }
+  return url.origin;
+}
 
 test.describe("generated rich-text Edition Admin", () => {
   test.beforeAll(async () => {
+    if (externalServer) {
+      baseURL = externalFixtureURL();
+      const health = await fetch(`${baseURL}/healthz`);
+      if (!health.ok) throw new Error(`external generated rich-text fixture health check returned ${health.status}`);
+      return;
+    }
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer("go", ["run", "./tests/e2e/support/generatedrichtext"], {
@@ -32,7 +50,7 @@ test.describe("generated rich-text Edition Admin", () => {
   }, 60_000);
 
   test.afterAll(async () => {
-    await stopServer(server);
+    if (!externalServer) await stopServer(server);
   });
 
   test("Quill formats generated content and preserves it through API create/edit", async ({ page }) => {
