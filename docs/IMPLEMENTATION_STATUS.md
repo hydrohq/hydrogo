@@ -32,9 +32,12 @@ are in the Admin Studio audit plan.
 
 Generated required text validation now rejects whitespace-only values and the
 external Edition proves its 422 field feedback and no-persistence behavior.
-Clean scaffold to native first CRUD remains unmeasured because the project
-scaffold needs the separately licensed runtime; existing measurements are not
-presented as equivalent. See the Admin Studio audit plan.
+The clean CLI preparation path (scaffold, one Blueprint resource, project
+check) was measured in three warm-binary runs at 15.1 ms, 18.3 ms, and 15.6 ms
+median per command. It emits no `go.mod` or runnable Edition server, so native
+first CRUD remains unmeasured; this timing is not presented as equivalent.
+See the Admin Studio audit plan and
+`docs/validation/blueprint-clean-scaffold-cli-measurement-2026-10-09.md`.
 
 ## Tamamlanan ve doğrulanan parçalar
 
