@@ -347,6 +347,12 @@ The real Google Fonts provider is not contacted by the test. A temporary
 PostgreSQL cluster initialized but could not bind a Unix socket in this runner;
 PostgreSQL behavior remains unverified here.
 
+Full root regression recheck then passed: normal and shuffled `go test ./...`,
+`go vet ./...`, moduleguard, migrationguard (110 migrations), and all three
+Edition importguards. This run still had no `HYDRO_TEST_POSTGRES_URL`; see
+[`admin-studio-root-suite-2026-10-09.md`](validation/admin-studio-root-suite-2026-10-09.md)
+for exact commands and the PostgreSQL/browser limits.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
