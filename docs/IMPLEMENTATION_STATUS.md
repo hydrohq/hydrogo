@@ -424,7 +424,8 @@ Generated Editor.js forms now have a planned eight-variant theme-family/light-
 dark axe browser matrix. Playwright discovered the suite, but its fixture
 server failed before tests ran because loopback bind returned `EPERM`; no
 accessibility result is claimed. The spec now supports a separately started
-loopback fixture for restricted browser runners. See
+loopback fixture for restricted browser runners; the CI browser job also runs
+the full Playwright suite on Windows. See
 `docs/validation/generated-block-editor-theme-matrix-2026-10-09.md`.
 
 The Blueprint generator and both the native Project Edition and separate
