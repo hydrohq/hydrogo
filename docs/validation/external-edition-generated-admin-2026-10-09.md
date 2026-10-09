@@ -66,6 +66,19 @@ opened/migrated the database and composed the generated routes before
 `127.0.0.1:8099`. This confirms the remaining E2E blocker is listener access;
 it is not a Playwright assertion result.
 
+## Generated media field integration remains open
+
+The external Edition Blueprint does not currently declare a media field, and
+its test server does not compose the Core `/api/media` library route used by
+the shared shell's picker. The earlier generated media picker Chromium
+contract uses a synthetic article fixture; it does not prove selection from
+the tenant-scoped Core Media service in a real Edition composition. Close this
+only with a generated Edition media field that selects an authorized asset,
+persists and reads back the Media ID through the generated resource API, and
+rejects cross-tenant or otherwise unauthorized references. The browser gate
+also needs a loopback-capable runner. This report makes no real Media-service
+integration or browser claim for the independent Edition.
+
 ## Required text validation and editor feedback
 
 Blueprint-generated required `string`, `text`, and `uuid` checks now reject
