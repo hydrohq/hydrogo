@@ -21,6 +21,12 @@ valid-CSRF and invalid-CSRF denial assertions for Editor and Viewer defaults
 and an explicit Admin `media.manage` deny override. The cleanup route keeps its
 separate Admin-only boundary. See `admin-permission-matrix-2026-10-08.md`.
 
+Generated required text validation now rejects whitespace-only values and the
+external Edition proves its 422 field feedback and no-persistence behavior.
+Clean scaffold to native first CRUD remains unmeasured because the project
+scaffold needs the separately licensed runtime; existing measurements are not
+presented as equivalent. See the Admin Studio audit plan.
+
 ## Tamamlanan ve doğrulanan parçalar
 
 | Alan | Durum | Nasıl kullanılır? | Kanıt |

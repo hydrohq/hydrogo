@@ -5,7 +5,7 @@
   "artifacts_sha256": {
     "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
     "RUNTIME_WIRING.md": "672850538cb01632ae8165a11fa2222a366b416408009d919f768aa47282f2e1",
-    "admin/form.templ": "65d69a4b6a7d8d2ff198fb9cb81a19d5880ddb5a2a6dd963b5f47edcba988b0c",
+    "admin/form.templ": "1c9ea714a81359cd0c68382f8dc40426505ce5b42c07ffeb36b90cbf9fa52ea0",
     "admin/list.templ": "8e981c0a4a70522558542b5ef60b39b65248748445abc4f82e2bce644f000a35",
     "admin/views.json": "36f92ae9cbf55ee18e2615fc0cbf19fdcb601246e1cd816f9d21d85604ce87a1",
     "admin_manifest.json": "ed13098cc91f6554f26a2d8ea2d9a47fd5753ed71b96c8f4d9708b6fb0cac407",
@@ -40,7 +40,7 @@
     "transport.go": "0aaeadb8c805a72169274567f0749baf4bce2821ffece086878df8dcc357c3ee",
     "transport_test.go": "a4678f33669d2b7bf198c450b68a353408fa58787a9e6938f26c825bcb3cfc57",
     "upload.ts": "89032ba289ce16f406389416e2390714dcc1fa961320e7f3777e901e32595007",
-    "validation.go": "5f7fd93072ffdc6e440b255b7d08830c060f04c6e58c4dbbbd087c8809167fe7",
+    "validation.go": "050515242ffb8ce8ddd01fb243a836ea8c500893b6c20ac147c096460fff2250",
     "vanilla.ts": "5f41a033f19fff5397a67e3080f596978e50dfda5a943185325a4de42c0aa0e9",
     "workflow.json": "3aeb9e6278001be4583182f95907318dfba4796bbf6e946313f2ae380766b26c"
   },
@@ -52,7 +52,7 @@
       "artifacts_sha256": {
         "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
         "RUNTIME_WIRING.md": "672850538cb01632ae8165a11fa2222a366b416408009d919f768aa47282f2e1",
-        "admin/form.templ": "65d69a4b6a7d8d2ff198fb9cb81a19d5880ddb5a2a6dd963b5f47edcba988b0c",
+        "admin/form.templ": "1c9ea714a81359cd0c68382f8dc40426505ce5b42c07ffeb36b90cbf9fa52ea0",
         "admin/list.templ": "8e981c0a4a70522558542b5ef60b39b65248748445abc4f82e2bce644f000a35",
         "admin/views.json": "36f92ae9cbf55ee18e2615fc0cbf19fdcb601246e1cd816f9d21d85604ce87a1",
         "admin_manifest.json": "ed13098cc91f6554f26a2d8ea2d9a47fd5753ed71b96c8f4d9708b6fb0cac407",
@@ -87,7 +87,7 @@
         "transport.go": "0aaeadb8c805a72169274567f0749baf4bce2821ffece086878df8dcc357c3ee",
         "transport_test.go": "a4678f33669d2b7bf198c450b68a353408fa58787a9e6938f26c825bcb3cfc57",
         "upload.ts": "89032ba289ce16f406389416e2390714dcc1fa961320e7f3777e901e32595007",
-        "validation.go": "5f7fd93072ffdc6e440b255b7d08830c060f04c6e58c4dbbbd087c8809167fe7",
+        "validation.go": "050515242ffb8ce8ddd01fb243a836ea8c500893b6c20ac147c096460fff2250",
         "vanilla.ts": "5f41a033f19fff5397a67e3080f596978e50dfda5a943185325a4de42c0aa0e9",
         "workflow.json": "3aeb9e6278001be4583182f95907318dfba4796bbf6e946313f2ae380766b26c"
       }

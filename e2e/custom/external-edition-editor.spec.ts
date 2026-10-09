@@ -43,6 +43,13 @@ test.describe("independent Edition generated Admin editor journey", () => {
       await expect(page).toHaveURL(/\/admin\/resources\/article\/new$/);
       const title = `External editor ${randomUUID()}`;
       const form = page.locator('form[action="/admin/resources/article/new"]');
+      await form.getByLabel("Title").fill("   ");
+      await form.locator('button[type="submit"]').click();
+      await expect(page).toHaveURL(/\/admin\/resources\/article\/new$/);
+      await expect(page.getByRole("alert")).toContainText("Bu alanları kontrol edin");
+      await expect(page.getByText("Bu alan zorunludur.")).toBeVisible();
+      await expect(form.getByLabel("Title")).toHaveValue("   ");
+      await expectNoA11yViolations(page, "editor validation feedback");
       await form.getByLabel("Title").fill(title);
       await expectNoA11yViolations(page, "editor create form");
       await form.locator('button[type="submit"]').click();
