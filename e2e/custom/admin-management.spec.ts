@@ -763,6 +763,27 @@ test.describe("single Edition administrator management", () => {
     await verificationContext.close();
   });
 
+  test("legacy item-list controls follow the selected Admin locale", async ({ browser }) => {
+    expect(adminStorageState, "the preceding role test must create an authenticated state").toBeTruthy();
+    const context = await browser.newContext({ storageState: adminStorageState });
+    await context.addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);
+    const page = await context.newPage();
+    await page.goto(`${baseURL}/admin/news/new`);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await page.getByRole("button", { name: "Add item" }).click();
+    const row = page.locator("[data-item-list][data-field-name='key_takeaways'] .item-list-row").first();
+    await expect(row.locator("input")).toHaveAttribute("placeholder", "Enter an important item…");
+    await expect(row.locator("input")).toHaveAccessibleName("Önemli Noktalar (Key Takeaways) 1");
+    await expect(row.getByRole("button")).toHaveAccessibleName("Remove item 1 from Önemli Noktalar (Key Takeaways)");
+    await context.addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
+    await page.reload();
+    await page.getByRole("button", { name: /Madde ekle/ }).click();
+    const turkishRow = page.locator("[data-item-list][data-field-name='key_takeaways'] .item-list-row").first();
+    await expect(turkishRow.locator("input")).toHaveAttribute("placeholder", "Önemli bir madde girin…");
+    await expect(turkishRow.getByRole("button")).toHaveAccessibleName("Önemli Noktalar (Key Takeaways) 1 maddesini sil");
+    await context.close();
+  });
+
   test("admin login opens the Edition management areas and rejects anonymous access", async ({ page, browser }) => {
     test.setTimeout(180_000);
     for (const route of [
