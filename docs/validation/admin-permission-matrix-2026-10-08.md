@@ -377,6 +377,35 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
 
+### Authenticated media permission override deny/allow — 2026-10-09
+
+The single-Edition Admin browser journey now exercises the actual user
+permission form to set an Editor's `admin.media.manage` override to deny,
+allow, and inherit. A permission change revokes the editor's existing session:
+the stale session receives 401. After reauthentication, a valid-CSRF folder
+create under deny receives 403 and Admin readback confirms no folder was
+written; under allow, the same operation redirects successfully and Admin
+readback sees the folder. The test restores `inherit` before leaving the
+fixture. This fills an authenticated-browser role × permission × CSRF ×
+persistence slice without claiming the full route matrix is closed.
+
+```sh
+cd e2e
+npm test -- --project=chromium --workers=1 custom/admin-management.spec.ts \
+  --grep 'editor and viewer sessions enforce' --reporter=line
+HYDRO_E2E_DATABASE_DIALECT=postgres \
+HYDRO_E2E_DATABASE_DSN='postgres://arda@/hydro_admin_roles_20261009?host=/run/postgresql&sslmode=disable' \
+HYDRO_PG_PRIVILEGED_ROLE=arda \
+npm test -- --project=chromium --workers=1 custom/admin-management.spec.ts \
+  --grep 'editor and viewer sessions enforce' --reporter=line
+```
+
+Both targeted real-auth Chromium runs passed (SQLite 1/1, PostgreSQL 1/1).
+Unscoped Playwright discovery also encounters an unrelated missing build output
+at `examples/headless-starter/dist/hydrogo.js`; it was not needed by this
+focused spec. Production identity provider and deployment-specific role policy
+remain external release gates.
+
 ### Site font localization route — 2026-10-09
 
 The registered `POST /admin/site/fonts` flow now runs against SQLite with a

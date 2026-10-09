@@ -204,6 +204,7 @@ test.describe("single Edition administrator management", () => {
         const mediaAfterCreate = await page.request.get(`${baseURL}/admin/media`);
         expect(mediaAfterCreate.status()).toBe(200);
         expect(await mediaAfterCreate.text()).toContain("role-editor-media-folder");
+
       } else {
         const deniedFolder = await page.request.post(`${baseURL}/admin/media/folders`, {
           maxRedirects: 0,
@@ -223,6 +224,73 @@ test.describe("single Edition administrator management", () => {
       expect(deniedPermissionChange.status(), `${account.expectedRole} cannot change another user's permissions`).toBe(403);
       const deniedAccountDisable = await page.request.post(new URL(target.disable, baseURL).href, { form: { _csrf: token } });
       expect(deniedAccountDisable.status(), `${account.expectedRole} cannot disable another user's account`).toBe(403);
+
+      if (account.expectedRole === "editor") {
+        const overrideContext = await browser.newContext({ storageState: adminStorageState });
+        const overridePage = await overrideContext.newPage();
+        try {
+          const editorPermissionForm = async () => {
+            await overridePage.goto(`${baseURL}/admin/users`);
+            const editorRow = overridePage.locator(".studio-table tbody tr").filter({ has: overridePage.getByText("editor@example.test", { exact: true }) });
+            const form = editorRow.locator('form[action$="/permissions"]');
+            await editorRow.locator("details > summary").click();
+            return form;
+          };
+          const saveMediaPermission = async (value: "deny" | "allow" | "inherit") => {
+            const form = await editorPermissionForm();
+            await form.locator('[name="perm_admin.media.manage"]').selectOption(value);
+            const action = await form.getAttribute("action");
+            expect(action).toBeTruthy();
+            const saved = overridePage.waitForResponse((response) => response.request().method() === "POST" && response.url() === new URL(action!, baseURL).href);
+            await form.locator('button[type="submit"]').click();
+            expect((await saved).status(), `Admin can set editor media.manage to ${value}`).toBe(204);
+          };
+          const signInFreshEditor = async () => {
+            const freshContext = await browser.newContext();
+            const freshPage = await freshContext.newPage();
+            await freshPage.goto(`${baseURL}/login`);
+            await freshPage.getByLabel("Email address").fill("editor@example.test");
+            await freshPage.getByLabel("Password").fill(adminPassword);
+            await freshPage.getByRole("button", { name: "Sign in" }).click();
+            await expect(freshPage).toHaveURL(/\/admin(?:\?.*)?$/);
+            const csrfResponse = await freshPage.request.get(`${baseURL}/csrf-token`);
+            expect(csrfResponse.status()).toBe(200);
+            return { context: freshContext, page: freshPage, csrf: (await csrfResponse.json()).token as string };
+          };
+
+          await saveMediaPermission("deny");
+          const revokedSession = await page.request.post(`${baseURL}/admin/media/folders`, {
+            maxRedirects: 0,
+            form: { _csrf: token, name: "role-editor-media-denied-folder" },
+          });
+          expect(revokedSession.status(), "changing permissions revokes the editor's existing session").toBe(401);
+          const deniedEditor = await signInFreshEditor();
+          const deniedFolder = await deniedEditor.page.request.post(`${baseURL}/admin/media/folders`, {
+            maxRedirects: 0,
+            form: { _csrf: deniedEditor.csrf, name: "role-editor-media-denied-folder" },
+          });
+          expect(deniedFolder.status(), "a valid-CSRF editor request must honor media.manage deny override").toBe(403);
+          await deniedEditor.context.close();
+          const adminMediaAfterDeny = await overridePage.request.get(`${baseURL}/admin/media`);
+          expect(adminMediaAfterDeny.status()).toBe(200);
+          expect(await adminMediaAfterDeny.text()).not.toContain("role-editor-media-denied-folder");
+
+          await saveMediaPermission("allow");
+          const allowedEditor = await signInFreshEditor();
+          const allowedFolder = await allowedEditor.page.request.post(`${baseURL}/admin/media/folders`, {
+            maxRedirects: 0,
+            form: { _csrf: allowedEditor.csrf, name: "role-editor-media-override-folder" },
+          });
+          expect(allowedFolder.status(), "a valid-CSRF editor request must honor media.manage allow override").toBe(303);
+          await allowedEditor.context.close();
+          const adminMediaAfterAllow = await overridePage.request.get(`${baseURL}/admin/media`);
+          expect(await adminMediaAfterAllow.text()).toContain("role-editor-media-override-folder");
+
+          await saveMediaPermission("inherit");
+        } finally {
+          await overrideContext.close();
+        }
+      }
       await context.close();
     }
     const verificationContext = await browser.newContext({ storageState: adminStorageState });
