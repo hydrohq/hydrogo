@@ -94,14 +94,23 @@ func main() {
 		API: mux,
 		Authorize: func(r *http.Request) bool {
 			role := r.Header.Get("X-Test-Role")
-			return role == "admin" || role == "editor"
+			return role == "admin" || role == "editor" || role == "viewer"
 		},
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		CSRFToken:       func(*http.Request) string { return "external-edition-test-token" },
-		ValidateCSRF:    func(r *http.Request) bool { return r.FormValue("_csrf") == "external-edition-test-token" },
+		ResourceAccess: func(r *http.Request, _ adminstudio.Collection, id string) adminstudio.ResourceAccess {
+			if r.Header.Get("X-Test-Role") == "viewer" {
+				return adminstudio.ResourceAccess{}
+			}
+			return adminstudio.ResourceAccess{Create: id == "", Update: id != "", Delete: id != ""}
+		},
+		CSRFToken:    func(*http.Request) string { return "external-edition-test-token" },
+		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "external-edition-test-token" },
 		RenderPage: adminstudio.StudioPageRenderer(func(r *http.Request) adminstudio.PageIdentity {
 			if r.Header.Get("X-Test-Role") == "editor" {
 				return adminstudio.PageIdentity{UserID: "test-editor", Email: "editor@example.test", Role: adminstudio.PageRoleEditor}
+			}
+			if r.Header.Get("X-Test-Role") == "viewer" {
+				return adminstudio.PageIdentity{UserID: "test-viewer", Email: "viewer@example.test", Role: adminstudio.PageRoleViewer}
 			}
 			return adminstudio.PageIdentity{UserID: "test-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
 		}),

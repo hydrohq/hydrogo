@@ -13,6 +13,13 @@
 - [ADR-0362: Generated Admin read-only record view](0362-generated-admin-read-only-record-view.md) — Accepted
 - [ADR-0363: Project Edition block content and live preview](0363-project-edition-block-content-and-preview.md) — Accepted
 - [ADR-0364: Generated Admin validation feedback](0364-generated-admin-validation-feedback.md) — Accepted
+- [ADR-0365: Viewer role in the shared generated Admin shell](0365-viewer-role-in-generated-admin-shell.md) — Accepted
+- [ADR-0359: Edition-owned generated Admin block editor](0359-edition-owned-generated-block-editor.md) — Superseded
+- [ADR-0360: Hash-authorized generated block editor loader](0360-hash-authorized-block-editor-loader.md) — Accepted
+- [ADR-0361: Edition-provided generated Admin CRUD capabilities](0361-generated-admin-resource-capabilities.md) — Accepted
+- [ADR-0362: Generated Admin read-only record view](0362-generated-admin-read-only-record-view.md) — Accepted
+- [ADR-0363: Project Edition block content and live preview](0363-project-edition-block-content-and-preview.md) — Accepted
+- [ADR-0364: Generated Admin validation feedback](0364-generated-admin-validation-feedback.md) — Accepted
 - [ADR-0344: Hash-based CSP for edge caching](0344-hash-based-csp-for-edge-caching.md) — Proposed
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)
@@ -445,7 +452,7 @@ Implementation order and exit gates are tracked in the [Roadmap](../ROADMAP.md).
 - [ADR-0350: Allow verified Admin Studio inline assets through CSP hashes](0350-admin-studio-csp-style-and-script-hashes.md) — Accepted
 - [ADR-0351: Declare exact direct dependencies between HydroGo modules](0351-declared-module-dependency-graph.md) — Accepted
 - [ADR-0352: Public staff invitation acceptance form](0352-public-invitation-acceptance-form.md) — Accepted
-- [ADR-0353: Public shared Admin Studio shell for generated Edition panels](0353-public-generated-admin-studio-shell.md) — Accepted
+- [ADR-0353: Public shared Admin Studio shell for generated Edition panels](0353-public-generated-admin-studio-shell.md) — Superseded by ADR-0365
 - [ADR-0354: Blueprint-derived generated Admin activation helper](0354-blueprint-derived-admin-activation.md) — Accepted
 - [ADR-0355: Aggregate generated resource route registration](0355-aggregate-generated-resource-route-registration.md) — Accepted
 - [ADR-0356: Revision-bound News draft preview](0356-revision-bound-news-preview.md) — Accepted

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/a-h/templ"
@@ -40,5 +41,22 @@ func TestStudioPageRendererRejectsInvalidPresentationIdentity(t *testing.T) {
 	err := render(response, httptest.NewRequest(http.MethodGet, "/admin/resources", nil), "Resources", templ.ComponentFunc(func(_ context.Context, _ io.Writer) error { return nil }))
 	if err == nil || response.Body.Len() != 0 {
 		t.Fatalf("invalid identity error=%v output=%q", err, response.Body.String())
+	}
+}
+
+func TestStudioPageRendererAcceptsViewerPresentationIdentity(t *testing.T) {
+	render := StudioPageRenderer(func(*http.Request) PageIdentity {
+		return PageIdentity{UserID: "viewer", Email: "viewer@example.test", Role: PageRoleViewer}
+	})
+	response := httptest.NewRecorder()
+	err := render(response, httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil), "Articles", templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		_, writeErr := io.WriteString(w, "read-only generated content")
+		return writeErr
+	}))
+	if err != nil {
+		t.Fatalf("render viewer identity: %v", err)
+	}
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `data-studio-role="viewer"`) || !strings.Contains(response.Body.String(), "read-only generated content") {
+		t.Fatalf("viewer shell was not rendered: status=%d body=%s", response.Code, response.Body.String())
 	}
 }

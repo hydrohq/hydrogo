@@ -41,7 +41,8 @@ type (
 // PageIdentity is presentation data for the shared Admin Studio shell. It is
 // not an authorization decision; GeneratedAdminOptions.Authorize remains the
 // route boundary, CanReadResource filters readable resources, and
-// GeneratedAdminOptions.ResourceAccess controls basic CRUD affordances.
+// GeneratedAdminOptions.ResourceAccess controls basic CRUD affordances. Admin,
+// editor, and viewer are the supported presentation roles.
 type PageIdentity struct {
 	UserID string
 	Email  string
@@ -51,6 +52,7 @@ type PageIdentity struct {
 const (
 	PageRoleAdmin  PageRole = "admin"
 	PageRoleEditor PageRole = "editor"
+	PageRoleViewer PageRole = "viewer"
 	FieldText               = internal.FieldText
 	FieldRichText           = internal.FieldRichText
 	FieldSelect             = internal.FieldSelect
@@ -67,7 +69,8 @@ const (
 
 // StudioPageRenderer adapts an Edition's authenticated identity to the shared
 // HydroGo Admin Studio shell, so independently built Editions can reuse the
-// same layout without importing Core's internal UI package.
+// same layout without importing Core's internal UI package. The presentation
+// role never grants access; Edition authorization and resource policies do.
 func StudioPageRenderer(resolve PageIdentityResolver) func(http.ResponseWriter, *http.Request, string, templ.Component) error {
 	return func(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {
 		if resolve == nil || r == nil || body == nil {
@@ -75,7 +78,7 @@ func StudioPageRenderer(resolve PageIdentityResolver) func(http.ResponseWriter, 
 		}
 		identity := resolve(r)
 		role := internalAuth.Role(identity.Role)
-		if strings.TrimSpace(identity.UserID) == "" || (role != internalAuth.RoleAdmin && role != internalAuth.RoleEditor) {
+		if strings.TrimSpace(identity.UserID) == "" || (role != internalAuth.RoleAdmin && role != internalAuth.RoleEditor && role != internalAuth.RoleViewer) {
 			return errors.New("Admin Studio page identity is invalid")
 		}
 		pageRequest := r.WithContext(internalAuth.WithUser(r.Context(), &internalAuth.User{

@@ -1,9 +1,9 @@
 # ADR-0353: Public shared Admin Studio shell for generated Edition panels
 
-- **Status:** Accepted
+- **Status:** Superseded
 - **Date:** 2026-10-07
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** [ADR-0365](0365-viewer-role-in-generated-admin-shell.md)
 - **Related decisions:** [ADR-0210](0210-blueprint-scaffold-boundary.md), [ADR-0240](0240-generated-route-composition.md), [ADR-0346](0346-blueprint-admin-studio-workflows.md), [ADR-0347](0347-versioned-public-generated-admin-runtime.md), [ADR-0349](0349-explicit-generated-resource-activation.md)
 
 ## Context
@@ -21,8 +21,8 @@ tenant scope, CSRF, API, or editorial decisions into Core.
 ## Decision
 
 - `extension/v1/adminstudio` exposes `StudioPageRenderer` and a typed
-  `PageIdentity` containing the authenticated user's ID, email, and Admin or
-  Editor role for presentation.
+  `PageIdentity` containing the authenticated user's ID, email, and staff role
+  for presentation.
 - The renderer composes the existing Core Admin Studio shell and typed Templ
   body. It is an additive v1 extension contract and adds no parallel theme or
   browser runtime.
@@ -34,8 +34,8 @@ tenant scope, CSRF, API, or editorial decisions into Core.
   permission-filtered registry. The renderer does not activate resources or
   invent navigation policy.
 - Editions may keep a custom `RenderPage` callback when they need a different
-  shell. View-only or custom roles also provide their own renderer; the shared
-  helper accepts only the existing Admin and Editor shell roles.
+  shell. At the time of this decision, the shared helper accepted Admin and
+  Editor roles; Viewer support is added by ADR-0365.
 
 ## Alternatives
 
@@ -62,8 +62,8 @@ tenant scope, CSRF, API, or editorial decisions into Core.
 ### Costs and risks
 
 - The exported identity and renderer signatures are v1 compatibility promises.
-- The helper supports Admin and Editor presentation roles; Editions with
-  view-only/custom roles must render an appropriate shell themselves.
+- At the time of this decision, view-only/custom roles required an Edition
+  renderer. Viewer support is added by superseding ADR-0365.
 
 ## Scale impact
 
