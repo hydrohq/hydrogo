@@ -105,11 +105,16 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		t.Fatalf("register generated routes: %v", err)
 	}
 	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
-		API: mux, Authorize: func(r *http.Request) bool { return r.Header.Get("X-Test-Role") != "viewer" },
+		API: mux, Authorize: func(r *http.Request) bool {
+			return r.Header.Get("X-Test-Role") != "viewer"
+		},
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken:       func(*http.Request) string { return "edition-token" },
 		ValidateCSRF:    func(r *http.Request) bool { return r.FormValue("_csrf") == "edition-token" },
-		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
+		RenderPage: adminstudio.StudioPageRenderer(func(r *http.Request) adminstudio.PageIdentity {
+			if r.Header.Get("X-Test-Role") == "editor" {
+				return adminstudio.PageIdentity{UserID: "edition-editor", Email: "editor@example.test", Role: adminstudio.PageRoleEditor}
+			}
 			return adminstudio.PageIdentity{UserID: "edition-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
 		}),
 	}); err != nil {
@@ -178,6 +183,14 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if viewerListResponse.Code != http.StatusForbidden {
 		t.Fatalf("generated Admin allowed a viewer role: status=%d body=%s", viewerListResponse.Code, viewerListResponse.Body.String())
 	}
+	editorList := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
+	editorList.Header.Set("X-Test-Role", "editor")
+	editorList.Header.Set("X-Test-Tenant", "tenant-a")
+	editorListResponse := httptest.NewRecorder()
+	mux.ServeHTTP(editorListResponse, editorList)
+	if editorListResponse.Code != http.StatusOK || !strings.Contains(editorListResponse.Body.String(), `data-studio-role="editor"`) {
+		t.Fatalf("generated Admin did not render the authenticated editor role: status=%d body=%s", editorListResponse.Code, editorListResponse.Body.String())
+	}
 	viewerMutation := httptest.NewRequest(http.MethodPost, "/admin/resources/article/new", strings.NewReader("_csrf=edition-token&id=viewer-created&title=Must+be+denied"))
 	viewerMutation.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	viewerMutation.Header.Set("X-Test-Role", "viewer")
@@ -195,6 +208,16 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		t.Helper()
 		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(values.Encode()))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Test-Tenant", "tenant-a")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+	editorMutation := func(path string, values url.Values) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(values.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Test-Role", "editor")
 		request.Header.Set("X-Test-Tenant", "tenant-a")
 		response := httptest.NewRecorder()
 		mux.ServeHTTP(response, request)
@@ -231,6 +254,24 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	}
 	if response := readResourceFor("tenant-a", "csrf-denied"); response.Code != http.StatusNotFound {
 		t.Fatalf("CSRF-less mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
+	}
+	editorCreate := editorMutation("/admin/resources/article/new", url.Values{"_csrf": {"edition-token"}, "id": {"editor-created"}, "title": {"Created by editor"}})
+	if editorCreate.Code != http.StatusSeeOther {
+		t.Fatalf("editor generated Admin create status=%d body=%s", editorCreate.Code, editorCreate.Body.String())
+	}
+	editorUpdate := editorMutation("/admin/resources/article/editor-created", url.Values{"_csrf": {"edition-token"}, "title": {"Updated by editor"}})
+	if editorUpdate.Code != http.StatusSeeOther {
+		t.Fatalf("editor generated Admin update status=%d body=%s", editorUpdate.Code, editorUpdate.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "editor-created"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Updated by editor") {
+		t.Fatalf("editor CRUD was not persisted in its tenant: status=%d body=%s", response.Code, response.Body.String())
+	}
+	editorDelete := editorMutation("/admin/resources/article/editor-created/delete", url.Values{"_csrf": {"edition-token"}})
+	if editorDelete.Code != http.StatusSeeOther {
+		t.Fatalf("editor generated Admin delete status=%d body=%s", editorDelete.Code, editorDelete.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "editor-created"); response.Code != http.StatusNotFound {
+		t.Fatalf("editor delete left a persisted record: status=%d body=%s", response.Code, response.Body.String())
 	}
 
 	adminRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)

@@ -17,7 +17,9 @@ Both commands passed. The contract tests cover:
   partially registered routes when that resolver is missing;
 - tenant-scoped create/read and Admin list isolation between two tenants;
 - generated Admin create/update/delete, missing-CSRF rejection, viewer read
-  and mutation denials, and persisted-state checks after denied mutations.
+  and mutation denials, editor-role shell identity and valid-CSRF
+  create/update/delete with SQLite persisted-state readback, and persisted-state
+  checks after denied mutations.
 
 The Edition is a separate module and imports the public `extension/v1` Admin
 contract. These tests use an in-memory HTTP mux and fixture-provided identity,
