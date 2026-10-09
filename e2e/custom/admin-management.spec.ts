@@ -702,6 +702,11 @@ test.describe("single Edition administrator management", () => {
       form: { _csrf: restrictedCsrfToken },
     });
     expect(deniedImportMutation.status()).toBe(403);
+    const deniedBulkExport = await restrictedEditor.request.post(`${baseURL}/admin/pages/bulk`, {
+      form: { _csrf: restrictedCsrfToken, action: "export", ids: createdPageID },
+    });
+    expect(deniedBulkExport.status()).toBe(403);
+    expect(deniedBulkExport.headers()["content-disposition"]).toBeUndefined();
     const pageAfterDeniedPublish = await page.request.get(`${baseURL}/api/pages/${createdPageID}`);
     expect(pageAfterDeniedPublish.status()).toBe(200);
     expect(await pageAfterDeniedPublish.json()).toMatchObject({ status: "draft", title: "Editor session page" });

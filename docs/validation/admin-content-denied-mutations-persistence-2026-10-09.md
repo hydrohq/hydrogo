@@ -15,7 +15,9 @@ error statuses alone.
 The same Editor also has `admin.content.read` denied. The import wizard GET
 returns 403, and a valid-CSRF import POST without a file also returns 403
 rather than reaching file validation. This confirms the write permission check
-happens before input processing on that unrendered mutation route.
+happens before input processing on that unrendered mutation route. A
+valid-CSRF bulk CSV export is also denied with 403 and no download disposition,
+so the permission boundary protects this data-export POST as well.
 
 The focused role-boundary Chromium scenario passed **1/1** on SQLite and
 **1/1** on PostgreSQL 18.6. PostgreSQL used an application role configured
@@ -38,7 +40,7 @@ npx playwright test custom/admin-management.spec.ts --project=chromium \
 ## Limits
 
 This closes only the denied page create/update/publish persistence cells and
-the import route read/write denial for an Editor with explicit content read
-and write denies. It does not close every Admin route × role × permission
-override × mutation × CSRF combination, module-owned API route, or production
-tenant/session deployment gate.
+the import and bulk-export route read/write denial for an Editor with explicit
+content read and write denies. It does not close every Admin route × role ×
+permission override × mutation × CSRF combination, module-owned API route, or
+production tenant/session deployment gate.
