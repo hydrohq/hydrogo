@@ -92,6 +92,39 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page.getByRole("textbox", { name: "Article body" }).locator("strong")).toHaveText("An updated formatted article.");
   });
 
+  test("a failed generated save keeps the form usable for retry", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.goto(`${baseURL}/admin/resources/article/new`);
+    await dismissOnboarding(page);
+    const form = page.locator('form[action="/admin/resources/article/new"]');
+    const title = "Retry generated article";
+    const body = "Content retained after a temporary failure.";
+    await form.getByLabel("Title").fill(title);
+    await page.locator(".richtext-editor .ql-editor").fill(body);
+    const armed = await request.post(`${baseURL}/__test/fail-next-article-write`);
+    expect(armed.status()).toBe(204);
+
+    const [failedResponse] = await Promise.all([
+      page.waitForNavigation(),
+      form.getByRole("button", { name: "Kaydet" }).click(),
+    ]);
+    expect(failedResponse?.status()).toBe(502);
+    await expect(page.getByRole("alert")).toContainText("Değişiklikleriniz kaydedilemedi");
+    await expect(form.getByLabel("Title")).toHaveValue(title);
+    await expect(page.locator(".richtext-editor .ql-editor")).toContainText(body);
+    await expect(page.locator("body")).not.toContainText("fixture database host");
+    await expectNoA11yViolations(page);
+
+    await form.getByRole("button", { name: "Kaydet" }).click();
+    await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
+    await expect(page.getByRole("link", { name: title })).toBeVisible();
+    const saved = (await (await request.get(`${baseURL}/api/v1/article`)).json()).find(
+      (record: { title: string }) => record.title === title,
+    );
+    expect(saved).toBeTruthy();
+    expect(saved.body).toContain(body);
+  });
+
   test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ browser, page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

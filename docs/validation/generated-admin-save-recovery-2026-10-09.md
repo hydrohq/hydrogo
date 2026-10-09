@@ -30,6 +30,18 @@ without exposing the API response.
   `go test ./internal/adminstudio ./internal/i18n -count=1 -p 1 -timeout=5m`.
 - `go vet ./internal/adminstudio ./internal/i18n` and `git diff --check` passed.
 
+## Browser retry coverage added — 2026-10-09
+
+The generated rich-text E2E fixture can now fail the next article create once.
+The Playwright scenario asserts the 502 response, preserved title and rich-text
+body, localized accessible alert, absence of fixture internals, axe results,
+successful retry, and API readback. The Go fixture package compiled and
+Playwright discovered the case (8 tests total). An actual browser execution was
+attempted, but the runner failed before the scenario started because this
+environment denies loopback listeners (`listen EPERM: operation not
+permitted 127.0.0.1`). Therefore browser behavior is still pending a permitted
+runner; discovery is not counted as execution.
+
 ## Limits
 
 This is an in-process HTTP test. Browser interaction, PostgreSQL, and deployed
