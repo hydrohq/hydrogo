@@ -57,6 +57,7 @@ test.describe("single Edition administrator management", () => {
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
     test.setTimeout(120_000);
     let createdPageID = "";
+    let createdNewsID = "";
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await adminPage.goto(`${baseURL}/login`);
@@ -253,6 +254,13 @@ test.describe("single Edition administrator management", () => {
         await createForm.getByRole("button", { name: "Taslak oluştur" }).click();
         await expect(page).toHaveURL(/\/admin\/pages\/[^/?]+$/);
         createdPageID = new URL(page.url()).pathname.split("/").at(-1) || "";
+        await page.goto(`${baseURL}/admin/news/new`);
+        await page.locator('#news-form [name="title"]').fill("Editor role news draft");
+        await page.locator('#news-form [name="slug"]').fill("role-editor-news-draft");
+        await page.locator('#news-form .richtext-editor [contenteditable="true"]').fill("A draft for the Viewer read-only route check.");
+        await page.getByRole("button", { name: "Taslağı kaydet" }).click();
+        await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
+        createdNewsID = new URL(page.url()).pathname.split("/").at(-1) || "";
       } else {
         expect(allowed?.status()).toBe(403);
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
@@ -289,6 +297,17 @@ test.describe("single Edition administrator management", () => {
         expect(viewerNewsCreate.status(), "Viewer content.read does not grant content.write").toBe(403);
         await page.goto(`${baseURL}/admin/news`);
         await expect(page.locator('.studio-table')).not.toContainText("Viewer cannot create news");
+        expect(createdNewsID).not.toBe("");
+        expect((await page.goto(`${baseURL}/admin/news/${createdNewsID}`))?.status(), "Viewer content.read grants read-only news detail access").toBe(200);
+        await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
+        await expect(page.locator(".readonly-content-preview")).toContainText("A draft for the Viewer read-only route check.");
+        await expect(page.locator('form[action^="/admin/news/"]')).toHaveCount(0);
+        const viewerNewsUpdate = await page.request.post(`${baseURL}/admin/news/${createdNewsID}`, {
+          form: { _csrf: newsCSRFToken, version: "1", slug: "role-editor-news-draft", title: "Viewer altered news", body: "This must be denied." },
+        });
+        expect(viewerNewsUpdate.status(), "Viewer content.read does not grant news updates").toBe(403);
+        await page.goto(`${baseURL}/admin/news/${createdNewsID}`);
+        await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
       }
 
       if (account.expectedRole === "editor") {
