@@ -21,7 +21,9 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitesql "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
@@ -1039,6 +1041,89 @@ func TestSiteCustomCodeAdminRouteIsPrivateAndAdminOnly(t *testing.T) {
 	unchanged, found, err := store.GetSetting(context.Background(), db, site.CustomCodeSettingKey)
 	if err != nil || !found || site.CustomCodeFromSetting(unchanged).Head != valid {
 		t.Fatalf("invalid custom code replaced prior value: found=%t err=%v value=%+v", found, err, unchanged)
+	}
+}
+
+func TestSiteTranslationAdminRoutePersistsTenantScopedLocaleOverride(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-translation-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{DB: db, Store: store, Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/translations" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	const tenantID = "translation-test-tenant"
+	defer i18n.SetOverride(tenantID, "en", "admin.dashboard", "")
+	post := func(user *auth.User, token, locale, key, value string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"_csrf": {token}, "locale": {locale}, "key": {key}, "value": {value}}
+		request := httptest.NewRequest(http.MethodPost, "/admin/translations", strings.NewReader(form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		ctx := auth.WithUser(request.Context(), user)
+		ctx = tenant.WithScope(ctx, tenant.Scope{TenantID: tenantID, Slug: "translations"})
+		request = request.WithContext(ctx)
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertMissing := func() {
+		t.Helper()
+		if _, found, err := store.GetSetting(context.Background(), db, i18n.OverrideSettingKey("en", "admin.dashboard")); err != nil || found {
+			t.Fatalf("unauthorized translation persisted: found=%t err=%v", found, err)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	for name, userToken := range map[string]struct {
+		user  *auth.User
+		token string
+	}{
+		"invalid CSRF": {user: admin, token: "wrong-token"},
+		"editor":       {user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
+		"admin deny":   {user: &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, token: "valid-token"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if response := post(userToken.user, userToken.token, "en-US", "admin.dashboard", "Tenant dashboard"); response.Code != http.StatusForbidden {
+				t.Fatalf("translation status=%d, want 403", response.Code)
+			}
+			assertMissing()
+		})
+	}
+	response := post(admin, "valid-token", "en-US", "admin.dashboard", "Tenant dashboard")
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/translations?locale=en&saved=1" {
+		t.Fatalf("authorized translation response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	setting, found, err := store.GetSetting(context.Background(), db, i18n.OverrideSettingKey("en", "admin.dashboard"))
+	if err != nil || !found || !setting.Public || setting.Value != "Tenant dashboard" {
+		t.Fatalf("persisted locale override=%+v found=%t err=%v", setting, found, err)
+	}
+	rows := i18n.CatalogRows(tenantID, "en")
+	var translated bool
+	for _, row := range rows {
+		if row.Key == "admin.dashboard" && row.Translation == "Tenant dashboard" && !row.Missing {
+			translated = true
+		}
+	}
+	if !translated {
+		t.Fatal("saved translation was not visible in the tenant-scoped catalog")
+	}
+	if response := post(admin, "valid-token", "en", "unknown.key", "Should not persist"); response.Code != http.StatusBadRequest {
+		t.Fatalf("unknown catalog key status=%d, want 400", response.Code)
+	}
+	unchanged, found, err := store.GetSetting(context.Background(), db, i18n.OverrideSettingKey("en", "admin.dashboard"))
+	if err != nil || !found || unchanged.Value != "Tenant dashboard" {
+		t.Fatalf("invalid translation changed stored override: found=%t err=%v value=%+v", found, err, unchanged)
 	}
 }
 
