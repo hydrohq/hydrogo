@@ -387,6 +387,54 @@ test.describe("single Edition administrator management", () => {
         await page.getByRole("button", { name: "Taslağı kaydet" }).click();
         await expect(page).toHaveURL(/\/admin\/news\/[^/?]+$/);
         createdNewsID = new URL(page.url()).pathname.split("/").at(-1) || "";
+        const newsTaxonomyURL = `${baseURL}/admin/news/taxonomy`;
+        expect((await page.goto(newsTaxonomyURL))?.status(), "Editor content.write permits News taxonomy management").toBe(200);
+        const editorNewsCSRFResponse = await page.request.get(`${baseURL}/csrf-token`);
+        expect(editorNewsCSRFResponse.status()).toBe(200);
+        const { token: editorNewsCSRF } = await editorNewsCSRFResponse.json();
+        expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(editorNewsCSRF);
+        const editorTaxonomyCreate = await page.request.post(newsTaxonomyURL, {
+          maxRedirects: 0,
+          form: {
+            _csrf: editorNewsCSRF,
+            id: "role-editor-news-taxonomy",
+            slug: "role-editor-news-tag",
+            kind: "tag",
+            labels_json: '{"tr":"Editör etiketi"}',
+          },
+        });
+        expect(editorTaxonomyCreate.status(), "Editor with valid CSRF can create a taxonomy term").toBe(303);
+        expect((await page.goto(newsTaxonomyURL))?.status()).toBe(200);
+        await expect(page.locator("table tbody")).toContainText("role-editor-news-tag");
+        const editorTaxonomyUpdate = await page.request.post(newsTaxonomyURL, {
+          maxRedirects: 0,
+          form: {
+            _csrf: editorNewsCSRF,
+            id: "role-editor-news-taxonomy",
+            slug: "role-editor-news-category",
+            kind: "category",
+            labels_json: '{"tr":"Editör kategorisi"}',
+          },
+        });
+        expect(editorTaxonomyUpdate.status(), "Editor with valid CSRF can update a taxonomy term").toBe(303);
+        expect((await page.goto(newsTaxonomyURL))?.status()).toBe(200);
+        await expect(page.locator("table tbody")).toContainText("role-editor-news-category");
+        const editorTaxonomyDelete = await page.request.post(`${newsTaxonomyURL}/role-editor-news-taxonomy/delete`, {
+          maxRedirects: 0,
+          form: { _csrf: editorNewsCSRF },
+        });
+        expect(editorTaxonomyDelete.status(), "Editor with valid CSRF can delete a taxonomy term").toBe(303);
+        const protectedTaxonomyCreate = await page.request.post(newsTaxonomyURL, {
+          maxRedirects: 0,
+          form: {
+            _csrf: editorNewsCSRF,
+            id: "role-news-taxonomy-protected",
+            slug: "role-news-taxonomy-original",
+            kind: "tag",
+            labels_json: '{"tr":"Korunan etiket"}',
+          },
+        });
+        expect(protectedTaxonomyCreate.status()).toBe(303);
       } else {
         expect(allowed?.status()).toBe(403);
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
@@ -418,6 +466,24 @@ test.describe("single Edition administrator management", () => {
         expect(newsCSRFResponse.status()).toBe(200);
         const { token: newsCSRFToken } = await newsCSRFResponse.json();
         expect((await context.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(newsCSRFToken);
+        const viewerTaxonomyURL = `${baseURL}/admin/news/taxonomy`;
+        expect((await page.request.get(viewerTaxonomyURL)).status(), "Viewer must be denied the News taxonomy management deep link").toBe(403);
+        const viewerTaxonomyUpdate = await page.request.post(viewerTaxonomyURL, {
+          maxRedirects: 0,
+          form: {
+            _csrf: newsCSRFToken,
+            id: "role-news-taxonomy-protected",
+            slug: "role-news-taxonomy-forged",
+            kind: "category",
+            labels_json: '{"tr":"Sahte güncelleme"}',
+          },
+        });
+        expect(viewerTaxonomyUpdate.status(), "Viewer cannot update taxonomy with valid CSRF").toBe(403);
+        const viewerTaxonomyDelete = await page.request.post(`${viewerTaxonomyURL}/role-news-taxonomy-protected/delete`, {
+          maxRedirects: 0,
+          form: { _csrf: newsCSRFToken },
+        });
+        expect(viewerTaxonomyDelete.status(), "Viewer cannot delete taxonomy with valid CSRF").toBe(403);
         const viewerNewsCreate = await page.request.post(`${baseURL}/admin/news`, {
           form: { _csrf: newsCSRFToken, slug: "role-viewer-news", title: "Viewer cannot create news", body: "Denied by content.write." },
         });
@@ -491,6 +557,15 @@ test.describe("single Edition administrator management", () => {
         await page.goto(`${baseURL}/admin/news/${createdNewsID}`);
         await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
         await expect(page.locator("#news-status-readonly")).toHaveValue("draft");
+        const taxonomyVerifierContext = await browser.newContext({ storageState: adminStorageState });
+        try {
+          const taxonomyVerifier = await taxonomyVerifierContext.newPage();
+          expect((await taxonomyVerifier.goto(`${baseURL}/admin/news/taxonomy`))?.status()).toBe(200);
+          await expect(taxonomyVerifier.locator("table tbody")).toContainText("role-news-taxonomy-original");
+          await expect(taxonomyVerifier.locator("table tbody")).not.toContainText("role-news-taxonomy-forged");
+        } finally {
+          await taxonomyVerifierContext.close();
+        }
       }
 
       if (account.expectedRole === "editor") {
