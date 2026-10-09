@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -1047,6 +1048,7 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 	apiMutations := 0
+	records := map[string]map[string]any{}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			t.Errorf("unexpected read while testing direct writes: %s %s", r.Method, r.URL.Path)
@@ -1054,8 +1056,24 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 		apiMutations++
 		switch r.Method {
 		case http.MethodPost:
+			var record map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
+				t.Errorf("decode created record: %v", err)
+			}
+			records[record["id"].(string)] = record
 			w.WriteHeader(http.StatusCreated)
-		case http.MethodPut, http.MethodDelete:
+		case http.MethodPut:
+			id := path.Base(r.URL.Path)
+			var changes map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&changes); err != nil {
+				t.Errorf("decode updated record: %v", err)
+			}
+			for key, value := range changes {
+				records[id][key] = value
+			}
+			w.WriteHeader(http.StatusNoContent)
+		case http.MethodDelete:
+			delete(records, path.Base(r.URL.Path))
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Errorf("unexpected generated API method %s", r.Method)
@@ -1102,6 +1120,11 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 	for _, role := range []string{"admin", "editor", "viewer", "unknown"} {
 		for _, action := range actions {
 			t.Run(role+"/"+action.name, func(t *testing.T) {
+				if action.name == "create" {
+					delete(records, "a1")
+				} else {
+					records["a1"] = map[string]any{"id": "a1", "title": "Existing"}
+				}
 				before := apiMutations
 				request := httptest.NewRequest(http.MethodPost, action.path, strings.NewReader(action.body))
 				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -1117,6 +1140,21 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 				}
 				if response.Code != wantStatus || apiMutations != wantMutations {
 					t.Fatalf("%s %s status=%d mutations=%d, want status=%d mutations=%d body=%s", role, action.name, response.Code, apiMutations, wantStatus, wantMutations, response.Body.String())
+				}
+				record, exists := records["a1"]
+				switch {
+				case action.name == "create" && allowed && (!exists || record["title"] != "Created"):
+					t.Fatalf("allowed %s create did not persist the new title: %#v", role, records)
+				case action.name == "create" && !allowed && exists:
+					t.Fatalf("denied %s create changed persisted records: %#v", role, records)
+				case action.name == "update" && allowed && (!exists || record["title"] != "Updated"):
+					t.Fatalf("allowed %s update did not persist the title: %#v", role, records)
+				case action.name == "update" && !allowed && (!exists || record["title"] != "Existing"):
+					t.Fatalf("denied %s update changed persisted record: %#v", role, records)
+				case action.name == "delete" && allowed && exists:
+					t.Fatalf("allowed %s delete left the record persisted: %#v", role, records)
+				case action.name == "delete" && !allowed && (!exists || record["title"] != "Existing"):
+					t.Fatalf("denied %s delete changed persisted record: %#v", role, records)
 				}
 			})
 		}
