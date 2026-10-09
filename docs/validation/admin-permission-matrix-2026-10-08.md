@@ -373,18 +373,31 @@ cd tests/external-edition && go test ./... -count=1
 
 ### Site settings CSRF × permission × persisted state — 2026-10-09
 
-The registered `POST /admin/site/settings` handler is now exercised behind the
-production CSRF middleware with SQLite migrations and the SQL store. Invalid
-CSRF and an Admin `site.manage=false` override both return 403 and leave the
-setting absent. A valid-CSRF Editor with an explicit `site.manage=true` grant
-receives 204 and the setting is read back from SQLite. The focused test, full
-`modules/site/transport` package and vet passed. This closes one Site settings
-mutation cell only; it does not imply the full Site/Admin route matrix passed.
+The registered `POST /admin/site/settings` handler is exercised behind the
+production CSRF middleware with SQLite migrations and the SQL store. Missing
+or invalid CSRF and an Admin `site.manage=false` override both return 403 and
+leave the setting absent. A valid-CSRF Editor with an explicit
+`site.manage=true` grant receives 204 and the setting is read back from SQLite.
+The matching integrated route/store scenario runs inside
+`TestSQLiteSiteEditionContract` and `TestPostgresSiteEditionContract`:
+missing/invalid-CSRF Admin and denied Admin preserve the preexisting value,
+then explicitly granted Editor persists the update. The SQLite edition
+contract and full PostgreSQL contract suite passed, as did
+`go vet ./tests/contract`. This closes one Site settings mutation cell only;
+it does not imply the full Site/Admin route matrix passed.
 
 ```sh
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go test ./modules/site/transport -run '^TestAdminSiteSettingRouteEnforcesCSRFBeforePermission$' -count=1 -p 1
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go vet ./modules/site/transport
+HYDRO_TEST_POSTGRES_URL='postgres://<nosuperuser-role>@127.0.0.1:<port>/<database>?sslmode=disable' go test ./tests/contract -run '^TestPostgresSiteEditionContract$' -count=1 -p 1
+HYDRO_TEST_POSTGRES_URL='postgres://<nosuperuser-role>@127.0.0.1:<port>/<database>?sslmode=disable' go test ./tests/contract -count=1 -p 1 -timeout=5m
+go vet ./tests/contract
 ```
+
+The PostgreSQL run used a temporary PostgreSQL 18.6 cluster and a
+`NOSUPERUSER NOBYPASSRLS` schema/database owner; the cluster was stopped and
+removed after the test. These tests certify local SQLite/PostgreSQL behavior,
+not a deployed customer database.
 
 ### News content permission × CSRF routes — 2026-10-09
 
