@@ -374,6 +374,13 @@ package vet passed. Other Admin modules, browser menu parity, PostgreSQL, and
 customer deployment behavior remain open; see
 `docs/validation/site-admin-deeplink-role-matrix-2026-10-09.md`.
 
+The route audit also fixed an Admin permission bypass in Site custom-code
+management: an explicit `admin.site.manage=false` override now denies the
+otherwise privileged Admin role. SQLite route tests prove no private setting
+is written on denial and authorized save/read still works. Full Site module
+tests and transport vet passed; PostgreSQL/browser proof remains open. See
+`docs/validation/site-custom-code-permission-override-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
