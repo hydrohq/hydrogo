@@ -470,3 +470,10 @@ record fallback. Browser/PostgreSQL remain open; see
 3. Login/broker için gerçek servis kararlarını ADR ile kabul et.
 4. İmzalı release pipeline ve installer'ları gerçek hesaplarla doğrula.
 5. Production kapasite/restore/upgrade tatbikatlarını çalıştır.
+
+
+2026-10-09: The full root Go suite also passed with `HYDRO_TEST_POSTGRES_URL`
+pointing at a disposable PostgreSQL 18.6 cluster; backup fixtures used the
+temporary test login as their configured privileged role. This is local
+root-module PostgreSQL evidence, not nested Edition or production deployment
+certification. See `docs/validation/admin-studio-full-go-suite-2026-10-09.md`.

@@ -54,3 +54,22 @@ PostgreSQL Go contracts were skipped by their existing opt-in gates; the
 separate PostgreSQL browser fixture replay evidence remains in
 [`generated-richtext-fixture-repeatability-2026-10-09.md`](generated-richtext-fixture-repeatability-2026-10-09.md).
 The suite does not recurse into the independent nested Edition Go module.
+
+
+## Latest PostgreSQL-enabled root regression
+
+The complete root suite was rerun against a disposable PostgreSQL 18.6 cluster
+with `HYDRO_TEST_POSTGRES_URL` set:
+
+```sh
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./... -count=1 -p 1 -timeout=8m
+```
+
+All root packages passed, including PostgreSQL-gated contract and backup tests.
+The fixture used a temporary `hydro_app` login role with `NOBYPASSRLS` and
+`CREATEDB`, and set `HYDRO_PG_PRIVILEGED_ROLE=hydro_app` so backup/restore tests
+used the configured test role. The disposable cluster was removed after the
+run. This validates root-module tests against local PostgreSQL 18.6; it does
+not cover the nested Edition module, production deployment, or replace the
+separate authenticated browser runs.
