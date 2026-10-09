@@ -73,12 +73,13 @@ html[data-theme="light"] {
 	--text-muted: #64748b;
 
 	--brand-primary: #0284c7;
-	--brand-accent: #0284c7;
+	--brand-accent: #0369a1;
 	--brand-glow: rgba(2, 132, 199, 0.16);
 
-	--btn-primary-bg: #0284c7;
+	--btn-primary-bg: #0369a1;
 	--btn-primary-hover: #0369a1;
 	--btn-primary-text: #ffffff;
+	--color-success: #047857;
 
 	--btn-secondary-bg: #ffffff;
 	--btn-secondary-hover: #f1f5f9;

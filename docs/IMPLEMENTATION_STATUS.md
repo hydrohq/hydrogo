@@ -65,6 +65,14 @@ Edition browser persistence and database adapter evidence remains scoped to
 the separately documented CRUD/editorial journeys. Evidence:
 `generated-admin-validation-feedback-2026-10-09.md`.
 
+2026-10-09 public Admin accessibility follow-up: invite-accepted and
+password-reset confirmation states passed WCAG 2.1 A/AA in Turkish/English
+and light/dark after fixing three light-mode contrast failures. The full
+Admin-management Chromium file passed 6/6 on SQLite and PostgreSQL 18.6;
+`go test ./internal/ui -count=1` and the Impeccable detector passed. Other
+public login error states and production deployment routes remain open.
+Evidence: `admin-login-confirmation-accessibility-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered
