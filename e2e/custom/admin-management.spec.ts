@@ -684,6 +684,14 @@ test.describe("single Edition administrator management", () => {
     const adminPageListHTML = await adminPageListAfterDeny.text();
     expect(adminPageListHTML).not.toContain("permission-denied-page");
     expect(adminPageListHTML).not.toContain("Must not be created");
+    const editPageURL = `${baseURL}/admin/pages/${createdPageID}`;
+    const deniedUpdateMutation = await restrictedEditor.request.post(editPageURL, {
+      form: { _csrf: restrictedCsrfToken, title: "Must not update the page" },
+    });
+    expect(deniedUpdateMutation.status()).toBe(403);
+    const persistedPageResponse = await page.goto(editPageURL);
+    expect(persistedPageResponse?.status()).toBe(200);
+    await expect(page.locator('[name="title"]')).toHaveValue("Editor session page");
     const deniedSearch = await restrictedEditor.request.get(`${baseURL}/admin/api/search?q=Hydro`);
     expect(deniedSearch.status()).toBe(200);
     const deniedSearchBody = await deniedSearch.json();

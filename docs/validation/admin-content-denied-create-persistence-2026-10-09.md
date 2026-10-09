@@ -2,12 +2,14 @@
 
 ## Scope and result
 
-The real Edition Admin-management browser flow now performs a page-create POST
-as an authenticated Editor after an Admin explicitly denies
-`admin.content.write`. The request carries a valid session CSRF token and
-returns 403. A separate authenticated Admin session then reads the page list
-and verifies that neither the denied slug nor title exists. The test therefore
-checks persisted state rather than relying on the error status alone.
+The real Edition Admin-management browser flow performs page-create and
+page-update POSTs as an authenticated Editor after an Admin explicitly denies
+`admin.content.write`. Both requests carry a valid session CSRF token and
+return 403. A separate authenticated Admin session reads the page list to
+verify that the denied create did not add its slug or title, then opens the
+existing page to verify that its title remains unchanged after the denied
+update. The test therefore checks persisted state rather than relying on
+error statuses alone.
 
 The focused role-boundary Chromium scenario passed **1/1** on SQLite and
 **1/1** on PostgreSQL 18.6. PostgreSQL used an application role configured
@@ -29,7 +31,7 @@ npx playwright test custom/admin-management.spec.ts --project=chromium \
 
 ## Limits
 
-This closes only the denied page-create persistence cell for an Editor with an
-explicit content-write deny. It does not close every Admin route × role ×
-permission override × mutation × CSRF combination, module-owned API route, or
+This closes only the denied page create/update persistence cells for an Editor
+with an explicit content-write deny. It does not close every Admin route × role
+× permission override × mutation × CSRF combination, module-owned API route, or
 production tenant/session deployment gate.
