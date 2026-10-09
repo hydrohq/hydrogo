@@ -64,6 +64,38 @@ func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Req
 	return mux
 }
 
+func TestGeneratedAdminRendersLocalizedRetryPageForAPIReadFailure(t *testing.T) {
+	api := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "postgres://private-user:secret@db.internal panic", http.StatusServiceUnavailable)
+	})
+	mux := testGeneratedAdmin(t, api, func(*http.Request) bool { return true })
+	for _, tc := range []struct{ locale, title, message, retry string }{
+		{"tr", "Sayfa yüklenemedi", "Sayfayı yenileyip tekrar deneyin", "Yeniden dene"},
+		{"en", "This page could not be loaded", "Try reloading it", "Try again"},
+	} {
+		t.Run(tc.locale, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/admin/resources/project?search=kept-private", nil)
+			request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: tc.locale})
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			body := response.Body.String()
+			for _, want := range []string{tc.title, tc.message, `role="alert"`, `<form action="/admin/resources/project" method="GET" class="generated-load-retry">`, tc.retry, `<main>`} {
+				if !strings.Contains(body, want) {
+					t.Errorf("localized load-error page missing %q: %s", want, body)
+				}
+			}
+			for _, secret := range []string{"postgres://", "private-user", "db.internal", "panic"} {
+				if strings.Contains(body, secret) {
+					t.Errorf("load-error response leaked %q: %s", secret, body)
+				}
+			}
+			if response.Code != http.StatusBadGateway || response.Header().Get("Content-Type") != "text/html; charset=utf-8" || response.Header().Get("Cache-Control") != "private, no-store" {
+				t.Errorf("status=%d headers=%v", response.Code, response.Header())
+			}
+		})
+	}
+}
+
 type generatedAdminRoundTripper struct{ handler http.Handler }
 
 func (rt generatedAdminRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
