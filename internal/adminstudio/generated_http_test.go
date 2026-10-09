@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -154,7 +155,17 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 			_, _ = io.WriteString(w, `[]`)
 			return
 		}
-		_, _ = io.WriteString(w, `[{"id":"p1","title":"Example","status":"published"}]`)
+		count := 1
+		if r.URL.Query().Get("offset") == "0" {
+			count = DefaultPageSize + 1
+		}
+		records := make([]map[string]any, count)
+		for index := range records {
+			records[index] = map[string]any{"id": fmt.Sprintf("p%d", index+1), "title": "Example", "status": "published"}
+		}
+		if err := json.NewEncoder(w).Encode(records); err != nil {
+			t.Errorf("encode list response: %v", err)
+		}
 	})
 	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
 	request, err := http.NewRequest(http.MethodGet, baseURL+"/admin/resources/project?search=missing", nil)
@@ -190,10 +201,27 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-label="Actions"`, `aria-label="Published"`} {
+	for _, want := range []string{`data-label="Actions"`, `aria-label="Published"`, `label for="resource-search">Search</label>`, `selected="selected">All</option>`, `>Apply</button>`, `>New record</a>`, `>Edit</a>`, `>Next</button>`} {
 		if listResponse.StatusCode != http.StatusOK || !strings.Contains(string(listBody), want) {
 			t.Fatalf("English generated list row missing %q: status=%d body=%s", want, listResponse.StatusCode, listBody)
 		}
+	}
+	pageTwo, err := http.NewRequest(http.MethodGet, baseURL+"/admin/resources/project?page=2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pageTwo.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	pageTwoResponse, err := client.Do(pageTwo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pageTwoResponse.Body.Close()
+	pageTwoBody, err := io.ReadAll(pageTwoResponse.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pageTwoResponse.StatusCode != http.StatusOK || !strings.Contains(string(pageTwoBody), `>Previous</button>`) || strings.Contains(string(pageTwoBody), `>Next</button>`) {
+		t.Fatalf("English generated page two controls are incorrect: status=%d body=%s", pageTwoResponse.StatusCode, pageTwoBody)
 	}
 }
 

@@ -28,3 +28,26 @@ Impeccable detector passed after this addition.
 
 After status-pill locale rendering was added, the full root Go suite passed again:
 `GOCACHE=/tmp/hydro-cover-cache go test ./... -p 1 -timeout=8m`.
+
+## Generated list toolbar locale coverage
+
+The generated list toolbar and entry points now use the active UI locale for
+Search, All, Apply, New record, Edit, Drafts, and pagination controls. Content
+locale remains a separate value used for localized-resource query preservation.
+The English handler acceptance now renders 26 records and checks Next on page
+one and Previous on page two, while existing Turkish tests retain the Turkish
+fallbacks.
+
+Validation passed:
+
+```sh
+GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio -count=1 -p 1 -timeout=5m
+GOCACHE=/tmp/hydro-cover-cache go vet ./internal/adminstudio ./internal/i18n
+GOCACHE=/tmp/hydro-cover-cache go test ./... -p 1 -timeout=8m
+/home/arda/.agents/skills/impeccable/scripts/impeccable detect --json \
+  internal/adminstudio/generated_http.go internal/adminstudio/generated_http_test.go \
+  internal/i18n/catalogs/en.json internal/i18n/catalogs/tr.json
+```
+
+The full root Go suite and detector passed. This does not replace the blocked
+Playwright browser/axe check or the unavailable full PostgreSQL rerun.

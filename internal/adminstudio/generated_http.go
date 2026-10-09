@@ -601,7 +601,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		row.DetailURL = editURL
 		canUpdate := collection.Drafts || h.resourceAccess(r, collection, id).Update
 		if canUpdate {
-			row.Actions = []Action{{Label: "Düzenle", Href: editURL}}
+			row.Actions = []Action{{Label: i18n.T(uiLocale, "admin.generated.list.edit"), Href: editURL}}
 		}
 		rows = append(rows, row)
 	}
@@ -615,7 +615,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		}
 		canCreate := collection.Drafts || h.resourceAccess(r, collection, "").Create
 		if newURL != "" && canCreate {
-			if err := ui.Link(ui.LinkProps{Href: newURL, Label: "Yeni kayıt", Class: "button"}).Render(ctx, out); err != nil {
+			if err := ui.Link(ui.LinkProps{Href: newURL, Label: i18n.T(uiLocale, "admin.generated.list.new_record"), Class: "button"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -626,12 +626,12 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
 						return err
 					}
-					return ui.Button(ui.ButtonProps{Type: "submit", Label: "Taslaklar", Variant: ui.Quiet}).Render(ctx, form)
+					return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(uiLocale, "admin.generated.drafts.title"), Variant: ui.Quiet}).Render(ctx, form)
 				})
 				if err := ui.Form(ui.FormProps{Action: draftsPath, Method: http.MethodGet, Body: draftsBody}).Render(ctx, out); err != nil {
 					return err
 				}
-			} else if err := ui.Link(ui.LinkProps{Href: draftsPath, Label: "Taslaklar", Class: "button button-quiet"}).Render(ctx, out); err != nil {
+			} else if err := ui.Link(ui.LinkProps{Href: draftsPath, Label: i18n.T(uiLocale, "admin.generated.drafts.title"), Class: "button button-quiet"}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -644,7 +644,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if _, err := io.WriteString(out, `<section class="studio-card">`); err != nil {
 			return err
 		}
-		if err := generatedListControls(out, collection, query, localeState(r).Current); err != nil {
+		if err := generatedListControls(out, collection, query, localeState(r).Current, uiLocale); err != nil {
 			return err
 		}
 		if err := RenderList(out, ListData{
@@ -658,14 +658,14 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if page > 1 {
 			previous := query
 			previous.Page = page - 1
-			if err := generatedListPageForm(context.Background(), out, collection.ID, previous, localeState(r).Current, "Önceki"); err != nil {
+			if err := generatedListPageForm(context.Background(), out, collection.ID, previous, localeState(r).Current, i18n.T(uiLocale, "admin.generated.list.previous")); err != nil {
 				return err
 			}
 		}
 		if hasNext {
 			next := query
 			next.Page = page + 1
-			if err := generatedListPageForm(context.Background(), out, collection.ID, next, localeState(r).Current, "Sonraki"); err != nil {
+			if err := generatedListPageForm(context.Background(), out, collection.ID, next, localeState(r).Current, i18n.T(uiLocale, "admin.generated.list.next")); err != nil {
 				return err
 			}
 		}
@@ -811,7 +811,7 @@ func generatedListPageForm(ctx context.Context, out io.Writer, id string, query 
 	return ui.Form(ui.FormProps{Action: "/admin/resources/" + url.PathEscape(id), Method: http.MethodGet, Body: body}).Render(ctx, out)
 }
 
-func generatedListControls(w io.Writer, collection Collection, query ListQuery, locale string) error {
+func generatedListControls(w io.Writer, collection Collection, query ListQuery, locale, uiLocale string) error {
 	return templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if _, err := io.WriteString(out, `<form class="admin-list-toolbar studio-form" method="get" action="/admin/resources/`+url.PathEscape(collection.ID)+`">`); err != nil {
 			return err
@@ -833,7 +833,7 @@ func generatedListControls(w io.Writer, collection Collection, query ListQuery, 
 			}
 		}
 		if searchFields > 0 {
-			if err := ui.Input(ui.InputProps{ID: "resource-search", Name: "search", Label: "Ara", Type: "search", Value: query.Search}).Render(ctx, out); err != nil {
+			if err := ui.Input(ui.InputProps{ID: "resource-search", Name: "search", Label: i18n.T(uiLocale, "admin.generated.list.search"), Type: "search", Value: query.Search}).Render(ctx, out); err != nil {
 				return err
 			}
 		}
@@ -843,10 +843,7 @@ func generatedListControls(w io.Writer, collection Collection, query ListQuery, 
 			}
 			options := append([]string(nil), field.Options...)
 			if len(options) > 0 {
-				allLabel := "Tümü"
-				if locale == "en" {
-					allLabel = "All"
-				}
+				allLabel := i18n.T(uiLocale, "admin.generated.list.all")
 				items := make([]ui.SelectOption, 0, len(options)+1)
 				items = append(items, ui.SelectOption{Value: "", Label: allLabel})
 				for _, option := range options {
@@ -862,7 +859,7 @@ func generatedListControls(w io.Writer, collection Collection, query ListQuery, 
 		if _, err := io.WriteString(out, `<div class="studio-actions">`); err != nil {
 			return err
 		}
-		if err := ui.Button(ui.ButtonProps{Type: "submit", Label: "Uygula", Variant: ui.Primary}).Render(ctx, out); err != nil {
+		if err := ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(uiLocale, "admin.generated.list.apply"), Variant: ui.Primary}).Render(ctx, out); err != nil {
 			return err
 		}
 		if _, err := io.WriteString(out, `</div>`); err != nil {
