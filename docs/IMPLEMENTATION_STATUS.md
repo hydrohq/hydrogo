@@ -396,6 +396,12 @@ does not remove assets, while the authorized Admin flow remains functional.
 Full media tests and vet passed. Browser/PostgreSQL remain open; see
 `docs/validation/media-cleanup-permission-override-2026-10-09.md`.
 
+Core Admin identity and permission packages were re-run after the recent
+management-route changes: `go test ./internal/auth/... -count=1 -p 1` and
+`go vet ./internal/auth/...` passed. This package-local evidence does not
+certify PostgreSQL (`HYDRO_TEST_POSTGRES_URL` is unset) or every Admin route;
+see `docs/validation/admin-auth-route-regression-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
