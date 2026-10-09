@@ -322,8 +322,19 @@ test.describe("single Edition administrator management", () => {
           form: { _csrf: newsCSRFToken, version: "1", slug: "role-editor-news-draft", title: "Viewer altered news", body: "This must be denied." },
         });
         expect(viewerNewsUpdate.status(), "Viewer content.read does not grant news updates").toBe(403);
+        for (const attempt of [
+          { action: "schedule", form: { version: "1", scheduled_at: "2030-01-01T12:00" } },
+          { action: "publish", form: { version: "1" } },
+          { action: "retract", form: { version: "1" } },
+        ]) {
+          const denied = await page.request.post(`${baseURL}/admin/news/${createdNewsID}/${attempt.action}`, {
+            form: { _csrf: newsCSRFToken, ...attempt.form },
+          });
+          expect(denied.status(), `Viewer cannot ${attempt.action} an Editor news draft`).toBe(403);
+        }
         await page.goto(`${baseURL}/admin/news/${createdNewsID}`);
         await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
+        await expect(page.locator("#news-status-readonly")).toHaveValue("draft");
       }
 
       if (account.expectedRole === "editor") {
@@ -439,14 +450,21 @@ test.describe("single Edition administrator management", () => {
             await overridePage.goto(`${baseURL}/admin/users`);
             const editorRow = overridePage.locator(".studio-table tbody tr").filter({ has: overridePage.getByText("editor@example.test", { exact: true }) });
             const form = editorRow.locator('form[action$="/permissions"]');
-            await editorRow.locator("details > summary").click();
+            const details = editorRow.locator("details");
+            if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+              await details.locator("summary").click();
+            }
+            await expect(details).toHaveAttribute("open", "");
             return form;
           };
           const saveMediaPermission = async (value: "deny" | "allow" | "inherit") => {
             const form = await editorPermissionForm();
             await form.locator('[name="perm_admin.media.manage"]').selectOption(value);
+            await expect(form.locator(".."), "permission details must remain open after changing the select").toHaveAttribute("open", "");
             const action = await form.getAttribute("action");
             expect(action).toBeTruthy();
+            await expect(form.locator('button[type="submit"]')).toBeVisible();
+            await expect(form.locator('button[type="submit"]')).toBeEnabled();
             const saved = overridePage.waitForResponse((response) => response.request().method() === "POST" && response.url() === new URL(action!, baseURL).href);
             await form.locator('button[type="submit"]').click();
             expect((await saved).status(), `Admin can set editor media.manage to ${value}`).toBe(204);
