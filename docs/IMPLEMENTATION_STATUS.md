@@ -216,6 +216,12 @@ an authorized save round-trips all fields through the SQL store. Site module
 tests and vet passed. This is one mutation path; the wider Admin role × route ×
 persisted-state matrix and PostgreSQL route-level check remain open.
 
+SEO settings now have the same persisted route boundary: unauthorized and
+invalid-CSRF writes leave no setting, valid local paths are deduplicated and
+stored, and invalid paths do not replace a prior valid value. Site tests and
+vet pass; redirect-rule and other Site mutations remain unverified at this
+route-level SQLite boundary.
+
 Windows'ta:
 
 ```powershell
