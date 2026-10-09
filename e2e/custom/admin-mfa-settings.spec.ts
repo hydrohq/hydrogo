@@ -18,22 +18,30 @@ let baseURL = "";
 test.describe("Admin Studio MFA self-service", () => {
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-mfa-"));
-    const database = path.join(tempDir, "edition.sqlite");
+    const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
+    const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
+    if (dialect === "postgres" && !process.env.HYDRO_E2E_DATABASE_DSN) {
+      throw new Error("HYDRO_E2E_DATABASE_DSN is required for the PostgreSQL Admin MFA run");
+    }
+    if (dialect === "postgres" && !process.env.HYDRO_PG_PRIVILEGED_ROLE) {
+      throw new Error("HYDRO_PG_PRIVILEGED_ROLE must name the PostgreSQL backup operator role for the Admin MFA run");
+    }
     const binary = path.join(tempDir, "hydro");
-    runCommand("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
-    runCommand("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    const databaseArgs = ["--database-dialect", dialect, "--database-dsn", database];
+    runCommand("go", ["run", "./cmd/hydro", "migrate", ...databaseArgs], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", ...databaseArgs], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    runCommand("go", ["run", "./tests/e2e/support/seedroles", ...databaseArgs], { cwd: repoRoot, stdio: "pipe" });
     runCommand("go", ["build", "-o", binary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
-    server = spawn(binary, ["serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MFA_MASTER_KEY: masterKey, HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
+    server = spawn(binary, ["serve", "--dev", ...databaseArgs, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MFA_MASTER_KEY: masterKey, HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`HydroGo server exited with ${server.exitCode}`);
       try {
         if ((await fetch(`${baseURL}/healthz`)).ok) return;
       } catch {
-        // Wait for the isolated SQLite server to start.
+        // Wait for the isolated test server to start.
       }
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
@@ -60,6 +68,8 @@ test.describe("Admin Studio MFA self-service", () => {
     page.on("console", (message) => { if (watchCSP && message.type() === "error" && message.text().includes("Content Security Policy")) browserIssues.push(message.text()); });
     page.on("pageerror", (error) => browserIssues.push(error.stack || error.message));
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    await page.goto(`${baseURL}/login`);
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "workbench-dark"));
     await page.goto(`${baseURL}/login`);
     await page.getByLabel("Email address").fill("admin@example.test");
     await page.getByLabel("Password").fill(adminPassword);
@@ -124,9 +134,40 @@ test.describe("Admin Studio MFA self-service", () => {
     await page.getByLabel("Password").fill(adminPassword);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.locator("#mfa-challenge")).toBeVisible();
+    await expect(page.locator("#login-email")).toBeHidden();
+    await expect(page.locator("#login-password")).toBeHidden();
     expect((await page.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
     const loginMFA = page.locator("#login-mfa-code");
     await expect(loginMFA).toBeEnabled();
+    const assertLoginAccessibility = async (state: string, mode: string) => {
+      const themeTokens = await page.evaluate(() => ({
+        mode: document.documentElement.dataset.theme,
+        accent: getComputedStyle(document.documentElement).getPropertyValue("--brand-accent").trim(),
+        inputBackground: getComputedStyle(document.querySelector("#login-email")!).backgroundColor,
+      }));
+      const result = await page.evaluate(async () => (window as any).axe.run(document, {
+        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+      }));
+      expect(result.violations.map((violation: any) => ({
+        id: violation.id,
+        impact: violation.impact,
+        nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+      })), `${state} login WCAG 2.1 A/AA violations in ${mode}; tokens=${JSON.stringify(themeTokens)}`).toEqual([]);
+    };
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await assertLoginAccessibility("MFA challenge", "dark");
+    await page.locator("#theme-toggle-btn").click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await assertLoginAccessibility("MFA challenge", "light");
+    const invalidMFAResponse = page.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
+    await loginMFA.fill("000000");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    expect((await invalidMFAResponse).status()).toBe(401);
+    await expect(page.getByRole("alert")).toHaveText("Code could not be verified. Try the current code in your authenticator app.");
+    await assertLoginAccessibility("MFA invalid-code error", "light");
+    await page.locator("#theme-toggle-btn").click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await assertLoginAccessibility("MFA invalid-code error", "dark");
     await loginMFA.fill(generateTOTP(secret));
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.waitForURL((url) => url.pathname === "/admin");
@@ -230,7 +271,17 @@ test.describe("Admin Studio MFA self-service", () => {
     await viewerPage.goto(`${baseURL}/login`);
     await viewerPage.getByLabel("Email address").fill("viewer@example.test");
     await viewerPage.getByLabel("Password").fill(adminPassword);
+    const viewerLoginResponse = viewerPage.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
     await viewerPage.getByRole("button", { name: "Sign in" }).click();
+    let viewerLogin = await viewerLoginResponse;
+    if (viewerLogin.status() === 429) {
+      const retryAfterSeconds = Number(viewerLogin.headers()["retry-after"] ?? "60");
+      await viewerPage.waitForTimeout((retryAfterSeconds + 1) * 1000);
+      const retryResponse = viewerPage.waitForResponse((response) => response.url() === `${baseURL}/auth/login` && response.request().method() === "POST");
+      await viewerPage.getByRole("button", { name: "Sign in" }).click();
+      viewerLogin = await retryResponse;
+    }
+    expect(viewerLogin.status(), "viewer login must recover after the configured IP rate-limit window").toBe(200);
     await expect(viewerPage).toHaveURL(/\/admin(?:\?.*)?$/);
     expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(200);
 

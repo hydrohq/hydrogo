@@ -47,6 +47,7 @@ const AdminLoginCSS = `
 
 	--color-success: #10b981;
 	--color-error: #ef4444;
+	--color-warning: #fbbf24;
 
 	--radius-sm: 8px;
 	--radius-md: 12px;
@@ -81,6 +82,7 @@ html[data-theme="light"] {
 	--btn-primary-text: #ffffff;
 	--color-success: #047857;
 	--color-error: #b91c1c;
+	--color-warning: #92400e;
 
 	--btn-secondary-bg: #ffffff;
 	--btn-secondary-hover: #f1f5f9;
@@ -334,6 +336,10 @@ html[data-theme="light"] .hero-headline span.gradient-text {
 	margin-bottom: 28px;
 }
 
+.login-form-pane [hidden] {
+	display: none !important;
+}
+
 .form-title {
 	font-size: 1.75rem;
 	font-weight: 700;
@@ -524,7 +530,7 @@ input[type="checkbox"]:checked + .checkbox-custom svg {
 	border: 1px solid rgba(16, 185, 129, 0.3);
 	color: var(--color-success);
 }
-.form-alert.alert-warning { border-color:rgba(217,119,6,.4);background:rgba(245,158,11,.12);color:#92400e }
+.form-alert.alert-warning { border-color:rgba(217,119,6,.4);background:rgba(245,158,11,.12);color:var(--color-warning) }
 
 .form-pane-footer {
 	text-align: center;
@@ -693,6 +699,7 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, returnTo, l
 	var themeBtn = document.getElementById('theme-toggle-btn');
 	var themeLabel = document.getElementById('theme-toggle-label');
 	var rememberCheckbox = document.getElementById('remember-me');
+	var formHeader = form.querySelector('.form-header');
 
 	if (rememberCheckbox) {
 		rememberCheckbox.addEventListener('change', function() {
@@ -764,6 +771,8 @@ func RenderAdminLoginWithLocaleAndAppearance(w io.Writer, csrfToken, returnTo, l
 					var countdown = document.querySelector('[data-mfa-countdown]');
 					var nextCode = document.querySelector('[data-mfa-next]');
 					challenge.hidden = false;
+					if (formHeader) formHeader.hidden = true;
+					form.querySelectorAll('.input-group, .form-row-utility').forEach(function(group) { group.hidden = true; });
 					code.disabled = false;
 					code.required = true;
 					var period = Math.max(1, Number(loginResult.totp_period_seconds) || 30);
