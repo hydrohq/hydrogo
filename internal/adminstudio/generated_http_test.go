@@ -64,6 +64,22 @@ func testGeneratedAdmin(t *testing.T, api http.Handler, authorize func(*http.Req
 	return mux
 }
 
+type generatedAdminRoundTripper struct{ handler http.Handler }
+
+func (rt generatedAdminRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	if request.Body != nil {
+		defer request.Body.Close()
+	}
+	recorder := httptest.NewRecorder()
+	rt.handler.ServeHTTP(recorder, request)
+	return recorder.Result(), nil
+}
+
+func generatedAdminClient(t *testing.T, handler http.Handler) (*http.Client, string) {
+	t.Helper()
+	return &http.Client{Transport: generatedAdminRoundTripper{handler: handler}}, "http://admin.test"
+}
+
 func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/project" || r.Method != http.MethodGet {
@@ -75,9 +91,8 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `[{"id":"p-1","title":"Roof & wall","status":"active"}]`)
 	})
-	server := httptest.NewServer(testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
-	defer server.Close()
-	list, err := http.Get(server.URL + "/admin/resources/project?search=Roof&filter%5Bstatus%5D=active&sort=-title")
+	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
+	list, err := client.Get(baseURL + "/admin/resources/project?search=Roof&filter%5Bstatus%5D=active&sort=-title")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +101,7 @@ func TestGeneratedAdminRendersListAndCreateForm(t *testing.T) {
 	if list.StatusCode != http.StatusOK || !strings.Contains(string(listHTML), `class="text-link" href="/admin/resources/project/p-1">Roof &amp; wall</a>`) || !strings.Contains(string(listHTML), `href="/admin/resources/project"`) || !strings.Contains(string(listHTML), `<option value="">Tümü</option>`) || list.Header.Get("Cache-Control") != "private, no-store" {
 		t.Fatalf("generated resource list was not rendered safely: status=%d body=%s", list.StatusCode, listHTML)
 	}
-	form, err := http.Get(server.URL + "/admin/resources/project/new")
+	form, err := client.Get(baseURL + "/admin/resources/project/new")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,10 +184,9 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"id":"p-1","title":"Current","description":"","status":"active"}`)
 	})
-	server := httptest.NewServer(testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
-	defer server.Close()
+	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
 
-	response, err := http.Get(server.URL + "/admin/resources/project/p-1")
+	response, err := client.Get(baseURL + "/admin/resources/project/p-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,13 +196,13 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 	}
 
 	form := url.Values{"title": {"Stale"}, "description": {"draft"}, "status": {"active"}, "_csrf": {"csrf-value"}}
-	request, err := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/p-1", strings.NewReader(form.Encode()))
+	request, err := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/p-1", strings.NewReader(form.Encode()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("X-CSRF-Test", "valid")
-	response, err = http.DefaultClient.Do(request)
+	response, err = client.Do(request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,6 +210,120 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 	body, _ := io.ReadAll(response.Body)
 	if response.StatusCode != http.StatusConflict || !strings.Contains(string(body), "Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.") {
 		t.Fatalf("conflict response = %d %s", response.StatusCode, body)
+	}
+}
+
+func TestGeneratedAdminValidationRendersLocalizedFieldErrorsAndPreservesValues(t *testing.T) {
+	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/project" {
+			t.Errorf("unexpected validation API request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = io.WriteString(w, `{"code":"validation_failed","fields":{"title":"required","status":"invalid","internal":"/var/lib/hydrogo/db.sqlite"},"error":"database unavailable"}`)
+	}), func(*http.Request) bool { return true }))
+	for _, test := range []struct {
+		locale string
+		copy   []string
+	}{
+		{locale: "tr", copy: []string{"Bu alanları kontrol edin", "Bu alan zorunludur.", "Bu değeri kontrol edip tekrar deneyin."}},
+		{locale: "en", copy: []string{"Review these fields", "This field is required.", "Check this value and try again."}},
+	} {
+		t.Run(test.locale, func(t *testing.T) {
+			request, err := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/new", strings.NewReader("title=Typed+title&status=active"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request.Header.Set("X-CSRF-Test", "valid")
+			request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: test.locale})
+			response, err := client.Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			body, _ := io.ReadAll(response.Body)
+			html := string(body)
+			if response.StatusCode != http.StatusUnprocessableEntity || response.Header.Get("Location") != "" {
+				t.Fatalf("validation response status=%d location=%q body=%s", response.StatusCode, response.Header.Get("Location"), html)
+			}
+			for _, marker := range append(test.copy, `role="alert"`, `href="#title"`, `href="#status"`, `id="title"`, `id="status"`, `value="Typed title"`, `value="active"`) {
+				if !strings.Contains(html, marker) {
+					t.Errorf("validation response missing %q: %s", marker, html)
+				}
+			}
+			for _, leak := range []string{"database unavailable", "/var/lib/hydrogo", "internal"} {
+				if strings.Contains(html, leak) {
+					t.Errorf("validation response leaked API content %q: %s", leak, html)
+				}
+			}
+		})
+	}
+}
+
+func TestGeneratedAdminUpdateValidationReloadsUntouchedValues(t *testing.T) {
+	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/project/project-1" {
+			t.Errorf("unexpected update validation API path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet {
+			_, _ = io.WriteString(w, `{"id":"project-1","title":"Stored title","description":"Untouched copy","status":"draft"}`)
+			return
+		}
+		if r.Method != http.MethodPut {
+			t.Errorf("unexpected update validation method %s", r.Method)
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = io.WriteString(w, `{"code":"validation_failed","fields":{"title":"invalid"}}`)
+	}), func(*http.Request) bool { return true }))
+	request, err := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/project-1", strings.NewReader("title=Edited+title&status=active"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("X-CSRF-Test", "valid")
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(response.Body)
+	html := string(body)
+	for _, marker := range []string{`value="Edited title"`, `Untouched copy`, `value="active"`, `href="#title"`} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("update validation response missing %q: %s", marker, html)
+		}
+	}
+	if response.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("update validation status=%d body=%s", response.StatusCode, html)
+	}
+}
+
+func TestGeneratedAdminValidationLinksWidgetFocusTargets(t *testing.T) {
+	collection := Collection{Fields: []Field{
+		{ID: "body", Label: "Body", Kind: FieldText, Widget: "richtext"},
+		{ID: "layout", Label: "Layout", Kind: FieldBlocks},
+		{ID: "cover", Label: "Cover", Kind: FieldMedia},
+		{ID: "tags", Label: "Tags", Kind: FieldArray},
+		{ID: "hidden", Label: "Hidden", Kind: FieldText, ReadOnly: true},
+	}}
+	fieldErrors, valid := generatedAdminValidationErrors(collection, []byte(`{"code":"validation_failed","fields":{"body":"required","layout":"required","cover":"required","tags":"required","hidden":"required","unknown":"required"}}`), "en")
+	if !valid {
+		t.Fatal("structured validation response was not recognized")
+	}
+	want := []string{"body-editor", "layout-mount", "cover-field", "tags"}
+	if len(fieldErrors) != len(want) {
+		t.Fatalf("field errors=%#v, want %v", fieldErrors, want)
+	}
+	for i, fieldError := range fieldErrors {
+		if fieldError.FieldID != want[i] {
+			t.Errorf("field error %d target=%q, want %q", i, fieldError.FieldID, want[i])
+		}
 	}
 }
 
@@ -291,10 +419,12 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	resourceReads := 0
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/article/a1" {
 			t.Errorf("unexpected revision API call: %s %s", r.Method, r.URL.String())
 		}
+		resourceReads++
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"id":"a1","title":"Current","version":4}`)
 	})
@@ -346,6 +476,14 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 		response := httptest.NewRecorder()
 		mux.ServeHTTP(response, request)
 		return response
+	}
+	readsBeforeDeniedRestore := resourceReads
+	deniedRestore := httptest.NewRecorder()
+	deniedRestoreRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/revisions/3/restore", strings.NewReader("expected_version=4"))
+	deniedRestoreRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mux.ServeHTTP(deniedRestore, deniedRestoreRequest)
+	if deniedRestore.Code != http.StatusForbidden || restored || resourceReads != readsBeforeDeniedRestore {
+		t.Fatalf("revision restore without CSRF was not rejected before reads or writes: status=%d reads=%d restored=%v", deniedRestore.Code, resourceReads, restored)
 	}
 	if response := post("3"); response.Code != http.StatusConflict || restored {
 		t.Fatalf("stale restore should conflict before the Edition callback: status=%d restored=%v", response.Code, restored)
@@ -433,12 +571,26 @@ func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.
 	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `value="Titre"`) || !strings.Contains(edit.Body.String(), `value="published" readonly`) || !strings.Contains(edit.Body.String(), `/article/a1/locale?locale=fr`) || !strings.Contains(edit.Body.String(), `name="locale_version" value="2"`) || !strings.Contains(edit.Body.String(), "EN içeriğini buraya kopyala") {
 		t.Fatalf("localized editor contract missing: status=%d err=%v body=%s", edit.Code, renderErr, edit.Body.String())
 	}
+	deniedSave := httptest.NewRecorder()
+	deniedSaveRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale?locale=fr", strings.NewReader("locale_version=2&title=Nouveau"))
+	deniedSaveRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	mux.ServeHTTP(deniedSave, deniedSaveRequest)
+	if deniedSave.Code != http.StatusForbidden || saved != nil {
+		t.Fatalf("localized save without CSRF was not rejected before storage: status=%d fields=%#v", deniedSave.Code, saved)
+	}
 	request := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale?locale=fr", strings.NewReader("_csrf=csrf-value&locale_version=2&title=Nouveau&status=published"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
 	mux.ServeHTTP(response, request)
 	if response.Code != http.StatusSeeOther || savedVersion != 2 || saved["title"] != "Nouveau" || len(saved) != 1 {
 		t.Fatalf("localized mutation did not isolate translated fields or preserve expected version: status=%d version=%d fields=%#v body=%s", response.Code, savedVersion, saved, response.Body.String())
+	}
+	deniedCopyRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale-copy?locale=fr", strings.NewReader("from_locale=en&expected_version=2"))
+	deniedCopyRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	deniedCopy := httptest.NewRecorder()
+	mux.ServeHTTP(deniedCopy, deniedCopyRequest)
+	if deniedCopy.Code != http.StatusForbidden || copied {
+		t.Fatalf("locale copy without CSRF was not rejected before storage: status=%d copied=%v", deniedCopy.Code, copied)
 	}
 	copyRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale-copy?locale=fr", strings.NewReader("_csrf=csrf-value&from_locale=en&expected_version=2"))
 	copyRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -519,7 +671,9 @@ func TestGeneratedAdminUsesBoundedRelationPicker(t *testing.T) {
 
 func TestGeneratedAdminMutationUsesCSRFAndResourceAPI(t *testing.T) {
 	var created map[string]any
+	apiCalls := 0
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiCalls++
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/project" {
 			t.Errorf("unexpected resource API call %s %s", r.Method, r.URL.String())
 		}
@@ -528,29 +682,35 @@ func TestGeneratedAdminMutationUsesCSRFAndResourceAPI(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusCreated)
 	})
-	server := httptest.NewServer(testGeneratedAdmin(t, api, func(*http.Request) bool { return true }))
-	defer server.Close()
+	mux := testGeneratedAdmin(t, api, func(*http.Request) bool { return true })
+	for _, tc := range []struct {
+		name string
+		path string
+		form url.Values
+	}{
+		{name: "create", path: "/admin/resources/project/new", form: url.Values{"id": {"p-2"}, "title": {"New project"}, "status": {"draft"}}},
+		{name: "update", path: "/admin/resources/project/p-2", form: url.Values{"title": {"Changed project"}, "status": {"draft"}}},
+		{name: "delete", path: "/admin/resources/project/p-2/delete", form: url.Values{"_csrf": {"csrf-value"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.form.Encode()))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden || apiCalls != 0 {
+				t.Fatalf("mutation without valid CSRF status=%d, API calls=%d", response.Code, apiCalls)
+			}
+		})
+	}
+
 	values := url.Values{"id": {"p-2"}, "title": {"New project"}, "status": {"draft"}, "_csrf": {"csrf-value"}}
-	request, _ := http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/new", strings.NewReader(values.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := (&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusForbidden {
-		t.Fatalf("mutation without CSRF was accepted: %d", response.StatusCode)
-	}
-	request, _ = http.NewRequest(http.MethodPost, server.URL+"/admin/resources/project/new", strings.NewReader(values.Encode()))
+	request := httptest.NewRequest(http.MethodPost, "/admin/resources/project/new", strings.NewReader(values.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("X-CSRF-Test", "valid")
-	response, err = (&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusSeeOther || created["id"] != "p-2" || created["title"] != "New project" || created["status"] != "draft" {
-		t.Fatalf("resource create was not forwarded: status=%d created=%#v", response.StatusCode, created)
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || apiCalls != 1 || created["id"] != "p-2" || created["title"] != "New project" || created["status"] != "draft" {
+		t.Fatalf("resource create was not forwarded: status=%d calls=%d created=%#v", response.Code, apiCalls, created)
 	}
 }
 
@@ -560,9 +720,8 @@ func TestGeneratedAdminRequiresEditionAuthorizationAndBoundaries(t *testing.T) {
 		t.Fatal("registration without Edition security boundaries succeeded")
 	}
 	api := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("unauthorized request reached resource API") })
-	server := httptest.NewServer(testGeneratedAdmin(t, api, func(*http.Request) bool { return false }))
-	defer server.Close()
-	response, err := http.Get(server.URL + "/admin/resources/project")
+	client, baseURL := generatedAdminClient(t, testGeneratedAdmin(t, api, func(*http.Request) bool { return false }))
+	response, err := client.Get(baseURL + "/admin/resources/project")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -941,6 +1100,11 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 		t.Fatalf("unauthorized draft transition must be rejected before storage: status=%d transitions=%d", got.Code, transitions)
 	}
 	allowTransition = true
+	validCSRF = false
+	if got := post("/admin/resources/article/a1/workflow", "target=review&expected_draft_version=2&expected_published_version=4"); got.Code != http.StatusForbidden || transitions != 0 {
+		t.Fatalf("draft transition without valid CSRF must be rejected before storage: status=%d transitions=%d", got.Code, transitions)
+	}
+	validCSRF = true
 	if got := post("/admin/resources/article/a1/workflow", "_csrf=csrf-value&target=review&expected_draft_version=2&expected_published_version=4"); got.Code != http.StatusSeeOther || transitions != 1 {
 		t.Fatalf("valid transition was not delegated: status=%d transitions=%d body=%s", got.Code, transitions, got.Body.String())
 	}
@@ -949,6 +1113,11 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 		t.Fatalf("unauthorized draft discard must be rejected before storage: status=%d discards=%d", got.Code, discards)
 	}
 	allowDiscard = true
+	validCSRF = false
+	if got := post("/admin/resources/article/a1/draft/discard", "expected_version=2"); got.Code != http.StatusForbidden || discards != 0 {
+		t.Fatalf("draft discard without valid CSRF must be rejected before storage: status=%d discards=%d", got.Code, discards)
+	}
+	validCSRF = true
 	if got := post("/admin/resources/article/a1/draft/discard", "_csrf=csrf-value&expected_version=2"); got.Code != http.StatusSeeOther || discards != 1 {
 		t.Fatalf("draft discard was not delegated: status=%d body=%s", got.Code, got.Body.String())
 	}

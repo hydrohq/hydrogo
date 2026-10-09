@@ -16,5 +16,9 @@
   "admin.media": "Media",
   "admin.developer": "Developer & API",
   "admin.account": "Account settings",
-  "admin.security": "Security & permissions"
+  "admin.security": "Security & permissions",
+  "admin.generated.validation.title": "Review these fields",
+  "admin.generated.validation.message": "Some information is missing or invalid. Check the fields and try again.",
+  "admin.generated.validation.field.required": "This field is required.",
+  "admin.generated.validation.field.invalid": "Check this value and try again."
 }

@@ -93,7 +93,7 @@ func ItemListEditor(p ItemListEditorProps) templ.Component {
 		if strings.TrimSpace(name) == "" {
 			name = id
 		}
-		markup := `<div class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(p.Label) + `: madde ekle">+ Madde ekle</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
+		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(p.Label) + `: madde ekle">+ Madde ekle</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
 		_, err := io.WriteString(w, markup)
 		return err
 	})
