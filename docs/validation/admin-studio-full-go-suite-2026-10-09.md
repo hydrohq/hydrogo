@@ -112,3 +112,10 @@ before accepting connections, and its temporary cluster files were removed.
 Thus this managed process cannot supply the live PostgreSQL endpoint required
 by the opt-in root contracts; the earlier successful PostgreSQL runs remain
 valid historical evidence but are not reruns against this current tree.
+
+## Architecture guard recheck after generated-list updates — 2026-10-09
+
+The current tree passed moduleguard, migrationguard (111 migrations), and
+Edition importguard for Client, News, Construction, and the independent external
+Edition. This is static boundary/migration metadata evidence; it does not alter
+the PostgreSQL listener limitation above.
