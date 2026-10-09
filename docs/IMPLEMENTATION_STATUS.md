@@ -407,6 +407,13 @@ matrix for Editor, Viewer, inactive Admin, explicit `users.manage` denial, and
 invalid CSRF. The focused test and complete auth/sqlstore suite pass; browser
 and PostgreSQL remain open.
 
+Token lifetime settings now have a matching `Protected` route plus CSRF
+middleware test: invalid CSRF and Editor requests return 403 without writing,
+while a valid Admin request persists the setting. This closes the previous
+direct-handler-only CSRF evidence gap for that route; full server/browser
+coverage remains open. See
+`docs/validation/admin-token-lifetime-route-security-2026-10-09.md`.
+
 Generated CRUD API failures now render safe Turkish/English localized copy
 based on the Admin locale. A failure injection with a database URL, host,
 filesystem path, and panic text verifies none reach the response and no
