@@ -310,12 +310,13 @@ func (s *postgresEditorialStore) DraftPage(locale string, offset, limit int) ([]
 }
 
 func (s *postgresEditorialStore) SeedDraftPageFixtures(drafts []adminstudio.DraftDocument) error {
+	fixtureUpdatedAt := time.Now().UTC().Add(time.Second).Format(time.RFC3339Nano)
 	for _, draft := range drafts {
 		snapshot, err := json.Marshal(draft.Fields)
 		if err != nil {
 			return err
 		}
-		if _, err := s.db.Exec(`INSERT INTO stories_drafts (resource_id,locale,version,published_version,state,snapshot,updated_at) VALUES ($1,'en',$2,$3,$4,$5,$6) ON CONFLICT (resource_id,locale) DO UPDATE SET version=EXCLUDED.version,published_version=EXCLUDED.published_version,state=EXCLUDED.state,snapshot=EXCLUDED.snapshot,updated_at=EXCLUDED.updated_at`, draft.ID, draft.Version, draft.PublishedVersion, draft.State, snapshot, "2026-10-10T00:00:00Z"); err != nil {
+		if _, err := s.db.Exec(`INSERT INTO stories_drafts (resource_id,locale,version,published_version,state,snapshot,updated_at) VALUES ($1,'en',$2,$3,$4,$5,$6) ON CONFLICT (resource_id,locale) DO UPDATE SET version=EXCLUDED.version,published_version=EXCLUDED.published_version,state=EXCLUDED.state,snapshot=EXCLUDED.snapshot,updated_at=EXCLUDED.updated_at`, draft.ID, draft.Version, draft.PublishedVersion, draft.State, snapshot, fixtureUpdatedAt); err != nil {
 			return err
 		}
 	}
