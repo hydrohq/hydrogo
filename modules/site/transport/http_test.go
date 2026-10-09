@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/ai"
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 	"time"
 
@@ -451,6 +452,66 @@ func TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage(t *testing.T) {
 				t.Fatalf("assistant denied status=%d, want 403; body=%s", response.Code, response.Body.String())
 			}
 		})
+	}
+}
+
+type retryMailSpool struct{ retried []string }
+
+func (s *retryMailSpool) List(context.Context, string, int) ([]mailer.SpoolEntry, error) {
+	return nil, nil
+}
+
+func (s *retryMailSpool) RetryNow(_ context.Context, id string) error {
+	s.retried = append(s.retried, id)
+	return nil
+}
+
+func TestSiteMailRetryRequiresPermissionAndPersistsOnlyAuthorizedAction(t *testing.T) {
+	spool := &retryMailSpool{}
+	handler := Handler{FormsEnabled: true, MailSpool: spool}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/mail/{id}/retry" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	serve := func(user *auth.User, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/mail/message-1/retry", strings.NewReader("_csrf="+token))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	denied := []struct {
+		name  string
+		user  *auth.User
+		token string
+	}{
+		{name: "invalid csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, token: "wrong-token"},
+		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
+		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, token: "valid-token"},
+		{name: "admin explicit deny", user: &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, token: "valid-token"},
+	}
+	for _, tc := range denied {
+		t.Run(tc.name, func(t *testing.T) {
+			if response := serve(tc.user, tc.token); response.Code != http.StatusForbidden {
+				t.Fatalf("mail retry status=%d, want 403; body=%s", response.Code, response.Body.String())
+			}
+			if len(spool.retried) != 0 {
+				t.Fatalf("denied request retried messages: %v", spool.retried)
+			}
+		})
+	}
+	if response := serve(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, "valid-token"); response.Code != http.StatusSeeOther {
+		t.Fatalf("authorized mail retry status=%d, want 303; body=%s", response.Code, response.Body.String())
+	}
+	if len(spool.retried) != 1 || spool.retried[0] != "message-1" {
+		t.Fatalf("authorized retry calls=%v, want [message-1]", spool.retried)
 	}
 }
 
