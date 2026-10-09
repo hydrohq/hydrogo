@@ -830,6 +830,19 @@ func TestGeneratedAdminLocalizesOnlyOptedInFieldsThroughEditionStore(t *testing.
 	if edit.Code != http.StatusOK || !strings.Contains(edit.Body.String(), `value="Titre"`) || !strings.Contains(edit.Body.String(), `value="published" readonly`) || !strings.Contains(edit.Body.String(), `/article/a1/locale?locale=fr`) || !strings.Contains(edit.Body.String(), `name="locale_version" value="2"`) || !strings.Contains(edit.Body.String(), "EN içeriğini buraya kopyala") {
 		t.Fatalf("localized editor contract missing: status=%d err=%v body=%s", edit.Code, renderErr, edit.Body.String())
 	}
+	englishEditRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1?locale=fr", nil)
+	englishEditRequest.Header.Set("X-Test-Role", "admin")
+	englishEditRequest.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	englishEdit := httptest.NewRecorder()
+	mux.ServeHTTP(englishEdit, englishEditRequest)
+	for _, want := range []string{`aria-label="Content language"`, "Copy content from another language", "Copy EN content here"} {
+		if englishEdit.Code != http.StatusOK || !strings.Contains(englishEdit.Body.String(), want) {
+			t.Errorf("English generated locale controls missing %q: status=%d body=%s", want, englishEdit.Code, englishEdit.Body.String())
+		}
+	}
+	if strings.Contains(englishEdit.Body.String(), `aria-label="İçerik dili"`) || strings.Contains(englishEdit.Body.String(), "Dili kopyala") {
+		t.Errorf("English generated locale controls contain Turkish interface text: %s", englishEdit.Body.String())
+	}
 	deniedSave := httptest.NewRecorder()
 	deniedSaveRequest := httptest.NewRequest(http.MethodPost, "/admin/resources/article/a1/locale?locale=fr", strings.NewReader("locale_version=2&title=Nouveau"))
 	deniedSaveRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
