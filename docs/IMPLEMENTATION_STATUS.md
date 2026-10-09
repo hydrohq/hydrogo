@@ -366,6 +366,14 @@ persisted/runtime mismatch. Root/Site tests, vet and focused race tests passed.
 Multi-instance invalidation (ADR-0268), PostgreSQL and browser gates remain
 open; see `docs/validation/site-redirect-runtime-consistency-2026-10-09.md`.
 
+Site Admin route-derived authorization coverage now includes every registered
+non-public GET deep link with Editor and Viewer principals; both are rejected
+before route data access. Existing route-derived POST checks cover invalid
+CSRF and denied/inactive principals. Focused and full Site transport tests and
+package vet passed. Other Admin modules, browser menu parity, PostgreSQL, and
+customer deployment behavior remain open; see
+`docs/validation/site-admin-deeplink-role-matrix-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
