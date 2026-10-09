@@ -40,8 +40,8 @@ create/update/delete denial, persistence checks, axe, and 390px overflow. The
 nested SQLite contract proves Viewer list/detail reads, all six Admin/API
 write denials, and unchanged persistence. `go test ./...` and `go vet ./...`
 in this independent module passed after expanding the mutation matrix.
-Playwright discovered the test
-(`--list`: 1/1). The actual browser scenario has not run here because the
+Playwright discovery now finds both the editor/viewer CRUD and media picker
+journeys (`--list`: 2/2). The actual browser scenarios have not run here because the
 runner cannot bind the Edition test server; it needs the external fixture below
 in a loopback-capable test environment:
 
@@ -78,8 +78,9 @@ full `go test ./... -count=1 -p 1 -timeout=5m` and `go vet ./...` passed.
 
 This composes a synthetic Edition `/api/media` fixture and tenant-reference
 guard; it does not yet compose the production Core Media service, storage, or
-policy callbacks. A Playwright selection-and-save scenario is added but has not
-run because this environment cannot bind the test server loopback listener.
+policy callbacks. A Playwright selection-and-save scenario is added and
+discovered, but has not run because this environment cannot bind the test
+server loopback listener.
 PostgreSQL certification for this new resource is also pending a runner with a
 working PostgreSQL listener. Do not treat the synthetic fixture as production
 Media-service integration.
@@ -109,3 +110,9 @@ independent Edition module and the native Project Edition were rerun with
 generator's focused checklist emission test also passed. This verifies source
 and generated output compatibility; it does not execute the browser journey or
 exercise PostgreSQL.
+
+The latest external Edition server start was retried on 2026-10-09. Database
+migration and route composition completed, but the listener again failed at
+`127.0.0.1:8099` with `socket: operation not permitted`. Playwright `--list`
+passed with 2/2 scenarios using the shared local package; this remains a
+discovery result, not browser execution.
