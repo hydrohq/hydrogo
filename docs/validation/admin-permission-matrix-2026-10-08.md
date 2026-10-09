@@ -318,3 +318,16 @@ authorization; with valid CSRF the Admin `users.manage=false` override and
 Editor/Viewer roles still return 403. The full `internal/auth` package and vet
 passed. This proves denied handler access only; successful persistence and the
 complete live-session browser flow remain separate evidence.
+
+### Site Admin mutation route × CSRF × `site.manage` — 2026-10-09
+
+Every Admin POST route registered by the Site fixture with Forms and Fonts
+enabled is now exercised through `http.ServeMux` and the real CSRF middleware.
+Invalid tokens return 403; valid-token Editor/Viewer defaults, Admin explicit
+deny, and inactive explicit grant also return 403 before handler dependencies.
+This caught `/admin/site/link-check` returning 503 for denied users when its
+scanner dependency was absent. Authorization now returns 403 before the
+separate authorized-but-unavailable 503 path. The full Site transport package
+and vet passed. This covers the registered fixture routes, not every optional
+AI or mail implementation, and only Site settings currently has DB-backed
+successful mutation state evidence.

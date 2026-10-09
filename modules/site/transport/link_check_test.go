@@ -65,3 +65,26 @@ func TestAdminCanStartAndReviewTenantLinkScan(t *testing.T) {
 		t.Fatalf("report page status=%d body=%s", page.Code, page.Body.String())
 	}
 }
+
+func TestLinkScanRouteSeparatesAuthorizationFromUnavailableService(t *testing.T) {
+	handler := Handler{}
+	for _, tc := range []struct {
+		name string
+		user *auth.User
+		want int
+	}{
+		{name: "editor denied", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, want: http.StatusForbidden},
+		{name: "admin denied", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, want: http.StatusForbidden},
+		{name: "admin service unavailable", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, want: http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/admin/site/link-check", nil)
+			request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+			response := httptest.NewRecorder()
+			handler.runLinkCheck(response, request)
+			if response.Code != tc.want {
+				t.Fatalf("link-check status=%d, want=%d body=%s", response.Code, tc.want, response.Body.String())
+			}
+		})
+	}
+}
