@@ -4,7 +4,8 @@ export function runCommand(command: string, args: string[], options: { cwd: stri
 	const result = spawnSync(command, args, { ...options, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
 	// Some restricted runners report EPERM after a child has exited successfully.
 	if (result.status !== 0 || (result.error && result.error.code !== "EPERM")) {
-		throw new Error(`${command} ${args.join(" ")} failed: ${result.error?.message ?? result.stderr ?? `exit ${result.status}`}`);
+		const detail = result.stderr?.trim() || result.error?.message || `exit ${result.status}`;
+		throw new Error(`${command} ${args.join(" ")} failed: ${detail}`);
 	}
 	return result.stdout ?? "";
 }
