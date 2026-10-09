@@ -66,3 +66,11 @@ logged above rather than presented as a clean detector run.
 `HYDRO_TEST_POSTGRES_URL` was unset, so there is no new PostgreSQL run. The live
 browser and PostgreSQL gates remain open. The UI contract is recorded in
 [ADR-0364](../architecture/0364-generated-admin-validation-feedback.md).
+
+The generated CRUD Playwright fixture also supports an externally hosted,
+loopback-only Edition server via `HYDRO_E2E_EXTERNAL_SERVER=1`,
+`HYDRO_E2E_BASE_URL`, and `HYDRO_E2E_DATABASE_DSN`. It checks `/healthz` and
+leaves the external server/database lifecycle to its caller. This makes the
+browser scenario usable when the test runner cannot bind sockets; the external
+mode itself has not run in this environment because no reachable Edition
+server is available.

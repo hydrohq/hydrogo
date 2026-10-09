@@ -10,9 +10,29 @@ const repoRoot = path.resolve(process.cwd(), "..");
 let server: ChildProcess | undefined;
 let tempDir = "";
 let baseURL = "";
+const externalServer = process.env.HYDRO_E2E_EXTERNAL_SERVER === "1";
+
+function externalEditionURL(): string {
+  const rawURL = process.env.HYDRO_E2E_BASE_URL?.trim();
+  if (!rawURL || !process.env.HYDRO_E2E_DATABASE_DSN?.trim()) {
+    throw new Error("HYDRO_E2E_EXTERNAL_SERVER requires HYDRO_E2E_BASE_URL and HYDRO_E2E_DATABASE_DSN");
+  }
+  const url = new URL(rawURL);
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (url.protocol !== "http:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash || !["localhost", "127.0.0.1", "::1"].includes(hostname)) {
+    throw new Error("HYDRO_E2E_BASE_URL must be a loopback HTTP origin without credentials or a path");
+  }
+  return url.origin;
+}
 
 test.describe("generated Edition Admin CRUD", () => {
   test.beforeAll(async () => {
+    if (externalServer) {
+      baseURL = externalEditionURL();
+      const health = await fetch(`${baseURL}/healthz`);
+      if (!health.ok) throw new Error(`external generated Edition health check returned ${health.status}`);
+      return;
+    }
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-crud-"));
     const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
     const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
@@ -35,8 +55,10 @@ test.describe("generated Edition Admin CRUD", () => {
   }, 60_000);
 
   test.afterAll(async () => {
-    await stopServer(server);
-    if (tempDir) await rm(tempDir, { recursive: true, force: true });
+    if (!externalServer) {
+      await stopServer(server);
+      if (tempDir) await rm(tempDir, { recursive: true, force: true });
+    }
   });
 
   test("finds a generated collection and creates, edits, and deletes a record", async ({ page, request }) => {
