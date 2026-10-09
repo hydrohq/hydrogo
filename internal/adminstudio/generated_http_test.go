@@ -947,7 +947,7 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 		API: api,
 		Authorize: func(r *http.Request) bool {
 			role := r.Header.Get("X-Test-Role")
-			return role == "admin" || role == "editor" || role == "viewer"
+			return role == "admin" || role == "editor" || role == "viewer" || role == "unknown"
 		},
 		CanReadResource: func(*http.Request, Collection) bool { return true },
 		ResourceAccess: func(r *http.Request, _ Collection, id string) ResourceAccess {
@@ -979,7 +979,7 @@ func TestGeneratedBasicCRUDUsesEditionRoleCapabilities(t *testing.T) {
 		{"update", "/admin/resources/article/a1", "title=Updated&_csrf=csrf-value", 1},
 		{"delete", "/admin/resources/article/a1/delete", "_csrf=csrf-value", 2},
 	}
-	for _, role := range []string{"admin", "editor", "viewer"} {
+	for _, role := range []string{"admin", "editor", "viewer", "unknown"} {
 		for _, action := range actions {
 			t.Run(role+"/"+action.name, func(t *testing.T) {
 				before := apiMutations
@@ -1617,7 +1617,7 @@ func TestGeneratedEditorialMutationsRespectEditorAndViewerCapabilities(t *testin
 	}
 	draft := DraftDocument{ID: "a1", Version: 2, PublishedVersion: 4, State: StateDraft, Fields: map[string]any{"title": "Working title"}, Exists: true}
 	mutations := 0
-	for _, role := range []string{"admin", "editor", "viewer"} {
+	for _, role := range []string{"admin", "editor", "viewer", "unknown"} {
 		t.Run(role, func(t *testing.T) {
 			mutations = 0
 			mux := http.NewServeMux()
@@ -1633,7 +1633,7 @@ func TestGeneratedEditorialMutationsRespectEditorAndViewerCapabilities(t *testin
 				}),
 				Authorize: func(r *http.Request) bool {
 					got := r.Header.Get("X-Test-Role")
-					return got == "admin" || got == "editor" || got == "viewer"
+					return got == "admin" || got == "editor" || got == "viewer" || got == "unknown"
 				},
 				CanReadResource: func(*http.Request, Collection) bool { return true },
 				ListDrafts: func(*http.Request, Collection, string, int) ([]DraftDocument, error) {

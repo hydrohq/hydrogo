@@ -77,3 +77,20 @@ GOCACHE=/tmp/hydro-cover-cache go vet ./internal/adminstudio
 ```
 
 Both passed.
+
+## Unknown-role direct mutation denial
+
+The basic CRUD and editorial valid-CSRF direct-handler matrices now include an
+`unknown` role that the outer `Authorize` callback deliberately admits so the
+Edition capability callbacks are the tested boundary. It has no Create,
+Update, Delete, draft-save, transition or discard grant. Every mutation returns
+403 and no fake resource API or editorial persistence callback is reached.
+
+```sh
+GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio \
+  -run '^(TestGeneratedBasicCRUDUsesEditionRoleCapabilities|TestGeneratedEditorialMutationsRespectEditorAndViewerCapabilities)$' \
+  -count=1 -p 1
+```
+
+Passed. This isolates the Edition capability contract; unknown production
+identity/session issuance remains part of the separate external Edition gate.
