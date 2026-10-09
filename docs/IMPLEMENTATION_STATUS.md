@@ -498,3 +498,9 @@ mismatched CSRF. Denials leave member fields and active sessions unchanged.
 Member transport package tests and vet passed; no database-adapter claim is
 made for this in-memory handler matrix. Evidence:
 `docs/validation/admin-permission-matrix-2026-10-08.md`.
+
+2026-10-09: Member list, CSV export, XLSX export and detail GET routes now
+exercise 24 `admin.members.manage` role/override cells. The member transport
+package and vet passed. This matrix uses in-memory handler contracts and does
+not claim database-adapter coverage. Evidence:
+`docs/validation/admin-permission-matrix-2026-10-08.md`.

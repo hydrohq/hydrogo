@@ -613,19 +613,22 @@ func TestMemberLoginRejectsOversizedForm(t *testing.T) {
 	}
 }
 
-func TestAdminMemberListUsesMemberManageOverrides(t *testing.T) {
-	handler := transport.Handler{Service: members.Service{Members: newMemoryMemberStore()}}
-	var list http.Handler
+func TestAdminMemberReadRoutesUseMemberManageOverrides(t *testing.T) {
+	store := newMemoryMemberStore()
+	store.members["member-1"] = &members.Member{ID: "member-1", Email: "member@example.test", Active: true}
+	handler := transport.Handler{Service: members.Service{Members: store}}
+	mux := http.NewServeMux()
+	registered := make(map[string]bool)
 	for _, route := range handler.Routes() {
-		if route.Pattern == "GET /admin/members" {
-			list = route.Handler
-			break
-		}
+		registered[route.Pattern] = true
+		mux.Handle(route.Pattern, route.Handler)
 	}
-	if list == nil {
-		t.Fatal("GET /admin/members route is missing")
+	routes := []struct{ pattern, path string }{
+		{pattern: "GET /admin/members", path: "/admin/members"},
+		{pattern: "GET /admin/members/export.xlsx", path: "/admin/members/export.xlsx"},
+		{pattern: "GET /admin/members/export.csv", path: "/admin/members/export.csv"},
+		{pattern: "GET /admin/members/{id}", path: "/admin/members/member-1"},
 	}
-
 	for _, tc := range []struct {
 		name string
 		user *auth.User
@@ -636,16 +639,22 @@ func TestAdminMemberListUsesMemberManageOverrides(t *testing.T) {
 		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusOK},
 		{name: "admin deny override", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: false}}, want: http.StatusForbidden},
 		{name: "inactive grant denied", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusForbidden},
+		{name: "admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, want: http.StatusOK},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/admin/members", nil)
-			req = req.WithContext(auth.WithUser(req.Context(), tc.user))
-			res := httptest.NewRecorder()
-			list.ServeHTTP(res, req)
-			if res.Code != tc.want {
-				t.Fatalf("GET /admin/members status=%d want=%d body=%s", res.Code, tc.want, res.Body.String())
+		for _, route := range routes {
+			if !registered[route.pattern] {
+				t.Fatalf("read route %q is not registered", route.pattern)
 			}
-		})
+			t.Run(route.pattern+"/"+tc.name, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, route.path, nil)
+				req = req.WithContext(auth.WithUser(req.Context(), tc.user))
+				res := httptest.NewRecorder()
+				mux.ServeHTTP(res, req)
+				if res.Code != tc.want {
+					t.Fatalf("GET %s status=%d want=%d body=%s", route.path, res.Code, tc.want, res.Body.String())
+				}
+			})
+		}
 	}
 }
 
