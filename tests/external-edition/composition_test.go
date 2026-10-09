@@ -383,6 +383,31 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if response := readResourceFor("tenant-a", "csrf-denied"); response.Code != http.StatusNotFound {
 		t.Fatalf("CSRF-less mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
 	}
+	invalidCSRF := adminMutation("/admin/resources/article/new", url.Values{"_csrf": {"forged-token"}, "id": {"csrf-forged"}, "title": {"Must not be created"}})
+	if invalidCSRF.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin accepted an invalid CSRF token: status=%d body=%s", invalidCSRF.Code, invalidCSRF.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "csrf-forged"); response.Code != http.StatusNotFound {
+		t.Fatalf("invalid-CSRF create was persisted: status=%d body=%s", response.Code, response.Body.String())
+	}
+	csrfTarget := adminMutation("/admin/resources/article/new", url.Values{"_csrf": {"edition-token"}, "id": {"csrf-target"}, "title": {"Protected title"}})
+	if csrfTarget.Code != http.StatusSeeOther {
+		t.Fatalf("could not create CSRF mutation target: status=%d body=%s", csrfTarget.Code, csrfTarget.Body.String())
+	}
+	invalidCSRFUpdate := adminMutation("/admin/resources/article/csrf-target", url.Values{"_csrf": {"forged-token"}, "title": {"Forged update"}})
+	if invalidCSRFUpdate.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin accepted an invalid CSRF update: status=%d body=%s", invalidCSRFUpdate.Code, invalidCSRFUpdate.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "csrf-target"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Protected title") || strings.Contains(response.Body.String(), "Forged update") {
+		t.Fatalf("invalid-CSRF update changed persisted state: status=%d body=%s", response.Code, response.Body.String())
+	}
+	invalidCSRFDelete := adminMutation("/admin/resources/article/csrf-target/delete", url.Values{"_csrf": {"forged-token"}})
+	if invalidCSRFDelete.Code != http.StatusForbidden {
+		t.Fatalf("generated Admin accepted an invalid CSRF delete: status=%d body=%s", invalidCSRFDelete.Code, invalidCSRFDelete.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "csrf-target"); response.Code != http.StatusOK {
+		t.Fatalf("invalid-CSRF delete removed the record: status=%d body=%s", response.Code, response.Body.String())
+	}
 	editorCreate := editorMutation("/admin/resources/article/new", url.Values{"_csrf": {"edition-token"}, "id": {"editor-created"}, "title": {"Created by editor"}})
 	if editorCreate.Code != http.StatusSeeOther {
 		t.Fatalf("editor generated Admin create status=%d body=%s", editorCreate.Code, editorCreate.Body.String())

@@ -143,3 +143,13 @@ GOCACHE=/tmp/hydrogo-go-build GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp/hydrogo-admin
 All external module packages passed; vet and the Edition import boundary
 guard exited successfully. This exercises SQLite/in-process HTTP composition;
 it is not the unexecuted Playwright browser journey or PostgreSQL certification.
+
+## Invalid Admin CSRF mutation regression — 2026-10-09
+
+The generated Admin HTTP composition contract now rejects forged CSRF tokens
+for create, update, and delete. The test also verifies that a rejected create
+leaves no row, a rejected update preserves the prior title, and a rejected
+delete leaves the target row readable. The complete nested Edition suite,
+`go vet ./...`, and `git diff --check` passed. These results use the fixture's
+SQLite database and `ValidateCSRF` callback; browser/session middleware and
+PostgreSQL remain separate open gates.
