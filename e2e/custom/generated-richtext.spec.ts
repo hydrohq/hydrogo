@@ -26,6 +26,8 @@ test.describe("generated rich-text Edition Admin", () => {
       baseURL = externalFixtureURL();
       const health = await fetch(`${baseURL}/healthz`);
       if (!health.ok) throw new Error(`external generated rich-text fixture health check returned ${health.status}`);
+      const reset = await fetch(`${baseURL}/__test/reset`, { method: "POST" });
+      if (reset.status !== 204) throw new Error(`external generated rich-text fixture reset returned ${reset.status}`);
       return;
     }
     const port = await unusedPort();

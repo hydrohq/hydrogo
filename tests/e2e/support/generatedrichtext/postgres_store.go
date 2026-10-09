@@ -63,6 +63,41 @@ func (s *postgresEditorialStore) Close() error {
 	return errors.Join(dropErr, dbErr, adminErr)
 }
 
+func (s *postgresEditorialStore) Reset(ctx context.Context) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `TRUNCATE articles, stories_drafts, stories_locales, stories`); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO stories(id,title,status,version) VALUES($1,$2,$3,$4)`, "story-1", "Published story", "published", 1); err != nil {
+		return err
+	}
+	for _, seed := range []struct {
+		id, locale, state  string
+		version, published int64
+		fields             map[string]any
+	}{
+		{"story-1", "en", "review", 1, 1, map[string]any{"title": "Review copy"}},
+		{"story-1", "tr", "draft", 1, 1, map[string]any{"title": "Türkçe taslak"}},
+		{"story-discard", "en", "draft", 1, 0, map[string]any{"title": "Discard-only draft"}},
+	} {
+		encoded, err := json.Marshal(seed.fields)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO stories_drafts(resource_id,locale,version,published_version,state,snapshot,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7)`, seed.id, seed.locale, seed.version, seed.published, seed.state, encoded, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO stories_locales(resource_id,locale,version,values_json) VALUES($1,$2,$3,$4)`, "story-1", "tr", 1, []byte(`{"title":"Yayımlanmış Türkçe metin"}`)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *postgresEditorialStore) initialize(ctx context.Context) error {
 	for _, statement := range []string{
 		`CREATE TABLE articles (id TEXT PRIMARY KEY, title TEXT NOT NULL, tags JSONB, author_id TEXT, cover_id TEXT, body JSONB, blocks JSONB, version BIGINT NOT NULL)`,
