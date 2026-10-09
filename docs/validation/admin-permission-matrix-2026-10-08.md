@@ -377,6 +377,19 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
 
+### Nested navigation editor route and CSRF — 2026-10-09
+
+The tenant-scoped nested navigation round-trip now goes through the registered
+POST route and production CSRF middleware. Invalid CSRF, Editor, and Admin
+`site.manage=false` receive 403 and the stored parent/child menu remains
+unchanged. Valid-CSRF Admin persists the nested item and target. Browser
+drag-and-drop remains unverified.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -run '^TestNavigationEditorRoundTripsNestedLocalizedMenu$' -count=1 -p 1
+```
+
 ### Form working-hours editor persistence — 2026-10-09
 
 The registered `POST /admin/site/forms/{id}/working-hours` route now verifies

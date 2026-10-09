@@ -302,6 +302,12 @@ timezone or reversed interval does not replace settings, and an authorized
 Admin's Istanbul schedule reads back exactly. Browser interaction and
 PostgreSQL route behavior remain open.
 
+Nested navigation's tenant-scoped round-trip now also goes through its
+registered route and production CSRF middleware. CSRF, Editor and explicit
+permission denials preserve the original menu; an authorized Admin persists
+the nested relation and target. Browser drag-and-drop and PostgreSQL route
+behavior remain open.
+
 Windows'ta:
 
 ```powershell
