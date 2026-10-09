@@ -258,9 +258,9 @@ The test sandbox mutations are exercised through the app's exact route
 patterns, an active-session router, and production CSRF middleware. A valid
 Admin request dispatches one signed `page.published` test event and verifies
 the timestamp-based HMAC, event header, initiator, and receiver response.
-Admin with a bad CSRF token and Editor/Viewer with valid tokens all receive 403
-without dispatching. Dispatcher retry/signature/backoff/redirect tests and the
-worker dead-letter test use deterministic RoundTripper responses, avoiding
+Admin with missing/bad CSRF, inactive Admin with valid CSRF, and Editor/Viewer
+with valid tokens all receive 403 without dispatching. Dispatcher retry/
+signature/backoff/redirect tests and the worker dead-letter test use deterministic RoundTripper responses, avoiding
 loopback network dependencies while retaining HTTP request contracts.
 
 ```sh
@@ -268,7 +268,7 @@ go test ./internal/webhooks/... -count=1
 go vet ./internal/webhooks/...
 ```
 
-Both commands passed. The fake receiver proves the local dispatcher contract,
+Both commands passed after adding these denial cases. The fake receiver proves the local dispatcher contract,
 not delivery to an external webhook endpoint or a browser journey.
 
 ## Generated CRUD CSRF matrix — 2026-10-09
