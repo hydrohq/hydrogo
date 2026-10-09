@@ -131,6 +131,17 @@ func TestMediaInlineFormSubmitButtonDoesNotStretchFullWidth(t *testing.T) {
 	}
 }
 
+func TestMobileMediaLibraryUsesSingleColumnAndTouchSizedControls(t *testing.T) {
+	for _, want := range []string{
+		"@media(max-width:520px){.media-grid{grid-template-columns:minmax(0,1fr)!important",
+		".media-card button,.media-card select{height:auto!important;min-height:44px!important}",
+	} {
+		if !strings.Contains(AdminResponsiveTouchCSS, want) {
+			t.Errorf("mobile media library responsive CSS is missing %q", want)
+		}
+	}
+}
+
 func TestMediaFormsDoNotUseDeadTailwindClasses(t *testing.T) {
 	// Regression test: internal/ui/picture.templ (folder tree, tag/color
 	// filter, settings and per-asset metadata disclosures) was written with
