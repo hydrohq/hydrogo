@@ -18,13 +18,24 @@ editable block, and axe WCAG 2.1 A/AA results before the CRUD round trip.
 
 ## Open gate
 
-Run the suite on a runner that permits loopback listeners:
+The spec supports an externally started local fixture so the Playwright runner
+does not need to create a listening socket itself. In one terminal from the
+repository root, start the fixture:
+
+```sh
+HYDRO_E2E_ADDRESS=127.0.0.1:8099 GOCACHE=/tmp/hydrogo-go-cache \
+  go run ./tests/e2e/support/generatedrichtext
+```
+
+Then run the browser suite in another terminal:
 
 ```sh
 cd e2e
-npx playwright test custom/generated-richtext.spec.ts --project=chromium --workers=1
+HYDRO_E2E_EXTERNAL_SERVER=1 HYDRO_E2E_BASE_URL=http://127.0.0.1:8099 \
+  npx playwright test custom/generated-richtext.spec.ts --project=chromium --workers=1
 ```
 
 Record actual axe findings and screenshots before treating the generated block
-editor's theme/accessibility coverage as complete. This remains in-process
-browser validation, not customer deployment evidence.
+editor's theme/accessibility coverage as complete. The external fixture is a
+local test server with synthetic identity/data, not customer deployment
+evidence.

@@ -423,7 +423,8 @@ open; see `docs/validation/admin-extension-channel-route-security-2026-10-09.md`
 Generated Editor.js forms now have a planned eight-variant theme-family/light-
 dark axe browser matrix. Playwright discovered the suite, but its fixture
 server failed before tests ran because loopback bind returned `EPERM`; no
-accessibility result is claimed. Re-run on a loopback-enabled runner. See
+accessibility result is claimed. The spec now supports a separately started
+loopback fixture for restricted browser runners. See
 `docs/validation/generated-block-editor-theme-matrix-2026-10-09.md`.
 
 Generated CRUD API failures now render safe Turkish/English localized copy
