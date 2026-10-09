@@ -12,6 +12,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -135,11 +136,46 @@ func TestNavigationEditorRoundTripsNestedLocalizedMenu(t *testing.T) {
 		"target":    {"_self", "_blank"},
 		"visible":   {"true", "true"},
 	}
-	post := httptest.NewRequest(http.MethodPost, "/admin/site/navigation/editor", strings.NewReader(form.Encode())).WithContext(adminCtx)
-	post.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	saved := httptest.NewRecorder()
-	handler.saveNavigationEditor(saved, post)
-	if saved.Code != http.StatusSeeOther {
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/navigation/editor" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	submit := func(user *auth.User, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		values := url.Values{}
+		for key, entries := range form {
+			values[key] = append([]string(nil), entries...)
+		}
+		values.Set("_csrf", token)
+		post := httptest.NewRequest(http.MethodPost, "/admin/site/navigation/editor", strings.NewReader(values.Encode())).WithContext(auth.WithUser(requestCtx, user))
+		post.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		post.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		post.Header.Set(security.CSRFHeaderName, token)
+		saved := httptest.NewRecorder()
+		secured.ServeHTTP(saved, post)
+		return saved
+	}
+	for _, denied := range []struct {
+		name  string
+		user  *auth.User
+		token string
+	}{
+		{name: "invalid CSRF", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, token: "wrong-token"},
+		{name: "Editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
+		{name: "permission denied", user: &auth.User{ID: "denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, token: "valid-token"},
+	} {
+		if response := submit(denied.user, denied.token); response.Code != http.StatusForbidden {
+			t.Fatalf("%s save status=%d body=%s", denied.name, response.Code, response.Body.String())
+		}
+		unchanged, err := store.ListNavigation(requestCtx, db, "en")
+		if err != nil || len(unchanged) != 2 || unchanged[1].ParentID != "root" || unchanged[1].Target != "_blank" {
+			t.Fatalf("%s changed saved navigation = %#v, err=%v", denied.name, unchanged, err)
+		}
+	}
+	if saved := submit(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, "valid-token"); saved.Code != http.StatusSeeOther {
 		t.Fatalf("save status=%d body=%s", saved.Code, saved.Body.String())
 	}
 	items, err := store.ListNavigation(requestCtx, db, "en")
