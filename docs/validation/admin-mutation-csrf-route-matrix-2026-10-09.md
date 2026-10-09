@@ -5,7 +5,11 @@ registered mutation handler in the Core site, site-with-forms, news, page,
 media, and identity/account route compositions with a dispatch counter. For
 each non-GET `/admin/` and `/api/media` mutation, it submits both a request
 without CSRF and a request whose CSRF cookie and header disagree. Both must
-return `403`, and neither request may reach the route handler.
+return `403`, and neither request may reach the route handler. It then submits
+a matching double-submit token for each exact route and verifies that the
+handler is reached once. The resulting domain status is intentionally not
+treated as a successful mutation because this route composition has minimal
+handler dependencies.
 
 Verification passed:
 

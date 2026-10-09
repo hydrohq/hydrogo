@@ -326,8 +326,9 @@ includes optional unused-asset cleanup and its API upload/folder/metadata
 mutations; Auth includes identity, user, and account administration. It
 verifies the composition maps each route to `router.Protected`, then sends each
 exact method/path through the production CSRF middleware without a token and
-requires `403`. Public form submission, reset-token, and public media delivery
-routes are excluded.
+with a mismatched cookie/header pair; both must return `403` before dispatch.
+A matching cookie/header token then reaches the exact handler once. Public
+form submission, reset-token, and public media delivery routes are excluded.
 
 ```sh
 GOCACHE="$PWD/.cache/admin-test" TMPDIR=/tmp/hydrogo-admin-tests GOPROXY=off \
