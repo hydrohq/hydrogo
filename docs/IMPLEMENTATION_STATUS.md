@@ -17,6 +17,13 @@ The five-test Chromium Admin-management file passed on SQLite and PostgreSQL
 the complete Admin route/mutation matrix remains open. Evidence:
 `admin-denied-account-mutations-persistence-2026-10-09.md`.
 
+2026-10-09 generated Admin UX follow-up: the native Project Edition Chromium
+CRUD scenario persists 26 generated records and verifies the 25-row list
+boundary, page-two remainder, and return navigation on SQLite and PostgreSQL
+18. This covers the normal two-page case for one collection; other collection
+implementations and maximum-page behavior remain open. Evidence:
+`generated-admin-pagination-browser-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered

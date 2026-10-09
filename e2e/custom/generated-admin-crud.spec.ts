@@ -194,6 +194,30 @@ test.describe("generated Edition Admin CRUD", () => {
     const deleted = await request.get(`${baseURL}${recordPath!.replace("/admin/resources", "/api/v1")}`);
     expect(deleted.status()).toBe(404);
 
+    for (let index = 0; index < 26; index++) {
+      const suffix = String(index).padStart(2, "0");
+      const seeded = await request.post(`${baseURL}/api/v1/project`, {
+        data: { id: `e2e-pagination-${suffix}`, project_code: `PAGE-${suffix}`, status: "completed", title: `Pagination sample ${suffix}` },
+      });
+      expect(seeded.status(), `generated API should persist pagination record ${suffix}`).toBe(201);
+    }
+    await page.goto(`${baseURL}/admin/resources/project`);
+    await expect(page.getByRole("link", { name: "Pagination sample 00" })).toBeVisible();
+    await expect(page.locator(".studio-table tbody tr")).toHaveCount(25);
+    const nextPage = page.getByRole("button", { name: "Sonraki" });
+    await expect(nextPage).toBeVisible();
+    await nextPage.click();
+    await expect(page).toHaveURL(/page=2/);
+    await expect(page.getByRole("link", { name: "Pagination sample 25" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Pagination sample 00" })).toHaveCount(0);
+    await expect(page.locator(".studio-table tbody tr")).toHaveCount(1);
+    const previousPage = page.getByRole("button", { name: "Önceki" });
+    await expect(previousPage).toBeVisible();
+    await previousPage.click();
+    await expect(page).toHaveURL(/\/admin\/resources\/project(?:\?.*)?$/);
+    await expect(page.getByRole("link", { name: "Pagination sample 00" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Pagination sample 25" })).toHaveCount(0);
+
     await page.goto(`${baseURL}/admin/resources/milestone`);
     await expect(page.getByRole("heading", { name: "Milestone" })).toBeVisible();
     await expectNoA11yViolations(page);
