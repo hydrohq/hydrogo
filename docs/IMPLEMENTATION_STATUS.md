@@ -283,6 +283,12 @@ SQLite form registry. Role/CSRF denials are side-effect free, invalid schemas
 preserve the current version, and authorized CRUD round-trips. Public form
 submission and inbox/lead persistence remain open.
 
+Public form submit → idempotent inbox → Admin triage is now one route/SQLite
+journey: replay creates no duplicate, key reuse with changed input conflicts,
+inbox HTML omits internal hashes, Editor/CSRF/permission denials cannot mutate,
+and authorized status/lead assignments persist. Notes, exports, browser UX and
+PostgreSQL route-level behavior remain open.
+
 Windows'ta:
 
 ```powershell

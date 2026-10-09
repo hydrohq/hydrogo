@@ -1428,6 +1428,128 @@ func TestSiteFormBuilderAdminRoutesPersistAuthorizedCRUD(t *testing.T) {
 	}
 }
 
+func TestPublicFormSubmissionToAdminInboxAndLeadWorkflow(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-public-inbox-workflow.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	formStore := formssql.Store{Executor: db, Dialect: database.SQLite}
+	service := &site.Service{Transactions: database.NewTransactor(db), Store: store, Forms: formStore}
+	form := forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{
+		{ID: "email", Type: forms.Email, Label: "Email", Required: true},
+		{ID: "name", Type: forms.Text, Label: "Name", Required: true},
+		{ID: "message", Type: forms.Textarea, Label: "Message", Required: true},
+	}}
+	if err := formStore.Upsert(context.Background(), form); err != nil {
+		t.Fatal(err)
+	}
+	handler := Handler{DB: db, Store: store, Service: service, FormsEnabled: true, AllowedForms: map[string]struct{}{"contact": {}}}
+	publicMux := http.NewServeMux()
+	adminMux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		switch route.Pattern {
+		case "POST /forms/{form}/submit":
+			publicMux.Handle(route.Pattern, route.Handler)
+		case "GET /admin/site/inbox/{form}", "POST /admin/site/inbox/{id}/status", "POST /admin/site/inbox/{id}/lead":
+			adminMux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	securedAdmin := security.CSRFMiddleware(false, nil)(adminMux)
+	submit := func(message, key string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := url.Values{"email": {"customer@example.test"}, "name": {"Aylin"}, "message": {message}}
+		request := httptest.NewRequest(http.MethodPost, "/forms/contact/submit", strings.NewReader(body.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("Idempotency-Key", key)
+		response := httptest.NewRecorder()
+		publicMux.ServeHTTP(response, request)
+		return response
+	}
+	const key = "contact-submission-0001"
+	if response := submit("Teklif almak istiyorum", key); response.Code != http.StatusAccepted {
+		t.Fatalf("public form submit status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response := submit("Teklif almak istiyorum", key); response.Code != http.StatusAccepted {
+		t.Fatalf("idempotent replay status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response := submit("Farklı içerik", key); response.Code != http.StatusConflict {
+		t.Fatalf("idempotency conflict status=%d, want 409 body=%s", response.Code, response.Body.String())
+	}
+	loadSubmissions := func() []site.Submission {
+		t.Helper()
+		items, err := store.ListSubmissions(context.Background(), db, "contact", 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return items
+	}
+	items := loadSubmissions()
+	if len(items) != 1 || items[0].Email != "customer@example.test" || items[0].Status != "new" || items[0].LeadStage != "new" {
+		t.Fatalf("persisted public submission=%+v", items)
+	}
+	submissionID := items[0].ID
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	getInbox := func(user *auth.User) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodGet, "/admin/site/inbox/contact", nil)
+		request.Header.Set("Accept", "text/html")
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		securedAdmin.ServeHTTP(response, request)
+		return response
+	}
+	response := getInbox(admin)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "customer@example.test") || !strings.Contains(response.Body.String(), "Gelen talepler") {
+		t.Fatalf("Admin inbox status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, internalValue := range []string{items[0].SourceIPHash, items[0].RequestHash, items[0].IdempotencyKey} {
+		if internalValue != "" && strings.Contains(response.Body.String(), internalValue) {
+			t.Errorf("inbox exposed internal submission metadata")
+		}
+	}
+	if denied := getInbox(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}); denied.Code != http.StatusForbidden {
+		t.Fatalf("Editor inbox status=%d, want 403", denied.Code)
+	}
+	postAdmin := func(user *auth.User, token, endpoint, values string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, endpoint, strings.NewReader(values+"&_csrf="+token))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		result := httptest.NewRecorder()
+		securedAdmin.ServeHTTP(result, request)
+		return result
+	}
+	statusPath := "/admin/site/inbox/" + url.PathEscape(submissionID) + "/status"
+	leadPath := "/admin/site/inbox/" + url.PathEscape(submissionID) + "/lead"
+	if denied := postAdmin(admin, "wrong-token", statusPath, "status=triaged"); denied.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status update=%d, want 403", denied.Code)
+	}
+	deniedAdmin := &auth.User{ID: "denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if denied := postAdmin(deniedAdmin, "valid-token", statusPath, "status=triaged"); denied.Code != http.StatusForbidden {
+		t.Fatalf("permission-denied status update=%d, want 403", denied.Code)
+	}
+	if unchanged := loadSubmissions(); unchanged[0].Status != "new" {
+		t.Fatalf("denied status mutation changed submission: %+v", unchanged[0])
+	}
+	if updated := postAdmin(admin, "valid-token", statusPath, "status=triaged"); updated.Code != http.StatusNoContent {
+		t.Fatalf("authorized status update=%d body=%s", updated.Code, updated.Body.String())
+	}
+	if updated := postAdmin(admin, "valid-token", leadPath, "lead_status=contacted&assigned_to=operator-1"); updated.Code != http.StatusNoContent {
+		t.Fatalf("authorized lead update=%d body=%s", updated.Code, updated.Body.String())
+	}
+	final := loadSubmissions()
+	if len(final) != 1 || final[0].Status != "triaged" || final[0].LeadStage != "contacted" || final[0].AssignedTo != "operator-1" {
+		t.Fatalf("persisted inbox/lead workflow=%+v", final)
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()
