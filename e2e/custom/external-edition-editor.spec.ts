@@ -64,6 +64,30 @@ test.describe("independent Edition generated Admin editor journey", () => {
       expect(created.status()).toBe(200);
       expect((await created.json()).title).toBe(title);
 
+      const forgedID = `csrf-${randomUUID()}`;
+      const forgedCreate = await request.post(`${externalOrigin}/admin/resources/article/new`, {
+        headers,
+        form: { _csrf: "forged-token", id: forgedID, title: "Must not be created" },
+      });
+      expect(forgedCreate.status()).toBe(403);
+      expect((await request.get(`${externalOrigin}/api/v1/article/${forgedID}`, { headers })).status()).toBe(404);
+
+      const forgedUpdate = await request.post(`${externalOrigin}${recordPath}`, {
+        headers,
+        form: { _csrf: "forged-token", title: "Must not be updated" },
+      });
+      expect(forgedUpdate.status()).toBe(403);
+      const forgedUpdateReadback = await request.get(`${externalOrigin}${apiPath}`, { headers });
+      expect(forgedUpdateReadback.status()).toBe(200);
+      expect((await forgedUpdateReadback.json()).title).toBe(title);
+
+      const forgedDelete = await request.post(`${externalOrigin}${recordPath}/delete`, {
+        headers,
+        form: { _csrf: "forged-token" },
+      });
+      expect(forgedDelete.status()).toBe(403);
+      expect((await request.get(`${externalOrigin}${apiPath}`, { headers })).status()).toBe(200);
+
       await recordLink.click();
       const editForm = page.locator(`form[action="${recordPath}"]`);
       await editForm.getByLabel("Title").fill(`${title} updated`);
