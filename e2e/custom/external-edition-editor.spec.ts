@@ -62,6 +62,22 @@ test.describe("independent Edition generated Admin editor journey", () => {
       await expectNoA11yViolations(page, "editor validation feedback");
       await form.getByLabel("Title").fill(title);
       await expectNoA11yViolations(page, "editor create form");
+
+      await editorContext.setExtraHTTPHeaders({ ...roleHeaders, "X-Test-Generated-API-Status": "503" });
+      const failedSaveResponse = page.waitForResponse((response) =>
+        response.request().method() === "POST" && response.url().endsWith("/admin/resources/article/new"),
+      );
+      await form.locator('button[type="submit"]').click();
+      expect((await failedSaveResponse).status()).toBe(502);
+      await expect(page.getByRole("alert")).toContainText("Değişiklikleriniz kaydedilemedi");
+      await expect(page.getByRole("alert")).toContainText("Girdiğiniz bilgiler burada. Biraz sonra yeniden kaydetmeyi deneyin.");
+      await expect(form.getByLabel("Title")).toHaveValue(title);
+      await expectNoA11yViolations(page, "editor service-error feedback");
+      const failedCreateListing = await request.get(`${externalOrigin}/api/v1/article`, { headers: roleHeaders });
+      expect(failedCreateListing.status()).toBe(200);
+      expect(JSON.stringify(await failedCreateListing.json())).not.toContain(title);
+
+      await editorContext.setExtraHTTPHeaders(roleHeaders);
       await form.locator('button[type="submit"]').click();
       await expect(page).toHaveURL(/\/admin\/resources\/article(?:\?.*)?$/);
       await expect(page.getByRole("link", { name: title })).toBeVisible();
