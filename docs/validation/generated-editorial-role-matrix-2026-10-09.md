@@ -60,3 +60,20 @@ and callback-denial cases. This closes the shared handler contract for draft
 save, workflow transition, draft discard, and revision restore; it does not
 claim real-session browser coverage or Edition database persistence for each
 role. Edition callbacks remain the source of role policy.
+
+## Draft inbox read-policy boundary
+
+The draft-isolation handler test now additionally opens the Drafts deep link as a
+Viewer whose Edition `CanReadResource` policy denies the collection. The route
+returns 404 and the `ListDrafts` storage callback is not called, proving draft
+metadata does not leak through a direct inbox URL. Admin/editor allow-path
+rendering remains covered by the same handler test; this is a callback contract,
+not production-session or browser evidence.
+
+```sh
+GOCACHE=/tmp/hydro-cover-cache go test ./internal/adminstudio \
+  -run '^TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS$' -count=1 -p 1
+GOCACHE=/tmp/hydro-cover-cache go vet ./internal/adminstudio
+```
+
+Both passed.
