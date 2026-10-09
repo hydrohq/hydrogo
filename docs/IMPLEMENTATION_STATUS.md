@@ -21,6 +21,15 @@ valid-CSRF and invalid-CSRF denial assertions for Editor and Viewer defaults
 and an explicit Admin `media.manage` deny override. The cleanup route keeps its
 separate Admin-only boundary. See `admin-permission-matrix-2026-10-08.md`.
 
+2026-10-09 Admin Studio verification: the complete root Go suite passed with
+`go test ./... -count=1 -p 1 -timeout=5m`, and `go vet ./...` passed. The
+verified run used a disk-backed Go cache and a temp directory outside the
+module. PostgreSQL cases needing `HYDRO_TEST_POSTGRES_URL` were skipped because
+the variable is unset; the external Edition Chromium journeys remain
+unexecuted because this runner cannot bind loopback. Do not treat these local
+results as PostgreSQL or browser certification; details and remaining gates
+are in the Admin Studio audit plan.
+
 Generated required text validation now rejects whitespace-only values and the
 external Edition proves its 422 field feedback and no-persistence behavior.
 Clean scaffold to native first CRUD remains unmeasured because the project
