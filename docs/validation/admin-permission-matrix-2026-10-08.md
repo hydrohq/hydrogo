@@ -377,6 +377,20 @@ GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
   go vet ./modules/site/transport
 ```
 
+### 404 report conversion route authorization — 2026-10-09
+
+The SQLite tracking/conversion scenario submits through registered
+`POST /admin/redirects/convert` and production CSRF middleware. Invalid CSRF,
+Editor, and Admin `site.manage=false` cannot create a rule or clear the report.
+An invalid empty target returns 400 and preserves the report; authorized Admin
+conversion persists and registers the redirect and removes the report. This is
+route/store evidence, not browser or PostgreSQL certification.
+
+```sh
+GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 \
+  go test ./modules/site/transport -run '^TestNotFoundTrackingAndRedirectConversion$' -count=1 -p 1
+```
+
 ### Nested navigation editor route and CSRF — 2026-10-09
 
 The tenant-scoped nested navigation round-trip now goes through the registered

@@ -308,6 +308,12 @@ permission denials preserve the original menu; an authorized Admin persists
 the nested relation and target. Browser drag-and-drop and PostgreSQL route
 behavior remain open.
 
+The 404 report conversion now likewise runs through the registered route and
+CSRF middleware: denied and invalid requests preserve the report and do not
+register redirects; authorized conversion persists the redirect, updates the
+runtime registry and clears the report. Browser interaction and PostgreSQL
+route behavior remain open.
+
 Windows'ta:
 
 ```powershell
