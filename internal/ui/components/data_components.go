@@ -80,8 +80,9 @@ type TextareaProps struct {
 // ItemListEditor renders an accessible string-array editor. The shared Admin
 // shell hydrates the rows and synchronizes them to the hidden newline value.
 type ItemListEditorProps struct {
-	ID, Name, Label, Value string
-	AddLabel, AddAriaLabel string
+	ID, Name, Label, Value                                        string
+	AddLabel, AddAriaLabel                                        string
+	ItemPlaceholder, ItemAriaLabelPattern, RemoveAriaLabelPattern string
 }
 
 func ItemListEditor(p ItemListEditorProps) templ.Component {
@@ -102,7 +103,19 @@ func ItemListEditor(p ItemListEditorProps) templ.Component {
 		if addAriaLabel == "" {
 			addAriaLabel = p.Label + ": madde ekle"
 		}
-		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(addAriaLabel) + `">+ ` + esc(addLabel) + `</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
+		itemPlaceholder := p.ItemPlaceholder
+		if itemPlaceholder == "" {
+			itemPlaceholder = "Önemli bir madde girin…"
+		}
+		itemAriaLabelPattern := p.ItemAriaLabelPattern
+		if itemAriaLabelPattern == "" {
+			itemAriaLabelPattern = "{field} {index}"
+		}
+		removeAriaLabelPattern := p.RemoveAriaLabelPattern
+		if removeAriaLabelPattern == "" {
+			removeAriaLabelPattern = "Maddeyi sil"
+		}
+		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `" data-item-list-input-placeholder="` + esc(itemPlaceholder) + `" data-item-list-item-aria="` + esc(itemAriaLabelPattern) + `" data-item-list-remove-aria="` + esc(removeAriaLabelPattern) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(addAriaLabel) + `">+ ` + esc(addLabel) + `</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
 		_, err := io.WriteString(w, markup)
 		return err
 	})
