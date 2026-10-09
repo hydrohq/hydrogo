@@ -82,6 +82,7 @@ type Handler struct {
 	InvalidateDiscovery   func()
 	FontsDir              string
 	FontsEnabled          bool
+	fontHTTPClient        *http.Client
 	NavigationLocales     []string
 	NavigationSuggestions func(context.Context, string) ([]site.NavigationSuggestion, error)
 	Realtime              interface {
@@ -2015,7 +2016,7 @@ func (h Handler) localizeFont(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	cssPath, err := designsystem.LocalizeGoogleFont(ctx, family, h.FontsDir, nil)
+	cssPath, err := designsystem.LocalizeGoogleFont(ctx, family, h.FontsDir, h.fontHTTPClient)
 	if err != nil {
 		http.Error(w, "Yazı tipi indirilemedi. Lütfen daha sonra tekrar deneyin.", http.StatusBadGateway)
 		return

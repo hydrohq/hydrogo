@@ -339,6 +339,14 @@ permitted`). Browser assertions remain unexecuted; run on a loopback-capable
 runner. `HYDRO_TEST_POSTGRES_URL` is unset in this checkout, so no PostgreSQL
 result is inferred.
 
+Site font localization's registered HTTP route now has a deterministic SQLite
+journey with a test-only provider transport. Role/CSRF/permission denials and
+unsafe family validation happen before provider calls or file/settings writes;
+the authorized flow stores the allowlisted font files and public CSS setting.
+The real Google Fonts provider is not contacted by the test. A temporary
+PostgreSQL cluster initialized but could not bind a Unix socket in this runner;
+PostgreSQL behavior remains unverified here.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
