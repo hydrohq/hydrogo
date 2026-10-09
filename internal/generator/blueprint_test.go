@@ -1,6 +1,8 @@
 package generator
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -331,5 +333,19 @@ func TestGeneratedMigrationMetadataIsDialectAwareAndNonDestructive(t *testing.T)
 		if !strings.Contains(text, required) {
 			t.Fatalf("migration metadata missing %q: %s", required, text)
 		}
+	}
+	sql, err := os.ReadFile(filepath.Join(root, "generated", "article", "migration.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(sql)
+	checksum := hex.EncodeToString(digest[:])
+	for _, dialect := range []string{"sqlite", "postgres"} {
+		if !strings.Contains(text, dialect+": \""+checksum+"\"") {
+			t.Errorf("%s migration checksum does not match generated SQL %s: %s", dialect, checksum, text)
+		}
+	}
+	if !strings.Contains(text, `rollback: "No production down migration; restore or forward migration only."`) {
+		t.Errorf("migration metadata missing its recovery guidance: %s", text)
 	}
 }
