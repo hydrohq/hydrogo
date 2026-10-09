@@ -19,14 +19,16 @@ happens before input processing on that unrendered mutation route. A
 valid-CSRF bulk CSV export is also denied with 403 and no download disposition,
 so the permission boundary protects this data-export POST as well.
 
-The live Editor session also receives 403 for JSON API create/update/publish
-and Admin translation/revision-restore submissions. The Admin then reads the
-record and list again; its draft status/title are intact, and no denied
-API-created or translated title appears. The Pages transport permission test
-now enumerates its required content-write routes (including API, translation,
-revision restore, import, and bulk export), checking default Admin/Editor/
-Viewer access, explicit Admin/Editor denies, Viewer allow, inactive Admin, and
-missing/mismatched CSRF for unsafe routes.
+The live Editor session also receives 403 for JSON API create/update/publish,
+Admin translation/revision-restore, and signed draft-preview-link submissions.
+The Admin then reads the record and list again; its draft status/title are
+intact, and no denied API-created or translated title appears. The Pages
+transport permission test now enumerates its required content-write routes
+(including API, translation, revision restore, import, and bulk export),
+checking default Admin/Editor/Viewer access, explicit Admin/Editor denies,
+Viewer allow, inactive Admin, and missing/mismatched CSRF for unsafe routes.
+The live preview-link route is enabled in the browser fixture and confirms
+that an Editor without content-write access cannot mint a signed preview URL.
 
 The focused role-boundary Chromium scenario passed **1/1** on SQLite and
 **1/1** on PostgreSQL 18.6. PostgreSQL used an application role configured
