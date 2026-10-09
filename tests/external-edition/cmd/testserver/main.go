@@ -75,12 +75,16 @@ func main() {
 	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
 		API: mux,
 		Authorize: func(r *http.Request) bool {
-			return r.Header.Get("X-Test-Role") == "admin"
+			role := r.Header.Get("X-Test-Role")
+			return role == "admin" || role == "editor"
 		},
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken:       func(*http.Request) string { return "external-edition-test-token" },
 		ValidateCSRF:    func(r *http.Request) bool { return r.FormValue("_csrf") == "external-edition-test-token" },
-		RenderPage: adminstudio.StudioPageRenderer(func(*http.Request) adminstudio.PageIdentity {
+		RenderPage: adminstudio.StudioPageRenderer(func(r *http.Request) adminstudio.PageIdentity {
+			if r.Header.Get("X-Test-Role") == "editor" {
+				return adminstudio.PageIdentity{UserID: "test-editor", Email: "editor@example.test", Role: adminstudio.PageRoleEditor}
+			}
 			return adminstudio.PageIdentity{UserID: "test-admin", Email: "admin@example.test", Role: adminstudio.PageRoleAdmin}
 		}),
 	}); err != nil {
