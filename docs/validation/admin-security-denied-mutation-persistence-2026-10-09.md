@@ -35,3 +35,24 @@ This closes the Editor/Viewer persisted-state slice for IP bans and token
 lifetimes. It does not cover denied state changes for every Admin security,
 backup, developer, operations, or module-specific mutation. It uses the local
 single-Edition fixture; no production identity or security store is certified.
+
+## Token lifetime role × method handler contract — 2026-10-09
+
+The direct registered-handler contract now covers Editor, Viewer, inactive
+Admin, and anonymous callers on both GET and valid-CSRF POST. Editor/Viewer
+requests carrying an explicit `admin.operations` grant are included to prove a
+permission override cannot elevate them to the Admin-only security surface.
+Each denied request is checked before settings reads/writes; a prior successful
+Admin update remains unchanged. The active Admin success, unsupported duration
+validation, and invalid-CSRF denial are also asserted.
+
+```sh
+GOCACHE=/tmp/hydro-cover-cache go test ./cmd/hydro \
+  -run '^TestAdminTokenLifetimeSettingsApplyAndRejectUnsupportedChoices$' \
+  -count=1 -p 1
+GOCACHE=/tmp/hydro-cover-cache go vet ./cmd/hydro
+```
+
+Both passed. This is handler/middleware evidence and complements the existing
+SQLite/PostgreSQL browser persistence evidence; it does not certify production
+identity/session deployment.
