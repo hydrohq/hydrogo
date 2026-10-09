@@ -210,6 +210,12 @@ callback alongside the API authorization boundary. Edition authors are told to
 derive both from the same user, tenant, and record rules; leaving the callback
 nil retains legacy all-actions UI, while API authorization remains mandatory.
 
+Site Admin appearance save has a registered HTTP/CSRF/SQLite persistence test:
+invalid CSRF and explicit Admin permission denial leave branding unchanged, and
+an authorized save round-trips all fields through the SQL store. Site module
+tests and vet passed. This is one mutation path; the wider Admin role × route ×
+persisted-state matrix and PostgreSQL route-level check remain open.
+
 Windows'ta:
 
 ```powershell

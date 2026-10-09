@@ -347,6 +347,70 @@ func TestAdminSiteSettingRouteEnforcesCSRFBeforePermission(t *testing.T) {
 	}
 }
 
+func TestSiteAppearanceAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-appearance-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/appearance" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	values := "primary_color=%23155EEF&accent_color=%23155EEF&dark_primary_color=%23155EEF&dark_accent_color=%23155EEF&font_family=inter&logo_url=%2Fmedia%2Fbrand.svg&dark_logo_url=%2Fmedia%2Fbrand-dark.svg&favicon_url=%2Fmedia%2Ffavicon.svg&social_image_url=%2Fmedia%2Fsocial.webp&login_background_url=%2Fmedia%2Flogin.webp&login_overlay_opacity=40"
+	post := func(user *auth.User, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/appearance", strings.NewReader(values+"&_csrf="+token))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertNoAppearance := func() {
+		t.Helper()
+		_, found, err := store.GetSetting(context.Background(), db, "appearance.primary_color")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if found {
+			t.Fatal("denied mutation persisted primary color")
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := post(admin, "wrong-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertNoAppearance()
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertNoAppearance()
+	response := post(admin, "valid-token")
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/appearance" {
+		t.Fatalf("authorized appearance response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	settings, err := store.ListPublicSettings(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := site.Appearance{PrimaryColor: "#155EEF", AccentColor: "#155EEF", DarkPrimaryColor: "#155EEF", DarkAccentColor: "#155EEF", FontFamily: "inter", LogoURL: "/media/brand.svg", DarkLogoURL: "/media/brand-dark.svg", FaviconURL: "/media/favicon.svg", SocialImageURL: "/media/social.webp", LoginBackgroundURL: "/media/login.webp", LoginOverlayOpacity: .4}
+	if got := site.AppearanceFromSettings(settings); got != want {
+		t.Fatalf("persisted appearance=%+v, want %+v", got, want)
+	}
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()
