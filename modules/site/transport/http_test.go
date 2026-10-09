@@ -4,8 +4,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -550,7 +552,16 @@ func TestSiteAppearanceAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T
 	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
-	store := sitesql.Store{Dialect: database.SQLite}
+	runSiteAppearanceAdminRouteContract(t, db, database.SQLite)
+}
+
+func TestSiteAppearanceAdminRoutePersistsOnlyAuthorizedCSRFMutationPostgres(t *testing.T) {
+	runSiteAppearanceAdminRouteContract(t, openSitePostgresTestDB(t), database.Postgres)
+}
+
+func runSiteAppearanceAdminRouteContract(t *testing.T, db *sql.DB, dialect database.Dialect) {
+	t.Helper()
+	store := sitesql.Store{Dialect: dialect}
 	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
 	mux := http.NewServeMux()
 	for _, route := range handler.Routes() {
@@ -603,6 +614,49 @@ func TestSiteAppearanceAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T
 	if got := site.AppearanceFromSettings(settings); got != want {
 		t.Fatalf("persisted appearance=%+v, want %+v", got, want)
 	}
+}
+
+func openSitePostgresTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
+	}
+	ctx := context.Background()
+	adminDB, err := database.Open(ctx, database.Postgres, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	suffix := make([]byte, 8)
+	if _, err := rand.Read(suffix); err != nil {
+		adminDB.Close()
+		t.Fatal(err)
+	}
+	schema := "site_route_" + hex.EncodeToString(suffix)
+	if _, err := adminDB.ExecContext(ctx, "CREATE SCHEMA "+schema); err != nil {
+		adminDB.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = adminDB.ExecContext(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
+		_ = adminDB.Close()
+	})
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := parsed.Query()
+	query.Set("options", "-csearch_path="+schema)
+	parsed.RawQuery = query.Encode()
+	db, err := database.Open(ctx, database.Postgres, parsed.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := database.ApplyMigrations(ctx, db, database.Postgres, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	return db
 }
 
 func TestSiteSEOAdminRoutePersistsValidatedPathsOnlyForAuthorizedUser(t *testing.T) {

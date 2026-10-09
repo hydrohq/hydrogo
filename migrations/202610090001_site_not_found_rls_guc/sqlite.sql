@@ -1,0 +1,1 @@
+-- SQLite enforces the tenant scope in the repository predicate.
