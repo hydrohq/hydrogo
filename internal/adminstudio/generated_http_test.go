@@ -976,7 +976,7 @@ func TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence(t *te
 			return ResourceAccess{Create: true, Update: true, Delete: true}
 		},
 		CSRFToken:    func(*http.Request) string { return "csrf" },
-		ValidateCSRF: func(*http.Request) bool { return false },
+		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "csrf" },
 		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
 			return body.Render(r.Context(), w)
 		},
@@ -1058,7 +1058,7 @@ func TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence(t *te
 	}{
 		{name: "create", path: "/admin/resources/article/new", body: "id=a2&draft_version=0&published_version=0&title=New"},
 		{name: "update", path: "/admin/resources/article/a1", body: "title=Changed"},
-		{name: "delete", path: "/admin/resources/article/a1/delete", body: "_csrf=bad"},
+		{name: "delete", path: "/admin/resources/article/a1/delete"},
 		{name: "workflow", path: "/admin/resources/article/a1/workflow", body: "target=review&expected_draft_version=1&expected_published_version=1"},
 		{name: "revision restore", path: "/admin/resources/article/a1/revisions/1/restore", body: "expected_version=1"},
 		{name: "locale save", path: "/admin/resources/article/a1/locale?locale=fr", body: "locale_version=1&title=Traduction"},
@@ -1067,16 +1067,33 @@ func TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence(t *te
 		{name: "draft discard", path: "/admin/resources/article/a1/draft/discard", body: "expected_version=1"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			beforeAPI, beforePersistence := apiCalls, persistenceCalls
-			request := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			response := httptest.NewRecorder()
-			mux.ServeHTTP(response, request)
-			if response.Code != http.StatusForbidden {
-				t.Fatalf("invalid CSRF status=%d, want 403; body=%s", response.Code, response.Body.String())
-			}
-			if apiCalls != beforeAPI || persistenceCalls != beforePersistence {
-				t.Fatalf("invalid CSRF reached persistence boundary: API calls %d->%d, callbacks %d->%d", beforeAPI, apiCalls, beforePersistence, persistenceCalls)
+			for _, csrf := range []struct {
+				name  string
+				token string
+			}{
+				{name: "missing"},
+				{name: "mismatched", token: "forged"},
+			} {
+				t.Run(csrf.name, func(t *testing.T) {
+					beforeAPI, beforePersistence := apiCalls, persistenceCalls
+					body := tc.body
+					if csrf.token != "" {
+						if body != "" {
+							body += "&"
+						}
+						body += "_csrf=" + csrf.token
+					}
+					request := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(body))
+					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					response := httptest.NewRecorder()
+					mux.ServeHTTP(response, request)
+					if response.Code != http.StatusForbidden {
+						t.Fatalf("%s CSRF status=%d, want 403; body=%s", csrf.name, response.Code, response.Body.String())
+					}
+					if apiCalls != beforeAPI || persistenceCalls != beforePersistence {
+						t.Fatalf("%s CSRF reached persistence boundary: API calls %d->%d, callbacks %d->%d", csrf.name, beforeAPI, apiCalls, beforePersistence, persistenceCalls)
+					}
+				})
 			}
 		})
 	}

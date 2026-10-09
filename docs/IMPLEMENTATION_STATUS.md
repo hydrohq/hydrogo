@@ -57,6 +57,14 @@ covers rendered targets only; valid-CSRF Admin writes, API-only/module routes,
 and per-target persisted-state checks remain open. Evidence:
 `admin-rendered-post-csrf-matrix-2026-10-09.md`.
 
+2026-10-09 generated Admin CSRF follow-up: all nine generated collection
+mutation handlers now separately reject missing and mismatched tokens before
+resource API or Edition callback dispatch. Focused and full `internal/adminstudio`
+tests plus package vet passed. This is handler contract coverage; independent
+Edition browser persistence and database adapter evidence remains scoped to
+the separately documented CRUD/editorial journeys. Evidence:
+`generated-admin-validation-feedback-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered

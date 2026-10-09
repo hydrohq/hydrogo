@@ -68,13 +68,16 @@ recorded in [ADR-0364](../architecture/0364-generated-admin-validation-feedback.
 `TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence` now
 exercises nine enabled generated mutation routes in a single Edition fixture:
 create, update, delete, workflow transition, revision restore, locale save,
-locale copy, draft save, and draft discard. Every request without a valid token
-returns `403`; the test asserts that neither the composed resource API nor any
-Edition-owned persistence/policy callback is reached. The generated Admin
-package suite and vet passed. Existing tests continue to cover valid-token
-success, capability denial, stale-version conflict, and persisted editorial
-state. This closes the generated-resource mutation CSRF slice only; built-in
-admin routes and browser role/session behavior remain separately open.
+locale copy, draft save, and draft discard. Each route is now tested with both
+a missing token and a mismatched token; both return `403`. The test asserts
+that neither the composed resource API nor any Edition-owned persistence/
+policy callback is reached. `go test ./internal/adminstudio -run
+'^TestGeneratedAdminAllMutationRoutesRejectInvalidCSRFBeforePersistence$'
+-count=1`, the full package test, and `go vet ./internal/adminstudio` passed.
+Existing tests continue to cover valid-token success, capability denial,
+stale-version conflict, and persisted editorial state. This closes the
+generated-resource missing/mismatched CSRF handler slice only; built-in Admin
+routes and browser role/session behavior remain separately scoped.
 
 The generated CRUD Playwright fixture also supports an externally hosted,
 loopback-only Edition server via `HYDRO_E2E_EXTERNAL_SERVER=1`,
