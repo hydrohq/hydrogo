@@ -2,6 +2,8 @@ package ui
 
 import (
 	"bytes"
+	"math"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -51,6 +53,30 @@ func TestAdminShellAccessibilityCSSContract(t *testing.T) {
 	}
 }
 
+func TestLightThemeAlertTextMeetsWCAGAA(t *testing.T) {
+	if !strings.Contains(AdminCSSOverrides, `html[data-theme=light] .studio-alert{color:#991b1b}`) {
+		t.Fatal("light-theme alerts must use the accessible dark-red text token")
+	}
+	palettes := []struct {
+		name, css, background string
+	}{
+		{"hydrogo", AdminHydroGoCSS, "#fdecee"},
+		{"shadcn", AdminCSS, "#fff1f2"},
+		{"nova", AdminNovaCSS, "#fef2f2"},
+		{"aurora", AdminAuroraCSS, "#fef2f2"},
+	}
+	for _, palette := range palettes {
+		t.Run(palette.name, func(t *testing.T) {
+			if !strings.Contains(palette.css, "--red-subtle:"+palette.background) {
+				t.Fatalf("light alert background %s changed without updating this contrast check", palette.background)
+			}
+			if ratio := wcagContrast("#991b1b", palette.background); ratio < 4.5 {
+				t.Fatalf("alert text contrast = %.2f:1, want at least 4.5:1", ratio)
+			}
+		})
+	}
+}
+
 func TestAdminShellDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Güvenli yönetim", "", ""); err != nil {
@@ -84,4 +110,30 @@ func accessibleHTMLName(node *html.Node) string {
 		return strings.Join(parts, " ")
 	}
 	return strings.TrimSpace(text(node))
+}
+
+func wcagContrast(foreground, background string) float64 {
+	fg, bg := relativeLuminance(foreground), relativeLuminance(background)
+	if fg < bg {
+		fg, bg = bg, fg
+	}
+	return (fg + 0.05) / (bg + 0.05)
+}
+
+func relativeLuminance(value string) float64 {
+	value = strings.TrimPrefix(value, "#")
+	var channels [3]float64
+	for i := range channels {
+		channel, err := strconv.ParseUint(value[i*2:i*2+2], 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		normalized := float64(channel) / 255
+		if normalized <= 0.04045 {
+			channels[i] = normalized / 12.92
+		} else {
+			channels[i] = math.Pow((normalized+0.055)/1.055, 2.4)
+		}
+	}
+	return 0.2126*channels[0] + 0.7152*channels[1] + 0.0722*channels[2]
 }
