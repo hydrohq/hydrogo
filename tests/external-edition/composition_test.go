@@ -70,6 +70,13 @@ func externalRole(ctx context.Context) string {
 	return role
 }
 
+type externalPermissionOverrideContextKey struct{}
+
+func externalPermissionOverride(ctx context.Context) string {
+	override, _ := ctx.Value(externalPermissionOverrideContextKey{}).(string)
+	return override
+}
+
 type externalResourcePolicy struct{}
 
 func (externalResourcePolicy) CanRead(ctx context.Context, _ string) bool {
@@ -80,16 +87,19 @@ func externalCanWrite(ctx context.Context) bool {
 	role := externalRole(ctx)
 	return role == "admin" || role == "editor"
 }
-func (externalResourcePolicy) CanCreate(ctx context.Context) bool { return externalCanWrite(ctx) }
+func (externalResourcePolicy) CanCreate(ctx context.Context) bool {
+	return externalCanWrite(ctx) || externalRole(ctx) == "viewer" && externalPermissionOverride(ctx) == "allow-create"
+}
 func (externalResourcePolicy) CanUpdate(ctx context.Context, _ string) bool {
-	return externalCanWrite(ctx)
+	return externalCanWrite(ctx) && externalPermissionOverride(ctx) != "deny-update"
 }
 func (externalResourcePolicy) CanDelete(ctx context.Context, _ string) bool {
-	return externalCanWrite(ctx)
+	return externalCanWrite(ctx) && externalPermissionOverride(ctx) != "deny-delete"
 }
 
 func serveWithExternalRole(mux *http.ServeMux, w http.ResponseWriter, r *http.Request) {
 	ctx := context.WithValue(r.Context(), externalRoleContextKey{}, r.Header.Get("X-Test-Role"))
+	ctx = context.WithValue(ctx, externalPermissionOverrideContextKey{}, r.Header.Get("X-Test-Permission-Override"))
 	mux.ServeHTTP(w, r.WithContext(ctx))
 }
 
@@ -140,10 +150,11 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		},
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		ResourceAccess: func(r *http.Request, _ adminstudio.Collection, id string) adminstudio.ResourceAccess {
-			if r.Header.Get("X-Test-Role") == "viewer" {
-				return adminstudio.ResourceAccess{}
+			role, override := r.Header.Get("X-Test-Role"), r.Header.Get("X-Test-Permission-Override")
+			if role == "viewer" {
+				return adminstudio.ResourceAccess{Create: override == "allow-create"}
 			}
-			return adminstudio.ResourceAccess{Create: id == "", Update: id != "", Delete: id != ""}
+			return adminstudio.ResourceAccess{Create: id == "", Update: id != "" && override != "deny-update", Delete: id != "" && override != "deny-delete"}
 		},
 		CSRFToken:    func(*http.Request) string { return "edition-token" },
 		ValidateCSRF: func(r *http.Request) bool { return r.FormValue("_csrf") == "edition-token" },
@@ -161,6 +172,7 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	}
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), externalRoleContextKey{}, r.Header.Get("X-Test-Role"))
+		ctx = context.WithValue(ctx, externalPermissionOverrideContextKey{}, r.Header.Get("X-Test-Permission-Override"))
 		mux.ServeHTTP(w, r.WithContext(ctx))
 	})
 
@@ -187,6 +199,42 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if response := readFor("tenant-a"); response.Code != http.StatusOK {
 		t.Fatalf("same-tenant read status=%d body=%s", response.Code, response.Body.String())
 	}
+
+	viewerCreateOverride := httptest.NewRequest(http.MethodPost, "/admin/resources/article/new", strings.NewReader("_csrf=edition-token&id=viewer-override-created&title=Explicitly+granted+record"))
+	viewerCreateOverride.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	viewerCreateOverride.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerCreateOverride.Header.Set("X-Test-Role", "viewer")
+	viewerCreateOverride.Header.Set("X-Test-Permission-Override", "allow-create")
+	viewerCreateOverrideResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerCreateOverrideResponse, viewerCreateOverride)
+	if viewerCreateOverrideResponse.Code != http.StatusSeeOther {
+		t.Fatalf("explicit Viewer create override status=%d body=%s", viewerCreateOverrideResponse.Code, viewerCreateOverrideResponse.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "viewer-override-created"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Explicitly granted record") {
+		t.Fatalf("explicit Viewer create override did not persist through Edition API: status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	for _, deniedOverride := range []struct {
+		role, override, path, body, unchanged string
+	}{
+		{"editor", "deny-update", "/admin/resources/article/article-1", "_csrf=edition-token&title=Must+remain+unchanged", "External tenant record"},
+		{"admin", "deny-delete", "/admin/resources/article/article-1/delete", "_csrf=edition-token", "External tenant record"},
+	} {
+		request := httptest.NewRequest(http.MethodPost, deniedOverride.path, strings.NewReader(deniedOverride.body))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Test-Tenant", "tenant-a")
+		request.Header.Set("X-Test-Role", deniedOverride.role)
+		request.Header.Set("X-Test-Permission-Override", deniedOverride.override)
+		response := httptest.NewRecorder()
+		serveWithExternalRole(mux, response, request)
+		if response.Code != http.StatusForbidden {
+			t.Errorf("%s %s override status=%d body=%s", deniedOverride.role, deniedOverride.override, response.Code, response.Body.String())
+		}
+		if persisted := readFor("tenant-a"); persisted.Code != http.StatusOK || !strings.Contains(persisted.Body.String(), deniedOverride.unchanged) {
+			t.Errorf("%s %s override changed persisted record: status=%d body=%s", deniedOverride.role, deniedOverride.override, persisted.Code, persisted.Body.String())
+		}
+	}
+
 	for _, role := range []string{"", "unknown"} {
 		role := role
 		t.Run("unauthorized-role/"+map[string]string{"": "anonymous", "unknown": "unknown"}[role], func(t *testing.T) {
