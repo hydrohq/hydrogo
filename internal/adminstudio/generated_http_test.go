@@ -1554,7 +1554,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 	enRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil)
 	enRequest.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
 	mux.ServeHTTP(enList, enRequest)
-	for _, want := range []string{"Drafts", "Title", "State", "Version", "Last updated", "Open draft", "Draft"} {
+	for _, want := range []string{"Drafts", "Title", "State", "Version", "Last updated", "Open draft", "Draft", "Draft list: Articles", `data-label="Actions"`} {
 		if enList.Code != http.StatusOK || !strings.Contains(enList.Body.String(), want) {
 			t.Fatalf("English draft list missing %q: status=%d body=%s", want, enList.Code, enList.Body.String())
 		}
