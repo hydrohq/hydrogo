@@ -1,0 +1,14 @@
+{
+  "resource": "media_article",
+  "version": "v1",
+  "views": [
+    {
+      "columns": [
+        "title"
+      ],
+      "filters": [],
+      "id": "all",
+      "name": "All"
+    }
+  ]
+}

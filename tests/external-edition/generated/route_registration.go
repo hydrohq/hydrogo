@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	resource0 "example.com/external-edition/generated/article"
+	resource1 "example.com/external-edition/generated/media_article"
 	"fmt"
 	"net/http"
 )
@@ -43,8 +44,19 @@ func RegisterGeneratedResources(mux *http.ServeMux, options GeneratedResourceOpt
 		return fmt.Errorf("generated tenant resource %s has no tenant resolver", "article")
 	}
 	resolver0 := func(r *http.Request) (string, bool) { return options.ResolveTenant("article", r) }
+	policy1 := options.PolicyFor("media_article")
+	if policy1 == nil {
+		return fmt.Errorf("generated resource %s has no policy", "media_article")
+	}
+	if options.ResolveTenant == nil {
+		return fmt.Errorf("generated tenant resource %s has no tenant resolver", "media_article")
+	}
+	resolver1 := func(r *http.Request) (string, bool) { return options.ResolveTenant("media_article", r) }
 
 	if err := resource0.RegisterArticleRoute(mux, options.DB, options.Dialect, policy0, resolver0); err != nil {
+		return err
+	}
+	if err := resource1.RegisterMediaArticleRoute(mux, options.DB, options.Dialect, policy1, resolver1); err != nil {
 		return err
 	}
 	return nil

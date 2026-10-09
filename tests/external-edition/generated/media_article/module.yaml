@@ -1,0 +1,18 @@
+version: v0
+type: collection
+name: media_article
+table: media_articles
+auth: false
+permissions:
+  - media_article.read
+  - media_article.write
+dialects:
+  - postgres
+  - sqlite
+fields:
+  - name: cover_media_id
+    type: media
+    nullable: true
+  - name: title
+    type: string
+    nullable: false
