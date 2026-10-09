@@ -105,7 +105,9 @@ func main() {
 	}
 	validatedResourceAPI := validateFixtureMediaReference(resourceMux)
 	resourceAPI := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Header.Get("X-Test-Generated-API-Status") == "503" {
+		writeFailure := r.Method != http.MethodGet && r.Header.Get("X-Test-Generated-API-Status") == "503"
+		readFailure := r.Method == http.MethodGet && r.Header.Get("X-Test-Generated-API-Read-Status") == "503"
+		if writeFailure || readFailure {
 			http.Error(w, "fixture service unavailable", http.StatusServiceUnavailable)
 			return
 		}

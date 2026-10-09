@@ -2423,8 +2423,15 @@ func (r *boundedResponseRecorder) Write(data []byte) (int, error) {
 }
 
 func (h GeneratedAdminHandler) renderPage(w http.ResponseWriter, r *http.Request, title string, body templ.Component) {
+	h.renderPageStatus(w, r, title, body, 0)
+}
+
+func (h GeneratedAdminHandler) renderPageStatus(w http.ResponseWriter, r *http.Request, title string, body templ.Component, status int) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if status != 0 {
+		w.WriteHeader(status)
+	}
 	locale := generatedAdminLocale(r)
 	navigation := &generatedNavigationWriter{ResponseWriter: w, items: h.visibleCollections(r), current: r.URL.Path, locale: locale}
 	if err := h.Options.RenderPage(navigation, r, title, body); err != nil {
@@ -2514,7 +2521,22 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 }
 
 func (h GeneratedAdminHandler) apiError(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, i18n.T(generatedAdminLocale(r), "admin.generated.error.operation"), http.StatusBadGateway)
+	locale := generatedAdminLocale(r)
+	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+		if err := ui.ValidationSummary(ui.ValidationSummaryProps{
+			Title:   i18n.T(locale, "admin.generated.error.load_title"),
+			Message: i18n.T(locale, "admin.generated.error.load_message"),
+		}).Render(ctx, out); err != nil {
+			return err
+		}
+		return ui.Form(ui.FormProps{
+			Action: r.URL.Path,
+			Method: http.MethodGet,
+			Class:  "generated-load-retry",
+			Body:   ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.error.retry"), Variant: ui.Primary}),
+		}).Render(ctx, out)
+	})
+	h.renderPageStatus(w, r, i18n.T(locale, "admin.generated.error.load_title"), body, http.StatusBadGateway)
 }
 
 func displayValue(value any) string {

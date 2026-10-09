@@ -90,6 +90,19 @@ test.describe("independent Edition generated Admin editor journey", () => {
       expect(created.status()).toBe(200);
       expect((await created.json()).title).toBe(title);
 
+      await editorContext.setExtraHTTPHeaders({ ...roleHeaders, "X-Test-Generated-API-Read-Status": "503" });
+      const failedListResponse = await page.goto(`${externalOrigin}/admin/resources/article?search=${encodeURIComponent(title)}`);
+      expect(failedListResponse?.status()).toBe(502);
+      await expect(page.getByRole("alert")).toContainText("Sayfa yüklenemedi");
+      await expect(page.getByRole("alert")).toContainText("Sayfayı yenileyip tekrar deneyin");
+      const retryListForm = page.locator('form[action="/admin/resources/article"].generated-load-retry');
+      await expect(retryListForm).toBeVisible();
+      await expect(page.locator("body")).not.toContainText("fixture service unavailable");
+      await expectNoA11yViolations(page, "editor generated list load-error feedback");
+      await editorContext.setExtraHTTPHeaders(roleHeaders);
+      await retryListForm.getByRole("button", { name: "Yeniden dene" }).click();
+      await expect(page.getByRole("link", { name: title })).toBeVisible();
+
       const forgedID = `csrf-${randomUUID()}`;
       const forgedCreate = await request.post(`${externalOrigin}/admin/resources/article/new`, {
         headers,
@@ -263,6 +276,41 @@ test.describe("independent Edition generated Admin editor journey", () => {
     } finally {
       await editorContext.close();
       await viewerContext?.close();
+    }
+  });
+
+  test("editor can retry a failed record load at the same URL", async ({ browser, request }) => {
+    const tenant = `load-retry-${randomUUID()}`;
+    const editorHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "editor" };
+    const adminHeaders = { "X-Test-Tenant": tenant, "X-Test-Role": "admin" };
+    const id = `load-${randomUUID()}`;
+    const title = `Retry record ${randomUUID()}`;
+    const seeded = await request.post(`${externalOrigin}/api/v1/article`, { headers: adminHeaders, data: { id, title } });
+    expect(seeded.status()).toBe(201);
+
+    const context = await browser.newContext({ extraHTTPHeaders: editorHeaders });
+    const page = await context.newPage();
+    await page.addInitScript({ path: path.resolve("node_modules/axe-core/axe.min.js") });
+    const recordPath = `/admin/resources/article/${id}`;
+    try {
+      const initial = await page.goto(`${externalOrigin}${recordPath}`);
+      expect(initial?.status()).toBe(200);
+      await dismissOnboarding(page);
+      await expect(page.locator(`form[action="${recordPath}"]`).getByLabel("Title")).toHaveValue(title);
+
+      await context.setExtraHTTPHeaders({ ...editorHeaders, "X-Test-Generated-API-Read-Status": "503" });
+      const failed = await page.goto(`${externalOrigin}${recordPath}`);
+      expect(failed?.status()).toBe(502);
+      await expect(page.getByRole("alert")).toContainText("Sayfa yüklenemedi");
+      const retry = page.locator(`form[action="${recordPath}"].generated-load-retry`);
+      await expect(retry).toBeVisible();
+      await expectNoA11yViolations(page, "editor generated record load-error feedback");
+
+      await context.setExtraHTTPHeaders(editorHeaders);
+      await retry.getByRole("button", { name: "Yeniden dene" }).click();
+      await expect(page.locator(`form[action="${recordPath}"]`).getByLabel("Title")).toHaveValue(title);
+    } finally {
+      await context.close().catch(() => {});
     }
   });
 
