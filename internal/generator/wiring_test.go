@@ -19,6 +19,29 @@ func TestGeneratedRuntimeWiringListsSelectedKits(t *testing.T) {
 	}
 }
 
+func TestGeneratedRuntimeWiringExplainsEditionCRUDCapabilities(t *testing.T) {
+	root := t.TempDir()
+	spec := Spec{Name: "article", Table: "articles", Fields: []Field{{Name: "title", Type: "string"}}, Permissions: []string{"article.read"}, Dialects: []string{"sqlite", "postgres"}}
+	if _, err := Generate(root, spec); err != nil {
+		t.Fatal(err)
+	}
+	wiring, err := os.ReadFile(filepath.Join(root, "generated", "article", "RUNTIME_WIRING.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{
+		"Edition authorization callback",
+		"ResourceAccess",
+		"same user, tenant and record rules as the",
+		"leaving it nil preserves legacy all-actions UI",
+		"API remains the",
+	} {
+		if !strings.Contains(string(wiring), marker) {
+			t.Errorf("runtime wiring omitted CRUD security guidance %q: %s", marker, wiring)
+		}
+	}
+}
+
 func TestGeneratedAdminRegistrationTracksBlueprintResources(t *testing.T) {
 	root := t.TempDir()
 	resources := []Spec{

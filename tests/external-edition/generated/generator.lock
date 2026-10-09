@@ -4,7 +4,7 @@
   "spec_sha256": "e55d4f837b8bb19b439d168c9905dbd230630d5dc484b5e7771a4e0f4b5a85b1",
   "artifacts_sha256": {
     "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
-    "RUNTIME_WIRING.md": "672850538cb01632ae8165a11fa2222a366b416408009d919f768aa47282f2e1",
+    "RUNTIME_WIRING.md": "a86a446f0ea49cc86f098a28e3d75fde93150d8338e710ee3d3a869641450f0f",
     "admin/form.templ": "1c9ea714a81359cd0c68382f8dc40426505ce5b42c07ffeb36b90cbf9fa52ea0",
     "admin/list.templ": "8e981c0a4a70522558542b5ef60b39b65248748445abc4f82e2bce644f000a35",
     "admin/views.json": "36f92ae9cbf55ee18e2615fc0cbf19fdcb601246e1cd816f9d21d85604ce87a1",
@@ -51,7 +51,7 @@
       "spec_sha256": "e55d4f837b8bb19b439d168c9905dbd230630d5dc484b5e7771a4e0f4b5a85b1",
       "artifacts_sha256": {
         "REVIEW.md": "490e59594be7c0a1e3550bb549b59958c4e3e0ffd0eaf78c317732c4856daa4e",
-        "RUNTIME_WIRING.md": "672850538cb01632ae8165a11fa2222a366b416408009d919f768aa47282f2e1",
+        "RUNTIME_WIRING.md": "a86a446f0ea49cc86f098a28e3d75fde93150d8338e710ee3d3a869641450f0f",
         "admin/form.templ": "1c9ea714a81359cd0c68382f8dc40426505ce5b42c07ffeb36b90cbf9fa52ea0",
         "admin/list.templ": "8e981c0a4a70522558542b5ef60b39b65248748445abc4f82e2bce644f000a35",
         "admin/views.json": "36f92ae9cbf55ee18e2615fc0cbf19fdcb601246e1cd816f9d21d85604ce87a1",

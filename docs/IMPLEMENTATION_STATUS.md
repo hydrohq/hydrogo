@@ -196,6 +196,11 @@ ve ADR-0091'e bakın.
 
 ## Yerel doğrulama akışı
 
+Generated Edition runtime checklist now documents the optional `ResourceAccess`
+callback alongside the API authorization boundary. Edition authors are told to
+derive both from the same user, tenant, and record rules; leaving the callback
+nil retains legacy all-actions UI, while API authorization remains mandatory.
+
 Windows'ta:
 
 ```powershell
