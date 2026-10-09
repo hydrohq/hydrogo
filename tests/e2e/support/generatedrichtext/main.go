@@ -230,6 +230,24 @@ func main() {
 	})
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /__test/reset", func(w http.ResponseWriter, r *http.Request) {
+		if editorialStore != nil {
+			if err := editorialStore.Reset(r.Context()); err != nil {
+				writeError(w, http.StatusInternalServerError)
+				return
+			}
+		}
+		mu.Lock()
+		records = map[string]map[string]any{}
+		failNextArticleWrite = false
+		draft = adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
+		translationDraft = adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
+		discardDraft = adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
+		publishedStory = map[string]any{"id": "story-1", "title": "Published story", "status": "published", "version": float64(1)}
+		localizedStory = map[string]map[string]any{"tr": {"title": "Yayımlanmış Türkçe metin"}}
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
 	vendorFS, err := fs.Sub(staticassets.FS, "vendor")
 	if err != nil {
 		panic(err)
