@@ -346,8 +346,27 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 	}
 	defer response.Body.Close()
 	body, _ := io.ReadAll(response.Body)
-	if response.StatusCode != http.StatusConflict || !strings.Contains(string(body), "Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.") {
+	if response.StatusCode != http.StatusConflict || !strings.Contains(string(body), "Siz düzenlerken bu kayıt değişti. Sayfayı yenileyip tekrar deneyin.") {
 		t.Fatalf("conflict response = %d %s", response.StatusCode, body)
+	}
+}
+
+func TestGeneratedWorkflowActionLabelsUseInterfaceLocale(t *testing.T) {
+	for _, tc := range []struct {
+		state PublicationState
+		want  string
+	}{
+		{StateDraft, "Move to draft"},
+		{StateScheduled, "Schedule publication"},
+		{StatePublished, "Publish"},
+		{StateRetracted, "Retract publication"},
+	} {
+		if got := workflowActionLabel("en", tc.state); got != tc.want {
+			t.Errorf("workflowActionLabel(en, %q) = %q, want %q", tc.state, got, tc.want)
+		}
+	}
+	if got := workflowActionLabel("tr", StatePublished); got != "Yayımla" {
+		t.Errorf("Turkish publish action = %q", got)
 	}
 }
 
@@ -690,8 +709,11 @@ func TestGeneratedAdminRevisionHistoryDiffAndRestoreAreBounded(t *testing.T) {
 		t.Fatalf("revision history missing or unsafe: status=%d body=%s", edit.Code, edit.Body.String())
 	}
 	detail := httptest.NewRecorder()
-	mux.ServeHTTP(detail, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1/revisions/3", nil))
-	if detail.Code != http.StatusOK || strings.Contains(detail.Body.String(), `<script>`) || !strings.Contains(detail.Body.String(), "&lt;script&gt;") {
+	detailRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1/revisions/3", nil)
+	detailRequest.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	detailRequest.Header.Set("X-Test-Role", "admin")
+	mux.ServeHTTP(detail, detailRequest)
+	if detail.Code != http.StatusOK || strings.Contains(detail.Body.String(), `<script>`) || !strings.Contains(detail.Body.String(), "&lt;script&gt;") || !strings.Contains(detail.Body.String(), "Version 3 · Historical and current record") || !strings.Contains(detail.Body.String(), "Restore this version") || !strings.Contains(detail.Body.String(), "Back to record") {
 		t.Fatalf("revision diff did not escape snapshot: status=%d body=%s", detail.Code, detail.Body.String())
 	}
 	post := func(expected, role string) *httptest.ResponseRecorder {
