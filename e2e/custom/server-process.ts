@@ -1,4 +1,13 @@
-import { spawn, spawnSync, type ChildProcess, type SpawnOptions } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess, type SpawnOptions, type StdioOptions } from "node:child_process";
+
+export function runCommand(command: string, args: string[], options: { cwd: string; input?: string; stdio?: StdioOptions }): string {
+	const result = spawnSync(command, args, { ...options, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+	// Some restricted runners report EPERM after a child has exited successfully.
+	if (result.status !== 0 || (result.error && result.error.code !== "EPERM")) {
+		throw new Error(`${command} ${args.join(" ")} failed: ${result.error?.message ?? result.stderr ?? `exit ${result.status}`}`);
+	}
+	return result.stdout ?? "";
+}
 
 export function spawnServer(command: string, args: string[], options: SpawnOptions): ChildProcess {
 	return spawn(command, args, { ...options, detached: process.platform !== "win32" });

@@ -1,10 +1,11 @@
 import { test, expect, type ChildProcess } from "@playwright/test";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { runCommand } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
@@ -19,10 +20,10 @@ test.describe("Admin Studio MFA self-service", () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-mfa-"));
     const database = path.join(tempDir, "edition.sqlite");
     const binary = path.join(tempDir, "hydro");
-    execFileSync("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    execFileSync("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
-    execFileSync("go", ["build", "-o", binary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
+    runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["build", "-o", binary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawn(binary, ["serve", "--dev", "--database-dialect", "sqlite", "--database-dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore", env: { ...process.env, HYDRO_MFA_MASTER_KEY: masterKey, HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_MEDIA_DIR: path.join(tempDir, "media") } });
@@ -263,7 +264,7 @@ test.describe("Admin Studio MFA self-service", () => {
 });
 
 function generateTOTP(secret: string): string {
-  return execFileSync("go", ["run", "./tests/e2e/support/totp-code"], { cwd: repoRoot, input: secret, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+  return runCommand("go", ["run", "./tests/e2e/support/totp-code"], { cwd: repoRoot, input: secret, stdio: ["pipe", "pipe", "pipe"] }).trim();
 }
 
 async function unusedPort(): Promise<number> {

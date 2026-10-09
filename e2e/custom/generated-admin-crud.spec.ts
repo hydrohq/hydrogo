@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { execFileSync, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawnServer, stopServer } from "./server-process";
+import { runCommand, spawnServer, stopServer } from "./server-process";
 
 const repoRoot = path.resolve(process.cwd(), "..");
 let server: ChildProcess | undefined;
@@ -16,7 +16,7 @@ test.describe("generated Edition Admin CRUD", () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-crud-"));
     const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
     const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
-    execFileSync("go", ["run", "./examples/project-edition/cmd/server", "migrate", "--dialect", dialect, "--dsn", database], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./examples/project-edition/cmd/server", "migrate", "--dialect", dialect, "--dsn", database], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer("go", ["run", "./examples/project-edition/cmd/server", "serve", "--dialect", dialect, "--dsn", database, "--address", `127.0.0.1:${port}`], { cwd: repoRoot, stdio: "ignore" });
@@ -86,20 +86,32 @@ test.describe("generated Edition Admin CRUD", () => {
     const newRecord = page.getByRole("link", { name: "Yeni kayıt" });
     await newRecord.focus();
     await page.keyboard.press("Enter");
+    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+      for (const mode of ["light", "dark"]) {
+        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        const formResponse = await page.goto(`${baseURL}/admin/resources/project/new`);
+        expect(formResponse?.status(), `create form should render in ${family}-${mode}`).toBe(200);
+        await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+        const invalidCreate = page.locator('form[action="/admin/resources/project/new"]');
+        await expect(invalidCreate.getByLabel("Title")).toBeVisible();
+        await expect(invalidCreate.locator('[name="id"]')).toHaveAttribute("type", "hidden");
+        await expect(invalidCreate.locator('label[for="resource-id"]')).toHaveCount(0);
+        await expect(invalidCreate.getByLabel("Project code")).toBeVisible();
+        await invalidCreate.getByLabel("Title").fill("HydroGo E2E project");
+        const validationResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/admin/resources/project/new"));
+        await invalidCreate.evaluate((form: HTMLFormElement) => HTMLFormElement.prototype.submit.call(form));
+        expect((await validationResponse).status(), `validation should render in ${family}-${mode}`).toBe(422);
+        await expect(invalidCreate.getByRole("alert")).toContainText("Bu alanları kontrol edin");
+        await expect(invalidCreate.getByRole("link", { name: /Project code/ })).toHaveAttribute("href", "#project_code");
+        await expect(invalidCreate.getByLabel("Title")).toHaveValue("HydroGo E2E project");
+        await expect(invalidCreate.getByLabel("Project code")).toHaveValue("");
+        await expectNoA11yViolations(page);
+      }
+    }
+    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.goto(`${baseURL}/admin/resources/project/new`);
     const create = page.locator('form[action="/admin/resources/project/new"]');
-    await expect(create.getByLabel("Title")).toBeVisible();
-    await expect(create.locator('[name="id"]')).toHaveAttribute("type", "hidden");
-    await expect(create.locator('label[for="resource-id"]')).toHaveCount(0);
-    await expect(create.getByLabel("Project code")).toBeVisible();
-    await create.getByLabel("Title").fill("HydroGo E2E project");
-    const validationResponse = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/admin/resources/project/new"));
-    await create.evaluate((form: HTMLFormElement) => HTMLFormElement.prototype.submit.call(form));
-    expect((await validationResponse).status()).toBe(422);
-    await expect(create.getByRole("alert")).toContainText("Bu alanları kontrol edin");
-    await expect(create.getByRole("link", { name: /Project code/ })).toHaveAttribute("href", "#project_code");
-    await expect(create.getByLabel("Title")).toHaveValue("HydroGo E2E project");
-    await expect(create.getByLabel("Project code")).toHaveValue("");
-    await expectNoA11yViolations(page);
     await create.locator('button[type="submit"]').click();
     await expect(create.getByLabel("Project code")).toBeFocused();
     expect(await create.getByLabel("Project code").evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true);

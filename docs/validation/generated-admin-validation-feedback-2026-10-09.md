@@ -47,13 +47,22 @@ migration, database query, or schema behavior changed; SQLite/PostgreSQL
 specific behavior therefore remains covered by the existing CRUD contracts,
 not a new validation-specific DB test.
 
-Playwright `--list` discovered the generated CRUD spec (1/1), including its
-real-browser 422 scenario. The actual browser run stopped in setup at
-`spawnSync go EPERM`, before Edition migration, server startup, or Chromium
-page creation. Thus no browser or axe result is claimed. The standalone
-moduleguard, migrationguard (110 migrations), all three Edition importguards,
-assetguard, and actionguard also passed in the follow-up verification. The
-media visual-quality detector's six shell findings are logged above rather
-than presented as a clean detector run. `HYDRO_TEST_POSTGRES_URL` was unset, so
-there is no new PostgreSQL run. These external gates remain open. The UI
-contract is recorded in [ADR-0364](../architecture/0364-generated-admin-validation-feedback.md).
+Playwright's full theme matrix now submits the invalid required field in each
+of four Studio themes and both color modes, then runs axe on each resulting
+422 page. `--list` discovered the generated CRUD spec (1/1) and the five
+critical Admin E2E files (9 tests total). The live run was attempted twice:
+first it failed because the default Go build cache was read-only; with a
+writable repository cache and `/tmp` compiler temp, SQLite migration completed
+but the fixture server stopped at `listen EPERM: operation not permitted
+127.0.0.1`. Chromium did not open, so the new 8-state theme/axe checks have no
+runtime result yet. The E2E Go command wrapper was moved to shared test
+infrastructure; it accepts `EPERM` only when `spawnSync` still reports exit
+status 0 and rejects the actual exit-1 read-only-cache failure.
+
+The standalone moduleguard, migrationguard (110 migrations), all three Edition
+importguards, assetguard, and actionguard also passed in the follow-up
+verification. The media visual-quality detector's six shell findings are
+logged above rather than presented as a clean detector run.
+`HYDRO_TEST_POSTGRES_URL` was unset, so there is no new PostgreSQL run. The live
+browser and PostgreSQL gates remain open. The UI contract is recorded in
+[ADR-0364](../architecture/0364-generated-admin-validation-feedback.md).
