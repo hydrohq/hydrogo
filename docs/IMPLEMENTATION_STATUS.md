@@ -414,11 +414,12 @@ success redirect is issued. Full Admin Studio/i18n tests and vet passed. The
 plain-body error UX, browser verification, and PostgreSQL remain open; see
 `docs/validation/generated-admin-error-localization-2026-10-09.md`.
 
-Create/update transport or API 5xx failures now keep the user in the shared
-Admin shell, show an accessible localized alert, and preserve submitted form
-values and CSRF so save can be retried. Tests pass for create/update in both
-locales; delete failures retain the safe short response. Full Admin Studio/
-i18n tests and vet passed. Browser/PostgreSQL remain open; see
+Create/update transport or API 5xx failures keep the user in the shared Admin
+shell, show an accessible localized alert, and preserve submitted values and
+CSRF. Delete failures now restore the record's edit form and delete action when
+the record can still be read; otherwise the handler returns the safe short
+response. Turkish/English tests cover all three operations. Browser/PostgreSQL
+remain open; see
 `docs/validation/generated-admin-save-recovery-2026-10-09.md`.
 
 ## Sonraki güvenli sıra

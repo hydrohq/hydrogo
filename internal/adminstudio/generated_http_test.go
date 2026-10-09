@@ -243,20 +243,26 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 
 func TestGeneratedAdminLocalizesAndSanitizesResourceFailure(t *testing.T) {
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !((r.Method == http.MethodPost && r.URL.Path == "/api/v1/project") || (r.Method == http.MethodPut && r.URL.Path == "/api/v1/project/project-1")) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/project/project-1" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"id":"project-1","title":"Existing title","status":"active"}`)
+			return
+		}
+		if !((r.Method == http.MethodPost && r.URL.Path == "/api/v1/project") || (r.Method == http.MethodPut && r.URL.Path == "/api/v1/project/project-1") || (r.Method == http.MethodDelete && r.URL.Path == "/api/v1/project/project-1")) {
 			t.Errorf("unexpected API request %s %s", r.Method, r.URL.Path)
 		}
 		http.Error(w, "postgres://secret@db.internal hydrogo panic /srv/customer/data", http.StatusInternalServerError)
 	})
 	mux := testGeneratedAdmin(t, api, func(*http.Request) bool { return true })
-	for _, tc := range []struct{ locale, title, message string }{
-		{"tr", "Değişiklikleriniz kaydedilemedi", "Girdiğiniz bilgiler burada. Biraz sonra yeniden kaydetmeyi deneyin."},
-		{"en", "Your changes could not be saved", "Your entries are still here. Try saving again in a moment."},
+	for _, tc := range []struct{ locale, title, message, deleteTitle, deleteMessage string }{
+		{"tr", "Değişiklikleriniz kaydedilemedi", "Girdiğiniz bilgiler burada. Biraz sonra yeniden kaydetmeyi deneyin.", "Kayıt silinemedi", "Yeniden denemeden önce kaydın hâlâ listede olup olmadığını kontrol edin."},
+		{"en", "Your changes could not be saved", "Your entries are still here. Try saving again in a moment.", "This record could not be deleted", "Check whether the record is still listed before trying again."},
 	} {
 		t.Run(tc.locale, func(t *testing.T) {
-			for _, action := range []struct{ name, path string }{
-				{"create", "/admin/resources/project/new"},
-				{"update", "/admin/resources/project/project-1"},
+			for _, action := range []struct{ name, path, title, message string }{
+				{"create", "/admin/resources/project/new", tc.title, tc.message},
+				{"update", "/admin/resources/project/project-1", tc.title, tc.message},
+				{"delete", "/admin/resources/project/project-1/delete", tc.deleteTitle, tc.deleteMessage},
 			} {
 				t.Run(action.name, func(t *testing.T) {
 					form := url.Values{"id": {"project-1"}, "title": {"Typed title"}, "status": {"active"}, "_csrf": {"csrf-value"}}
@@ -267,8 +273,15 @@ func TestGeneratedAdminLocalizesAndSanitizesResourceFailure(t *testing.T) {
 					response := httptest.NewRecorder()
 					mux.ServeHTTP(response, request)
 					body := response.Body.String()
-					if response.Code != http.StatusBadGateway || !strings.Contains(body, tc.title) || !strings.Contains(body, tc.message) || !strings.Contains(body, `role="alert"`) || !strings.Contains(body, `<form`) || !strings.Contains(body, `name="title"`) || !strings.Contains(body, `value="Typed title"`) || response.Header().Get("Location") != "" {
+					wantTitle, wantMessage, wantFieldValue := action.title, action.message, `value="Typed title"`
+					if action.name == "delete" {
+						wantFieldValue = `value="Existing title"`
+					}
+					if response.Code != http.StatusBadGateway || !strings.Contains(body, wantTitle) || !strings.Contains(body, wantMessage) || !strings.Contains(body, `role="alert"`) || !strings.Contains(body, `<form`) || !strings.Contains(body, `name="title"`) || !strings.Contains(body, wantFieldValue) || response.Header().Get("Location") != "" {
 						t.Fatalf("failure form status=%d location=%q body=%s", response.Code, response.Header().Get("Location"), body)
+					}
+					if action.name == "delete" && (!strings.Contains(body, `action="/admin/resources/project/project-1/delete"`) || !strings.Contains(body, `name="_csrf"`) || !strings.Contains(body, `Existing title`)) {
+						t.Fatalf("delete failure did not restore the record and delete action: %s", body)
 					}
 					for _, internal := range []string{"postgres://secret", "db.internal", "/srv/customer/data", "panic"} {
 						if strings.Contains(body, internal) {

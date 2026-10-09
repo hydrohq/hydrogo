@@ -23,6 +23,8 @@
   "admin.generated.validation.field.invalid": "Bu değeri kontrol edip tekrar deneyin.",
   "admin.generated.error.title": "Değişiklikleriniz kaydedilemedi",
   "admin.generated.error.operation": "Girdiğiniz bilgiler burada. Biraz sonra yeniden kaydetmeyi deneyin.",
+  "admin.generated.error.delete_title": "Kayıt silinemedi",
+  "admin.generated.error.delete_operation": "Yeniden denemeden önce kaydın hâlâ listede olup olmadığını kontrol edin.",
   "admin.generated.list.empty": "Bu koleksiyonda henüz kayıt bulunmuyor.",
   "admin.generated.list.noMatches": "Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok."
 }
