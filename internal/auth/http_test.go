@@ -116,6 +116,20 @@ func (loginMFAStore) ConsumeRecoveryCode(context.Context, database.Executor, str
 	return nil
 }
 
+type throttledLoginMFAStore struct {
+	loginMFAStore
+	reads int
+}
+
+func (s *throttledLoginMFAStore) GetFactor(context.Context, database.Executor, string) ([]byte, bool, error) {
+	s.reads++
+	return []byte("not-an-encrypted-factor"), true, nil
+}
+
+func (s *throttledLoginMFAStore) ConsumeRecoveryCode(context.Context, database.Executor, string, string, time.Time) error {
+	return ErrMFAInvalidCode
+}
+
 func TestHTTPLoginCreatesSessionAndAudit(t *testing.T) {
 	hash, err := HashPassword("secret", TestArgon2Params)
 	if err != nil {
@@ -183,6 +197,53 @@ func TestHTTPLoginRequestsAuthenticatorCodeWithServerClock(t *testing.T) {
 	}
 	if response.Error != "mfa_code_required" || response.Period != 30 || response.ServerTime == 0 {
 		t.Fatalf("unexpected MFA challenge response: %+v", response)
+	}
+}
+
+func TestHTTPLoginMFAAttemptsAreThrottledBeforeVerificationAndSessionCreation(t *testing.T) {
+	hash, err := HashPassword("secret", TestArgon2Params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	user := &User{ID: "mfa-throttle-user", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}
+	sessions := &httpSessionRepo{}
+	audit := &httpAudit{}
+	store := &throttledLoginMFAStore{}
+	service := NewAuthService(httpUserRepo{user: user}, sessions, nil, TestArgon2Params)
+	handler := HTTPHandler{
+		Service: service, Audit: audit,
+		MFA: &MFAService{Store: store}, MFADB: httpExecutor{},
+		Transactions: database.NewTransactor(db),
+		MFALimiter:   security.NewAttemptLimiter(4, 2, time.Minute),
+	}.login
+
+	for i, wantStatus := range []int{http.StatusUnauthorized, http.StatusUnauthorized, http.StatusTooManyRequests} {
+		form := url.Values{"email": {user.Email}, "password": {"secret"}, "mfa_code": {"000000"}}
+		req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		res := httptest.NewRecorder()
+		handler(res, req)
+		if res.Code != wantStatus {
+			t.Fatalf("MFA attempt %d status=%d want=%d body=%s", i+1, res.Code, wantStatus, res.Body.String())
+		}
+		if i == 2 && res.Header().Get("Retry-After") == "" {
+			t.Fatal("throttled MFA response must include Retry-After")
+		}
+	}
+	if store.reads != 5 {
+		t.Fatalf("throttled attempt reached MFA verification: factor reads=%d want=5", store.reads)
+	}
+	if sessions.session != nil {
+		t.Fatal("invalid or throttled MFA attempt created a session")
+	}
+	if len(audit.actions) != 2 || audit.actions[0] != "auth.mfa_failed" || audit.actions[1] != "auth.mfa_failed" {
+		t.Fatalf("failed MFA attempts were not audited exactly once: %v", audit.actions)
 	}
 }
 
