@@ -68,8 +68,13 @@ test.describe("independent Edition generated Admin", () => {
 
     const viewer = await browser.newContext({ extraHTTPHeaders: { "X-Test-Role": "viewer", "X-Test-Tenant": "tenant-a" } });
     const viewerPage = await viewer.newPage();
-    const viewerDenied = await viewerPage.goto(`${baseURL}/admin/resources/article`);
-    expect(viewerDenied?.status(), "a read-denied collection is hidden without revealing its existence").toBe(404);
+    const viewerList = await viewerPage.goto(`${baseURL}/admin/resources/article`);
+    expect(viewerList?.status(), "Viewer can read the tenant's collection").toBe(200);
+    await expect(viewerPage.getByRole("link", { name: "External Edition tenant A record" })).toBeVisible();
+    expect((await viewerPage.goto(`${baseURL}/admin/resources/article/new`))?.status(), "Viewer cannot open the create route").toBe(403);
+    await viewerPage.goto(`${baseURL}${recordPath}`);
+    await expect(viewerPage.locator(`form[action="${recordPath}"]`)).toHaveCount(0);
+    await expect(viewerPage.getByText("External Edition tenant A record", { exact: true })).toBeVisible();
     const csrfDenied = await admin.request.post(`${baseURL}/admin/resources/article/new`, { form: { id: "csrf-denied", title: "Must not persist" } });
     expect(csrfDenied.status()).toBe(403);
     expect((await admin.request.get(`${baseURL}/api/v1/article/csrf-denied`)).status()).toBe(404);
