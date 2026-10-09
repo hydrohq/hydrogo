@@ -77,3 +77,12 @@ Chromium journey adds the same error state to axe validation before continuing
 through editor CRUD. Generator, external Edition, and Project Edition tests and
 vets passed; the browser scenario remains unrun due to the listener restriction
 above.
+
+## Edition revalidation — 2026-10-09
+
+After adding the generated `ResourceAccess` wiring guidance, both the
+independent Edition module and the native Project Edition were rerun with
+`go test ./... -count=1 -p 1` and `go vet ./...`; all packages passed. The
+generator's focused checklist emission test also passed. This verifies source
+and generated output compatibility; it does not execute the browser journey or
+exercise PostgreSQL.
