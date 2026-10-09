@@ -383,9 +383,9 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 				if !ok || method == http.MethodGet || (!adminMutation && !mediaAPIMutation) {
 					continue
 				}
-				routePath, next := path, routes[i].Handler
+				routePattern, next := routes[i].Pattern, routes[i].Handler
 				routes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					dispatches[routePath]++
+					dispatches[routePattern]++
 					next.ServeHTTP(w, r)
 				})
 			}
@@ -413,7 +413,7 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 				if response.Code != http.StatusForbidden {
 					t.Errorf("admin mutation route %q without CSRF returned %d, want 403", route.Pattern, response.Code)
 				}
-				if dispatches[path] != 0 {
+				if dispatches[route.Pattern] != 0 {
 					t.Errorf("admin mutation route %q reached its handler without CSRF", route.Pattern)
 				}
 				request = httptest.NewRequest(method, path, strings.NewReader("_csrf=forged-token"))
@@ -425,8 +425,18 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 				if response.Code != http.StatusForbidden {
 					t.Errorf("admin mutation route %q with forged CSRF returned %d, want 403", route.Pattern, response.Code)
 				}
-				if dispatches[path] != 0 {
+				if dispatches[route.Pattern] != 0 {
 					t.Errorf("admin mutation route %q reached its handler with forged CSRF", route.Pattern)
+				}
+				dispatched := dispatches[route.Pattern]
+				request = httptest.NewRequest(method, path, strings.NewReader("_csrf=valid-token"))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				request.Header.Set(security.CSRFHeaderName, "valid-token")
+				response = httptest.NewRecorder()
+				csrfProtected.ServeHTTP(response, request)
+				if dispatches[route.Pattern] != dispatched+1 {
+					t.Errorf("admin mutation route %q with valid CSRF dispatched %d times, want %d", route.Pattern, dispatches[route.Pattern], dispatched+1)
 				}
 			}
 			if count == 0 {
