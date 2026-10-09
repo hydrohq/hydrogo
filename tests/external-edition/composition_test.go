@@ -60,12 +60,35 @@ func TestExternalEditionCanComposeGeneratedAdmin(t *testing.T) {
 	}
 }
 
+type externalRoleContextKey struct{}
+
+func externalRole(ctx context.Context) string {
+	role, _ := ctx.Value(externalRoleContextKey{}).(string)
+	return role
+}
+
 type externalResourcePolicy struct{}
 
-func (externalResourcePolicy) CanRead(context.Context, string) bool   { return true }
-func (externalResourcePolicy) CanCreate(context.Context) bool         { return true }
-func (externalResourcePolicy) CanUpdate(context.Context, string) bool { return true }
-func (externalResourcePolicy) CanDelete(context.Context, string) bool { return true }
+func (externalResourcePolicy) CanRead(ctx context.Context, _ string) bool {
+	role := externalRole(ctx)
+	return role == "admin" || role == "editor" || role == "viewer"
+}
+func externalCanWrite(ctx context.Context) bool {
+	role := externalRole(ctx)
+	return role == "admin" || role == "editor"
+}
+func (externalResourcePolicy) CanCreate(ctx context.Context) bool { return externalCanWrite(ctx) }
+func (externalResourcePolicy) CanUpdate(ctx context.Context, _ string) bool {
+	return externalCanWrite(ctx)
+}
+func (externalResourcePolicy) CanDelete(ctx context.Context, _ string) bool {
+	return externalCanWrite(ctx)
+}
+
+func serveWithExternalRole(mux *http.ServeMux, w http.ResponseWriter, r *http.Request) {
+	ctx := context.WithValue(r.Context(), externalRoleContextKey{}, r.Header.Get("X-Test-Role"))
+	mux.ServeHTTP(w, r.WithContext(ctx))
+}
 
 func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
@@ -120,12 +143,17 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	}); err != nil {
 		t.Fatalf("register generated Admin: %v", err)
 	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), externalRoleContextKey{}, r.Header.Get("X-Test-Role"))
+		mux.ServeHTTP(w, r.WithContext(ctx))
+	})
 
 	create := httptest.NewRequest(http.MethodPost, "/api/v1/article", strings.NewReader(`{"id":"article-1","title":"External tenant record"}`))
 	create.Header.Set("Content-Type", "application/json")
 	create.Header.Set("X-Test-Tenant", "tenant-a")
+	create.Header.Set("X-Test-Role", "admin")
 	created := httptest.NewRecorder()
-	mux.ServeHTTP(created, create)
+	handler.ServeHTTP(created, create)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("generated tenant create status=%d body=%s", created.Code, created.Body.String())
 	}
@@ -134,8 +162,9 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		t.Helper()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/article/"+id, nil)
 		req.Header.Set("X-Test-Tenant", tenant)
+		req.Header.Set("X-Test-Role", "admin")
 		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, req)
+		handler.ServeHTTP(response, req)
 		return response
 	}
 	readFor := func(tenant string) *httptest.ResponseRecorder { return readResourceFor(tenant, "article-1") }
@@ -153,8 +182,9 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		request := httptest.NewRequest(http.MethodPost, "/api/v1/article", strings.NewReader(`{"id":"`+record.id+`","title":"`+record.title+`"}`))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("X-Test-Tenant", record.tenant)
+		request.Header.Set("X-Test-Role", "admin")
 		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, request)
+		handler.ServeHTTP(response, request)
 		if response.Code != http.StatusCreated {
 			t.Fatalf("create %s API record status=%d body=%s", record.tenant, response.Code, response.Body.String())
 		}
@@ -163,8 +193,9 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		t.Helper()
 		request := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
 		request.Header.Set("X-Test-Tenant", tenant)
+		request.Header.Set("X-Test-Role", "admin")
 		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, request)
+		handler.ServeHTTP(response, request)
 		if response.Code != http.StatusOK {
 			t.Fatalf("%s Admin list status=%d body=%s", tenant, response.Code, response.Body.String())
 		}
@@ -179,7 +210,7 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	viewerList := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
 	viewerList.Header.Set("X-Test-Role", "viewer")
 	viewerListResponse := httptest.NewRecorder()
-	mux.ServeHTTP(viewerListResponse, viewerList)
+	serveWithExternalRole(mux, viewerListResponse, viewerList)
 	if viewerListResponse.Code != http.StatusForbidden {
 		t.Fatalf("generated Admin allowed a viewer role: status=%d body=%s", viewerListResponse.Code, viewerListResponse.Body.String())
 	}
@@ -187,7 +218,7 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	editorList.Header.Set("X-Test-Role", "editor")
 	editorList.Header.Set("X-Test-Tenant", "tenant-a")
 	editorListResponse := httptest.NewRecorder()
-	mux.ServeHTTP(editorListResponse, editorList)
+	serveWithExternalRole(mux, editorListResponse, editorList)
 	if editorListResponse.Code != http.StatusOK || !strings.Contains(editorListResponse.Body.String(), `data-studio-role="editor"`) {
 		t.Fatalf("generated Admin did not render the authenticated editor role: status=%d body=%s", editorListResponse.Code, editorListResponse.Body.String())
 	}
@@ -196,21 +227,34 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	viewerMutation.Header.Set("X-Test-Role", "viewer")
 	viewerMutation.Header.Set("X-Test-Tenant", "tenant-a")
 	viewerMutationResponse := httptest.NewRecorder()
-	mux.ServeHTTP(viewerMutationResponse, viewerMutation)
+	serveWithExternalRole(mux, viewerMutationResponse, viewerMutation)
 	if viewerMutationResponse.Code != http.StatusForbidden {
 		t.Fatalf("generated Admin allowed a viewer mutation: status=%d body=%s", viewerMutationResponse.Code, viewerMutationResponse.Body.String())
 	}
 	if response := readResourceFor("tenant-a", "viewer-created"); response.Code != http.StatusNotFound {
 		t.Fatalf("viewer mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
 	}
+	viewerAPIWrite := httptest.NewRequest(http.MethodPost, "/api/v1/article", strings.NewReader(`{"id":"viewer-api-created","title":"Must be denied"}`))
+	viewerAPIWrite.Header.Set("Content-Type", "application/json")
+	viewerAPIWrite.Header.Set("X-Test-Tenant", "tenant-a")
+	viewerAPIWrite.Header.Set("X-Test-Role", "viewer")
+	viewerAPIWriteResponse := httptest.NewRecorder()
+	serveWithExternalRole(mux, viewerAPIWriteResponse, viewerAPIWrite)
+	if viewerAPIWriteResponse.Code != http.StatusForbidden {
+		t.Fatalf("generated API allowed viewer write: status=%d body=%s", viewerAPIWriteResponse.Code, viewerAPIWriteResponse.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "viewer-api-created"); response.Code != http.StatusNotFound {
+		t.Fatalf("viewer API mutation was persisted: status=%d body=%s", response.Code, response.Body.String())
+	}
 
 	adminMutation := func(path string, values url.Values) *httptest.ResponseRecorder {
 		t.Helper()
 		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(values.Encode()))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("X-Test-Role", "admin")
 		request.Header.Set("X-Test-Tenant", "tenant-a")
 		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, request)
+		handler.ServeHTTP(response, request)
 		return response
 	}
 	editorMutation := func(path string, values url.Values) *httptest.ResponseRecorder {
@@ -220,13 +264,14 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 		request.Header.Set("X-Test-Role", "editor")
 		request.Header.Set("X-Test-Tenant", "tenant-a")
 		response := httptest.NewRecorder()
-		mux.ServeHTTP(response, request)
+		handler.ServeHTTP(response, request)
 		return response
 	}
 	newForm := httptest.NewRequest(http.MethodGet, "/admin/resources/article/new", nil)
 	newForm.Header.Set("X-Test-Tenant", "tenant-a")
+	newForm.Header.Set("X-Test-Role", "admin")
 	newFormResponse := httptest.NewRecorder()
-	mux.ServeHTTP(newFormResponse, newForm)
+	handler.ServeHTTP(newFormResponse, newForm)
 	if newFormResponse.Code != http.StatusOK || !strings.Contains(newFormResponse.Body.String(), `name="_csrf" value="edition-token"`) {
 		t.Fatalf("generated Admin create form did not render a CSRF token: status=%d body=%s", newFormResponse.Code, newFormResponse.Body.String())
 	}
@@ -276,8 +321,9 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 
 	adminRequest := httptest.NewRequest(http.MethodGet, "/admin/resources/article", nil)
 	adminRequest.Header.Set("X-Test-Tenant", "tenant-a")
+	adminRequest.Header.Set("X-Test-Role", "admin")
 	adminResponse := httptest.NewRecorder()
-	mux.ServeHTTP(adminResponse, adminRequest)
+	handler.ServeHTTP(adminResponse, adminRequest)
 	var document map[string]any
 	if err := json.Unmarshal(created.Body.Bytes(), &document); err != nil || document["title"] != "External tenant record" {
 		t.Fatalf("generated API response did not contain the created document: %s (%v)", created.Body.String(), err)

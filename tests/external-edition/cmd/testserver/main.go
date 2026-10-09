@@ -25,10 +25,28 @@ import (
 
 type resourcePolicy struct{}
 
-func (resourcePolicy) CanRead(context.Context, string) bool   { return true }
-func (resourcePolicy) CanCreate(context.Context) bool         { return true }
-func (resourcePolicy) CanUpdate(context.Context, string) bool { return true }
-func (resourcePolicy) CanDelete(context.Context, string) bool { return true }
+type roleContextKey struct{}
+
+func roleFromContext(ctx context.Context) string {
+	role, _ := ctx.Value(roleContextKey{}).(string)
+	return role
+}
+
+func (resourcePolicy) CanRead(ctx context.Context, _ string) bool {
+	role := roleFromContext(ctx)
+	return role == "admin" || role == "editor" || role == "viewer"
+}
+func canWrite(ctx context.Context) bool {
+	role := roleFromContext(ctx)
+	return role == "admin" || role == "editor"
+}
+func (resourcePolicy) CanCreate(ctx context.Context) bool { return canWrite(ctx) }
+func (resourcePolicy) CanUpdate(ctx context.Context, _ string) bool {
+	return canWrite(ctx)
+}
+func (resourcePolicy) CanDelete(ctx context.Context, _ string) bool {
+	return canWrite(ctx)
+}
 
 func main() {
 	address := flag.String("address", "127.0.0.1:8099", "loopback listen address")
@@ -92,7 +110,11 @@ func main() {
 	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
-	server := &http.Server{Addr: *address, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	withTestRole := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), roleContextKey{}, r.Header.Get("X-Test-Role"))
+		mux.ServeHTTP(w, r.WithContext(ctx))
+	})
+	server := &http.Server{Addr: *address, Handler: withTestRole, ReadHeaderTimeout: 5 * time.Second}
 	listener, err := net.Listen("tcp", *address)
 	if err != nil {
 		log.Fatal(err)

@@ -51,7 +51,7 @@ test.describe("independent Edition generated Admin editor journey", () => {
       const recordPath = await recordLink.getAttribute("href");
       expect(recordPath).toMatch(/^\/admin\/resources\/article\//);
       const apiPath = recordPath!.replace("/admin/resources", "/api/v1");
-      const headers = { "X-Test-Tenant": tenant };
+      const headers = { "X-Test-Tenant": tenant, "X-Test-Role": "editor" };
       const created = await request.get(`${externalOrigin}${apiPath}`, { headers });
       expect(created.status()).toBe(200);
       expect((await created.json()).title).toBe(title);
@@ -74,7 +74,12 @@ test.describe("independent Edition generated Admin editor journey", () => {
         form: { _csrf: "external-edition-test-token", id: viewerID, title: "Must be denied" },
       });
       expect(viewerCreate.status()).toBe(403);
-      expect((await request.get(`${externalOrigin}/api/v1/article/${viewerID}`, { headers: { "X-Test-Tenant": tenant } })).status()).toBe(404);
+      const viewerAPIWrite = await request.post(`${externalOrigin}/api/v1/article`, {
+        headers: viewerHeaders,
+        data: { id: viewerID, title: "Must be denied" },
+      });
+      expect(viewerAPIWrite.status()).toBe(403);
+      expect((await request.get(`${externalOrigin}/api/v1/article/${viewerID}`, { headers: { "X-Test-Tenant": tenant, "X-Test-Role": "admin" } })).status()).toBe(404);
 
       page.once("dialog", (dialog) => dialog.accept());
       await page.locator(`form[action="${recordPath}/delete"] button[type="submit"]`).click();
