@@ -299,3 +299,12 @@ Admin default/deny, and inactive grant behavior against content permissions.
 The News transport package tests and vet passed. This is route authorization
 evidence only: configured storage, successful writes, and persisted state remain
 covered by separate Edition/browser/contract tests.
+
+### Pages content permission × CSRF routes — 2026-10-09
+
+The Pages content-write route test now also composes the real CSRF middleware.
+All four mutation routes reject a wrong token with 403; the read/create/update/
+publish route cases then check valid-token Editor, Viewer grant, Admin default/
+deny, and inactive grant behavior. The full Pages transport package and vet
+passed. This verifies authorization routing, not successful DB mutation or
+persisted state. News and Pages follow the same test boundary.
