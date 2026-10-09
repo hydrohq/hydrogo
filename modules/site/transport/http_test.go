@@ -1957,18 +1957,32 @@ func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	for _, pattern := range mutations {
 		method, path, _ := strings.Cut(pattern, " ")
 		path = strings.NewReplacer("{id}", "test-id", "{locale}", "tr", "{form}", "contact", "{status}", "404").Replace(path)
-		t.Run(pattern+"/invalid-csrf", func(t *testing.T) {
-			request := httptest.NewRequest(method, path, strings.NewReader("_csrf=wrong-token"))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-			request.Header.Set(security.CSRFHeaderName, "wrong-token")
-			request = request.WithContext(auth.WithUser(request.Context(), &auth.User{Role: auth.RoleAdmin, Active: true}))
-			response := httptest.NewRecorder()
-			secured.ServeHTTP(response, request)
-			if response.Code != http.StatusForbidden {
-				t.Fatalf("invalid CSRF status=%d, want 403; body=%s", response.Code, response.Body.String())
-			}
-		})
+		for _, csrfCase := range []struct {
+			name  string
+			token string
+		}{
+			{name: "missing-csrf"},
+			{name: "invalid-csrf", token: "wrong-token"},
+		} {
+			t.Run(pattern+"/"+csrfCase.name, func(t *testing.T) {
+				body := ""
+				if csrfCase.token != "" {
+					body = "_csrf=" + csrfCase.token
+				}
+				request := httptest.NewRequest(method, path, strings.NewReader(body))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				if csrfCase.token != "" {
+					request.Header.Set(security.CSRFHeaderName, csrfCase.token)
+				}
+				request = request.WithContext(auth.WithUser(request.Context(), &auth.User{Role: auth.RoleAdmin, Active: true}))
+				response := httptest.NewRecorder()
+				secured.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("%s status=%d, want 403; body=%s", csrfCase.name, response.Code, response.Body.String())
+				}
+			})
+		}
 		for _, tc := range deniedUsers {
 			t.Run(pattern+"/"+tc.name, func(t *testing.T) {
 				request := httptest.NewRequest(method, path, strings.NewReader("_csrf=valid-token"))
@@ -2046,10 +2060,16 @@ func TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage(t *testing.T) {
 	secured := security.CSRFMiddleware(false, nil)(mux)
 	serve := func(user *auth.User, token string) *httptest.ResponseRecorder {
 		t.Helper()
-		request := httptest.NewRequest(http.MethodPost, "/admin/site/inbox/contact/ai-summarize", strings.NewReader("submission_id=item&consent=yes&_csrf="+token))
+		body := "submission_id=item&consent=yes"
+		if token != "" {
+			body += "&_csrf=" + token
+		}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/inbox/contact/ai-summarize", strings.NewReader(body))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request.Header.Set(security.CSRFHeaderName, token)
+		if token != "" {
+			request.Header.Set(security.CSRFHeaderName, token)
+		}
 		request = request.WithContext(auth.WithUser(request.Context(), user))
 		response := httptest.NewRecorder()
 		secured.ServeHTTP(response, request)
@@ -2057,6 +2077,9 @@ func TestOptionalSiteAssistantMutationEnforcesCSRFAndSiteManage(t *testing.T) {
 	}
 
 	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := serve(admin, ""); response.Code != http.StatusForbidden {
+		t.Fatalf("assistant missing CSRF status=%d, want 403", response.Code)
+	}
 	if response := serve(admin, "wrong-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("assistant invalid CSRF status=%d, want 403", response.Code)
 	}
@@ -2189,10 +2212,16 @@ func TestSiteMailRetryRequiresPermissionAndPersistsOnlyAuthorizedAction(t *testi
 	secured := security.CSRFMiddleware(false, nil)(mux)
 	serve := func(user *auth.User, token string) *httptest.ResponseRecorder {
 		t.Helper()
-		request := httptest.NewRequest(http.MethodPost, "/admin/site/mail/message-1/retry", strings.NewReader("_csrf="+token))
+		body := ""
+		if token != "" {
+			body = "_csrf=" + token
+		}
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/mail/message-1/retry", strings.NewReader(body))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request.Header.Set(security.CSRFHeaderName, token)
+		if token != "" {
+			request.Header.Set(security.CSRFHeaderName, token)
+		}
 		request = request.WithContext(auth.WithUser(request.Context(), user))
 		response := httptest.NewRecorder()
 		secured.ServeHTTP(response, request)
@@ -2203,6 +2232,7 @@ func TestSiteMailRetryRequiresPermissionAndPersistsOnlyAuthorizedAction(t *testi
 		user  *auth.User
 		token string
 	}{
+		{name: "missing csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}},
 		{name: "invalid csrf", user: &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, token: "wrong-token"},
 		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, token: "valid-token"},
 		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, token: "valid-token"},
