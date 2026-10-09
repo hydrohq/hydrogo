@@ -625,3 +625,27 @@ unrendered/API-only actions, every module-owned POST endpoint, Admin explicit
 deny overrides for every permission, or all possible CSRF variants. Those
 broader cells remain open; module contract tests continue to cover their own
 registered routes.
+
+## Member Admin mutation permission × CSRF matrix — 2026-10-09
+
+All six registered member-management POST routes now share an explicit
+handler-level matrix: legacy active update, active update, email verification,
+verification resend, single-session revoke, and revoke-all. For each route,
+Editor, Viewer, inactive Admin, and active Admin with
+`admin.members.manage=false` are denied with valid CSRF. An active Admin with
+no override is separately denied before each handler by both missing and
+mismatched CSRF. A tracked member repository confirms no active/email state
+writes occur; two member sessions remain valid after all denials.
+
+```sh
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./modules/members/transport -run 'TestAdminMember(MutationRoutesRequirePermissionAndCSRF|ListUsesMemberManageOverrides)' -count=1
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./modules/members/transport -count=1
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go vet ./modules/members/transport
+```
+
+Focused and full package tests and vet passed. The tests use the handler's
+in-memory member/session contracts; no database adapter behavior changed or is
+claimed by this matrix.
