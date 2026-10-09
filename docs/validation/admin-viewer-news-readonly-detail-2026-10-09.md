@@ -12,6 +12,11 @@ Chromium scenario passed **1/1 on SQLite** and **1/1 on PostgreSQL 18.6**. The
 PostgreSQL run used the local `arda` role (`NOSUPERUSER NOBYPASSRLS`) and a
 disposable database that was dropped after the test.
 
+The same Viewer detail was scanned with axe-core for WCAG 2.1 A/AA in an
+isolated short-lived Viewer browser context. The scan reported **zero
+violations** on both database runs. Keeping the scanner isolated prevents it
+from loading on every navigation in the longer role-management journey.
+
 This proves one default Viewer draft-detail read and update-denial browser
 path. News publication/scheduling/retraction, role overrides across the full
 News route set, deployed Edition identity, and the complete Admin route × role
