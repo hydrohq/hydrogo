@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { ChildProcess } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -16,14 +16,26 @@ test.describe("dynamic Admin collections", () => {
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-dynamic-collections-"));
     const editionRoot = path.join(tempDir, "edition");
+    const databaseDialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
+    const databaseDSN = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(editionRoot, "data", "edition.sqlite");
+    if (databaseDialect === "postgres" && !process.env.HYDRO_E2E_DATABASE_DSN) {
+      throw new Error("HYDRO_E2E_DATABASE_DSN is required for a PostgreSQL Dynamic Collections run");
+    }
     const hydroBinary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
     runCommand("go", ["build", "-o", hydroBinary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
-    runCommand(hydroBinary, ["project", "new", "edition", "--root", tempDir, "--preset", "compact-site", "--no-demo", "--with-collections"], { cwd: repoRoot, stdio: "pipe" });
+    runCommand(hydroBinary, ["project", "new", "edition", "--root", tempDir, "--preset", "compact-site", "--database", databaseDialect, "--no-demo", "--with-collections"], { cwd: repoRoot, stdio: "pipe" });
+    if (databaseDialect === "postgres") {
+      const configPath = path.join(editionRoot, "config.yaml");
+      const config = await readFile(configPath, "utf8");
+      const updatedConfig = config.replace(/^  dsn: .*$/m, `  dsn: ${JSON.stringify(databaseDSN)}`);
+      if (updatedConfig === config) throw new Error("generated Edition config is missing its database DSN");
+      await writeFile(configPath, updatedConfig);
+    }
     runCommand(hydroBinary, ["resource", "create", "--name", "sync_articles", "--field", "title:text", "--out", "."], { cwd: editionRoot, stdio: "pipe" });
     runCommand(hydroBinary, ["migrate", "--config", "config.yaml"], { cwd: editionRoot, stdio: "pipe" });
     runCommand(hydroBinary, ["collections", "sync", "--config", "config.yaml", "--generated", "generated", "--confirm-admin-crud"], { cwd: editionRoot, stdio: "pipe" });
     runCommand(hydroBinary, ["create-admin", "--config", "config.yaml", "--email", "admin@example.test", "--password-stdin"], { cwd: editionRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
-    runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", path.join(editionRoot, "data", "edition.sqlite")], { cwd: repoRoot, stdio: "pipe" });
+    runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dialect", databaseDialect, "--database-dsn", databaseDSN], { cwd: repoRoot, stdio: "pipe" });
     const port = await unusedPort();
     baseURL = `http://127.0.0.1:${port}`;
     server = spawnServer(hydroBinary, ["serve", "--dev", "--config", "config.yaml", "--address", `127.0.0.1:${port}`], {
@@ -227,13 +239,6 @@ test.describe("dynamic Admin collections", () => {
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: test.info().outputPath("dynamic-collection-admin-mobile.png") });
 
-    await page.goto(`${baseURL}/admin/collections`);
-    const deleteSchema = page.locator('form[action="/admin/collections/e2e_catalog/delete"]');
-    await deleteSchema.getByLabel("Delete this schema and its records").check();
-    await deleteSchema.getByRole("button", { name: "Delete schema" }).click();
-    await expect(page).toHaveURL(`${baseURL}/admin/collections`);
-    await expect(page.getByText("No collections have been created.")).toBeVisible();
-
     for (const role of ["editor", "viewer"]) {
       const restricted = await browser.newContext();
       const restrictedPage = await restricted.newPage();
@@ -242,7 +247,15 @@ test.describe("dynamic Admin collections", () => {
       await restrictedPage.getByLabel("Password").fill(adminPassword);
       await restrictedPage.getByRole("button", { name: "Sign in" }).click();
       await expect(restrictedPage).toHaveURL(/\/admin(?:\?.*)?$/);
+      expect((await restrictedPage.goto(`${baseURL}/admin/pages`))?.status(), `${role} can open the permitted content shell`).toBe(200);
+      await expect(restrictedPage.locator('.studio-sidebar a[href="/admin/collections"]'), `${role} must not see the admin-only Collections navigation`).toHaveCount(0);
+      await restrictedPage.locator(".studio-search").click();
+      await expect(restrictedPage.locator(".studio-search-dialog .search-result-item").filter({ hasText: "Koleksiyonlar" }), `${role} must not find the admin-only Collections command`).toHaveCount(0);
       expect((await restrictedPage.request.get(`${baseURL}/admin/collections`)).status()).toBe(403);
+      expect((await restrictedPage.request.get(`${baseURL}/admin/collections/e2e_catalog`)).status()).toBe(403);
+      expect((await restrictedPage.request.get(`${baseURL}/api/v1/collections`)).status()).toBe(403);
+      expect((await restrictedPage.request.get(`${baseURL}/api/v1/collections/e2e_catalog/records`)).status()).toBe(403);
+      expect((await restrictedPage.request.get(`${baseURL}/admin/collections/schema-builder.js`)).status()).toBe(403);
       const csrfResponse = await restrictedPage.request.get(`${baseURL}/csrf-token`);
       expect(csrfResponse.status()).toBe(200);
       const { token } = await csrfResponse.json();
@@ -250,8 +263,37 @@ test.describe("dynamic Admin collections", () => {
         form: { _csrf: token, id: `denied_${role}`, label: "Must not be created" },
       });
       expect(deniedSchemaCreate.status(), `${role} with a valid CSRF token cannot create Collections schemas`).toBe(403);
+      const deniedRecordCreate = await restrictedPage.request.post(`${baseURL}/api/v1/collections/e2e_catalog/records`, {
+        headers: { "X-CSRF-Token": token },
+        data: { sku: `DENIED-${role}`, title: `Denied ${role} record` },
+      });
+      expect(deniedRecordCreate.status(), `${role} with a valid CSRF token cannot create dynamic collection records`).toBe(403);
+      const deniedSchemaDelete = await restrictedPage.request.post(`${baseURL}/admin/collections/e2e_catalog/delete`, {
+        form: { _csrf: token, confirm_schema: "e2e_catalog" },
+      });
+      expect(deniedSchemaDelete.status(), `${role} with a valid CSRF token cannot delete dynamic collection schemas`).toBe(403);
+      const deniedAPISchemaDelete = await restrictedPage.request.delete(`${baseURL}/api/v1/collections/e2e_catalog`, {
+        headers: { "X-CSRF-Token": token },
+      });
+      expect(deniedAPISchemaDelete.status(), `${role} with a valid CSRF token cannot delete dynamic collection schemas through the API`).toBe(403);
       await restricted.close();
     }
+
+    const retainedSchema = await page.request.get(`${baseURL}/api/v1/collections/e2e_catalog`);
+    expect(retainedSchema.status(), "denied Editor and Viewer schema mutations must preserve the live collection").toBe(200);
+    const retainedRecords = await page.request.get(`${baseURL}/api/v1/collections/e2e_catalog/records?limit=100`);
+    expect(retainedRecords.status()).toBe(200);
+    const retainedRecordData = await retainedRecords.json();
+    expect(retainedRecordData.records).toHaveLength(51);
+    expect(JSON.stringify(retainedRecordData.records)).not.toContain("DENIED-editor");
+    expect(JSON.stringify(retainedRecordData.records)).not.toContain("DENIED-viewer");
+
+    await page.goto(`${baseURL}/admin/collections`);
+    const deleteSchema = page.locator('form[action="/admin/collections/e2e_catalog/delete"]');
+    await deleteSchema.getByLabel("Delete this schema and its records").check();
+    await deleteSchema.getByRole("button", { name: "Delete schema" }).click();
+    await expect(page).toHaveURL(`${baseURL}/admin/collections`);
+    await expect(page.getByText("No collections have been created.")).toBeVisible();
   });
 });
 

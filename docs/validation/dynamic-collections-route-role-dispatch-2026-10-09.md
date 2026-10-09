@@ -22,7 +22,30 @@ registered route through the actual protected router.
   `go test ./internal/collections/... -count=1 -p 1 -timeout=5m`.
 - `go vet ./internal/collections/transport` and `git diff --check` passed.
 
+## Live browser role boundary
+
+The clean `--with-collections` Edition Chromium journey now keeps a real
+generated collection present while authenticating Editor and Viewer sessions.
+Both roles can use the permitted Pages shell but do not see the Collections
+sidebar or search command. Direct schema/record routes, schema-builder asset,
+and Collections API reads return `403`. With valid CSRF, both roles are also
+denied schema creation, record creation, and schema deletion through the HTML
+and API routes. An Admin reads the schema and 51 existing records afterward,
+confirming no role-denied record was stored and the schema was not deleted.
+Afterward, Admin deletes the schema as normal cleanup.
+
+`npx playwright test custom/dynamic-collections.spec.ts --project=chromium
+--workers=1 --reporter=line --trace=off` passed **1/1** on SQLite and passed
+**1/1** on PostgreSQL 18.6 with a `NOSUPERUSER NOBYPASSRLS` application role.
+The PostgreSQL database and DSN were supplied through
+`HYDRO_E2E_DATABASE_DIALECT=postgres` and `HYDRO_E2E_DATABASE_DSN`; the E2E
+fixture creates the PostgreSQL Edition config before migration and serving.
+Both runs use the local `--with-collections` fixture with seeded
+Admin/Editor/Viewer identities.
+
 ## Limits
 
-These are in-process route tests. They do not prove rendered menu behavior,
-browser CRUD, PostgreSQL deployment, or customer Edition configuration.
+These browser runs certify the exercised role boundary on local SQLite and
+PostgreSQL Edition fixtures. They do not certify customer Edition
+deployment/configuration, nor do they complete the full role × route ×
+mutation × CSRF matrix.
