@@ -1106,6 +1106,16 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 				}
 				return fields.Render(ctx, out)
 			})
+		} else if status == http.StatusBadGateway {
+			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+				if err := ui.ValidationSummary(ui.ValidationSummaryProps{
+					Title:   i18n.T(generatedAdminLocale(r), "admin.generated.error.title"),
+					Message: i18n.T(generatedAdminLocale(r), "admin.generated.error.operation"),
+				}).Render(ctx, out); err != nil {
+					return err
+				}
+				return fields.Render(ctx, out)
+			})
 		}
 		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: formBody}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
@@ -2166,7 +2176,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 			current, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), nil)
 			var record map[string]any
 			if err != nil || status != http.StatusOK || json.Unmarshal(current, &record) != nil {
-				h.apiError(w, r)
+				h.renderMutationFailure(w, r, collection, id, creating, deleting)
 				return
 			}
 			data[collection.Workflow.StateField] = record[collection.Workflow.StateField]
@@ -2184,7 +2194,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 	}
 	responseBody, status, err := h.callAPI(r, method, path, body)
 	if err != nil {
-		h.apiError(w, r)
+		h.renderMutationFailure(w, r, collection, id, creating, deleting)
 		return
 	}
 	switch status {
@@ -2218,7 +2228,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		return
 	}
 	if status < 200 || status >= 300 {
-		h.apiError(w, r)
+		h.renderMutationFailure(w, r, collection, id, creating, deleting)
 		return
 	}
 	redirect := "/admin/resources/" + url.PathEscape(collection.ID)
@@ -2226,6 +2236,14 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		redirect = localePath(redirect, localeState(r).Current)
 	}
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
+func (h GeneratedAdminHandler) renderMutationFailure(w http.ResponseWriter, r *http.Request, collection Collection, id string, creating, deleting bool) {
+	if deleting {
+		h.apiError(w, r)
+		return
+	}
+	h.renderFormState(w, r, collection, id, map[string]any{}, !creating, submittedGeneratedValues(r, collection), nil, http.StatusBadGateway)
 }
 
 func submittedGeneratedValues(r *http.Request, collection Collection) map[string]string {
