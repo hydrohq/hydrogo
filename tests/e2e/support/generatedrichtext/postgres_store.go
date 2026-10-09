@@ -292,8 +292,8 @@ func (s *postgresEditorialStore) PublishedList() ([]map[string]any, error) {
 	return result, rows.Err()
 }
 
-func (s *postgresEditorialStore) Drafts(locale string, limit int) ([]adminstudio.DraftDocument, error) {
-	rows, err := s.db.Query(`SELECT resource_id,version,published_version,state,snapshot,updated_at FROM stories_drafts WHERE locale=$1 ORDER BY updated_at DESC LIMIT $2`, locale, limit)
+func (s *postgresEditorialStore) DraftPage(locale string, offset, limit int) ([]adminstudio.DraftDocument, error) {
+	rows, err := s.db.Query(`SELECT resource_id,version,published_version,state,snapshot,updated_at FROM stories_drafts WHERE locale=$1 ORDER BY updated_at DESC,resource_id DESC LIMIT $2 OFFSET $3`, locale, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +307,19 @@ func (s *postgresEditorialStore) Drafts(locale string, limit int) ([]adminstudio
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+func (s *postgresEditorialStore) SeedDraftPageFixtures(drafts []adminstudio.DraftDocument) error {
+	for _, draft := range drafts {
+		snapshot, err := json.Marshal(draft.Fields)
+		if err != nil {
+			return err
+		}
+		if _, err := s.db.Exec(`INSERT INTO stories_drafts (resource_id,locale,version,published_version,state,snapshot,updated_at) VALUES ($1,'en',$2,$3,$4,$5,$6) ON CONFLICT (resource_id,locale) DO UPDATE SET version=EXCLUDED.version,published_version=EXCLUDED.published_version,state=EXCLUDED.state,snapshot=EXCLUDED.snapshot,updated_at=EXCLUDED.updated_at`, draft.ID, draft.Version, draft.PublishedVersion, draft.State, snapshot, "2026-10-10T00:00:00Z"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *postgresEditorialStore) Draft(id, locale string) (adminstudio.DraftDocument, error) {

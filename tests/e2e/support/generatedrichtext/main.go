@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -71,6 +72,7 @@ func main() {
 	draft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
 	translationDraft := adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
 	discardDraft := adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
+	extraDrafts := []adminstudio.DraftDocument(nil)
 	publishedStory := map[string]any{"id": "story-1", "title": "Published story", "status": "published", "version": float64(1)}
 	localizedStory := map[string]map[string]any{"tr": {"title": "Yayımlanmış Türkçe metin"}}
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -253,9 +255,30 @@ func main() {
 		draft = adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: "review", Fields: map[string]any{"title": "Review copy"}, Exists: true}
 		translationDraft = adminstudio.DraftDocument{ID: "story-1", Version: 1, PublishedVersion: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Türkçe taslak"}, Exists: true}
 		discardDraft = adminstudio.DraftDocument{ID: "story-discard", Version: 1, State: adminstudio.StateDraft, Fields: map[string]any{"title": "Discard-only draft"}, Exists: true}
+		extraDrafts = nil
 		publishedStory = map[string]any{"id": "story-1", "title": "Published story", "status": "published", "version": float64(1)}
 		localizedStory = map[string]map[string]any{"tr": {"title": "Yayımlanmış Türkçe metin"}}
 		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("POST /__test/seed-draft-pages", func(w http.ResponseWriter, _ *http.Request) {
+		fixtures := make([]adminstudio.DraftDocument, 26)
+		for i := range fixtures {
+			fixtures[i] = adminstudio.DraftDocument{
+				ID: fmt.Sprintf("zz-paged-%02d", i+1), Version: 1, State: adminstudio.StateDraft, Exists: true,
+				Fields: map[string]any{"title": fmt.Sprintf("Paged draft %02d", i+1), "status": "draft"},
+			}
+		}
+		if editorialStore != nil {
+			if err := editorialStore.SeedDraftPageFixtures(fixtures); err != nil {
+				writeError(w, http.StatusInternalServerError)
+				return
+			}
+		} else {
+			mu.Lock()
+			extraDrafts = fixtures
+			mu.Unlock()
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	vendorFS, err := fs.Sub(staticassets.FS, "vendor")
@@ -296,29 +319,43 @@ func main() {
 			}
 			return adminstudio.ResourceAccess{Create: true, Update: true, Delete: true}
 		},
-		ListDrafts: func(_ *http.Request, collection adminstudio.Collection, locale string, limit int) ([]adminstudio.DraftDocument, error) {
-			if collection.ID != "story" || limit != 50 {
-				return nil, fmt.Errorf("unexpected draft list request: %s limit=%d", collection.ID, limit)
+		ListDraftPage: func(_ *http.Request, collection adminstudio.Collection, locale string, offset, limit int) ([]adminstudio.DraftDocument, error) {
+			if collection.ID != "story" || offset < 0 || limit < 1 || limit > 100 {
+				return nil, fmt.Errorf("unexpected draft page request: %s offset=%d limit=%d", collection.ID, offset, limit)
 			}
 			if editorialStore != nil {
-				return editorialStore.Drafts(locale, limit)
+				return editorialStore.DraftPage(locale, offset, limit)
 			}
 			mu.Lock()
-			defer mu.Unlock()
+			var result []adminstudio.DraftDocument
 			if locale == "tr" {
 				if translationDraft.Exists {
-					return []adminstudio.DraftDocument{cloneDraft(translationDraft)}, nil
+					result = append(result, cloneDraft(translationDraft))
 				}
+			} else {
+				result = make([]adminstudio.DraftDocument, 0, 2+len(extraDrafts))
+				if draft.Exists {
+					result = append(result, cloneDraft(draft))
+				}
+				if discardDraft.Exists {
+					result = append(result, cloneDraft(discardDraft))
+				}
+				for _, item := range extraDrafts {
+					result = append(result, cloneDraft(item))
+				}
+			}
+			mu.Unlock()
+			sort.Slice(result, func(i, j int) bool {
+				if result[i].UpdatedAt.Equal(result[j].UpdatedAt) {
+					return result[i].ID > result[j].ID
+				}
+				return result[i].UpdatedAt.After(result[j].UpdatedAt)
+			})
+			if offset >= len(result) {
 				return nil, nil
 			}
-			result := make([]adminstudio.DraftDocument, 0, 2)
-			if draft.Exists {
-				result = append(result, cloneDraft(draft))
-			}
-			if discardDraft.Exists {
-				result = append(result, cloneDraft(discardDraft))
-			}
-			return result, nil
+			end := min(offset+limit, len(result))
+			return result[offset:end], nil
 		},
 		GetDraft: func(_ *http.Request, collection adminstudio.Collection, id, locale string) (adminstudio.DraftDocument, error) {
 			if editorialStore != nil {

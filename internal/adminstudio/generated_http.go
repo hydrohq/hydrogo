@@ -52,9 +52,13 @@ type GeneratedAdminOptions struct {
 	SaveLocalized func(*http.Request, Collection, string, string, map[string]any, int64) error
 	ListLocalized func(*http.Request, Collection, []string, string) (map[string]map[string]any, error)
 	// CopyLocale must revalidate the source and target and audit the copy.
-	CanCopyLocale      func(*http.Request, Collection, string, string) bool
-	CopyLocale         func(*http.Request, Collection, string, string, string, int64) error
-	ListDrafts         func(*http.Request, Collection, string, int) ([]DraftDocument, error)
+	CanCopyLocale func(*http.Request, Collection, string, string) bool
+	CopyLocale    func(*http.Request, Collection, string, string, string, int64) error
+	ListDrafts    func(*http.Request, Collection, string, int) ([]DraftDocument, error)
+	// ListDraftPage returns a stable, tenant-scoped draft page for the supplied
+	// offset and bounded limit. It enables pagination while ListDrafts remains
+	// the source-compatible first-page fallback.
+	ListDraftPage      func(*http.Request, Collection, string, int, int) ([]DraftDocument, error)
 	GetDraft           func(*http.Request, Collection, string, string) (DraftDocument, error)
 	CanSaveDraft       func(*http.Request, Collection, string, string) bool
 	SaveDraft          func(*http.Request, Collection, string, string, map[string]any, int64, int64) error
@@ -152,7 +156,7 @@ func (h GeneratedAdminHandler) Register(mux *http.ServeMux) error {
 		if collection.Localization && (h.Options.Locales == nil || h.Options.GetLocalized == nil || h.Options.SaveLocalized == nil || h.Options.ListLocalized == nil || h.Options.CanCopyLocale == nil || h.Options.CopyLocale == nil) {
 			return errors.New("generated Admin localization requires Edition-owned locale access and storage services")
 		}
-		if collection.Drafts && (h.Options.ListDrafts == nil || h.Options.GetDraft == nil || h.Options.CanSaveDraft == nil || h.Options.SaveDraft == nil || h.Options.CanTransitionDraft == nil || h.Options.TransitionDraft == nil || h.Options.CanDiscardDraft == nil || h.Options.DiscardDraft == nil) {
+		if collection.Drafts && (h.Options.ListDrafts == nil && h.Options.ListDraftPage == nil || h.Options.GetDraft == nil || h.Options.CanSaveDraft == nil || h.Options.SaveDraft == nil || h.Options.CanTransitionDraft == nil || h.Options.TransitionDraft == nil || h.Options.CanDiscardDraft == nil || h.Options.DiscardDraft == nil) {
 			return errors.New("generated Admin drafts require Edition-owned draft, publish, and discard services")
 		}
 	}
@@ -784,6 +788,10 @@ func parseGeneratedListQuery(values url.Values) (ListQuery, error) {
 }
 
 func generatedListPageForm(ctx context.Context, out io.Writer, id string, query ListQuery, locale, label string) error {
+	return generatedListPageFormAt(ctx, out, "/admin/resources/"+url.PathEscape(id), query, locale, label)
+}
+
+func generatedListPageFormAt(ctx context.Context, out io.Writer, action string, query ListQuery, locale, label string) error {
 	body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
 		values := url.Values{}
 		if query.Search != "" {
@@ -817,7 +825,7 @@ func generatedListPageForm(ctx context.Context, out io.Writer, id string, query 
 		}
 		return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
 	})
-	return ui.Form(ui.FormProps{Action: "/admin/resources/" + url.PathEscape(id), Method: http.MethodGet, Body: body}).Render(ctx, out)
+	return ui.Form(ui.FormProps{Action: action, Method: http.MethodGet, Body: body}).Render(ctx, out)
 }
 
 func generatedListControls(w io.Writer, collection Collection, query ListQuery, locale, uiLocale string) error {
@@ -1821,8 +1829,38 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 		http.NotFound(w, r)
 		return
 	}
-	drafts, err := h.Options.ListDrafts(r, collection, localeState(r).Current, 50)
-	if err != nil || len(drafts) > 50 {
+	query, err := parseGeneratedListQuery(r.URL.Query())
+	if err != nil || query.Search != "" || query.Sort != "" || len(query.Filters) != 0 {
+		http.Error(w, "invalid draft list query", http.StatusBadRequest)
+		return
+	}
+	page := query.Page
+	if page < 1 {
+		page = 1
+	}
+	if page > 100 || page > 1 && h.Options.ListDraftPage == nil {
+		http.Error(w, "draft list page is out of range", http.StatusBadRequest)
+		return
+	}
+	const draftPageSize = DefaultPageSize
+	var drafts []DraftDocument
+	hasNext := false
+	if h.Options.ListDraftPage != nil {
+		drafts, err = h.Options.ListDraftPage(r, collection, localeState(r).Current, (page-1)*draftPageSize, draftPageSize+1)
+		if len(drafts) > draftPageSize+1 {
+			err = errors.New("draft list callback exceeded its bounded limit")
+		}
+		hasNext = err == nil && len(drafts) > draftPageSize && page < 100
+		if len(drafts) > draftPageSize {
+			drafts = drafts[:draftPageSize]
+		}
+	} else {
+		drafts, err = h.Options.ListDrafts(r, collection, localeState(r).Current, 50)
+		if len(drafts) > 50 {
+			err = errors.New("legacy draft list callback exceeded its bound")
+		}
+	}
+	if err != nil {
 		h.apiError(w, r)
 		return
 	}
@@ -1882,6 +1920,7 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 		})
 	}
 	baseURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/drafts"
+	query.Page = page
 	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 		if err := h.generatedLocaleNav(ctx, out, r, collection, ""); err != nil {
 			return err
@@ -1894,11 +1933,25 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 		}
 		if err := RenderList(out, ListData{
 			Collection: listCollection, Rows: rows, Locale: localeState(r).Current, UILocale: locale,
-			BaseURL: baseURL, EmptyMessage: i18n.T(locale, "admin.generated.drafts.empty"),
+			EmptyMessage:      i18n.T(locale, "admin.generated.drafts.empty"),
 			ListCaption:       fmt.Sprintf(i18n.T(locale, "admin.generated.drafts.caption"), collection.Label),
 			ActionColumnLabel: i18n.T(locale, "admin.generated.drafts.actions"),
 		}); err != nil {
 			return err
+		}
+		if h.Options.ListDraftPage != nil && page > 1 {
+			previous := query
+			previous.Page = page - 1
+			if err := generatedListPageFormAt(ctx, out, baseURL, previous, localeState(r).Current, i18n.T(locale, "admin.generated.list.previous")); err != nil {
+				return err
+			}
+		}
+		if h.Options.ListDraftPage != nil && hasNext {
+			next := query
+			next.Page = page + 1
+			if err := generatedListPageFormAt(ctx, out, baseURL, next, localeState(r).Current, i18n.T(locale, "admin.generated.list.next")); err != nil {
+				return err
+			}
 		}
 		_, err := io.WriteString(out, `</div></section>`)
 		return err
