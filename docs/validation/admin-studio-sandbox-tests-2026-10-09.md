@@ -48,9 +48,18 @@ yanlışlıkla miras almasını engelliyor.
   yönlendirilerek başlatıldı. Go setup ve SQLite migration tamamlandı, fakat
   fixture `127.0.0.1` test sunucusunu açarken `listen EPERM` aldı. Yeni browser
   screenshot, axe sonucu veya touch-target ölçümü yoktur.
-- `HYDRO_TEST_POSTGRES_URL` bu çalıştırmada tanımlı değildi; Docker/PostgreSQL
-  dış kapısı tekrar doğrulanmadı. Önceki PostgreSQL kanıtları planın ilgili
-  kayıtlarında duruyor; bu tur için yeni canlı PostgreSQL sonucu sayılmaz.
+- `HYDRO_TEST_POSTGRES_URL` ayarlı değil. Docker API erişimi reddedildi; yerel
+  cluster başlatma denemesinin sonucu aşağıda kayıtlıdır. Önceki PostgreSQL
+  kanıtları bu tur için yeni canlı PostgreSQL sonucu sayılmaz.
+
+### PostgreSQL local-start retry
+
+`initdb` ile geçici PostgreSQL 18.6 cluster'ı `/tmp` altında başarıyla
+oluşturuldu. `pg_ctl` ile yalnızca Unix-domain socket üzerinden başlatma
+denemesi, PostgreSQL'in socket dosyasını açarken `Operation not permitted`
+hatasıyla durdu; Docker API de `permission denied` döndü ve dış PostgreSQL DSN'i
+ayarlı değildi. Dolayısıyla bu deneme migration veya sözleşme testi çalıştırmadı;
+canlı PostgreSQL doğrulama kapısı açık kalıyor.
 
 ## Bu turdaki tekrar doğrulama
 
