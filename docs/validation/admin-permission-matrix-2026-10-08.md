@@ -649,3 +649,24 @@ GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
 Focused and full package tests and vet passed. The tests use the handler's
 in-memory member/session contracts; no database adapter behavior changed or is
 claimed by this matrix.
+
+## Member Admin read permission matrix — 2026-10-09
+
+The same `admin.members.manage` matrix now covers all four sensitive read
+routes: member list, CSV export, XLSX export, and member detail. Each route is
+checked for default Editor denial, explicit Editor and Viewer grants, explicit
+Admin deny, inactive Admin despite an explicit grant, and default active Admin
+access. All 24 route/user cells passed.
+
+```sh
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./modules/members/transport -run '^TestAdminMemberReadRoutesUseMemberManageOverrides$' -count=1
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go test ./modules/members/transport -count=1
+GOCACHE=/tmp/hydrogo-go-cache GOMAXPROCS=1 TMPDIR=/var/tmp/hydro-go-tests \
+  go vet ./modules/members/transport
+```
+
+Focused read matrix, complete package tests, and vet passed. The module uses
+in-memory member contracts for this authorization check; it does not add a
+SQLite/PostgreSQL adapter claim.
