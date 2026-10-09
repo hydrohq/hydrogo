@@ -27,16 +27,18 @@ authorization, tenant, and CSRF callbacks. They do not certify production
 session middleware, real browser behavior, PostgreSQL, or deployment setup.
 The callback boundary remains Edition-owned as required by ADR-0349/0354/0355.
 
-## Editor browser journey added
+## Editor and Viewer browser journey added
 
 ADR-0365 adds `PageRoleViewer` to the public v1 renderer contract. The external
 test server accepts test-only `admin`, `editor`, and `viewer` identity headers.
 The shared shell renders Viewer with read-only capabilities; the resource API
 allows reads for all three roles and writes only for admin/editor. A Playwright
 scenario exercises editor list/create/edit/delete, Viewer list/detail, hidden
-CRUD affordances, valid-CSRF create/update denial, direct API write denial,
-persistence checks, axe, and 390px overflow. The nested SQLite contract proves
-Viewer list/detail reads, denied mutations, and unchanged persistence.
+CRUD affordances, valid-CSRF create/update/delete denial, direct API
+create/update/delete denial, persistence checks, axe, and 390px overflow. The
+nested SQLite contract proves Viewer list/detail reads, all six Admin/API
+write denials, and unchanged persistence. `go test ./...` and `go vet ./...`
+in this independent module passed after expanding the mutation matrix.
 Playwright discovered the test
 (`--list`: 1/1). The actual browser scenario has not run here because the
 runner cannot bind the Edition test server; it needs the external fixture below
