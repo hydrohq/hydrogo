@@ -1281,6 +1281,124 @@ func TestGeneratedAdminResourceReadPolicyHidesIndexAndBlocksCollectionRoutes(t *
 	}
 }
 
+func TestGeneratedAdminReadPolicyBlocksEveryEditorialDeepLinkBeforeStorage(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true, Localization: true, Drafts: true,
+		Fields: []Field{
+			{ID: "title", Label: "Title", Kind: FieldText, Localized: true},
+			{ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "published"}},
+		},
+		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {StatePublished}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	storageCalls, apiCalls := 0, 0
+	denyStorage := func() { storageCalls++ }
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			apiCalls++
+			http.Error(w, "should not read a denied collection", http.StatusInternalServerError)
+		}),
+		Authorize:       func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return false },
+		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) {
+			denyStorage()
+			return nil, nil
+		},
+		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+			denyStorage()
+			return RevisionSnapshot{}, nil
+		},
+		CanRestore: func(*http.Request, Collection, string, int64) bool { denyStorage(); return true },
+		RestoreRevision: func(*http.Request, Collection, string, int64, int64) error {
+			denyStorage()
+			return nil
+		},
+		Locales: func(*http.Request, Collection) (LocaleOptions, error) {
+			denyStorage()
+			return LocaleOptions{Default: "en", Allowed: []string{"en", "fr"}}, nil
+		},
+		GetLocalized: func(*http.Request, Collection, string, string) (map[string]any, int64, error) {
+			denyStorage()
+			return nil, 0, nil
+		},
+		SaveLocalized: func(*http.Request, Collection, string, string, map[string]any, int64) error {
+			denyStorage()
+			return nil
+		},
+		ListLocalized: func(*http.Request, Collection, []string, string) (map[string]map[string]any, error) {
+			denyStorage()
+			return nil, nil
+		},
+		CanCopyLocale: func(*http.Request, Collection, string, string) bool { denyStorage(); return true },
+		CopyLocale: func(*http.Request, Collection, string, string, string, int64) error {
+			denyStorage()
+			return nil
+		},
+		ListDrafts: func(*http.Request, Collection, string, int) ([]DraftDocument, error) {
+			denyStorage()
+			return nil, nil
+		},
+		GetDraft: func(*http.Request, Collection, string, string) (DraftDocument, error) {
+			denyStorage()
+			return DraftDocument{}, nil
+		},
+		CanSaveDraft: func(*http.Request, Collection, string, string) bool { denyStorage(); return true },
+		SaveDraft: func(*http.Request, Collection, string, string, map[string]any, int64, int64) error {
+			denyStorage()
+			return nil
+		},
+		CanTransitionDraft: func(*http.Request, Collection, DraftDocument, PublicationState) bool { denyStorage(); return true },
+		TransitionDraft: func(*http.Request, Collection, string, string, PublicationState, int64, int64) error {
+			denyStorage()
+			return nil
+		},
+		CanDiscardDraft: func(*http.Request, Collection, DraftDocument) bool { denyStorage(); return true },
+		DiscardDraft: func(*http.Request, Collection, string, string, int64) error {
+			denyStorage()
+			return nil
+		},
+		CSRFToken:    func(*http.Request) string { denyStorage(); return "csrf" },
+		ValidateCSRF: func(*http.Request) bool { denyStorage(); return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/admin/resources/article"},
+		{http.MethodGet, "/admin/resources/article/new"},
+		{http.MethodGet, "/admin/resources/article/a1"},
+		{http.MethodGet, "/admin/resources/article/drafts"},
+		{http.MethodGet, "/admin/resources/article/a1/revisions/1"},
+		{http.MethodPost, "/admin/resources/article/a1/revisions/1/restore"},
+		{http.MethodPost, "/admin/resources/article/a1/locale?locale=fr"},
+		{http.MethodPost, "/admin/resources/article/a1/locale-copy?locale=fr"},
+		{http.MethodPost, "/admin/resources/article/a1/draft"},
+		{http.MethodPost, "/admin/resources/article/a1/workflow"},
+		{http.MethodPost, "/admin/resources/article/a1/draft/discard"},
+	} {
+		request := httptest.NewRequest(tc.method, tc.path, strings.NewReader("_csrf=invalid"))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		if response.Code != http.StatusNotFound {
+			t.Errorf("read-denied %s %s returned %d, want concealed 404: %s", tc.method, tc.path, response.Code, response.Body.String())
+		}
+	}
+	if apiCalls != 0 || storageCalls != 0 {
+		t.Fatalf("read-denied deep links reached API/storage: API=%d storage=%d", apiCalls, storageCalls)
+	}
+}
+
 func TestGeneratedAdminConcealsRecordReadDenialButKeepsServiceRetry(t *testing.T) {
 	registry, err := NewRegistry([]Collection{{
 		ID: "article", Label: "Articles", TitleField: "title",
