@@ -539,6 +539,18 @@ func TestAdminQuillImageURLFallbackUsesAdminLanguage(t *testing.T) {
 	}
 }
 
+func TestAdminUndoToastLabelUsesDocumentLanguage(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStartLocale(&out, "Studio", "", "", "en"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`document.documentElement.lang === 'en' ? 'Undo' : 'Geri Al'`, `studio-toast-undo`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("English Admin shell is missing localized undo toast contract %q", want)
+		}
+	}
+}
+
 func TestBulkToolbarBuildsContextualActionSelector(t *testing.T) {
 	script := adminUXScript()
 	for _, marker := range []string{`data-bulk-choice`, `new Option(action.textContent,action.dataset.bulkAction)`, `actions[choice?.selectedIndex||0]`} {
