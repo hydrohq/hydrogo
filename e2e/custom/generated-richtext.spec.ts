@@ -63,11 +63,19 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(form.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveAccessibleName("Tags: add item");
     await expect(form.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveText("+ Add item");
     await expect(form.locator(".media-select-empty")).toContainText("No image selected");
+    await expect(form.locator(".media-select-preview img")).toHaveAttribute("alt", "Selected image");
     await expect(form.getByRole("button", { name: "Choose from library" })).toBeVisible();
+    await expect(form.locator("button.media-select-clear")).toHaveText("Remove");
     await expect(form.getByRole("link", { name: "Open media library" })).toBeVisible();
     await expect(form.locator(".richtext-toolbar")).toHaveAttribute("aria-label", "Rich text tools");
     await expect(form.getByRole("button", { name: "Bold" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Italic" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Underline" })).toBeVisible();
     await expect(form.getByRole("button", { name: "Add link" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Add image" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Block quote" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Numbered list" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Bulleted list" })).toBeVisible();
     await expect(form.locator("#blocks-preview")).toContainText("Preview will appear here.");
     for (const untranslated of ["Madde ekle", "Görsel seçilmedi", "Kütüphaneden seç", "Bağlantı ekle", "Önizleme bekleniyor."]) {
       await expect(form).not.toContainText(untranslated);
@@ -78,9 +86,18 @@ test.describe("generated rich-text Edition Admin", () => {
     const turkishForm = page.locator('form[action="/admin/resources/article/new"]');
     await expect(turkishForm.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveAccessibleName("Tags: madde ekle");
     await expect(turkishForm.locator(".media-select-empty")).toContainText("Görsel seçilmedi");
+    await expect(turkishForm.locator(".media-select-preview img")).toHaveAttribute("alt", "Seçilen görsel");
     await expect(turkishForm.getByRole("button", { name: "Kütüphaneden seç" })).toBeVisible();
+    await expect(turkishForm.locator("button.media-select-clear")).toHaveText("Kaldır");
     await expect(turkishForm.locator(".richtext-toolbar")).toHaveAttribute("aria-label", "Zengin metin araçları");
     await expect(turkishForm.getByRole("button", { name: "Kalın" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "İtalik" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "Altı çizili" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "Bağlantı ekle" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "Görsel ekle" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "Alıntı" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "Numaralı liste" })).toBeVisible();
+    await expect(turkishForm.getByRole("button", { name: "Madde listesi" })).toBeVisible();
     await expect(turkishForm.locator("#blocks-preview")).toContainText("Önizleme bekleniyor.");
   });
 
