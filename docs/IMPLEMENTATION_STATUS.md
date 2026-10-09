@@ -24,6 +24,14 @@ boundary, page-two remainder, and return navigation on SQLite and PostgreSQL
 implementations and maximum-page behavior remain open. Evidence:
 `generated-admin-pagination-browser-2026-10-09.md`.
 
+2026-10-09 generated Admin failure-feedback follow-up: the independent Edition
+Chromium flow injects a 503 on a valid create, checks localized retry
+feedback, retained input, and absence of persistence, then retries
+successfully. Editor/Viewer and media browser journeys passed 2/2 on SQLite
+and PostgreSQL 18. This is one create failure path in a test fixture; other
+API failure points and production outage behavior remain open. Evidence:
+`generated-admin-service-error-browser-2026-10-09.md`.
+
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered

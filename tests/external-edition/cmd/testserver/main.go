@@ -103,7 +103,14 @@ func main() {
 	}); err != nil {
 		log.Fatal(err)
 	}
-	resourceAPI := validateFixtureMediaReference(resourceMux)
+	validatedResourceAPI := validateFixtureMediaReference(resourceMux)
+	resourceAPI := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Test-Generated-API-Status") == "503" {
+			http.Error(w, "fixture service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		validatedResourceAPI.ServeHTTP(w, r)
+	})
 	mux.Handle("/api/v1/", resourceAPI)
 	if err := generated.RegisterGeneratedAdmin(mux, adminstudio.GeneratedAdminOptions{
 		API: resourceAPI,
