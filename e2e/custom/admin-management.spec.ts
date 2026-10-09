@@ -1131,6 +1131,39 @@ test.describe("single Edition administrator management", () => {
     await context.close();
   });
 
+  test("public Admin confirmation states remain accessible in both color modes", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    const colorModes = ["light", "dark"];
+    const confirmations = [
+      { query: "invite_accepted=1", en: "Your account is ready", tr: "Hesabın hazır" },
+      { query: "password_reset=1", en: "Your password has been updated", tr: "Parolan güncellendi" },
+    ];
+    for (const mode of colorModes) {
+      for (const confirmation of confirmations) {
+        for (const [locale, expected] of [["en", confirmation.en], ["tr", confirmation.tr]] as const) {
+          await page.goto(`${baseURL}/login`);
+          await page.evaluate((colorMode) => localStorage.setItem("hydro-ui-theme-v2", `workbench-${colorMode}`), mode);
+          const response = await page.goto(`${baseURL}/login?${confirmation.query}&lang=${locale}`);
+          expect(response?.status(), `${confirmation.query} must render in ${mode}/${locale}`).toBe(200);
+          await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
+          await expect(page.getByRole("status")).toContainText(expected);
+          const result = await page.evaluate(async () => (window as any).axe.run(document, {
+            runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+          }));
+          expect(result.violations.map((violation: any) => ({
+            id: violation.id,
+            impact: violation.impact,
+            nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+          })), `${confirmation.query} WCAG 2.1 A/AA violations in ${mode}/${locale}`).toEqual([]);
+        }
+      }
+    }
+    await context.close();
+  });
+
   test("admin routes meet WCAG 2.1 A/AA in every Studio theme and color mode", async ({ browser }) => {
     test.setTimeout(180_000);
     expect(adminStorageState, "the preceding admin login test must create an authenticated state").toBeTruthy();
