@@ -374,7 +374,22 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 	}
 	for _, composition := range compositions {
 		t.Run(composition.name, func(t *testing.T) {
-			protectedRoutes, err := router.New(composition.routes, func(*http.Request) bool { return true })
+			dispatches := make(map[string]int)
+			routes := append([]router.Route(nil), composition.routes...)
+			for i := range routes {
+				method, path, ok := strings.Cut(routes[i].Pattern, " ")
+				adminMutation := strings.HasPrefix(path, "/admin/")
+				mediaAPIMutation := strings.HasPrefix(path, "/api/media") && method != http.MethodGet
+				if !ok || method == http.MethodGet || (!adminMutation && !mediaAPIMutation) {
+					continue
+				}
+				routePath, next := path, routes[i].Handler
+				routes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					dispatches[routePath]++
+					next.ServeHTTP(w, r)
+				})
+			}
+			protectedRoutes, err := router.New(routes, func(*http.Request) bool { return true })
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -397,6 +412,21 @@ func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
 				csrfProtected.ServeHTTP(response, request)
 				if response.Code != http.StatusForbidden {
 					t.Errorf("admin mutation route %q without CSRF returned %d, want 403", route.Pattern, response.Code)
+				}
+				if dispatches[path] != 0 {
+					t.Errorf("admin mutation route %q reached its handler without CSRF", route.Pattern)
+				}
+				request = httptest.NewRequest(method, path, strings.NewReader("_csrf=forged-token"))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				request.Header.Set(security.CSRFHeaderName, "forged-token")
+				response = httptest.NewRecorder()
+				csrfProtected.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Errorf("admin mutation route %q with forged CSRF returned %d, want 403", route.Pattern, response.Code)
+				}
+				if dispatches[path] != 0 {
+					t.Errorf("admin mutation route %q reached its handler with forged CSRF", route.Pattern)
 				}
 			}
 			if count == 0 {
