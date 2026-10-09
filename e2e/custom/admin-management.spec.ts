@@ -1036,6 +1036,24 @@ test.describe("single Edition administrator management", () => {
     const viewerCreatedNewsAPI = await page.request.get(`${baseURL}/api/news/${viewerNewsID}`);
     expect(viewerCreatedNewsAPI.status()).toBe(200);
     expect(await viewerCreatedNewsAPI.json()).toMatchObject({ status: "draft", title: "Viewer capability news" });
+    const viewerNewsCSRFResponse = await elevatedViewer.request.get(`${baseURL}/csrf-token`);
+    expect(viewerNewsCSRFResponse.status()).toBe(200);
+    const { token: viewerNewsCSRF } = await viewerNewsCSRFResponse.json();
+    expect((await elevatedViewerContext.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(viewerNewsCSRF);
+    const viewerNewsAPICreate = await elevatedViewer.request.post(`${baseURL}/api/news`, {
+      headers: { "X-CSRF-Token": viewerNewsCSRF },
+      data: {
+        locale: "tr",
+        slug: "viewer-capability-news-api",
+        title: "Viewer capability API news",
+        body: "Created with explicit content.write through the News API.",
+      },
+    });
+    expect(viewerNewsAPICreate.status(), "Viewer content.write override grants News API create with valid CSRF").toBe(200);
+    const viewerCreatedNewsAPIResponse = await viewerNewsAPICreate.json();
+    const viewerNewsAPIReadback = await page.request.get(`${baseURL}/api/news/${viewerCreatedNewsAPIResponse.id}`);
+    expect(viewerNewsAPIReadback.status()).toBe(200);
+    expect(await viewerNewsAPIReadback.json()).toMatchObject({ status: "draft", title: "Viewer capability API news" });
 
     await page.goto(`${baseURL}/admin/users`);
     const refreshedViewerRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("viewer@example.test", { exact: true }) });
