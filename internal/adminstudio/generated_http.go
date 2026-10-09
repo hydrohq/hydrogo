@@ -543,7 +543,15 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 	queryValues.Set("limit", strconv.Itoa(DefaultPageSize+1))
 	queryValues.Set("offset", strconv.Itoa((page-1)*DefaultPageSize))
 	response, status, err := h.callAPI(r, http.MethodGet, "/api/v1/"+url.PathEscape(collection.ID)+"?"+queryValues.Encode(), nil)
-	if err != nil || status != http.StatusOK {
+	if err != nil {
+		h.apiError(w, r)
+		return
+	}
+	if status == http.StatusForbidden || status == http.StatusNotFound {
+		http.NotFound(w, r)
+		return
+	}
+	if status != http.StatusOK {
 		h.apiError(w, r)
 		return
 	}
