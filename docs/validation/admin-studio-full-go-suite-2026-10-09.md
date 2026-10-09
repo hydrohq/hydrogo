@@ -73,3 +73,31 @@ used the configured test role. The disposable cluster was removed after the
 run. This validates root-module tests against local PostgreSQL 18.6; it does
 not cover the nested Edition module, production deployment, or replace the
 separate authenticated browser runs.
+
+## Regression after Site PostgreSQL RLS correction
+
+On 2026-10-09, the full root suite passed again on SQLite after commit
+`ce9c933b`, including the shared SQLite/PostgreSQL Site appearance-route
+contract and the new forward migration package:
+
+```sh
+TMPDIR=/tmp/hydro-go-tests go test ./... -count=1 -p 1 -timeout=8m
+go vet ./...
+go run ./tools/migrationguard -root migrations
+go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
+go run ./tools/importguard -root examples/client-edition
+go run ./tools/importguard -root examples/news-edition
+go run ./tools/importguard -root examples/construction-edition
+go run ./tools/importguard -root tests/external-edition
+```
+
+All commands passed; migrationguard checked 111 migrations. A full-root rerun
+with `HYDRO_TEST_POSTGRES_URL` was attempted in the current managed execution
+environment, but PostgreSQL Unix-socket access failed with `operation not
+permitted` before PostgreSQL contracts could run. That is an environment
+access limitation, not a PostgreSQL pass. The focused `modules/site/...`
+PostgreSQL suite passed against PostgreSQL 18.6 in the prior unrestricted
+execution context; this rerun does not recertify every root PostgreSQL
+contract after the Site migration. A network lookup for `github.com` is also
+blocked in the current environment, so this validation-only follow-up cannot
+be pushed from this session.
