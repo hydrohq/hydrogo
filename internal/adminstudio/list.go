@@ -24,6 +24,7 @@ type Row struct {
 
 type StatusInfo struct {
 	Value       string
+	Label       string
 	ScheduledAt *time.Time
 }
 

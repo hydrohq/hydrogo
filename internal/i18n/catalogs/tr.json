@@ -29,5 +29,18 @@
   "admin.generated.error.delete_title": "Kayıt silinemedi",
   "admin.generated.error.delete_operation": "Yeniden denemeden önce kaydın hâlâ listede olup olmadığını kontrol edin.",
   "admin.generated.list.empty": "Bu koleksiyonda henüz kayıt bulunmuyor.",
-  "admin.generated.list.noMatches": "Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok."
+  "admin.generated.list.noMatches": "Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok.",
+  "admin.generated.drafts.title": "Taslaklar",
+  "admin.generated.drafts.empty": "Bu koleksiyonda açık taslak yok.",
+  "admin.generated.drafts.title_column": "Başlık",
+  "admin.generated.drafts.state_column": "Durum",
+  "admin.generated.drafts.version_column": "Sürüm",
+  "admin.generated.drafts.updated_column": "Son düzenleme",
+  "admin.generated.drafts.open": "Taslağı aç",
+  "admin.generated.drafts.state.draft": "Taslak",
+  "admin.generated.drafts.state.review": "İncelemede",
+  "admin.generated.drafts.state.scheduled": "Zamanlandı",
+  "admin.generated.drafts.state.published": "Yayında",
+  "admin.generated.drafts.state.retracted": "Geri çekildi",
+  "admin.generated.drafts.state.archived": "Arşivlendi"
 }

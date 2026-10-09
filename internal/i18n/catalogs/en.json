@@ -29,5 +29,18 @@
   "admin.generated.error.delete_title": "This record could not be deleted",
   "admin.generated.error.delete_operation": "Check whether the record is still listed before trying again.",
   "admin.generated.list.empty": "There are no records in this collection yet.",
-  "admin.generated.list.noMatches": "Try changing your search or filters. No records match them."
+  "admin.generated.list.noMatches": "Try changing your search or filters. No records match them.",
+  "admin.generated.drafts.title": "Drafts",
+  "admin.generated.drafts.empty": "There are no open drafts in this collection.",
+  "admin.generated.drafts.title_column": "Title",
+  "admin.generated.drafts.state_column": "State",
+  "admin.generated.drafts.version_column": "Version",
+  "admin.generated.drafts.updated_column": "Last updated",
+  "admin.generated.drafts.open": "Open draft",
+  "admin.generated.drafts.state.draft": "Draft",
+  "admin.generated.drafts.state.review": "In review",
+  "admin.generated.drafts.state.scheduled": "Scheduled",
+  "admin.generated.drafts.state.published": "Published",
+  "admin.generated.drafts.state.retracted": "Retracted",
+  "admin.generated.drafts.state.archived": "Archived"
 }

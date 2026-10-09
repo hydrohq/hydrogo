@@ -21,6 +21,9 @@ func statusPillClass(status string) string {
 }
 
 func statusPillLabel(info StatusInfo) string {
+	if strings.TrimSpace(info.Label) != "" {
+		return strings.TrimSpace(info.Label)
+	}
 	switch strings.ToLower(strings.TrimSpace(info.Value)) {
 	case "published":
 		return "Yayında"
