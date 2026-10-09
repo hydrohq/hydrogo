@@ -1572,7 +1572,9 @@ test.describe("single Edition administrator management", () => {
       }
       for (const route of [
         "/admin",
+        "/admin/pages",
         "/admin/pages/new",
+        "/admin/news",
         "/admin/news/new",
         "/admin/media",
         "/admin/users",
