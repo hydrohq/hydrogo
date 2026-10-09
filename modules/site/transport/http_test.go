@@ -345,6 +345,62 @@ func TestAdminSiteSettingRouteEnforcesCSRFBeforePermission(t *testing.T) {
 	}
 }
 
+func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
+	handler := Handler{FormsEnabled: true, FontsEnabled: true}
+	mux := http.NewServeMux()
+	var mutations []string
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+		method, path, ok := strings.Cut(route.Pattern, " ")
+		if ok && method == http.MethodPost && strings.HasPrefix(path, "/admin/") {
+			mutations = append(mutations, route.Pattern)
+		}
+	}
+	if len(mutations) < 20 {
+		t.Fatalf("registered %d Site Admin mutations, want broad route coverage", len(mutations))
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	deniedUsers := []struct {
+		name string
+		user *auth.User
+	}{
+		{name: "editor default", user: &auth.User{Role: auth.RoleEditor, Active: true}},
+		{name: "viewer default", user: &auth.User{Role: auth.RoleViewer, Active: true}},
+		{name: "admin explicit deny", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}},
+		{name: "inactive explicit allow", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}},
+	}
+	for _, pattern := range mutations {
+		method, path, _ := strings.Cut(pattern, " ")
+		path = strings.NewReplacer("{id}", "test-id", "{locale}", "tr", "{form}", "contact", "{status}", "404").Replace(path)
+		t.Run(pattern+"/invalid-csrf", func(t *testing.T) {
+			request := httptest.NewRequest(method, path, strings.NewReader("_csrf=wrong-token"))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+			request.Header.Set(security.CSRFHeaderName, "wrong-token")
+			request = request.WithContext(auth.WithUser(request.Context(), &auth.User{Role: auth.RoleAdmin, Active: true}))
+			response := httptest.NewRecorder()
+			secured.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("invalid CSRF status=%d, want 403; body=%s", response.Code, response.Body.String())
+			}
+		})
+		for _, tc := range deniedUsers {
+			t.Run(pattern+"/"+tc.name, func(t *testing.T) {
+				request := httptest.NewRequest(method, path, strings.NewReader("_csrf=valid-token"))
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+				request.Header.Set(security.CSRFHeaderName, "valid-token")
+				request = request.WithContext(auth.WithUser(request.Context(), tc.user))
+				response := httptest.NewRecorder()
+				secured.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("%s status=%d, want 403; body=%s", tc.name, response.Code, response.Body.String())
+				}
+			})
+		}
+	}
+}
+
 func TestFormSubmissionRejectsUnconfiguredForm(t *testing.T) {
 	handler := Handler{Service: &site.Service{}, AllowedForms: map[string]struct{}{"contact": {}}}
 	req := httptest.NewRequest(http.MethodPost, "/forms/unknown/submit", strings.NewReader("email=a%40b.test&message=x"))

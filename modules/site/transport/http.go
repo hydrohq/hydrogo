@@ -270,7 +270,11 @@ func (h Handler) linkCheckPage(w http.ResponseWriter, r *http.Request) {
 
 func (h Handler) runLinkCheck(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromContext(r.Context())
-	if !h.admin(r) || h.LinkScanManager == nil || strings.TrimSpace(h.SitemapOrigin) == "" {
+	if !h.admin(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if h.LinkScanManager == nil || strings.TrimSpace(h.SitemapOrigin) == "" {
 		http.Error(w, "Bu denetim şu anda kullanılamıyor.", http.StatusServiceUnavailable)
 		return
 	}
