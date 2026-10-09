@@ -381,6 +381,14 @@ is written on denial and authorized save/read still works. Full Site module
 tests and transport vet passed; PostgreSQL/browser proof remains open. See
 `docs/validation/site-custom-code-permission-override-2026-10-09.md`.
 
+Dynamic Collections role coverage now dispatches every registered HTTP method
+and concrete route path through the actual protected router, rather than
+calling handlers at `/`. Active Editor and Viewer principals receive 403 for
+all routes; the existing route-derived CSRF matrix covers every mutation.
+Full module tests and transport vet passed. This is in-process evidence, not
+browser or deployed Edition validation; see
+`docs/validation/dynamic-collections-route-role-dispatch-2026-10-09.md`.
+
 ## Sonraki güvenli sıra
 
 1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
