@@ -427,6 +427,14 @@ accessibility result is claimed. The spec now supports a separately started
 loopback fixture for restricted browser runners. See
 `docs/validation/generated-block-editor-theme-matrix-2026-10-09.md`.
 
+The Blueprint generator and both the native Project Edition and separate
+external Edition were revalidated: generator, Edition and external module tests
+plus vet passed; `hydro project check`, moduleguard, migrationguard and external
+importguard passed. This run covered SQLite/local contracts only. PostgreSQL
+was not available (`HYDRO_TEST_POSTGRES_URL` unset; Docker API denied), and the
+authenticated Chromium gate remains open. Evidence:
+`docs/validation/blueprint-runtime-regression-2026-10-09.md`.
+
 Generated CRUD API failures now render safe Turkish/English localized copy
 based on the Admin locale. A failure injection with a database URL, host,
 filesystem path, and panic text verifies none reach the response and no
