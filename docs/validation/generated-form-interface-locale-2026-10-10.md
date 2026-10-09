@@ -71,3 +71,14 @@ git diff --check
 ```
 
 All three Go packages passed tests and vet; the UI detector returned no findings. This is HTTP/component-level locale evidence, not browser proof. The Playwright listener restriction above still prevents a real browser locale journey in this workspace.
+
+
+## Generated widget browser regression
+
+`e2e/custom/generated-richtext.spec.ts` now includes an English-to-Turkish browser scenario against the generated Edition fixture. It checks array add controls, media empty/chooser controls, rich-text toolbar accessible names, and the block preview message, including absence of Turkish copy under English locale. Playwright discovery passed and listed the case (1/1). Execution was attempted with:
+
+```sh
+cd e2e && TMPDIR=/tmp GOCACHE=/tmp/hydro-admin-gocache npm exec playwright test custom/generated-richtext.spec.ts -- --project=chromium --workers=1 --grep 'widget controls follow' --reporter=line --trace=off
+```
+
+The runner started the test but the fixture could not bind `127.0.0.1` (`listen EPERM`), before browser assertions executed. The case is therefore present but not a passing browser test in this workspace.

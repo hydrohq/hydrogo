@@ -55,6 +55,35 @@ test.describe("generated rich-text Edition Admin", () => {
     if (!externalServer) await stopServer(server);
   });
 
+  test("generated field widget controls follow the Admin interface locale", async ({ page }) => {
+    await page.context().addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);
+    await page.goto(`${baseURL}/admin/resources/article/new`);
+
+    const form = page.locator('form[action="/admin/resources/article/new"]');
+    await expect(form.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveAccessibleName("Tags: add item");
+    await expect(form.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveText("+ Add item");
+    await expect(form.locator(".media-select-empty")).toContainText("No image selected");
+    await expect(form.getByRole("button", { name: "Choose from library" })).toBeVisible();
+    await expect(form.getByRole("link", { name: "Open media library" })).toBeVisible();
+    await expect(form.locator(".richtext-toolbar")).toHaveAttribute("aria-label", "Rich text tools");
+    await expect(form.getByRole("button", { name: "Bold" })).toBeVisible();
+    await expect(form.getByRole("button", { name: "Add link" })).toBeVisible();
+    await expect(form.locator("#blocks-preview")).toContainText("Preview will appear here.");
+    for (const untranslated of ["Madde ekle", "Görsel seçilmedi", "Kütüphaneden seç", "Bağlantı ekle", "Önizleme bekleniyor."]) {
+      await expect(form).not.toContainText(untranslated);
+    }
+
+    await page.context().addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
+    await page.reload();
+    const turkishForm = page.locator('form[action="/admin/resources/article/new"]');
+    await expect(turkishForm.locator('[data-field-name="tags"] button.item-list-add-btn')).toHaveAccessibleName("Tags: madde ekle");
+    await expect(turkishForm.locator(".media-select-empty")).toContainText("Görsel seçilmedi");
+    await expect(turkishForm.getByRole("button", { name: "Kütüphaneden seç" })).toBeVisible();
+    await expect(turkishForm.locator(".richtext-toolbar")).toHaveAttribute("aria-label", "Zengin metin araçları");
+    await expect(turkishForm.getByRole("button", { name: "Kalın" })).toBeVisible();
+    await expect(turkishForm.locator("#blocks-preview")).toContainText("Önizleme bekleniyor.");
+  });
+
   test("Quill formats generated content and preserves it through API create/edit", async ({ page }) => {
     await page.goto(`${baseURL}/admin/resources/article/new`);
     await dismissOnboarding(page);
