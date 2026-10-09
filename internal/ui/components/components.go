@@ -102,6 +102,48 @@ type FormProps struct {
 	Body          templ.Component
 }
 
+type FieldValidationError struct {
+	FieldID string
+	Label   string
+	Message string
+}
+
+type ValidationSummaryProps struct {
+	Title   string
+	Message string
+	Fields  []FieldValidationError
+}
+
+// ValidationSummary renders safe, keyboard-navigable links to invalid fields.
+func ValidationSummary(p ValidationSummaryProps) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		if p.Title == "" || p.Message == "" {
+			return errors.New("validation summary title and message are required")
+		}
+		if _, err := io.WriteString(w, `<section class="studio-alert" role="alert" aria-labelledby="generated-validation-title"><h2 id="generated-validation-title">`+esc(p.Title)+`</h2><p>`+esc(p.Message)+`</p>`); err != nil {
+			return err
+		}
+		if len(p.Fields) > 0 {
+			if _, err := io.WriteString(w, `<ul>`); err != nil {
+				return err
+			}
+			for _, field := range p.Fields {
+				if strings.TrimSpace(field.FieldID) == "" || strings.TrimSpace(field.Label) == "" || strings.TrimSpace(field.Message) == "" {
+					return errors.New("validation summary field id, label, and message are required")
+				}
+				if _, err := io.WriteString(w, `<li><a href="#`+esc(field.FieldID)+`">`+esc(field.Label)+`: `+esc(field.Message)+`</a></li>`); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w, `</ul>`); err != nil {
+				return err
+			}
+		}
+		_, err := io.WriteString(w, `</section>`)
+		return err
+	})
+}
+
 // HTMX is the allowlisted server interaction contract. Empty fields emit no
 // attribute. Unsupported HTMX attributes cannot be represented by this type.
 type HTMX struct {

@@ -12,6 +12,7 @@
 - [ADR-0361: Edition-provided generated Admin CRUD capabilities](0361-generated-admin-resource-capabilities.md) — Accepted
 - [ADR-0362: Generated Admin read-only record view](0362-generated-admin-read-only-record-view.md) — Accepted
 - [ADR-0363: Project Edition block content and live preview](0363-project-edition-block-content-and-preview.md) — Accepted
+- [ADR-0364: Generated Admin validation feedback](0364-generated-admin-validation-feedback.md) — Accepted
 - [ADR-0344: Hash-based CSP for edge caching](0344-hash-based-csp-for-edge-caching.md) — Proposed
 - [ADR-0329: Bounded public HTML process cache](0329-bounded-public-html-l1.md)
 - [ADR-0330: Pure Go PDF cover derivatives](0330-pure-go-pdf-cover-derivatives.md)

@@ -16,5 +16,9 @@
   "admin.media": "Medya",
   "admin.developer": "Geliştirici & API",
   "admin.account": "Hesap Ayarları",
-  "admin.security": "Güvenlik & Yetkiler"
+  "admin.security": "Güvenlik & Yetkiler",
+  "admin.generated.validation.title": "Bu alanları kontrol edin",
+  "admin.generated.validation.message": "Bazı bilgiler eksik veya geçersiz. Alanları kontrol edip tekrar deneyin.",
+  "admin.generated.validation.field.required": "Bu alan zorunludur.",
+  "admin.generated.validation.field.invalid": "Bu değeri kontrol edip tekrar deneyin."
 }

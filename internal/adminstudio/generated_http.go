@@ -979,6 +979,19 @@ func applyDraftFields(collection Collection, record, values map[string]any, loca
 }
 
 func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request, collection Collection, id string, record map[string]any, editing bool) {
+	h.renderFormState(w, r, collection, id, record, editing, nil, nil, 0)
+}
+
+func collectionField(collection Collection, id string) (Field, bool) {
+	for _, field := range collection.Fields {
+		if field.ID == id {
+			return field, true
+		}
+	}
+	return Field{}, false
+}
+
+func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Request, collection Collection, id string, record map[string]any, editing bool, submitted map[string]string, fieldErrors []ui.FieldValidationError, status int) {
 	if h.Options.CSRFToken(r) == "" {
 		http.Error(w, "admin page unavailable", http.StatusServiceUnavailable)
 		return
@@ -987,15 +1000,28 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	for _, field := range collection.Fields {
 		values[field.ID] = displayFormValue(field, record[field.ID])
 	}
+	for fieldID, value := range submitted {
+		if _, ok := collectionField(collection, fieldID); ok || fieldID == "version" || fieldID == "locale_version" || fieldID == "draft_version" || fieldID == "published_version" {
+			values[fieldID] = value
+		}
+	}
 	if collection.Versioned {
-		values["version"] = displayValue(record["version"])
+		if _, ok := submitted["version"]; !ok {
+			values["version"] = displayValue(record["version"])
+		}
 	}
 	if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
-		values["locale_version"] = displayValue(record["locale_version"])
+		if _, ok := submitted["locale_version"]; !ok {
+			values["locale_version"] = displayValue(record["locale_version"])
+		}
 	}
 	if collection.Drafts {
-		values["draft_version"] = displayValue(record["draft_version"])
-		values["published_version"] = displayValue(record["published_version"])
+		if _, ok := submitted["draft_version"]; !ok {
+			values["draft_version"] = displayValue(record["draft_version"])
+		}
+		if _, ok := submitted["published_version"]; !ok {
+			values["published_version"] = displayValue(record["published_version"])
+		}
 	}
 	var revisions []RevisionSummary
 	if editing && collection.Revisions {
@@ -1023,7 +1049,7 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 		if field.Kind != FieldRelation || field.Relation == nil || field.ReadOnly {
 			continue
 		}
-		options, err := h.loadRelationOptions(r, field, record[field.ID])
+		options, err := h.loadRelationOptions(r, field, values[field.ID])
 		if err != nil {
 			h.apiError(w)
 			return
@@ -1067,7 +1093,21 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 				return err
 			}
 		}
-		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, h.Options.BlockEditor)}
+		fields := generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, h.Options.BlockEditor)
+		formBody := templ.Component(fields)
+		if status == http.StatusUnprocessableEntity || len(fieldErrors) > 0 {
+			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
+				if err := ui.ValidationSummary(ui.ValidationSummaryProps{
+					Title:   i18n.T(generatedAdminLocale(r), "admin.generated.validation.title"),
+					Message: i18n.T(generatedAdminLocale(r), "admin.generated.validation.message"),
+					Fields:  fieldErrors,
+				}).Render(ctx, out); err != nil {
+					return err
+				}
+				return fields.Render(ctx, out)
+			})
+		}
+		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: formBody}
 		if err := ui.Form(props).Render(ctx, out); err != nil {
 			return err
 		}
@@ -1103,6 +1143,9 @@ func (h GeneratedAdminHandler) renderForm(w http.ResponseWriter, r *http.Request
 	title := "Yeni kayıt · " + collection.Label
 	if editing {
 		title = "Kaydı düzenle · " + collection.Label
+	}
+	if status != 0 {
+		w.WriteHeader(status)
 	}
 	h.renderPage(w, r, title, body)
 }
@@ -2069,11 +2112,11 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 	}
 	method, path := http.MethodPost, "/api/v1/"+url.PathEscape(collection.ID)
 	var body []byte
+	creating := !deleting && strings.HasSuffix(r.URL.Path, "/new")
 	if deleting {
 		method = http.MethodDelete
 		path += "/" + url.PathEscape(id)
 	} else {
-		creating := strings.HasSuffix(r.URL.Path, "/new")
 		data := make(map[string]any, len(collection.Fields)+1)
 		if collection.Versioned && !creating {
 			versions := r.Form["version"]
@@ -2139,7 +2182,7 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		}
 		body = encoded
 	}
-	_, status, err := h.callAPI(r, method, path, body)
+	responseBody, status, err := h.callAPI(r, method, path, body)
 	if err != nil {
 		h.apiError(w)
 		return
@@ -2149,6 +2192,22 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		http.Error(w, "Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.", http.StatusConflict)
 		return
 	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		if !deleting && status == http.StatusUnprocessableEntity {
+			fieldErrors, valid := generatedAdminValidationErrors(collection, responseBody, generatedAdminLocale(r))
+			if valid {
+				record := map[string]any{}
+				if !creating {
+					var loadErr error
+					record, loadErr = h.currentResource(r, collection, id)
+					if loadErr != nil {
+						h.apiError(w)
+						return
+					}
+				}
+				h.renderFormState(w, r, collection, id, record, !creating, submittedGeneratedValues(r, collection), fieldErrors, http.StatusUnprocessableEntity)
+				return
+			}
+		}
 		http.Error(w, "Bilgiler geçersiz veya eksik. Alanları kontrol edip yeniden deneyin.", http.StatusBadRequest)
 		return
 	case http.StatusForbidden:
@@ -2167,6 +2226,77 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 		redirect = localePath(redirect, localeState(r).Current)
 	}
 	http.Redirect(w, r, redirect, http.StatusSeeOther)
+}
+
+func submittedGeneratedValues(r *http.Request, collection Collection) map[string]string {
+	values := make(map[string]string, len(collection.Fields)+4)
+	for _, field := range collection.Fields {
+		if field.ReadOnly || collection.Workflow != nil && field.ID == collection.Workflow.StateField {
+			continue
+		}
+		items, exists := r.Form[field.ID]
+		if !exists {
+			if field.Kind == FieldBoolean || field.Kind == FieldArray || field.Kind == FieldRelation && field.Relation != nil && field.Relation.Cardinality == "many" {
+				values[field.ID] = ""
+			}
+			continue
+		}
+		value, err := parseAdminField(field, items)
+		if err != nil {
+			continue
+		}
+		switch typed := value.(type) {
+		case []string:
+			if field.Kind == FieldRelation && field.Relation != nil && field.Relation.Cardinality == "many" {
+				values[field.ID] = strings.Join(typed, ",")
+			} else {
+				encoded, _ := json.Marshal(typed)
+				values[field.ID] = string(encoded)
+			}
+		case bool:
+			values[field.ID] = strconv.FormatBool(typed)
+		default:
+			values[field.ID] = fmt.Sprint(typed)
+		}
+	}
+	for _, key := range []string{"version", "locale_version", "draft_version", "published_version"} {
+		if items, ok := r.Form[key]; ok && len(items) == 1 {
+			values[key] = items[0]
+		}
+	}
+	return values
+}
+
+func generatedAdminValidationErrors(collection Collection, response []byte, locale string) ([]ui.FieldValidationError, bool) {
+	var payload struct {
+		Code   string            `json:"code"`
+		Fields map[string]string `json:"fields"`
+	}
+	if len(response) == 0 || json.Unmarshal(response, &payload) != nil || payload.Code != "validation_failed" {
+		return nil, false
+	}
+	result := make([]ui.FieldValidationError, 0, len(payload.Fields))
+	for _, field := range collection.Fields {
+		code, exists := payload.Fields[field.ID]
+		if !exists || field.ReadOnly || collection.Workflow != nil && field.ID == collection.Workflow.StateField {
+			continue
+		}
+		target := field.ID
+		switch {
+		case field.Kind == FieldBlocks || field.Widget == "block-editor":
+			target += "-mount"
+		case field.Widget == "richtext":
+			target += "-editor"
+		case field.Kind == FieldMedia || field.Widget == "media":
+			target += "-field"
+		}
+		messageKey := "admin.generated.validation.field.invalid"
+		if code == "required" {
+			messageKey = "admin.generated.validation.field.required"
+		}
+		result = append(result, ui.FieldValidationError{FieldID: target, Label: field.Label, Message: i18n.T(locale, messageKey)})
+	}
+	return result, true
 }
 
 func parseAdminField(field Field, values []string) (any, error) {

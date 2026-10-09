@@ -30,7 +30,7 @@ func TestButtonEscapesAndAllowlistsHTMX(t *testing.T) {
 
 func TestMediaPickerEscapesValuesAndUsesAdminPickerContract(t *testing.T) {
 	out := render(t, MediaPicker(MediaPickerProps{ID: `cover"`, Name: "cover_asset_id", Label: "Cover image", Value: `<script>`}))
-	for _, marker := range []string{`data-media-target="cover&#34;"`, `name="cover_asset_id"`, `href="/admin/media?select=cover%22"`, `media-select-clear`, `value="&lt;script&gt;"`} {
+	for _, marker := range []string{`id="cover&#34;-field"`, `data-media-target="cover&#34;"`, `name="cover_asset_id"`, `href="/admin/media?select=cover%22"`, `media-select-clear`, `value="&lt;script&gt;"`} {
 		if !strings.Contains(out, marker) {
 			t.Fatalf("media picker missing %q: %s", marker, out)
 		}
@@ -42,7 +42,7 @@ func TestMediaPickerEscapesValuesAndUsesAdminPickerContract(t *testing.T) {
 
 func TestItemListEditorEscapesValuesAndUsesSharedAdminContract(t *testing.T) {
 	out := render(t, ItemListEditor(ItemListEditorProps{ID: "keywords", Name: "keywords", Label: "Keywords", Value: `["one","two & <three>"]`}))
-	for _, marker := range []string{`data-item-list`, `data-field-name="keywords"`, `aria-label="Keywords: madde ekle"`, `name="keywords"`, `&#34;two &amp; &lt;three&gt;&#34;`} {
+	for _, marker := range []string{`id="keywords"`, `data-item-list`, `data-field-name="keywords"`, `aria-label="Keywords: madde ekle"`, `name="keywords"`, `&#34;two &amp; &lt;three&gt;&#34;`} {
 		if !strings.Contains(out, marker) {
 			t.Fatalf("item list editor missing %q: %s", marker, out)
 		}
@@ -50,6 +50,25 @@ func TestItemListEditorEscapesValuesAndUsesSharedAdminContract(t *testing.T) {
 	var outWithoutID bytes.Buffer
 	if err := ItemListEditor(ItemListEditorProps{Label: "Keywords"}).Render(context.Background(), &outWithoutID); err == nil {
 		t.Fatal("item list editor accepted a missing id")
+	}
+}
+
+func TestValidationSummaryEscapesAndLinksFieldErrors(t *testing.T) {
+	out := render(t, ValidationSummary(ValidationSummaryProps{
+		Title:   "Check this form",
+		Message: "Some fields need attention.",
+		Fields:  []FieldValidationError{{FieldID: `body"`, Label: `<Body>`, Message: `Required & needed`}},
+	}))
+	for _, marker := range []string{`role="alert"`, `aria-labelledby="generated-validation-title"`, `href="#body&#34;"`, `&lt;Body&gt;: Required &amp; needed`} {
+		if !strings.Contains(out, marker) {
+			t.Fatalf("validation summary missing %q: %s", marker, out)
+		}
+	}
+	if strings.Contains(out, `<Body>`) {
+		t.Fatalf("validation summary rendered unescaped field metadata: %s", out)
+	}
+	if err := ValidationSummary(ValidationSummaryProps{}).Render(context.Background(), &bytes.Buffer{}); err == nil {
+		t.Fatal("validation summary accepted missing accessible copy")
 	}
 }
 
