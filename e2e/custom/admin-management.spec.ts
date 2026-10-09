@@ -706,6 +706,10 @@ test.describe("single Edition administrator management", () => {
       form: { _csrf: restrictedCsrfToken },
     });
     expect(deniedRestoreMutation.status()).toBe(403);
+    const deniedPreviewLink = await restrictedEditor.request.post(`${editPageURL}/preview-link`, {
+      form: { _csrf: restrictedCsrfToken },
+    });
+    expect(deniedPreviewLink.status()).toBe(403);
     const apiHeaders = { "X-CSRF-Token": restrictedCsrfToken };
     const deniedAPICreate = await restrictedEditor.request.post(`${baseURL}/api/pages`, {
       headers: apiHeaders,
