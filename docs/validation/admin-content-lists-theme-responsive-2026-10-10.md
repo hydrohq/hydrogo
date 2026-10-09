@@ -2,7 +2,7 @@
 
 ## Change
 
-Added the Pages and News collection lists, the Pages import screen, News taxonomy management, and the role journey's persisted Page and News draft detail screens to the real Admin-session mobile/tablet overflow and touch-target check and the authenticated WCAG 2.1 A/AA matrix. The responsive inventory also lists Pages and News at 390px, 768px, and 1280px. Theme checks cover all four Studio families in light and dark modes.
+Added the Pages and News collection lists, the Pages import screen, News taxonomy management, and the role journey's persisted Page and News draft detail screens to the real Admin-session mobile/tablet overflow and touch-target check and the authenticated WCAG 2.1 A/AA matrix. Both authenticated Admin matrices now merge in the live Admin sidebar route inventory captured by the role test, so new active menu routes enter theme and responsive acceptance automatically. The responsive inventory also lists Pages and News at 390px, 768px, and 1280px. Theme checks cover all four Studio families in light and dark modes.
 
 ## Verification
 

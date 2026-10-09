@@ -18,6 +18,7 @@ let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | un
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let createdPageID = "";
 let createdNewsID = "";
+let adminNavigationPaths: string[] = [];
 let tokenLifetimeBaseline: { passwordReset: string; invitation: string } | undefined;
 let restrictedMutationTargets: string[] = [];
 
@@ -82,11 +83,11 @@ test.describe("single Edition administrator management", () => {
     };
     expect(tokenLifetimeBaseline.passwordReset).not.toBe("");
     expect(tokenLifetimeBaseline.invitation).not.toBe("");
-    const adminNavPaths = await adminPage.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
+    adminNavigationPaths = await adminPage.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
       [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
     );
-    expect(adminNavPaths.length).toBeGreaterThan(0);
-    for (const path of adminNavPaths) {
+    expect(adminNavigationPaths.length).toBeGreaterThan(0);
+    for (const path of adminNavigationPaths) {
       const response = await adminPage.goto(`${baseURL}${path}`);
       expect(response?.status(), `admin navigation link ${path} must open`).toBe(200);
     }
@@ -1570,7 +1571,8 @@ test.describe("single Edition administrator management", () => {
         await expect(page).toHaveURL(`${baseURL}/admin/pages`);
         await expect(page.locator("body")).not.toHaveClass(/studio-mobile-nav-open/);
       }
-      for (const route of [
+      const responsiveRoutes = [...new Set([
+        ...adminNavigationPaths,
         "/admin",
         "/admin/pages",
         "/admin/pages/new",
@@ -1592,7 +1594,8 @@ test.describe("single Edition administrator management", () => {
         "/admin/developer/resources",
         "/admin/reports",
         "/admin/account",
-      ]) {
+      ])];
+      for (const route of responsiveRoutes) {
         const response = await page.goto(`${baseURL}${route}`, { waitUntil: "domcontentloaded" });
         expect(response?.status(), `${route} must render at ${viewport.width}px`).toBe(200);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -1758,7 +1761,8 @@ test.describe("single Edition administrator management", () => {
     await page.goto(`${baseURL}/admin`);
     await dismissAdminTour(page);
 
-    const routes = [
+    const routes = [...new Set([
+      ...adminNavigationPaths,
       "/admin",
       "/admin/pages",
       "/admin/pages/new",
@@ -1779,7 +1783,7 @@ test.describe("single Edition administrator management", () => {
       "/admin/developer",
       "/admin/developer/resources",
       "/admin/reports",
-    ];
+    ])];
     const themes = ["hydrogo", "shadcn", "nova", "aurora"];
     for (const theme of themes) {
       for (const mode of ["light", "dark"]) {
