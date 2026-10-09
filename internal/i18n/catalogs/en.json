@@ -31,6 +31,8 @@
   "admin.generated.list.empty": "There are no records in this collection yet.",
   "admin.generated.list.noMatches": "Try changing your search or filters. No records match them.",
   "admin.generated.drafts.title": "Drafts",
+  "admin.generated.drafts.caption": "Draft list: %s",
+  "admin.generated.drafts.actions": "Actions",
   "admin.generated.drafts.empty": "There are no open drafts in this collection.",
   "admin.generated.drafts.title_column": "Title",
   "admin.generated.drafts.state_column": "State",

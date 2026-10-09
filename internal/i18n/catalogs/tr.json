@@ -31,6 +31,8 @@
   "admin.generated.list.empty": "Bu koleksiyonda henüz kayıt bulunmuyor.",
   "admin.generated.list.noMatches": "Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok.",
   "admin.generated.drafts.title": "Taslaklar",
+  "admin.generated.drafts.caption": "Taslak listesi: %s",
+  "admin.generated.drafts.actions": "İşlemler",
   "admin.generated.drafts.empty": "Bu koleksiyonda açık taslak yok.",
   "admin.generated.drafts.title_column": "Başlık",
   "admin.generated.drafts.state_column": "Durum",

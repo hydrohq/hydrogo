@@ -1872,7 +1872,12 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 		if _, err := io.WriteString(out, `<div class="table-wrap" id="generated-drafts-list" data-view-mode="table">`); err != nil {
 			return err
 		}
-		if err := RenderList(out, ListData{Collection: listCollection, Rows: rows, Locale: localeState(r).Current, UILocale: locale, BaseURL: baseURL, EmptyMessage: i18n.T(locale, "admin.generated.drafts.empty")}); err != nil {
+		if err := RenderList(out, ListData{
+			Collection: listCollection, Rows: rows, Locale: localeState(r).Current, UILocale: locale,
+			BaseURL: baseURL, EmptyMessage: i18n.T(locale, "admin.generated.drafts.empty"),
+			ListCaption:       fmt.Sprintf(i18n.T(locale, "admin.generated.drafts.caption"), collection.Label),
+			ActionColumnLabel: i18n.T(locale, "admin.generated.drafts.actions"),
+		}); err != nil {
 			return err
 		}
 		_, err := io.WriteString(out, `</div></section>`)
