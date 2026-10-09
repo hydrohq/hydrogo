@@ -328,6 +328,26 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(editForm.locator(".media-select-field")).toHaveClass(/has-selected/);
   });
 
+  test("failed relation options load shows a retry page and restores the form", async ({ page, request }) => {
+    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+    const armed = await request.post(`${baseURL}/__test/fail-next-author-read`);
+    expect(armed.status()).toBe(204);
+
+    const failedResponse = await page.goto(`${baseURL}/admin/resources/article/new`);
+    expect(failedResponse?.status()).toBe(502);
+    await expect(page.getByRole("alert")).toContainText("Sayfa yüklenemedi");
+    await expect(page.locator("body")).not.toContainText("fixture database host");
+    await dismissOnboarding(page);
+    await expectNoA11yViolations(page);
+
+    const retry = page.locator('form[method="get"][action="/admin/resources/article/new"]');
+    await expect(retry).toBeVisible();
+    await retry.getByRole("button", { name: "Yeniden dene" }).click();
+    await expect(page.locator('form[action="/admin/resources/article/new"]')).toBeVisible();
+    await expect(page.getByLabel("Author")).toHaveValue("");
+    await page.getByLabel("Author").selectOption("author-1");
+  });
+
   test("generated localized draft publishes without changing the default locale", async ({ page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin/resources/story/story-1?locale=tr`);
