@@ -3,8 +3,9 @@ package webhooks
 import (
 	"context"
 	"database/sql"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,9 +42,10 @@ func (f *fakeOutbox) DeadLetter(context.Context, database.Executor, outbox.Event
 
 func TestWorkerDeadLettersAfterBoundedDeliveryAttempts(t *testing.T) {
 	store := &fakeOutbox{event: outbox.Event{ID: "event-dead", Topic: "order.created", AggregateID: "order-1", PayloadVersion: 1, Attempts: 3}}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "permanent", http.StatusBadGateway) }))
-	defer server.Close()
-	worker := Worker{DB: structExecutor{}, Store: store, WorkerID: "w1", Lease: time.Minute, MaxDeliveryAttempts: 3, Dispatcher: Dispatcher{Endpoints: []Endpoint{{ID: "erp", URL: server.URL, Secret: "secret", Topics: map[string]struct{}{"order.created": {}}}}, MaxAttempts: 1}}
+	client := &http.Client{Transport: webhookRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusBadGateway, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("permanent")), Request: r}, nil
+	})}
+	worker := Worker{DB: structExecutor{}, Store: store, WorkerID: "w1", Lease: time.Minute, MaxDeliveryAttempts: 3, Dispatcher: Dispatcher{Client: client, Endpoints: []Endpoint{{ID: "erp", URL: "https://erp.example.test/hook", Secret: "secret", Topics: map[string]struct{}{"order.created": {}}}}, MaxAttempts: 1}}
 	processed, err := worker.RunOnce(context.Background(), time.Now())
 	if err == nil || !processed || !store.deadLettered || store.retried {
 		t.Fatalf("dead letter state processed=%v err=%v store=%+v", processed, err, store)

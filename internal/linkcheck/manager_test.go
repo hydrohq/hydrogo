@@ -2,23 +2,24 @@ package linkcheck
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 func TestManagerRunsBoundedTenantScopedScan(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const origin = "http://manager-site.test"
+	client := testhttp.Client(testhttp.Handlers{"manager-site.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">missing</a>`))
 			return
 		}
 		http.NotFound(w, r)
-	}))
-	defer server.Close()
-	manager := NewManager(Options{MaxPages: 10, MaxTargets: 20, RequestDelay: time.Millisecond, Client: server.Client()})
-	job, err := manager.Start("tenant-a", server.URL)
+	})})
+	manager := NewManager(Options{MaxPages: 10, MaxTargets: 20, RequestDelay: time.Millisecond, Client: client})
+	job, err := manager.Start("tenant-a", origin)
 	if err != nil {
 		t.Fatal(err)
 	}

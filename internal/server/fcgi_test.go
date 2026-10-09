@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -13,10 +12,7 @@ import (
 )
 
 func TestServeFCGIResponder(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	listener := newMemoryListener()
 	serveDone := make(chan error, 1)
 	go func() {
 		serveDone <- ServeFCGI(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +32,7 @@ func TestServeFCGIResponder(t *testing.T) {
 		}
 	}()
 
-	conn, err := net.Dial("tcp", listener.Addr().String())
+	conn, err := listener.dial()
 	if err != nil {
 		t.Fatal(err)
 	}

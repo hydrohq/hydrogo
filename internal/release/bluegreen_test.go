@@ -9,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 func TestTrafficPublishesOnlyGatedSlotAndRollsBack(t *testing.T) {
@@ -86,18 +88,21 @@ func TestTrafficSwitchRemainsBoundedUnderConcurrentRequests(t *testing.T) {
 }
 
 func TestTrafficWorksBehindReverseProxyHandlers(t *testing.T) {
-	blueServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("blue-proxy")) }))
-	defer blueServer.Close()
-	greenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("green-proxy")) }))
-	defer greenServer.Close()
+	const blueURL, greenURL = "http://blue.test", "http://green.test"
+	client := testhttp.Client(testhttp.Handlers{
+		"blue.test":  http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("blue-proxy")) }),
+		"green.test": http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("green-proxy")) }),
+	})
 	proxyFor := func(raw string) http.Handler {
 		u, err := url.Parse(raw)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return httputil.NewSingleHostReverseProxy(u)
+		proxy := httputil.NewSingleHostReverseProxy(u)
+		proxy.Transport = client.Transport
+		return proxy
 	}
-	traffic, err := NewTraffic(proxyFor(blueServer.URL), proxyFor(greenServer.URL))
+	traffic, err := NewTraffic(proxyFor(blueURL), proxyFor(greenURL))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,8 +7,8 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/netip"
 	"strings"
 	"testing"
@@ -75,28 +75,33 @@ func TestFCMSenderUsesServiceAccountAndV1Endpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		var body string
 		switch r.URL.Path {
 		case "/token":
 			if r.Method != http.MethodPost {
 				t.Errorf("token method=%s", r.Method)
 			}
-			_, _ = w.Write([]byte(`{"access_token":"access","expires_in":3600}`))
+			body = `{"access_token":"access","expires_in":3600}`
 		case "/v1/projects/demo-project/messages:send":
 			if r.Header.Get("Authorization") != "Bearer access" {
 				t.Errorf("auth header missing")
 			}
-			_, _ = w.Write([]byte(`{"name":"projects/demo-project/messages/abc"}`))
+			requestBody, err := io.ReadAll(r.Body)
+			if err != nil || !strings.Contains(string(requestBody), `"title":"Hello"`) {
+				t.Errorf("message body=%s err=%v", requestBody, err)
+			}
+			body = `{"name":"projects/demo-project/messages/abc"}`
 		default:
 			t.Errorf("unexpected path %s", r.URL.Path)
-			http.NotFound(w, r)
+			return &http.Response{StatusCode: http.StatusNotFound, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("not found")), Request: r}, nil
 		}
-	}))
-	defer server.Close()
-	credentials, _ := json.Marshal(map[string]string{"project_id": "demo-project", "client_email": "push@example.test", "private_key": pemKey, "token_uri": server.URL + "/token"})
-	sender, err := NewFCMSender(credentials, server.Client())
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})}
+	credentials, _ := json.Marshal(map[string]string{"project_id": "demo-project", "client_email": "push@example.test", "private_key": pemKey, "token_uri": "https://push.example.test/token"})
+	sender, err := NewFCMSender(credentials, client)
 	if err == nil {
-		sender.Endpoint = server.URL + "/v1"
+		sender.Endpoint = "https://push.example.test/v1"
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -104,6 +109,12 @@ func TestFCMSenderUsesServiceAccountAndV1Endpoint(t *testing.T) {
 	if err := sender.Send(context.Background(), Subscription{Endpoint: strings.Repeat("f", 24)}, Message{Title: "Hello", Body: "World"}); err != nil {
 		t.Fatal(err)
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
 }
 
 func TestWebPushEndpointBlocksPrivateAndLocalDestinations(t *testing.T) {

@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 type providerFunc func(context.Context, Request) (Suggestion, error)
@@ -88,7 +89,8 @@ func TestAssistantTranslationRequiresDistinctWellFormedTargetLocale(t *testing.T
 }
 
 func TestOpenAICompatibleUsesRedactedRequestAndCapsResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const endpoint = "http://127.0.0.1:19081/v1"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19081": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer private-token" {
 			t.Errorf("request path=%s auth=%q", r.URL.Path, r.Header.Get("Authorization"))
 		}
@@ -103,9 +105,8 @@ func TestOpenAICompatibleUsesRedactedRequestAndCapsResponse(t *testing.T) {
 			t.Error("unredacted email sent to provider")
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"{\"title\":\"Öneri\",\"body\":\"Yeni taslak\"}"}}]}`))
-	}))
-	defer server.Close()
-	assistant := Assistant{Enabled: true, Provider: OpenAICompatible{Endpoint: server.URL + "/v1", APIKey: "private-token", Model: "test"}, Timeout: time.Second}
+	})})
+	assistant := Assistant{Enabled: true, Provider: OpenAICompatible{Endpoint: endpoint, APIKey: "private-token", Model: "test", Client: client}, Timeout: time.Second}
 	result, err := assistant.Suggest(context.Background(), Request{Operation: Refine, Locale: "tr", Title: "owner@example.test", Body: "Body", Consent: true})
 	if err != nil || result.Title != "Öneri" || result.Body != "Yeni taslak" {
 		t.Fatalf("suggestion=%+v err=%v", result, err)
@@ -116,11 +117,11 @@ func TestHTTPProviderRejectsRemotePlaintextAndMalformedResponses(t *testing.T) {
 	if _, err := (OpenAICompatible{Endpoint: "http://provider.example/v1", APIKey: "k", Model: "m"}).endpoint(); err == nil {
 		t.Fatal("remote plaintext provider endpoint was accepted")
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	const endpoint = "http://127.0.0.1:19082"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19082": http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"not-json"}}]}`))
-	}))
-	defer server.Close()
-	_, err := (Assistant{Enabled: true, Provider: OpenAICompatible{Endpoint: server.URL, APIKey: "k", Model: "m"}}).Suggest(context.Background(), Request{Operation: Summary, Body: "Body", Consent: true})
+	})})
+	_, err := (Assistant{Enabled: true, Provider: OpenAICompatible{Endpoint: endpoint, APIKey: "k", Model: "m", Client: client}}).Suggest(context.Background(), Request{Operation: Summary, Body: "Body", Consent: true})
 	if !errors.Is(err, ErrProvider) {
 		t.Fatalf("malformed output error = %v", err)
 	}

@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 type oauthSessions struct{ created *Session }
@@ -33,7 +35,8 @@ func (*oauthSessions) Touch(context.Context, string, time.Time) error          {
 
 func TestSocialOAuthStartAndCallbackUseStatePKCEAndCreateOpaqueSession(t *testing.T) {
 	var verifier string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const upstream = "http://127.0.0.1:19091"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19091": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/token":
 			if err := r.ParseForm(); err != nil {
@@ -54,12 +57,11 @@ func TestSocialOAuthStartAndCallbackUseStatePKCEAndCreateOpaqueSession(t *testin
 		default:
 			http.NotFound(w, r)
 		}
-	}))
-	defer server.Close()
+	})})
 	sessions := &oauthSessions{}
 	service := &AuthService{sessionRepo: sessions}
-	provider := OAuthProviderConfig{Name: "google", ClientID: "client", ClientSecret: "secret", AuthorizationURL: server.URL + "/authorize", TokenURL: server.URL + "/token", UserInfoURL: server.URL + "/userinfo", RedirectURL: server.URL + "/callback", Scopes: []string{"openid", "email"}}
-	handler := SocialOAuthHandler{Providers: map[string]OAuthProviderConfig{"google": provider}, Resolver: OAuthIdentityResolverFunc(func(_ context.Context, identity OAuthIdentity) (*User, error) {
+	provider := OAuthProviderConfig{Name: "google", ClientID: "client", ClientSecret: "secret", AuthorizationURL: upstream + "/authorize", TokenURL: upstream + "/token", UserInfoURL: upstream + "/userinfo", RedirectURL: upstream + "/callback", Scopes: []string{"openid", "email"}}
+	handler := SocialOAuthHandler{Providers: map[string]OAuthProviderConfig{"google": provider}, HTTPClient: client, Resolver: OAuthIdentityResolverFunc(func(_ context.Context, identity OAuthIdentity) (*User, error) {
 		if identity.Subject != "google-subject" || !identity.EmailVerified {
 			t.Fatalf("identity=%+v", identity)
 		}
@@ -118,12 +120,12 @@ func TestSocialOAuthRejectsTamperedStateAndUnverifiedEmail(t *testing.T) {
 	if _, err := handler.decodeState(cookie); err == nil {
 		t.Fatal("accepted tampered OAuth state")
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const upstream = "http://127.0.0.1:19092"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19092": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"sub":"id","email":"user@example.test","email_verified":false}`))
-	}))
-	defer server.Close()
+	})})
 	handler.AllowInsecureLocalhost = true
-	identity, err := handler.fetchIdentity(context.Background(), OAuthProviderConfig{Name: "google", UserInfoURL: server.URL}, "token", server.Client())
+	identity, err := handler.fetchIdentity(context.Background(), OAuthProviderConfig{Name: "google", UserInfoURL: upstream}, "token", client)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,11 +139,11 @@ func TestVerifyAppleIdentityTokenChecksSignatureAudienceNonceAndExpiry(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	const upstream = "http://127.0.0.1:19093"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19093": http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		e := bigEndian(private.PublicKey.E)
 		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []any{map[string]string{"kty": "RSA", "kid": "test-key", "n": base64.RawURLEncoding.EncodeToString(private.PublicKey.N.Bytes()), "e": base64.RawURLEncoding.EncodeToString(e)}}})
-	}))
-	defer server.Close()
+	})})
 	now := time.Now().UTC()
 	header, _ := json.Marshal(map[string]string{"alg": "RS256", "kid": "test-key"})
 	claims, _ := json.Marshal(map[string]any{"iss": "https://appleid.apple.com", "sub": "apple-sub", "aud": "client", "exp": now.Add(time.Minute).Unix(), "iat": now.Unix(), "nonce": "expected", "email": "person@example.test", "email_verified": true})
@@ -154,15 +156,14 @@ func TestVerifyAppleIdentityTokenChecksSignatureAudienceNonceAndExpiry(t *testin
 		t.Fatal(err)
 	}
 	token := signed + "." + base64.RawURLEncoding.EncodeToString(signature)
-	client := server.Client()
-	identity, err := verifyAppleIdentity(context.Background(), token, "client", "expected", server.URL, client, true)
+	identity, err := verifyAppleIdentity(context.Background(), token, "client", "expected", upstream, client, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if identity.Provider != "apple" || identity.Subject != "apple-sub" || !identity.EmailVerified {
 		t.Fatalf("identity=%+v", identity)
 	}
-	if _, err := verifyAppleIdentity(context.Background(), token, "wrong", "expected", server.URL, client, true); err == nil {
+	if _, err := verifyAppleIdentity(context.Background(), token, "wrong", "expected", upstream, client, true); err == nil {
 		t.Fatal("accepted wrong audience")
 	}
 }

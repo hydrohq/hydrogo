@@ -3,12 +3,15 @@ package push
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 func TestWebSubscriptionEndpointBindsToSignedInUser(t *testing.T) {
@@ -36,15 +39,68 @@ func TestAdminBroadcastHonorsAudienceAndValidatesMessage(t *testing.T) {
 	handler := Handler{Dispatcher: Dispatcher{Repository: repo, Mobile: mobile}, Audit: auth.AuditRecorderFunc(func(_ context.Context, action, target string) error { audited = action + ":" + target; return nil })}
 	request := httptest.NewRequest("POST", "/admin/push/broadcast", strings.NewReader(url.Values{"title": {"Campaign"}, "body": {"A notice"}, "audience": {"mobile"}}.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set(security.CSRFHeaderName, "csrf-token")
+	request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
 	request = request.WithContext(auth.WithUser(context.Background(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	routeHandler := protectedPushRoutes(t, handler)
 	recorder := httptest.NewRecorder()
-	handler.broadcast(recorder, request)
+	routeHandler.ServeHTTP(recorder, request)
 	if recorder.Code != 303 || mobile.sent != 2 || !strings.Contains(recorder.Header().Get("Location"), "sent=2%2C2%2C0") {
 		t.Fatalf("status=%d sent=%d location=%q", recorder.Code, mobile.sent, recorder.Header().Get("Location"))
 	}
 	if audited != "push.broadcast:mobile:2:2:0" {
 		t.Fatalf("audit record=%q", audited)
 	}
+}
+
+func TestAdminBroadcastRouteRequiresCSRFAndAdminRole(t *testing.T) {
+	repo := &memorySubscriptions{items: []Subscription{{ID: "m1", UserID: "u1", Platform: PlatformMobile, Endpoint: strings.Repeat("m", 24)}}}
+	mobile := &fakeSender{}
+	audited := false
+	handler := Handler{
+		Dispatcher: Dispatcher{Repository: repo, Mobile: mobile},
+		Audit:      auth.AuditRecorderFunc(func(context.Context, string, string) error { audited = true; return nil }),
+	}
+	routes := protectedPushRoutes(t, handler)
+	for _, tc := range []struct {
+		name  string
+		role  auth.Role
+		token string
+	}{
+		{name: "admin with invalid token", role: auth.RoleAdmin, token: "wrong-token"},
+		{name: "editor with valid token", role: auth.RoleEditor, token: "csrf-token"},
+		{name: "viewer with valid token", role: auth.RoleViewer, token: "csrf-token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/admin/push/broadcast", strings.NewReader(url.Values{
+				"title": {"Campaign"}, "body": {"A notice"}, "audience": {"mobile"},
+			}.Encode()))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request.Header.Set(security.CSRFHeaderName, tc.token)
+			request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
+			request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: string(tc.role), Role: tc.role, Active: true}))
+			response := httptest.NewRecorder()
+			routes.ServeHTTP(response, request)
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("status=%d body=%q, want 403", response.Code, response.Body.String())
+			}
+		})
+	}
+	if mobile.sent != 0 || audited {
+		t.Fatalf("denied broadcasts had side effects: sent=%d audited=%t", mobile.sent, audited)
+	}
+}
+
+func protectedPushRoutes(t *testing.T, handler Handler) http.Handler {
+	t.Helper()
+	mux, err := router.New(handler.Routes(), func(r *http.Request) bool {
+		user := auth.UserFromContext(r.Context())
+		return user != nil && user.Active
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return security.CSRFMiddleware(false, nil)(mux)
 }
 
 func TestPushUIAndWorkerAreModuleRouteResources(t *testing.T) {

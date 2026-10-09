@@ -78,6 +78,11 @@ func Serve(ctx context.Context, config Config) error {
 	if err != nil {
 		return err
 	}
+	return serveListener(ctx, config, listener)
+}
+
+func serveListener(ctx context.Context, config Config, listener net.Listener) error {
+	ctx = nonNilContext(ctx)
 	defer listener.Close()
 
 	server := &http.Server{

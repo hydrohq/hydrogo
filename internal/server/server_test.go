@@ -62,38 +62,32 @@ func TestServeContextNormalization(t *testing.T) {
 }
 
 func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	address := listener.Addr().String()
-	_ = listener.Close()
+	listener := newMemoryListener()
 	release := make(chan struct{})
 	started := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	serveDone := make(chan error, 1)
 	go func() {
-		serveDone <- Serve(ctx, Config{Address: address, ShutdownTimeout: 10 * time.Second, Routes: []router.Route{{
+		serveDone <- serveListener(ctx, Config{ShutdownTimeout: 10 * time.Second, Routes: []router.Route{{
 			Pattern: "GET /slow", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				close(started)
 				<-release
 				w.WriteHeader(http.StatusNoContent)
 			}),
-		}}})
+		}}}, listener)
 	}()
-	client := &http.Client{Timeout: 10 * time.Second}
-	for i := 0; i < 50; i++ {
-		resp, requestErr := client.Get("http://" + address + "/healthz")
-		if requestErr == nil {
-			_ = resp.Body.Close()
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
+	transport := &http.Transport{DisableKeepAlives: true, DialContext: func(context.Context, string, string) (net.Conn, error) { return listener.dial() }}
+	client := &http.Client{Timeout: 10 * time.Second, Transport: transport}
+	defer transport.CloseIdleConnections()
+	health, err := client.Get("http://in-memory/healthz")
+	if err != nil {
+		t.Fatalf("health request failed: %v", err)
 	}
+	_ = health.Body.Close()
 	requestDone := make(chan error, 1)
 	go func() {
-		resp, requestErr := client.Get("http://" + address + "/slow")
+		resp, requestErr := client.Get("http://in-memory/slow")
 		if resp != nil {
 			_ = resp.Body.Close()
 		}
@@ -112,9 +106,9 @@ func TestServeGracefulShutdownWaitsForActiveHandler(t *testing.T) {
 	}
 	close(release)
 	select {
-	case err := <-serveDone:
-		if err != nil {
-			t.Fatalf("graceful shutdown error: %v", err)
+	case serveErr := <-serveDone:
+		if serveErr != nil {
+			t.Fatalf("graceful shutdown error: %v", serveErr)
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("server did not stop after active handler drained")

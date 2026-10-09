@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -17,8 +16,8 @@ import (
 
 func TestDispatcherSignsAndRetriesIdempotently(t *testing.T) {
 	var attempts atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		attempts.Add(1)
+	client := &http.Client{Transport: webhookRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		attempt := attempts.Add(1)
 		body, _ := io.ReadAll(r.Body)
 		timestamp := r.Header.Get("X-Hydro-Timestamp")
 		if _, err := strconv.ParseInt(timestamp, 10, 64); err != nil {
@@ -33,14 +32,13 @@ func TestDispatcherSignsAndRetriesIdempotently(t *testing.T) {
 		if r.Header.Get("Idempotency-Key") != "evt-1" {
 			t.Error("missing idempotency key")
 		}
-		if attempts.Load() < 2 {
-			http.Error(w, "retry", http.StatusBadGateway)
-			return
+		status, responseBody := http.StatusNoContent, ""
+		if attempt < 2 {
+			status, responseBody = http.StatusBadGateway, "retry"
 		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-	d := Dispatcher{Endpoints: []Endpoint{{ID: "erp", URL: server.URL, Secret: "secret", Topics: map[string]struct{}{"order.paid": {}}}}, MaxAttempts: 3, Sleep: func(context.Context, time.Duration) error { return nil }}
+		return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(responseBody)), Request: r}, nil
+	})}
+	d := Dispatcher{Client: client, Endpoints: []Endpoint{{ID: "erp", URL: "https://erp.example.test/hook", Secret: "secret", Topics: map[string]struct{}{"order.paid": {}}}}, MaxAttempts: 3, Sleep: func(context.Context, time.Duration) error { return nil }}
 	if err := d.Dispatch(context.Background(), Event{ID: "evt-1", Topic: "order.paid", AggregateID: "o-1", PayloadVersion: 1, Data: map[string]string{"status": "paid"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -59,14 +57,13 @@ func TestDispatcherRejectsInvalidEndpoint(t *testing.T) {
 }
 
 func TestDispatcherClampsBackoff(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "retry", http.StatusBadGateway)
-	}))
-	defer server.Close()
+	client := &http.Client{Transport: webhookRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusBadGateway, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("retry")), Request: r}, nil
+	})}
 	var delays []time.Duration
 	d := Dispatcher{
-		Client:      server.Client(),
-		Endpoints:   []Endpoint{{ID: "erp", URL: server.URL, Secret: "secret", Topics: map[string]struct{}{"order.paid": {}}}},
+		Client:      client,
+		Endpoints:   []Endpoint{{ID: "erp", URL: "https://erp.example.test/hook", Secret: "secret", Topics: map[string]struct{}{"order.paid": {}}}},
 		MaxAttempts: 2,
 		Backoff:     time.Duration(1<<63 - 1),
 		Sleep: func(_ context.Context, delay time.Duration) error {
@@ -84,16 +81,15 @@ func TestDispatcherClampsBackoff(t *testing.T) {
 
 func TestDispatcherRejectsInvalidRedirectTarget(t *testing.T) {
 	targetCalled := atomic.Bool{}
-	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		targetCalled.Store(true)
-	}))
-	defer target.Close()
-	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, strings.Replace(target.URL, "http://", "http://user:pass@", 1), http.StatusFound)
-	}))
-	defer redirect.Close()
-
-	err := (Dispatcher{Endpoints: []Endpoint{{ID: "redirect", URL: redirect.URL, Secret: "secret", Topics: map[string]struct{}{"x": {}}}}}).Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1})
+	client := &http.Client{Transport: webhookRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host == "target.example.test" {
+			targetCalled.Store(true)
+		}
+		header := make(http.Header)
+		header.Set("Location", "http://user:pass@target.example.test/hook")
+		return &http.Response{StatusCode: http.StatusFound, Header: header, Body: io.NopCloser(strings.NewReader("redirect")), Request: r}, nil
+	})}
+	err := (Dispatcher{Client: client, Endpoints: []Endpoint{{ID: "redirect", URL: "https://redirect.example.test/hook", Secret: "secret", Topics: map[string]struct{}{"x": {}}}}}).Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1})
 	if err == nil || !strings.Contains(err.Error(), "invalid webhook endpoint") {
 		t.Fatalf("redirect error = %v, want invalid webhook endpoint", err)
 	}

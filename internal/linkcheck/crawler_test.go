@@ -3,40 +3,42 @@ package linkcheck
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"net/netip"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 func TestCrawlFindsInternalExternalAndMissingAssets(t *testing.T) {
-	external := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/missing" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html")
-		_, _ = w.Write([]byte(`<a href="/again">again</a>`))
-	}))
-	defer external.Close()
-	var site *httptest.Server
-	site = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/":
+	externalURL := "http://external.test"
+	siteURL := "http://site.test"
+	client := testhttp.Client(testhttp.Handlers{
+		"external.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/missing" {
+				http.NotFound(w, r)
+				return
+			}
 			w.Header().Set("Content-Type", "text/html")
-			_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">Read <b>this</b></a><img src="/gone.png" alt="hero"><a href="` + external.URL + `/missing">Outside</a>`))
-		case "/missing", "/gone.png":
-			http.NotFound(w, r)
-		default:
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = w.Write([]byte(`<a href="/">home</a>`))
-		}
-	}))
-	defer site.Close()
+			_, _ = w.Write([]byte(`<a href="/again">again</a>`))
+		}),
+		"site.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/":
+				w.Header().Set("Content-Type", "text/html")
+				_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">Read <b>this</b></a><img src="/gone.png" alt="hero"><a href="` + externalURL + `/missing">Outside</a>`))
+			case "/missing", "/gone.png":
+				http.NotFound(w, r)
+			default:
+				w.Header().Set("Content-Type", "text/html")
+				_, _ = w.Write([]byte(`<a href="/">home</a>`))
+			}
+		}),
+	})
 
-	client := &http.Client{Timeout: time.Second}
-	findings, err := Crawl(context.Background(), Options{StartURL: site.URL, MaxPages: 10, Concurrency: 3, RequestDelay: time.Millisecond, Client: client})
+	client.Timeout = time.Second
+	findings, err := Crawl(context.Background(), Options{StartURL: siteURL, MaxPages: 10, Concurrency: 3, RequestDelay: time.Millisecond, Client: client})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,13 +46,13 @@ func TestCrawlFindsInternalExternalAndMissingAssets(t *testing.T) {
 	for _, finding := range findings {
 		joined[finding.URL] = finding
 	}
-	if got := joined[site.URL+"/missing"]; got.Status != 404 || got.AnchorText != "Read this" || got.SourceTitle != "Home" {
+	if got := joined[siteURL+"/missing"]; got.Status != 404 || got.AnchorText != "Read this" || got.SourceTitle != "Home" {
 		t.Fatalf("internal finding=%#v; all=%#v", got, findings)
 	}
-	if got := joined[site.URL+"/gone.png"]; got.Status != 404 || got.AnchorText != "hero" {
+	if got := joined[siteURL+"/gone.png"]; got.Status != 404 || got.AnchorText != "hero" {
 		t.Fatalf("asset finding=%#v", got)
 	}
-	if got := joined[external.URL+"/missing"]; got.Status != 404 || got.AnchorText != "Outside" {
+	if got := joined[externalURL+"/missing"]; got.Status != 404 || got.AnchorText != "Outside" {
 		t.Fatalf("external finding=%#v", got)
 	}
 }
@@ -100,7 +102,8 @@ func TestPublicAddressBlocksNonPublicNetworks(t *testing.T) {
 func TestCrawlRetriesTransientResponsesBeforeReporting(t *testing.T) {
 	var temporaryCalls atomic.Int32
 	var stableCalls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const origin = "http://retry.test"
+	client := testhttp.Client(testhttp.Handlers{"retry.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
 			w.Header().Set("Content-Type", "text/html")
@@ -115,16 +118,15 @@ func TestCrawlRetriesTransientResponsesBeforeReporting(t *testing.T) {
 			stableCalls.Add(1)
 			http.Error(w, "later", http.StatusServiceUnavailable)
 		}
-	}))
-	defer server.Close()
-	findings, err := Crawl(context.Background(), Options{StartURL: server.URL, MaxPages: 5, MaxTargets: 10, RequestDelay: time.Millisecond, Client: server.Client()})
+	})})
+	findings, err := Crawl(context.Background(), Options{StartURL: origin, MaxPages: 5, MaxTargets: 10, RequestDelay: time.Millisecond, Client: client})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if temporaryCalls.Load() != 2 || stableCalls.Load() != 2 {
 		t.Fatalf("retry calls temporary=%d stable=%d", temporaryCalls.Load(), stableCalls.Load())
 	}
-	if len(findings) != 1 || findings[0].URL != server.URL+"/stable" || findings[0].Status != http.StatusServiceUnavailable {
+	if len(findings) != 1 || findings[0].URL != origin+"/stable" || findings[0].Status != http.StatusServiceUnavailable {
 		t.Fatalf("findings=%#v", findings)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/trash"
 )
 
@@ -71,21 +73,70 @@ func TestTrashSubmissionsRequireSiteManagePermission(t *testing.T) {
 			t.Fatalf("submission not moved by admin: %v", repo.moved)
 		}
 	})
+
+	t.Run("explicit content deny blocks editor and admin", func(t *testing.T) {
+		for _, user := range []*auth.User{
+			{ID: "editor-denied", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}},
+			{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}},
+		} {
+			rec, repo := performTrashAction(t, user, "pages", "p-1", "delete")
+			if rec.Code != http.StatusForbidden || len(repo.moved) != 0 {
+				t.Fatalf("role=%s status=%d moved=%v", user.Role, rec.Code, repo.moved)
+			}
+		}
+	})
+
+	t.Run("explicit site grant permits submission management", func(t *testing.T) {
+		user := &auth.User{ID: "editor-site-manager", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}
+		rec, repo := performTrashAction(t, user, "submissions", "f-2", "restore")
+		if rec.Code != http.StatusSeeOther || len(repo.restored) != 1 || repo.restored[0] != "submissions:f-2" {
+			t.Fatalf("status=%d restored=%v", rec.Code, repo.restored)
+		}
+	})
+
+	t.Run("explicit site deny blocks admin submission management", func(t *testing.T) {
+		user := &auth.User{ID: "admin-denied", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+		rec, repo := performTrashAction(t, user, "submissions", "f-2", "restore")
+		if rec.Code != http.StatusForbidden || len(repo.restored) != 0 {
+			t.Fatalf("status=%d restored=%v", rec.Code, repo.restored)
+		}
+	})
+}
+
+func TestTrashMutationRoutesEnforceCSRFBeforeService(t *testing.T) {
+	for _, action := range []string{"delete", "restore"} {
+		t.Run(action, func(t *testing.T) {
+			for _, kind := range []string{"pages", "submissions"} {
+				rec, repo := performTrashActionWithCSRF(t, &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, kind, "item-1", action, "wrong-token")
+				if rec.Code != http.StatusForbidden || len(repo.moved)+len(repo.restored) != 0 {
+					t.Fatalf("kind=%s status=%d moved=%v restored=%v", kind, rec.Code, repo.moved, repo.restored)
+				}
+			}
+		})
+	}
 }
 
 func performTrashAction(t *testing.T, user *auth.User, kind, id, action string) (*httptest.ResponseRecorder, *fakeRepository) {
+	return performTrashActionWithCSRF(t, user, kind, id, action, "valid-token")
+}
+
+func performTrashActionWithCSRF(t *testing.T, user *auth.User, kind, id, action, token string) (*httptest.ResponseRecorder, *fakeRepository) {
 	t.Helper()
 	repo := &fakeRepository{}
 	handler := Handler{Service: trash.Service{Repository: repo}}
-	req := httptest.NewRequest(http.MethodPost, "/admin/trash/"+kind+"/"+id+"/"+action, nil)
-	req = req.WithContext(auth.WithUser(context.Background(), user))
-	req.SetPathValue("kind", kind)
-	req.SetPathValue("id", id)
-	rec := httptest.NewRecorder()
-	if action == "delete" {
-		handler.move(rec, req)
-	} else {
-		handler.restore(rec, req)
+	mux, err := router.New(handler.Routes(), func(r *http.Request) bool {
+		actor := auth.UserFromContext(r.Context())
+		return actor != nil && actor.Active
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
+	protected := security.CSRFMiddleware(false, nil)(mux)
+	req := httptest.NewRequest(http.MethodPost, "/admin/trash/"+kind+"/"+id+"/"+action, nil)
+	req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+	req.Header.Set(security.CSRFHeaderName, token)
+	req = req.WithContext(auth.WithUser(context.Background(), user))
+	rec := httptest.NewRecorder()
+	protected.ServeHTTP(rec, req)
 	return rec, repo
 }

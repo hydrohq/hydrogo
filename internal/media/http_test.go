@@ -18,6 +18,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 type httpAssetRepo struct{ asset Asset }
@@ -98,11 +99,30 @@ func TestAdminMediaSettingsPersistAndApplyHotlinkProtection(t *testing.T) {
 		"watermark_enabled": {"on"}, "watermark_text": {"© HydroGo"}, "watermark_position": {"bottom-left"},
 		"watermark_opacity": {"40"}, "watermark_margin": {"16"},
 	}
-	request := httptest.NewRequest(http.MethodPost, "/admin/media/settings", strings.NewReader(form.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleAdmin, Active: true}))
-	response := httptest.NewRecorder()
-	handler.adminSaveSettings(response, request)
+	mux := http.NewServeMux()
+	for _, route := range handler.AdminRoutes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	csrf := security.CSRFMiddleware(false, nil)(mux)
+	postSettings := func(token string) *httptest.ResponseRecorder {
+		values := url.Values{}
+		for key, value := range form {
+			values[key] = append([]string(nil), value...)
+		}
+		values.Set("_csrf", token)
+		request := httptest.NewRequest(http.MethodPost, "/admin/media/settings", strings.NewReader(values.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
+		response := httptest.NewRecorder()
+		csrf.ServeHTTP(response, request)
+		return response
+	}
+	invalid := postSettings("wrong-token")
+	if invalid.Code != http.StatusForbidden || repository.found {
+		t.Fatalf("invalid CSRF status=%d saved=%t body=%q", invalid.Code, repository.found, invalid.Body.String())
+	}
+	response := postSettings("valid-token")
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("save status = %d body=%s", response.Code, response.Body.String())
 	}
@@ -168,7 +188,7 @@ func TestAdminMediaSettingsPersistAndApplyHotlinkProtection(t *testing.T) {
 	}
 }
 
-func TestPrivateMediaLiveHTTPRejectsAnonymous(t *testing.T) {
+func TestPrivateMediaHTTPRejectsAnonymousAndServesAuthorizedEditor(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "private-live.txt"), []byte("secret"), 0o600); err != nil {
 		t.Fatal(err)
@@ -190,29 +210,17 @@ func TestPrivateMediaLiveHTTPRejectsAnonymous(t *testing.T) {
 		}
 		handler.serve(w, r)
 	}))
-	server := httptest.NewServer(mux)
-	defer server.Close()
-
-	response, err := server.Client().Get(server.URL + "/media/live-private")
-	if err != nil {
-		t.Fatal(err)
+	anonymous := httptest.NewRecorder()
+	mux.ServeHTTP(anonymous, httptest.NewRequest(http.MethodGet, "/media/live-private", nil))
+	if anonymous.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous media status = %d, want 401", anonymous.Code)
 	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("anonymous live media status = %d, want 401", response.StatusCode)
-	}
-	authorizedRequest, err := http.NewRequest(http.MethodGet, server.URL+"/media/live-private", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	authorizedRequest := httptest.NewRequest(http.MethodGet, "/media/live-private", nil)
 	authorizedRequest.Header.Set("X-Test-Editor", "1")
-	response, err = server.Client().Do(authorizedRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("authorized live media status = %d, want 200", response.StatusCode)
+	authorized := httptest.NewRecorder()
+	mux.ServeHTTP(authorized, authorizedRequest)
+	if authorized.Code != http.StatusOK || authorized.Body.String() != "secret" {
+		t.Fatalf("authorized media status = %d body=%q, want 200 and file contents", authorized.Code, authorized.Body.String())
 	}
 }
 

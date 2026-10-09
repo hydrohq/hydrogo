@@ -30,13 +30,19 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
+	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
+	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 )
 
 type pageCacheSpy struct{ cleared int }
@@ -350,6 +356,53 @@ func TestAdminControlRoutesCoverRolesAndPermissionOverrides(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestBuiltInMutationRoutesAreProtectedAndCSRFChecked(t *testing.T) {
+	mediaHTTP := media.HTTPHandler{Garbage: &media.GarbageCollector{}}
+	compositions := []struct {
+		name   string
+		routes []router.Route
+	}{
+		{name: "core site", routes: siteRouterRoutes(sitetransport.Handler{}.Routes())},
+		{name: "site with forms and fonts", routes: siteRouterRoutes(sitetransport.Handler{FormsEnabled: true, FontsEnabled: true}.Routes())},
+		{name: "news editor", routes: newsRouterRoutes(newstransport.Handler{}.Routes())},
+		{name: "page editor", routes: pageRouterRoutes(pagetransport.Handler{}.Routes())},
+		{name: "media admin with cleanup", routes: mediaRouterRoutes(append(mediaHTTP.AdminRoutes(), mediaHTTP.Routes()...))},
+		{name: "identity and account admin", routes: (auth.HTTPHandler{}).RouterRoutes()},
+	}
+	for _, composition := range compositions {
+		t.Run(composition.name, func(t *testing.T) {
+			protectedRoutes, err := router.New(composition.routes, func(*http.Request) bool { return true })
+			if err != nil {
+				t.Fatal(err)
+			}
+			csrfProtected := security.CSRFMiddleware(false, nil)(protectedRoutes)
+			count := 0
+			for _, route := range composition.routes {
+				method, path, ok := strings.Cut(route.Pattern, " ")
+				adminMutation := strings.HasPrefix(path, "/admin/")
+				mediaAPIMutation := strings.HasPrefix(path, "/api/media") && method != http.MethodGet
+				if !ok || method == http.MethodGet || (!adminMutation && !mediaAPIMutation) {
+					continue
+				}
+				count++
+				if route.Access != router.Protected {
+					t.Errorf("admin mutation route %q is not protected", route.Pattern)
+					continue
+				}
+				request := httptest.NewRequest(method, path, nil)
+				response := httptest.NewRecorder()
+				csrfProtected.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Errorf("admin mutation route %q without CSRF returned %d, want 403", route.Pattern, response.Code)
+				}
+			}
+			if count == 0 {
+				t.Fatal("composition registered no Admin mutation routes")
+			}
+		})
 	}
 }
 

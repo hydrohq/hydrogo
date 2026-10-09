@@ -79,6 +79,7 @@ type SMTPConfig struct {
 type SMTP struct {
 	config      SMTPConfig
 	sendLimiter sendLimiter
+	dialContext func(context.Context, string, string) (net.Conn, error)
 }
 
 type PingResult struct {
@@ -136,7 +137,7 @@ func (s *SMTP) Ping(ctx context.Context) (result PingResult, err error) {
 	started := time.Now()
 	defer func() { result.Elapsed = time.Since(started) }()
 	result.Stage = "connect"
-	conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port)))
+	conn, err := s.dial(ctx, "tcp", net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port)))
 	if err != nil {
 		return result, err
 	}
@@ -187,6 +188,13 @@ func (s *SMTP) Ping(ctx context.Context) (result PingResult, err error) {
 		return result, err
 	}
 	return result, nil
+}
+
+func (s *SMTP) dial(ctx context.Context, network, address string) (net.Conn, error) {
+	if s.dialContext != nil {
+		return s.dialContext(ctx, network, address)
+	}
+	return (&net.Dialer{}).DialContext(ctx, network, address)
 }
 
 type smtpLoginAuth struct {
@@ -247,7 +255,7 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 	operationCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	address := net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port))
-	conn, err := (&net.Dialer{}).DialContext(operationCtx, "tcp", address)
+	conn, err := s.dial(operationCtx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("SMTP dial: %w", err)
 	}

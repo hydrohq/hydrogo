@@ -3,9 +3,11 @@ package media
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 func TestMediaAccessUsesPermissionOverrides(t *testing.T) {
@@ -33,20 +35,59 @@ func TestMediaAccessUsesPermissionOverrides(t *testing.T) {
 }
 
 func TestDeniedMediaPermissionStopsAdminHandlersBeforeDependencies(t *testing.T) {
-	user := &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}}
-	request := httptest.NewRequest(http.MethodGet, "/admin/media", nil)
-	request = request.WithContext(auth.WithUser(request.Context(), user))
-	response := httptest.NewRecorder()
-	(HTTPHandler{}).adminList(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("denied editor media list status = %d, want 403; body=%s", response.Code, response.Body.String())
+	handler := HTTPHandler{Garbage: &GarbageCollector{}}
+	mux := http.NewServeMux()
+	for _, route := range handler.AdminRoutes() {
+		mux.Handle(route.Pattern, route.Handler)
 	}
-
-	request = httptest.NewRequest(http.MethodPost, "/admin/media", nil)
-	request = request.WithContext(auth.WithUser(request.Context(), user))
-	response = httptest.NewRecorder()
-	(HTTPHandler{}).adminUpload(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("denied editor media upload status = %d, want 403; body=%s", response.Code, response.Body.String())
+	csrf := security.CSRFMiddleware(false, nil)(mux)
+	routes := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "list", method: http.MethodGet, path: "/admin/media"},
+		{name: "upload", method: http.MethodPost, path: "/admin/media"},
+		{name: "metadata", method: http.MethodPost, path: "/admin/media/a1/metadata"},
+		{name: "folder", method: http.MethodPost, path: "/admin/media/folders"},
+		{name: "settings", method: http.MethodPost, path: "/admin/media/settings"},
+		{name: "visibility", method: http.MethodPost, path: "/admin/media/a1/visibility"},
+		{name: "cleanup plan", method: http.MethodGet, path: "/admin/media/cleanup"},
+		{name: "cleanup", method: http.MethodPost, path: "/admin/media/cleanup/delete"},
+	}
+	users := []struct {
+		name string
+		user *auth.User
+	}{
+		{name: "editor denied", user: &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor, PermissionOverrides: map[string]bool{auth.PermissionMediaManage: false}}},
+		{name: "viewer default", user: &auth.User{ID: "viewer", Active: true, Role: auth.RoleViewer}},
+	}
+	for _, user := range users {
+		t.Run(user.name, func(t *testing.T) {
+			for _, route := range routes {
+				t.Run(route.name, func(t *testing.T) {
+					serve := func(token string) *httptest.ResponseRecorder {
+						body := "_csrf=" + token
+						request := httptest.NewRequest(route.method, route.path, strings.NewReader(body))
+						request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+						request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "fixed-token"})
+						request = request.WithContext(auth.WithUser(request.Context(), user.user))
+						response := httptest.NewRecorder()
+						csrf.ServeHTTP(response, request)
+						return response
+					}
+					if route.method != http.MethodGet {
+						invalidCSRF := serve("wrong-token")
+						if invalidCSRF.Code != http.StatusForbidden || !strings.Contains(invalidCSRF.Body.String(), "invalid or missing csrf token") {
+							t.Fatalf("invalid CSRF media %s status=%d body=%q", route.name, invalidCSRF.Code, invalidCSRF.Body.String())
+						}
+					}
+					denied := serve("fixed-token")
+					if denied.Code != http.StatusForbidden || !strings.Contains(denied.Body.String(), "forbidden") {
+						t.Fatalf("denied media %s status=%d body=%q", route.name, denied.Code, denied.Body.String())
+					}
+				})
+			}
+		})
 	}
 }

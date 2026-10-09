@@ -1,27 +1,33 @@
 package main
 
 import (
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
+type linkcheckRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f linkcheckRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
+
 func TestScanLinksCommandOutputsActionableCSV(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">broken page</a><img src="/gone.png" alt="logo">`))
-			return
+	client := &http.Client{Transport: linkcheckRoundTripper(func(r *http.Request) (*http.Response, error) {
+		status, contentType, body := http.StatusNotFound, "text/plain", "missing"
+		if r.URL.Path == "" || r.URL.Path == "/" {
+			status, contentType = http.StatusOK, "text/html"
+			body = `<title>Home</title><a href="/missing">broken page</a><img src="/gone.png" alt="logo">`
 		}
-		http.NotFound(w, r)
-	}))
-	defer server.Close()
+		return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{contentType}}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})}
 	var out, stderr strings.Builder
-	if err := scanLinksCommand([]string{"--url", server.URL, "--delay", "1ms", "--concurrency", "2", "--allow-private-targets"}, &out, &stderr); err != nil {
+	const startURL = "https://example.test"
+	if err := scanLinksCommandWithClient([]string{"--url", startURL, "--delay", "1ms", "--concurrency", "2"}, &out, &stderr, client); err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"source_page,source_title,broken_url,http_status,anchor_text,suggested_action", server.URL + "/missing", server.URL + "/gone.png", "Home", "broken page", "logo", "404", "Update the address"} {
+	for _, expected := range []string{"source_page,source_title,broken_url,http_status,anchor_text,suggested_action", startURL + "/missing", startURL + "/gone.png", "Home", "broken page", "logo", "404", "Update the address"} {
 		if !strings.Contains(out.String(), expected) {
 			t.Fatalf("CSV missing %q: %s", expected, out.String())
 		}

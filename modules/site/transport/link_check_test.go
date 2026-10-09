@@ -10,20 +10,21 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 func TestAdminCanStartAndReviewTenantLinkScan(t *testing.T) {
-	publicSite := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const siteURL = "http://public-site.test"
+	client := testhttp.Client(testhttp.Handlers{"public-site.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte(`<title>Home</title><a href="/missing">Missing page</a>`))
 			return
 		}
 		http.NotFound(w, r)
-	}))
-	defer publicSite.Close()
-	manager := linkcheck.NewManager(linkcheck.Options{MaxPages: 10, MaxTargets: 20, RequestDelay: time.Millisecond, Client: publicSite.Client()})
-	handler := Handler{SitemapOrigin: publicSite.URL, LinkScanManager: manager}
+	})})
+	manager := linkcheck.NewManager(linkcheck.Options{MaxPages: 10, MaxTargets: 20, RequestDelay: time.Millisecond, Client: client})
+	handler := Handler{SitemapOrigin: siteURL, LinkScanManager: manager}
 	userCtx := auth.WithUser(httptest.NewRequest(http.MethodPost, "/admin/site/link-check", nil).Context(), &auth.User{ID: "admin-1", Role: auth.RoleAdmin, Active: true})
 	request := httptest.NewRequest(http.MethodPost, "/admin/site/link-check", nil).WithContext(userCtx)
 	response := httptest.NewRecorder()

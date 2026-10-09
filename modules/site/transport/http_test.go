@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -142,7 +144,8 @@ func TestFormRoutesAreAbsentWhenFormsAreDisabled(t *testing.T) {
 
 func TestPublicSiteRoutesExposeOnlyPublicProjection(t *testing.T) {
 	handler := Handler{DB: fakeExecutor{}, Store: fakeStore{}}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const origin = "http://site.test"
+	client := testhttp.Client(testhttp.Handlers{"site.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, route := range handler.Routes() {
 			if route.Pattern == "GET /site/settings" {
 				route.Handler.ServeHTTP(w, r)
@@ -150,9 +153,8 @@ func TestPublicSiteRoutesExposeOnlyPublicProjection(t *testing.T) {
 			}
 		}
 		t.Fatal("settings route not found")
-	}))
-	defer server.Close()
-	response, err := http.Get(server.URL + "/site/settings")
+	})})
+	response, err := client.Get(origin + "/site/settings")
 	if err != nil {
 		t.Fatal(err)
 	}

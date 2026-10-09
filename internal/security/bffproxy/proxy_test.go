@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/security/bffsession"
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 )
 
 type sessionStub struct {
@@ -29,7 +30,8 @@ type csrfStub struct{ err error }
 func (s csrfStub) Validate(context.Context, *http.Request) error { return s.err }
 
 func TestHandlerUsesServerSessionAndStripsBrowserBoundary(t *testing.T) {
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const coreURL = "http://127.0.0.1:19211"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19211": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Cookie"); got != "hydro_session=server" {
 			t.Fatalf("core cookie = %q", got)
 		}
@@ -42,9 +44,8 @@ func TestHandlerUsesServerSessionAndStripsBrowserBoundary(t *testing.T) {
 		w.Header().Set("Set-Cookie", "hydro_session=core-secret; HttpOnly")
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"ok":true}`)
-	}))
-	defer core.Close()
-	origin, err := url.Parse(core.URL)
+	})})
+	origin, err := url.Parse(coreURL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +53,7 @@ func TestHandlerUsesServerSessionAndStripsBrowserBoundary(t *testing.T) {
 	request.Header.Set("Cookie", "bff_session=browser")
 	request.Header.Set("Origin", "https://frontend.example")
 	recorder := httptest.NewRecorder()
-	Handler{CoreOrigin: origin, Sessions: sessionStub{cookie: "hydro_session=server"}}.ServeHTTP(recorder, request)
+	Handler{CoreOrigin: origin, Client: client, Sessions: sessionStub{cookie: "hydro_session=server"}}.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK || recorder.Body.String() != `{"ok":true}` {
 		t.Fatalf("response = %d %s", recorder.Code, recorder.Body.String())
 	}
@@ -77,33 +78,34 @@ func TestHandlerRequiresCSRFForMutations(t *testing.T) {
 }
 
 func TestHandlerBoundsResponse(t *testing.T) {
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, "12345") }))
-	defer core.Close()
-	origin, _ := url.Parse(core.URL)
+	const coreURL = "http://127.0.0.1:19212"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19212": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, "12345") })})
+	origin, _ := url.Parse(coreURL)
 	request := httptest.NewRequest(http.MethodGet, "http://bff.local/api/v1/pages", nil)
 	recorder := httptest.NewRecorder()
-	Handler{CoreOrigin: origin, Sessions: sessionStub{cookie: "server"}, MaxResponseBytes: 4}.ServeHTTP(recorder, request)
+	Handler{CoreOrigin: origin, Client: client, Sessions: sessionStub{cookie: "server"}, MaxResponseBytes: 4}.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusBadGateway {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusBadGateway)
 	}
 }
 
 func TestHandlerBoundsRequest(t *testing.T) {
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const coreURL = "http://127.0.0.1:19213"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19213": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
-	}))
-	defer core.Close()
-	origin, _ := url.Parse(core.URL)
+	})})
+	origin, _ := url.Parse(coreURL)
 	request := httptest.NewRequest(http.MethodPost, "http://bff.local/api/v1/pages", bytes.NewReader([]byte("12345")))
 	recorder := httptest.NewRecorder()
-	Handler{CoreOrigin: origin, Sessions: sessionStub{cookie: "server"}, CSRF: csrfStub{}, MaxRequestBytes: 4}.ServeHTTP(recorder, request)
+	Handler{CoreOrigin: origin, Client: client, Sessions: sessionStub{cookie: "server"}, CSRF: csrfStub{}, MaxRequestBytes: 4}.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusRequestEntityTooLarge)
 	}
 }
 
 func TestHandlerAndSessionStoreMutationFlow(t *testing.T) {
-	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	const coreURL = "http://127.0.0.1:19214"
+	client := testhttp.Client(testhttp.Handlers{"127.0.0.1:19214": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Cookie") != "hydro_session=server" {
 			t.Fatalf("core cookie = %q", r.Header.Get("Cookie"))
 		}
@@ -111,9 +113,8 @@ func TestHandlerAndSessionStoreMutationFlow(t *testing.T) {
 			t.Fatal("browser boundary header crossed into Core")
 		}
 		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer core.Close()
-	origin, _ := url.Parse(core.URL)
+	})})
+	origin, _ := url.Parse(coreURL)
 	store, err := bffsession.New(bffsession.Config{CookieName: "bff_sid", TTL: time.Minute, MaxEntries: 4, Secure: true})
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +131,7 @@ func TestHandlerAndSessionStoreMutationFlow(t *testing.T) {
 	request.Header.Set("Origin", "https://frontend.example")
 	request.Header.Set("X-CSRF-Token", csrf)
 	recorder := httptest.NewRecorder()
-	Handler{CoreOrigin: origin, Sessions: store, CSRF: store}.ServeHTTP(recorder, request)
+	Handler{CoreOrigin: origin, Client: client, Sessions: store, CSRF: store}.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
