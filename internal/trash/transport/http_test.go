@@ -107,9 +107,19 @@ func TestTrashMutationRoutesEnforceCSRFBeforeService(t *testing.T) {
 	for _, action := range []string{"delete", "restore"} {
 		t.Run(action, func(t *testing.T) {
 			for _, kind := range []string{"pages", "submissions"} {
-				rec, repo := performTrashActionWithCSRF(t, &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, kind, "item-1", action, "wrong-token")
-				if rec.Code != http.StatusForbidden || len(repo.moved)+len(repo.restored) != 0 {
-					t.Fatalf("kind=%s status=%d moved=%v restored=%v", kind, rec.Code, repo.moved, repo.restored)
+				for _, csrfCase := range []struct {
+					name  string
+					token string
+				}{
+					{name: "missing"},
+					{name: "mismatched", token: "wrong-token"},
+				} {
+					t.Run(kind+"/"+csrfCase.name, func(t *testing.T) {
+						rec, repo := performTrashActionWithCSRF(t, &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, kind, "item-1", action, csrfCase.token)
+						if rec.Code != http.StatusForbidden || len(repo.moved)+len(repo.restored) != 0 {
+							t.Fatalf("kind=%s csrf=%s status=%d moved=%v restored=%v", kind, csrfCase.name, rec.Code, repo.moved, repo.restored)
+						}
+					})
 				}
 			}
 		})
@@ -134,7 +144,9 @@ func performTrashActionWithCSRF(t *testing.T, user *auth.User, kind, id, action,
 	protected := security.CSRFMiddleware(false, nil)(mux)
 	req := httptest.NewRequest(http.MethodPost, "/admin/trash/"+kind+"/"+id+"/"+action, nil)
 	req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-	req.Header.Set(security.CSRFHeaderName, token)
+	if token != "" {
+		req.Header.Set(security.CSRFHeaderName, token)
+	}
 	req = req.WithContext(auth.WithUser(context.Background(), user))
 	rec := httptest.NewRecorder()
 	protected.ServeHTTP(rec, req)
