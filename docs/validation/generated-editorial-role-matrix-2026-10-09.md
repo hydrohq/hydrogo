@@ -101,6 +101,24 @@ All passed. This proves the shared-handler collection deny boundary, not
 production authentication middleware or resource-level policy behavior in a
 deployed Edition.
 
+After this change, the independent `tests/external-edition` Go module was also
+replayed against the current Core workspace. Its full suite, vet, and import
+boundary guard passed:
+
+```sh
+cd tests/external-edition
+GOCACHE=/tmp/hydro-cover-cache GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp \
+  go test ./... -count=1 -p 1 -timeout=5m
+GOCACHE=/tmp/hydro-cover-cache GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp \
+  go vet ./...
+GOCACHE=/tmp/hydro-cover-cache GOMAXPROCS=1 GOPROXY=off TMPDIR=/tmp \
+  go run ../../tools/importguard -root .
+```
+
+This revalidates the independent public Go contract. It does not rerun its
+browser suite, production identity middleware, or PostgreSQL database/browser
+coverage for the latest read-denial change.
+
 ## Unknown-role direct mutation denial
 
 The basic CRUD and editorial valid-CSRF direct-handler matrices now include an
