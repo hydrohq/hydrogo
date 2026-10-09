@@ -11,8 +11,10 @@ aktivasyon ve doğrulama boşlukları için güncel denetim ve aşamalı teslim 
 2026-10-09 Admin Studio follow-up: the public generated Studio renderer now
 supports the Edition's Viewer presentation role. The Edition still owns route,
 resource, tenant, and API authorization; read-only Viewer composition is covered
-by SQLite contract tests. The real Chromium session remains an external
-listener-capable gate; see ADR-0365 and the audit plan evidence.
+by SQLite contract tests. UI contract tests confirm content navigation remains
+visible while privileged system links are hidden. The real Chromium session
+remains an external listener-capable gate; see ADR-0365 and the audit plan
+evidence.
 
 2026-10-09 permission-matrix follow-up: media Admin management routes now have
 valid-CSRF and invalid-CSRF denial assertions for Editor and Viewer defaults

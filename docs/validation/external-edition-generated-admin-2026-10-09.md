@@ -34,7 +34,8 @@ test server accepts test-only `admin`, `editor`, and `viewer` identity headers.
 The shared shell renders Viewer with read-only capabilities; the resource API
 allows reads for all three roles and writes only for admin/editor. A Playwright
 scenario exercises editor list/create/edit/delete, Viewer list/detail, hidden
-CRUD affordances, valid-CSRF create/update/delete denial, direct API
+CRUD affordances and privileged shell navigation, valid-CSRF
+create/update/delete denial, direct API
 create/update/delete denial, persistence checks, axe, and 390px overflow. The
 nested SQLite contract proves Viewer list/detail reads, all six Admin/API
 write denials, and unchanged persistence. `go test ./...` and `go vet ./...`
