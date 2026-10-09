@@ -233,6 +233,12 @@ includes hidden entries and the public projection excludes them. Invalid CSRF
 and explicit Admin denial leave the table empty. Other Site mutations and
 PostgreSQL route-level behavior remain open.
 
+Social profile and contact-widget mutations now have matching CSRF/SQLite
+route tests. Authorized writes persist and round-trip to the public projection;
+invalid CSRF, Admin permission denial, an untrusted social host, and an invalid
+phone do not create or overwrite data. The rest of the Site mutation matrix and
+PostgreSQL route-level behavior remain open.
+
 Windows'ta:
 
 ```powershell

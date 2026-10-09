@@ -598,6 +598,137 @@ func TestSiteNavigationAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T
 	}
 }
 
+func TestSiteSocialLinksAdminRouteValidatesAndPersistsAuthorizedProfile(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-social-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/site/social-links" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token, instagram string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := "_csrf=" + token + "&social_instagram=" + instagram
+		request := httptest.NewRequest(http.MethodPost, "/admin/site/social-links", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertProfiles := func(want string) {
+		t.Helper()
+		setting, found, err := store.GetSetting(context.Background(), db, "site.social_profiles")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want == "" {
+			if found {
+				t.Fatalf("unexpected social profile setting: %+v", setting)
+			}
+			return
+		}
+		if !found || setting.Value != want {
+			t.Fatalf("stored social profiles=%q found=%t, want %q", setting.Value, found, want)
+		}
+		profiles := site.SocialProfilesFromSettings([]site.Setting{setting})
+		if len(profiles) != 1 || profiles[0] != (site.SocialProfile{Platform: "instagram", URL: "https://instagram.com/hydrogo"}) {
+			t.Fatalf("public social profile projection=%+v", profiles)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := post(admin, "wrong-token", "https://instagram.com/hydrogo"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertProfiles("")
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", "https://instagram.com/hydrogo"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertProfiles("")
+	if response := post(admin, "valid-token", "https://instagram.com/hydrogo"); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/site/social-links?saved=1" {
+		t.Fatalf("authorized social link response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	assertProfiles(`[{"Platform":"instagram","URL":"https://instagram.com/hydrogo"}]`)
+	if response := post(admin, "valid-token", "https://instagram.com.evil.test/hydrogo"); response.Code != http.StatusBadRequest {
+		t.Fatalf("untrusted social host status=%d, want 400", response.Code)
+	}
+	assertProfiles(`[{"Platform":"instagram","URL":"https://instagram.com/hydrogo"}]`)
+}
+
+func TestSiteContactWidgetAdminRoutePersistsValidatedSettings(t *testing.T) {
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-contact-widget-route.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		if route.Pattern == "POST /admin/appearance/contact-widget" {
+			mux.Handle(route.Pattern, route.Handler)
+		}
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+	post := func(user *auth.User, token, phone string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := "_csrf=" + token + "&enabled=true&phone=" + phone + "&whatsapp_number=905551234567&message=Contact+us&position=bottom-left&mobile_only=true"
+		request := httptest.NewRequest(http.MethodPost, "/admin/appearance/contact-widget", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+		request.Header.Set(security.CSRFHeaderName, token)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		return response
+	}
+	assertWidget := func(want site.ContactWidget) {
+		t.Helper()
+		settings, err := store.ListPublicSettings(context.Background(), db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := site.ContactWidgetFromSettings(settings); got != want {
+			t.Fatalf("persisted contact widget=%+v, want %+v", got, want)
+		}
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	if response := post(admin, "wrong-token", "905551234567"); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
+	}
+	assertWidget(site.ContactWidget{Position: "bottom-right"})
+	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
+	if response := post(deniedAdmin, "valid-token", "905551234567"); response.Code != http.StatusForbidden {
+		t.Fatalf("denied Admin status=%d, want 403", response.Code)
+	}
+	assertWidget(site.ContactWidget{Position: "bottom-right"})
+	if response := post(admin, "valid-token", "905551234567"); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/admin/appearance/contact-widget?saved=1" {
+		t.Fatalf("authorized contact settings response=%d location=%q body=%s", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	want := site.ContactWidget{Enabled: true, Phone: "905551234567", WhatsAppNumber: "905551234567", Message: "Contact us", Position: "bottom-left", MobileOnly: true}
+	assertWidget(want)
+	if response := post(admin, "valid-token", "invalid"); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid phone status=%d, want 400", response.Code)
+	}
+	assertWidget(want)
+}
+
 func TestSiteAdminMutationRoutesEnforceCSRFAndSiteManage(t *testing.T) {
 	handler := Handler{FormsEnabled: true, FontsEnabled: true}
 	mux := http.NewServeMux()
