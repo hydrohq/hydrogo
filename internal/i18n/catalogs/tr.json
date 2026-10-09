@@ -20,5 +20,7 @@
   "admin.generated.validation.title": "Bu alanları kontrol edin",
   "admin.generated.validation.message": "Bazı bilgiler eksik veya geçersiz. Alanları kontrol edip tekrar deneyin.",
   "admin.generated.validation.field.required": "Bu alan zorunludur.",
-  "admin.generated.validation.field.invalid": "Bu değeri kontrol edip tekrar deneyin."
+  "admin.generated.validation.field.invalid": "Bu değeri kontrol edip tekrar deneyin.",
+  "admin.generated.list.empty": "Bu koleksiyonda henüz kayıt bulunmuyor.",
+  "admin.generated.list.noMatches": "Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok."
 }

@@ -646,7 +646,7 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		if err := generatedListControls(out, collection, query, localeState(r).Current); err != nil {
 			return err
 		}
-		if err := RenderList(out, ListData{Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID), Locale: localeState(r).Current, Query: query}); err != nil {
+		if err := RenderList(out, ListData{Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID), Locale: localeState(r).Current, UILocale: generatedAdminLocale(r), Query: query}); err != nil {
 			return err
 		}
 		if page > 1 {

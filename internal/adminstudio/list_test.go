@@ -103,6 +103,31 @@ func TestRenderListUsesSafeDefaultEmptyMessage(t *testing.T) {
 	}
 }
 
+func TestRenderListDistinguishesEmptyCollectionFromNoMatchesInSelectedLanguage(t *testing.T) {
+	collection := Collection{ID: "products", Label: "Products", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Edit", Href: "/admin/products/p1"}}}
+	for _, tc := range []struct {
+		name   string
+		locale string
+		query  ListQuery
+		want   string
+	}{
+		{name: "Turkish empty", locale: "tr", want: "Bu koleksiyonda henüz kayıt bulunmuyor."},
+		{name: "English empty", locale: "en", want: "There are no records in this collection yet."},
+		{name: "Turkish search and filter", locale: "tr", query: ListQuery{Search: "missing", Filters: map[string]string{"status": "active"}}, want: "Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok."},
+		{name: "English search", locale: "en", query: ListQuery{Search: "missing"}, want: "Try changing your search or filters. No records match them."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := RenderList(&out, ListData{Collection: collection, UILocale: tc.locale, Query: tc.query}); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(out.String(), `role="status"`) || !strings.Contains(out.String(), tc.want) {
+				t.Fatalf("list empty status missing localized guidance %q: %s", tc.want, out.String())
+			}
+		})
+	}
+}
+
 func TestRenderListOptInBulkSelection(t *testing.T) {
 	collection := Collection{ID: "articles", Label: "Articles", Fields: []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}}, Actions: []Action{{Label: "Yeni", Href: "/admin/articles/new"}}, BulkActions: []Action{{Label: "Yayınla", Href: "/admin/articles/bulk/publish"}}}
 	var out strings.Builder
