@@ -222,6 +222,11 @@ stored, and invalid paths do not replace a prior valid value. Site tests and
 vet pass; redirect-rule and other Site mutations remain unverified at this
 route-level SQLite boundary.
 
+The legacy redirect handler also has registered-route SQLite coverage: invalid
+CSRF and explicit Admin permission denial persist nothing, while an authorized
+Admin persists the redirect. Redirect-rule CRUD/import and other Site mutation
+routes remain open.
+
 Windows'ta:
 
 ```powershell
