@@ -767,6 +767,48 @@ test.describe("single Edition administrator management", () => {
     await expect(grantedEditor.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Medya Yükle" })).toBeVisible();
     await grantedContext.close();
 
+    const viewerCapabilityRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("viewer@example.test", { exact: true }) });
+    const viewerPermissionForm = viewerCapabilityRow.locator('form[action$="/permissions"]');
+    const viewerPermissionAction = await viewerPermissionForm.getAttribute("action");
+    expect(viewerPermissionAction).toBeTruthy();
+    const viewerPermissionToken = await viewerPermissionForm.locator('[name="_csrf"]').inputValue();
+    const allowViewerContent = await page.request.post(new URL(viewerPermissionAction!, baseURL).href, {
+      form: { _csrf: viewerPermissionToken, "perm_admin.content.read": "allow", "perm_admin.content.write": "allow" },
+    });
+    expect(allowViewerContent.status()).toBe(204);
+
+    const elevatedViewerContext = await browser.newContext();
+    const elevatedViewer = await elevatedViewerContext.newPage();
+    await elevatedViewer.goto(`${baseURL}/login`);
+    await elevatedViewer.getByLabel("Email address").fill("viewer@example.test");
+    await elevatedViewer.getByLabel("Password").fill(adminPassword);
+    await elevatedViewer.getByRole("button", { name: "Sign in" }).click();
+    await expect(elevatedViewer).toHaveURL(/\/admin(?:\?.*)?$/);
+    expect((await elevatedViewer.goto(`${baseURL}/admin/pages/new`))?.status()).toBe(200);
+    await expect(elevatedViewer.locator('body[data-studio-role="viewer"]')).toBeVisible();
+    const viewerCreateForm = elevatedViewer.locator('form[action="/admin/pages"]');
+    await viewerCreateForm.locator('[name="slug"]').fill("viewer-capability-page");
+    await viewerCreateForm.locator('[name="title"]').fill("Viewer capability page");
+    await viewerCreateForm.locator(".richtext-editor [contenteditable=true]").fill("Created with explicit content permissions.");
+    await viewerCreateForm.getByRole("button", { name: "Taslak oluştur" }).click();
+    await expect(elevatedViewer).toHaveURL(/\/admin\/pages\/[^/?]+$/);
+    const viewerPageID = new URL(elevatedViewer.url()).pathname.split("/").at(-1)!;
+    const viewerCreatedAPI = await page.request.get(`${baseURL}/api/pages/${viewerPageID}`);
+    expect(viewerCreatedAPI.status()).toBe(200);
+    expect(await viewerCreatedAPI.json()).toMatchObject({ status: "draft", title: "Viewer capability page" });
+
+    await page.goto(`${baseURL}/admin/users`);
+    const refreshedViewerRow = page.locator(".studio-table tbody tr").filter({ has: page.getByText("viewer@example.test", { exact: true }) });
+    const revokeViewerPermissionForm = refreshedViewerRow.locator('form[action$="/permissions"]');
+    const revokeViewerPermissionAction = await revokeViewerPermissionForm.getAttribute("action");
+    const revokeViewerPermissionToken = await revokeViewerPermissionForm.locator('[name="_csrf"]').inputValue();
+    const revokeViewerContent = await page.request.post(new URL(revokeViewerPermissionAction!, baseURL).href, {
+      form: { _csrf: revokeViewerPermissionToken, "perm_admin.content.read": "inherit", "perm_admin.content.write": "inherit" },
+    });
+    expect(revokeViewerContent.status()).toBe(204);
+    expect((await elevatedViewer.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
+    await elevatedViewerContext.close();
+
     const roleForm = editorRow.locator('form[action$="/role"]');
     const roleToken = await roleForm.locator('[name="_csrf"]').inputValue();
     const roleAction = await roleForm.getAttribute("action");
