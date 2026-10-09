@@ -877,7 +877,15 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 	}
 	apiPath := "/api/v1/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
 	response, status, err := h.callAPI(r, http.MethodGet, apiPath, nil)
-	if err != nil || status != http.StatusOK && !(collection.Drafts && status == http.StatusNotFound) {
+	if err != nil {
+		h.apiError(w, r)
+		return
+	}
+	if status == http.StatusForbidden || !collection.Drafts && status == http.StatusNotFound {
+		http.NotFound(w, r)
+		return
+	}
+	if status != http.StatusOK && !(collection.Drafts && status == http.StatusNotFound) {
 		h.apiError(w, r)
 		return
 	}

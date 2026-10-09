@@ -1281,6 +1281,60 @@ func TestGeneratedAdminResourceReadPolicyHidesIndexAndBlocksCollectionRoutes(t *
 	}
 }
 
+func TestGeneratedAdminConcealsRecordReadDenialButKeepsServiceRetry(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title",
+		Fields:  []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}},
+		Actions: []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name       string
+		apiStatus  int
+		wantStatus int
+		wantRetry  bool
+	}{
+		{name: "forbidden record", apiStatus: http.StatusForbidden, wantStatus: http.StatusNotFound},
+		{name: "missing record", apiStatus: http.StatusNotFound, wantStatus: http.StatusNotFound},
+		{name: "service unavailable", apiStatus: http.StatusServiceUnavailable, wantStatus: http.StatusBadGateway, wantRetry: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mux := http.NewServeMux()
+			handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+				API: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.Method != http.MethodGet || r.URL.Path != "/api/v1/article/a1" {
+						t.Errorf("unexpected generated record fetch: %s %s", r.Method, r.URL.Path)
+					}
+					http.Error(w, "private record service detail", tc.apiStatus)
+				}),
+				Authorize:       func(*http.Request) bool { return true },
+				CanReadResource: func(*http.Request, Collection) bool { return true },
+				CSRFToken:       func(*http.Request) string { return "csrf" },
+				ValidateCSRF:    func(*http.Request) bool { return true },
+				RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+					return body.Render(r.Context(), w)
+				},
+			}}
+			if err := handler.Register(mux); err != nil {
+				t.Fatal(err)
+			}
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/resources/article/a1", nil))
+			if response.Code != tc.wantStatus {
+				t.Fatalf("record read response status=%d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+			}
+			if strings.Contains(response.Body.String(), "private record service detail") {
+				t.Fatalf("record read response leaked upstream detail: %s", response.Body.String())
+			}
+			if got := strings.Contains(response.Body.String(), "generated-load-retry"); got != tc.wantRetry {
+				t.Fatalf("retry UI presence=%t, want %t: %s", got, tc.wantRetry, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestGeneratedAdminSurfacesResourceAPIDenialWithoutSuccessRedirect(t *testing.T) {
 	calls := 0
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
