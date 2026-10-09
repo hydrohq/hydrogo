@@ -239,6 +239,12 @@ invalid CSRF, Admin permission denial, an untrusted social host, and an invalid
 phone do not create or overwrite data. The rest of the Site mutation matrix and
 PostgreSQL route-level behavior remain open.
 
+Maintenance mode also has route-level SQLite coverage: unauthorized writes do
+not persist, scheduled maintenance and allowlist fields round-trip, the private
+preview key is stored as a hash, and malformed IP ranges cannot overwrite a
+valid setting. Site tests and vet pass; other Site mutations and PostgreSQL
+route coverage remain open.
+
 Windows'ta:
 
 ```powershell
