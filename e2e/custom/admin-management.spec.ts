@@ -105,6 +105,17 @@ test.describe("single Edition administrator management", () => {
     }
     restrictedMutationTargets = [...new Set(restrictedMutationTargets)];
     expect(restrictedMutationTargets.length, "the privileged Admin pages must expose mutation forms").toBeGreaterThan(0);
+    const adminCSRFResponse = await adminPage.request.get(`${baseURL}/csrf-token`);
+    expect(adminCSRFResponse.status()).toBe(200);
+    const { token: adminCSRFToken } = await adminCSRFResponse.json();
+    expect((await adminContext.cookies(baseURL)).find((cookie) => cookie.name === "hydro_csrf")?.value).toBe(adminCSRFToken);
+    for (const target of restrictedMutationTargets) {
+      const route = new URL(target).pathname;
+      const missingCSRF = await adminPage.request.post(target, { form: {} });
+      expect(missingCSRF.status(), `Admin mutation ${route} must reject missing CSRF`).toBe(403);
+      const mismatchedCSRF = await adminPage.request.post(target, { form: { _csrf: "deliberately-mismatched-csrf-token" } });
+      expect(mismatchedCSRF.status(), `Admin mutation ${route} must reject mismatched CSRF`).toBe(403);
+    }
     await adminPage.goto(`${baseURL}/admin/users`);
     const managementTargets: Record<string, { id: string; role: string; permissions: string; disable: string; currentRole: string; currentContentWrite: string }> = {};
     for (const email of ["editor@example.test", "viewer@example.test"]) {
