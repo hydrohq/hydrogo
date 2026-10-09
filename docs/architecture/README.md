@@ -15,6 +15,7 @@
 - [ADR-0364: Generated Admin validation feedback](0364-generated-admin-validation-feedback.md) — Accepted
 - [ADR-0365: Viewer role in the shared generated Admin shell](0365-viewer-role-in-generated-admin-shell.md) — Accepted
 - [ADR-0366: Site not-found tenant RLS binding](0366-site-not-found-tenant-rls-binding.md) — Accepted
+- [ADR-0367: Bounded generated draft inbox pagination](0367-bounded-generated-draft-inbox-pagination.md) — Accepted
 - [ADR-0359: Edition-owned generated Admin block editor](0359-edition-owned-generated-block-editor.md) — Superseded
 - [ADR-0360: Hash-authorized generated block editor loader](0360-hash-authorized-block-editor-loader.md) — Accepted
 - [ADR-0361: Edition-provided generated Admin CRUD capabilities](0361-generated-admin-resource-capabilities.md) — Accepted

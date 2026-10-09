@@ -457,6 +457,37 @@ test.describe("generated rich-text Edition Admin", () => {
     await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
   });
 
+  test("generated draft inbox pagination is bounded, stable, and keyboard reachable", async ({ page, request }) => {
+    const seed = await request.post(`${baseURL}/__test/seed-draft-pages`);
+    expect(seed.status()).toBe(204);
+    try {
+      await page.context().addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);
+      await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+      await page.goto(`${baseURL}/admin/resources/story/drafts?locale=en`);
+      await dismissOnboarding(page);
+      const rows = page.locator(".studio-table tbody tr");
+      await expect(rows).toHaveCount(25);
+      await expect(page.getByRole("link", { name: "Paged draft 26" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Paged draft 01" })).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Title" })).toHaveCount(0);
+      await expectNoA11yViolations(page);
+
+      const next = page.getByRole("button", { name: "Next" });
+      await next.focus();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/page=2/);
+      await expect(page).toHaveURL(/locale=en/);
+      await expect(rows).toHaveCount(3);
+      await expect(page.getByRole("link", { name: "Paged draft 01" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Previous" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Next" })).toHaveCount(0);
+      await expectNoA11yViolations(page);
+    } finally {
+      const reset = await request.post(`${baseURL}/__test/reset`);
+      expect(reset.status()).toBe(204);
+    }
+  });
+
   test("generated draft review and publish flow keeps working copy separate", async ({ page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.context().addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);

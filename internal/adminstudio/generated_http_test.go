@@ -1942,6 +1942,15 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 			t.Fatalf("English draft list missing %q: status=%d body=%s", want, enList.Code, enList.Body.String())
 		}
 	}
+	if strings.Contains(enList.Body.String(), "Next") {
+		t.Fatal("legacy draft callback exposed pagination without an offset-aware service")
+	}
+	calledBeforeLegacyPage := listCalls
+	legacyPageTwo := httptest.NewRecorder()
+	mux.ServeHTTP(legacyPageTwo, httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts?page=2", nil))
+	if legacyPageTwo.Code != http.StatusBadRequest || listCalls != calledBeforeLegacyPage {
+		t.Fatalf("legacy callback page two was not rejected before storage: status=%d calls=%d/%d", legacyPageTwo.Code, listCalls, calledBeforeLegacyPage)
+	}
 	draftRows = nil
 	emptyList := httptest.NewRecorder()
 	mux.ServeHTTP(emptyList, httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil))
@@ -2073,5 +2082,107 @@ func TestGeneratedAdminDraftRejectsNonlocalizedFieldWrites(t *testing.T) {
 	}
 	if err := applyDraftFields(collection, map[string]any{}, map[string]any{"slug": "base", "title": "base"}, "en", "en"); err != nil {
 		t.Fatalf("default locale draft should include base fields: %v", err)
+	}
+}
+
+func TestGeneratedDraftInboxUsesBoundedPagesAndKeepsLegacyFallback(t *testing.T) {
+	registry, err := NewRegistry([]Collection{{
+		ID: "article", Label: "Articles", TitleField: "title", Versioned: true, Revisions: true, Drafts: true,
+		Fields:   []Field{{ID: "title", Label: "Title", Kind: FieldText, VisibleInList: true}, {ID: "status", Label: "State", Kind: FieldStatus, VisibleInList: true}},
+		Actions:  []Action{{Label: "Articles", Href: "/admin/resources/article"}},
+		Workflow: &Workflow{StateField: "status", States: []PublicationState{StateDraft, StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {StatePublished}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	drafts := make([]DraftDocument, 27)
+	for i := range drafts {
+		drafts[i] = DraftDocument{
+			ID: fmt.Sprintf("draft-%02d", i+1), Version: 1, State: StateDraft, Exists: true,
+			Fields: map[string]any{"title": fmt.Sprintf("Draft %02d", i+1), "status": "draft"},
+		}
+	}
+	var calls int
+	overLimit := false
+	mux := http.NewServeMux()
+	handler := GeneratedAdminHandler{Registry: registry, Options: GeneratedAdminOptions{
+		API:             http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+		Authorize:       func(*http.Request) bool { return true },
+		CanReadResource: func(*http.Request, Collection) bool { return true },
+		CSRFToken:       func(*http.Request) string { return "csrf" },
+		ValidateCSRF:    func(*http.Request) bool { return true },
+		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
+			return body.Render(r.Context(), w)
+		},
+		ListRevisions: func(*http.Request, Collection, string, int) ([]RevisionSummary, error) { return nil, nil },
+		GetRevision: func(*http.Request, Collection, string, int64) (RevisionSnapshot, error) {
+			return RevisionSnapshot{}, nil
+		},
+		CanRestore: func(*http.Request, Collection, string, int64) bool { return false },
+		RestoreRevision: func(*http.Request, Collection, string, int64, int64) error {
+			return nil
+		},
+		ListDraftPage: func(_ *http.Request, _ Collection, _ string, offset, limit int) ([]DraftDocument, error) {
+			calls++
+			if overLimit {
+				return make([]DraftDocument, limit+1), nil
+			}
+			if limit != DefaultPageSize+1 || offset < 0 || offset >= len(drafts) {
+				if offset == len(drafts) {
+					return nil, nil
+				}
+				return nil, fmt.Errorf("unexpected page request offset=%d limit=%d", offset, limit)
+			}
+			end := min(offset+limit, len(drafts))
+			return drafts[offset:end], nil
+		},
+		GetDraft:           func(*http.Request, Collection, string, string) (DraftDocument, error) { return DraftDocument{}, nil },
+		CanSaveDraft:       func(*http.Request, Collection, string, string) bool { return true },
+		SaveDraft:          func(*http.Request, Collection, string, string, map[string]any, int64, int64) error { return nil },
+		CanTransitionDraft: func(*http.Request, Collection, DraftDocument, PublicationState) bool { return true },
+		TransitionDraft:    func(*http.Request, Collection, string, string, PublicationState, int64, int64) error { return nil },
+		CanDiscardDraft:    func(*http.Request, Collection, DraftDocument) bool { return true },
+		DiscardDraft:       func(*http.Request, Collection, string, string, int64) error { return nil },
+	}}
+	if err := handler.Register(mux); err != nil {
+		t.Fatal(err)
+	}
+	serve := func(target string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, target, nil)
+		request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+		mux.ServeHTTP(recorder, request)
+		return recorder
+	}
+	first := serve("/admin/resources/article/drafts")
+	for _, want := range []string{"Draft 01", "Draft 25", `action="/admin/resources/article/drafts"`, `name="page" value="2"`, "Next"} {
+		if first.Code != http.StatusOK || !strings.Contains(first.Body.String(), want) {
+			t.Fatalf("first draft page missing %q: status=%d body=%s", want, first.Code, first.Body.String())
+		}
+	}
+	if strings.Contains(first.Body.String(), "Draft 26") || strings.Contains(first.Body.String(), "?sort=") {
+		t.Fatalf("first page rendered lookahead row or nonfunctional sort control: %s", first.Body.String())
+	}
+	second := serve("/admin/resources/article/drafts?page=2")
+	for _, want := range []string{"Draft 26", "Draft 27", `name="page" value="1"`, "Previous"} {
+		if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), want) {
+			t.Fatalf("second draft page missing %q: status=%d body=%s", want, second.Code, second.Body.String())
+		}
+	}
+	if strings.Contains(second.Body.String(), "Next") {
+		t.Fatalf("last draft page rendered a next control: %s", second.Body.String())
+	}
+	calledBeforeInvalid := calls
+	if got := serve("/admin/resources/article/drafts?page=101"); got.Code != http.StatusBadRequest || calls != calledBeforeInvalid {
+		t.Fatalf("out-of-range page reached Edition storage: status=%d calls=%d/%d", got.Code, calls, calledBeforeInvalid)
+	}
+	for _, query := range []string{"?sort=title", "?search=draft", "?filter%5Bstatus%5D=draft"} {
+		if got := serve("/admin/resources/article/drafts" + query); got.Code != http.StatusBadRequest || calls != calledBeforeInvalid {
+			t.Fatalf("unsupported draft query %q reached Edition storage: status=%d calls=%d/%d", query, got.Code, calls, calledBeforeInvalid)
+		}
+	}
+	overLimit = true
+	if got := serve("/admin/resources/article/drafts"); got.Code != http.StatusBadGateway {
+		t.Fatalf("over-limit Edition result status=%d body=%s", got.Code, got.Body.String())
 	}
 }
