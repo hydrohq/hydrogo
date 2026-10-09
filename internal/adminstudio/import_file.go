@@ -89,7 +89,7 @@ type xlsxSheet struct {
 				Text string `xml:"t"`
 			} `xml:"is"`
 		} `xml:"c"`
-	} `xml:"row"`
+	} `xml:"sheetData>row"`
 }
 
 func parseXLSX(raw []byte) ([][]string, error) {

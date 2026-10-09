@@ -99,8 +99,15 @@ fresh local database, dropped after the run. This verifies successful import,
 duplicate/invalid row reporting, and duplicate-safe reimport on both adapters;
 it does not close the broader Admin route/permission matrix.
 
+The accepted `.xlsx` parser path is covered separately with a real ZIP workbook
+fixture containing standard `sheetData` rows, shared-string cells, and inline
+strings. The first fixture run caught the parser looking for worksheet rows at
+the root; matching `sheetData>row` fixed it.
+
 ```sh
 TMPDIR=/var/tmp/hydro-go-tests go test ./modules/pages/repository/sqlstore ./modules/pages/transport -count=1
+TMPDIR=/var/tmp/hydro-go-tests go test ./internal/adminstudio -count=1
+go vet ./internal/adminstudio
 cd e2e
 TMPDIR=/var/tmp/hydro-go-tests npx playwright test custom/admin-management.spec.ts --project chromium --workers=1 --grep 'editor and viewer sessions enforce'
 HYDRO_E2E_DATABASE_DIALECT=postgres \
