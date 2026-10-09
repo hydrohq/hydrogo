@@ -17,6 +17,7 @@ let baseURL = "";
 let viewerStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let adminStorageState: Awaited<ReturnType<BrowserContext["storageState"]>> | undefined;
 let createdPageID = "";
+let createdNewsID = "";
 let tokenLifetimeBaseline: { passwordReset: string; invitation: string } | undefined;
 let restrictedMutationTargets: string[] = [];
 
@@ -67,7 +68,6 @@ test.describe("single Edition administrator management", () => {
         nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
       })), `${label} WCAG 2.1 A/AA violations`).toEqual([]);
     };
-    let createdNewsID = "";
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await adminPage.goto(`${baseURL}/login`);
@@ -1574,8 +1574,10 @@ test.describe("single Edition administrator management", () => {
         "/admin",
         "/admin/pages",
         "/admin/pages/new",
+        `/admin/pages/${createdPageID}`,
         "/admin/news",
         "/admin/news/new",
+        `/admin/news/${createdNewsID}`,
         "/admin/media",
         "/admin/users",
         "/admin/permissions",
@@ -1746,6 +1748,8 @@ test.describe("single Edition administrator management", () => {
   test("admin routes meet WCAG 2.1 A/AA in every Studio theme and color mode", async ({ browser }) => {
     test.setTimeout(180_000);
     expect(adminStorageState, "the preceding admin login test must create an authenticated state").toBeTruthy();
+    expect(createdPageID, "the preceding role journey must persist an Editor-created Page").not.toBe("");
+    expect(createdNewsID, "the preceding role journey must persist an Editor-created News draft").not.toBe("");
     const context = await browser.newContext({ storageState: adminStorageState });
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
@@ -1756,8 +1760,10 @@ test.describe("single Edition administrator management", () => {
       "/admin",
       "/admin/pages",
       "/admin/pages/new",
+      `/admin/pages/${createdPageID}`,
       "/admin/news",
       "/admin/news/new",
+      `/admin/news/${createdNewsID}`,
       "/admin/media",
       "/admin/users",
       "/admin/permissions",
