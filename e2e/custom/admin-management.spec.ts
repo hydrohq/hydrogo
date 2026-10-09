@@ -770,6 +770,11 @@ test.describe("single Edition administrator management", () => {
     const page = await context.newPage();
     await page.goto(`${baseURL}/admin/news/new`);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.locator("#theme-toggle-btn")).toHaveAccessibleName(/theme; click to change/);
+    await page.locator("#ui-family-select").selectOption("aurora");
+    await expect(page.locator(".studio-toast").last()).toContainText("Aurora appearance applied.");
+    await page.locator("#theme-toggle-btn").click();
+    await expect(page.locator(".studio-toast").last()).toContainText(/theme applied\./);
     await page.evaluate(() => (window as any).HydroToast("Locale check", "info", "", () => {}, 30_000));
     await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
     const media = page.locator(".media-select-field").filter({ has: page.locator('[data-media-target="media_cover_media_id"]') });
@@ -782,6 +787,11 @@ test.describe("single Edition administrator management", () => {
     await expect(row.getByRole("button")).toHaveAccessibleName("Remove item 1 from Önemli Noktalar (Key Takeaways)");
     await context.addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
     await page.reload();
+    await expect(page.locator("#theme-toggle-btn")).toHaveAccessibleName(/tema; değiştirmek için tıklayın/);
+    await page.locator("#ui-family-select").selectOption("hydrogo");
+    await expect(page.locator(".studio-toast").last()).toContainText("Görünüm HydroGo olarak değiştirildi.");
+    await page.locator("#theme-toggle-btn").click();
+    await expect(page.locator(".studio-toast").last()).toContainText("tema uygulandı.");
     await page.evaluate(() => (window as any).HydroToast("Dil kontrolü", "info", "", () => {}, 30_000));
     await expect(page.getByRole("button", { name: "Geri Al" })).toBeVisible();
     await expect(page.locator(".media-select-empty span")).toHaveText("Görsel seçilmedi");

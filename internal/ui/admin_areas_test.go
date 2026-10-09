@@ -551,6 +551,22 @@ func TestAdminUndoToastLabelUsesDocumentLanguage(t *testing.T) {
 	}
 }
 
+func TestAdminVisualControlsFollowAdminLanguage(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStartLocale(&out, "Studio", "", "", "en"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`english?label+'; click to change':label+'; değiştirmek için tıklayın'`,
+		`english ? familyName + ' appearance applied.' : 'Görünüm '`,
+		`english ? variantName + ' theme applied.' : variantName + ' tema uygulandı.'`,
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("Admin visual controls are missing locale behavior %q", want)
+		}
+	}
+}
+
 func TestBulkToolbarBuildsContextualActionSelector(t *testing.T) {
 	script := adminUXScript()
 	for _, marker := range []string{`data-bulk-choice`, `new Option(action.textContent,action.dataset.bulkAction)`, `actions[choice?.selectedIndex||0]`} {
