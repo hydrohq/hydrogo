@@ -187,6 +187,56 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if response := readFor("tenant-a"); response.Code != http.StatusOK {
 		t.Fatalf("same-tenant read status=%d body=%s", response.Code, response.Body.String())
 	}
+	for _, role := range []string{"", "unknown"} {
+		role := role
+		t.Run("unauthorized-role/"+map[string]string{"": "anonymous", "unknown": "unknown"}[role], func(t *testing.T) {
+			for _, target := range []struct {
+				method string
+				path   string
+				body   string
+			}{
+				{http.MethodGet, "/admin/resources", ""},
+				{http.MethodGet, "/admin/resources/article", ""},
+				{http.MethodGet, "/admin/resources/article/new", ""},
+				{http.MethodGet, "/admin/resources/article/article-1", ""},
+				{http.MethodPost, "/admin/resources/article/new", "_csrf=edition-token&id=unauthorized-created&title=Must+not+exist"},
+				{http.MethodPost, "/admin/resources/article/article-1", "_csrf=edition-token&title=Must+not+change"},
+				{http.MethodPost, "/admin/resources/article/article-1/delete", "_csrf=edition-token"},
+				{http.MethodGet, "/api/v1/article", ""},
+				{http.MethodGet, "/api/v1/article/article-1", ""},
+				{http.MethodPost, "/api/v1/article", `{"id":"unauthorized-api-created","title":"Must not exist"}`},
+				{http.MethodPut, "/api/v1/article/article-1", `{"title":"Must not change"}`},
+				{http.MethodDelete, "/api/v1/article/article-1", ""},
+			} {
+				request := httptest.NewRequest(target.method, target.path, strings.NewReader(target.body))
+				if strings.HasPrefix(target.path, "/admin/") {
+					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				} else if target.method != http.MethodGet {
+					request.Header.Set("Content-Type", "application/json")
+				}
+				request.Header.Set("X-Test-Tenant", "tenant-a")
+				request.Header.Set("X-Test-Role", role)
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, request)
+				wantStatus := http.StatusForbidden
+				if target.method == http.MethodGet && target.path == "/api/v1/article/article-1" {
+					wantStatus = http.StatusNotFound // Conceal whether an unreadable record exists.
+				}
+				if response.Code != wantStatus {
+					t.Errorf("role %q %s %s status=%d, want %d", role, target.method, target.path, response.Code, wantStatus)
+				}
+			}
+			if response := readResourceFor("tenant-a", "unauthorized-created"); response.Code != http.StatusNotFound {
+				t.Errorf("role %q created an Admin record: status=%d", role, response.Code)
+			}
+			if response := readResourceFor("tenant-a", "unauthorized-api-created"); response.Code != http.StatusNotFound {
+				t.Errorf("role %q created an API record: status=%d", role, response.Code)
+			}
+			if response := readFor("tenant-a"); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "External tenant record") {
+				t.Errorf("role %q changed the existing record: status=%d body=%s", role, response.Code, response.Body.String())
+			}
+		})
+	}
 	if response := readFor("tenant-b"); response.Code != http.StatusNotFound {
 		t.Fatalf("cross-tenant read status=%d body=%s", response.Code, response.Body.String())
 	}
