@@ -281,11 +281,21 @@ The registered `POST /admin/site/settings` handler is now exercised behind the
 production CSRF middleware with SQLite migrations and the SQL store. Invalid
 CSRF and an Admin `site.manage=false` override both return 403 and leave the
 setting absent. A valid-CSRF Editor with an explicit `site.manage=true` grant
-receives 204 and the setting is read back from SQLite. The focused test and
-`go vet ./modules/site/transport` passed. This closes one Site settings
+receives 204 and the setting is read back from SQLite. The focused test, full
+`modules/site/transport` package and vet passed. This closes one Site settings
 mutation cell only; it does not imply the full Site/Admin route matrix passed.
 
 ```sh
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go test ./modules/site/transport -run '^TestAdminSiteSettingRouteEnforcesCSRFBeforePermission$' -count=1 -p 1
 GOCACHE=/tmp/hydrogo-admin-test-cache GOMAXPROCS=1 go vet ./modules/site/transport
 ```
+
+### News content permission × CSRF routes — 2026-10-09
+
+The News content-read/write route permission table now runs behind the real
+CSRF middleware. All 13 mutation routes reject a wrong token with 403; all 15
+read/write route cases then use a valid token to check Editor, Viewer grants,
+Admin default/deny, and inactive grant behavior against content permissions.
+The News transport package tests and vet passed. This is route authorization
+evidence only: configured storage, successful writes, and persisted state remain
+covered by separate Edition/browser/contract tests.
