@@ -934,6 +934,29 @@ func TestGeneratedServiceBindsValidationContract(t *testing.T) {
 	}
 }
 
+func TestGeneratedRequiredTextRejectsWhitespaceOnlyValues(t *testing.T) {
+	spec := Spec{Name: "article", Fields: []Field{
+		{Name: "title", Type: "string"},
+		{Name: "body", Type: "text"},
+		{Name: "subtitle", Type: "string", Nullable: true},
+		{Name: "external_id", Type: "uuid"},
+	}}
+	validation := renderValidation(spec)
+	for _, marker := range []string{
+		`"strings"`,
+		`strings.TrimSpace(item.Title) == ""`,
+		`strings.TrimSpace(item.Body) == ""`,
+		`strings.TrimSpace(item.ExternalID) == ""`,
+	} {
+		if !strings.Contains(validation, marker) {
+			t.Errorf("generated validation missing %q: %s", marker, validation)
+		}
+	}
+	if strings.Contains(validation, `strings.TrimSpace(item.Subtitle)`) {
+		t.Fatal("nullable text field received a required-value check")
+	}
+}
+
 func TestGeneratedValidationExecutesDeclaredFormats(t *testing.T) {
 	spec := Spec{Name: "profile", Table: "profiles", Fields: []Field{
 		{Name: "email", Type: "string", Validation: Validation{Format: "email"}},

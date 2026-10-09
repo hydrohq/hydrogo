@@ -345,6 +345,13 @@ func TestExternalEditionGeneratedTenantCRUDAndAdminUseAggregateHelpers(t *testin
 	if newFormResponse.Code != http.StatusOK || !strings.Contains(newFormResponse.Body.String(), `name="_csrf" value="edition-token"`) {
 		t.Fatalf("generated Admin create form did not render a CSRF token: status=%d body=%s", newFormResponse.Code, newFormResponse.Body.String())
 	}
+	invalidTitle := adminMutation("/admin/resources/article/new", url.Values{"_csrf": {"edition-token"}, "id": {"blank-title"}, "title": {"   "}})
+	if invalidTitle.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidTitle.Body.String(), "Bu alanları kontrol edin") || !strings.Contains(invalidTitle.Body.String(), "Bu alan zorunludur.") {
+		t.Fatalf("whitespace-only required title did not render field feedback: status=%d body=%s", invalidTitle.Code, invalidTitle.Body.String())
+	}
+	if response := readResourceFor("tenant-a", "blank-title"); response.Code != http.StatusNotFound {
+		t.Fatalf("invalid whitespace-only title was persisted: status=%d body=%s", response.Code, response.Body.String())
+	}
 	createdByAdmin := adminMutation("/admin/resources/article/new", url.Values{"_csrf": {"edition-token"}, "id": {"admin-created"}, "title": {"Created in Admin"}})
 	if createdByAdmin.Code != http.StatusSeeOther {
 		t.Fatalf("generated Admin create status=%d body=%s", createdByAdmin.Code, createdByAdmin.Body.String())

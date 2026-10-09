@@ -65,3 +65,15 @@ opened/migrated the database and composed the generated routes before
 `net.Listen` failed with `socket: operation not permitted` on
 `127.0.0.1:8099`. This confirms the remaining E2E blocker is listener access;
 it is not a Playwright assertion result.
+
+## Required text validation and editor feedback
+
+Blueprint-generated required `string`, `text`, and `uuid` checks now reject
+values that contain only whitespace while leaving the submitted value intact
+in the failed form. The external Edition SQLite contract posts a whitespace-only
+article title through the registered Admin handler, verifies localized 422
+field feedback, and confirms the failed record was not persisted. The opt-in
+Chromium journey adds the same error state to axe validation before continuing
+through editor CRUD. Generator, external Edition, and Project Edition tests and
+vets passed; the browser scenario remains unrun due to the listener restriction
+above.
