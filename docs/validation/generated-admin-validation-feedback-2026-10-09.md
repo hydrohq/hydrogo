@@ -100,3 +100,16 @@ accessibility tests and full `internal/ui` + `internal/adminstudio` packages,
 their `go vet`, and `git diff --check` passed. The existing eight-state browser
 axe assertion still could not execute because the runner cannot bind the
 Edition's loopback server.
+
+## Search/filter empty state — 2026-10-09
+
+Generated resource lists now distinguish an actually empty collection from a
+search/filter with no matches, and choose Turkish or English using the Admin
+interface locale rather than the content locale. The empty-state text gives a
+clear recovery hint. Go tests cover both locales, empty/search/filter states,
+and the accessible `role="status"` announcement. The existing Chromium CRUD
+journey now expects the no-match message. Generator/UI Go tests and vet passed;
+Impeccable's detector returned no findings. Browser execution is still open:
+this environment has no local Playwright executable and restricted network
+access prevents fetching it; previous Edition browser attempts also hit the
+loopback listener restriction. No browser pass is claimed.

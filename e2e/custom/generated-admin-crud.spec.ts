@@ -150,7 +150,7 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page.getByRole("link", { name: "HydroGo E2E project" })).toBeVisible();
     await page.getByLabel("Ara", { exact: true }).fill("no matching project");
     await page.getByRole("button", { name: "Uygula" }).click();
-    await expect(page.getByText("Bu koleksiyonda henüz kayıt bulunmuyor.")).toBeVisible();
+    await expect(page.getByText("Aramanızı veya filtrelerinizi değiştirip tekrar deneyin. Eşleşen kayıt yok.")).toBeVisible();
     await page.getByLabel("Ara", { exact: true }).fill("");
     await page.getByLabel("Status").selectOption("");
     await page.getByRole("button", { name: "Uygula" }).click();
