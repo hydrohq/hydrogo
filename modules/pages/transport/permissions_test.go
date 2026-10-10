@@ -1,14 +1,17 @@
 package transport
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
 
 func TestContentWritePermissionGuardsPageAdminRoutes(t *testing.T) {
@@ -149,5 +152,121 @@ func TestContentReadPermissionGuardsPageRoutes(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+type spyPageRepository struct {
+	createCalls  int
+	updateCalls  int
+	publishCalls int
+}
+
+func (s *spyPageRepository) GetContent(context.Context, database.Executor, string) (pages.Page, error) {
+	return pages.Page{ID: "page-1", Title: "Original Title", Status: pages.StatusDraft, Revision: 1}, nil
+}
+func (s *spyPageRepository) GetPublishedByRoute(context.Context, database.Executor, string, string) (pages.Page, error) {
+	return pages.Page{}, nil
+}
+func (s *spyPageRepository) ListPublished(context.Context, database.Executor, string, int) ([]pages.Page, error) {
+	return nil, nil
+}
+func (s *spyPageRepository) CreateDraftContent(context.Context, database.Executor, pages.Page) error {
+	s.createCalls++
+	return nil
+}
+func (s *spyPageRepository) UpdateDraftContent(context.Context, database.Executor, pages.Page, int) error {
+	s.updateCalls++
+	return nil
+}
+func (s *spyPageRepository) Publish(context.Context, database.Executor, string, int) error {
+	s.publishCalls++
+	return nil
+}
+
+func TestDeniedPageMutationsCallNoDependencies(t *testing.T) {
+	spy := &spyPageRepository{}
+	handler := Handler{
+		Content: service.ContentService{Pages: spy},
+	}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+
+	deniedRequests := []struct {
+		name   string
+		method string
+		path   string
+		user   *auth.User
+		token  string
+	}{
+		{
+			name:   "viewer create",
+			method: http.MethodPost,
+			path:   "/admin/pages",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "viewer update",
+			method: http.MethodPost,
+			path:   "/admin/pages/page-1",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "viewer publish",
+			method: http.MethodPost,
+			path:   "/admin/pages/page-1/publish",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "editor denied update",
+			method: http.MethodPost,
+			path:   "/admin/pages/page-1",
+			user:   &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}},
+			token:  "valid-token",
+		},
+		{
+			name:   "admin missing csrf update",
+			method: http.MethodPost,
+			path:   "/admin/pages/page-1",
+			user:   &auth.User{Role: auth.RoleAdmin, Active: true},
+			token:  "",
+		},
+		{
+			name:   "admin invalid csrf publish",
+			method: http.MethodPost,
+			path:   "/admin/pages/page-1/publish",
+			user:   &auth.User{Role: auth.RoleAdmin, Active: true},
+			token:  "invalid-token",
+		},
+	}
+
+	for _, tc := range deniedRequests {
+		t.Run(tc.name, func(t *testing.T) {
+			body := ""
+			if tc.token != "" {
+				body = "_csrf=" + tc.token + "&title=Attempted+Update"
+			}
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+			if tc.token != "" {
+				req.Header.Set(security.CSRFHeaderName, tc.token)
+			}
+			req = req.WithContext(auth.WithUser(req.Context(), tc.user))
+			res := httptest.NewRecorder()
+			secured.ServeHTTP(res, req)
+			if res.Code != http.StatusForbidden {
+				t.Fatalf("%s status=%d, want 403; body=%s", tc.name, res.Code, res.Body.String())
+			}
+		})
+	}
+
+	if spy.createCalls != 0 || spy.updateCalls != 0 || spy.publishCalls != 0 {
+		t.Fatalf("denied page mutations invoked storage: %+v", spy)
 	}
 }
