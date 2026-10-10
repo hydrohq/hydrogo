@@ -2,6 +2,7 @@ package adminstudio
 
 import (
 	"context"
+	"fmt"
 	"html/template"
 	"io"
 	"net/url"
@@ -71,12 +72,18 @@ func (d ListData) ResolvedListCaption() string {
 	if d.ListCaption != "" {
 		return d.ListCaption
 	}
+	if d.UILocale != "" {
+		return fmt.Sprintf(i18n.T(d.UILocale, "admin.generated.list.caption"), d.Collection.Label)
+	}
 	return d.Collection.Label + " listesi"
 }
 
 func (d ListData) ResolvedActionColumnLabel() string {
 	if d.ActionColumnLabel != "" {
 		return d.ActionColumnLabel
+	}
+	if d.UILocale != "" {
+		return i18n.T(d.UILocale, "admin.generated.list.actions")
 	}
 	return "İşlemler"
 }

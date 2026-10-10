@@ -42,10 +42,13 @@ func TestNewsAdminListShowsReadAndWriteRoleActions(t *testing.T) {
 		},
 	}
 
-	requestList := func(user *auth.User, target string) *httptest.ResponseRecorder {
+	requestList := func(user *auth.User, target string, locale ...string) *httptest.ResponseRecorder {
 		t.Helper()
 		request := httptest.NewRequest(http.MethodGet, target, nil)
 		request = request.WithContext(auth.WithUser(request.Context(), user))
+		if len(locale) > 0 && locale[0] != "" {
+			request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: locale[0]})
+		}
 		response := httptest.NewRecorder()
 		handler.adminList(response, request)
 		return response
@@ -66,14 +69,18 @@ func TestNewsAdminListShowsReadAndWriteRoleActions(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		user       *auth.User
+		locale     string
 		wantAction string
 		wantEdit   bool
+		wantColumn string
 	}{
-		{name: "editor", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, wantAction: "Düzenle", wantEdit: true},
-		{name: "viewer", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, wantAction: "Görüntüle"},
+		{name: "editor_default_tr", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, wantAction: "Düzenle", wantEdit: true, wantColumn: "İşlemler"},
+		{name: "viewer_default_tr", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, wantAction: "Görüntüle", wantColumn: "İşlemler"},
+		{name: "editor_en", user: &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, locale: "en", wantAction: "Edit", wantEdit: true, wantColumn: "Actions"},
+		{name: "viewer_en", user: &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, locale: "en", wantAction: "View", wantColumn: "Actions"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			response := requestList(tc.user, "/admin/news")
+			response := requestList(tc.user, "/admin/news", tc.locale)
 			if response.Code != http.StatusOK {
 				t.Fatalf("News list status=%d", response.Code)
 			}
@@ -81,8 +88,17 @@ func TestNewsAdminListShowsReadAndWriteRoleActions(t *testing.T) {
 			if !strings.Contains(table, "Yeni duyuru") || !strings.Contains(table, tc.wantAction) {
 				t.Fatalf("News row or action missing: %s", table)
 			}
-			if gotEdit := strings.Contains(table, "Düzenle"); gotEdit != tc.wantEdit {
-				t.Fatalf("edit action visible=%t, want %t", gotEdit, tc.wantEdit)
+			if tc.wantColumn != "" && !strings.Contains(table, tc.wantColumn) {
+				t.Fatalf("News table column missing %q: %s", tc.wantColumn, table)
+			}
+			if tc.wantEdit {
+				if !strings.Contains(table, tc.wantAction) {
+					t.Fatalf("edit action visible=%t, want %t", false, tc.wantEdit)
+				}
+			} else {
+				if strings.Contains(table, "Düzenle") || strings.Contains(table, "Edit") {
+					t.Fatalf("viewer table leaked edit action: %s", table)
+				}
 			}
 		})
 	}
