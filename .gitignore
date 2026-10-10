@@ -78,3 +78,7 @@ patch*.py
 patch*.go
 scratch*.py
 
+# Test and build caches
+/.cache/
+/.agent-go-cache/
+
