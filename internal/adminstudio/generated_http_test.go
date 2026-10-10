@@ -380,6 +380,29 @@ func TestGeneratedAdminShowsRecoverableConflictMessage(t *testing.T) {
 	if response.StatusCode != http.StatusConflict || !strings.Contains(string(body), "Siz düzenlerken bu kayıt değişti. Sayfayı yenileyip tekrar deneyin.") {
 		t.Fatalf("conflict response = %d %s", response.StatusCode, body)
 	}
+	if !strings.Contains(string(body), `value="Stale"`) {
+		t.Fatalf("conflict response did not preserve submitted field values: %s", body)
+	}
+
+	enRequest, err := http.NewRequest(http.MethodPost, baseURL+"/admin/resources/project/p-1", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	enRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	enRequest.Header.Set("X-CSRF-Test", "valid")
+	enRequest.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	enResponse, err := client.Do(enRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer enResponse.Body.Close()
+	enBody, _ := io.ReadAll(enResponse.Body)
+	if enResponse.StatusCode != http.StatusConflict || !strings.Contains(string(enBody), "This record changed while you were editing it. Reload the page and try again.") {
+		t.Fatalf("English conflict response = %d %s", enResponse.StatusCode, enBody)
+	}
+	if !strings.Contains(string(enBody), `value="Stale"`) {
+		t.Fatalf("English conflict response did not preserve submitted field values: %s", enBody)
+	}
 }
 
 func TestGeneratedWorkflowActionLabelsUseInterfaceLocale(t *testing.T) {

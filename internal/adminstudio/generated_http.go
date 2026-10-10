@@ -1134,11 +1134,13 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 				}
 				return fields.Render(ctx, out)
 			})
-		} else if status == http.StatusBadGateway {
+		} else if status == http.StatusBadGateway || status == http.StatusConflict {
 			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
 				titleKey, messageKey := "admin.generated.error.title", "admin.generated.error.operation"
 				if failureKind == "delete" {
 					titleKey, messageKey = "admin.generated.error.delete_title", "admin.generated.error.delete_operation"
+				} else if failureKind == "conflict" || status == http.StatusConflict {
+					titleKey, messageKey = "admin.generated.error.title", "admin.generated.error.conflict"
 				}
 				if err := ui.ValidationSummary(ui.ValidationSummaryProps{
 					Title:   i18n.T(generatedAdminLocale(r), titleKey),
@@ -2333,7 +2335,11 @@ func (h GeneratedAdminHandler) mutate(w http.ResponseWriter, r *http.Request, co
 	}
 	switch status {
 	case http.StatusConflict:
-		http.Error(w, i18n.T(generatedAdminLocale(r), "admin.generated.error.conflict"), http.StatusConflict)
+		record := map[string]any{}
+		if !creating {
+			record, _ = h.currentResource(r, collection, id)
+		}
+		h.renderFormState(w, r, collection, id, record, !creating, submittedGeneratedValues(r, collection), nil, http.StatusConflict, "conflict")
 		return
 	case http.StatusBadRequest, http.StatusUnprocessableEntity:
 		if !deleting && status == http.StatusUnprocessableEntity {
