@@ -24,6 +24,15 @@ The proposal declares additive SQLite/PostgreSQL compatibility and
 restore/forward-only recovery; no DDL was applied. The generated Admin
 registration contains `article` without a second resource-ID edit.
 
+### 3-Iteration Timing Results
+
+Executed 3 clean runs using `--no-demo` on isolated temporary roots:
+- **Run 1 (cold build)**: `new` = 10.246s, `resource create` = 0.284s, `project check` = 0.266s (Total: 10.796s, 70 files)
+- **Run 2 (warm cache)**: `new` = 0.250s, `resource create` = 0.265s, `project check` = 0.265s (Total: 0.780s, 70 files)
+- **Run 3 (warm cache)**: `new` = 0.259s, `resource create` = 0.262s, `project check` = 0.253s (Total: 0.774s, 70 files)
+- **Warm cache median**: 0.780s (min: 0.774s, max: 0.780s).
+- **Files generated**: 70 total files (44 under `generated/`).
+
 ## Acceptance boundary
 
 The fresh scaffold reports `core=licensed-runtime`, has no `go.mod`, and its
