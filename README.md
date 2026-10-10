@@ -132,6 +132,27 @@ SQLite Engine             PostgreSQL Adapter           MySQL / MariaDB
 - **Monday Morning Executive Digest:** Automated weekly KPI and form submission digest delivered to business stakeholders every Monday at 09:00.
 - **Agency Support Card & Video Guide Tab:** In-app agency communication box and embedded video training player for smooth client handoff.
 
+#### Blueprint-to-Admin generation
+
+Blueprint resources can produce Edition-owned Admin CRUD surfaces without
+hand-registering each resource in the navigation and API route lists. An
+Edition wires the generated resource registry once; adding a resource then
+feeds the generated Admin registry and API routes. The Edition still owns the
+access policy, and reviewed database migrations must be added and applied
+explicitly. This keeps generated scaffolding fast while leaving authorization
+and schema changes under human control.
+
+The verified flows include generated resource create/list/search/filter/edit/
+delete, plus content review and publish journeys. Warm-cache generation
+measurements recorded a 260 ms median for scaffold generation and 171 ms for
+`hydro new resource` (46 generated artifacts). These measure generation
+commands only; clean-scaffold-to-first-generated-CRUD time and a comparable
+PayloadCMS benchmark have not been established. The current Admin acceptance
+plan records what passed and which real-browser and PostgreSQL checks remain
+open: [Admin Studio audit and plan](docs/planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md).
+Recent interface coverage includes [responsive and theme checks](docs/validation/admin-content-lists-theme-responsive-2026-10-10.md)
+and [mobile media-library checks](docs/validation/admin-media-mobile-layout-2026-10-10.md).
+
 ### 7. 🧩 Turnkey Domain Modules (`modules/*`)
 HydroGo includes an industrial suite of pre-built, production-tested domain modules:
 - **Membership & Portal (`modules/members`):** Registration, Argon2id passwords, email verification tokens, session revocation, and member dashboards.
