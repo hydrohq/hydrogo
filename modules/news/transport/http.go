@@ -363,22 +363,23 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	values := map[string]string{"locale": h.defaultLocale(), "expires_at": ""}
 	csrf := security.CSRFTokenFromContext(r.Context())
+	uiLocale := ui.AdminLocaleFromRequest(r)
 
 	var leftBuf bytes.Buffer
 	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
-	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true, UILocale: uiLocale}); err != nil {
 		return
 	}
 
 	var rightMetaBuf bytes.Buffer
 	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
-	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true, UILocale: uiLocale}); err != nil {
 		return
 	}
 
 	var rightSEOBuf bytes.Buffer
 	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news"}}}
-	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news", CSRFToken: csrf, Values: values, HideSubmit: true, UILocale: uiLocale}); err != nil {
 		return
 	}
 
@@ -1179,24 +1180,25 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		"expires_at":      expiresValue,
 	}
 	csrf := security.CSRFTokenFromContext(r.Context())
+	uiLocale := ui.AdminLocaleFromRequest(r)
 
 	var leftBuf bytes.Buffer
 	leftCol := adminstudio.Collection{ID: "news_left", Label: "Haber İçeriği", Fields: leftFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
-	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&leftBuf, adminstudio.FormData{Collection: leftCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true, UILocale: uiLocale}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var rightMetaBuf bytes.Buffer
 	rightMetaCol := adminstudio.Collection{ID: "news_meta", Label: "Genel Bilgiler", Fields: rightMetaFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
-	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightMetaBuf, adminstudio.FormData{Collection: rightMetaCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true, UILocale: uiLocale}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	var rightSEOBuf bytes.Buffer
 	rightSEOCol := adminstudio.Collection{ID: "news_seo", Label: "SEO & Arama Motoru", Fields: rightSEOFields, Actions: []adminstudio.Action{{Label: "Kaydet", Href: "/admin/news/" + item.ID}}}
-	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true}); err != nil {
+	if err := adminstudio.RenderCreateForm(&rightSEOBuf, adminstudio.FormData{Collection: rightSEOCol, Action: "/admin/news/" + item.ID, CSRFToken: csrf, Values: values, HideSubmit: true, UILocale: uiLocale}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusServiceUnavailable)
 		return
 	}

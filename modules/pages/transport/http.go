@@ -654,12 +654,17 @@ func (h Handler) adminNewPage(w http.ResponseWriter, r *http.Request) {
 	if err := designsystem.PageLayoutPicker(designsystem.PageLayoutPickerProps{Options: options, Legend: legend, EmptyMessage: emptyMessage}).Render(r.Context(), w); err != nil {
 		return
 	}
+	submitLabel := "Taslak oluştur"
+	if locale == "en" {
+		submitLabel = "Create draft"
+	}
 	if err := adminstudio.RenderCreateForm(w, adminstudio.FormData{
 		Collection:  h.AdminCollection,
 		Action:      "/admin/pages",
 		CSRFToken:   security.CSRFTokenFromContext(r.Context()),
 		Values:      map[string]string{"locale": "tr"},
-		SubmitLabel: "Taslak oluştur",
+		SubmitLabel: submitLabel,
+		UILocale:    locale,
 	}); err != nil {
 		return
 	}
@@ -1449,7 +1454,14 @@ func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var form bytes.Buffer
-	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{Collection: h.AdminCollection, Action: "/admin/pages/" + page.ID, CSRFToken: security.CSRFTokenFromContext(r.Context()), HideSubmit: true, Values: map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body}}); err != nil {
+	if err := adminstudio.RenderCreateForm(&form, adminstudio.FormData{
+		Collection: h.AdminCollection,
+		Action:     "/admin/pages/" + page.ID,
+		CSRFToken:  security.CSRFTokenFromContext(r.Context()),
+		HideSubmit: true,
+		Values:     map[string]string{"locale": page.Locale, "slug": page.Slug, "title": page.Title, "body": page.Body},
+		UILocale:   ui.AdminLocaleFromRequest(r),
+	}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusServiceUnavailable)
 		return
 	}

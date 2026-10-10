@@ -167,3 +167,80 @@ func TestRenderCreateFormAcceptsDatetimeLocalWidget(t *testing.T) {
 		t.Fatalf("datetime-local input missing: %s", out.String())
 	}
 }
+
+func TestRenderCreateFormRespectsUILocale(t *testing.T) {
+	collection := Collection{
+		ID:    "composite",
+		Label: "Composite",
+		Fields: []Field{
+			{ID: "cover_id", Label: "Cover", Kind: FieldMedia, Widget: "media"},
+			{ID: "items", Label: "Items", Kind: FieldText, Widget: "list"},
+			{ID: "author_id", Label: "Author", Kind: FieldRelation, Relation: &RelationRef{Collection: "composite", Cardinality: "one"}},
+		},
+		Actions: []Action{{Label: "Composite", Href: "/admin/composite"}},
+	}
+
+	var trOut bytes.Buffer
+	if err := RenderCreateForm(&trOut, FormData{
+		Collection:      collection,
+		Action:          "/admin/composite",
+		CSRFToken:       "csrf",
+		Locales:         []string{"tr", "en"},
+		RelationOptions: map[string][]RelationOption{"author_id": {{ID: "1", Label: "Arda"}}},
+	}); err != nil {
+		t.Fatalf("TR RenderCreateForm error: %v", err)
+	}
+	trHTML := trOut.String()
+	for _, want := range []string{
+		`alt="Seçilen görsel"`,
+		`<span>Görsel seçilmedi</span>`,
+		`<span>Kütüphaneden seç</span>`,
+		`>Kaldır</button>`,
+		`+ Madde ekle`,
+		`<option value="">Seçin</option>`,
+		`İçerik dili`,
+	} {
+		if !strings.Contains(trHTML, want) {
+			t.Errorf("TR form missing %q", want)
+		}
+	}
+
+	var enOut bytes.Buffer
+	if err := RenderCreateForm(&enOut, FormData{
+		Collection:      collection,
+		Action:          "/admin/composite",
+		CSRFToken:       "csrf",
+		Locales:         []string{"tr", "en"},
+		UILocale:        "en",
+		RelationOptions: map[string][]RelationOption{"author_id": {{ID: "1", Label: "Arda"}}},
+	}); err != nil {
+		t.Fatalf("EN RenderCreateForm error: %v", err)
+	}
+	enHTML := enOut.String()
+	for _, want := range []string{
+		`alt="Selected image"`,
+		`<span>No image selected</span>`,
+		`<span>Choose from library</span>`,
+		`>Remove</button>`,
+		`+ Add item`,
+		`<option value="">Choose an option</option>`,
+		`Content language`,
+	} {
+		if !strings.Contains(enHTML, want) {
+			t.Errorf("EN form missing %q", want)
+		}
+	}
+	for _, leak := range []string{
+		`alt="Seçilen görsel"`,
+		`<span>Görsel seçilmedi</span>`,
+		`<span>Kütüphaneden seç</span>`,
+		`>Kaldır</button>`,
+		`+ Madde ekle`,
+		`<option value="">Seçin</option>`,
+		`İçerik dili`,
+	} {
+		if strings.Contains(enHTML, leak) {
+			t.Errorf("EN form leaked Turkish label %q", leak)
+		}
+	}
+}
