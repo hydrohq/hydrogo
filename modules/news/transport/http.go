@@ -28,6 +28,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
@@ -227,6 +228,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 			feedbackAvailable = countsErr == nil
 		}
 	}
+	uiLocale := ui.AdminLocaleFromRequest(r)
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
 		title := item.Title
@@ -240,13 +242,13 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				if missing > 0 {
-					title += fmt.Sprintf(" ⚠ %d eksik görsel", missing)
+					title += fmt.Sprintf(" ⚠ "+i18n.T(uiLocale, "admin.content.missing_images"), missing)
 				}
 			}
 		}
-		label := "Görüntüle"
+		label := i18n.T(uiLocale, "admin.generated.list.view")
 		if editorAllowed(r) {
-			label = "Düzenle"
+			label = i18n.T(uiLocale, "admin.generated.list.edit")
 		}
 		actions := []adminstudio.Action{{Label: label, Href: "/admin/news/" + item.ID}}
 		counts := feedbackCounts[item.ID]
@@ -265,7 +267,14 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 		if viewsAvailable {
 			_ = designsystem.ContentViewSort(designsystem.ContentViewSortProps{Path: "/admin/news", Status: r.URL.Query().Get("status"), Selected: r.URL.Query().Get("sort")}).Render(r.Context(), w)
 		}
-		if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
+		if err := adminstudio.RenderList(w, adminstudio.ListData{
+			Collection:        collection,
+			Rows:              rows,
+			StatusFilter:      r.URL.Query().Get("status"),
+			UILocale:          uiLocale,
+			ListCaption:       fmt.Sprintf(i18n.T(uiLocale, "admin.generated.list.caption"), collection.Label),
+			ActionColumnLabel: i18n.T(uiLocale, "admin.generated.list.actions"),
+		}); err != nil {
 			http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		}
 		return
@@ -281,7 +290,14 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if viewsAvailable {
 		_ = designsystem.ContentViewSort(designsystem.ContentViewSortProps{Path: "/admin/news", Status: r.URL.Query().Get("status"), Selected: r.URL.Query().Get("sort")}).Render(r.Context(), w)
 	}
-	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
+	if err := adminstudio.RenderList(w, adminstudio.ListData{
+		Collection:        collection,
+		Rows:              rows,
+		StatusFilter:      r.URL.Query().Get("status"),
+		UILocale:          uiLocale,
+		ListCaption:       fmt.Sprintf(i18n.T(uiLocale, "admin.generated.list.caption"), collection.Label),
+		ActionColumnLabel: i18n.T(uiLocale, "admin.generated.list.actions"),
+	}); err != nil {
 		http.Error(w, "news admin unavailable", http.StatusInternalServerError)
 		return
 	}

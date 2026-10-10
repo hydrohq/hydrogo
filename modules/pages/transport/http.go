@@ -31,6 +31,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
@@ -394,6 +395,7 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	if viewsAvailable {
 		sortPagesByViews(items, viewCounts, r.URL.Query().Get("sort"))
 	}
+	uiLocale := ui.AdminLocaleFromRequest(r)
 	rows := make([]adminstudio.Row, 0, len(items))
 	for _, item := range items {
 		title := item.Title
@@ -408,18 +410,18 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				if missing > 0 {
-					title += fmt.Sprintf(" ⚠ %d eksik görsel", missing)
+					title += fmt.Sprintf(" ⚠ "+i18n.T(uiLocale, "admin.content.missing_images"), missing)
 				}
 			}
 		}
-		label := "Görüntüle"
+		label := i18n.T(uiLocale, "admin.generated.list.view")
 		if editorAllowed(r) {
-			label = "Düzenle"
+			label = i18n.T(uiLocale, "admin.generated.list.edit")
 		}
 		actions := []adminstudio.Action{{Label: label, Href: "/admin/pages/" + item.ID}}
 		if item.Status == pages.StatusPublished {
 			publicPath := "/public/pages/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
-			actions = append(actions, adminstudio.Action{Label: "Canlı URL'yi kopyala", CopyText: strings.TrimRight(strings.TrimSpace(h.SEOOrigin), "/") + publicPath})
+			actions = append(actions, adminstudio.Action{Label: i18n.T(uiLocale, "admin.content.copy_live_url"), CopyText: strings.TrimRight(strings.TrimSpace(h.SEOOrigin), "/") + publicPath})
 		}
 		rows = append(rows, adminstudio.Row{ID: item.ID, Values: map[string]string{"locale": item.Locale, "slug": item.Slug, "title": title, "status": string(item.Status), "views": strconv.FormatInt(viewCounts[item.ID], 10)}, ValueHTML: map[string]template.HTML{"views": renderViewCountBadge(r.Context(), viewCounts[item.ID])}, Status: adminstudio.StatusInfo{Value: string(item.Status)}, Actions: actions})
 	}
@@ -436,13 +438,20 @@ func (h Handler) adminList(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = fmt.Fprint(w, `<section class="studio-card">`)
 	if editorAllowed(r) {
-		_, _ = fmt.Fprint(w, `<div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">CSV / Excel içe aktar</a></div>`)
+		_, _ = fmt.Fprintf(w, `<div class="studio-actions"><a class="button button-quiet" href="/admin/pages/import">%s</a></div>`, i18n.T(uiLocale, "admin.content.import_csv_excel"))
 	}
 	_, _ = fmt.Fprint(w, `<div class="table-wrap" id="admin-content-list" data-view-mode="table">`)
 	if viewsAvailable {
 		_ = designsystem.ContentViewSort(designsystem.ContentViewSortProps{Path: "/admin/pages", Status: r.URL.Query().Get("status"), Selected: r.URL.Query().Get("sort")}).Render(r.Context(), w)
 	}
-	if err := adminstudio.RenderList(w, adminstudio.ListData{Collection: collection, Rows: rows, StatusFilter: r.URL.Query().Get("status")}); err != nil {
+	if err := adminstudio.RenderList(w, adminstudio.ListData{
+		Collection:        collection,
+		Rows:              rows,
+		StatusFilter:      r.URL.Query().Get("status"),
+		UILocale:          uiLocale,
+		ListCaption:       fmt.Sprintf(i18n.T(uiLocale, "admin.generated.list.caption"), collection.Label),
+		ActionColumnLabel: i18n.T(uiLocale, "admin.generated.list.actions"),
+	}); err != nil {
 		http.Error(w, "page admin unavailable", http.StatusInternalServerError)
 		return
 	}

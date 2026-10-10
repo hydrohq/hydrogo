@@ -50,9 +50,10 @@ func (r *pageAdminListRepository) ListAdmin(_ context.Context, _ database.Execut
 }
 
 func TestPageAdminListShowsRoleAppropriateActionsAndAccessibleEmptyState(t *testing.T) {
-	repository := &pageAdminListRepository{items: []pages.Page{{
-		ID: "page-1", Locale: "tr", Slug: "gizlilik", Title: "Gizlilik", Status: pages.StatusDraft,
-	}}}
+	repository := &pageAdminListRepository{items: []pages.Page{
+		{ID: "page-1", Locale: "tr", Slug: "gizlilik", Title: "Gizlilik", Status: pages.StatusDraft},
+		{ID: "page-2", Locale: "en", Slug: "terms", Title: "Terms", Status: pages.StatusPublished},
+	}}
 	handler := Handler{
 		DB:      new(sql.DB),
 		Content: service.ContentService{Pages: repository},
@@ -66,13 +67,19 @@ func TestPageAdminListShowsRoleAppropriateActionsAndAccessibleEmptyState(t *test
 		},
 	}
 
-	requestList := func(user *auth.User, target string) *httptest.ResponseRecorder {
+	requestListWithLocale := func(user *auth.User, target, locale string) *httptest.ResponseRecorder {
 		t.Helper()
 		request := httptest.NewRequest(http.MethodGet, target, nil)
 		request = request.WithContext(auth.WithUser(request.Context(), user))
+		if locale != "" {
+			request.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: locale})
+		}
 		response := httptest.NewRecorder()
 		handler.adminList(response, request)
 		return response
+	}
+	requestList := func(user *auth.User, target string) *httptest.ResponseRecorder {
+		return requestListWithLocale(user, target, "")
 	}
 
 	editorResponse := requestList(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "/admin/pages")
@@ -81,12 +88,12 @@ func TestPageAdminListShowsRoleAppropriateActionsAndAccessibleEmptyState(t *test
 	}
 	editorBody := editorResponse.Body.String()
 	editorTable := pageAdminListTable(t, editorBody)
-	for _, want := range []string{"Gizlilik", "Düzenle", `href="/admin/pages/page-1"`} {
+	for _, want := range []string{"Gizlilik", "Düzenle", "Canlı URL&#39;yi kopyala", `href="/admin/pages/page-1"`} {
 		if !strings.Contains(editorTable, want) {
 			t.Errorf("Editor list table missing %q", want)
 		}
 	}
-	if !strings.Contains(editorBody, `href="/admin/pages/import"`) {
+	if !strings.Contains(editorBody, `href="/admin/pages/import"`) || !strings.Contains(editorBody, "CSV / Excel içe aktar") {
 		t.Error("Editor list did not expose the permitted import action")
 	}
 	if repository.limit != 100 {
@@ -106,7 +113,34 @@ func TestPageAdminListShowsRoleAppropriateActionsAndAccessibleEmptyState(t *test
 		t.Fatal("Viewer list exposed the import action")
 	}
 
-	emptyResponse := requestList(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "/admin/pages?status=published")
+	enEditorResponse := requestListWithLocale(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "/admin/pages", "en")
+	if enEditorResponse.Code != http.StatusOK {
+		t.Fatalf("English editor list status=%d", enEditorResponse.Code)
+	}
+	enEditorBody := enEditorResponse.Body.String()
+	enEditorTable := pageAdminListTable(t, enEditorBody)
+	for _, want := range []string{"Edit", "Actions", "Copy live URL", `href="/admin/pages/page-1"`} {
+		if !strings.Contains(enEditorTable, want) {
+			t.Errorf("English editor list table missing %q", want)
+		}
+	}
+	if strings.Contains(enEditorTable, "Düzenle") || strings.Contains(enEditorTable, "İşlemler") {
+		t.Errorf("English editor list table leaked Turkish labels: %s", enEditorTable)
+	}
+	if !strings.Contains(enEditorBody, "Import CSV / Excel") {
+		t.Error("English editor list did not expose English import button")
+	}
+
+	enViewerResponse := requestListWithLocale(&auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, "/admin/pages", "en")
+	if enViewerResponse.Code != http.StatusOK {
+		t.Fatalf("English viewer list status=%d", enViewerResponse.Code)
+	}
+	enViewerTable := pageAdminListTable(t, enViewerResponse.Body.String())
+	if !strings.Contains(enViewerTable, "View") || strings.Contains(enViewerTable, "Edit") || strings.Contains(enViewerTable, "Görüntüle") {
+		t.Fatalf("English viewer list table exposed wrong action: %s", enViewerTable)
+	}
+
+	emptyResponse := requestList(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "/admin/pages?status=archived")
 	if emptyResponse.Code != http.StatusOK || !strings.Contains(emptyResponse.Body.String(), `role="status"`) || !strings.Contains(pageAdminListTable(t, emptyResponse.Body.String()), "empty-state") {
 		t.Fatalf("filtered empty list lacks accessible status state: status=%d", emptyResponse.Code)
 	}
