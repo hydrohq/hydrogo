@@ -8,6 +8,31 @@ Blueprint Admin Studio'nun müşteri deneyimi, Super Admin sınırı, otomatik
 aktivasyon ve doğrulama boşlukları için güncel denetim ve aşamalı teslim planı:
 [`docs/planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md`](planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md).
 
+2026-10-10 Content and Form localization follow-up: list action buttons (`Düzenle`/`Edit`,
+`Görüntüle`/`View`, `Canlı URL'yi kopyala`/`Copy live URL`, `CSV / Excel içe aktar`/`Import CSV / Excel`)
+and table action headers (`İşlemler`/`Actions`) in Pages and News modules, as well as
+`RenderCreateForm` widgets (media picker, item list, relation select, content language navigation),
+are bound to the request's `hydro_admin_locale` cookie preference. Comprehensive unit and transport
+tests added in `internal/adminstudio`, `modules/pages`, and `modules/news`.
+
+2026-10-10 native clean scaffold Blueprint benchmark follow-up: clean scaffold (`new`),
+Blueprint generation (`resource create`), and project contract check (`project check`) were
+benchmarked across 3 clean iterations on temporary roots. Warm cache median total time: 0.780s
+(min: 0.774s, max: 0.780s), producing 70 total files. Full composition and licensed runtime execution
+remain documented as host/CI gates. Evidence:
+`native-clean-scaffold-blueprint-2026-10-10.md`.
+
+2026-10-10 generated Admin conflict form state follow-up: handled 409 Conflict in generated
+admin HTTP endpoints by re-rendering the full form with `ValidationSummary` alert banner
+(`admin.generated.error.conflict`) and preserving submitted form values (preventing lost editor input
+on concurrent edit collisions). Bilingual (TR/EN) conflict tests passed. Evidence:
+`generated-admin-conflict-form-state-2026-10-10.md`.
+
+2026-10-10 Pages & News denied mutations storage isolation follow-up: `spyPageRepository`
+and `spyNewsRepository` prove that denied mutations (viewer, restricted editor, missing/invalid CSRF)
+to pages and news endpoints return 403 and invoke zero storage/persistence operations. Evidence:
+`page-news-denied-mutations-storage-isolation-2026-10-10.md`.
+
 2026-10-09 Admin role-matrix follow-up: denied Editor/Viewer account role,
 permission, and disable mutations are followed by a fresh Admin read that
 checks the target role, permission override, and active state remain unchanged.
