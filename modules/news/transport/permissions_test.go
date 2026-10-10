@@ -1,12 +1,15 @@
 package transport
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
@@ -151,5 +154,133 @@ func TestContentReadPermissionGuardsNewsRoutes(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+type spyNewsRepository struct {
+	news.Repository
+	createCalls   int
+	updateCalls   int
+	scheduleCalls int
+	publishCalls  int
+	retractCalls  int
+}
+
+func (s *spyNewsRepository) Get(context.Context, database.Executor, string) (news.Item, error) {
+	return news.Item{ID: "news-1", Title: "Original News", Status: news.StatusDraft}, nil
+}
+func (s *spyNewsRepository) CreateDraft(context.Context, database.Executor, news.Item) error {
+	s.createCalls++
+	return nil
+}
+func (s *spyNewsRepository) UpdateDraft(context.Context, database.Executor, news.Item, int) error {
+	s.updateCalls++
+	return nil
+}
+func (s *spyNewsRepository) Schedule(context.Context, database.Executor, string, int, time.Time) (int64, error) {
+	s.scheduleCalls++
+	return 1, nil
+}
+func (s *spyNewsRepository) PublishNow(context.Context, database.Executor, string, int) error {
+	s.publishCalls++
+	return nil
+}
+func (s *spyNewsRepository) Retract(context.Context, database.Executor, string, int) error {
+	s.retractCalls++
+	return nil
+}
+
+func TestDeniedNewsMutationsCallNoDependencies(t *testing.T) {
+	spy := &spyNewsRepository{}
+	handler := Handler{
+		Service: news.Service{Repository: spy},
+	}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	secured := security.CSRFMiddleware(false, nil)(mux)
+
+	deniedRequests := []struct {
+		name   string
+		method string
+		path   string
+		user   *auth.User
+		token  string
+	}{
+		{
+			name:   "viewer create",
+			method: http.MethodPost,
+			path:   "/admin/news",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "viewer update",
+			method: http.MethodPost,
+			path:   "/admin/news/news-1",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "viewer publish",
+			method: http.MethodPost,
+			path:   "/admin/news/news-1/publish",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "viewer retract",
+			method: http.MethodPost,
+			path:   "/admin/news/news-1/retract",
+			user:   &auth.User{Role: auth.RoleViewer, Active: true},
+			token:  "valid-token",
+		},
+		{
+			name:   "editor denied update",
+			method: http.MethodPost,
+			path:   "/admin/news/news-1",
+			user:   &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionContentWrite: false}},
+			token:  "valid-token",
+		},
+		{
+			name:   "admin missing csrf publish",
+			method: http.MethodPost,
+			path:   "/admin/news/news-1/publish",
+			user:   &auth.User{Role: auth.RoleAdmin, Active: true},
+			token:  "",
+		},
+		{
+			name:   "admin invalid csrf schedule",
+			method: http.MethodPost,
+			path:   "/admin/news/news-1/schedule",
+			user:   &auth.User{Role: auth.RoleAdmin, Active: true},
+			token:  "invalid-token",
+		},
+	}
+
+	for _, tc := range deniedRequests {
+		t.Run(tc.name, func(t *testing.T) {
+			body := ""
+			if tc.token != "" {
+				body = "_csrf=" + tc.token + "&title=Attempted+News+Update"
+			}
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
+			if tc.token != "" {
+				req.Header.Set(security.CSRFHeaderName, tc.token)
+			}
+			req = req.WithContext(auth.WithUser(req.Context(), tc.user))
+			res := httptest.NewRecorder()
+			secured.ServeHTTP(res, req)
+			if res.Code != http.StatusForbidden {
+				t.Fatalf("%s status=%d, want 403; body=%s", tc.name, res.Code, res.Body.String())
+			}
+		})
+	}
+
+	if spy.createCalls != 0 || spy.updateCalls != 0 || spy.scheduleCalls != 0 || spy.publishCalls != 0 || spy.retractCalls != 0 {
+		t.Fatalf("denied news mutations invoked storage: %+v", spy)
 	}
 }
