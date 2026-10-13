@@ -1,29 +1,29 @@
 # R61 — Commercial license issuer boundary (2026-09-17)
 
-## Kapsam
+## Scope
 
-Vendor-only lisans üretimi ile müşteri runtime doğrulamasının ayrıldığı doğrulandı. Bu kayıt teknik bir release gate'tir; hukuki lisans metninin hukuk danışmanı incelemesinin yerine geçmez.
+Verified separation between vendor-only license generation and customer runtime verification. This record serves as a technical release gate; it does not substitute for legal counsel review of licensing agreements.
 
-## Çalıştırılan kontroller
+## Executed checks
 
 ```text
 gofmt -w cmd/hydro/license_cmd.go cmd/hydro/main_test.go cmd/hydro-issuer/main.go
 go test ./cmd/hydro ./cmd/hydro-issuer ./internal/licensing
 ```
 
-Sonuç: başarılı.
+Result: PASS.
 
-## Kabul kriterleri
+## Acceptance criteria
 
-- `hydro license issue` ve `hydro license keygen` müşteri runtime'ında başarısız olur: sağlandı.
-- `hydro-issuer issue` ve `hydro-issuer keygen` vendor-only binary'de bulunur: sağlandı.
-- `hydro license verify/status` mevcut lisansları doğrulamaya devam eder: sağlandı.
-- Signed `key_id` eşleşmesi ve yanlış slot reddi test edildi: sağlandı.
-- Kısa rotasyon geçişinde eski/yeni trusted public key listesinin birlikte doğrulanması test edildi: sağlandı.
-- Özel anahtar runtime kaynaklarında veya release dokümantasyonundaki müşteri komutlarında kullanılmaz: sağlandı.
+- `hydro license issue` and `hydro license keygen` fail in customer runtime: met.
+- `hydro-issuer issue` and `hydro-issuer keygen` reside in vendor-only binary: met.
+- `hydro license verify/status` continues to verify existing licenses: met.
+- Signed `key_id` matching and invalid slot rejection tested: met.
+- Dual verification of old/new trusted public keys during short rotation window tested: met.
+- Private keys are not used in runtime sources or customer commands in release documentation: met.
 
-## Açık operasyonel işler
+## Open operational tasks
 
-- Release pipeline'ında issuer artifact'ının müşteri paketinden ayrılması.
-- Resmi trusted public key'in release secret/ldflags akışında rotasyonu.
-- Ticari lisans ve SLA metinlerinin yetkili hukuk incelemesi.
+- Separating the issuer artifact from customer packages in the release pipeline.
+- Rotating official trusted public keys via release secret/ldflags flow.
+- Authorized legal counsel review of commercial license and SLA documents.

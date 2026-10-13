@@ -1,17 +1,14 @@
-# WSL tam test kanıtı — 2026-09-16
+# WSL full suite evidence — 2026-09-16
 
-## Ortam
+## Environment
 
-- Dağıtım: Ubuntu (WSL2)
-- Kullanıcı: `testuser`
-- Çalışma ağacı: `/path/to/project`
-- Komut: `go test ./... -p 1 -timeout=5m`
+- Distribution: Ubuntu (WSL2)
+- User: `testuser`
+- Working tree: `/path/to/project`
+- Command: `go test ./... -p 1 -timeout=5m`
 
-## Sonuç
+## Result
 
-Test süreci başarıyla tamamlandı (exit code 0). Tüm Go paketleri `ok` veya
-`[no test files]` sonucu verdi; `internal/sdkdist`, `internal/projectgen`,
-`internal/release` ve `cmd/hydro` dahil edildi.
+The test process completed successfully (exit code 0). All Go packages returned `ok` or `[no test files]`; `internal/sdkdist`, `internal/projectgen`, `internal/release`, and `cmd/hydro` were included.
 
-Bu kanıt yerel WSL davranışını gösterir. PostgreSQL, gerçek artifact broker,
-imzalama anahtarları, S3/CDN ve production installer doğrulaması değildir.
+This evidence demonstrates local WSL behavior. It is not verification of PostgreSQL, real artifact broker, signing keys, S3/CDN, or production installers.

@@ -11,7 +11,7 @@ draft out of the published view.
 
 - The Editor sees the saved page row, the edit action, and the permitted CSV /
   Excel import action.
-- The Viewer sees the same row with a read-only “Görüntüle” action; the edit
+- The Viewer sees the same row with a read-only "View" action; the edit
   and import controls are absent from the rendered route output.
 - A status filter that removes all rows produces the list's empty-state row and
   an accessible `role="status"` message.

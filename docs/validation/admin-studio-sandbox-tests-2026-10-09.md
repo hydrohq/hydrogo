@@ -1,17 +1,16 @@
-# Admin Studio hedefli doğrulama — 2026-10-09
+# Admin Studio Targeted Validation — 2026-10-09
 
-## Sonuç
+## Result
 
-Admin Studio, Blueprint generator, Edition composition ve güvenlik paketlerinin
-testleri geçti. İlk tam `go test ./...` denemesi Admin dışı paketlerde loopback
-listener yasağına takıldı. Listener gerektirmeyen HTTP contract'leri in-memory
-RoundTripper'a, HTTP/FCGI server yaşam döngüsü testleri `net.Pipe` listener'a
-taşındı. Son tam depo koşusu ve `go vet ./...` geçti.
+Tests for Admin Studio, Blueprint generator, Edition composition, and security packages
+passed. The initial full `go test ./...` attempt hit loopback listener restrictions
+in non-Admin packages. HTTP contracts that do not require a listener were migrated to in-memory
+RoundTripper, and HTTP/FCGI server lifecycle tests were migrated to a `net.Pipe` listener.
+The final full repository run and `go vet ./...` passed.
 
-## Geçen doğrulamalar
+## Passed Validations
 
-Doğru test geçici dizini (`/tmp/hydrogo-admin-tests`) ve repo dışı Go cache
-kullanılarak:
+Using the correct temporary test directory (`/tmp/hydrogo-admin-tests`) and an external Go cache:
 
 ```sh
 GOCACHE="$PWD/.cache/admin-test" TMPDIR=/tmp/hydrogo-admin-tests GOPROXY=off \
@@ -22,9 +21,9 @@ GOCACHE="$PWD/.cache/admin-test" TMPDIR=/tmp/hydrogo-admin-tests GOPROXY=off \
   -count=1 -p 1 -timeout=5m
 ```
 
-Bu komutta paketi başarısız yapan tek test `internal/auth` içindeki loopback
-bağlantılı Social OAuth testiydi. Admin/role/permission testleri ayrıca dar
-kapsamda geçti. Bu ayrımın ardından:
+In this command, the only test causing package failure was the loopback-bound
+Social OAuth test in `internal/auth`. Admin/role/permission tests also passed
+in a narrower scope. Following this separation:
 
 ```sh
 GOCACHE="$PWD/.cache/admin-test" TMPDIR=/tmp/hydrogo-admin-tests GOPROXY=off \
@@ -36,40 +35,38 @@ GOCACHE="$PWD/.cache/admin-test" TMPDIR=/tmp/hydrogo-admin-tests GOPROXY=off \
   -count=1 -p 1 -timeout=5m
 ```
 
-Her iki odaklı test komutu geçti. İlgili package seti için `go vet` ve
-`git diff --check` de geçti. İki Edition composition testi, Generated Admin
-HTTP testleri ve SMTP testleri artık listener açmadan çalışıyor; generator
-testlerinde repo dışı `TMPDIR` kullanımı, geçici modülün ana repo modülünü
-yanlışlıkla miras almasını engelliyor.
+Both focused test commands passed. `go vet` and `git diff --check` passed for the
+relevant package set as well. Two Edition composition tests, Generated Admin HTTP
+tests, and SMTP tests now run without opening listeners; using an external `TMPDIR`
+in generator tests prevents temporary modules from accidentally inheriting the root repo module.
 
-## Kalan çalışma ortamı kapıları
+## Remaining Runtime Environment Gates
 
-- Admin responsive Playwright testi artifact output'u yazılabilir dizine
-  yönlendirilerek başlatıldı. Go setup ve SQLite migration tamamlandı, fakat
-  fixture `127.0.0.1` test sunucusunu açarken `listen EPERM` aldı. Yeni browser
-  screenshot, axe sonucu veya touch-target ölçümü yoktur.
-- `HYDRO_TEST_POSTGRES_URL` ayarlı değil. Docker API erişimi reddedildi; yerel
-  cluster başlatma denemesinin sonucu aşağıda kayıtlıdır. Önceki PostgreSQL
-  kanıtları bu tur için yeni canlı PostgreSQL sonucu sayılmaz.
+- The Admin responsive Playwright test was initiated by directing artifact output to a
+  writable directory. Go setup and SQLite migrations succeeded, but the fixture
+  received `listen EPERM` when starting the `127.0.0.1` test server. No new browser
+  screenshots, axe results, or touch-target measurements were produced.
+- `HYDRO_TEST_POSTGRES_URL` is not set. Docker API access was denied; results from the local
+  cluster start attempt are recorded below. Prior PostgreSQL evidence does not count as new
+  live PostgreSQL results for this iteration.
 
-### PostgreSQL local-start retry
+### PostgreSQL Local-Start Retry
 
-`initdb` ile geçici PostgreSQL 18.6 cluster'ı `/tmp` altında başarıyla
-oluşturuldu. `pg_ctl` ile yalnızca Unix-domain socket üzerinden başlatma
-denemesi, PostgreSQL'in socket dosyasını açarken `Operation not permitted`
-hatasıyla durdu; Docker API de `permission denied` döndü ve dış PostgreSQL DSN'i
-ayarlı değildi. Dolayısıyla bu deneme migration veya sözleşme testi çalıştırmadı;
-canlı PostgreSQL doğrulama kapısı açık kalıyor.
+A temporary PostgreSQL 18.6 cluster was successfully created under `/tmp` via `initdb`.
+The attempt to start it via `pg_ctl` strictly using a Unix-domain socket stopped with
+an `Operation not permitted` error while PostgreSQL opened the socket file; Docker API
+also returned `permission denied`, and no external PostgreSQL DSN was configured.
+Consequently, this attempt did not run migrations or contract tests; the live PostgreSQL
+validation gate remains open.
 
-## Bu turdaki tekrar doğrulama
+## Re-Validation in this Iteration
 
-İlk tam suite sırasında görülen listener hatalarının ardından AI, OAuth,
-Sentry, link checker, reverse proxy, SDK broker/download, BFF ve public site
-transport testleri in-memory HTTP transport kullanıyor. HTTP server graceful
-shutdown ve FastCGI testleri gerçek socket açmadan `net.Pipe` kullanan listener
-ile aynı framing ve drain davranışını çalıştırıyor. Üretim HTTP transportu ve
-dinleme davranışı değişmedi; yalnız server'ın listener alan iç yordamı test
-edilebilir hale geldi.
+Following listener errors observed during the initial full suite run, AI, OAuth,
+Sentry, link checker, reverse proxy, SDK broker/download, BFF, and public site
+transport tests now use in-memory HTTP transports. HTTP server graceful shutdown and
+FastCGI tests exercise identical framing and drain behavior using listeners backed by
+`net.Pipe` without opening real sockets. Production HTTP transport and listening behavior
+remain unchanged; only the server's internal routine accepting listeners was made testable.
 
 ```sh
 GOPROXY=off GOCACHE="$PWD/.cache/admin-test" GOTMPDIR=/tmp/hydro-go-home TMPDIR=/tmp \
@@ -78,4 +75,4 @@ GOPROXY=off GOCACHE="$PWD/.cache/admin-test" GOTMPDIR=/tmp/hydro-go-home TMPDIR=
   go vet ./...
 ```
 
-Her iki komut geçti. Playwright ve PostgreSQL kapıları yukarıda açık kalır.
+Both commands passed. Playwright and PostgreSQL gates noted above remain open.

@@ -1,9 +1,8 @@
-# WSL tam suite — permission contract sonrası — 2026-09-16
+# WSL full suite — post permission contract — 2026-09-16
 
-- Ubuntu WSL2, kullanıcı `testuser`
-- Dizin: `/path/to/project`
-- Komut: `go test ./... -p 1 -timeout=5m`
-- Sonuç: exit code 0; tüm paketler `ok` veya `[no test files]`.
+- Ubuntu WSL2, user `testuser`
+- Directory: `/path/to/project`
+- Command: `go test ./... -p 1 -timeout=5m`
+- Result: exit code 0; all packages returned `ok` or `[no test files]`.
 
-Bu çalıştırma permission preflight, generator doğrulaması ve tüm önceki SDK/
-release değişikliklerini kapsar. Harici production servisleri bu testin dışındadır.
+This run covers permission preflight, generator verification, and all prior SDK/release changes. External production services remain outside the scope of this test.

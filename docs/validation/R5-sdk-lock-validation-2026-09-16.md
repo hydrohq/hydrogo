@@ -1,16 +1,16 @@
-# R5 SDK lockfile doğrulaması — 2026-09-16
+# R5 SDK lockfile verification — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-Project generator’a bounded `hydrogo.lock` yükleme/doğrulama eklendi. `hydro project check`, lockfile mevcutsa sürüm 1, proje kimliği, edition/preset, Core dağıtımı, generator sürümü, lisans zorunluluğu ve duplicate/boş feature değerlerini kontrol eder. Bu işlem ağ veya veritabanı bağlantısı gerektirmez.
+Added bounded `hydrogo.lock` loading and verification to the project generator. `hydro project check` verifies version 1, project identity, edition/preset, Core distribution, generator version, license requirement, and duplicate/empty feature values if the lockfile is present. This operation requires no network or database connection.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/projectgen ./cmd/hydro` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./...` başarılı.
-- Üretilmiş geçerli lockfile kabul edildi.
-- Boş Core sürümüne sahip değiştirilmiş lockfile reddedildi.
+- Windows: `go test ./internal/projectgen ./cmd/hydro` passed.
+- WSL Ubuntu/Go 1.27: `go test ./...` passed.
+- Generated valid lockfile was accepted.
+- Tampered lockfile with empty Core version was rejected.
 
-## Sınır
+## Scope & Boundaries
 
-Bu kontrol yalnızca lockfile bütünlüğü ve yerel uyumluluk metadata’sıdır. Runtime entitlement, broker erişimi ve binary imzası ayrıca doğrulanır.
+This check covers lockfile integrity and local compatibility metadata only. Runtime entitlement, broker access, and binary signatures are verified separately.

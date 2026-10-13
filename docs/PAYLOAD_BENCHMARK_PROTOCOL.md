@@ -1,45 +1,45 @@
-# Payload parity benchmark protokolü
+# Payload Parity Benchmark Protocol
 
-Bu protokol, HydroGo'nun Payload CMS'e göre geliştirme hızını ölçmek içindir.
-Amaç pazarlama iddiası üretmek değil, aynı donanım ve aynı senaryoda tekrar
-edilebilir kanıt toplamaktır.
+This protocol specifies the measurement process for evaluating HydroGo's development velocity
+relative to Payload CMS. The goal is not marketing posturing, but collecting reproducible evidence
+under identical hardware and test conditions.
 
-## Sabit senaryo
+## Fixed Test Scenario
 
-İki sistemde de `articles` kaynağı oluşturulur:
+Both systems model and implement an `articles` resource:
 
-- `title` (zorunlu, çok dilli)
+- `title` (required, localized)
 - `slug` (unique index)
 - `body` (rich text)
 - `cover` (media)
 - `status` (draft/published)
-- `publishedAt` (schedule)
+- `publishedAt` (scheduled publishing)
 - `category` (relation)
 
-Senaryo; migration, seed, admin listeleme/düzenleme, yayınlama, public detail
-API'si, validation ve bir browser smoke testi içerir. İş kuralı elle eklenirse
-ayrıca kaydedilir.
+The scenario encompasses database migrations, seed data, admin listing/editing interfaces,
+publishing workflows, a public detail API endpoint, input validation, and a browser smoke test.
+Any hand-coded business logic additions are logged separately.
 
-## Ölçülecek metrikler
+## Target Metrics
 
-Her koşuda aşağıdaki değerleri kaydet:
+Record the following metrics during each test execution:
 
-1. İlk komuttan çalışan admin/API smoke testine kadar geçen süre.
-2. Üretilen dosya ve elle değiştirilen dosya sayısı.
-3. Başarısız komut/test ve düzeltme sayısı.
-4. İlk başarılı çalıştırmada kullanılan komut sayısı.
-5. Cold/warm request p50, p95 ve hata oranı.
-6. Peak RSS, CPU, veritabanı bağlantısı ve cache durumu.
+1. Elapsed wall-clock time from initial command to working admin and API smoke tests.
+2. Count of generated files versus manually modified files.
+3. Count of failed commands or tests and required remediation steps.
+4. Total CLI command count required to reach initial working state.
+5. Cold and warm request latency (p50, p95) and error rates.
+6. Peak RSS memory, CPU usage, open database connections, and cache hit metrics.
 
-## Deney koşulları
+## Experimental Parameters
 
-- Aynı Windows/WSL makinesi, Go/Node/Payload sürümleri ve temiz checkout.
-- Aynı SQLite veri seti; ikinci koşuda desteklenen PostgreSQL sürümü.
-- Cold cache ve warm cache ayrı raporlanır.
-- Ağır dış servisler (ödeme, S3, CDN) mock değilse sağlayıcı ve bölge yazılır.
-- Her sistem en az üç kez çalıştırılır; ortanca ve aralık raporlanır.
+- Identical Windows/WSL host environment, pinned Go/Node/Payload versions, and clean checkouts.
+- Identical SQLite baseline dataset; followed by an identical supported PostgreSQL version run.
+- Cold cache and warm cache results reported independently.
+- Heavy external dependencies (payment, S3, CDN) mocked unless provider/region is explicitly noted.
+- Each system is executed at least three times; report median and range values.
 
-## HydroGo başlangıç komutları
+## HydroGo Baseline Commands
 
 ```bash
 hydro project new benchmark-news --preset=news
@@ -51,20 +51,18 @@ hydro migrate
 hydro test --package ./...
 ```
 
-Eksik otomasyon veya manuel wiring adımı gizlenmez; komut çıktısı ve süreleri
-`docs/validation/` altında tarihli rapora eklenir.
+Never conceal missing automation or manual wiring requirements; command outputs and execution
+timings are preserved in a dated validation report under `docs/validation/`.
 
-Tekrarlanabilir yerel DX baseline için `scripts/measure-iteration.ps1` üç koşu
-yapar ve `-Runs N` ile 1–10 arasında sınırlandırılmış tekrar sayısını kabul
-eder. Çıktı her koşunun süresini, median/min/max değerlerini ve başarısını ayrı
-alanlarda taşır. Bu yardımcı ölçüm, karşı sistemin aynı senaryoda çalıştırıldığı
-Payload karşılaştırmasının yerine geçmez.
+For a reproducible local DX baseline, `scripts/measure-iteration.ps1` executes three runs and
+accepts a bounded repetition parameter (`-Runs N`, between 1 and 10). The report outputs individual
+run durations, median/min/max metrics, and success status. This internal measurement script does
+not replace side-by-side comparative benchmarking against the target system.
 
-## Kabul kriteri
+## Acceptance Criteria
 
-HydroGo'nun “Payload kadar hızlı” olduğu ancak iki bağımsız resource senaryosunda
-ilk çalışan admin/API akışı 30 dakika hedefi içinde ve manuel adım/hata sayıları
-ölçülerek doğrulanırsa söylenebilir. Yerel HydroGo iteration script'inin 15 dakikalık
-eşiği yalnızca hızlı geri bildirim kapısıdır; 30 dakika parity hedefinin yerine
-geçmez. Bu protokol tek başına sonucu kanıtlamaz;
-sonuç raporu olmadan parity durumu **açık** kalır.
+HydroGo can only claim to be "as fast as Payload" when initial working admin/API workflows across
+two independent resource scenarios complete within the 30-minute target threshold with measured
+manual step and error counts. The 15-minute threshold of the local HydroGo iteration script is a
+rapid feedback gate only; it does not replace the 30-minute parity goal. This protocol itself is not
+proof of success; until verified by a final benchmark report, parity status remains **open**.

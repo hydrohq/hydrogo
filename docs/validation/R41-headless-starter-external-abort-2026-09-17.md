@@ -1,12 +1,9 @@
-# R41 — Headless starter dış abort sinyali
+# R41 — Headless starter external abort signal
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel Node runtime)
+**Status:** Successful (local Node runtime)
 
-Contract smoke testi, host uygulamanın verdiği `AbortSignal` iptalinin client
-tarafındaki internal controller'a aktarıldığını ve çağrının caller reason ile
-sonlandığını doğruluyor. Böylece route değişimi, kullanıcı iptali veya
-framework lifecycle kapanışında istekler açık kalmıyor.
+The contract smoke test verifies that an `AbortSignal` cancellation supplied by the host application is propagated to the client's internal controller and terminates the call with the caller's reason. Consequently, requests do not hang open on route changes, user cancellations, or framework lifecycle teardown.
 
 ```powershell
 Push-Location examples/headless-starter
@@ -14,5 +11,4 @@ npm test
 Pop-Location
 ```
 
-Sonuç: **PASS** — external abort propagation, timeout abort, idempotency,
-typed error/request-id ve bounded response kontrolleri.
+Result: **PASS** — external abort propagation, timeout abort, idempotency, typed error/request-id, and bounded response checks.

@@ -1,26 +1,15 @@
-# ADR-0220: Provider-neutral tracing sınırları
+# ADR-0220: Provider-Neutral Tracing Boundaries
 
-## Durum
+## Status
 
-Kabul edildi — 2026-09-22.
+Accepted — 2026-09-22
 
-## Karar
+## Decision
 
-HTTP, repository/transaction, cache, worker, webhook ve backup işlemleri
-provider-neutral span sınırları ile işaretlenir (`internal/telemetry` low-level
-adapter'ı database transaction'larında kullanılır). Exporter veya sampling
-zorunluluğu Core'a eklenmez; OpenTelemetry global provider deployment profili
-tarafından seçilir. Span attribute'ları route, bileşen, durum ve bounded süre
-ile sınırlıdır; query, body, cookie, secret ve yüksek-cardinality kimlikler
-yasaktır.
+HTTP handling, database repositories/transactions, cache operations, worker jobs, webhooks, and backup tasks are annotated with provider-neutral span boundaries (`internal/telemetry` interfaces wrap database transactions). Exporters and sampling dependencies are not mandated in Core; the global OpenTelemetry provider is configured according to the deployment profile. Span attributes are restricted to normalized route, component, status, and bounded execution duration; raw queries, bodies, cookies, secrets, and high-cardinality IDs are strictly prohibited.
 
-## Operasyon
+## Operations
 
-Compact profili exporter olmadan çalışır. Standard/Enterprise dağıtımları
-OTEL SDK/provider'ı dışarıdan kurup OTLP endpoint ve sampling oranını secret
-olmayan deployment config'i ile seçebilir. Collector retention ve erişim
-politikasından sorumludur.
+The Compact profile runs with zero exporter overhead. Standard and Enterprise deployments configure the OTel SDK/exporter via standard deployment configuration specifying OTLP endpoints and sampling ratios. Collectors manage downstream retention and access policies.
 
-`LoadTracingProfile` endpoint'in mutlak URL olmasını ve sampling oranının
-0..1 aralığında kalmasını doğrular; exporter adapter'ı bu profile göre
-kurulur.
+`LoadTracingProfile` validates that endpoints are absolute URLs and sampling rates remain within the `[0.0, 1.0]` range.

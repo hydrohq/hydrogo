@@ -33,11 +33,11 @@ hydro run
 hydro test --package ./modules/news/... --timeout 2m
 ```
 
-`hydro run` canlı geliştirme için önerilen komuttur. Eski betiklerle uyumluluk
-için `hydro dev` aynı seçenekleri kabul eden bir takma ad olarak tutulur.
-Geliştirme proxy'si varsayılan olarak sadece `127.0.0.1:8090`'da (loopback)
-dinler, böylece işletim sistemi ağ güvenlik duvarı izni istemez. Aynı ağdaki
-başka bir cihazdan (örn. telefon) erişmek için proxy'yi açıkça LAN'a açın:
+`hydro run` is the recommended command for live development. For compatibility
+with older scripts, `hydro dev` is preserved as an alias accepting identical options.
+By default, the development proxy listens only on `127.0.0.1:8090` (loopback),
+avoiding OS network firewall permission prompts. To allow access from another device
+on the same local network (e.g. mobile phone), explicitly expose the proxy to the LAN:
 
 ```text
 hydro run --address 0.0.0.0:8090

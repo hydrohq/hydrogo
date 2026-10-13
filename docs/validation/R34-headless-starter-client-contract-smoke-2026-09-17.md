@@ -1,27 +1,23 @@
 # R34 — Headless starter client contract smoke
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel Node runtime)
+**Status:** Successful (local Node runtime)
 
-## Kapsam
+## Scope
 
-`examples/headless-starter` artık dependency-free Node `assert` ile çalışan bir
-contract smoke testine sahip. Test şu davranışları gerçek derlenmiş client
-üzerinde doğrular:
+`examples/headless-starter` now includes a contract smoke test running with dependency-free Node `assert`. The test verifies the following behaviors against the actual compiled client:
 
-- geçersiz ve geçerli idempotency key sınırları;
-- typed `HydroGoError`, güvenli mesaj, hata kodu ve request ID aktarımı;
-- `Content-Length` olmadan gelen 2 MiB üzeri streaming response'un fail-closed
-  reddi;
-- normal typed news response'un başarılı çözülmesi.
+- invalid and valid idempotency key boundaries;
+- typed `HydroGoError`, safe message, error code, and request ID propagation;
+- fail-closed rejection of streaming responses exceeding 2 MiB without `Content-Length`;
+- successful resolution of standard typed news responses.
 
-## Doğrulama
+## Verification
 
 ```powershell
 npm test
 ```
 
-Sonuç: **PASS** — TypeScript build ve `PASS: headless client contract smoke`.
+Result: **PASS** — TypeScript build and `PASS: headless client contract smoke`.
 
-Test harici API, ödeme sağlayıcısı veya CORS politikasına bağlanmaz; bu nedenle
-gerçek browser/production kabul kapılarının yerine geçmez.
+The test does not bind to external APIs, payment providers, or CORS policies; therefore, it does not substitute for real browser/production acceptance gates.

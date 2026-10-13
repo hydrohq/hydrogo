@@ -1,15 +1,15 @@
-# R5 SDK runtime cache sözleşmesi — 2026-09-16
+# R5 SDK runtime cache contract — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist.CachePath`, runtime artifact cache yolunu sürüm/ürün/OS/mimariye göre deterministik üretir. Sürüm ve ürün girdileri path traversal’dan arındırılır; fonksiyon dizin oluşturmaz veya binary çalıştırmaz.
+`internal/sdkdist.CachePath` deterministically generates runtime artifact cache paths based on version/product/OS/architecture. Version and product inputs are sanitized against path traversal; the function neither creates directories nor executes binaries.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` ve `go test ./...` başarılı.
-- `../`, `..`, boş ve slash içeren sürüm değerleri reddedildi.
+- Windows: `go test ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` and `go test ./...` passed.
+- `../`, `..`, empty, and slash-containing version values were rejected.
 
-## Sınır
+## Scope & Boundaries
 
-Bu yalnızca cache path sözleşmesidir. Download, atomic install, cache eviction, version switching ve broker entegrasyonu sonraki fazlardır.
+This is a cache path contract only. Downloading, atomic installation, cache eviction, version switching, and broker integration are subsequent phases.

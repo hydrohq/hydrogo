@@ -1,91 +1,91 @@
 # HydroGo News Site Setup & Deployment Guide
 
-Bu rehber, HydroGo ile bağımsız ve Core kodunu içermeyen bir **Haber Merkezi / Yayıncılık (News)** Client Edition projesi oluşturma, lisanslama, geliştirme ve devreye alma adımlarını açıklar.
+This guide describes how to scaffold, license, develop, and deploy an independent **News / Publishing** Client Edition project powered by HydroGo without bundling Core engine sources.
 
 ---
 
-## 1. Proje Oluşturma (Scaffolding)
+## 1. Project Scaffolding
 
-Aşağıdaki komutla yeni bir haber sitesi projesi oluşturun:
+Create a new news site project using the following command:
 
 ```powershell
 hydro new haber-merkezi --preset=news --database=sqlite --profile=compact --git
 ```
 
-Veya etkileşimli modda çalıştırın:
+Or run interactively:
 
 ```powershell
 hydro new
-# Proje adı: haber-merkezi
+# Project name: haber-merkezi
 # Preset: news
-# Veritabanı: sqlite
-# Profil: compact
-# Sunum tipi: integrated
-# Demo içerik: y
-# Git başlatılsın mı?: y
+# Database: sqlite
+# Profile: compact
+# Presentation type: integrated
+# Demo content: y
+# Initialize Git: y
 ```
 
-Oluşturulan dizin yapısı:
+Generated directory layout:
 ```text
 haber-merkezi/
-├── config.yaml          # Çalışma zamanı yapılandırması
-├── hydrogo.lock         # Proje kimliği, Core sürümü ve özellik kilitleri
-├── README.md            # Proje başlangıç kılavuzu
-├── PROJECT_STATUS.md    # Durum ve hazırlık listesi
-├── TASKS.md             # Proje görevleri
-├── LICENSE              # Client Edition lisans taslağı
-├── NOTICE               # 3. parti lisans bildirimleri
-├── docs/                # Mimari, operasyon ve E2E kılavuzları
+├── config.yaml          # Runtime configuration
+├── hydrogo.lock         # Project identity, Core version, and feature locks
+├── README.md            # Getting started guide
+├── PROJECT_STATUS.md    # Status and readiness checklist
+├── TASKS.md             # Project task tracker
+├── LICENSE              # Client Edition license file
+├── NOTICE               # Third-party notices
+├── docs/                # Architecture, operations, and E2E guides
 ├── themes/
-│   └── newsroom/        # Tema şablonları (theme.json, layouts/, static/)
-├── custom/              # Müşteriye özel Go eklenti ve kancaları
-├── migrations/          # Müşteriye özel ek veritabanı tabloları
-├── seed/                # Başlangıç ve demo verileri
+│   └── newsroom/        # Theme templates (theme.json, layouts/, static/)
+├── custom/              # Customer-specific Go plugins and hooks
+├── migrations/          # Customer-specific database migrations
+├── seed/                # Initial and demo seed data
 └── e2e/
-    └── manifest.json    # Playwright E2E test manifestosu
+    └── manifest.json    # Playwright E2E test manifest
 ```
 
 > [!NOTE]
-> Proje klasöründe HydroGo Core'un kaynak kodu (internal motor paketleri) bulunmaz. Proje lisanslı HydroGo runtime ikili dosyası (`hydro`) ile çalıştırılır.
+> The project directory does not contain internal HydroGo Core source code. The project is executed using the HydroGo runtime binary (`hydro`).
 
 ---
 
-## 2. Lisanslama ve Başlatma
+## 2. Initialization and Server Boot
 
-1. Satıcıdan veya lisanslama aracından projenize özel imzalanmış `hydro.lic` dosyasını temin edin ve proje kök dizinine yerleştirin:
+1. If deploying in an environment that requires a license file, ensure `hydro.lic` is placed in the project root:
    ```powershell
    cd haber-merkezi
-   # hydro.lic dosyasının proje kökünde olduğundan emin olun
    hydro license status --license hydro.lic
    ```
+   *(For local open-source development, run with `hydro serve --dev` or `HYDRO_DEV_MODE=1`)*
 
-2. Veritabanı migrasyonlarını uygulayın:
+2. Apply database migrations:
    ```powershell
    hydro migrate --config config.yaml
    ```
 
-3. Yönetici (Admin) kullanıcısını oluşturun:
+3. Create the administrator user:
    ```powershell
    hydro create-admin --config config.yaml --email editor@haber-merkezi.test --password-stdin
-   # Parolanızı girip Enter'a basın
+   # Enter password and press Enter
    ```
 
-4. Sunucuyu başlatın:
+4. Start the server:
    ```powershell
    hydro serve --config config.yaml
    ```
 
-Sunucu `http://127.0.0.1:8080` adresinde çalışmaya başlar:
-- **Public Haber Odası:** `http://127.0.0.1:8080/public/news/tr/html`
-- **Admin Studio Paneli:** `http://127.0.0.1:8080/admin`
-- **Üye Girişi:** `http://127.0.0.1:8080/member/login`
-- **Sağlık Kontrolü:** `http://127.0.0.1:8080/healthz`
+The server starts listening on `http://127.0.0.1:8080`:
+- **Public Newsroom:** `http://127.0.0.1:8080/public/news/tr/html`
+- **Admin Studio Panel:** `http://127.0.0.1:8080/admin`
+- **Member Login:** `http://127.0.0.1:8080/member/login`
+- **Health Check:** `http://127.0.0.1:8080/healthz`
 
 ---
 
-## 3. Ayrı Git Repository'sine Bağlama
+## 3. Connecting to a Remote Git Repository
 
-Oluşturulan proje bağımsız bir Git deposu olarak versiyonlanır:
+The generated project is versioned as an independent Git repository:
 
 ```powershell
 cd haber-merkezi
@@ -97,22 +97,22 @@ git push -u origin main
 ```
 
 > [!WARNING]
-> Gizli lisans imzalama anahtarlarını (`license_priv.key`) veya hassas ortam parolalarını depoya eklemeyin. `hydro.lic` ve `config.yaml` güvenle depolanabilir.
+> Never commit private signing keys or sensitive production credentials to version control. `hydro.lic` and `config.yaml` with environment variable placeholders can be safely stored.
 
 ---
 
-## 4. Temayı Özelleştirme
+## 4. Theme Customization
 
-`themes/newsroom/` altındaki dosyaları doğrudan düzenleyebilirsiniz:
-- `theme.json`: Tema metadata'sı, slotlar ve stil varlıkları.
-- `layouts/base.html`: HTML5 iskeleti, meta etiketleri, responsive viewport ve slot yerleşimleri (`header`, `content`, `footer`).
-- `static/theme.css`: Renk paleti, tipografi, dark mode CSS değişkenleri ve responsive grid ayarları.
+Customize files under `themes/newsroom/`:
+- `theme.json`: Theme metadata, slots, and asset declarations.
+- `layouts/base.html`: HTML5 skeleton, meta tags, responsive viewport, and slot placements (`header`, `content`, `footer`).
+- `static/theme.css`: Color palette, typography, dark mode CSS custom properties, and responsive grid rules.
 
 ---
 
-## 5. E2E Testlerini Çalıştırma
+## 5. Running E2E Tests
 
 ```powershell
 npm test
 ```
-Metadata tabanlı E2E testleri masaüstü, tablet ve mobil görünümde yatay taşma ve kırık görsel denetimlerini otomatik olarak yürütür.
+Metadata-driven E2E tests automatically verify desktop, tablet, and mobile views for horizontal layout overflow and visual regressions.

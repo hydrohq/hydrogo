@@ -128,5 +128,4 @@ for non-official, loopback-bound processes.
   `enforceDevModeOfficialBuild`, `printDevModeWarning`)
 - `internal/licensing/license.go` (`TrustedPublicKeyBase64`)
 - `cmd/hydro/license_cmd.go` (`validateRuntimeLicense`, unchanged)
-- `projeler/hydrogo/TASKS.md` — "Scaffold edilen Client Edition projeleri
-  lisanssız yerel e2e doğrulamaya kapalı" (brain repo)
+- `projeler/hydrogo/TASKS.md` — "Scaffolded Client Edition projects unable to perform unlicensed local e2e verification" (brain repo)

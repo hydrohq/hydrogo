@@ -1,59 +1,57 @@
-# R102 — HydroGo golden-path iki resource baseline
+# R102 — HydroGo Golden-Path Two Resource Baseline
 
-**Tarih:** 2026-09-22  
-**Durum:** HydroGo baseline başarılı; Payload çalışma zamanı smoke ölçümleri
-alındı. Tam parity karşılaştırması henüz tamamlanmadı.
+**Date:** 2026-09-22  
+**Status:** HydroGo baseline successful; Payload runtime smoke measurements
+collected. Full parity comparison is not yet completed.
 
-## Senaryolar
+## Scenarios
 
-`scripts/measure-iteration.ps1 -Runs 3` aynı Windows/Go ortamında şu iki
-bağımsız kaynak tanımıyla çalıştırıldı:
+`scripts/measure-iteration.ps1 -Runs 3` was executed in the same Windows/Go environment with
+the following two independent resource definitions:
 
-| Resource | Fixture | Median | Min–max | Kabul |
+| Resource | Fixture | Median | Min–max | Acceptance |
 | --- | --- | ---: | ---: | --- |
 | Testimonial | `examples/module-starter/collection.yaml` | 1,651 ms | 1,620–9,137 ms | PASS |
 | Article | `examples/benchmark/article-collection.yaml` | 1,546 ms | 1,498–1,551 ms | PASS |
 
-Ölçülen akış her senaryoda proje scaffold, route manifest kontrolü, resource
-generation ve generated compatibility check adımlarını içerir. Üç koşunun
-her biri 15 dakikalık yerel acceptance eşiğinin altında kaldı.
+In each scenario, the measured flow includes project scaffold, route manifest verification, resource
+generation, and generated compatibility check steps. Each of the three runs
+remained below the 15-minute local acceptance threshold.
 
-## Yorum
+## Commentary
 
-Bu rapor iki HydroGo resource senaryosunun tekrarlanabilir DX baseline'ıdır.
-Bu tablo tek başına Payload parity iddiası değildir. İlk testimonial koşusundaki
-9,137 ms soğuk başlangıç outlier'ı ayrıca izlenmelidir; warm koşular
-1,620–1,651 ms aralığındadır.
+This report serves as a reproducible DX baseline for two HydroGo resource scenarios.
+This table alone does not constitute a Payload parity claim. The 9,137 ms cold-start outlier
+in the initial testimonial run should be monitored separately; warm runs
+fall within the 1,620–1,651 ms range.
 
-## Payload smoke kanıtı
+## Payload Smoke Evidence
 
-Aynı Windows makinesinde PTY üzerinden `create-payload-app@3.90.1 -t blank`
-ile SQLite tabanlı geçici bir uygulama kuruldu. `Articles` collection'ı için
-bir `Articles.ts` dosyası ve `payload.config.ts` kaydı elle eklendi; bu, gerçek
-bir Payload koleksiyonunun HydroGo blueprint'ine kıyasla gereken ek dokunuşları
-görünür kılar. `npm run generate:types` ve `npm run build` başarılı oldu.
+On the same Windows machine, a temporary SQLite-based application was installed via PTY using
+`create-payload-app@3.90.1 -t blank`. For the `Articles` collection, an
+`Articles.ts` file and a `payload.config.ts` entry were added manually; this exposes
+the additional touches required for an authentic Payload collection compared to a HydroGo blueprint.
+`npm run generate:types` and `npm run build` succeeded.
 
-| Ölçüm | Sonuç |
+| Metric | Result |
 | --- | ---: |
 | Payload / Next | 3.90.1 / 16.3.3 |
-| İlk `/admin` yanıtı | HTTP 200, yaklaşık 13.7 sn (cold compile) |
+| Initial `/admin` response | HTTP 200, approximately 13.7 s (cold compile) |
 | Warm `/admin` | 61–163 ms |
 | Warm `GET /api/articles?limit=10` | HTTP 200, 114–180 ms |
 | Warm production build | 16,856 ms |
-| Uygulama kaynak dosyası | 17 |
-| `node_modules` boyutu | yaklaşık 701.6 MB |
+| Application source files | 17 |
+| `node_modules` size | approximately 701.6 MB |
 
-İlk denemede PTY olmadan CLI `uv_tty_init ... EBADF` verdi; PTY ile kurulum
-başarıyla tamamlandı. Bu, harness engelinin giderildiğini gösterir. Ölçüm yine
-de tam parity değildir: kimlik doğrulamalı admin CRUD/browser senaryosu,
-seed'lenmiş veri, p95/p99 yük testi ve eşdeğer özellik kapsamı henüz
-karşılaştırılmadı. API'nin ilk isteği erişim kuralı hot-reload edilene kadar
-403 döndü; sonrasında public read ile 200 alındı. Bu gözlem, Payload'ın
-varsayılan erişim/konfigürasyon yükünü ayrıca değerlendirmeyi gerektirir.
+In the first attempt without PTY, the CLI reported `uv_tty_init ... EBADF`; with PTY, setup
+completed successfully. This demonstrates that the test harness blocker was resolved. Still,
+the measurement does not represent full parity: authenticated admin CRUD/browser scenarios,
+seeded data, p95/p99 load testing, and equivalent feature scope have not yet been compared.
+The initial API request returned 403 until the access rule hot-reloaded; subsequently, public read
+returned 200. This observation necessitates separate evaluation of Payload's default access/configuration overhead.
 
-Geçici Payload çalışma alanı ölçümden sonra repository dışındaki Temp altında
-tutuldu; release artefact'ı değildir.
+The temporary Payload workspace was retained under Temp outside the repository after measurement;
+it is not a release artifact.
 
-Ham çıktılar `.tmp/benchmark-module-starter.json` ve
-`.tmp/benchmark-article-collection.json` altında üretildi; `.tmp` release
-artefact'ı değildir.
+Raw outputs were generated under `.tmp/benchmark-module-starter.json` and
+`.tmp/benchmark-article-collection.json`; `.tmp` is not a release artifact.

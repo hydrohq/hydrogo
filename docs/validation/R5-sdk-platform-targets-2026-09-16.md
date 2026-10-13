@@ -1,16 +1,16 @@
-# R5 SDK platform hedefleri — 2026-09-16
+# R5 SDK platform targets — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist` paketi, broker ve installer’ların paylaşacağı platform sözleşmesini ekledi. Linux/Windows/macOS ve amd64/arm64 hedefleri normalize edilir; Windows için `.exe` uzantısı eklenir; bilinmeyen platform, mimari veya path içeren ürün adı fail-closed reddedilir.
+`internal/sdkdist` added the shared platform contract used by brokers and installers. Linux/Windows/macOS and amd64/arm64 targets are normalized; `.exe` extension is appended on Windows; unknown platforms, architectures, or product names containing paths are rejected fail-closed.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` ve `go test ./...` başarılı.
-- Testler Linux/Windows/macOS adlandırmasını ve unsafe/unsupported hedef reddini doğrular.
+- Windows: `go test ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` and `go test ./...` passed.
+- Tests verify Linux/Windows/macOS naming conventions and rejection of unsafe/unsupported targets.
 
-## Örnek adlar
+## Example names
 
 ```text
 hydro-linux-amd64
@@ -19,6 +19,6 @@ hydro-windows-amd64.exe
 hydro-darwin-arm64
 ```
 
-## Sınır
+## Scope & Boundaries
 
-Bu paket artifact indirme, imzalama veya installer yayınlamaz; yalnızca tüm dağıtım bileşenlerinin kullanacağı canonical target/name sözleşmesini sağlar.
+This package does not download artifacts, sign files, or publish installers; it provides only the canonical target/naming contract across all distribution components.

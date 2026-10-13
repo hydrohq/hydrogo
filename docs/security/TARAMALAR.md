@@ -1,220 +1,135 @@
-# hydrogo — 8 Tur Kapsamlı Tarama
+# HydroGo — 8-Round Security Audit & Scan Playbook
 
-Her turun kendi alanı var. Sırayla at, her turun sonunda kontrol et, gerekirse dur.
-Maliyet: luna 0.10/0.50. Bir tur ~0.03–0.08 $. Sekiz tur ~0.50 $.
+Each round covers a specific bounded area. Execute sequentially, verify at the end of each round, and pause if issues are found.
 
-## Kural (her prompt'ta var, tekrarlama)
+## Ground Rules (Enforced for Every Round)
 
-Her bulgu için: önce **başarısız testi yaz ve çalıştır**, çıktıyı göster,
-sonra minimum düzeltme, sonra testin geçtiğini göster.
-Testi **commit et** — çalıştırıp atma.
-Doğrulanamayan bulgu raporlanmaz.
-Düzeltme kendisi commit edilsin, sadece test commitlenmeden düzeltme yapma.
+For every vulnerability finding:
+1. **Write the failing test first and run it**, record output.
+2. Apply the minimal remediation.
+3. Show the test passing.
+4. **Commit the test and fix together** — never commit fixes without tests.
+5. Unverified findings are not documented as resolved.
 
 ---
 
-## TUR 1 — modules/members (yetki / IDOR)
+## ROUND 1 — `modules/members` (Authorization / IDOR)
 
-```
-Audit modules/members ONLY. Do not read anything outside modules/.
+```text
+Audit modules/members ONLY. Do not read outside modules/.
 
-This is the highest-value unaudited surface in the repo. Every defect found so
-far in this codebase has been at the authorization or tenant-isolation
-boundary, so look there hardest.
+1. For EVERY handler that takes an ID from the path: verify that it checks whether the ID belongs to the caller's tenant, rather than merely that it exists.
+2. Password reset and email change flows: verify tokens are single-use, bounded by expiration, and bound to the issuing account. Ensure comparisons are constant-time.
+3. Session invalidation: verify session revocation occurs on password change, logout, and account deactivation.
+4. Handlers returning counts, lists, or exports: verify they apply the same tenant scoping filters as single-record endpoints.
+5. Form bodies: verify wrapped in http.MaxBytesReader before ParseForm.
 
-1. For EVERY handler that takes an id from the path: does it verify that id
-   belongs to the caller's tenant, or only that it exists? A logged-in member
-   reading or mutating another member's record is the bug we want.
-2. Password reset and email change flows: is the token single-use, does it
-   expire, and is it bound to the account it was issued for? Look for any
-   comparison that is not constant-time.
-3. Session invalidation: is the session destroyed on password change, on
-   logout, and on account deactivation? Is it destroyed on ALL of them, or
-   only the easy one?
-4. Any handler that returns a count, a list, or an export: does it apply the
-   same tenant filter that the single-record handler does?
-5. Every form body: is it wrapped in http.MaxBytesReader before ParseForm?
-
-For every finding: write a failing test, run it, show the failure, apply the
-minimal fix, show it passing, then COMMIT the fix and its test together.
-Plain commit message, no Co-Authored-By trailer.
+For every finding: failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 2 — internal/media (dosya yükleme)
+## ROUND 2 — `internal/media` (File Upload & Storage)
 
-```
+```text
 Audit internal/media ONLY.
 
-Focus on file handling, in this order:
+Focus on file handling:
+1. Path traversal: verify stored filenames and paths cannot escape storage roots. Verify symlink resolution.
+2. Upload size enforcement: verify size is bounded BEFORE streaming into memory or disk.
+3. MIME verification: do not trust client-declared Content-Type; sniff content safely. Verify SVG sanitization.
+4. Filename generation: ensure user-supplied names are sanitized or replaced with random identifiers.
+5. Deletion boundaries: prevent cross-tenant deletion where ID and storage key diverge.
 
-1. Path traversal: for every place a stored filename or path is used to read,
-   write, or delete a file, prove it cannot escape the storage root. Check
-   symlink handling too - a stored name that is a symlink pointing outside the
-   root is the same bug with a different spelling.
-2. Size enforcement: is the upload size bounded BEFORE the body is read into
-   memory, or only checked after? Reading then rejecting is a memory DoS.
-3. MIME validation: is the declared Content-Type trusted, or is the content
-   sniffed? If declared type is trusted, is that exploitable given what the
-   files are served as later (inline vs attachment, Content-Disposition)?
-4. Filename generation: is the stored name derived from user input, or
-   generated? If derived, is it sanitized for the filesystem it lands on?
-5. Deletion: can one call delete a file another tenant owns, if the record id
-   and the storage key diverge?
-
-Write a failing test, show it fail, fix minimally, show it pass, commit both
-together. No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 3 — internal/auth (parola, session, lockout)
+## ROUND 3 — `internal/auth` (Passwords, Sessions, Lockout)
 
-```
+```text
 Audit internal/auth ONLY.
 
-1. Password hashing: find the hash function. Report the algorithm and the cost
-   parameter. Then read every call site - is any code path hashing with a
-   weaker algorithm, or comparing with == instead of the constant-time helper?
-   A single == on a token or hash is a high-severity finding.
-2. Session id generation: trace it to its source. Is it crypto/rand with enough
-   entropy, or derived from something predictable (time, counter, user id)?
-3. Lockout and rate limit: can login or password-reset be brute-forced? Is the
-   limiter keyed on something the attacker controls (user-supplied email), and
-   does that let an attacker lock out arbitrary accounts?
-4. Token storage: are reset/verify tokens stored hashed or plaintext? Do they
-   expire, and is expiry actually checked on the read path?
-5. Timing: any endpoint whose response time reveals whether an account exists.
+1. Password hashing: verify algorithm and cost parameters (Argon2id). Ensure constant-time comparison on hashes and tokens.
+2. Session ID generation: verify crypto/rand source with sufficient entropy.
+3. Lockout & rate limiting: verify protections against brute-force login attacks.
+4. Token storage: ensure tokens are stored hashed (SHA-256) and expiration is enforced on read.
+5. Timing attacks: audit endpoints for account enumeration or timing discrepancies.
 
-Write a failing test, show it fail, fix minimally, show it pass, commit both.
-No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 4 — internal/adminstudio (25 dosya, sadece sqlstore bakıldı)
+## ROUND 4 — `internal/adminstudio` (Admin UI & Handlers)
 
-```
-Audit internal/adminstudio EXCEPT internal/adminstudio/sqlstore, which has
-already been audited and fixed.
+```text
+Audit internal/adminstudio (excluding already-audited sqlstore).
 
-The sqlstore audit found safeTarget accepting backslash-prefixed paths. Assume
-the same class of bug exists elsewhere in this package:
+1. Input sinks: trace inputs reaching filesystem paths, URLs, or HTML attributes. Check href, src, action, and path joins.
+2. Handler authorization: map every admin handler to its required permission scope.
+3. Template escaping: verify Templ auto-escaping is maintained and raw HTML interpolation is strictly sanitized.
+4. File & directory management: audit deletion paths and root boundary validation.
 
-1. Every input that reaches a filesystem path, a URL, or an HTML attribute.
-   Trace it from the HTTP handler to its sink. Report anything that reaches
-   href, src, action, or a path join without validation.
-2. Every handler in the studio UI: who is authorized to call it? Build a table
-   of handler -> required permission, and flag any handler with no check or a
-   weaker check than its siblings.
-3. Any template that interpolates a value. Templ (admin_ux.templ) escapes by
-   default - find the places that bypass it, and any use of raw HTML insertion
-   with user data.
-4. File and directory management handlers: deletion paths, path construction,
-   and whether an id is re-resolved to a path inside the root.
-
-Write a failing test, show it fail, fix minimally, show it pass, commit both.
-No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 5 — internal/database (SQL ve migration güvenliği)
+## ROUND 5 — `internal/database` (SQL & Migration Safety)
 
-```
+```text
 Audit internal/database ONLY.
 
-1. Query construction: find every place a SQL string is built by
-   concatenation rather than parameter binding. Trace the concatenated value
-   back to its source. If any part of it can be influenced by a request, that
-   is critical. Note: table and column names cannot be parameterised, so check
-   whether they are validated against an allowlist instead.
-2. Migration safety: for each migration, can it run on a non-empty table
-   without locking or losing data? Flag destructive operations with no
-   rollback path - DROP COLUMN, NOT NULL without default, type narrowing.
-3. Transactions: find multi-statement writes that are not in a transaction,
-   and transactions that commit before all steps succeed.
-4. N+1: any loop that issues a query per iteration. Report the call site and
-   the call depth.
-5. Connection lifecycle: any path where a connection, row, or prepared
-   statement is not closed on the error branch.
+1. Query parameterization: ensure all queries use parameter binding rather than string concatenation. Verify allowlists for table/column names.
+2. Migration safety: verify non-blocking operations on non-empty tables and presence of rollback scripts.
+3. Transaction scoping: verify multi-statement writes execute within a single transaction.
+4. Query efficiency: identify and eliminate N+1 loops.
+5. Resource lifecycle: ensure rows, statements, and connections are closed on all execution branches.
 
-Write a failing test, show it fail, fix minimally, show it pass, commit both.
-No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 6 — extension/v1 (dış API yüzeyi)
+## ROUND 6 — `extension/v1` (Public API Surface)
 
-```
-Audit extension/v1 ONLY. This is the externally reachable API surface, so
-treat every handler as attacker-controlled input.
+```text
+Audit extension/v1 ONLY.
 
-1. Authentication on every route: is there any handler reachable without a
-   valid credential? List them.
-2. Authorization: for each route, what does it check beyond "logged in"?
-3. Input validation: every JSON body field, every query parameter, every path
-   segment. Report unbounded string lengths and unvalidated enums.
-4. Mass assignment: any handler that decodes a request body straight into a
-   domain struct, so a client can set a field they should not (role, tenant_id,
-   id, status, version).
-5. Response leakage: any handler returning a struct with unexported-but-
-   serialized fields, or a SELECT * projected into a public response.
+1. Authentication: ensure all endpoints enforce valid credentials unless explicitly declared public.
+2. Authorization: verify role and tenant scoping on every route.
+3. Input validation: bound string lengths, validate enums, and reject unrecognized payloads.
+4. Mass assignment: reject direct decoding into sensitive entity fields (role, tenant_id, status, etc.).
+5. Response leakage: ensure internal models and secrets are not leaked in JSON responses.
 
-For mass assignment, the failing test is easy and worth doing for every case:
-POST with a role or tenant_id field set and assert the stored value did not
-change. Write it, show it fail, fix minimally, show it pass, commit both.
-No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 7 — internal/mailer + internal/observability
+## ROUND 7 — `internal/mailer` & `internal/observability`
 
-```
+```text
 Audit internal/mailer and internal/observability ONLY.
 
-1. Template injection: every email body is built somewhere. If any part is
-   concatenated from user data into a template that is then rendered, that is a
-   finding. Report what the attacker controls in the output.
-2. Header injection: any user value placed into a mail header (To, From,
-   Reply-To, Subject, custom headers) without rejecting CR and LF.
-3. Logs: any request that logs a password, token, session id, API key, or full
-   card number, including inside error messages. Check the redacting helpers
-   actually exist and are used.
-4. PII in telemetry: any metric or trace that carries an email address, a
-   user id, or a URL with a token in the query string.
-5. Panic recovery: does an observability middleware recover a panic, and if so
-   does the recovery log the request body?
+1. Template injection: ensure user values in email templates are escaped.
+2. Header injection: strip or reject CR/LF characters in email headers (To, From, Subject).
+3. Log hygiene: ensure credentials, tokens, session IDs, and card data are redacted from logs and errors.
+4. Telemetry PII: verify metrics and traces strip personally identifiable information.
+5. Panic recovery: ensure recovery handlers do not log sensitive request bodies.
 
-Write a failing test, show it fail, fix minimally, show it pass, commit both.
-No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
-## TUR 8 — internal/backup (geri yükleme güvenliği)
+## ROUND 8 — `internal/backup` (Restore Safety)
 
-```
-Audit internal/backup ONLY. This code writes and overwrites user data, so
-treat it as the most destructive surface in the repo.
+```text
+Audit internal/backup ONLY.
 
-1. Restore: what does it accept? If a restore path is built from a name or id
-   that came from a request or a manifest, can it write outside the target
-   directory? Prove it either way with a test.
-2. Archive extraction: for every tar/zip extraction, check for path traversal
-   entries (../, absolute paths, and symlinks pointing outside). Report whether
-   the extraction validates the resolved path stays inside the root.
-3. Destructive operations: list every function that drops, truncates, or
-   overwrites. For each, is the target path validated first? Is there a
-   confirmation, and can the confirmation be bypassed?
-4. Credentials: does a backup contain secrets, and if so are they encrypted? Is
-   the restore side able to read an archive encrypted with a key from config?
-5. Concurrency: two restores of the same target at once.
+1. Restore boundaries: ensure restore operations cannot write outside designated targets.
+2. Archive extraction: prevent path traversal (../, absolute paths, external symlinks) in archive unpacking.
+3. Destructive actions: audit drop, truncate, or overwrite operations for confirmation and access checks.
+4. Encryption: ensure secrets and archives are encrypted with managed keys.
+5. Concurrency: verify locking during concurrent restore invocations.
 
-Write a failing test, show it fail, fix minimally, show it pass, commit both.
-No Co-Authored-By trailer.
+Failing test -> minimal fix -> passing test -> atomic commit.
 ```
 
 ---
 
-## Her turdan sonra
+## Post-Round Verification
 
-```fish
-cd ~/hydrogo
-git log -1 --format='%an  %s'    # yazar sen olmalısın
-git log -1 --format='%(trailers)' # boş olmalı
-go build ./... && go test ./...  # yeşil olmalı
+```bash
+git log -1 --format='%an  %s'
+go build ./... && go test ./...
 ```
-
-## Bir turda takılırsan
-
-`/autonomy stop` — sonra bana çıktıyı yapıştır, doğrularım.

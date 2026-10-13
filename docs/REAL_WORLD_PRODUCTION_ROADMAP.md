@@ -1,178 +1,127 @@
-# Gerçek dünya production hazırlık roadmap'i
+﻿# Real-World Production Readiness Roadmap
 
-**Tarih:** 2026-09-18  
-**Amaç:** HydroGo'nun kontrollü pilotlardan, ölçülebilir ve desteklenebilir
-production dağıtımlarına geçmesi.
+**Date:** 2026-09-18  
+**Purpose:** Transition HydroGo from controlled pilot runs to scalable, measurable, and supportable production deployments.
 
-Bu belge bir özellik listesi değil, production iddiası için gereken kanıtların
-ve operasyonel kararların sıralı planıdır. Bir faz, kod yazılmış olmasıyla değil,
-kabul kriterleri ölçülüp raporlandığında tamamlanır. Yerel testlerin geçmesi,
-gerçek müşteri ortamı kanıtının yerine geçmez.
+This document is not a wishlist of features; it is a prioritized framework of required evidence and operational decisions. A phase is considered complete not merely when code is merged, but when defined acceptance criteria are measured and documented against real environments.
 
-## Başlangıç çizgisi
+---
 
-Bugün güçlü bir teknik temel mevcuttur: SQLite/PostgreSQL sözleşmeleri, auth/MFA,
-CSRF, audit, idempotency, job leasing, backup/restore akışları, modül izolasyonu,
-generator, binary sağlık kontrolleri ve kapsamlı güvenlik/test kapıları çalışır.
+## Baseline
 
-Henüz genel production sertifikasyonu yoktur. Commerce deneysel/pilot seviyededir;
-Distributed, gerçek S3/CDN failover, gerçek proxy rollback, müşteri verisiyle
-restore, RPO/RTO ve kapasite kanıtları açıktır. Bu başlangıç durumu
-[`PROJECT_STATUS.md`](PROJECT_STATUS.md) ve
-[`OPEN_GATES_AND_OPERATOR_ACTIONS.md`](OPEN_GATES_AND_OPERATOR_ACTIONS.md) içinde
-ayrıntılı tutulur.
+Today, HydroGo maintains a strong technical foundation: certified SQLite/PostgreSQL contracts, auth with TOTP MFA, CSRF protection, audit logging, idempotent webhooks and jobs, automated backup/restore, module boundary isolation, project scaffolding, binary health probes, and automated verification guards.
 
-## Faz 0 — Kapsam ve release politikası
+The experimental/pilot status of components and open gates are documented in [`PROJECT_STATUS.md`](PROJECT_STATUS.md) and [`OPEN_GATES_AND_OPERATOR_ACTIONS.md`](OPEN_GATES_AND_OPERATOR_ACTIONS.md).
 
-**Hedef:** Her dağıtımın neyi desteklediğinin yazılı ve tekrarlanabilir olması.
+---
 
-- Compact, Standard ve Distributed için desteklenen Go/OS/DB/Redis/S3 sürümlerini
-  kesinleştir.
-- Pages/News, Commerce ve gelecekteki modülleri ayrı capability/edition olarak
-  tanımla; deneysel özellikleri production varsayılanı yapma.
-- `hydrogo.lock`, release manifesti, edition ve lisans feature listesinin tek bir
-  release kimliği oluşturduğunu doğrula.
-- Sürümleme, deprecation, güvenlik yaması, LTS ve destek/SLA politikasını yayınla.
+## Phase 0 — Scope & Release Governance
 
-**Çıkış kriteri:** Güncel [destek matrisi](SUPPORT_MATRIX.md), release checklist'i
-ve her profile ait “desteklenir/desteklenmez” beyanı onaylanmış olmalı.
+**Goal:** Establish reproducible commitments for supported profiles and platforms.
 
-## Faz 1 — Güvenli release ve tedarik zinciri
+- Pin supported Go, OS, database, Redis, and storage provider versions across Compact, Standard, and Distributed profiles.
+- Define Pages/News, Commerce, and future modules as explicit capability tiers; keep experimental features isolated.
+- Ensure `hydrogo.lock`, release manifests, edition tiers, and feature flags form a singular, verifiable release identity.
+- Publish versioning, deprecation, security patching, and LTS support policies.
 
-**Hedef:** Müşteriye tekrar üretilebilir, kaynağı doğrulanabilir ve secretsız paket
-teslim etmek.
+**Exit Criteria:** Approved [Support Matrix](SUPPORT_MATRIX.md), release checklists, and explicit statements of supported/unsupported configurations per profile.
 
-- Release binary'sini sabitlenmiş toolchain ile reproducible üret.
-- Vendor signing key'i ayrı, erişim kontrollü ortamda tut; `hydro-issuer` erişimini
-  müşteri runtime'ından ayır.
-- SBOM, dependency/vulnerability taraması, CodeQL, action pinleri ve artifact
-  provenance çıktısını release'e bağla.
-- Binary-only müşteri paketinde Core/modül kaynak kodu, private key ve build secret
-  bulunmadığını otomatik kontrol et.
-- Windows, Linux ve macOS için imzalı artifact ve checksum yayımla.
+---
 
-**Çıkış kriteri:** Temiz makinede paket kurulumu, lisans doğrulaması, checksum,
-tamper reddi ve `hydro version --json` kimlik doğrulaması geçer.
+## Phase 1 — Secure Packaging & Supply Chain
 
-## Faz 2 — Production güvenlik ve kimlik
+**Goal:** Deliver reproducible, verifiable, secret-free release artifacts to users.
 
-**Hedef:** İnternete açık yönetim yüzeyini güvenli varsayılanlarla işletmek.
+- Produce reproducible binaries with pinned toolchains.
+- Keep signing keys within isolated key-management systems; separate issuer tooling from runtime binaries.
+- Publish Software Bill of Materials (SPDX SBOM), vulnerability scan logs, CodeQL analysis, and artifact provenance attestations.
+- Automate checks verifying that release packages contain no internal core source files, private keys, or build secrets.
+- Publish signed artifacts and SHA-256 checksums for Linux, macOS, and Windows.
 
-- Gerçek domain ve sertifika arkasında HTTPS termination, secure cookie, HSTS ve
-  canonical origin testi yap.
-- Secret manager kullan; MFA master key, session/config secret, SMTP ve ödeme
-  sırlarını dosya/repository dışında tut.
-- İlk admin oluşturma, MFA zorunluluğu, parola reseti, davet, oturum iptali ve
-  recovery prosedürlerini runbook'a bağla.
-- SMTP teslim, bounce, retry ve alarm akışlarını gerçek sağlayıcıyla doğrula.
-- Yetkilendirme, CSRF, rate limit, upload ve hata redaksiyonu için DAST/pentest
-  öncesi regression paketini çalıştır.
+**Exit Criteria:** Clean-machine package install, license/manifest verification, and checksum validation pass via `hydro version --json`.
 
-**Çıkış kriteri:** Threat model'deki P0/P1 bulguları kapalı veya yazılı risk
-kabulleriyle onaylı; gerçek SMTP ve HTTPS smoke raporu mevcut.
+---
 
-## Faz 3 — Veri dayanıklılığı ve upgrade
+## Phase 2 — Production Security & Identity Hardening
 
-**Hedef:** Veri kaybı veya hatalı release durumunda güvenilir geri dönüş.
+**Goal:** Enforce hardened defaults across internet-facing surfaces.
 
-- Temiz SQLite ve PostgreSQL hedeflerinde müşteri benzeri dataset restore et.
-- Backup, migration, rollback ve media activation akışlarını süre/disk/veri kaybı
-  ölçümleriyle tekrarla.
-- Gerçek reverse proxy arkasında iki process Blue/Green geçişi, readiness/warmup,
-  eski-yeni binary uyumu ve yeni yazı sonrası rollback deneyi yap.
-- Harici backup/S3 ve KMS/key escrow kullanılıyorsa erişim kaybı ve anahtar kurtarma
-  tatbikatı yap.
-- Retention, silme, erasure replay ve session revocation sonuçlarını denetim kaydıyla
-  doğrula.
+- Verify HTTPS termination, secure cookies, HSTS, and canonical origin routing behind real reverse proxies.
+- Use secret managers for session signing keys, MFA master keys, database passwords, and API credentials.
+- Formalize runbooks for initial admin creation, MFA enforcement, password resets, invitations, and session revocations.
+- Validate email delivery, bounces, retries, and failure alerts with live SMTP relays.
+- Run automated security test suites for authorization, CSRF, rate-limiting, file upload sanitization, and error scrubbing prior to penetration testing.
 
-**Çıkış kriteri:** Profile özel RPO/RTO hedefleri ölçülmüş; temiz hedef restore'u,
-rollback ve veri bütünlüğü raporları imzalanmış.
+**Exit Criteria:** All P0/P1 threat model items verified; real SMTP and HTTPS smoke test reports published.
 
-## Faz 4 — Gözlemlenebilirlik ve işletim
+---
 
-**Hedef:** Sorunları kullanıcı verisini sızdırmadan fark etmek ve çözmek.
+## Phase 3 — Data Durability & Upgrades
 
-- Health/readiness, metrics, structured log, request ID ve audit korelasyonunu
-  merkezi log/metric sistemine bağla.
-- Backup, disk, migration, SMTP, dead-letter, queue, DB pool, cache ve readiness
-  alarmlarını gerçek notification kanalıyla test et.
-- PII/secret redaksiyonu, retention ve erişim yetkisini belgede kesinleştir.
-- Incident response, bakım penceresi, rollback, disaster recovery ve müşteri iletişim
-  runbook'larını tatbikatla doğrula.
+**Goal:** Guarantee verifiable zero-data-loss recovery and seamless upgrades.
 
-**Çıkış kriteri:** Alarm üretme–müdahale–kapanış tatbikatı ölçülmüş; on-call sahibi,
-eskalasyon süresi ve hata bütçesi tanımlı.
+- Restore customer-scale datasets to clean SQLite and PostgreSQL target instances.
+- Rehearse backup, migration, rollback, and media activation procedures, measuring duration, disk consumption, and data integrity.
+- Execute two-process blue/green transitions behind real reverse proxies, verifying zero downtime, graceful draining, and rollback safety.
+- Test access-loss and key-recovery drills when using cloud S3 storage and external key escrow.
+- Validate data retention, cryptographic erasure, and session invalidation against audit logs.
 
-## Faz 5 — Performans ve kapasite
+**Exit Criteria:** Profile-specific RPO and RTO metrics measured; clean restore, rollback, and data integrity reports signed off.
 
-**Hedef:** “Çalışıyor” yerine profile ve donanıma bağlı kapasite sözü verebilmek.
+---
 
-- Compact/Standard/Distributed için temsili dataset ve trafik profili oluştur.
-- RSS, CPU, DB pool, queue depth, cache hit/miss, disk, p95/p99 latency, hata oranı
-  ve worker backpressure ölç.
-- Uzun süreli soak, burst, concurrent editor, media derivative, rate-limit, Redis
-  outage/partition ve cache invalidation testlerini çalıştır.
-- PostgreSQL connection/isolation, Redis persistence/failover ve S3/CDN latency/error
-  sınırlarını sağlayıcı bazında kaydet.
-- Sonuçları kapasite tablosu, autoscaling/limit önerisi ve bilinen sınırlarla yayımla.
+## Phase 4 — Observability & Operations
 
-**Çıkış kriteri:** Her satışa açılacak profile ait donanım varsayımı, trafik sınırı,
-ölçülmüş p95/p99 ve hata/geri kazanım hedefleri vardır.
+**Goal:** Detect, diagnose, and resolve anomalies without leaking sensitive user data.
 
-## Faz 6 — Ürün ve entegrasyon sertifikasyonu
+- Route health probes, Prometheus metrics, structured logs, and request correlation IDs to centralized observability platforms.
+- Test alert delivery across critical conditions: backup failures, disk saturation, failed migrations, SMTP delivery failures, and high error rates.
+- Enforce strict PII and credential scrubbing policies across logs, metrics, and traces.
+- Validate operational runbooks through live incident response drills.
 
-**Hedef:** Gerçek kullanım senaryolarını güvenilir biçimde desteklemek.
+**Exit Criteria:** Measurable alert-to-resolution drills; defined on-call owners, escalation paths, and error budgets.
 
-- Pages/News için responsive public/admin E2E; boş, hata, preview, schedule, media
-  ve yetki senaryolarını tamamla.
-- Commerce için gerçek sandbox hesaplarıyla callback/signature, idempotency, refund,
-  timeout, webhook retry ve stok yarışlarını doğrula. Canlı ödeme ancak ayrıca
-  onaylanmış production gate sonrası açılır.
-- S3/CDN için IAM, KMS, retention, cache purge, failover ve private URL sürelerini
-  gerçek sağlayıcıyla doğrula.
-- OIDC/SAML, mobile API, multi-tenant, AI ve ileri arama gibi özellikleri ayrı ADR,
-  threat model ve kapasite kapısı olmadan çekirdek kapsamına alma.
+---
 
-**Çıkış kriteri:** Her capability için provider/ortam matrisi, E2E raporu ve bilinen
-  sınırlamalar yayımlanmış; deneysel modüller açıkça etiketlenmiş.
+## Phase 5 — Performance & Capacity Baselines
 
-## Faz 7 — Pilot, destek ve ticari açılış
+**Goal:** Provide concrete hardware-bound throughput and capacity baselines rather than vague claims.
 
-**Hedef:** Bir gerçek müşteriyle kontrollü işletim ve geri bildirim döngüsü.
+- Model representative datasets and traffic workloads for Compact, Standard, and Distributed profiles.
+- Measure process RSS, CPU utilization, DB connection pool utilization, queue latency, cache hit ratios, and p95/p99 latencies.
+- Execute soak tests, traffic bursts, concurrent editor collisions, media transcode pipelines, and Redis network partitions.
+- Document autoscaling thresholds, resource recommendations, and known capacity limits.
 
-- Tek bir Compact veya Standard pilot seç; kapsamı, veri sınıfını ve başarı metriklerini
-  yazılı sınırla.
-- Go-live öncesi checklist, backup/restore provası, erişim matrisi ve rollback planını
-  müşteriyle birlikte imzala.
-- Pilot boyunca incident, performans, deploy sıklığı, restore süresi ve kullanıcı
-  geri bildirimlerini kaydet.
-- Pilot çıkışında destek yükü, dokümantasyon eksikleri ve kırıcı değişiklikleri
-  roadmap'e geri besle.
+**Exit Criteria:** Documented capacity tables with explicit hardware profiles, traffic ceilings, and measured p95/p99 response curves.
 
-**Çıkış kriteri:** En az bir gerçek pilot, tanımlı süre boyunca ciddi veri/güvenlik
-  olayı olmadan işletilmiş; SLA ve destek koşulları kanıtla uyumlu.
+---
 
-## Production ilanı için minimum kapı
+## Phase 6 — Module & Integration Certification
 
-Bir profil ancak aşağıdakilerin tamamı sağlanınca “production-ready” olarak
-ilan edilebilir:
+**Goal:** Validate and certify turn-key domain workflows under realistic conditions.
 
-1. Release binary'si imzalı, reproducible ve secretsızdır.
-2. HTTPS, secret yönetimi, MFA, SMTP ve alarm akışları gerçek ortamda doğrulanmıştır.
-3. Temiz hedef restore'u, rollback ve veri bütünlüğü raporu vardır.
-4. Profile özel kapasite, RPO/RTO ve soak sonuçları yayımlanmıştır.
-5. Güvenlik taraması/pentest bulguları kapatılmış veya açık risk olarak onaylanmıştır.
-6. Runbook, destek matrisi, sürüm/deprecation politikası ve müşteri sorumlulukları
-   günceldir.
+- Complete responsive public and admin browser test journeys for Pages and News across draft, revision, schedule, and deletion states.
+- Verify payment provider webhooks, signatures, idempotency, refunds, timeouts, and inventory race handling with sandbox accounts.
+- Verify S3 and CDN integrations: IAM scoping, bucket retention, CDN cache invalidation, and signed private URLs.
+- Isolate experimental capabilities behind feature flags and ADRs.
 
-Bu kapıların herhangi biri eksikse doğru ifade “teknik olarak kullanılabilir pilot”
-veya “production adayı”dır; genel production sertifikasyonu değildir.
+**Exit Criteria:** Published capability support matrices, E2E test reports, and explicit documentation of known constraints.
 
-## Takip yöntemi
+---
 
-Her madde için kod değişikliği gerekiyorsa ilgili ADR, migration/uyumluluk metadatası,
-SQLite/PostgreSQL testleri ve kapasite/dağıtım notu aynı değişiklikte güncellenir.
-Gerçek ortam kanıtları `docs/validation/` altında tarih, commit, toolchain, komut,
-sonuç ve sınırlamalarla tutulur. Ana teknik sıra ve tarihsel fazlar
-[`ROADMAP.md`](ROADMAP.md)'de; operasyonel açık maddeler
-[`OPEN_GATES_AND_OPERATOR_ACTIONS.md`](OPEN_GATES_AND_OPERATOR_ACTIONS.md)'ndedir.
+## Minimum Gate for Declaring Production Readiness
+
+A configuration profile may only be designated "Production Ready" once all the following gates are cleared:
+
+1. Release binary is reproducible, verifiable, and free of embedded secrets.
+2. HTTPS, secret management, MFA, SMTP relay, and alerts are verified in live environments.
+3. Clean-target restore, rollback, and data integrity verification have been documented.
+4. Profile-specific capacity baselines, soak test metrics, and RPO/RTO measurements are published.
+5. Vulnerability audits and threat models have resolved all blocking findings.
+6. Runbooks, support matrices, deprecation policies, and operational responsibilities are current.
+
+---
+
+## Verification Methodology
+
+When an architectural change is made, update the relevant ADR, dialect migration metadata, test fixtures, and capacity notes within the same pull request. Validation reports are recorded in `docs/validation/` with dates, commits, toolchains, commands, and results. Technical sequencing is tracked in [`ROADMAP.md`](ROADMAP.md); operational actions reside in [`OPEN_GATES_AND_OPERATOR_ACTIONS.md`](OPEN_GATES_AND_OPERATOR_ACTIONS.md).

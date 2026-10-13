@@ -1,13 +1,8 @@
-# R46 — Generated client stream lock temizliği
+# R46 — Generated client stream lock release cleanup
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel generator contract)
+**Status:** Successful (local generator contract)
 
-Generated `client/hydrogo.ts` bounded response reader artık normal dönüşte,
-oversize hatasında ve parse/transport exception akışlarında `reader.releaseLock()`
-çağrısını `finally` ile garanti ediyor. Headless starter ile aynı stream yaşam
-döngüsü sözleşmesi korunuyor; response byte sınırı ve reader cancel davranışı
-değişmiyor.
+The bounded response reader in generated `client/hydrogo.ts` now guarantees calling `reader.releaseLock()` in a `finally` block on standard completion, oversize errors, and parse/transport exceptions. The same stream lifecycle contract as headless starter is maintained; response byte limits and reader cancel behavior remain unchanged.
 
-`internal/projectgen` testi generated kaynakta `releaseLock` marker'ını ve
-mevcut published-client sözleşmesini doğruluyor.
+The `internal/projectgen` test verifies the `releaseLock` marker and existing published-client contract in generated sources.

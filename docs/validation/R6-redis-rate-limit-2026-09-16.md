@@ -1,13 +1,13 @@
-# R6 Redis rate-limit entegrasyon kanıtı (2026-09-16)
+# R6 Redis Rate-Limit Integration Evidence (2026-09-16)
 
-## Kapsam
+## Scope
 
-WSL Ubuntu üzerinde çalışan yerel Redis/Valkey uyumlu sunucusuna bağlanılarak
-`internal/security` Redis limiter sözleşmesi doğrulandı. Test yalnızca
-`HYDRO_TEST_REDIS_URL` açıkça verildiğinde çalışır; servis yoksa varsayılan test
-akışı dış bağımlılık başlatmaz ve testi skip eder.
+The `internal/security` Redis limiter contract was verified by connecting to a
+local Redis/Valkey-compatible server running on WSL Ubuntu. The test runs only when
+`HYDRO_TEST_REDIS_URL` is explicitly provided; if the service is absent, the default test
+flow does not start external dependencies and skips the test.
 
-## Komut ve sonuç
+## Command and Results
 
 ```bash
 redis-cli ping
@@ -18,20 +18,18 @@ HYDRO_TEST_REDIS_URL=redis://127.0.0.1:6379/15 \
 # ok .../internal/security
 ```
 
-Test ilk isteğin kabul edildiğini, aynı anahtarın ikinci isteğinin limit nedeniyle
-reddedildiğini ve Redis anahtarında 30 saniyeyi aşmayan pozitif TTL bulunduğunu
-kontrol eder. Anahtar test sonunda silinir; gerçek kullanıcı verisi kullanılmaz.
+The test verifies that the initial request is accepted, a second request with the same key is
+rejected due to the rate limit, and the Redis key has a positive TTL not exceeding 30 seconds.
+The key is deleted upon test completion; no real user data is used.
 
-Bu kanıt atomic `INCR` + TTL davranışını kapsar. Multi-instance failover,
-partition, clock-skew, persistence ve kapasite/soak testleri gerçek dağıtım
-kapısı olarak [açık kapılar](../OPEN_GATES_AND_OPERATOR_ACTIONS.md) belgesinde
-kalır.
+This evidence covers atomic `INCR` + TTL behavior. Multi-instance failover,
+partitioning, clock-skew, persistence, and capacity/soak tests remain as live deployment
+gates in the [Open Gates and Operator Actions](../OPEN_GATES_AND_OPERATOR_ACTIONS.md) document.
 
-Limiter ayrıca request-scoped `AllowContext` çağrısında iptal/deadline
-propagasyonunu fail-closed olarak test eder; iptal edilmiş bir isteğin Redis
-operasyonunu safety timeout'a kadar tutması engellenir.
+The limiter also tests cancellation/deadline propagation fail-closed during
+request-scoped `AllowContext` calls; a canceled request is prevented from holding
+the Redis operation up to the safety timeout.
 
-Yerel bir servisi durdurmayı gerektirmeden, ayrılmış loopback portu üzerinden
-başlangıç bağlantısı ve `EVAL` erişilemezliği de fail-closed regression testleri
-ile doğrulanır. Gerçek failover, partition ve saat kayması tatbikatı yine
-çoklu-instance staging ortamı gerektirir.
+Without requiring stopping a local service, initial connection and `EVAL` unreachability
+over a reserved loopback port are also verified via fail-closed regression tests.
+Authentic failover, partition, and clock skew drills still require a multi-instance staging environment.

@@ -1,58 +1,37 @@
-# Strict Modular Monolith Uygulama Planı
+﻿# Strict Modular Monolith Implementation Plan
 
-Bu plan HydroGo’yu fiziksel microservice sistemine çevirmeden; Core, modüller ve
-dış Client Edition’lar arasında sert, ölçülebilir ve gerektiğinde process sınırına
-taşınabilir sözleşmeler oluşturur.
+This plan establishes strict, verifiable contracts between Core, modules, and external
+Client Editions without converting HydroGo into a physical microservices system, allowing
+boundaries to transition to separate process boundaries if needed.
 
-## Hedef
+## Objectives
 
-- Core yalnızca ortak altyapı ve versioned contract sağlar.
-- Modüller kendi domain, service, repository, route, migration ve worker
-  yaşam döngüsüne sahip olur.
-- Modüller birbirlerinin repository veya SQL tablolarına doğrudan erişemez.
-- İnaktif modül route, migration, asset, worker veya zorunlu kaynak oluşturmaz.
-- Client Edition’lar Core’un internal paketlerine erişemez.
-- İleride Commerce/Search gibi modüller process dışına alınabilecek capability ve
-  event sınırlarına sahip olur.
+- Core provides only shared infrastructure and versioned contracts.
+- Modules manage their own domain, service, repository, route, migration, and worker lifecycle.
+- Modules never access another module's repository or SQL tables directly.
+- An inactive module creates no routes, migrations, assets, workers, or mandatory resources.
+- Client Editions cannot access internal Core packages.
+- Modules such as Commerce or Search maintain explicit capability and event boundaries that can be factored out into independent processes in the future.
 
-## Aşamalar
+## Phases
 
-1. **Mimari sözleşme:** ADR, dependency matrix, import allowlist ve yasak
-   bağımlılık testleri.
-2. **Core sınırları:** ortak hata, pagination, authorization, transaction, audit
-   ve provider interface’lerini tekil Core sözleşmelerine toplama.
-3. **Lifecycle/registry:** modül manifest’i, merkezi registry, dependency ve
-   capability kaydı; inaktif modül fail-closed davranışı.
-4. **Capability/event erişimi:** modüller arası concrete servis/repository/SQL
-   çağrılarını küçük interface ve versioned event’lere taşıma.
-5. **Migration sahipliği:** migration metadata’sına module/dependency/profile
-   sahipliği ve SQLite/PostgreSQL uyumluluk kontrolleri ekleme.
-6. **Runtime kaynak izolasyonu:** worker, queue, cache, DB, timeout ve media
-   budget’larının modül bazında uygulanması.
-7. **Admin/frontend izolasyonu:** aktif modül manifest’inden navigation,
-   dashboard, command palette ve public route üretme.
-8. **API/SDK izolasyonu:** aktif modüllerden OpenAPI/SDK üretme, legacy alias’ları
-   merkezi router’da tutma ve contract consistency testleri.
-9. **CI/test sertleştirmesi:** import, lifecycle, inactive resource, migration,
-   capability, event, E2E ve blue/green contract testleri.
-10. **Process split hazırlığı:** module-owned health, metrics, queue topic,
-    config, serialization ve external capability adapter sözleşmeleri.
+1. **Architectural contracts:** ADRs, dependency matrix, import allowlists, and forbidden dependency guards.
+2. **Core boundaries:** Consolidate shared errors, pagination, authorization, transactions, audit trails, and provider interfaces into unified Core contracts.
+3. **Lifecycle and registry:** Module manifests, centralized registry, dependency and capability tracking; fail-closed behavior for inactive modules.
+4. **Capability and event access:** Migrate inter-module concrete service/repository/SQL calls to small interfaces and versioned events.
+5. **Migration ownership:** Attach module, dependency, profile ownership, and SQLite/PostgreSQL compatibility validations to migration metadata.
+6. **Runtime resource isolation:** Enforce worker, queue, cache, database pool, timeout, and media budgets on a per-module basis.
+7. **Admin and frontend isolation:** Derive navigation, dashboard, command palette, and public routes exclusively from active module manifests.
+8. **API and SDK isolation:** Generate OpenAPI/SDK artifacts from active modules, maintain legacy aliases at the central router, and enforce contract consistency tests.
+9. **CI and test hardening:** Enforce import, lifecycle, inactive resource, migration, capability, event, E2E, and blue/green contract test suites.
+10. **Process split readiness:** Module-owned health checks, metrics, queue topics, configurations, serialization formats, and external capability adapter contracts.
 
-## Teslim kuralı
+## Delivery Discipline
 
-Her aşama dar kapsamlı değişiklik, ilgili test ve gerekiyorsa ADR/validation
-notuyla tamamlanır. Aşama yeşil olmadan sonraki aşamaya geçilmez. Gerçek
-müşteri kapasitesi, reverse proxy, external backup/key escrow, provider
-credentials ve production signing gerektiren doğrulamalar yerel başarı olarak
-işaretlenmez; production gate olarak kalır.
+Each phase is delivered via narrow, reviewable changes accompanied by corresponding tests and ADR/validation records. A phase must be green before advancing to the next. Validations requiring real customer scale, reverse proxies, external backup/key escrow, provider credentials, or production signing are never claimed as local success; they remain open production gates.
 
-## İlerleme kaydı (2026-09-13)
+## Progress Ledger (2026-09-13)
 
-- **Aşama 1 — tamamlandı:** ADR-0037 ile sınırlar tanımlandı; dış Client
-  Edition import guard ve iç modül import guard CI’a bağlandı.
-- **Aşama 4 — başlatıldı:** Members→Commerce doğrudan domain bağımlılığı,
-  `internal/contracts/customerorders` capability sözleşmesi ve Commerce
-  adapter’ı ile kaldırıldı (ADR-0038).
-- **Aşama 9 — kısmi tamamlandı:** modül sınırı guard’ı ve capability projection
-  regresyon testleri CI/Go test akışına dahil edildi. Kalan migration, lifecycle,
-  event ve blue/green kontrolleri sonraki küçük aşamalarda ele alınacak.
+- **Phase 1 — Completed:** Boundaries established in ADR-0037; external Client Edition import guards and internal module import guards wired into CI.
+- **Phase 4 — Started:** Direct Members->Commerce domain dependency eliminated in favor of the internal/contracts/customerorders capability contract and Commerce adapter (ADR-0038).
+- **Phase 9 — Partially Completed:** Module boundary guards and capability projection regression tests integrated into the CI/Go test pipeline. Remaining migration, lifecycle, event, and blue/green checks scheduled for subsequent phases.

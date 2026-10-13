@@ -1,18 +1,13 @@
 # R53 — Generated client origin-bypass hardening
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel generator contract)
+**Status:** Successful (local generator contract)
 
-`HydroClient` path sınırı backslash-normalizasyonlu URL bypass'larını da
-fail-closed engelliyor. URL parser'ın `"/\\\\evil.example"` gibi bir girdiyi
-başka bir origin'e çevirebilmesi nedeniyle yalnızca slash prefix kontrolü yeterli
-değildi; artık çözümlenen URL origin'i yapılandırılmış `baseUrl` origin'iyle
-karşılaştırılıyor.
+`HydroClient` path boundary prevents backslash-normalized URL bypasses fail-closed. Because URL parsers may resolve inputs like `"/\\evil.example"` to an external origin, checking only leading slash prefixes was insufficient; the resolved URL origin is now explicitly validated against the configured `baseUrl` origin.
 
-Doğrulama:
+Verification:
 
 - `go test ./internal/projectgen`
 - `scripts/verify-local.ps1`
 
-Bu kontrol generated istemcinin credential exfiltration riskini azaltır; sunucu
-yetkilendirmesi ve production proxy politikalarının yerine geçmez.
+This check mitigates credential exfiltration risk on generated clients; it does not replace server authorization or production proxy policies.

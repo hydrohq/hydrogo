@@ -5,7 +5,7 @@
 This file tracks the order of work and delivery gates. Architectural rulings are in ADRs, detailed scope is in the [master plan](implementation_plan.md), and experiment definitions are in the [pre-implementation review](PRE_IMPLEMENTATION_REVIEW.md). Schedule estimation will be made after the initial technical experiments are completed. A gate only closes with a code revision and a validation report.
 
 For the profile-by-profile path from technical pilot to real-world production,
-see the [Gerçek dünya production hazırlık roadmap'i](REAL_WORLD_PRODUCTION_ROADMAP.md).
+see the [Real-World Production Roadmap](REAL_WORLD_PRODUCTION_ROADMAP.md).
 That document is the current release-readiness view; this file remains the
 detailed historical phase and experiment ledger.
 

@@ -1,14 +1,11 @@
-# R47 — Ana geliştirme Compose image pinleme
+# R47 — Main development Compose image pinning
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (statik yapılandırma doğrulaması)
+**Status:** Successful (static configuration verification)
 
-Ana geliştirme stack’i de exact sürümlere sabitlendi:
+The primary development stack was also pinned to exact versions:
 
 - `postgres:18.6`
 - `redis:8.10.1-alpine`
 
-Compose security lint artık `latest`, Redis major/major-minor ve PostgreSQL
-yalnızca-major image tag’lerini reddediyor; patch/release tag’i olmayan yeni
-servisler local verification’dan geçemiyor. Registry digest/provenance ve CVE
-taraması hâlâ release pipeline kapısıdır.
+Compose security lint now rejects `latest`, Redis major/major-minor, and PostgreSQL major-only image tags; new services lacking patch/release tags fail local verification. Registry digest/provenance and CVE scanning remain release pipeline gates.

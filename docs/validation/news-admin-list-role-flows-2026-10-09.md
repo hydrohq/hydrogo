@@ -10,7 +10,7 @@ state.
 ## Verified
 
 - The Editor and Viewer both see the saved draft row.
-- The Editor sees “Düzenle”; the Viewer sees “Görüntüle” and no edit action in
+- The Editor sees "Edit"; the Viewer sees "View" and no edit action in
   the rendered list table.
 - The list repository receives a limit of 100.
 - Filtering the draft out with `status=published` renders an empty-state row

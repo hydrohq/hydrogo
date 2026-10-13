@@ -1,20 +1,19 @@
-# R101 — Admin bulk ve generated tenant RLS doğrulaması
+# R101 — Admin Bulk and Generated Tenant RLS Validation
 
-**Tarih:** 2026-09-22  
-**Durum:** Yerel doğrulama başarılı; gerçek PostgreSQL restore/capacity kabulü
-bu raporun kapsamı dışındadır.
+**Date:** 2026-09-22  
+**Status:** Local validation successful; authentic PostgreSQL restore/capacity acceptance
+is out of scope for this report.
 
-## Değişiklikler
+## Changes
 
-- `adminstudio.ExecuteBulk`: 500 kayıt hard limitli, deterministik sıralı,
-  callback hata metnini sızdırmayan ve context iptalinde açıkça tamamlanmamış
-  sonuç üreten orchestration primitive'i.
-- `tenant.VerifyProvisioningRLSForTables`: Edition’ın generated tenant tablo
-  listesini fail-closed RLS doğrulamasına bağlayan API.
-- Generated tenant kaynaklarında explicit tenant parametreleri, migration
-  `(tenant_id, id)` index'i ve RLS verifier release checklist'i.
+- `adminstudio.ExecuteBulk`: Orchestration primitive with a hard limit of 500 records, deterministic ordering,
+  no callback error leakage, and explicitly producing incomplete results upon context cancellation.
+- `tenant.VerifyProvisioningRLSForTables`: API binding the Edition's generated tenant table
+  list to fail-closed RLS verification.
+- Explicit tenant parameters in generated tenant resources, migration
+  `(tenant_id, id)` index, and RLS verifier release checklist.
 
-## Çalıştırılan kontroller
+## Executed Checks
 
 ```text
 go test ./... -p 1 -count=1 -timeout=5m   PASS
@@ -26,9 +25,9 @@ scripts/html-comment-lint.ps1            PASS
 scripts/adr-drift-check.ps1              PASS (259 ADR)
 ```
 
-## Sınırlar
+## Boundaries
 
-`go mod verify` Windows ortamında modül doğrulama aşamasında tamamlanmadığı
-için bu raporda başarılı kabul edilmedi. PostgreSQL üzerinde gerçek policy
-kataloğu, reverse-proxy blue/green, temiz ortama restore, key ceremony ve
-müşteri kapasite/RPO/RTO ölçümleri ayrıca yürütülmelidir.
+Because `go mod verify` did not complete during module verification in the Windows
+environment, it is not considered passed in this report. Real policy
+catalogs on PostgreSQL, reverse-proxy blue/green, restore into a clean environment, key ceremonies, and
+customer capacity/RPO/RTO measurements must be conducted separately.

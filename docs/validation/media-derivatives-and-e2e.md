@@ -1,76 +1,76 @@
-# Medya Türevleri ve Otomatik E2E Durum Raporu
+# Media Derivatives and Automated E2E Status Report
 
-Tarih: 2026-09-12  
-Durum: Yerel kod ve test doğrulaması tamamlandı; gerçek encoder kurulumu açık kapıdır.
+Date: 2026-09-12  
+Status: Local code and test validation completed; actual encoder installation is an open gate.
 
-## Medya optimizasyonu
+## Media Optimization
 
-Medya yükleme akışı, orijinal dosyayı immutable kaynak olarak koruyacak şekilde genişletildi. Görsel ve video türevleri ayrı metadata kayıtlarında tutulur:
+The media upload pipeline was expanded to preserve the original file as an immutable source. Image and video derivatives are stored in separate metadata records:
 
-- `media_assets` orijinal dosyanın kaydıdır ve mevcut sunum davranışı korunur.
-- `media_variants` WebP/WebM türevlerinin kimlik, durum, MIME, boyut ve hata bilgisini tutar.
-- `?variant=card` ve `?variant=video` istekleri hazır türevi kullanır; türev hazırlanmadıysa orijinale güvenli biçimde düşer.
-- JPEG, PNG, WebP yanında MP4, WebM ve QuickTime yüklemeleri kabul edilir.
-- Admin medya formu görsel ve video yüklemeyi destekler; video önizlemesi metadata hazır olduğunda gösterilir.
+- `media_assets` represents the original file record and retains existing serving behavior.
+- `media_variants` stores ID, status, MIME type, size, and error details for WebP/WebM derivatives.
+- `?variant=card` and `?variant=video` requests serve the ready derivative; if the derivative is not ready, they safely fall back to the original.
+- In addition to JPEG, PNG, and WebP, MP4, WebM, and QuickTime uploads are accepted.
+- The Admin media form supports image and video uploads; video preview is displayed once metadata is ready.
 
-Dönüştürme upload isteğinde çalışmaz. `internal/media.Optimizer` sabit kapasiteli kuyruk ve sınırlı worker ile arka planda çalışır. Her iş için 2 dakika timeout uygulanır; FFmpeg tek codec thread’iyle çağrılır. Kuyruk dolduğunda yükleme ve orijinal medya etkilenmez.
+Transcoding does not run within the upload request. `internal/media.Optimizer` runs in the background with a fixed-capacity queue and bounded workers. A 2-minute timeout is enforced per job; FFmpeg is invoked with a single codec thread. When the queue is full, uploads and original media remain unaffected.
 
-Encoder yolu `HYDRO_MEDIA_FFMPEG` ile verilebilir. Değişken boşsa PATH içindeki `ffmpeg` aranır. Bu makinede FFmpeg bulunmadığı için gerçek WebP/WebM üretimi henüz çalıştırılmamıştır; bu durumda orijinal dosya kullanılabilir kalır ve türev `failed` durumunda bounded hata mesajıyla kaydedilir.
+The encoder path can be configured via `HYDRO_MEDIA_FFMPEG`. If empty, `ffmpeg` in `PATH` is searched. Because FFmpeg was not present on this machine, actual WebP/WebM generation has not yet been executed; in this scenario, the original file remains usable and the derivative is recorded in `failed` status with a bounded error message.
 
-## RAM ve kapasite politikası
+## RAM and Capacity Policy
 
-- Orijinal upload akışlı ve mevcut `MediaMaxBytes` sınırıyla korunur.
-- Türev kuyruğu en fazla 8 bekleyen asset taşır.
-- Worker sayısı profil değerinden gelir ve medya için en fazla 2 ile sınırlandırılır.
-- Compact profilde normal kullanımda tek dönüştürme çalışır.
-- FFmpeg işlerinde tek codec thread’i ve işlem timeout’u kullanılır.
-- Orijinal dosya silinmediği için encoder hatası veri kaybına dönüşmez.
+- Original uploads are streamed and protected by the existing `MediaMaxBytes` limit.
+- The derivative queue holds at most 8 pending assets.
+- Worker count is derived from the profile and capped at 2 for media.
+- In the Compact profile, a single transcoding job runs under normal usage.
+- FFmpeg jobs use a single codec thread and process timeouts.
+- Because original files are not deleted, encoder failures do not result in data loss.
 
-Bu sınırlar RAM’in yükleme sayısıyla sınırsız büyümesini engeller. FFmpeg’in işletim sistemi seviyesinde ayrı bir RAM kotası henüz uygulanmamıştır; yüksek hacimli dağıtımlarda container/job-object limiti ve durable media job worker kararı ayrıca alınmalıdır.
+These limits prevent RAM from scaling unboundedly with the number of uploads. An OS-level RAM quota for FFmpeg has not yet been applied; for high-volume deployments, container/job-object limits and a durable media job worker decision must be made separately.
 
-## Mimari karar
+## Architectural Decision
 
-Karar `docs/architecture/0026-bounded-media-derivatives.md` içinde kayıtlıdır. Yeni migration:
+The decision is recorded in `docs/architecture/0026-bounded-media-derivatives.md`. New migration:
 
 - `migrations/202609120001_media_variants`
 
-RabbitMQ/BullMQ eklenmedi. Mevcut HydroGo sınırları ve Compact felsefesi gereği ilk uygulama bounded in-process worker olarak bırakıldı. Süreç yeniden başlatılırsa bekleyen türev işleri kaybolabilir; orijinal medya etkilenmez. Çok prosesli dayanıklılık gerektiğinde mevcut SQL job queue üzerine durable media job tipi eklenmelidir.
+RabbitMQ/BullMQ was not added. In accordance with HydroGo's current boundaries and Compact philosophy, the initial implementation was retained as a bounded in-process worker. If the process restarts, pending derivative jobs may be lost; original media remains unaffected. When multi-process durability is required, a durable media job type should be added on top of the existing SQL job queue.
 
-## Otomatik Playwright E2E
+## Automated Playwright E2E
 
-Metadata tabanlı E2E generator genişletildi. `e2e/manifest.json` içindeki her frontend route için generator artık şunları üretir:
+The metadata-driven E2E generator was expanded. For each frontend route in `e2e/manifest.json`, the generator now produces:
 
-- Desktop route smoke testi
-- 390x844 mobil viewport testi
-- Root test ID görünürlük testi
-- Yatay taşma (`scrollWidth`) kontrolü
+- Desktop route smoke test
+- 390x844 mobile viewport test
+- Root test ID visibility test
+- Horizontal overflow (`scrollWidth`) check
 
-Admin tarafında medya yükleme journey’si de manifest’e eklendi. Test küçük bir PNG yükler, redirect’i ve medya kartındaki dosya adını doğrular. Böylece medya upload yüzeyi üretilebilir E2E kapsamına dahil edilmiştir.
+On the Admin side, the media upload journey was also added to the manifest. The test uploads a small PNG and verifies the redirect and the filename on the media card. Thus, the media upload surface is included in generatable E2E coverage.
 
-Üretilen dosya:
+Generated file:
 
 - `e2e/generated/hydro.spec.ts`
 
-`scripts/run-e2e.ps1`, izole SQLite sunucusu ve test-only yönetici parolasıyla çalıştırıldı:
-Chromium üzerinde son koşuda 30/30 test geçti. Koşu; yayınlanmış içerik API istemcisini, yönetici girişini,
-beş yönetici alanını, medya yüklemeyi, Pages/News formlarını, public home/shop route'larını ve
-iki mobil yatay-taşma kontrolünü kapsar. Aynı koşu artık `.github/workflows/ci.yml` içindeki
-zorunlu `browser-e2e` işiyle Windows CI'da da çalışır. Runner, geliştirici makinesinden kalmış
-`HYDRO_REDIS_URL` değerini geçici olarak temizleyerek Compact SQLite fixture'ının izolasyonunu korur.
+`scripts/run-e2e.ps1` was executed against an isolated SQLite server using a test-only admin password:
+30/30 tests passed on Chromium in the latest run. The run covers the published content API client, admin login,
+five admin sections, media upload, Pages/News forms, public home/shop routes, and
+two mobile horizontal-overflow checks. The same run now executes in Windows CI via the mandatory
+`browser-e2e` job in `.github/workflows/ci.yml`. The runner temporarily unsets any leftover
+`HYDRO_REDIS_URL` from the development environment to preserve Compact SQLite fixture isolation.
 
-## Test kanıtı
+## Test Evidence
 
-Başarılı kontroller:
+Successful checks:
 
 - `go test ./tools/e2egen -p 1 -timeout=5m`
 - `go test ./migrations ./internal/media/... ./cmd/hydro/... -p 1 -timeout=5m`
 - `go vet ./...`
 - `git diff --check`
-- `scripts/run-e2e.ps1` — Chromium üzerinde 30/30 PASS
+- `scripts/run-e2e.ps1` — 30/30 PASS on Chromium
 
-## Açık maddeler
+## Open Items
 
-- `[!]` Test ortamına FFmpeg kurulması ve gerçek WebP/WebM dönüşüm smoke testinin çalıştırılması.
-- `[?]` Çok prosesli üretim için medya işlerinin SQL durable queue’ya taşınması.
-- `[?]` FFmpeg için container/job-object seviyesinde sert RAM/CPU kotası.
-- `[?]` Her frontend için modül-spesifik cart, haber detay, üye auth, empty/error ve erişilebilirlik E2E akışlarının manifest’e eklenmesi.
+- `[!]` Installing FFmpeg in the test environment and running actual WebP/WebM transcoding smoke tests.
+- `[?]` Migrating media jobs to an SQL durable queue for multi-process production deployments.
+- `[?]` Enforcing strict container/job-object level RAM/CPU quotas for FFmpeg.
+- `[?]` Adding module-specific cart, news detail, member auth, empty/error, and accessibility E2E flows to the manifest for each frontend.

@@ -1,10 +1,10 @@
-# R5 üretilen SDK rehberi doğrulaması — 2026-09-16
+# R5 generated SDK guide verification — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`hydro project new` çıktısına `docs/SDK.md` eklendi. Belge; lockfile, lokal workflow, runtime dağıtım sınırı ve `custom/`, `themes/`, `migrations/` extension sınırlarını proje üretildiği anda açıklar.
+Added `docs/SDK.md` to `hydro project new` output. The document explains lockfiles, local workflows, runtime distribution boundaries, and extension boundaries for `custom/`, `themes/`, and `migrations/` upon project generation.
 
-## WSL kanıtı
+## WSL evidence
 
 ```bash
 cd /path/to/project
@@ -13,13 +13,10 @@ go run ./cmd/hydro project new sdk-doc --preset compact-site --no-demo --root /t
 test -f /tmp/hydro-sdk-doc-check/sdk-doc/docs/SDK.md
 ```
 
-Gerçek sonuç: generator ve CLI testleri başarılı; `sdk-doc/docs/SDK.md` üretildi (`sdk-doc-ok`).
+Actual result: generator and CLI tests passed; `sdk-doc/docs/SDK.md` generated (`sdk-doc-ok`).
 
-## Sınır
+## Scope & Boundaries
 
-Bu belge runtime artifact broker veya installer uygulamaz; bu bileşenlerin henüz uygulanmadığını generated project içinde açıkça belirtir.
+This document does not implement runtime artifact brokers or installers; it explicitly notes within generated projects that these components are not yet implemented.
 
-Güncel şablon ayrıca `hydro check`, `resource new/check`, `permissions check`,
-`api diff` ve imzalı `schema diff` adımlarını gösterir. Template değişikliğinden
-sonra Windows'ta `go test ./internal/projectgen` başarılıdır; WSL tam suite’i
-ayrı cross-platform kanıt olarak tutulur.
+The current template also illustrates `hydro check`, `resource new/check`, `permissions check`, `api diff`, and signed `schema diff` steps. Following template changes, `go test ./internal/projectgen` passed on Windows; full WSL suite is retained as separate cross-platform evidence.

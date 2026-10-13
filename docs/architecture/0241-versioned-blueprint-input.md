@@ -1,11 +1,11 @@
 # ADR-0241: Blueprint input has an explicit version boundary
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** YAML/JSON Blueprint loader and authoring schema
-- **İlgili:** ADR-0210, ADR-0219, ADR-0224, ADR-0240
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** YAML/JSON Blueprint loader and authoring schema
+- **Related:** ADR-0210, ADR-0219, ADR-0224, ADR-0240
 
-## Karar
+## Decision
 
 Blueprint files may declare `version: v0`; when omitted, the loader preserves
 backward compatibility by treating the input as v0. Any other version is

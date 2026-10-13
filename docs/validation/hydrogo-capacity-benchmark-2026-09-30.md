@@ -58,7 +58,7 @@ clients (p95 251 ms).
   Binding directly to port 80 meant the temporary benchmark process ran with
   root privileges.
 - Data services: isolated PostgreSQL 15 and Redis 7 benchmark containers. Their
-  memory limits were 192 MiB and 48 MiB respectively. The active inşaat
+  memory limits were 192 MiB and 48 MiB respectively. The active insaat
   PostgreSQL/Redis containers were not used.
 - Content: the isolated benchmark database was seeded with HydroGo demo content;
   this was not a large production dataset.
@@ -578,11 +578,11 @@ The third updated run adds two more committed changes:
 
 ## Service handling and verification record
 
-For isolation, the running inşaat API, its PostgreSQL/Redis containers, and the
+For isolation, the running insaat API, its PostgreSQL/Redis containers, and the
 host PostgreSQL service were stopped temporarily; they were not deleted. The
 benchmark used separate HydroGo-only PostgreSQL/Redis containers. After the
 test, the benchmark HydroGo process and its containers were stopped and the
-previous services were started again. The inşaat API returned HTTP 401 at `/`,
+previous services were started again. The insaat API returned HTTP 401 at `/`,
 which was its pre-test observed response.
 
 The second updated run (commit `372dbbfd`) followed the same isolation

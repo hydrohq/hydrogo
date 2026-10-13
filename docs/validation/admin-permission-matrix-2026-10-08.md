@@ -1,44 +1,40 @@
-# Admin izin ve rol denetimi
+# Admin Permission and Role Audit
 
-**Tarih:** 2026-10-08  
-**Sonuç:** Auth rol × izin × Admin route matrisi ve mutation ret testleri geçti  
-**Kapsam:** Edition rol varsayılanları, kayıtlı izinler, kullanıcı yönetimi
-mutasyonları ve yöneticinin kendi erişimini değiştirme girişimi.
+**Date:** 2026-10-08  
+**Result:** Auth role x permission x Admin route matrix and mutation rejection tests passed  
+**Scope:** Edition role defaults, registered permissions, user management
+mutations, and administrator attempts to alter own access.
 
-Doğrulama komutu:
+Verification command:
 
 ```sh
 TMPDIR=/var/tmp/hydro-go-tests go test ./internal/auth ./cmd/hydro -count=1
 ```
 
-Testler şu davranışları doğrular:
+Tests verify the following behaviors:
 
 - `/admin/control`, security, operations, users, permissions, site, developer,
-  resource usage ve account GET route'ları aktif/inaktif Admin, Editor, Viewer
-  için; bilinen her izin override'ının varsayılan/allow/deny etkisiyle çapraz
-  test edilir. Site, operations ve users-management route'larının role ek
-  koşulları da kontrol edilir.
-- Admin/editor/viewer varsayılan izinleri ve etkin kullanıcı izin override'ları.
-- Edition kataloğunda olmayan izinlerin yetki vermemesi ve izin yazımından
-  filtrelenmesi.
-- Editor ve viewer rollerinin rol, izin ve hesap kapatma mutasyonlarından
-  reddedilmesi.
-- `admin.users.manage` izni açıkça reddedilmiş yöneticinin kullanıcı yönetimi
-  mutasyonlarından reddedilmesi.
-- Yöneticinin kendi rolünü veya kendi izinlerini değiştirme isteğinin `409`
-  olması ve izin deposuna yazma yapılmaması.
-- Tek Edition adminiyle rol ve permission form akışının gerçek Chromium
-  testinde çalışması; editör deny/allow override ve rol değişiklikleri.
-- Editor ve viewer oturumlarının geçerli CSRF tokenıyla başka kullanıcı için
-  rol değiştirme, izin override'ı yazma ve hesabı kapatma POST'larından `403`
-  alması.
-- Editor ve viewer'ın rol, permission, disable, invitation ve password-reset
-  user-management mutation endpoint'lerinden `403` alması.
-- Editor ve viewer'ın geçerli CSRF tokenıyla IP ban ekleme/kaldırma ve backup
-  POST'larından `403` alması; geçerli CSRF admin/user management akışlarının
-  kendi izin kurallarına göre çalışması.
+  resource usage, and account GET routes are cross-tested for active/inactive Admin, Editor, Viewer
+  against default/allow/deny effects of every known permission override. Role-additional
+  conditions for site, operations, and users-management routes are also checked.
+- Admin/editor/viewer default permissions and active user permission overrides.
+- Permissions absent from the Edition catalog grant no authority and are filtered
+  out from permission writes.
+- Editor and viewer roles are rejected from role, permission, and account deactivation mutations.
+- Administrators with an explicitly denied `admin.users.manage` permission are rejected
+  from user management mutations.
+- An administrator's request to change their own role or their own permissions returns `409`
+  and performs no write to the permission store.
+- Role and permission form flows with a single Edition admin execute in an authentic Chromium
+  test; editor deny/allow overrides and role modifications.
+- Editor and viewer sessions with valid CSRF tokens receive `403` when submitting POSTs
+  to change another user's role, write permission overrides, or deactivate accounts.
+- Editor and viewer receive `403` from role, permission, disable, invitation, and password-reset
+  user-management mutation endpoints.
+- Editor and viewer receive `403` on POST requests to add/remove IP bans and create backups
+  even with valid CSRF tokens; valid CSRF admin/user management flows execute according to their respective permission rules.
 
-İlgili Chromium doğrulama komutu:
+Associated Chromium verification command:
 
 ```sh
 cd e2e
@@ -46,11 +42,10 @@ npx playwright test custom/admin-management.spec.ts --project chromium --workers
   --grep 'editor and viewer sessions' --reporter=line
 ```
 
-Bu, tek tek davranış kanıtıdır. Her route × rol × CSRF durumu × override
-değerini kapsayan çapraz matris Go route-policy testinde üretilmiştir. Browser
-testi CSRF tokenlı mutation ve CSRF'siz form retlerini ayrıca doğrular.
-PostgreSQL auth sözleşme testi önceki doğrulama aşamasında geçmiştir. Bu aşama
-çalışma zamanı veya veritabanı davranışını değiştirmez.
+This serves as individual behavioral evidence. The cross-matrix covering each route x role x CSRF state x override
+value is generated in the Go route-policy test. The browser test additionally verifies mutations with CSRF tokens
+and form rejections without CSRF. The PostgreSQL auth contract test passed in a previous validation phase.
+This phase does not alter runtime or database behavior.
 
 Generated Admin resource policy contract also verifies that a collection
 denied by `CanReadResource` is omitted from the resource index and that its

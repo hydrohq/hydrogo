@@ -1,30 +1,28 @@
-# ADR-0137: Commercial license issuer boundary
+# ADR-0137: License Issuer and Runtime CLI Boundary
 
-## Durum
+## Status
 
 Accepted
 
-## Bağlam
+## Context
 
-HydroGo müşteri runtime'ı offline lisans doğrulaması yapmalıdır; ancak lisans üretimi ve özel anahtar erişimi müşteri dağıtımında bulunmamalıdır. Aynı binary içinde `issue` ve `keygen` komutlarının bulunması, yanlışlıkla özel anahtarın müşteri ortamına taşınması ve operasyonel sınırların bulanıklaşması riskini artırır.
+The HydroGo runtime must support offline license verification where configured, but license generation capabilities and private signing keys must never be shipped in the customer distribution binary. Bundling `issue` and `keygen` commands inside the same binary increases the risk of inadvertent private key leaks and blurs operational boundaries.
 
-## Karar
+## Decision
 
-- `cmd/hydro-issuer` vendor-only lisans üretici binary'sidir ve `keygen` ile `issue` komutlarını taşır.
-- `cmd/hydro` müşteri runtime'ıdır; yalnızca `license verify` ve `license status` sunar. `issue` ve `keygen` açık bir vendor-only hatasıyla reddedilir.
-- Runtime, lisanstaki `public_key` alanını güven kaynağı kabul etmez; resmi release'e gömülen trusted public key ile doğrulama yapar.
-- Lisans claims içindeki signed `key_id`, beklenen trusted key slot'una karşı doğrulanabilir; rotasyon sırasında eski ve yeni slotların birlikte kabul süresi release metadata'sında açıkça belirtilir.
-- Özel anahtar yalnızca issuer operasyonunda tutulur. CI/CD secret store, dosya izinleri ve key rotation kayıtları release sürecinin sorumluluğundadır.
-- Eski lisans formatı geriye dönük doğrulanır; format değişikliği gerektiğinde yeni bir ADR ve geçiş penceresi gerekir.
+- `cmd/hydro-issuer` is the vendor-only license issuing binary carrying `keygen` and `issue` commands.
+- `cmd/hydro` is the customer runtime CLI; it exposes only `license verify` and `license status`. Subcommands `issue` and `keygen` are rejected with explicit vendor-only errors.
+- The runtime does not trust the `public_key` field embedded inside license files; it verifies signatures using the trusted public key injected into the official build.
+- The signed `key_id` in claims is verified against the trusted key slot; rotation overlap windows are explicitly defined in release metadata.
+- Private signing keys are maintained strictly in the issuer environment (CI/CD secret stores, access-controlled offline hardware).
 
-## Sonuçlar
+## Consequences
 
-- Müşteri artifact'ı imzalama yeteneği taşımaz ve issuer ile runtime arasındaki sınır görünür hale gelir.
-- Vendor release pipeline'ı iki artifact üretmelidir: müşteri runtime ve erişimi sınırlı issuer.
-- Offline lisanslarda merkezi iptal yoktur; kısa expiry/grace değerleri ve key rotation operasyonu ile risk azaltılır.
+- The client binary contains no signing capabilities, establishing an unambiguous boundary between issuer and runtime.
+- Vendor release pipelines produce two distinct artifacts: the client runtime and the access-controlled issuer.
+- Offline licenses have no centralized revocation server; risk is mitigated via bounded expiration, grace periods, and key rotation procedures.
 
-## Doğrulama
+## Verification
 
 - `go test ./cmd/hydro ./cmd/hydro-issuer ./internal/licensing`
-- Runtime testleri vendor-only komutların reddedildiğini ve verify/status akışlarının çalıştığını doğrular.
-- Üretim release'inde issuer binary'si müşteri paketine dahil edilmez.
+- Runtime tests confirm vendor-only commands are rejected and verify/status workflows succeed.

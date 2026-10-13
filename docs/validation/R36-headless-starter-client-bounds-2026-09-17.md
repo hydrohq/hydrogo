@@ -1,11 +1,9 @@
-# R36 — Headless starter client sınır smoke kapsamı
+# R36 — Headless starter client boundary smoke coverage
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel Node runtime)
+**Status:** Successful (local Node runtime)
 
-`client-contract.mjs`, client timeout ayarının `1..120000` ms aralığında fail-closed
-doğrulandığını da kontrol ediyor. Bu, yanlış yapılandırılmış frontend starter
-ayarlarının istek göndermeden önce görünür olmasını sağlar.
+`client-contract.mjs` verifies that client timeout settings are validated fail-closed within the `1..120000` ms range. This ensures misconfigured frontend starter settings surface visibly prior to sending requests.
 
 ```powershell
 Push-Location examples/headless-starter
@@ -13,5 +11,4 @@ npm test
 Pop-Location
 ```
 
-Sonuç: **PASS** — build, idempotency, typed error/request-id, bounded response
-ve timeout sınırı kontrolleri.
+Result: **PASS** — build, idempotency, typed error/request-id, bounded response, and timeout boundary checks.

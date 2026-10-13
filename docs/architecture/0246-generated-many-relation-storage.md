@@ -1,44 +1,22 @@
-# ADR-0246: Generated many-valued relations use bounded normalized storage
+# ADR-0246: Generated Many-Valued Relations Use Bounded Normalized Storage
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** Blueprint'teki `many` relation alanlarının generated migration ve repository sözleşmesi
-- **İlgili:** ADR-0230, ADR-0235, ADR-0245
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** Generated migrations and repository contracts for `many` relations in Blueprints
+- **Related:** ADR-0230, ADR-0235, ADR-0245
 
-## Karar
+## Decision
 
-`cardinality: many` alanı kaynak tablosunda scalar sütun oluşturmaz. Generator,
-deterministik isimli ayrı bir relation tablosu ve tenant-scoped kaynaklarda
-`tenant_id` içeren composite primary key üretir. Listeleme tenant/source
-predicate'i, deterministik sıra ve `max_items + 1` overflow kontrolü kullanır.
-Replace metotları kendi transaction'larında atomiktir; `Replace…Tx` varyantı
-Edition'ın daha büyük kaynak güncelleme transaction'ına katılabilir. Blueprint
-limitleri 1–100 aralığındadır; varsayılan 50'dir.
+A `cardinality: many` relation field does not add scalar columns to the source resource table. The generator produces a normalized relation join table with a deterministic name and, for tenant-scoped resources, a composite primary key including `tenant_id`. Listing enforces tenant/source scoping predicates, deterministic ordering, and a `max_items + 1` overflow guard. Replacement methods are atomic within their transactions; `Replace…Tx` variants can participate in broader Edition transaction boundaries. Blueprint limits range from 1 to 100, defaulting to 50.
 
-Bu, ilişki hedeflerinin varlığını veya erişilebilirliğini doğrulamaz. Edition,
-hedefleri aynı transaction içinde yetkilendirmeli ve tenant sınırında
-doğrulamalıdır. Otomatik foreign key, cascade, eager loading, silme semantiği
-ve cache invalidation üretilmez; bunlar provider/Edition sözleşmesi olarak
-kalır. İlişki tablosu migration önerisidir ve yalnızca operatör migration
-registry üzerinden uygulanır; runtime DDL yoktur.
+This does not check foreign key targets for existence or tenant visibility. The Edition must authorize and validate targets within the same transaction. Automated cascade deletion, foreign key constraints, eager loading, and cache invalidation are deliberately omitted from generator scaffolding, remaining under Edition control. The relation table migration is a reviewable proposal applied explicitly through migration registries; runtime DDL is prohibited.
 
-## Sonuçlar
+## Consequences
 
-- Eski sürümler additive yeni tabloyla birlikte çalışabilir; rollback uygulama
-  sürümünü geri alır, veri tablosunu otomatik silmez.
-- SQLite ve PostgreSQL için ortak TEXT/INTEGER/placeholder yaklaşımı
-  kullanılır. Yeni adapter'lar transactional replace, ordered bounded list ve
-  tenant predicate davranışını sertifikalandırmalıdır.
-- İlişki ID'leri için cache üretilmez; Edition cache kullanırsa successful
-  replace sonrasında kendi anahtarlarını invalidate etmelidir.
-- İlişki tablosu/listesi kaynak başına sınırlı olsa da toplam kaynak/tenant
-  sayısı sınırsızdır; operasyonel kapasite sınırları Edition profilinde
-  tanımlanmalıdır.
+- Schema evolution is additive; rollback reverts application binaries without automatically dropping data tables.
+- Common TEXT/INTEGER placeholder conventions are maintained across SQLite and PostgreSQL. New adapters must certify transactional replacement, ordered bounded listing, and tenant predicate enforcement.
+- Cache invalidation remains the Edition's responsibility.
 
-## Doğrulama
+## Verification
 
-Generator testi normalized DDL ve generated API'yı kontrol eder. Örnek Edition
-SQLite testi migration'ı çalıştırır; aynı tenant'ta sıralı list, farklı tenant
-izolasyonu, dış transaction'a katılım ve duplicate/limit reddini doğrular.
-PostgreSQL'e karşı canlı provider sertifikasyonu bu ADR'nin yerel test
-kapsamında değildir ve release gate olarak açık kalır.
+Generator tests verify normalized DDL and generated API contracts. Client Edition SQLite test fixtures execute migrations, verifying ordered listing within the same tenant, cross-tenant isolation, outer transaction enlistment, and duplicate/overflow rejection.

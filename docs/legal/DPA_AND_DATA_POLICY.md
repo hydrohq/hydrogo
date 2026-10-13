@@ -1,14 +1,14 @@
 # Data Processing Agreement (DPA) & Privacy Policy Framework
 
-> **Compliance Targets:** KVKK (6698 Sayılı Kanun) & GDPR (EU 2016/679)  
+> **Compliance Targets:** Turkish Data Protection Law (KVKK Law No. 6698) & GDPR (EU 2016/679)  
 > **Applicability:** Single-Tenant Customer Deployments & Managed Services
 
 ---
 
 ## 1. Roles & Data Controller / Processor Boundary
 
-- **Customer:** Data Controller (*Veri Sorumlusu*). Determines the legal basis, purposes of processing, and user categories.
-- **HydroGo Platform / Managed Provider:** Data Processor (*Veri İşleyen*). Processes data strictly on documented customer instructions and technical contracts.
+- **Customer:** Data Controller. Determines the legal basis, purposes of processing, and user categories.
+- **HydroGo Platform / Managed Provider:** Data Processor. Processes data strictly on documented customer instructions and technical contracts.
 
 ---
 
@@ -26,7 +26,7 @@
 
 ---
 
-## 3. Data Subject Rights & Erasure Protocol (*Unutulma Hakkı*)
+## 3. Data Subject Rights & Erasure Protocol (Right to be Forgotten)
 
 ### Append-Only Erasure Intent Log (ADR-0014)
 - Deletion requests are recorded in an external, cryptographic hash-chained erasure log.

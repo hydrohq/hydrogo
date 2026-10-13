@@ -1,17 +1,22 @@
-# Hydro SDK ve private HydroGo runtime dağıtım planı
+# Hydro SDK and Private HydroGo Runtime Distribution Plan
 
-**Durum:** Sözleşme ve güvenli yerel artifact zinciri uygulanıyor; broker,
-login, imzalı release ve installer yayınları açık. Ayrıntılı durum:
+**Status:** Contracts and secure local artifact pipeline implemented; broker,
+authentication, signed releases, and installer distributions remain open gates. Detailed status:
 [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md).  
-**Amaç:** Linux, Windows ve macOS’ta Node.js benzeri kurulabilen public `hydro` CLI ile private HydroGo Core runtime’ını kaynak kodu dağıtmadan kullanmak.
+**Objective:** Provide a Node.js-style installable public `hydro` CLI across Linux, Windows,
+and macOS that orchestrates the private HydroGo Core runtime without distributing source code.
 
-## Temel karar
+## Core Architectural Ruling
 
-Public SDK; CLI, generator, starter’lar, contract’lar, frontend adapter’ları ve geliştirici araçlarını içerir. HydroGo Core ve ticari modüller private kalır; istemciye kaynak kodu kopyalanmaz. Runtime, imzalı binary/artifact olarak yetkilendirilmiş kanaldan indirilir.
+The public SDK encapsulates the CLI, generators, starter templates, contracts, frontend adapters,
+and developer tooling. HydroGo Core and proprietary commercial modules remain private; source code
+is never copied to clients. The runtime is delivered as signed binaries and artifacts via an authenticated channel.
 
-Bu yaklaşım mevcut Core izolasyonu, `hydrogo.lock`, edition manifest ve offline lisans kararlarıyla uyumludur. SDK, Go package sınırı veya `internal` görünürlüğünü bir güvenlik sandbox’ı olarak sunmaz; aynı binary içindeki trusted code güvenilir kabul edilir.
+This approach aligns with Core isolation (ADR-0028), `hydrogo.lock`, edition manifests, and offline
+licensing decisions. The SDK does not treat Go package boundaries or `internal` package visibility as a
+security sandbox; trusted code executing within the same binary is treated as trusted.
 
-## Kullanıcı deneyimi
+## Developer Workflow
 
 ```text
 hydro login
@@ -23,100 +28,106 @@ hydro generate
 hydro migrate
 ```
 
-## Dağıtım bileşenleri
+## Distribution Architecture
 
 ### Public Hydro SDK
 
 - `hydro` CLI
-- Project/resource generator
-- Starter template’leri
-- OpenAPI/TypeScript üreticileri
-- React/HTMX/vanilla adapter’ları
+- Project and resource generators
+- Starter templates
+- OpenAPI and TypeScript client generators
+- React, HTMX, and vanilla JavaScript adapters
 - `doctor`, `check`, `schema diff`, `api diff`
-- Local dev proxy ve test runner
+- Local development proxy and test runner
 
-### Private artifact service
+### Private Artifact Service
 
-- Platforma göre runtime binary
-- Module/kit artifact’ları
-- İmzalı release manifesti
-- Kısa ömürlü download URL/token
-- License ve edition entitlement kontrolü
+- Platform-specific runtime binaries
+- Module and kit artifacts
+- Signed release manifests
+- Short-lived download URLs and tokens
+- License and edition entitlement verification
 
-### HydroGo runtime
+### HydroGo Runtime
 
-- Core + seçilmiş modüller
-- Migration ve compatibility metadata
-- Güvenilir public key ile binary/manifest doğrulaması
-- Offline `hydro.lic` desteği
+- Core engine + selected modules
+- Database migration and compatibility metadata
+- Binary and manifest signature verification against trusted public keys
+- Offline `hydro.lic` verification
 
-## Private GitHub erişimi
+## Private GitHub Access Boundaries
 
-`git clone` veya `git ls-remote` doğrudan ana yetkilendirme mekanizması yapılmaz. Git komutu yalnızca kurumsal geliştirici modunda teşhis amacıyla kullanılabilir. Çünkü repo erişimi; lisans, sürüm entitlement’ı ve artifact bütünlüğü anlamına gelmez. Ayrıca token sızıntısı, SSO, proxy, rate limit ve belirsiz hata ayrımı sorunları oluşturur.
+`git clone` and `git ls-remote` are strictly excluded from the primary end-user authorization mechanism.
+Git commands may only be used for diagnostic purposes in internal corporate developer workflows. Repository
+access does not equal an active license, edition entitlement, or artifact integrity guarantee. Furthermore,
+it exposes risks around token exfiltration, SSO failures, proxy misconfigurations, rate limits, and ambiguous error handling.
 
-Önerilen akış:
+Proposed distribution flow:
 
 ```text
 hydro login
     ↓
-Hydro account/license service
+Hydro account / entitlement service
     ↓
-GitHub App veya private artifact registry
+GitHub App or private artifact registry
     ↓
-kısa ömürlü download URL
+Short-lived signed download URL
     ↓
-checksum + imza doğrulama
+Checksum and signature verification
     ↓
-lokal runtime cache
+Local runtime cache
 ```
 
-GitHub App installation token veya sunucu tarafında saklanan credential kullanılır; kullanıcı bilgisayarına kalıcı GitHub PAT gömülmez. Kaynak repo yerine CI tarafından üretilmiş release artifact indirilir.
+Short-lived GitHub App installation tokens or server-side credentials are used exclusively on the server;
+persistent GitHub PATs are never written to client machines. Releases pull precompiled CI artifacts rather
+than source repositories.
 
-## Platform kurulumları
+## Operating System Installers
 
-- Windows: MSI, WinGet, imzalı `.exe`, Windows Credential Manager.
-- macOS: Homebrew tap, notarized arm64/amd64 veya universal binary, Keychain.
-- Linux: `.deb`, `.rpm`, tarball; amd64/arm64; checksum ve signature zorunluluğu.
-- Her kurulumdan sonra `hydro doctor` PATH, platform, runtime, lisans ve imza durumunu kontrol eder.
+- Windows: MSI installer, WinGet manifest, Authenticode-signed `.exe`, Windows Credential Manager integration.
+- macOS: Homebrew tap, Apple-notarized universal/arm64/amd64 binaries, macOS Keychain integration.
+- Linux: `.deb`, `.rpm`, tarballs; amd64/arm64 architectures; strict checksum and GPG signature verification.
+- Post-install: `hydro doctor` verifies PATH, platform, runtime, license status, and cryptographic signatures.
 
-## Lock ve uyumluluk
+## Lockfiles and Compatibility
 
-Proje `hydrogo.lock` içinde SDK, runtime, contract, edition, modül seti ve hash’leri kilitler. CLI şu kontrolleri yapar:
+Projects lock SDK versions, runtime revisions, contracts, editions, module sets, and cryptographic hashes in `hydrogo.lock`.
+The CLI enforces:
 
-- SDK/runtime/module uyumu
-- License ve edition entitlement
-- Platform/CPU uyumu
-- Migration ve API compatibility
-- İmza/checksum
-- Offline grace period
+- SDK, runtime, and module compatibility
+- License and edition entitlements
+- Platform and architecture compatibility
+- Database migration and API schema compatibility
+- Cryptographic signatures and SHA-256 checksums
+- Offline grace periods
 
-## Güvenlik kuralları
+## Security Safeguards
 
-- Private key yalnızca release/signing ortamında tutulur.
-- İstemciye private repo token’ı yazılmaz.
-- Artifact indirme URL’si kısa ömürlü olur.
-- Binary ve manifest doğrulanmadan çalıştırılmaz.
-- Download, login ve license log’ları sırları içermez.
-- Air-gapped kullanım için imzalı offline lisans ve manuel artifact aktarımı desteklenir.
-- License bitişi public siteyi beklenmedik biçimde kesmez; entitlement/update davranışı açıkça tanımlanır.
+- Private signing keys reside strictly within hardened release/signing environments.
+- Private repository access tokens are never saved to client filesystems.
+- Artifact download URLs are short-lived.
+- Binaries and release manifests are verified against trusted keys before execution.
+- Download, authentication, and license logs strictly redact secrets and tokens.
+- Offline and air-gapped environments are supported via signed offline licenses and manual artifact bundles.
+- License expiration does not abruptly crash public sites; entitlement and update lifecycles are explicitly defined.
 
-## Uygulama sırası
+## Execution Sequence
 
-1. SDK/runtime/contract sürüm modelini ve lock formatını kesinleştir.
-2. CI’da cross-platform imzalı runtime artifact üret.
-3. Artifact manifest ve checksum doğrulamasını CLI’a ekle.
-4. `hydro login` için OAuth/device flow ve kısa ömürlü token servisini kur.
-5. GitHub App/private registry entegrasyonunu broker arkasına al.
-6. Windows/macOS/Linux installer’larını yayınla.
-7. Offline lisans ve air-gapped runbook’u doğrula.
-8. Revocation, rotation, mirror ve rollback tatbikatlarını yap.
+1. Finalize SDK, runtime, and contract versioning models and lockfile formats.
+2. Produce signed, cross-platform runtime artifacts in CI.
+3. Integrate artifact manifest and checksum verification into the CLI.
+4. Implement OAuth 2.1 / device code authentication and token exchange in `hydro login`.
+5. Integrate GitHub App / private registry access behind the broker service.
+6. Publish official Windows, macOS, and Linux installers.
+7. Verify offline licensing and air-gapped runbooks.
+8. Rehearse key revocation, rotation, mirroring, and rollback drills.
 
-## Açık kararlar
+## Open Decisions
 
-- Hosted Hydro hesabı mı, yalnızca GitHub organization hesabı mı?
-- Artifact registry GitHub Releases, GHCR veya ayrı object storage mı?
-- Ticari entitlement ile repository membership nasıl ayrılacak?
-- Tam offline müşterilerde artifact güncellemesi nasıl aktarılacak?
-- Runtime binary’si tek dosya mı, module bundle mı olacak?
+- Hosted Hydro account system versus GitHub organization identity?
+- Primary artifact registry: GitHub Releases, GHCR, or dedicated S3-compatible object storage?
+- Separation of commercial entitlements from repository membership?
+- Artifact update protocol for fully air-gapped customer installations?
+- Monolithic runtime binary versus modular plugin bundles?
 
-Bu kararlar kabul edilmeden public SDK release’i ve müşteriye dağıtım sözü verilmez.
+Until these decisions are formally accepted, public SDK releases and customer distribution commitments remain open.

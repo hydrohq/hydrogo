@@ -1,20 +1,15 @@
-# R5 SDK artifact çözümleme — 2026-09-16
+# R5 SDK artifact resolution — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist.ResolveRuntimeArtifact`, imzalı release manifestinden hedef
-OS/mimariye ait canonical runtime artifact’ı tekil olarak seçer. Eksik, çift,
-unsafe path veya boş checksum metadata’sı fail-closed reddedilir. İmza ve dosya
-bütünlüğü doğrulaması sırasıyla `release.Verify` ve `release.VerifyArtifacts`
-tarafından yapılır.
+`internal/sdkdist.ResolveRuntimeArtifact` uniquely selects the canonical runtime artifact for the target OS/architecture from the signed release manifest. Missing, duplicate, unsafe path, or empty checksum metadata is rejected fail-closed. Signature and file integrity verification are handled by `release.Verify` and `release.VerifyArtifacts` respectively.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` ve `go test ./...` başarılı.
-- Linux/Windows artifact seçimi ve hatalı metadata/missing artifact reddi test edildi.
+- Windows: `go test ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` and `go test ./...` passed.
+- Linux/Windows artifact selection and rejection of invalid metadata / missing artifacts were tested.
 
-## Sınır
+## Scope & Boundaries
 
-Bu katman ağ erişimi, login, entitlement veya dosya indirme yapmaz; broker ve
-installer’ın deterministic target resolution sözleşmesidir.
+This layer performs no network access, login, entitlement, or file downloading; it is the deterministic target resolution contract for the broker and installer.

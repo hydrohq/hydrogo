@@ -1,40 +1,31 @@
-# Canlı site log'larını okuma (insan rehberi)
+# Reading Production Logs (Human Guide)
 
-Site'de bir şey ters giderse (500 hatası, beklenmedik davranış), gerçek
-sebebi genelde **error log**'da yazar. Bu rehber, bu log'u nasıl bulup
-okuyacağını anlatıyor.
+When troubleshooting runtime anomalies (such as HTTP 500 errors or rejected requests) on a live server, the root cause is captured in the **server error log**.
 
-## Log'a nasıl ulaşırsın
+## Locating Logs
 
-Plesk gibi panellerde genelde bir "Logs" / "Günlükler" sekmesi var —
-oradan `error_log` dosyasını açabilirsin. Panel yavaşsa veya log çok
-büyükse, bir ajana "FTP'den log'u çek" dersen aynı işi komut satırından
-yapar.
+- **Plesk / cPanel:** Open the "Logs" or "Log Viewer" tool in your hosting control panel, or download `logs/error_log` via FTP.
+- **VPS (systemd / Nginx):** Inspect with `journalctl -u hydro -n 100 --no-pager` or check `/var/log/nginx/error.log`.
 
-## Log'da ne görüyorsun
+## Interpreting HydroGo Log Entries
 
-HydroGo'nun kendi hata/istek kayıtları, Apache'nin genel satırlarının
-**içine gömülü** geliyor — `AH01215: stderr from .../hydro.cgi:` yazan
-satırların devamında, süslü parantezli (JSON) bir yapı göreceksin. Bu,
-HydroGo'nun kendi log formatı — içinde hangi sayfaya gidildiği (`path`),
-ne kadar sürdüğü (`duration_ms`), başarılı olup olmadığı (`status`) gibi
-bilgiler var.
+### Standalone Daemon (systemd / Docker)
+HydroGo outputs structured JSON logs to standard error. Each entry includes:
+- `timestamp`: Event time (UTC)
+- `level`: `INFO`, `WARN`, `ERROR`
+- `path`: Request URI
+- `status`: HTTP response status code
+- `duration_ms`: Execution time in milliseconds
+- `error`: Formatted error message (with sensitive parameters stripped)
 
-Eğer `AH01215:` sonrasında JSON değil de **düz bir hata metni** varsa
-(örn. "No such file or directory"), bu genelde ciddi bir sorun —
-uygulamanın normal çalışmaya bile başlayamadığı anlamına gelir (yanlış
-dosya yolu, izin sorunu, bozuk config gibi).
+### CGI Mode (Apache / LiteSpeed)
+In CGI shared hosting environments, HydroGo output is captured inside Apache's error logs, prefixed with:
+```text
+AH01215: stderr from .../hydro.cgi: {"timestamp":...,"status":500,"error":"..."}
+```
 
-## "Hiç log yok" her zaman kötü değil
+If an error line following `AH01215:` contains plain text rather than JSON (e.g. `No such file or directory` or `exec format error`), this indicates an OS-level startup failure prior to Go runtime initialization (such as bad architecture compilation or invalid script paths).
 
-Eğer bir sayfa cache'leniyorsa (sitenin hız için kullandığı mekanizma),
-o sayfa cache'den servis edildiğinde **HydroGo hiç çalışmaz**, dolayısıyla
-log'da hiçbir satır görünmez. Yani bir sayfaya defalarca gidip log'da
-hiçbir şey görmemen, bir hata değil — tam tersine, cache'in çalıştığının
-kanıtı olabilir.
+## Why Cache Hits Produce No Log Entries
 
-## Pratik ipucu
-
-Bir ajana "şu hatayı araştır" dersen, ona log'un tam metnini (kopyala-
-yapıştır) vermen en hızlı çözümü bulmasını sağlar — ekran görüntüsü de
-işe yarar ama metin olarak vermek (kopyalanabilir) daha güvenilir.
+When disk caching or static proxy caching is active, cached responses are delivered directly by Apache/Nginx. In this state, the HydroGo binary is never invoked, meaning 0ms latency and no execution log line is generated. Seeing no log entry for a cached page view is expected and confirms caching is functioning properly.

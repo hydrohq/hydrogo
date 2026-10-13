@@ -1,11 +1,11 @@
 # ADR-0240: Generated resources expose explicit route composition
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** Generated collection/global/tenant-scoped resource runtime wiring
-- **İlgili:** ADR-0010, ADR-0038, ADR-0229, ADR-0233
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** Generated collection/global/tenant-scoped resource runtime wiring
+- **Related:** ADR-0010, ADR-0038, ADR-0229, ADR-0233
 
-## Karar
+## Decision
 
 Every generated resource emits a `Register<Name>Route` helper that composes its
 generated repository, service, and HTTP transport on a standard-library

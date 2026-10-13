@@ -1,16 +1,13 @@
-# HydroGo uygulama durumu ve çalışma rehberi
+# HydroGo Implementation Status & Operational Guide
 
-Bu belge, planlanan işlerle gerçekten teslim edilmiş işleri ayırır. Bir özelliğin
-burada “tamamlandı” olması, kodun repoda bulunması ve yerel testinin geçmesi
-anlamına gelir; production hazır olduğu anlamına gelmez.
+This document distinguishes between planned items and verified delivered capabilities. An item marked as "completed" here indicates that code resides in the repository and passes local verification suites; it does not imply external production certification.
 
-Blueprint Admin Studio'nun müşteri deneyimi, Super Admin sınırı, otomatik
-aktivasyon ve doğrulama boşlukları için güncel denetim ve aşamalı teslim planı:
+For the audit and staged delivery plan regarding Blueprint Admin Studio client experience, Super Admin boundaries, automatic activation, and verification gaps, see:
 [`docs/planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md`](planning/ADMIN_STUDIO_PRODUCT_AUDIT_AND_PLAN.md).
 
-2026-10-10 Content and Form localization follow-up: list action buttons (`Düzenle`/`Edit`,
-`Görüntüle`/`View`, `Canlı URL'yi kopyala`/`Copy live URL`, `CSV / Excel içe aktar`/`Import CSV / Excel`)
-and table action headers (`İşlemler`/`Actions`) in Pages and News modules, as well as
+2026-10-10 Content and Form localization follow-up: list action buttons (`Edit`,
+`View`, `Copy live URL`, `Import CSV / Excel`)
+and table action headers (`Actions`) in Pages and News modules, as well as
 `RenderCreateForm` widgets (media picker, item list, relation select, content language navigation),
 are bound to the request's `hydro_admin_locale` cookie preference. Comprehensive unit and transport
 tests added in `internal/adminstudio`, `modules/pages`, and `modules/news`.
@@ -144,174 +141,144 @@ importguards passed. `HYDRO_TEST_POSTGRES_URL` was unset for the root Go run;
 PostgreSQL claims are limited to the separately recorded isolated browser
 fixture runs, not the root DB contract suite.
 
-## Tamamlanan ve doğrulanan parçalar
+## Completed and Verified Capabilities
 
-| Alan | Durum | Nasıl kullanılır? | Kanıt |
+| Area | Status | Usage / Verification | Evidence |
 | --- | --- | --- | --- |
-| Consumer/member mobile API | Tamamlandı (yerel) | Ayrı `members.Member` bearer oturumu ile kayıt/giriş/refresh, cihaz iptali, profil, sepet, checkout, sipariş listesi ve sahiplik-kapsamlı ödeme durumu | ADR-0150, `R66-release-gate-manifest-2026-09-19`, `R69-member-order-detail-payment-status-2026-09-19`, `docs/api/member-mobile-v1.openapi.json`, `docs/api/member-commerce-v1.openapi.json` |
-| Public proje komut alanı | Tamamlandı | `hydro project new`, `hydro project check` (varsa generated resource'ları da dependency-free doğrular) | `R5-sdk-project-namespace`, `R5-sdk-project-check`, `R6-project-resource-preflight` |
-| Payload uyumlu CLI akışı | Tamamlandı | `check`, `module new`, `resource new`, `resource check` ve `api diff`; eski komutlar korunur | `R5-cli-new-aliases` |
-| İmzalı schema/migration diff | Tamamlandı | Release ledger checksum karşılaştırması; silme/değişiklik fail-closed | `R5-schema-diff` |
-| Permission contract preflight | Tamamlandı | Güvenli/tekrarsız permission adları ve `permissions check` | `R5-permissions-check` |
-| Üretilen SDK rehberi | Tamamlandı | Yeni projede `docs/SDK.md` | `R5-generated-sdk-guide` |
-| Runtime artifact doğrulama | Tamamlandı | `hydro runtime verify [--root PATH]` | `R5-runtime-artifact-verification` |
-| Signed manifest artifact hygiene | Tamamlandı | Duplicate/path/size/checksum fail-closed kontrolleri | `R5-release-manifest-artifact-hygiene` |
-| Platform hedefi ve artifact çözümleme | Tamamlandı | `linux-amd64`, `windows-arm64` vb. hedefler | `R5-sdk-platform-targets`, `R5-sdk-artifact-resolution` |
-| Güvenli runtime cache yolu | Tamamlandı | Ürün/sürüm/hedef bazlı deterministik cache | `R5-sdk-runtime-cache` |
-| Cache listeleme/temizleme | Tamamlandı | Sürüm koruma listesi + dry-run + symlink reddi | `R5-sdk-cache-gc` |
-| Atomik artifact kurulumu | Tamamlandı | checksum/size doğrulaması + atomic rename | `R5-sdk-atomic-install` |
-| Download URL ve bounded download | Tamamlandı | HTTPS, redirect kapalı, boyut sınırı | `R5-sdk-download-url-policy`, `R5-sdk-bounded-download` |
-| Grant doğrulama ve indirme bağı | Tamamlandı | proje/core/sdk/expiry/url kontrolleri | `R5-sdk-artifact-grant`, `R5-sdk-grant-download-integration`, `R5-sdk-grant-parser` |
-| Broker grant istemcisi | Tamamlandı (yerel) | Bounded POST, koordinat/feature preflight, token header, redirect/status/response ve tek çağrıda lock doğrulaması | `R5-sdk-broker-client` |
-| Typed frontend query adapter | Kısmi tamamlandı (yerel) | Üretilen `react.ts` içinde framework-neutral typed query options ve stabil query key yardımcıları; generated API client artık bounded query ve AbortSignal kullanıyor | `R5-typed-frontend-query-adapter`, `R5-generated-client-query-cancellation` |
-| Taxonomy contract | Kısmi tamamlandı (yerel) | Çok dilli kategori/etiket, parent cycle ve related-content referanslarını bounded doğrulayan provider-neutral sözleşme | `R5-taxonomy-contract` |
-| Search contract | Kısmi tamamlandı (yerel) | Bounded query/locale/pagination ve deterministik sonuç sözleşmesi; provider/index seçimi açık | `R5-search-contract` |
-| Generated SWR adapter | Kısmi tamamlandı (yerel) | Kaynaksız dependency-free typed key/fetcher çıktısı; browser entegrasyonu açık; tüm adapter'lar için namespaced `index.ts` giriş noktası üretildi | `R5-generated-swr-adapter`, `R5-generated-frontend-index` |
-| Generated frontend query bounds | Tamamlandı (yerel) | Üretilen query adapter page/page-size/sort/filter sınırlarını istek URL'si oluşmadan uygular; browser/provider kabulü açık | `R5-generated-query-input-bounds` |
-| Form contract | Kısmi tamamlandı (yerel) | Bounded metadata ve submission normalizasyonu; inbox/consent/delivery modüle ait | `R5-form-contract` |
-| Kit dependency resolution | Kısmi tamamlandı (yerel) | Allowlisted dependency expansion, validated registry constructor ve deterministic kit set; generated admin/SDK/runtime artifacts now include resolved dependencies and typed optional descriptors; implementation loading/compatibility matrix modüle ait | `R5-kit-dependency-resolution`, `R5-generated-kit-dependency-artifacts`, `R5-kit-descriptor-metadata`, `R6-validated-kit-registry` |
-| Generated form schema | Kısmi tamamlandı (yerel) | Collection spec’inden deterministic `form.schema.json`; business validation/inbox modüle ait | `R5-generated-form-schema` |
-| Frontend starter manifest | Kısmi tamamlandı (yerel) | Preset/presentation/features/design-system seçeneklerini bildiren credential-free manifest | `R5-frontend-starter-manifest` |
-| Frontend manifest CLI check | Tamamlandı (yerel) | `hydro frontend check --manifest PATH [--json]` proje üretmeden aynı fail-closed route doğrulamasını çalıştırır | `R5-frontend-manifest-check-command` |
-| Frontend manifest input bounds | Tamamlandı (yerel) | Manifest dosyası 1 MiB, route adı/path/test-id uzunlukları bounded ve non-regular dosyalar reddedilir | `R5-bounded-frontend-manifest-input` |
-| Generated resource self-description | Tamamlandı (yerel) | Her generated collection deterministic `spec.json` ve artifact checksum'ları taşır; `hydro resource check --root` spec dosyalarını keşfedip tüm scaffold'u dependency-free ve fail-closed doğrular | `R6-generated-resource-discovery`, `R6-generated-artifact-integrity` |
-| Generated OpenAPI query/error contract | Tamamlandı (yerel) | OpenAPI çıktısı bounded list query parametrelerini ve standart `HydroAPIError` yanıtlarını içerir; `hydro validate api` request parametre/body silinmesi ve optional→required kırılmalarını da yakalar | `R6-generated-openapi-contract`, `ADR-0026` |
-| Versioned global resource contract | Tamamlandı (yerel) | Blueprint `type: global` tekil kaynak metadata'sı, global ID normalizasyonu ve admin manifest/API sözleşmesi üretir | `ADR-0224`, `305072e1`, `c5f702df` |
-| Generated global singleton transport | Tamamlandı (yerel) | Global kaynakların boş route GET'i stable `global` ID ile tekil kayda çözülür; collection list yüzeyi açılmaz | `ADR-0224`, `0338bf24`, `c57ce5d7` |
-| Bounded public relation plan | Tamamlandı (yerel) | Relation resolver/eager-loader için cardinality, depth, edge ve item bütçelerini provider-neutral contract ile sınırlar; authorization/tenant policy Edition'a aittir | `ADR-0230` |
-| DX iteration benchmark refresh | Tamamlandı (yerel ölçüm) | Üç koşulu temiz Windows akışında project scaffold/resource generation/compatibility acceptance medianı 1.706 s; Payload eşdeğer koşusu yapılmadan parity iddiası yok | `docs/validation/dx-iteration-2026-09-22-deep-query.json` |
-| İki resource golden-path baseline | Tamamlandı (HydroGo + Payload smoke) | Testimonial ve bağımsız Article fixture'ında üçer koşu; median 1.651 s / 1.546 s. Payload 3.90.1 SQLite harness'ında build, cold/warm admin ve warm API smoke ölçüldü; authenticated CRUD, p95/p99 ve kapasite parity'si açık | `docs/validation/R102-hydrogo-golden-path-baseline-2026-09-22.md` |
-| Full-suite/static gate refresh | Tamamlandı (yerel Windows) | Full `go test`, `go vet`, HTML comment lint ve ADR drift kapıları yeniden geçti | `docs/validation/R103-full-suite-2026-09-22.md` |
-| Generated global singleton DB invariant | Tamamlandı (contract seviyesinde) | `type: global` generated migration'ları `CHECK (id = 'global')` ile ikinci satırı reddeder; SQLite/PostgreSQL operator migration'ı gerekir | `ADR-0238`, generator global contract test |
-| Production gate runner PowerShell compatibility | Tamamlandı (yerel script) | Windows PowerShell 5 parser hatası giderildi; URL yoksa fail-closed preflight korunuyor | `docs/validation/R104-production-gate-script-2026-09-22.md` |
-| WSL PostgreSQL/Redis production-gate refresh | Tamamlandı (yerel servisler) | Full/shuffled/race, reproducible build, portable benchmark ve Redis atomic limiter kapıları geçti; gerçek restore/proxy/key/capacity tatbikatları açık | `docs/validation/R105-wsl-production-gates-2026-09-22.md` |
-| WSL restore/Redis disposable drills | Tamamlandı (yerel servisler) | Disposable PostgreSQL backup/restore + contract ve geçici Redis atomic/race tatbikatları geçti; production proxy/key/capacity dış kapıları açık | `docs/validation/R106-wsl-restore-redis-drills-2026-09-22.md` |
-| Generated global Admin surface | Tamamlandı (contract seviyesinde) | Global kaynak list template'i tablo/pagination üretmez; singleton form yüzeyine yönlendirir ve generated test ile korunur | `ADR-0239`, generator global admin test |
-| Capacity profile baseline refresh | Tamamlandı (yerel smoke) | Compact/standard/distributed profilleri 100 warm-up + 20 örnekle ölçüldü; peak working set 92.2/94.8/101.5 MiB; müşteri SLA'sı değildir | `docs/validation/R107-capacity-profile-baseline-2026-09-22.md` |
-| Global contract static refresh | Tamamlandı (yerel) | Generator global test, ADR drift (261) ve HTML comment lint tekrar geçti | `docs/validation/R108-static-contract-refresh-2026-09-22.md` |
-| Post-push security revalidation | Tamamlandı (source-level) | Son pushed global/gate değişiklikleri önceki audit ile yeniden karşılaştırıldı; yeni source-level bulgu yok; provider/penetration kapıları açık | `docs/validation/R109-security-post-push-revalidation-2026-09-22.md` |
-| Core over-engineering audit | Tamamlandı (audit) | Whole-repo ponytail incelemesi güvenli silme/dependency replacement bulmadı; deprecated v0 Module removal'ı compatibility window'a ertelendi | `docs/validation/R110-ponytail-audit-2026-09-22.md` |
-| Core footprint / P0 baseline | Kısmi (audit; P0 açık) | Windows amd64 universal binary 36.98 MiB; örnek Edition'lar 15.05 MiB/89 non-stdlib package bütçesiyle CI'da ölçülüyor; `profile explain/check` gerçek Edition composition/link graph'ına bağlı değil ve full Edition/inactive resource gate'leri yok | `ADR-0247`, `R120-core-footprint-baseline-2026-09-22.md`, `R121-profile-cli-contract-2026-09-22.md`, `R122-edition-footprint-gate-2026-09-22.md` |
-| Bounded Admin saved-view contract | Tamamlandı (yerel) | Kullanıcı görünümleri için kolon/filtre/sort metadata'sını field/operator allowlist ve boyut bütçeleriyle doğrular; execution policy Edition'a aittir | `ADR-0231` |
-| Bounded offline sync contract | Tamamlandı (yerel) | Saha/offline Edition'lar için cursor, idempotent command, payload ve batch bütçelerini doğrular; conflict/attachment policy Edition'a aittir | `ADR-0232` |
-| Public tenant scope contract | Tamamlandı (yerel) | External Edition boundary için fail-closed tenant context/cache key sözleşmesi; authenticated resolver ve DB RLS/predicate wiring Edition'a aittir | `ADR-0233` |
-| Generated Admin view metadata | Tamamlandı (yerel) | Her resource için deterministic `admin/views.json` default view üretir ve compatibility lock ile doğrular; user persistence Edition'a aittir | `ADR-0234` |
-| Versioned field validation binding | Tamamlandı (yerel) | Blueprint validation metadata'sı generated `validation.go` içine taşınır ve service Create/Update tarafından çağrılır | `ADR-0226`, `110833a0`, `b985bf7b` |
-| Client Edition lifecycle hook scaffold | Tamamlandı (yerel) | Scaffold mevcut custom hook dosyasını ezmeden Before/After create/update/delete iskeleti üretir; yan etkiler outbox'a yönlendirilir | `ADR-0227`, `5a98918d` |
-| Public bounded resource query contract | Tamamlandı (yerel) | Client Edition'ların import edebileceği `extension/v1` parser alan/operator allowlist ve query budget'lerini uygular | `ADR-0228`, `c67bdf71` |
-| Generated bounded collection list transport | Tamamlandı (yerel) | Generated repository/service/HTTP transport limit-page-offset ve stable sort allowlist ile collection GET sağlar | `ADR-0229`, `00af1350`, `c3123829` |
-| Generated route composition helper | Tamamlandı (yerel) | Her resource `runtime.go` içinde policy-neutral `Register<Name>Route` üretir; tenant-scoped kaynaklar resolver ister, migration/worker/middleware Edition'da kalır | `ADR-0240`, generator contract test |
-| Versioned Blueprint input boundary | Tamamlandı (yerel) | Blueprint YAML/JSON için explicit/implicit `v0` kabul edilir; desteklenmeyen sürüm artifact üretmeden reddedilir ve JSON Schema ile eşlenir | `ADR-0241`, blueprint loader tests |
-| Resource auth composition flag | Tamamlandı (yerel) | Blueprint `auth: true` Spec/module metadata'sına taşınır ve authenticated Identity/Session/RBAC wiring checklist'i üretir; auth sistemi veya grant otomatik oluşturulmaz | `ADR-0242`, blueprint loader tests |
-| Generated auth route guard | Tamamlandı (yerel) | `auth: true` generated route registration Edition checker olmadan fail-closed reddedilir ve anonymous request 401 alır; Identity/Session/RBAC implementasyonu Edition-owned kalır | `ADR-0243`, generator auth guard test |
-| Generated bounded workflow contract | Tamamlandı (yerel) | Blueprint workflow grafiği 32 state/transition sınırı ve known-state doğrulamasıyla `workflow.json` üretir; transaction, role policy, schedule ve outbox execution module/Edition'a aittir | `ADR-0244`, blueprint workflow tests |
-| Blueprint bounded relation metadata ve many-valued storage | Tamamlandı (yerel; PostgreSQL canlı sertifikasyonu açık) | Çoklu relation alanları yalnız normalized tenant-aware join table'a yazılır; item-bound replacement kendi transaction'ında veya Edition transaction'ına katılarak atomik çalışır; hedef yetkisi, eager loading ve cascade Edition/provider sorumluluğudur | `ADR-0245`, `ADR-0246`, generator ve SQLite Edition testleri |
-| Generated deep-query binding | Tamamlandı (yerel) | Public query AST generated transporttan parse edilir, field allowlist ve bound SQL ile equals/contains/in/exists/range filtreleri uygulanır | `ADR-0228`, `ADR-0229`, `c28d2746` |
-| Bounded HTTP idempotency pilot | Kısmi tamamlandı (yerel) | Site form submit için SQLite/PostgreSQL durable replay/conflict sözleşmesi, generated TypeScript mutation helper'ı, Commerce checkout bounded key + request fingerprint conflict koruması ve Stripe payment-intent provider-key forwarding; iyzico/PayTR provider certificationı açık | `R20-form-idempotency`, `R21-generated-idempotency-client`, `R25-commerce-idempotency-key-validation`, `R26-stripe-payment-intent-idempotency`, `R27-commerce-order-fingerprint`, `ADR-0136` |
-| Site inactive-module construction guard | Tamamlandı (yerel) | Site service, forms binding, limiter ve HTTP handler yalnızca Site modülü etkinse oluşturulur; preset route/migration acceptance hâlâ ayrı kanıttır | `R22-site-module-zero-construction`, `R17-wsl-preset-module-isolation` |
-| Pages cache inactive-module guard | Tamamlandı (yerel) | Pages kapalı profillerde in-process/Redis page cache oluşturulmaz; metrics provider nil-safe kalır | `R23-pages-cache-zero-construction`, `R17-wsl-preset-module-isolation` |
-| Members HTTP inactive-module guard | Tamamlandı (yerel) | Members kapalı profillerde Members HTTP handler/limiter oluşturulmaz; Commerce session çözümlemesi için gereken service korunur | `R24-members-module-zero-construction`, `R17-wsl-preset-module-isolation` |
-| Configurable workflow contract | Kısmi tamamlandı (yerel) | Admin Studio’da bounded custom state/transition doğrulaması; persistence ve moderation UI modüle ait | `R5-configurable-workflow` |
-| Bounded Admin bulk contract | Kısmi tamamlandı (yerel) | 500 kayıt sınırı, deterministik ID normalizasyonu ve fail-closed istek zarfı; generated `bulk.ts` aynı zarfı üretir; mutation/policy modüle ait | `R5-bounded-admin-bulk-contract`, `R5-generated-bulk-request-adapter` |
-| Opt-in Admin bulk list surface | Kısmi tamamlandı (yerel) | `BulkActions` tanımlı collection'larda erişilebilir seçim kutuları ve escaped action metadata; gerçek mutation/CSRF/policy modüle ait | `R5-opt-in-admin-bulk-list-surface` |
-| Bounded async relation contract | Kısmi tamamlandı (yerel) | 50 varsayılan/100 hard limit, bounded query/cursor ve deterministic ID/label projection; provider lookup/auth modüle ait | `R5-bounded-async-relation-contract` |
-| Locale fallback chain | Kısmi tamamlandı (yerel) | Exact → primary language → supported default sırası, 128 locale sınırı ve fail-closed normalizasyon; public Pages ve News service entegrasyonları eklendi, modül kabul/edition kanıtı açık | `R5-locale-fallback-chain`, `R6-pages-locale-fallback-integration`, `R6-news-locale-fallback-integration` |
-| Commerce locale money rendering | Tamamlandı (yerel) | Product, variant, catalog, cart ve checkout yüzeyleri exact integer-cent locale formatter kullanıyor; float-style template kullanımı kaldırıldı | `R28-commerce-locale-money-rendering` |
-| Frontend selected design-system metadata | Tamamlandı (yerel) | Generated `frontend/starter.json` artık seçili providerı ve desteklenen provider-agnostic adapter listesini ayrı alanlarda taşır | `R29-frontend-selected-design-system` |
-| DX iteration baseline | Kısmi tamamlandı (yerel) | Üç tekrarlı temiz Windows ölçümünde scaffold/resource generation/compatibility acceptance medianı 1.191 saniye; Payload karşılaştırması ve ikinci bağımsız müşteri senaryosu açık | `R30-dx-iteration-benchmark`, `R31-dx-iteration-benchmark-3-runs` |
-| Headless starter error/idempotency parity | Tamamlandı (yerel) | Bağımsız TypeScript starter checkout key doğrulaması, typed API error/request-id ve header + streaming bounded response korumasını generated client ile hizalar | `R32-headless-starter-error-idempotency` |
-| WSL production-gate preflight (current commit) | Tamamlandı (yerel servis) | PostgreSQL 18.6 + Redis/Valkey üzerinde full/shuffled/race, reproducible build ve portable benchmark yeniden geçti; gerçek restore/proxy/key/capacity kapıları açık | `R33-wsl-production-gates-current` |
-| Headless starter client contract smoke | Tamamlandı (yerel) | Derlenmiş TypeScript client için idempotency, typed error/request-id, normal response ve chunked 2 MiB sınırı Node smoke testiyle doğrulanıyor | `R34-headless-starter-client-contract-smoke` |
-| Headless starter E2E wiring | Tamamlandı (yerel/CI script) | `scripts/run-e2e.ps1` generated browser journeys öncesinde `examples/headless-starter` contract smoke testini zorunlu çalıştırıyor | `R35-headless-starter-e2e-wiring` |
-| Headless starter client bounds | Tamamlandı (yerel) | Contract smoke timeout yapılandırmasının 1–120000 ms fail-closed sınırlarını da doğruluyor | `R36-headless-starter-client-bounds` |
-| Headless starter timeout abort | Tamamlandı (yerel) | Contract smoke tamamlanmayan istekte gerçek `AbortController` timeout sinyalini doğruluyor | `R37-headless-starter-timeout` |
-| Headless starter local verification gate | Tamamlandı (yerel/CI) | `scripts/verify-local.ps1` npm mevcutsa headless starter smoke testini push doğrulamasına bağlıyor; Node olmayan ortamlarda açık uyarıyla kontrollü skip ediyor | `R38-local-verification-headless-starter` |
-| Local Compose loopback bindings | Tamamlandı (yerel) | PostgreSQL, Redis ve MinIO geliştirme portları yalnızca loopback'e bind ediliyor; LAN'a yanlışlıkla servis açılmıyor | `R39-local-compose-loopback-bindings` |
-| Compose binding security lint | Tamamlandı (yerel/CI) | Loopback-only Compose binding'leri `verify-local.ps1` içinde fail-closed lint ile korunuyor | `R40-compose-security-lint` |
-| Headless starter external abort | Tamamlandı (yerel) | Contract smoke host `AbortSignal` iptalinin internal request controller'a aktarıldığını doğruluyor | `R41-headless-starter-external-abort` |
-| Headless starter origin validation | Tamamlandı (yerel) | Client absolute HTTP(S) origin ve credential/scheme sınırlarını request öncesi fail-closed doğruluyor | `R42-headless-starter-origin-validation` |
-| Headless starter per-request abort | Tamamlandı (yerel) | Public client metotları çağrı-başı `HydroGoRequestOptions.signal` ile seçici iptali destekliyor | `R43-headless-starter-per-request-abort` |
-| Generated client abort/origin parity | Tamamlandı (yerel) | Project generator `HydroClient` çıktısı HTTP(S) baseUrl doğrulaması ve read çağrı-başı abort seçenekleriyle starter sözleşmesini eşliyor | `R44-generated-client-abort-origin-parity` |
-| Local Compose image pinning | Tamamlandı (yerel) | MinIO/Redis fixture image'ları release tag'lerine sabitlendi; `:latest` kullanımı Compose lint ile reddediliyor | `R45-compose-image-pinning` |
-| Generated client stream cleanup | Tamamlandı (yerel) | Generated bounded response reader `finally` içinde `releaseLock()` ile stream lock sızıntısını önlüyor | `R46-generated-client-stream-lock` |
-| Development Compose exact image pins | Tamamlandı (yerel) | PostgreSQL/Redis geliştirme fixture’ları exact patch/release tag’lerine sabitlendi; mutable major tag’ler lint ile reddediliyor | `R47-compose-development-image-pinning` |
-| Generated client request ID parity | Tamamlandı (yerel) | Generated `HydroAPIError.requestId` body/header request ID’sini taşıyor; oversize hata yolu da korelasyonu koruyor | `R48-generated-client-request-id` |
-| Generated client timeout parity | Tamamlandı (yerel) | Generated `HydroClient` timeout değerini starter ile aynı 1–120000 ms fail-closed sözleşmesinde doğruluyor | `R49-generated-client-timeout-parity` |
-| Generated client relative-path boundary | Tamamlandı (yerel) | Generated `HydroClient` mutlak/protocol-relative mutation path'lerini reddediyor; yapılandırılmış API anahtarının yanlış hosta taşınmasını engelliyor | `R50-generated-client-relative-path` |
-| WSL PostgreSQL + Redis gate preflight | Tamamlandı (yerel servis) | PostgreSQL 18.6 ve Redis/Valkey üzerinde full/shuffled/race, reproducible build, portable benchmark ve atomic limiter/TTL kanıtı | `R51-wsl-postgresql-redis-gates` |
-| Local production drill refresh | Tamamlandı (yerel) | İzole SQLite readiness, backup/release/portable kontratları ve 20 tekrarlı blue-green cache rollback stability geçti | `R52-local-production-drills` |
-| Generated client origin-bypass hardening | Tamamlandı (yerel) | URL parser backslash-normalizasyonuyla başka origin'e kaçan request path'leri resolved-origin karşılaştırmasıyla reddediliyor | `R53-generated-client-origin-bypass` |
-| S3 object-key/public-base boundary hardening | Tamamlandı (yerel) | Tüm blob işlemleri ortak bounded key doğrulaması kullanıyor; public base credential/query/fragment taşıyamıyor | `R54-s3-object-key-boundary` |
-| S3 endpoint URL boundary hardening | Tamamlandı (yerel) | URL biçimli endpoint'lerde HTTP(S), credentialsız ve query/fragmentsız yapılandırma zorunlu | `R55-s3-endpoint-boundary` |
-| S3/CDN runtime configuration wiring | Tamamlandı (yerel) | `cdn_base_url` ve `s3_force_path_style` config değerleri çalışan S3 blob store'a aktarılıyor; credential/query/fragment sınırları korunuyor | `R56-s3-config-wiring` |
-| Public media CDN resolution | Tamamlandı (yerel) | Public Pages, News ve Commerce server-rendered görselleri optional provider URL’sini kullanıyor; provider yoksa güvenli same-origin fallback korunuyor | `R58-public-media-cdn-consumers` |
-| S3/CDN public URL boundary | Kısmi tamamlandı (yerel) | S3-compatible path-style seçeneği, explicit HTTPS public base ve bounded object URL üretimi; private media için 1s–24h presigned URL capability ve protected `/api/media/{id}/url` endpoint’i eklendi; gerçek provider/CDN ve invalidation kanıtı açık | `R6-s3-cdn-public-url-boundary`, `R6-bounded-private-media-urls`, `R6-protected-media-url-endpoint` |
-| WSL yerel doğrulama | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go test ./... -p 1 -timeout=5m` | `wsl-full-suite-2026-09-16-r5` |
-| WSL statik kalite doğrulaması | Tamamlandı (yerel) | Ubuntu/WSL2 üzerinde `go vet ./...` | `wsl-vet-and-full-suite-2026-09-16` |
-| WSL race doğrulaması | Tamamlandı (yerel) | Broker/runtime/release hedef paketleri `go test -race` | `wsl-race-broker-runtime-2026-09-16` |
-| OCI container image definition | Tamamlandı (statik yerel) | Non-root, credential-free amd64 Dockerfile, bounded build context ve daemon'sız lint kapısı | `R6-container-image-definition-2026-09-16` |
-| Gerçek Redis rate-limit atomic/TTL kanıtı | Tamamlandı (yerel servis) | `HYDRO_TEST_REDIS_URL` ile ilk istek/limit reddi/TTL doğrulaması; servis yoksa test skip | `R6-redis-rate-limit-2026-09-16` |
-| PostgreSQL production-gate otomasyonu | Tamamlandı (WSL servis) | PostgreSQL 18.6 üzerinde tam/shuffled/race suite, reproducible build ve portable benchmark | `R6-postgres-production-gates-2026-09-16` |
+| Consumer/member mobile API | Completed (local) | Dedicated `members.Member` bearer session with register/login/refresh, device revocation, profile, cart, checkout, order history, and ownership-scoped payment status | ADR-0150, `R66-release-gate-manifest-2026-09-19`, `R69-member-order-detail-payment-status-2026-09-19`, `docs/api/member-mobile-v1.openapi.json`, `docs/api/member-commerce-v1.openapi.json` |
+| Public project command space | Completed | `hydro project new`, `hydro project check` (dependency-free verification of generated resources when present) | `R5-sdk-project-namespace`, `R5-sdk-project-check`, `R6-project-resource-preflight` |
+| Payload-compatible CLI flow | Completed | `check`, `module new`, `resource new`, `resource check`, and `api diff`; legacy aliases preserved | `R5-cli-new-aliases` |
+| Signed schema/migration diff | Completed | Compares release ledger checksums; deletions/modifications fail closed | `R5-schema-diff` |
+| Permission contract preflight | Completed | Safe, collision-free permission identifiers and `permissions check` | `R5-permissions-check` |
+| Generated SDK guide | Completed | Emits `docs/SDK.md` in newly scaffolded projects | `R5-generated-sdk-guide` |
+| Runtime artifact verification | Completed | `hydro runtime verify [--root PATH]` | `R5-runtime-artifact-verification` |
+| Signed manifest artifact hygiene | Completed | Fail-closed checks for duplicate entries, paths, sizes, and checksums | `R5-release-manifest-artifact-hygiene` |
+| Platform targets & artifact resolution | Completed | Supports `linux-amd64`, `windows-arm64`, and other target platforms | `R5-sdk-platform-targets`, `R5-sdk-artifact-resolution` |
+| Secure runtime cache paths | Completed | Deterministic cache directory names keyed by product, version, and target | `R5-sdk-runtime-cache` |
+| Cache listing and garbage collection | Completed | Version retention allowlist + dry-run + rejection of symlinks | `R5-sdk-cache-gc` |
+| Atomic artifact installation | Completed | Checksum and size verification + atomic filesystem rename | `R5-sdk-atomic-install` |
+| Download URLs & bounded downloads | Completed | Enforces HTTPS, redirects disabled, and bounded download sizes | `R5-sdk-download-url-policy`, `R5-sdk-bounded-download` |
+| Grant verification & download binding | Completed | Validates project, core, SDK, expiration, and URL constraints | `R5-sdk-artifact-grant`, `R5-sdk-grant-download-integration`, `R5-sdk-grant-parser` |
+| Broker grant client | Completed (local) | Bounded POST, coordinates/features preflight, token headers, redirect/status/response validation, and single-call lock verification | `R5-sdk-broker-client` |
+| Typed frontend query adapter | Partially completed (local) | Framework-neutral typed query options and stable query key helpers in generated `react.ts`; generated API client enforces bounded queries and `AbortSignal` | `R5-typed-frontend-query-adapter`, `R5-generated-client-query-cancellation` |
+| Taxonomy contract | Partially completed (local) | Provider-neutral contract validating multilingual category/tag structures, parent cyclic checks, and related-content references | `R5-taxonomy-contract` |
+| Search contract | Partially completed (local) | Bounded query/locale/pagination and deterministic result contracts; provider/index selection open | `R5-search-contract` |
+| Generated SWR adapter | Partially completed (local) | Dependency-free typed key/fetcher generator; browser integration open; namespaced `index.ts` entry point emitted for all adapters | `R5-generated-swr-adapter`, `R5-generated-frontend-index` |
+| Generated frontend query bounds | Completed (local) | Generated query adapters enforce page/page-size/sort/filter bounds before request URL generation; browser/provider acceptance open | `R5-generated-query-input-bounds` |
+| Form contract | Partially completed (local) | Bounded metadata and submission normalization; inbox/consent/delivery remain module-owned | `R5-form-contract` |
+| Kit dependency resolution | Partially completed (local) | Allowlisted dependency expansion, validated registry constructor, and deterministic kit sets; generated admin/SDK/runtime artifacts include resolved dependencies and typed optional descriptors; implementation loading/compatibility matrix remain module-owned | `R5-kit-dependency-resolution`, `R5-generated-kit-dependency-artifacts`, `R5-kit-descriptor-metadata`, `R6-validated-kit-registry` |
+| Generated form schema | Partially completed (local) | Deterministic `form.schema.json` from collection spec; business validation/inbox remain module-owned | `R5-generated-form-schema` |
+| Frontend starter manifest | Partially completed (local) | Credential-free manifest declaring preset, presentation, features, and design-system options | `R5-frontend-starter-manifest` |
+| Frontend manifest CLI check | Completed (local) | `hydro frontend check --manifest PATH [--json]` executes identical fail-closed route validation without project generation | `R5-frontend-manifest-check-command` |
+| Frontend manifest input bounds | Completed (local) | Rejects manifest files exceeding 1 MiB, non-regular files, or unbounded route name/path/test-id lengths | `R5-bounded-frontend-manifest-input` |
+| Generated resource self-description | Completed (local) | Every generated collection contains deterministic `spec.json` and artifact checksums; `hydro resource check --root` discovers specs and validates entire scaffold dependency-free and fail closed | `R6-generated-resource-discovery`, `R6-generated-artifact-integrity` |
+| Generated OpenAPI query/error contract | Completed (local) | OpenAPI outputs declare bounded list query parameters and standard `HydroAPIError` responses; `hydro validate api` catches parameter/body removals and optional-to-required breaking changes | `R6-generated-openapi-contract`, `ADR-0026` |
+| Versioned global resource contract | Completed (local) | Blueprint `type: global` emits singleton resource metadata, global ID normalization, and admin manifest/API contracts | `ADR-0224`, `305072e1`, `c5f702df` |
+| Generated global singleton transport | Completed (local) | Empty route GET on global resources resolves to singleton record via stable `global` ID; collection list surface omitted | `ADR-0224`, `0338bf24`, `c57ce5d7` |
+| Bounded public relation plan | Completed (local) | Bounds cardinality, depth, edge count, and item budgets for relation resolvers/eager loaders via provider-neutral contracts; authorization and tenant policy remain Edition-owned | `ADR-0230` |
+| DX iteration benchmark refresh | Completed (local measurement) | Scaffolding, resource generation, and compatibility acceptance median of 1.706 s across 3 clean Windows runs; parity claims withheld pending matching Payload runs | `docs/validation/dx-iteration-2026-09-22-deep-query.json` |
+| Two-resource golden-path baseline | Completed (HydroGo + Payload smoke) | 3 runs each across Testimonial and independent Article fixtures; medians: 1.651 s / 1.546 s. Payload 3.90.1 SQLite harness measured for build, cold/warm admin, and warm API smoke; authenticated CRUD, p95/p99, and capacity parity remain open | `docs/validation/R102-hydrogo-golden-path-baseline-2026-09-22.md` |
+| Full-suite/static gate refresh | Completed (local Windows) | Full `go test`, `go vet`, HTML comment lint, and ADR drift checks passed | `docs/validation/R103-full-suite-2026-09-22.md` |
+| Generated global singleton DB invariant | Completed (contract level) | Generated migrations for `type: global` enforce `CHECK (id = 'global')` to reject secondary rows; operator migrations required for SQLite/PostgreSQL | `ADR-0238`, generator global contract test |
+| Production gate runner PowerShell compatibility | Completed (local script) | Resolved Windows PowerShell 5 parser error; preflight fails closed when URL is missing | `docs/validation/R104-production-gate-script-2026-09-22.md` |
+| WSL PostgreSQL/Redis production-gate refresh | Completed (local services) | Full/shuffled/race, reproducible build, portable benchmark, and Redis atomic limiter gates passed; real restore/proxy/key/capacity drills open | `docs/validation/R105-wsl-production-gates-2026-09-22.md` |
+| WSL restore/Redis disposable drills | Completed (local services) | Disposable PostgreSQL backup/restore + contracts and temporary Redis atomic/race drills passed; external production proxy/key/capacity drills open | `docs/validation/R106-wsl-restore-redis-drills-2026-09-22.md` |
+| Generated global Admin surface | Completed (contract level) | Global resource list template omits tables and pagination; redirects to singleton form surface, verified via generated tests | `ADR-0239`, generator global admin test |
+| Capacity profile baseline refresh | Completed (local smoke) | Measured Compact/Standard/Distributed profiles across 100 warm-up + 20 sample iterations; peak working set: 92.2 / 94.8 / 101.5 MiB; does not constitute customer SLA | `docs/validation/R107-capacity-profile-baseline-2026-09-22.md` |
+| Global contract static refresh | Completed (local) | Generator global tests, ADR drift check (261 ADRs), and HTML comment lint passed | `docs/validation/R108-static-contract-refresh-2026-09-22.md` |
+| Post-push security revalidation | Completed (source level) | Pushed global/gate changes compared against prior audit; zero new source-level findings; provider and penetration gates open | `docs/validation/R109-security-post-push-revalidation-2026-09-22.md` |
+| Core over-engineering audit | Completed (audit) | Repository-wide analysis revealed zero safe deletions or direct dependency replacements; deprecated v0 Module removal deferred to compatibility window | `docs/validation/R110-ponytail-audit-2026-09-22.md` |
+| Core footprint / P0 baseline | Partial (audit; P0 open) | Windows amd64 universal binary measured at 36.98 MiB; sample Editions measured in CI against 15.05 MiB / 89 non-stdlib package budget; `profile explain/check` not yet coupled to real Edition composition/link graphs, and full Edition/inactive resource gates open | `ADR-0247`, `R120-core-footprint-baseline-2026-09-22.md`, `R121-profile-cli-contract-2026-09-22.md`, `R122-edition-footprint-gate-2026-09-22.md` |
+| Bounded Admin saved-view contract | Completed (local) | Validates column, filter, and sort metadata for user views against field/operator allowlists and size budgets; execution policy remains Edition-owned | `ADR-0231` |
+| Bounded offline sync contract | Completed (local) | Validates cursor, idempotent commands, payload, and batch budgets for field/offline Editions; conflict and attachment policies remain Edition-owned | `ADR-0232` |
+| Public tenant scope contract | Completed (local) | Fail-closed tenant context and cache key contract for external Edition boundaries; authenticated resolver and DB RLS/predicate wiring remain Edition-owned | `ADR-0233` |
+| Generated Admin view metadata | Completed (local) | Generates deterministic `admin/views.json` default view per resource, verified against compatibility lock; user persistence remains Edition-owned | `ADR-0234` |
+| Versioned field validation binding | Completed (local) | Blueprint validation metadata wired into generated `validation.go` and executed by service Create/Update | `ADR-0226`, `110833a0`, `b985bf7b` |
+| Client Edition lifecycle hook scaffold | Completed (local) | Scaffolds Before/After create/update/delete skeletons without overwriting existing custom hooks; routes side effects to outbox | `ADR-0227`, `5a98918d` |
+| Public bounded resource query contract | Completed (local) | `extension/v1` parser enforces field/operator allowlists and query budgets importable by Client Editions | `ADR-0228`, `c67bdf71` |
+| Generated bounded collection list transport | Completed (local) | Generated repository, service, and HTTP transport provide collection GET with page/offset limits and stable sort allowlists | `ADR-0229`, `00af1350`, `c3123829` |
+| Generated route composition helper | Completed (local) | Generates policy-neutral `Register<Name>Route` in `runtime.go` per resource; tenant-scoped resources require resolvers, while migration/worker/middleware remain in Edition | `ADR-0240`, generator contract test |
+| Resource auth composition flag | Completed (local) | Blueprint `auth: true` is propagated to Spec/module metadata, emitting an authenticated Identity/Session/RBAC wiring checklist; auth system and grants are never generated automatically | `ADR-0242`, blueprint loader tests |
+| Generated auth route guard | Completed (local) | `auth: true` generated route registration fails closed without an Edition checker, returning 401 to anonymous requests; Identity/Session/RBAC implementations remain Edition-owned | `ADR-0243`, generator auth guard test |
+| Generated bounded workflow contract | Completed (local) | Blueprint workflow graphs emit `workflow.json` with a 32 state/transition bound and known-state validation; transactions, role policies, schedules, and outbox execution remain module/Edition responsibilities | `ADR-0244`, blueprint workflow tests |
+| Blueprint bounded relation metadata & many-valued storage | Completed (local; live PostgreSQL certification open) | Multi-valued relation fields persist strictly to normalized tenant-aware join tables; item-bound replacement executes atomically within its own or an enclosing Edition transaction; target authorization, eager loading, and cascade rules remain Edition/provider responsibilities | `ADR-0245`, `ADR-0246`, generator and SQLite Edition tests |
+| Generated deep-query binding | Completed (local) | Public query AST parsed from generated transport; applies equals, contains, in, exists, and range filters with field allowlists and bound SQL | `ADR-0228`, `ADR-0229`, `c28d2746` |
+| Bounded HTTP idempotency pilot | Partially completed (local) | Durable replay and conflict contracts on SQLite/PostgreSQL for Site form submissions, generated TypeScript mutation helpers, bounded key and request fingerprint conflict protection for Commerce checkout, and Stripe payment-intent provider key forwarding; iyzico/PayTR provider certifications open | `R20-form-idempotency`, `R21-generated-idempotency-client`, `R25-commerce-idempotency-key-validation`, `R26-stripe-payment-intent-idempotency`, `R27-commerce-order-fingerprint`, `ADR-0136` |
+| Site inactive-module construction guard | Completed (local) | Site service, forms binding, limiter, and HTTP handlers instantiated strictly when Site module is enabled; preset route and migration acceptance remain separate evidence | `R22-site-module-zero-construction`, `R17-wsl-preset-module-isolation` |
+| Pages cache inactive-module guard | Completed (local) | In-process and Redis page caches omitted in profiles where Pages is inactive; metrics provider remains nil-safe | `R23-pages-cache-zero-construction`, `R17-wsl-preset-module-isolation` |
+| Members HTTP inactive-module guard | Completed (local) | Members HTTP handlers and limiters omitted in profiles where Members is inactive; service required for Commerce session resolution is preserved | `R24-members-module-zero-construction`, `R17-wsl-preset-module-isolation` |
+| Configurable workflow contract | Partially completed (local) | Bounded custom state and transition validation in Admin Studio; persistence and moderation UI remain module-owned | `R5-configurable-workflow` |
+| Bounded Admin bulk contract | Partially completed (local) | 500-record bound, deterministic ID normalization, and fail-closed request envelopes; generated `bulk.ts` emits matching envelope; mutation and policy remain module-owned | `R5-bounded-admin-bulk-contract`, `R5-generated-bulk-request-adapter` |
+| Opt-in Admin bulk list surface | Partially completed (local) | Accessible selection checkboxes and escaped action metadata in collections declaring `BulkActions`; mutations, CSRF, and policy remain module-owned | `R5-opt-in-admin-bulk-list-surface` |
+| Bounded async relation contract | Partially completed (local) | 50 default / 100 hard item limit, bounded query/cursor, and deterministic ID/label projections; provider lookup and authorization remain module-owned | `R5-bounded-async-relation-contract` |
+| Locale fallback chain | Partially completed (local) | Exact -> primary language -> supported default precedence with 128-locale bound and fail-closed normalization; integrated into public Pages and News services; module acceptance and edition evidence open | `R5-locale-fallback-chain`, `R6-pages-locale-fallback-integration`, `R6-news-locale-fallback-integration` |
+| Commerce locale money rendering | Completed (local) | Product, variant, catalog, cart, and checkout surfaces utilize exact integer-cent locale formatting; float-style template formatting removed | `R28-commerce-locale-money-rendering` |
+| Frontend selected design-system metadata | Completed (local) | Generated `frontend/starter.json` exports selected provider and supported provider-agnostic adapter catalog in distinct fields | `R29-frontend-selected-design-system` |
+| DX iteration baseline | Partially completed (local) | Scaffolding, resource generation, and compatibility acceptance median of 1.191 s across 3 clean Windows runs; Payload comparison and second independent customer scenario open | `R30-dx-iteration-benchmark`, `R31-dx-iteration-benchmark-3-runs` |
+| Headless starter error/idempotency parity | Completed (local) | Independent TypeScript starter checkout key validation, typed API errors/request IDs, and header + streaming bounded response protections aligned with generated client | `R32-headless-starter-error-idempotency` |
+| WSL production-gate preflight (current commit) | Completed (local service) | Full/shuffled/race suites, reproducible build, and portable benchmark passed on PostgreSQL 18.6 + Redis/Valkey; real restore/proxy/key/capacity gates open | `R33-wsl-production-gates-current` |
+| Headless starter client contract smoke | Completed (local) | Node smoke test verifies idempotency, typed error/request ID, standard response, and chunked 2 MiB bound for compiled TypeScript client | `R34-headless-starter-client-contract-smoke` |
+| Headless starter E2E wiring | Completed (local/CI script) | `scripts/run-e2e.ps1` enforces `examples/headless-starter` contract smoke test prior to generated browser journeys | `R35-headless-starter-e2e-wiring` |
+| Headless starter client bounds | Completed (local) | Contract smoke verifies 1–120000 ms fail-closed timeout boundaries | `R36-headless-starter-client-bounds` |
+| Headless starter timeout abort | Completed (local) | Contract smoke verifies real `AbortController` timeout signal for pending requests | `R37-headless-starter-timeout` |
+| Headless starter local verification gate | Completed (local/CI) | `scripts/verify-local.ps1` wires headless starter smoke tests into pre-push verification when npm is present; skips cleanly with explicit warning in Node-free environments | `R38-local-verification-headless-starter` |
+| Local Compose loopback bindings | Completed (local) | PostgreSQL, Redis, and MinIO development ports bound strictly to loopback; services never exposed to LAN accidentally | `R39-local-compose-loopback-bindings` |
+| Compose binding security lint | Completed (local/CI) | Loopback-only Compose bindings enforced fail closed via lint in `verify-local.ps1` | `R40-compose-security-lint` |
+| Headless starter external abort | Completed (local) | Contract smoke verifies host `AbortSignal` cancellation propagates to internal request controller | `R41-headless-starter-external-abort` |
+| Headless starter origin validation | Completed (local) | Client validates absolute HTTP(S) origin, credential, and scheme boundaries fail closed prior to request execution | `R42-headless-starter-origin-validation` |
+| Headless starter per-request abort | Completed (local) | Public client methods support selective cancellation via per-call `HydroGoRequestOptions.signal` | `R43-headless-starter-per-request-abort` |
+| Generated client abort/origin parity | Completed (local) | Project generator `HydroClient` output matches starter contract with HTTP(S) baseUrl validation and per-call read abort options | `R44-generated-client-abort-origin-parity` |
+| Local Compose image pinning | Completed (local) | MinIO/Redis fixture images pinned to release tags; `:latest` usage rejected by Compose lint | `R45-compose-image-pinning` |
+| Generated client stream cleanup | Completed (local) | Generated bounded response reader uses `finally` with `releaseLock()` to prevent stream lock leaks | `R46-generated-client-stream-lock` |
+| Development Compose exact image pins | Completed (local) | PostgreSQL/Redis development fixtures pinned to exact patch/release tags; mutable major tags rejected by lint | `R47-compose-development-image-pinning` |
+| Generated client request ID parity | Completed (local) | Generated `HydroAPIError.requestId` carries body/header request ID; oversized error paths preserve correlation | `R48-generated-client-request-id` |
+| Generated client timeout parity | Completed (local) | Generated `HydroClient` verifies timeout values under identical 1–120000 ms fail-closed contract as starter | `R49-generated-client-timeout-parity` |
+| Generated client relative-path boundary | Completed (local) | Generated `HydroClient` rejects absolute or protocol-relative mutation paths; prevents transmitting configured API keys to wrong hosts | `R50-generated-client-relative-path` |
+| WSL PostgreSQL + Redis gate preflight | Completed (local service) | Verified full/shuffled/race suites, reproducible build, portable benchmark, and atomic limiter/TTL evidence on PostgreSQL 18.6 and Redis/Valkey | `R51-wsl-postgresql-redis-gates` |
+| Local production drill refresh | Completed (local) | Isolated SQLite readiness, backup/release/portable contracts, and 20-repetition blue-green cache rollback stability passed | `R52-local-production-drills` |
+| Generated client origin-bypass hardening | Completed (local) | Request paths attempting origin escape via backslash normalization rejected through resolved-origin comparison | `R53-generated-client-origin-bypass` |
+| S3 object-key/public-base boundary hardening | Completed (local) | All blob operations enforce unified bounded key validation; public base cannot carry credentials, query, or fragments | `R54-s3-object-key-boundary` |
+| S3 endpoint URL boundary hardening | Completed (local) | URL-formatted endpoints require HTTP(S) without credentials, query parameters, or fragments | `R55-s3-endpoint-boundary` |
+| S3/CDN runtime configuration wiring | Completed (local) | `cdn_base_url` and `s3_force_path_style` config values wired into running S3 blob store; credential/query/fragment boundaries enforced | `R56-s3-config-wiring` |
+| Public media CDN resolution | Completed (local) | Public Pages, News, and Commerce server-rendered images utilize optional provider URL; secure same-origin fallback preserved when absent | `R58-public-media-cdn-consumers` |
+| S3/CDN public URL boundary | Partially completed (local) | S3-compatible path-style option, explicit HTTPS public base, and bounded object URL generation; 1s–24h presigned URL capability and protected `/api/media/{id}/url` endpoint added for private media; real provider/CDN and invalidation evidence remains open | `R6-s3-cdn-public-url-boundary`, `R6-bounded-private-media-urls`, `R6-protected-media-url-endpoint` |
+| WSL local verification | Completed (local) | `go test ./... -p 1 -timeout=5m` on Ubuntu/WSL2 | `wsl-full-suite-2026-09-16-r5` |
+| WSL static quality verification | Completed (local) | `go vet ./...` on Ubuntu/WSL2 | `wsl-vet-and-full-suite-2026-09-16` |
+| WSL race detection | Completed (local) | `go test -race` on broker/runtime/release target packages | `wsl-race-broker-runtime-2026-09-16` |
+| OCI container image definition | Completed (static local) | Non-root, credential-free amd64 Dockerfile, bounded build context, and daemonless lint gate | `R6-container-image-definition-2026-09-16` |
+| Live Redis rate-limit atomic/TTL evidence | Completed (local service) | Initial request, limit rejection, and TTL verification via `HYDRO_TEST_REDIS_URL`; tests skip cleanly when service absent | `R6-redis-rate-limit-2026-09-16` |
+| PostgreSQL production-gate automation | Completed (WSL service) | Full/shuffled/race suite, reproducible build, and portable benchmark against PostgreSQL 18.6 | `R6-postgres-production-gates-2026-09-16` |
 
-## Henüz production servisi olmayan parçalar
+## Components Not Yet Operating as Production Services
 
-Bu repodaki SDK katmanı güvenli sözleşmeleri ve yerel artifact işlemlerini sağlar.
-Aşağıdaki dış bağımlılıklar gerçek endpoint, hesap ve release altyapısı olmadan
-tamamlanmış sayılamaz:
+The SDK layer in this repository provides secure contracts and local artifact operations.
+The following external dependencies cannot be deemed complete without real endpoints, accounts, and release infrastructure:
 
-1. OAuth/device-flow login ve token yenileme servisi.
-2. GitHub App veya private registry arkasında artifact broker.
-3. Cross-platform imzalı release pipeline ve public-key rotation.
-4. MSI, Homebrew, deb/rpm ve macOS notarization yayınları.
-5. Offline lisans, revocation, mirror ve rollback tatbikatları.
-6. S3/CDN sağlayıcısı, backup/restore ve disaster-recovery kanıtı.
+1. OAuth/device-flow authentication and token refresh service.
+2. Artifact broker backed by a GitHub App or private registry.
+3. Cross-platform signed release pipeline with public key rotation.
+4. Official MSI, Homebrew, deb/rpm, and macOS notarization releases.
+5. Offline licensing, revocation, mirror, and rollback rehearsals.
+6. S3/CDN provider integration, backup/restore, and disaster recovery evidence.
 
-Broker endpoint/grant/hata sözleşmesi [HYDRO_SDK_BROKER_API.md](HYDRO_SDK_BROKER_API.md)
-belgesinde uygulanabilir biçimde tanımlıdır; gerçek servis değildir.
+The broker endpoint, grant, and error contracts are actionable and specified in [HYDRO_SDK_BROKER_API.md](HYDRO_SDK_BROKER_API.md); they are not an active backend service.
 
-Private GitHub deposuna kullanıcı PAT'i koymak bu maddelerin yerine geçmez.
-İstemci yalnızca kısa ömürlü grant/URL almalı; kaynak kodu değil, imzalı artifact
-indirmelidir. Ayrıntılı kararlar için
-[`HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md`](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md)
-ve ADR-0091'e bakın.
+Placing user PATs into private GitHub repositories is not an acceptable substitute. Clients must receive only short-lived grants/URLs and download signed artifacts, never raw source code. See [`HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md`](HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md) and ADR-0091 for details.
 
-## Faz bazlı ilerleme
+## Progress by Phase
 
-- **Faz 0 (benchmark):** HydroGo iki bağımsız resource fixture'ında ölçüldü
-  (median 1.651 s / 1.546 s, yerel Windows); Payload 3.90.1 SQLite harness'ında
-  build, cold/warm admin ve warm API smoke ölçüldü. Authenticated CRUD,
-  p95/p99 yük testi ve kapasite parity'si açık (`R102`).
-- **Faz 1 (resource contract/CLI):** Kısmi. Proje namespace'i, lock yükleme ve
-  check akışı var; generated collection'lar artık deterministic `spec.json` ile
-  kendini tanımlıyor ve `hydro resource check --root` tüm scaffold'u keşfedip
-  doğruluyor; global resource, field validation, lifecycle scaffold ve bounded
-  collection list transport eklendi; rich query AST'nin generated transport'a
-  tam field/operator binding'i ve migration/admin/API runtime wiring'i hâlâ açık.
-- **Faz 2–3 (Admin/editorial):** Açık. Async relation, bulk işlemler, preview
-  bridge, schedule ve locale fallback için ürün kabul testleri gerekiyor.
-- **Tenant-scoped resource generation:** Tamamlandı (contract seviyesinde).
-  Blueprint `tenant_scoped` işareti generated model/repository/service/transport
-  yüzeylerini açık tenant parametresi ve fail-closed resolver ile üretir;
-  gerçek PostgreSQL RLS, provisioning, quota ve restore kabulü hâlâ üretim
-  kapısıdır (ADR-0235).
-- **Admin bulk execution primitive:** Tamamlandı (Core contract seviyesinde).
-  Module-owned callback ile sıralı, bounded ve callback hata metnini sızdırmayan
-  sonuç üretimi eklendi; authorization, idempotency, audit ve transaction
-  semantiği Edition/module sorumluluğunda kalıyor (ADR-0236).
-- **Edition-extensible tenant RLS verification:** Tamamlandı (contract
-  seviyesinde). Provisioning verifier artık generated tenant tablolarını
-  fail-closed şekilde doğrulayabiliyor; policy/migration oluşturma ve gerçek
-  PostgreSQL restore/capacity kanıtı hâlâ operasyon kapısıdır (ADR-0237).
-- **Faz 4 (kit ekosistemi):** Kısmi. Kit/edition sözleşmeleri mevcut; registry,
-  dependency çözümleme ve uyumluluk matrisi tamamlanmadı.
-- **Faz 5 (frontend SDK/starter):** Kısmi. Adapter sözleşmeleri, typed client/query akışı, disposable SQLite demo ve 47 testli yerel Chromium E2E kanıtı var; harici Client Edition ve production kimlik doğrulama kabulü tamamlanmadı.
-- **Headless client hardening:** Tamamlandı (yerel). Starter ve generated istemciler bounded timeout/hata gövdesi sınırı, typed `HydroAPIError` ve request-id taşıyan hata gövdesi kullanır; gerçek browser/kimlik doğrulama kabulü ayrı kapıdır.
-- **Faz 6 (production/upgrade):** Açık. Yerel production drill’leri (SQLite
-  readiness, backup/release/portable ve blue-green cache rollback) geçti;
-  PostgreSQL kapasitesi, gerçek proxy/restore ve imzalı cross-OS release
-  kanıtları bekliyor.
+- **Phase 0 (benchmark):** HydroGo measured across two independent resource fixtures (median 1.651 s / 1.546 s, local Windows); Payload 3.90.1 measured on SQLite harness for build, cold/warm admin, and warm API smoke. Authenticated CRUD, p95/p99 load tests, and capacity parity remain open (`R102`).
+- **Phase 1 (resource contract/CLI):** Partial. Project namespace, lock loading, and check workflows exist; generated collections self-describe via deterministic `spec.json`, and `hydro resource check --root` discovers and validates all scaffolds; global resources, field validation, lifecycle scaffolding, and bounded collection list transports were added; full rich query AST field/operator binding to generated transports and runtime wiring for migration/admin/API remain open.
+- **Phases 2–3 (Admin/editorial):** Open. Product acceptance tests required for async relations, bulk actions, preview bridge, scheduling, and locale fallback.
+- **Tenant-scoped resource generation:** Completed (at contract level). Blueprint `tenant_scoped` flag generates model/repository/service/transport surfaces with explicit tenant parameters and fail-closed resolvers; real PostgreSQL RLS, provisioning, quotas, and restore acceptance remain production gates (ADR-0235).
+- **Admin bulk execution primitive:** Completed (at Core contract level). Added ordered, bounded execution with module-owned callbacks that do not leak error strings; authorization, idempotency, audit, and transaction semantics remain the responsibility of the Edition/module (ADR-0236).
+- **Edition-extensible tenant RLS verification:** Completed (at contract level). Provisioning verifier validates generated tenant tables fail-closed; policy/migration emission and live PostgreSQL restore/capacity evidence remain operational gates (ADR-0237).
+- **Phase 4 (kit ecosystem):** Partial. Kit and edition contracts exist; registry, dependency resolution, and compatibility matrices are incomplete.
+- **Phase 5 (frontend SDK/starter):** Partial. Adapter contracts, typed client/query workflows, disposable SQLite demo, and local Chromium E2E evidence (47 tests) exist; external Client Edition and production authentication acceptance remain incomplete.
+- **Headless client hardening:** Completed (local). Starter and generated clients enforce bounded timeouts and error body sizes, returning typed `HydroAPIError` with request IDs; live browser/auth acceptance remains a distinct gate.
+- **Phase 6 (production/upgrade):** Open. Local production drills passed (SQLite readiness, backup/release/portable, and blue-green cache rollback); PostgreSQL capacity, real proxy/restore drills, and signed cross-OS release evidence remain pending.
 
-## Yerel doğrulama akışı
+## Local Verification Workflow
 
 Generated Edition runtime checklist now documents the optional `ResourceAccess`
 callback alongside the API authorization boundary. Edition authors are told to
@@ -422,22 +389,22 @@ register redirects; authorized conversion persists the redirect, updates the
 runtime registry and clears the report. Browser interaction and PostgreSQL
 route behavior remain open.
 
-Windows'ta:
+On Windows:
 
 ```powershell
 go test ./internal/sdkdist
 go test ./internal/projectgen ./internal/release ./cmd/hydro
 ```
 
-WSL Ubuntu'da (`whoami` sonucu `operator` olmalı):
+On WSL Ubuntu (`whoami` must be `operator`):
 
 ```bash
 cd /path/to/project
 go test ./... -p 1 -timeout=5m
 ```
 
-Test sonucu ve gözlem süresi `docs/validation/` altında tarihli rapor olarak
-eklenmelidir. Şifre veya token raporlara yazılmaz.
+Test results and observation duration must be added as a dated report under
+`docs/validation/`. Passwords or tokens must never be written to reports.
 
 2026-10-09 Admin Studio E2E recheck: `e2e` dependencies were installed
 offline from npm cache and Playwright discovered the two independent Edition
@@ -559,15 +526,13 @@ guidance. Turkish/English tests cover all three operations and the unavailable
 record fallback. Browser/PostgreSQL remain open; see
 `docs/validation/generated-admin-save-recovery-2026-10-09.md`.
 
-## Sonraki güvenli sıra
+## Next Safe Steps
 
-1. Payload benchmark'ını authenticated browser CRUD, seed veri ve p95/p99
-   yük testiyle tamamla.
-2. Resource contract'ın migration/admin/API runtime wiring kapsamını ölçüm
-   sonuçlarına göre genişlet.
-3. Login/broker için gerçek servis kararlarını ADR ile kabul et.
-4. İmzalı release pipeline ve installer'ları gerçek hesaplarla doğrula.
-5. Production kapasite/restore/upgrade tatbikatlarını çalıştır.
+1. Complete Payload benchmark with authenticated browser CRUD, seed data, and p95/p99 load testing.
+2. Expand resource contract migration/admin/API runtime wiring coverage based on benchmark measurements.
+3. Accept real service decisions for login/broker via ADRs.
+4. Verify signed release pipeline and installers against clean environments.
+5. Execute production capacity, restore, and upgrade drills.
 
 
 2026-10-09: The full root Go suite also passed with `HYDRO_TEST_POSTGRES_URL`

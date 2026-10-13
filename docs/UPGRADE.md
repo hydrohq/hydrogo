@@ -1,54 +1,54 @@
 # HydroGo Upgrade & Migration Runbook
 
-Bu doküman, HydroGo Core ve Client Edition projelerinin sıfır kesintiyle güncellenmesi, migrasyon güvenliği ve geri alma (rollback) prosedürlerini açıklar.
+This document describes zero-downtime upgrades, migration safety, and rollback procedures for HydroGo Core and Client Edition projects.
 
 ---
 
-## 1. Yükseltme Öncesi Kontrol (`hydro upgrade check`)
+## 1. Pre-Upgrade Preflight (`hydro upgrade check`)
 
-Yeni bir Core sürümüne geçmeden önce mevcut veritabanı şemasının ve konfigürasyonun yeni sürüme hazır olduğunu doğrulamak için `upgrade check` komutunu çalıştırın:
+Before advancing to a new Core version, run the `upgrade check` command to verify that the current database schema and configuration are ready for the new version:
 
 ```powershell
 hydro upgrade check --config config.yaml
 ```
 
-Çıktı örneği:
+Example output:
 ```text
 upgrade-ready profile=compact database=sqlite
 ```
 
-### Yapılan Kontroller:
-1. Veritabanı bağlantısı ve erişilebilirliği (`PingContext`).
-2. Gömülü Core migrasyonlarının ledger uyumluluğu (`database.CheckCompatibilityForModules`).
-3. Şema sürümünün geri alınamaz bir çatışma barındırmadığının tespiti.
+### Checks Performed:
+1. Database connectivity and reachability (`PingContext`).
+2. Ledger compatibility of embedded Core migrations (`database.CheckCompatibilityForModules`).
+3. Verification that the schema version contains no irreconcilable conflicts.
 
 ---
 
-## 2. Kilit Dosyası (`hydrogo.lock`) ve Core Uyumluluğu
+## 2. Lockfile (`hydrogo.lock`) and Core Compatibility
 
-Her yükseltme işlemi sırasında `hydrogo.lock` dosyası incelenir:
-- **Core Version:** Müşteri projesinin test edildiği Core sürümünü belirtir.
-- **Generator Version:** İskeletin üretildiği sürüm.
-- **Features:** Lisanslanan ve aktif edilen modüller listesi.
+During each upgrade operation, `hydrogo.lock` is inspected:
+- **Core Version:** Specifies the exact Core version against which the customer project was tested.
+- **Generator Version:** The generator version used to emit the scaffold.
+- **Features:** Catalog of enabled modules.
 
-Core güncellendiğinde `hydrogo.lock` içindeki sürüm bilgisi kontrollü biçimde güncellenir.
-
----
-
-## 3. Katkısal (Additive) Migrasyon Prensibi
-
-- HydroGo asla çalışma zamanında veya otomatik migrasyonlarda `DROP TABLE`, `DROP COLUMN` gibi yıkıcı (destructive) komutlar üretmez.
-- Eski binary ile yeni binary'nin aynı veritabanı üzerinde kısa bir süre birlikte çalışabilmesi (Blue/Green uyumluluğu - ADR-0005) için tüm şema değişiklikleri katkısaldır.
-- Yeni kolonlar `NULL` veya `DEFAULT` değerlerle eklenir.
+When Core is upgraded, version metadata inside `hydrogo.lock` is updated in a controlled, deliberate manner.
 
 ---
 
-## 4. Geri Alma (Rollback) Prosedürü
+## 3. Additive Migration Principle
 
-Eğer yeni sürümde bir sorun tespit edilirse:
-1. Trafiği anında önceki binary'ye yönlendirin.
-2. Katkısal migrasyonlar eski binary'nin çalışmasını engellemez.
-3. Gerekirse son doğrulanmış yedekten geri yükleme adımlarını izleyin:
+- HydroGo never emits destructive DDL such as `DROP TABLE` or `DROP COLUMN` at runtime or in automated migrations.
+- To ensure that older and newer binaries can safely operate side by side during blue/green cutovers (ADR-0005), all schema migrations are strictly additive.
+- New columns are added as `NULL` or with explicit `DEFAULT` constraints.
+
+---
+
+## 4. Rollback Procedure
+
+If an issue is detected with the new release:
+1. Immediately re-route traffic back to the previous binary.
+2. Additive migrations do not prevent the previous binary from operating normally.
+3. If necessary, follow snapshot restore procedures from the latest certified backup:
    ```powershell
    hydro restore verify --snapshot /backups/2026-09-12
    hydro restore stage --snapshot /backups/2026-09-12 --destination /data/staging --sessions-revoked --egress-quarantined --old-writes-blocked

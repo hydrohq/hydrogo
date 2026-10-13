@@ -1,39 +1,39 @@
-# R29 — Frontend starter selected design-system metadata
+# R29 — Frontend Starter Selected Design-System Metadata
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel sözleşme)
+**Status:** Success (local contract)
 
-## Amaç
+## Purpose
 
-`hydro project new --design-system ...` seçiminin generated frontend starter
-manifestine taşınmasını doğrulamak. Önceki manifest yalnızca desteklenen
-adapter listesini yazıyor, seçili adapterı tüketiciye bildirmiyordu.
+To verify that the `hydro project new --design-system ...` selection is propagated
+into the generated frontend starter manifest. The previous manifest only wrote the supported
+adapter list without conveying the selected adapter to the consumer.
 
-## Değişiklik
+## Changes
 
-`frontend/starter.json` artık iki ayrı alan taşır:
+`frontend/starter.json` now carries two distinct fields:
 
-- `design_system`: bu projenin seçtiği varsayılan provider;
-- `design_systems`: Client Edition'ın seçebileceği provider-agnostic adapter
-  listesi (`native`, `shadcn`, `material`, `carbon`, `headless`, `vanilla`).
+- `design_system`: the default provider selected for this project;
+- `design_systems`: the list of provider-agnostic adapters that the Client Edition
+  can choose (`native`, `shadcn`, `material`, `carbon`, `headless`, `vanilla`).
 
-Core herhangi bir provider runtime'ı import etmez; alanlar yalnızca manifest
-metadatasıdır. Mevcut tema manifestindeki `design_system` değeri ile aynı
-seçim kullanılır.
+Core does not import any provider runtime; these fields represent manifest
+metadata only. The same selection as the `design_system` value in the existing theme
+manifest is used.
 
-## Doğrulama
+## Validation
 
-Komut:
+Command:
 
 ```powershell
 go test ./internal/projectgen -count=1
 ```
 
-Sonuç: **PASS**. Testler varsayılan `native` seçimini, adapter listesini ve
-`DesignSystem: "shadcn"` ile üretilen manifestte seçimin korunmasını doğrular.
+Result: **PASS**. Tests verify the default `native` selection, the adapter list, and
+preservation of the selection in manifests generated with `DesignSystem: "shadcn"`.
 
-## Sınır
+## Boundaries
 
-Bu kanıt provider CSS/runtime paketlerinin kurulumu veya gerçek browser görsel
-uyumluluğu değildir. Bu bağımlılıklar Client Edition'a aittir ve ayrı browser
-E2E/production gate kapsamında doğrulanır.
+This evidence does not cover installation of provider CSS/runtime packages or authentic
+browser visual compatibility. Those dependencies belong to the Client Edition and are verified
+under separate browser E2E/production gates.

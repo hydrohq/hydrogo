@@ -1,48 +1,42 @@
 # HydroGo Production Deployment Guide
 
-Bu rehber, HydroGo projelerinin Linux, Docker ve Windows ortamlarında production ortamına güvenli ve kesintisiz biçimde dağıtılmasına yönelik standartları içerir.
+This guide describes operational standards for securely and reliably deploying HydroGo projects
+across Linux, Docker, and Windows environments.
 
 ---
 
-## 1. Docker Dağıtımı
+## 1. Docker Deployment
 
-Repository kökündeki `Dockerfile` üretim için tekrarlanabilir linux/amd64 ve
-linux/arm64 OCI image'ları üretir. Image içine lisans anahtarı, secret veya deployment config'i
-gömülmez; çalıştırırken `/app/config.yaml` ve gerekiyorsa lisans dosyası
-ayrı, erişimi kısıtlı bir volume/secret olarak bağlanmalıdır.
+The canonical `Dockerfile` at the repository root generates reproducible linux/amd64 and linux/arm64
+OCI images. Secret keys, credentials, and deployment-specific configurations are never baked into the image;
+at runtime, `/app/config.yaml` and any required files are mounted as segregated, access-restricted volumes or secrets.
 
 ```powershell
 pwsh -File scripts/container-lint.ps1
 docker build --pull -t hydrogo:1.0.0 .
 ```
 
-`scripts/container-lint.ps1` Docker daemon gerektirmeyen statik güvenlik
-kapısıdır. Gerçek image build/push kanıtı, Docker/OCI registry erişimi olan
-CI veya deployment ortamında ayrıca alınmalıdır.
+`scripts/container-lint.ps1` serves as a static security gate requiring no Docker daemon. Real image build
+and registry push verifications must be performed within CI or deployment environments equipped with OCI registry credentials.
 
-GitHub Actions `container` işi iki platformu Linux runner üzerinde çalıştırır
-ve image'ları registry'ye göndermeden gerçek `docker build` ile doğrular. Registry
-push işlemi bilinçli olarak ayrı bir release/onay adımıdır.
+The GitHub Actions `container` workflow builds for both platforms on Linux runners, verifying images with
+actual `docker build` executions without pushing to public registries. Pushing to a registry is an explicit, reviewed release step.
 
-Image healthcheck’i yalnızca loopback üzerindeki `/healthz` endpoint’ini
-bounded timeout/retry ile çağırır; dış servislere veya kimlik bilgilerine
-bağımlı değildir.
+Image healthchecks query the `/healthz` endpoint on loopback only with bounded timeouts and retries,
+maintaining zero dependencies on external third-party services or credentials.
 
-`scripts/secret-lint.ps1` ve `.sh`, private key ve canlı provider/token
-kalıplarını yalnızca Git tarafından izlenen dosyalarda arar. Test amaçlı dummy
-parolalar bu düşük false-positive’li kapının kapsamına girmez; gerçek secret’lar
-her zaman deployment secret store’dan sağlanmalıdır.
+`scripts/secret-lint.ps1` and `.sh` scan for private keys and live provider credentials strictly across
+Git-tracked files. Test fixture passwords are excluded from this low-false-positive gate; actual production
+secrets must always be injected via runtime secret management.
 
 ### 1.1. Canonical Dockerfile
 
-Üretim image tanımı yalnızca repository kökündeki [`Dockerfile`](../Dockerfile)
-dosyasıdır. Bu dosya linux/amd64 ve linux/arm64 için multi-stage, non-root ve
-bounded healthcheck içeren image üretir. Config, lisans anahtarı ve diğer
-secret'lar image'a kopyalanmaz; çalışma zamanında secret store veya salt-okunur
-`/app/config.yaml` mount'ı üzerinden sağlanır. Yukarıdaki `docker build` komutu
-ve CI'daki `container` işi kanonik doğrulama akışıdır.
+The official production image definition is located at [`Dockerfile`](../Dockerfile) in the repository root.
+It builds multi-stage, non-root images with bounded healthchecks for linux/amd64 and linux/arm64. Config, license
+files, and secrets are never copied into the image; they are supplied at runtime via secret stores or read-only
+volume mounts to `/app/config.yaml`. The `docker build` command above and the CI `container` workflow form the canonical verification loop.
 
-### 1.2. Docker Compose (SQLite - Kompakt Profil)
+### 1.2. Docker Compose (SQLite - Compact Profile)
 
 ```yaml
 version: "3.8"
@@ -81,7 +75,7 @@ volumes:
   hydro_data:
 ```
 
-### 1.3. Docker Compose (PostgreSQL + Redis - Standard Profil)
+### 1.3. Docker Compose (PostgreSQL + Redis - Standard Profile)
 
 ```yaml
 version: "3.8"
@@ -165,13 +159,13 @@ volumes:
   media_data:
 ```
 
-> `sslmode=disable` yalnızca izole, yerel geliştirme ağı içindir. Standard
-> profile production dağıtımında PostgreSQL TLS sertifikası ve `DB_SSLMODE`
-> değeri deployment secret/config katmanından sağlanmalıdır.
+> `sslmode=disable` is strictly for isolated local development networks. In production Standard
+> profile deployments, PostgreSQL TLS certificates and verified `DB_SSLMODE` configurations must
+> be supplied via secret stores.
 
 ---
 
-## 2. Linux Systemd Servisi
+## 2. Linux Systemd Service
 
 `/etc/systemd/system/hydrogo.service`:
 
@@ -196,7 +190,7 @@ EnvironmentFile=/etc/hydrogo/environment
 WantedBy=multi-user.target
 ```
 
-Servisi etkinleştirme:
+Enabling and managing the service:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now hydrogo
@@ -205,9 +199,9 @@ sudo systemctl status hydrogo
 
 ---
 
-## 3. Windows Service Kurulumu
+## 3. Windows Service Setup
 
-Windows ortamında NSSM (Non-Sucking Service Manager) ile servis oluşturma:
+Configuring as a Windows Service using NSSM (Non-Sucking Service Manager):
 
 ```powershell
 nssm install HydroGo "C:\HydroGo\hydro.exe" "serve --config C:\HydroGo\config.yaml"
@@ -218,11 +212,11 @@ nssm start HydroGo
 
 ---
 
-## 4. Sağlık Kontrolü ve İzleme
+## 4. Health Checks and Reverse Proxy
 
 - **Endpoint:** `GET /healthz`
-- **Beklenen Yanıt:** `200 OK`
-- **Reverse Proxy Yapılandırması (Nginx):**
+- **Expected Status:** `200 OK`
+- **Reverse Proxy Configuration (Nginx):**
   ```nginx
   server {
       listen 80;
@@ -238,16 +232,9 @@ nssm start HydroGo
   }
   ```
 
-## 5. Admin Studio kapasite notları
+## 5. Admin Studio Capacity Notes
 
-- `admin_support` kapalıyken destek kartı yapılandırması herhangi bir worker
-  veya ek servis başlatmaz. Açmak için `admin_support.enabled` değerini ve en
-  az bir iletişim yolunu yapılandırın.
-- Sayfa içe aktarma tek istekte en fazla 5 MiB, 5.000 satır ve 100 sütun işler.
-- Bildirimler ve özet tercihleri mevcut veritabanında tutulur; ayrı bir cache gerekmez.
-  İçerik modülü kapalıysa bildirim migration'ı uygulanmaz. Yüksek hacimli
-  bildirim üreticileri açılmadan önce saklama süresi tanımlanmalıdır.
-- Pazartesi özeti varsayılan olarak kapalıdır. Kullanıcı tercihinden açılır;
-  Forms, Pages ve SMTP etkin olduğunda mevcut mail-spool worker'ı zamanlar.
-  Özet gönderimleri aynı SQLite mail kuyruğuna yazılır ve yeniden denemeleri
-  mevcut kuyruk davranışını kullanır.
+- When `admin_support` is disabled, support card configurations do not spawn background workers or allocate auxiliary resources. To enable, configure `admin_support.enabled` and at least one contact channel.
+- Page imports process a maximum bounded limit of 5 MiB, 5,000 rows, and 100 columns per request.
+- Notifications and digest preferences reside in the primary database; no separate cache tier is required. If the content module is inactive, notification migrations are omitted. Retention boundaries must be configured prior to enabling high-volume notification producers.
+- Weekly digests are disabled by default. Activated per user preference, they are scheduled via the existing mail-spool worker when Forms, Pages, and SMTP are enabled. Digest emails enqueue into the standard SQLite mail spool and reuse standard queue retry policies.

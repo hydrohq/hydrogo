@@ -1,14 +1,8 @@
 # R40 — Compose port binding security lint
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel)
+**Status:** Successful (local)
 
-`scripts/compose-security-lint.ps1` local Compose fixture'larındaki beklenen
-loopback binding'lerini doğrular ve PostgreSQL, Redis veya MinIO portlarının
-çıplak, `0.0.0.0` ya da başka bir host binding ile LAN'a açılmasını fail-closed
-reddeder. Script,
-`scripts/verify-local.ps1` akışında container hardening kontrolünün hemen
-ardından çalışır.
+`scripts/compose-security-lint.ps1` verifies expected loopback bindings in local Compose fixtures and rejects PostgreSQL, Redis, or MinIO ports exposed via bare, `0.0.0.0`, or non-loopback host bindings to the LAN fail-closed. The script executes directly after container hardening checks in the `scripts/verify-local.ps1` workflow.
 
-Bu kontrol production firewall/ingress politikasının yerine geçmez; yalnızca
-repo içindeki geliştirme stack'inin güvenli varsayılanını korur.
+This check does not replace production firewall/ingress policies; it maintains secure defaults for the development stack within the repository.

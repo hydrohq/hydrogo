@@ -1,34 +1,34 @@
-# Admin permission override doğrulaması
+# Admin Permission Override Validation
 
-**Tarih:** 2026-10-07  
-**Durum:** Tamamlandı  
-**Kapsam:** Tek Edition admin'in kullanıcı başına içerik yazma override'ı; editor browser oturumuna etkisi.
+**Date:** 2026-10-07  
+**Status:** Completed  
+**Scope:** Per-user content write override by a single Edition admin; impact on editor browser session.
 
-Admin yönetim E2E akışında admin, `editor@example.test` hesabı için
-`admin.content.write` değerini `deny` yaptı. Sayfa yenilendiğinde deny seçimi
-korundu. Ayrı Chromium context'inde gerçek editor hesabıyla giriş yapıldı ve
-`GET /admin/pages/new` ile `GET /admin/pages` istekleri 403 döndürdü; create
-formu gösterilmedi. Yeni session'dan alınan geçerli CSRF tokenıyla
-`POST /admin/pages` de 403 döndürdü; mutation reddi CSRF katmanından bağımsız
-olarak doğrulandı. Eski editor session'ı `/auth/me` üzerinden 401 aldı. Admin
-override'ı `allow` yaptı
-ve sayfa yenilendikten sonra seçili değer korundu. Normal editor yazma akışı
-aynı test dosyasının role-boundary senaryosunda ayrıca doğrulanır. Deny'nin
-etkin route iznine ve kullanıcı session yaşam döngüsüne etkisi gözlemlendi.
+In the admin management E2E flow, the admin set `admin.content.write` to `deny`
+for the `editor@example.test` account. When the page was refreshed, the deny selection
+was preserved. In a separate Chromium context, login was performed using the authentic editor account,
+and `GET /admin/pages/new` and `GET /admin/pages` requests returned 403; the create
+form was not rendered. With a valid CSRF token obtained from the new session,
+`POST /admin/pages` also returned 403; mutation rejection was verified independently
+of the CSRF layer. The prior editor session received 401 via `/auth/me`. The admin
+then updated the override to `allow`,
+and the selected value was preserved after page refresh. The standard editor write flow
+is separately verified in the role-boundary scenario within the same test file. The impact of deny
+on effective route permissions and user session lifecycle was observed.
 
-## Komut ve sonuç
+## Command and Results
 
 ```sh
 cd e2e
 npx playwright test custom/admin-management.spec.ts --project=chromium --workers=1 --reporter=line
 ```
 
-Permission deny/allow ve rol sınırı için doğru seri fixture sırasıyla son
-hedefli koşu: **2/2 geçti**. Önceki tam dosya koşusu 5/5 idi; yeni eklenen
-geçerli-CSRF mutation assertion'ı bu hedefli koşuda tekrarlandı. Senaryo gerçek
-SQLite Edition server fixture'ında çalışır.
+The latest targeted run with proper sequential fixture ordering for permission deny/allow
+and role boundaries: **2/2 passed**. The previous full-file run was 5/5; the newly added
+valid-CSRF mutation assertion was re-verified in this targeted run. The scenario executes
+against an authentic SQLite Edition server fixture.
 
-Bu doğrulama `admin.content.write` override'ının etkin route davranışını ve
-session iptalini, geçerli-CSRF mutation dahil, kapsar. Her permission catalog
-entry için her rol ve her mutation varyantının tam matrisi henüz planın Faz 4
-açık kapsamındadır.
+This validation covers effective route behavior and session revocation for the
+`admin.content.write` override, including valid-CSRF mutations. The full matrix across every
+permission catalog entry for every role and every mutation variant remains open under Phase 4
+of the plan.

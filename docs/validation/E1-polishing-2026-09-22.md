@@ -1,22 +1,20 @@
-# E1 Polishing validation — 2026-09-22
+# E1 Polishing Validation — 2026-09-22
 
-## Kanıt
+## Evidence
 
-- `go test ./...` geçti (Windows workspace).
-- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/html-comment-lint.ps1` geçti.
-- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local.ps1` full local gate'i çalıştırıldı: module integrity, govulncheck, SBOM, asset/container/secret lint, vet ve full test suite adımları geçti.
-- Endpoint metrics testleri route normalization, p50/p95/p99, status/timeout/rate-limit, bytes ve tenant/module dimension sözleşmesini doğrular.
-- Analytics SQLite contract testleri consent gate, aggregate upsert, bounded queue ve report filtrelerini doğrular.
-- Backup testleri SQLite/PostgreSQL snapshot/restore staging, manifest digest ve path traversal guard'larını doğrular.
-- `scripts/verify-wsl-postgres-drill.ps1` WSL PostgreSQL 18 üzerinde backup ve
-  contract paketlerini sıralı çalıştırarak geçti; disposable database sonunda
-  silindi.
-- OTLP profile unit testleri endpoint ve 0..1 sampling doğrulamasını; optional
-  `InstallOTLPProvider` path'i HTTP OTLP batch exporter kurulumunu doğrular.
+- `go test ./...` passed (Windows workspace).
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/html-comment-lint.ps1` passed.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local.ps1` full local gate was executed: module integrity, govulncheck, SBOM, asset/container/secret lint, vet, and full test suite steps passed.
+- Endpoint metrics tests verify route normalization, p50/p95/p99, status/timeout/rate-limit, bytes, and tenant/module dimension contracts.
+- Analytics SQLite contract tests verify consent gate, aggregate upsert, bounded queue, and report filters.
+- Backup tests verify SQLite/PostgreSQL snapshot/restore staging, manifest digest, and path traversal guards.
+- `scripts/verify-wsl-postgres-drill.ps1` passed on WSL PostgreSQL 18 by running backup and
+  contract suites sequentially; the disposable database was dropped at the end.
+- OTLP profile unit tests verify endpoint and 0..1 sampling validation; the optional
+  `InstallOTLPProvider` path verifies HTTP OTLP batch exporter setup.
 
-## Bilinçli operasyon sınırları
+## Deliberate Operational Boundaries
 
-OTLP exporter seçimi deployment provider'ına bırakılmıştır; Compact profile exporter
-olmadan çalışır. KMS/key escrow yalnızca manifest referansı ve operator sınırı
-olarak modellenmiştir; anahtar HydroGo içinde tutulmaz. `templ generate` ve `go
-mod tidy` scaffold hook'u değildir.
+OTLP exporter selection is left to the deployment provider; the Compact profile operates
+without an exporter. KMS/key escrow is modeled purely as a manifest reference and operator boundary;
+the key is not retained within HydroGo. `templ generate` and `go mod tidy` are not scaffold hooks.

@@ -2,16 +2,13 @@
 
 **Date:** 2026-09-17  
 **Commit:** `29726e1`  
-**Status:** Başarılı (SQLite/local runtime)
+**Status:** Successful (SQLite/local runtime)
 
-`scripts/verify-local-production-drills.ps1` güncel commit üzerinde çalıştırıldı.
-Şu local drill'ler geçti:
+`scripts/verify-local-production-drills.ps1` was executed on the current commit.
+The following local drills passed:
 
-- izole SQLite binary build + `/healthz`/`/readyz` readiness smoke,
-- backup, release ve portable contract testleri,
-- blue-green cache invalidation sırasında rollback stability testi (20 tekrar).
+- isolated SQLite binary build + `/healthz`/`/readyz` readiness smoke,
+- backup, release, and portable contract tests,
+- rollback stability test during blue-green cache invalidation (20 repetitions).
 
-PostgreSQL bölümü bu Windows çalıştırmasında DSN verilmediği için **PENDING**
-kaldı; aynı kontratlar ve race suite WSL servisli R51 preflight’ında geçti.
-Reverse-proxy iki prosesli trafik geçişi, gerçek restore/key recovery ve
-customer-capacity/RPO/RTO tatbikatları hâlâ dış ortam kapılarıdır.
+The PostgreSQL section remained **PENDING** in this Windows run because no DSN was supplied; the same contracts and race suite passed in the WSL serviced R51 preflight. Reverse-proxy two-process traffic switchover, real restore/key recovery, and customer-capacity/RPO/RTO drills remain external environment gates.

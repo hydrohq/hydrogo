@@ -2,23 +2,19 @@
 
 **Date:** 2026-09-17  
 **Commit:** `c7eb10ff745363fecee184508146aa380593a0a3`  
-**Status:** Başarılı (yerel servis kanıtı)
+**Status:** Successful (local service evidence)
 
-Ubuntu/WSL2 üzerinde çalışan PostgreSQL 18.6 ve Redis/Valkey servisine karşı
-`scripts/verify-production-gates.sh` çalıştırıldı. Test DSN'i yalnızca yerel
-Unix socket üzerinden kullanıldı; rapora parola veya token yazılmadı.
+`scripts/verify-production-gates.sh` was executed against PostgreSQL 18.6 and Redis/Valkey services running on Ubuntu/WSL2. The test DSN was used strictly over local Unix socket; no passwords or tokens were written to the report.
 
-Geçen kapılar:
+Passing gates:
 
-- gofmt, module integrity, workflow action pin ve govulncheck
-- go vet, full test suite ve shuffled test suite
-- race-sensitive package suite (PostgreSQL contract testleri dahil)
+- gofmt, module integrity, workflow action pins, and govulncheck
+- go vet, full test suite, and shuffled test suite
+- race-sensitive package suite (including PostgreSQL contract tests)
 - reproducible HydroGo build
 - SQLite portable benchmark
-- Redis/Valkey atomic limiter + TTL testi
+- Redis/Valkey atomic limiter + TTL test
 
-Runner raporu: `.tmp/gates-wsl/production-gates-20260917-155008.md`.
+Runner report: `.tmp/gates-wsl/production-gates-20260917-155008.md`.
 
-Bu kanıt gerçek müşteri verisiyle restore, reverse-proxy blue/green/rollback,
-harici backup/key recovery, production key ceremony veya müşteri kapasite/RPO/RTO
-tatbikatlarının yerine geçmez; bunlar açık production kapılarıdır.
+This evidence does not replace restore with real customer data, reverse-proxy blue/green/rollback, external backup/key recovery, production key ceremony, or customer capacity/RPO/RTO drills; these remain open production gates.

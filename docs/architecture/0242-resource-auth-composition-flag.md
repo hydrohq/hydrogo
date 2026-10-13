@@ -1,11 +1,11 @@
 # ADR-0242: Resource auth is an explicit composition capability
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** Blueprint `auth` metadata and generated resource manifests
-- **İlgili:** ADR-0013, ADR-0210, ADR-0240
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** Blueprint `auth` metadata and generated resource manifests
+- **Related:** ADR-0013, ADR-0210, ADR-0240
 
-## Karar
+## Decision
 
 A Blueprint may set `auth: true` to declare that the generated resource is
 intended for an authenticated Identity/Session/RBAC surface. The flag is

@@ -1,9 +1,6 @@
 # R49 — Generated client timeout parity
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel generator contract)
+**Status:** Successful (local generator contract)
 
-Generated `HydroClient` artık `timeoutMs` değerini starter ile aynı fail-closed
-`1..120000` ms aralığında doğrular. Geçersiz değerler sessizce clamp edilmez;
-constructor aşamasında görünür `RangeError` üretir. Geçerli timeout değeri
-request controller’a doğrudan uygulanır.
+Generated `HydroClient` now validates `timeoutMs` within the same fail-closed `1..120000` ms range as the starter. Invalid values are not silently clamped; they throw a visible `RangeError` during the constructor phase. Valid timeout values apply directly to the request controller.

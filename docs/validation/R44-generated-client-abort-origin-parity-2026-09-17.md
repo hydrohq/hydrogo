@@ -1,16 +1,12 @@
-# R44 — Generated client ile headless starter parity
+# R44 — Generated client parity with headless starter
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel generator contract)
+**Status:** Successful (local generator contract)
 
-Project generator çıktısındaki `client/hydrogo.ts` artık headless starter ile
-aynı temel sınırları taşır:
+`client/hydrogo.ts` in the project generator output now carries the same baseline boundaries as the headless starter:
 
-- `baseUrl` absolute HTTP(S) olmalı; embedded credential ve desteklenmeyen şema
-  request öncesi reddedilir;
-- `getPage` ve `listNews` çağrı-başı `{ signal }` kabul eder;
-- mutation zaten `{ idempotencyKey, signal }` sözleşmesini korur.
+- `baseUrl` must be absolute HTTP(S); embedded credentials and unsupported schemes are rejected pre-request;
+- `getPage` and `listNews` accept per-call `{ signal }`;
+- mutations preserve the existing `{ idempotencyKey, signal }` contract.
 
-`internal/projectgen` testi generated kaynakta bu marker'ları ve published API
-route'larını doğrular. Gerçek framework/browser kabulü yine Client Edition ve
-production auth topology kapısıdır.
+The `internal/projectgen` test verifies these markers and published API routes in generated sources. Real framework/browser acceptance remains gated on Client Edition and production auth topology.

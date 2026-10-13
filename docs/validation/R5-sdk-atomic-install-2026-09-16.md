@@ -1,23 +1,15 @@
 # R5 SDK atomic runtime install — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist.InstallArtifact`, doğrulanmış runtime artifact’ını önce aynı
-cache dizinindeki geçici dosyaya kopyalar, fsync ve ikinci checksum doğrulaması
-sonrasında atomik rename yapar. Var olan aynı artifact yeniden kullanılır;
-farklı dosya üzerine yazılmaz. Kaynak/destination symlink ve regular-file
-kontrolleri uygulanır.
+`internal/sdkdist.InstallArtifact` first copies the verified runtime artifact to a temporary file in the same cache directory, followed by fsync and a secondary checksum verification before atomic rename. An existing identical artifact is reused; overwriting with a different file is prohibited. Source/destination symlink and regular-file checks are enforced.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/release ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/release ./internal/sdkdist` ve
-  `go test ./...` başarılı.
-- Testler geçerli install, idempotent tekrar, tampered source ve farklı
-  destination overwrite reddini doğrular.
+- Windows: `go test ./internal/release ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/release ./internal/sdkdist` and `go test ./...` passed.
+- Tests verify valid installation, idempotent re-run, tampered source rejection, and rejection of overwriting a different destination.
 
-## Sınır
+## Scope & Boundaries
 
-Bu işlem ağdan indirme veya broker yetkilendirmesi yapmaz. Kaynak dosyanın
-manifest metadata’sı ile indirilmiş olması çağıranın sorumluluğundadır; burada
-checksum ve atomik kurulum tekrar güvence altına alınır.
+This operation does not perform network downloading or broker authorization. Ensuring the source file was downloaded with manifest metadata is the caller's responsibility; checksum and atomic installation are re-guaranteed here.

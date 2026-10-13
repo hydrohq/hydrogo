@@ -1,21 +1,19 @@
-# HydroGo API ve Modül Geliştirme Rehberi
+# HydroGo API and Module Development Guide
 
-Bu rehber, Core'u çatallamadan bir Client Edition, modül veya extension
-geliştirmek için doğrulanmış sınırları özetler. Uygulama kodu SQL/cache/queue
-sürücülerini doğrudan bilmemeli; bu ayrıntılar repository ve adapter
-sözleşmelerinde kalır.
+This guide outlines verified boundaries for developing a Client Edition, module, or extension
+without forking HydroGo Core. Application code must never couple directly to SQL, cache, or queue
+drivers; these details remain encapsulated inside repository and adapter contracts.
 
-## Client Edition ve extension
+## Client Edition and Extensions
 
-`extension/v1` içindeki sözleşmeler aday-stabil API'dir. Yeni yetenekler önce
-versioned bir contract'a eklenir; mevcut method imzaları sessizce değiştirilmez.
-Breaking değişiklik için yeni major sürüm, deprecation alias'ı ve migration notu
-gerekir. Edition'a özel davranış `custom/` veya ilgili module alanında tutulur;
-HydroCore müşteri için fork edilmez.
+Contracts under `extension/v1` represent candidate-stable APIs. New capabilities are added first to
+a versioned contract; existing method signatures must never change silently. Breaking changes require
+a new major version, a deprecation alias, and migration notes. Edition-specific behavior belongs in
+`custom/` or within the relevant module boundary; HydroCore is never forked for customer needs.
 
-## Route ekleme
+## Registering Routes
 
-Her route açık bir erişim sınıfıyla kaydedilir:
+Every route is registered with an explicit access classification:
 
 ```go
 router.Route{
@@ -25,39 +23,36 @@ router.Route{
 }
 ```
 
-Public, protected ve admin route'ları birbirine karıştırmayın. Yeni route için
-aynı pakette erişim sınıfı, yetkisiz istek, yanlış method ve güvenli hata mesajı
-testleri ekleyin. Public projection hiçbir zaman draft, silinmiş veya scheduled
-içeriği döndürmemelidir.
+Never conflate public, protected, and admin routes. When adding a new route, add test cases in the
+same package covering the access class, unauthorized requests, invalid HTTP methods, and safe error
+messages. Public projections must never return draft, deleted, or scheduled content.
 
-## Handler ve servis sınırı
+## Handler and Service Boundaries
 
-Handler; kimlik, CSRF, body limiti, input doğrulama ve HTTP durum kodunu yönetir.
-Domain/service katmanı iş kuralını ve transaction sınırını yönetir. Repository
-SQL lehçesini soyutlar. Hata gövdelerinde driver, SQL, stack trace veya secret
-detayı gösterilmez; ayrıntı log/audit bağlamında request ID ile ilişkilendirilir.
+Handlers govern authentication, CSRF, request body limits, input validation, and HTTP status codes.
+The domain/service layer manages business rules and transaction boundaries. The repository layer
+abstracts SQL dialects. Error responses must never leak driver internals, raw SQL, stack traces, or
+secrets; operational details are correlated via request IDs in structured log and audit contexts.
 
-Yeni yazma akışlarında optimistic lock, idempotency ve retry belirsizliği için
-test yazın. Dış provider çağrıları bounded timeout/backoff kullanmalı ve tekrar
-oynatılabilir sonuç üretmelidir.
+Write tests for optimistic locking, idempotency, and retry ambiguity in new write flows. External
+provider calls must enforce bounded timeouts and exponential backoff, producing replayable outcomes.
 
-## Migration ve inactive module
+## Migrations and Inactive Modules
 
-Migration'lar SQLite ve PostgreSQL davranışlarını ayrı doğrulamalı; rollback ve
-compatibility notu içermelidir. Inactive module route, migration, asset, worker
-ve zorunlu kaynak üretmemelidir. Module açılış/kapanışını `cmd/hydro` preset smoke
-testine ekleyin.
+Migrations must verify SQLite and PostgreSQL behaviors independently, including rollback and compatibility
+notes. An inactive module must not register routes, execute migrations, serve assets, spawn workers, or
+consume mandatory system resources. Include module enablement and disablement in `cmd/hydro` preset smoke tests.
 
-## Doğrulama döngüsü
+## Verification Workflow
 
-Breaking değişiklikleri merge etmeden önce iki OpenAPI belgesini karşılaştırın:
+Before merging breaking changes, compare OpenAPI specifications:
 
 ```powershell
 hydro validate api --baseline .\api-baseline.json --current .\generated\resource\openapi.json
 ```
 
-Kontrol, yayımlanmış path/operation/response/property silinmesini fail-closed
-yakalar; iş kurallarının anlamsal uyumluluğu yine modül incelemesidir.
+The check catches removals of published paths, operations, responses, or properties fail-closed;
+semantic compatibility of business logic remains subject to module code review.
 
 ```powershell
 go test ./...
@@ -66,19 +61,14 @@ pwsh ./scripts/fuzz-smoke.ps1
 pwsh ./scripts/verify-local.ps1
 ```
 
-Kod değişikliğinden önce `git diff --check` ve `gofmt` çalıştırın. Release
-öncesinde `hydro doctor`, SBOM ve vulnerability scan çıktısını saklayın.
+Run `git diff --check` and `gofmt` before committing code changes. Retain `hydro doctor`, SBOM,
+and vulnerability scan outputs prior to releases.
 
-## Sorun giderme
+## Troubleshooting
 
-- `/readyz` başarısızsa önce `hydro doctor` ve migration durumunu kontrol edin.
-- Upload reddedilirse boyut, MIME, decoded pixel limiti ve storage dizini
-  izinlerini doğrulayın; geçici dosyalar kalıcı storage'a taşınmamalıdır.
-- `429` yanıtında `Retry-After` değerine uyun; Redis limiter hatasında bypass
-  yerine fail-closed davranış beklenir.
-- Generator çıktısı beklenmiyorsa `hydro new --frontend-manifest` JSON
-  sözleşmesini, benzersiz route adı/path ve `test_id` alanlarını doğrulayın.
+- If `/readyz` fails, inspect `hydro doctor` and migration status first.
+- If uploads are rejected, verify size limits, MIME types, decoded pixel boundaries, and storage directory permissions; temporary files must not leak into permanent storage.
+- Respect `Retry-After` on `429` responses; Redis rate limiter outages must fail closed rather than bypass limits.
+- If generator output differs from expectations, verify the `hydro new --frontend-manifest` JSON contract, unique route names/paths, and `test_id` mappings.
 
-Production PostgreSQL/Redis failover, backup-restore, blue/green rollback,
-kapasite ve dış penetrasyon doğrulamaları bu yerel rehberin kapsamı dışındadır;
-ilgili açık gate'ler `PROFESSIONALIZATION_BACKLOG.md` içinde tutulur.
+Production PostgreSQL/Redis failovers, backup-restore rehearsals, blue/green rollbacks, high-concurrency capacity drills, and external penetration tests fall outside the scope of this local guide; corresponding open gates are maintained in `PROFESSIONALIZATION_BACKLOG.md`.

@@ -1,7 +1,7 @@
-# security-check geliştirici entegrasyonu
+# Developer Integration for security-check
 
-HydroGo için `ersinkoc/security-check` bundle’ı yerel Codex skill dizinine
-kuruludur. Kurulum kaynağı commit’i:
+For HydroGo, the `ersinkoc/security-check` bundle is installed in the local Codex skill directory.
+The installation source commit:
 
 ```text
 80d68f68da642f65883ca1791f03fb3ceaf456d5
@@ -9,34 +9,32 @@ kuruludur. Kurulum kaynağı commit’i:
 
 ## Codex
 
-Global skill kurulumundan sonra yeni bir Codex turn’ünde aşağıdaki istekler
-doğrudan çalışır:
+After installing the global skill, the following prompts work directly in a new Codex turn:
 
 ```text
 run security check
 scan diff
 ```
 
-## Antigravity, agy ve diğer Agentskills CLI’ları
+## Antigravity, agy, and Other Agentskills CLIs
 
-Bu araçlar için proje kökünde çalıştırılabilecek resmi upstream yöntemi:
+The official upstream method to install in the project root for these tools:
 
 ```bash
 npx skills add ersinkoc/security-check
 ```
 
-Kurulumdan sonra `.agents/skills/` altında `security-check` orkestratörü ve
-`sc-*` skill’leri görünmelidir. Windows PowerShell alternatifi:
+After installation, the `security-check` orchestrator and `sc-*` skills should appear under `.agents/skills/`.
+Windows PowerShell alternative:
 
 ```powershell
 irm https://raw.githubusercontent.com/ersinkoc/security-check/main/skills.ps1 | iex
 ```
 
-Kurulum sırasında kaynak commit’ini ve checksum’ı ekip içinde kaydedin; uzak
-`main` dalını production build zincirine otomatik olarak güvenilir kabul
-etmeyin. Skill yalnızca kaynak incelemesi ve açıkça izin verilen izole yerel
-kontroller yapmalıdır; canlı endpoint, credential veya shared altyapı taraması
-ayrı bir yetkilendirme ve staging kapısıdır.
+Record the source commit and checksum within your team during installation; do not automatically trust
+the remote `main` branch directly in production build pipelines. The skill must only perform source code
+reviews and explicitly permitted isolated local checks; scanning live endpoints, credentials, or shared
+infrastructure requires separate authorization and staging gates.
 
-HydroGo’nun son source-only audit çıktısı [`security-report/`](../security-report/)
-altındadır. Sonucu production penetrasyon testi yerine kullanmayın.
+HydroGo's latest source-only audit report is located under [`security-report/`](../security-report/).
+Do not treat this result as a substitute for a live production penetration test.

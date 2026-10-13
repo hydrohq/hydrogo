@@ -1,7 +1,7 @@
 # R56 — S3/CDN configuration wiring
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel contract + runtime wiring)
+**Status:** Successful (local contract + runtime wiring)
 
 Media configuration now wires `cdn_base_url` and `s3_force_path_style` into the
 runtime `S3BlobStore`. Previously `cdn_base_url` was validated but dropped when
