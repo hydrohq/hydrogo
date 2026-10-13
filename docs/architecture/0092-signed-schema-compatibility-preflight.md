@@ -6,23 +6,22 @@ Proposed
 
 ## Context
 
-SDK ile dağıtılan runtime'lar blue/green geçişte aynı migration geçmişini
-paylaşır. Ham SQL'i veya veritabanı lehçesini public CLI'a açmak hem bilgi
-hiyerarşisini hem de Core sınırını bozar.
+Runtimes distributed via the SDK share the same migration history during a blue/green
+cutover. Exposing raw SQL or database dialect internals to the public CLI violates both the
+information hierarchy and the Core boundary.
 
 ## Decision
 
-`hydro schema diff`, iki imzalı release manifestinin migration checksum
-ledger'ını karşılaştırır. Trusted public key doğrulaması geçmeden karşılaştırma
-yapılmaz. Yeni migration ID'leri additive olarak raporlanır; mevcut ID'nin
-silinmesi veya checksum değişimi uyumsuzluk hatasıdır. Gerçek migration
-uygulaması bu komutun sorumluluğu değildir.
+`hydro schema diff` compares the migration checksum ledgers of two signed release manifests.
+No comparison is executed without first passing trusted public key verification. New migration
+IDs are reported additively; removing an existing ID or altering its checksum is treated as an
+incompatibility error. The actual execution of migrations is not the responsibility of this command.
 
 ## Consequences
 
-Release/blue-green preflight deterministik ve SQL lehçesinden bağımsız olur.
-Manifest üretimi ve imzalama CI/release ortamında yapılmalıdır; boş veya yanlış
-ledger bilgisi bilerek fail-closed davranır.
+Release and blue/green preflights become deterministic and independent of database SQL dialects.
+Manifest generation and signing must take place within the CI/release environment; empty or corrupted
+ledger metadata fails closed by design.
 
 ## References
 

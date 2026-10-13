@@ -1,27 +1,21 @@
-# R5 runtime artifact doğrulaması — 2026-09-16
+# R5 runtime artifact verification — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-Private runtime dağıtımının güvenli temel adımı olarak release manifestindeki
-tüm artifact’ları doğrulayan `release.VerifyArtifacts` ve CLI’de `hydro release
-verify --root PATH` seçeneği eklendi. İmza doğrulamasından sonra dosya boyutu,
-SHA-256 özeti ve root dışına/symlink’e kaçış kontrol edilir; başarısızlıkta
-runtime çalıştırılmamalıdır.
+As a secure baseline step for private runtime distribution, `release.VerifyArtifacts` verifying all artifacts in the release manifest and the CLI option `hydro release verify --root PATH` were added. After signature verification, file size, SHA-256 digest, and escape outside root/symlinks are checked; on failure, the runtime must not be executed.
 
-## Kanıt
+## Evidence
 
-- `go test ./internal/release ./cmd/hydro` başarılı.
-- WSL Ubuntu/Go 1.27 üzerinde `go test ./...` başarılı.
-- Testler gerçek artifact’in kabul edildiğini ve değiştirilmiş binary’nin
-  reddedildiğini doğruluyor.
+- `go test ./internal/release ./cmd/hydro` passed.
+- `go test ./...` passed on WSL Ubuntu/Go 1.27.
+- Tests verify that genuine artifacts are accepted and tampered binaries are rejected.
 
-## Kullanım
+## Usage
 
 ```bash
 hydro release verify --manifest release.json --public-key release.pub --root ./extracted-runtime
 ```
 
-## Sınır
+## Scope & Boundaries
 
-Bu doğrulayıcı indirme veya yetkilendirme yapmaz. Artifact broker, OAuth/device
-login ve installer’lar sonraki fazlardır.
+This verifier does not perform downloads or authorization. Artifact broker, OAuth/device login, and installers are subsequent phases.

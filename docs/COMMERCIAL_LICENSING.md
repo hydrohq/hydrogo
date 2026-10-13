@@ -1,84 +1,82 @@
-# HydroGo Commercial Licensing & Core Isolation Guide
+# HydroGo Licensing Architecture & Core Isolation Guide
 
-> [!IMPORTANT]
-> **LAWYER REVIEW REQUIRED / HUKUKİ İNCELEME GEREKLİDİR**
-> Bu dokümanda ve bağlı dosyalarda sunulan lisanslama modeli, teknik mimari ve sözleşme metinleri projenin ilk ticari mimari taslağıdır. HydroGo'nun açık kaynak (Open Source / Community Edition) modeline geçişi kapsamında genel kamu lisansı ve açık kaynak topluluk dağıtımı hazırlıkları başlatılmıştır; kurumsal/commercial lisanslama mekanizması ileride yalnızca opsiyonel kurumsal eklentiler için değerlendirilmek üzere arşiv/referans niteliğindedir.
-
----
-
-## 1. Mimari Vizyon ve Core İzolasyonu
-
-HydroGo'nun temel mimari prensiplerinden biri, kurumsal çekirdek (**HydroGo Core**) ile müşteriye özel iş mantığı ve sunum katmanını (**Client Edition**) birbirinden kesin sınırlarla ayırmaktır.
-
-Oluşturulan müşteri projeleri hiçbir zaman HydroGo Core'un kaynak kodunu (internal paketler, çekirdek motor, migration yürütücü, lisans denetleyici vb.) doğrudan barındırmaz. Müşteriye teslim edilen veya oluşturulan projeler yalnızca şunları içerir:
-
-1. **Client Edition & Extension Hooks:** Müşteriye özel iş akışları, hook'lar ve plugin tanımları (`extension/v1/`).
-2. **Tema ve Şablonlar:** Dosya sistemi tabanlı tema dosyaları, CSS ve şablon slotları (`themes/`).
-3. **Konfigürasyon:** Çalışma zamanı ayarları ve ortam değişkeni örnekleri (`config.example.yaml`).
-4. **Müşteriye Özel Migrasyonlar:** Projeye has ek veri tabloları ve şemalar.
-5. **Frontend ve Headless Başlangıç Dosyaları:** Web şablonları, Next.js/React/Astro veya SSR sayfaları.
-6. **E2E Testleri:** Metadata tabanlı üretilen ve müşteriye özel yazılan uçtan uca testler (`e2e/`).
-7. **Kilit Dosyası:** Çekirdek sürümünü, edition tipini ve lisans bağlamını tanımlayan `hydrogo.lock`.
+> [!NOTE]
+> HydroGo is open-source software released under the [MIT License](../LICENSE).
+> This document describes the architectural design of HydroGo's Core isolation boundaries and the optional offline cryptographic licensing subsystem (Ed25519) provided within the platform for enterprise distributions.
 
 ---
 
-## 2. Core Dağıtım Seçeneklerinin Değerlendirilmesi
+## 1. Architectural Vision & Core Isolation
 
-HydroGo Core'un müşteri projelerine dağıtımı için 3 temel mimari seçenek değerlendirilmiştir:
+A central architectural principle of HydroGo is the strict separation between the engine core (**HydroGo Core**) and customer-specific business logic or presentation layers (**Client Edition**).
+
+Generated client projects do not need to alter or fork HydroGo Core internal packages (internal engine, migration runner, core handlers). Client projects contain:
+
+1. **Client Edition & Extension Hooks:** Custom business workflows, hooks, and plugin definitions (`extension/v1/` or `custom/`).
+2. **Themes & Templates:** Filesystem-based theme templates, CSS, and component slots (`themes/`).
+3. **Configuration:** Runtime configuration files and environment variable templates (`config.example.yaml`).
+4. **Custom Migrations:** Project-specific database tables and schema migrations.
+5. **Frontend & Headless Starters:** Web templates, Next.js/React/Astro, or SSR pages.
+6. **E2E Tests:** Metadata-driven generated and custom end-to-end tests (`e2e/`).
+7. **Lock File:** The `hydrogo.lock` file defining the core version, edition type, and licensing context.
+
+---
+
+## 2. Core Distribution Models
+
+Three architectural options were evaluated for distributing HydroGo Core to client projects:
 
 ```mermaid
 flowchart TD
-    subgraph Option1 ["1. Private Go Module"]
-        P1["Private Git Repo / GOPROXY"] --> B1["go build (Müşteri CI/CD)"]
-        B1 --> R1["Müşteri Sunucusunda Çalışma"]
+    subgraph Option1 ["1. Go Module Dependency"]
+        P1["Git Repository / GOPROXY"] --> B1["go build (Client CI/CD)"]
+        B1 --> R1["Execution on Client Server"]
     end
 
-    subgraph Option2 ["2. Lisanslı HydroGo Binary"]
-        P2["Resmi HydroGo Binary (hydro.exe / hydro-linux)"] --> R2["Dinamik Tema/Ayar/Extension Yükleme"]
-        R2 --> S2["Tek Komutla Ayağa Kaldırma"]
+    subgraph Option2 ["2. Standalone Binary"]
+        P2["HydroGo Binary (hydro / hydro.exe)"] --> R2["Dynamic Theme / Config / Extension Loading"]
+        R2 --> S2["Single Command Startup"]
     end
 
     subgraph Option3 ["3. Hosted / SaaS Runtime"]
-        P3["HydroGo Yönetilen Bulut Kümesi"] --> R3["Müşteri Yalnızca Frontend + API Bağlar"]
-        R3 --> S3["Sıfır Altyapı Yönetimi"]
+        P3["Managed Cloud Cluster"] --> R3["Client Connects Frontend & API"]
+        R3 --> S3["Zero Infrastructure Management"]
     end
 ```
 
-### Karşılaştırma Matrisi
+### Comparison Matrix
 
-| Kriter | 1. Private Go Module | 2. Lisanslı Binary | 3. Hosted / SaaS Runtime |
+| Criterion | 1. Go Module Dependency | 2. Standalone Binary | 3. Hosted / SaaS Runtime |
 |---|---|---|---|
-| **Core Kaynak Kodu Gizliliği** | Yüksek (Erişim token/deploy key ile sınırlandırılır) | Çok Yüksek (Yalnızca derlenmiş makine kodu dağıtılır) | Tam (Kod tamamen sağlayıcı altyapısında kalır) |
-| **Geliştirici Deneyimi (DX)** | Tipik Go ekosistemi (`go get`, tip güvenliği) | Sıfır derleme adımı, anında çalıştırma | En düşük altyapı yükü |
-| **Müşteri Ortamında Çalışma (On-Premise / Air-Gapped)** | Mükemmel | Mükemmel | Kısıtlı (İnternet bağlantısı şart) |
-| **Özelleştirme ve Eklenti Esnekliği** | Yüksek (Compile-time type check) | Konfigürasyon ve tema slotları düzeyinde | API ve webhook düzeyinde |
-| **Lisans Doğrulama Kolaylığı** | Build ve runtime'da offline Ed25519 kontrolü | Başlangıçta offline Ed25519 kontrolü | Merkezi faturalandırma ve token iptali |
+| **Core Source Code Isolation** | High (Controlled via repository access) | Very High (Only compiled machine code distributed) | Complete (Code remains on provider infrastructure) |
+| **Developer Experience (DX)** | Standard Go ecosystem (`go get`, type safety) | Zero build steps, instant startup | Lowest infrastructure overhead |
+| **On-Premise / Air-Gapped Operation** | Excellent | Excellent | Limited (Requires network connectivity) |
+| **Customization & Plugin Flexibility** | High (Compile-time type checking) | Configuration and theme slots | API and webhook integration |
+| **License Verification Support** | Compile-time & runtime offline checks | Runtime offline Ed25519 check | Centralized billing and token revocation |
 
-### Önerilen Varsayılan Çözüm
+### Default Model
 
-HydroGo için **Hibrit Model (Private Go Module + Lisanslı Binary)** varsayılan olarak kabul edilmiştir:
-
-1. **Standalone / Kompakt Dağıtım:** Core, önceden derlenmiş ve Ed25519 imza doğrulaması içeren `hydro` binary'si olarak sunulur. Müşteri projesinde yalnızca temalar, config ve `hydrogo.lock` bulunur.
-2. **Özelleştirilmiş Kurumsal Dağıtım:** Gelişmiş entegrasyonlar için Core, özel erişim kontrollü bir Private Go Modülü (`github.com/ardaozyildirim/hydrogo`) olarak tüketilir. Projede Core kaynak kodları yer almaz; Go derleyicisi modülü private proxy üzerinden çeker.
-3. **Lisans Zorunluluğu:** Müşteri projesi kaynak kodu olarak üçüncü taraflarla paylaşılsa dahi, geçerli bir `hydro.lic` olmadan sistem ayağa kalkmaz ve korumalı özellikler devreye girmez.
+HydroGo supports a **Hybrid Model**:
+1. **Compact / Standalone Deployment:** Core runs as a precompiled `hydro` binary. The client project contains only themes, config, and `hydrogo.lock`.
+2. **Enterprise Custom Edition:** For deep integrations, Core is consumed as a standard Go module.
 
 ---
 
-## 3. `hydrogo.lock` Dosyası ve Görevi
+## 3. The `hydrogo.lock` File
 
-`hydrogo.lock`, üretilen projenin hangi Core sürümü ve lisanslı özelliklerle çalışacağını belirleyen kilit dosyasıdır.
+`hydrogo.lock` is the lock file that pins the Core version, generator version, and enabled features for a generated project:
 
 ```json
 {
   "lock_version": 1,
   "project_id": "proj-corporate-001",
-  "project_name": "Kurumsal Portalı",
+  "project_name": "Corporate Portal",
   "edition": "growth",
   "preset": "standard",
   "core": {
     "module": "github.com/ardaozyildirim/hydrogo",
     "version": "v1.2.0",
-    "distribution": "licensed_binary"
+    "distribution": "binary"
   },
   "generator": {
     "version": "0.1.0",
@@ -91,7 +89,7 @@ HydroGo için **Hibrit Model (Private Go Module + Lisanslı Binary)** varsayıla
     "members"
   ],
   "licensing": {
-    "required": true,
+    "required": false,
     "license_file": "hydro.lic",
     "grace_period_allowed": true
   }
@@ -100,81 +98,79 @@ HydroGo için **Hibrit Model (Private Go Module + Lisanslı Binary)** varsayıla
 
 ---
 
-## 4. Kriptografik Lisanslama Sistemi
+## 4. Cryptographic Licensing Subsystem
 
-HydroGo, harici bir sunucuya bağımlı olmadan güvenli çalışabilen **Ed25519 tabanlı asimetrik offline lisanslama** kullanır.
+HydroGo includes an **Ed25519-based asymmetric offline licensing engine** that operates without requiring connections to an external licensing server.
 
-Runtime enforcement is active when the generated configuration contains `license.required: true`. Official release builds must inject the vendor public key into `internal/licensing.TrustedPublicKeyBase64`, for example with a protected release `-ldflags` value. During a short key-rotation overlap, comma-separated keys may be injected via `internal/licensing.TrustedPublicKeysBase64`. A development build with no injected key deliberately refuses to start a licensed project. The `public_key` field inside `hydro.lic` is not a trust source.
+Runtime enforcement is active only when configuration specifies `license.required: true`. In standard open-source and development workflows, this is disabled by default, or bypassed using `--dev` / `HYDRO_DEV_MODE=1`.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Admin as Lisans Üretici (Vendor CLI)
-    participant PrivKey as Private Key (Gizli / Satıcıda)
-    participant File as hydro.lic (Offline Lisans Dosyası)
-    participant Core as HydroGo Core (Müşteri Runtime)
-    participant PubKey as Public Key (Gömülü / Güvenilir)
+    participant Admin as License Issuer (Vendor CLI)
+    participant PrivKey as Private Key (Secure / Offline)
+    participant File as hydro.lic (Offline License File)
+    participant Core as HydroGo Core (Runtime)
+    participant PubKey as Public Key (Embedded / Trusted)
 
     Admin->>PrivKey: hydro-issuer issue --customer "Acme" --project-id "proj-01" --edition "growth"
-    PrivKey->>File: Ed25519 İmzalı Claims JSON üretir
-    File->>Core: Müşteri çalışma dizinine yerleştirilir
-    Core->>PubKey: hydro license verify / serve başlangıcı
-    PubKey->>Core: İmza geçerli, Proje ID doğru, Süre aktif
-    Core-->>Core: Sistem başarıyla başlatılır
+    PrivKey->>File: Generates Ed25519 Signed Claims JSON
+    File->>Core: Placed in working directory
+    Core->>PubKey: hydro license verify / serve startup
+    PubKey->>Core: Signature valid, Project ID matches, Period active
+    Core-->>Core: System starts successfully
 ```
 
-### 4.1. Güvenlik ve Anahtar İzolasyonu
-- **Private Key (Özel Anahtar):** Yalnızca lisans üretici merkezde saklanır. Müşteri ortamlarına, binary'lere veya depolara asla dahil edilmez.
-- **Public Key (Açık Anahtar):** HydroGo Core içerisinde gömülü olarak yer alır veya güvenilir konfigürasyon ile belirtilir. Yalnızca doğrulama amacıyla kullanılır; yeni lisans üretilmesini sağlayamaz.
+### 4.1. Security & Key Isolation
+- **Private Key:** Stored strictly within the issuer environment; never distributed to customer environments or embedded in runtime binaries.
+- **Public Key:** Embedded in Core or supplied via secure configuration. Used solely for signature verification; cannot generate new licenses.
 
-### 4.2. Lisans Formatı ve Alanları
-Bir `hydro.lic` dosyası aşağıdaki doğrulanabilir alanları içerir:
-- `id`: Benzersiz lisans kimliği (UUID/Hex).
-- `key_id`: İmzalama anahtar yuvası; key rotation sırasında eski/yeni slot geçişini izlemek için signed alandır.
-- `customer`: Lisans sahibi müşteri veya organizasyon adı.
-- `project_id`: Lisansın geçerli olduğu proje kimliği (lockfile ile eşleşmelidir).
-- `edition`: Lisanslanan sürüm (`starter`, `growth`, `enterprise`, `custom`).
-- `features`: İzin verilen özellikler listesi (`pages`, `news`, `commerce`, `members`, `redis`, `*`).
-- `issued_at`: Düzenlenme zamanı (RFC3339).
-- `expires_at`: Lisans bitiş zamanı (RFC3339).
-- `grace_period_days`: Süre dolduktan sonraki ek tolerans gün sayısı (varsayılan: 14 gün).
-- `signature`: Ed25519 imzası (Base64).
+### 4.2. License Format and Claims
+A `hydro.lic` document contains the following verifiable fields:
+- `id`: Unique license identifier (UUID).
+- `key_id`: Key slot identifier for key-rotation windows.
+- `customer`: Customer or organization name.
+- `project_id`: Project identifier bound to `hydrogo.lock`.
+- `edition`: Licensed edition tier (`starter`, `growth`, `enterprise`, `custom`).
+- `features`: Permitted feature identifiers (`pages`, `news`, `commerce`, `members`, `*`).
+- `issued_at`: Issuance timestamp (RFC 3339).
+- `expires_at`: Expiration timestamp (RFC 3339).
+- `grace_period_days`: Additional operational grace period after expiration (default: 14 days).
+- `signature`: Ed25519 signature (Base64).
 
-### 4.3. Grace Period (Tolerans Süresi)
-Lisans süresi dolduğunda kurumsal operasyonların aniden kesintiye uğramasını önlemek amacıyla yapılandırılabilir bir **Grace Period** mekanizması bulunur:
-- **Aktif Durum (`active`):** `now < expires_at` -> Sistem tam kapasite çalışır.
-- **Tolerans Durumu (`grace_period`):** `expires_at <= now <= expires_at + grace_period` -> Sistem çalışmaya devam eder; loglarda ve Admin Studio'da belirgin uyarılar üretilir.
-- **Süresi Dolmuş (`expired`):** `now > expires_at + grace_period` -> Lisans korumalı rotalar ve başlangıç kontrolleri hata verir (`ErrLicenseExpired`).
+### 4.3. Grace Period Mechanism
+To prevent sudden operational outages upon license expiry, a **Grace Period** mechanism is supported:
+- **Active State (`active`):** `now < expires_at` -> Normal operation.
+- **Grace Period (`grace_period`):** `expires_at <= now <= expires_at + grace_period` -> System continues running; warnings logged in system logs and Admin Studio.
+- **Expired (`expired`):** `now > expires_at + grace_period` -> Protected runtime endpoints refuse execution (`ErrLicenseExpired`).
 
 ---
 
-## 5. Gerçekçi Güvenlik ve Kopyalama Sınırları
+## 5. Security Realities & Copy Protection Boundaries
 
 > [!CAUTION]
-> **Yazılımda kopyalamanın teknik olarak %100 imkânsız olduğunu iddia etmek mühendislik gerçekleriyle bağdaşmaz.**
+> It is an engineering reality that no software running on end-user hardware can achieve 100% technical copy prevention.
 
-HydroGo lisanslama ve izolasyon mimarisinin sınırları şeffaf ve gerçekçi biçimde tanımlanmıştır:
-
-1. **Kriptografik Bütünlük (Tamper Evidence):** Lisans dosyası üzerindeki herhangi bir karakter değişikliği (örneğin bitiş tarihini ileri almak, Edition değiştirmek) Ed25519 imzasını geçersiz kılar.
-2. **Offline Doğrulama:** Lisans denetimi için dış ağa veya bir "phone-home" lisans sunucusuna ihtiyaç duyulmaz. Bu, air-gapped ve regüle edilmiş kurumsal veri merkezlerinde çalışmayı mümkün kılar.
-3. **Tersine Mühendislik Sınırları:** Müşteri ortamında çalışan her yazılım (binary veya byte-code), yeterli zamana ve donanıma sahip kötü niyetli aktörler tarafından disassemble edilebilir veya memory patching ile atlatılabilir.
-4. **Hukuki ve Sözleşmesel Koruma:** Lisans sistemi, iyi niyetli kurumsal müşterilerin sözleşme sınırlarında kalmasını sağlamak, izinsiz kopyalamayı tespit edilebilir kılmak ve hukuki yaptırımlara zemin hazırlamak üzere tasarlanmıştır.
+The technical boundaries of the licensing subsystem are explicitly documented:
+1. **Cryptographic Integrity (Tamper Evidence):** Any modification to the license file (e.g. altering expiration dates or edition tiers) invalidates the Ed25519 signature.
+2. **Offline Verification:** No external network connectivity or "phone-home" telemetry is required, making it ideal for air-gapped or regulated data centers.
+3. **Reverse Engineering Limits:** Any binary running in a client-controlled environment can theoretically be disassembled or patched in memory. The system is intended to provide clear auditability and contract boundaries.
 
 ---
 
-## 6. CLI Kullanım Rehberi
+## 6. CLI Usage Reference
 
-Lisans üretimi müşteriye dağıtılan runtime'dan ayrılmış vendor-only `hydro-issuer` binary'si ile yapılır. Müşteri runtime'ı yalnızca doğrulama ve durum sorgulama komutlarını içerir:
+License generation is separated from the runtime into the vendor-only `cmd/hydro-issuer` binary. The runtime `cmd/hydro` CLI includes verification and inspection commands:
 
-### Yeni Anahtar Çifti Üretme
+### Generating a Keypair (`hydro-issuer`)
 ```bash
 hydro-issuer keygen --public-out license_pub.key --private-out license_priv.key
 ```
 
-### Müşteriye Lisans Üretme (`issue`)
+### Issuing a License (`hydro-issuer`)
 ```bash
 hydro-issuer issue \
-  --customer "Acme Teknoloji A.Ş." \
+  --customer "Acme Technologies" \
   --project-id "proj-acme-prod" \
   --key-id "vendor-2026-01" \
   --edition "growth" \
@@ -185,7 +181,7 @@ hydro-issuer issue \
   --out hydro.lic
 ```
 
-### Lisans Doğrulama (`verify`)
+### Verifying a License (`hydro`)
 ```bash
 hydro license verify \
   --license hydro.lic \
@@ -196,13 +192,11 @@ hydro license verify \
   --feature "commerce"
 ```
 
-### Lisans Durumunu İnceleme (`status`)
+### Inspecting License Status (`hydro`)
 ```bash
-# İnsan okunabilir özet
+# Human-readable summary
 hydro license status --license hydro.lic --public-key license_pub.key
 
-# Otomasyon ve CI/CD için JSON çıktısı
+# JSON output for CI/CD automation
 hydro license status --license hydro.lic --public-key license_pub.key --json
 ```
-
-`hydro` binary'si `issue` veya `keygen` çağrılarını bilinçli olarak reddeder. Özel anahtar müşteri makinesine, müşteri CI/CD'sine veya runtime artifact'ına konulmamalıdır. Key rotation sırasında yeni public key resmi release'e güvenilir anahtar olarak gömülür; eski lisansların geçiş penceresi ayrıca release notlarında belirtilir.

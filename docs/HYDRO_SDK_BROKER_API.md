@@ -1,93 +1,89 @@
-# Hydro SDK artifact broker API sözleşmesi
+﻿# Hydro SDK Artifact Broker API Contract
 
-Bu belge, public `hydro` CLI ile private runtime artifact servisi arasındaki
-minimum sözleşmedir. Broker kaynak kodu veya GitHub PAT'i istemciye vermez;
-yalnızca kısa ömürlü, proje/sürüm bağlı bir indirme grant'i üretir.
+This document specifies the minimum contract between the public hydro CLI and the
+private runtime artifact service. The broker never exposes source code or personal access
+tokens (PATs) to the client; it exclusively issues short-lived, project- and version-bound
+download grants.
 
-## Kimlik doğrulama
+## Authentication
 
-`hydro login`, OAuth 2.1 Authorization Code + PKCE veya headless cihaz akışı
-ile kullanıcı oturumu açar. Refresh token yalnızca işletim sistemi credential
-store'unda tutulur. CLI log'larında access/refresh token, Authorization header
-ve indirme URL'si görünmez.
+hydro login authenticates users via OAuth 2.1 Authorization Code with PKCE or a headless
+device flow. Refresh tokens are persisted exclusively within the operating system's native
+credential store. CLI logs strictly redact access/refresh tokens, Authorization headers,
+and signed artifact download URLs.
 
-Broker istekleri:
+Broker requests:
 
-```text
+`	ext
 POST /v1/runtime/grants
 Authorization: Bearer <short-lived access token>
 Content-Type: application/json
-```
+`
 
-```json
+`json
 {
-  "project_id": "project-123",
-  "core_version": "1.4.0",
-  "sdk_version": "1.2.0",
-  "target": "linux-amd64",
-  "edition": "growth",
-  "features": ["news", "media"]
+   project_id: project-123,
+  core_version: 1.4.0,
+  sdk_version: 1.2.0,
+  target: linux-amd64,
+  edition: growth,
+  features: [news, media]
 }
-```
+`
 
-Broker; kullanıcının organization/project entitlement'ını, edition/feature
-uyumunu ve target desteğini sunucu tarafında kontrol eder. Repository membership
-tek başına lisans veya artifact erişimi sayılmaz.
+The broker validates organization and project entitlements, edition/feature compatibility,
+and platform target support on the server side. Repository membership alone does not constitute
+a valid license or artifact entitlement.
 
-## Başarılı grant
+## Successful Grant
 
-HTTP `200` cevabı en fazla 64 KiB JSON olmalı ve şu alanları içermelidir:
+The HTTP 200 response must be a JSON payload of at most 64 KiB containing the following fields:
 
-```json
+`json
 {
-  "access_token": "opaque-short-lived-token",
-  "project_id": "project-123",
-  "core_version": "1.4.0",
-  "sdk_version": "1.2.0",
-  "artifact_url": "https://artifacts.example/v1/…",
-  "issued_at": "2026-09-16T12:00:00Z",
-  "expires_at": "2026-09-16T12:10:00Z"
+  access_token: opaque-short-lived-token,
+  project_id: project-123,
+  core_version: 1.4.0,
+  sdk_version: 1.2.0,
+  artifact_url: https://artifacts.example/v1/...,
+  issued_at: 2026-09-16T12:00:00Z,
+  expires_at: 2026-09-16T12:10:00Z
 }
-```
+`
 
-Grant en fazla 24 saat geçerli olabilir; normal indirme grant'i birkaç dakika
-ile sınırlanmalıdır. URL HTTPS olmalı, credentials/fragment içermemeli ve
-redirect takip edilmemelidir. CLI, grant alanlarını lock ve release manifestiyle
-eşleştirmeden indirme başlatmaz.
+Grants are valid for at most 24 hours; normal download grants should expire within a few minutes.
+The URL must use HTTPS, omit embedded credentials and fragments, and redirect following must be
+disabled. The CLI will not initiate a download until grant metadata matches the lockfile and release manifest.
 
-## Hata sözleşmesi
+## Error Contract
 
-| HTTP | Anlam | CLI davranışı |
+| HTTP | Meaning | CLI Behavior |
 | --- | --- | --- |
-| 400 | Geçersiz target/sürüm/JSON | Kullanıcıya düzeltilebilir alanları söyle, token gösterme |
-| 401 | Oturum geçersiz | Yerel oturumu temizle, yeniden login öner |
-| 403 | Entitlement yok | Erişim reddedildi; repository/credential ayrıntısı gösterme |
-| 404 | Artifact yok | Sürüm/target desteğini kontrol etmeyi öner |
-| 409 | Lock/edition uyumsuz | Lock ve proje ayarlarını karşılaştırmayı öner |
-| 429 | Broker rate limit | `Retry-After` sınırına uyan bounded retry |
-| 5xx | Geçici broker hatası | Sınırlı retry, sonra fail-closed |
+| 400 | Invalid target, version, or JSON | Present user-correctable fields; redact token |
+| 401 | Invalid or expired session | Clear local session; prompt to re-authenticate |
+| 403 | Missing entitlement | Access denied; omit repository or credential details |
+| 404 | Artifact not found | Suggest verifying version or target platform support |
+| 409 | Lockfile and edition mismatch | Suggest verifying lockfile against project settings |
+| 429 | Broker rate limit exceeded | Bounded retry respecting Retry-After header |
+| 5xx | Transient broker error | Bounded retry, then fail closed |
 
-Hata gövdesi bounded ve makinece okunabilir `code`, `message`, `request_id`
-alanlarından oluşur; stack trace, SQL, GitHub URL'si veya secret içermez.
+The error payload consists of bounded, machine-readable code, message, and equest_id fields;
+stack traces, internal SQL errors, GitHub URLs, and secrets are strictly forbidden.
 
-## Broker içi dağıtım
+## Internal Distribution
 
-Broker, private GitHub App veya private registry credential'ını yalnızca sunucu
-tarafında kullanır. CI tarafından üretilen artifact ve signed release manifest
-object storage/registry'den alınır. İstemciye kaynak repo, PAT veya kalıcı
-registry credential'ı gönderilmez.
+The broker accesses private GitHub Apps or container/artifact registry credentials exclusively
+on the server side. Artifacts and signed release manifests produced by CI are pulled from internal
+object storage or registries. Source repositories, PATs, and persistent registry secrets are never
+transmitted to clients.
 
-## Operasyon ve kabul
+## Operations and Acceptance
 
-- Grant issuance, denial, expiry ve revoke olayları PII/secret içermeyen audit
-  kaydı üretir.
-- Signing key HSM/KMS veya erişimi ayrılmış release ortamında tutulur; public key
-  rotation için key-id ve overlap penceresi tanımlanır.
-- Revocation ve mirror/air-gapped aktarım akışları ayrı runbook ve tatbikatla
-  doğrulanır.
-- Contract test; valid grant, mismatch, expiry, oversized response, redirect,
-  401/403/429/5xx ve token redaction senaryolarını kapsar.
+- Grant issuance, denial, expiration, and revocation events emit audit log entries free of PII and secrets.
+- Signing keys reside in HSM/KMS or access-segregated release environments; key IDs and overlap windows govern rotation.
+- Revocation, mirroring, and air-gapped transport workflows are verified through separate runbooks and drills.
+- Contract test suites cover valid grants, mismatches, expiration, oversized responses, HTTP redirects, 401/403/429/5xx status handling, and token redaction.
 
-Bu belge API implementasyonu değildir. Gerçek broker endpoint'i, OAuth client
-registration'ı, registry hesabı ve signing key ceremony'si sağlanmadan production
-hazır kabulü verilmez.
+This document specifies the interface contract, not the full backend service implementation. Production
+acceptance requires verified live broker endpoints, OAuth client registration, registry credentials, and
+a key ceremony.

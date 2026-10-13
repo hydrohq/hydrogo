@@ -1,12 +1,9 @@
-# R43 — Headless starter çağrı-başı abort seçeneği
+# R43 — Headless starter per-request abort option
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel Node runtime)
+**Status:** Successful (local Node runtime)
 
-Headless client’in public okuma ve Commerce metotları artık son parametre olarak
-`HydroGoRequestOptions` kabul ediyor. `signal` böylece aynı client instance’ı
-paylaşan sayfalarda yalnızca ilgili isteği iptal edebiliyor; constructor’daki
-global signal ve timeout davranışları geriye dönük korunuyor.
+The headless client's public read and Commerce methods now accept `HydroGoRequestOptions` as the final parameter. Consequently, `signal` can abort specific requests on pages sharing the same client instance; constructor global signal and timeout behaviors remain backward-compatible.
 
 ```powershell
 Push-Location examples/headless-starter
@@ -14,5 +11,4 @@ npm test
 Pop-Location
 ```
 
-Sonuç: **PASS** — çağrı-başı abort propagation, global/timeout abort, origin,
-idempotency, typed error/request-id ve bounded response kontrolleri.
+Result: **PASS** — per-request abort propagation, global/timeout abort, origin, idempotency, typed error/request-id, and bounded response checks.

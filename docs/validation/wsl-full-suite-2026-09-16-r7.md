@@ -1,9 +1,7 @@
-# WSL tam suite — validated broker grant sonrası — 2026-09-16
+# WSL full suite — post validated broker grant — 2026-09-16
 
-- Ubuntu WSL2, kullanıcı `testuser`
-- Komut: `go test ./... -p 1 -timeout=5m`
-- Sonuç: exit code 0; tüm paketler `ok` veya `[no test files]`.
+- Ubuntu WSL2, user `testuser`
+- Command: `go test ./... -p 1 -timeout=5m`
+- Result: exit code 0; all packages returned `ok` or `[no test files]`.
 
-Bu çalıştırma `RequestValidatedGrant`, broker response sınırları, artifact
-hygiene ve önceki generator/CLI/runtime fazlarının tamamını kapsar. Gerçek
-OAuth/broker hesabı ve production key ceremony bu raporun kapsamı dışındadır.
+This run covers `RequestValidatedGrant`, broker response boundaries, artifact hygiene, and all previous generator/CLI/runtime phases. Real OAuth/broker accounts and production key ceremonies remain outside the scope of this report.

@@ -1,22 +1,19 @@
-# R5 — SDK runtime cache yaşam döngüsü
+# R5 — SDK runtime cache lifecycle
 
-## Kapsam
+## Scope
 
-`ListCache` yalnızca `root/<version>` altındaki normal artifact dosyalarını
-listeler. `PruneCache` korunacak sürümleri alır; dry-run planı üretir veya
-korunmayan dosyaları siler. Symlink ve normal dosya olmayan girdiler reddedilir.
+`ListCache` lists only regular artifact files under `root/<version>`. `PruneCache` takes versions to preserve; it produces a dry-run plan or removes non-preserved files. Symlinks and non-regular file entries are rejected.
 
-## Doğrulama
+## Verification
 
 ```text
 go test ./internal/sdkdist
 ok github.com/ardaozyildirim/hydrogo/internal/sdkdist
 ```
 
-Testler dry-run'ın dosyaya dokunmadığını, apply modunun eski sürümü sildiğini,
-güncel sürümü koruduğunu ve symlink'i reddettiğini kanıtlar.
+Tests verify that dry-run does not touch files, apply mode removes older versions, retains current versions, and rejects symlinks.
 
-CLI yüzeyi de doğrulanmıştır:
+CLI surface is also verified:
 
 ```text
 hydro runtime cache list --root PATH
@@ -24,7 +21,7 @@ hydro runtime cache prune --root PATH --keep v2.0.0 --dry-run
 hydro runtime cache prune --root PATH --keep v2.0.0 --confirm
 ```
 
-WSL Ubuntu'da hedef ve tam suite de geçti:
+Target and full suite also passed on WSL Ubuntu:
 
 ```text
 go test ./cmd/hydro ./internal/sdkdist

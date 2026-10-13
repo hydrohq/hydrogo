@@ -1,20 +1,20 @@
-# Admin Studio ve müşteri akışları Chromium matrisi
+# Admin Studio and Customer Flows Chromium Matrix
 
-**Tarih:** 2026-10-07  
-**Sonuç:** 64/64 Chromium testi geçti  
-**Kapsam:** Admin ve editör deneyimi, generated/dynamic CRUD, MFA, erişilebilirlik,
-responsive davranış ve public sayfalar.
+**Date:** 2026-10-07  
+**Result:** 64/64 Chromium tests passed  
+**Scope:** Admin and editor experience, generated/dynamic CRUD, MFA, accessibility,
+responsive behavior, and public pages.
 
-## Çalıştırma ortamı
+## Execution Environment
 
-Playwright paketi, seed edilmiş izole SQLite Edition ve geçerli tek kullanımlık
-admin storage state ile çalıştırıldı. Generated Admin smoke testleri
-`HYDRO_E2E_BASE_URL` ve `HYDRO_E2E_STORAGE_STATE` değişkenlerini kullanır;
-kimlik doğrulaması olmayan rastgele bir `localhost:8090` sunucusu tam Admin
-matrisi için geçerli fixture değildir. `HYDRO_E2E_ADMIN_EMAIL` ve
-`HYDRO_E2E_ADMIN_PASSWORD` yalnızca izole yerel test hesabı içindir.
+The Playwright test suite was executed against a seeded, isolated SQLite Edition with a valid, single-use
+admin storage state. Generated Admin smoke tests use the
+`HYDRO_E2E_BASE_URL` and `HYDRO_E2E_STORAGE_STATE` environment variables;
+an arbitrary unauthenticated `localhost:8090` server is not a valid fixture for the full Admin
+matrix. `HYDRO_E2E_ADMIN_EMAIL` and
+`HYDRO_E2E_ADMIN_PASSWORD` are intended solely for the isolated local test account.
 
-İzole sunucunun hazırlığı:
+Isolated server preparation:
 
 ```sh
 go build -trimpath -buildvcs=false -o "$TMPDIR/hydro" ./cmd/hydro
@@ -26,7 +26,7 @@ printf '%s\n' "$HYDRO_E2E_ADMIN_PASSWORD" | "$TMPDIR/hydro" create-admin --email
 "$TMPDIR/hydro" serve --dev --database-dialect sqlite --database-dsn "$TMPDIR/edition.sqlite" --address 127.0.0.1:PORT
 ```
 
-Sunucu çalışırken, geçici `auth-state.json` üretildikten sonra:
+While the server is running, after generating the temporary `auth-state.json`:
 
 ```sh
 cd e2e
@@ -37,7 +37,7 @@ npm run generate
 npx playwright test --project=chromium --workers=1 --reporter=line
 ```
 
-Go ve repository kapıları:
+Go and repository guards:
 
 ```sh
 go test ./... -count=1 -p 1 -timeout=5m
@@ -50,118 +50,106 @@ go run ./tools/importguard -root examples/news-edition
 go run ./tools/importguard -root examples/construction-edition
 ```
 
-## Sonuç
+## Results
 
-- İlk doğrudan koşu fixture hazırlanmadan yapıldığı için generated Admin smoke
-  testleri login sayfasına yönlendi. Bu, ürün hatası değil test ortamı
-  eksiğiydi. Testler açıkça uygun admin session gerektirir.
-- Doğru isolated server ve `setup-auth.mjs` ile tam Chromium matrisi **63/63**
-  geçti. Kapsamda 15 viewport/responsive kontrolü, keyboard/focus ve adlandırma,
-  admin role/CSRF, davet/parola/MFA, schema-driven dynamic collection CRUD,
-  generated CRUD, rich-text/relation/media, taslak/yayın, kritik müşteri
-  yolculukları ve manifestten üretilmiş public/Admin smoke testleri bulunur.
-- İlk tam koşuda generated Admin axe taraması tek bir kontrast uyarısı verdi;
-  izole tekil tekrar ve fixture-auth ile yapılan tam tekrar geçti. E2E helper'ı
-  bundan sonra axe node failure summary'sini de assertion çıktısına ekler.
-  Bu generated CRUD sayfası için sekiz tema/mod birleşimi de ayrıca axe-core
-  taramasından geçirildi: HydroGo, shadcn, Nova ve Aurora için light/dark;
-  **8/8 geçti.** Denetim, karanlık HydroGo modunda avatar kontrastını ve
-  shadcn/Nova temalarının sabit avatar paletini ezmesini buldu. Palet renkleri
-  tema değişimlerinden bağımsız hale getirildi; matriste tam Axe taraması artık
-  tüm sekiz birleşimde koşuyor. Diğer Admin sayfaları ile tüm public/generated
-  türler için tema bazlı WCAG kabulü hâlâ açık.
-- Takipte generated CRUD liste görünümü sekiz aile/mod kombinasyonunda ayrı
-  axe-core taramasından geçirildi: HydroGo, shadcn, Nova ve Aurora için light ve
-  dark. **8/8 geçti.** Denetim, koyu modda HydroGo accent rengi üzerinde beyaz
-  avatar metni kontrastını ve shadcn/Nova temalarının avatar paletini ezmesini
-  buldu. Avatar palette renkleri temadan bağımsız hale getirildi; test bundan
-  sonra her tema/modu doğrular. Bu alt matriste bütün Admin rotalarının veya
-  public/generated sayfa türlerinin her temada tarandığı iddia edilmez.
-- 2026-10-07 follow-up'ta generated CRUD create formu da aynı dört tema ailesi
-  ve açık/koyu mod birleşimlerinde axe-core taramasından geçirildi: **8/8
-  geçti**. Form kontrolü responsive Chromium akışında da yer alır; diğer Admin
-  rotaları ve public sayfaların tüm tema/mod birleşimleri hâlâ kapsam dışıdır.
-- Güvenlik takibinde editor/viewer oturumlarıyla medya liste erişimi denendi;
-  yönetici `media.manage` iznini editörden kaldırınca yeni oturum `/admin/media`
-  rotasından 403 alıyor, izin geri alındığında eski oturum iptal ediliyor.
-  Tekil Chromium rol akışı **1/1** geçti. Medya handler'ları artık aynı
-  `auth.Can` kontrolünü kullanır; izin reddi sunucu bileşeni eksikliğinden ayrı
-  olarak 403 döndürülür.
-- Admin hızlı araması artık pages/news, media, members ve site settings
-  sonuçlarını sırasıyla `content.read`, `media.manage`, `members.manage` ve
-  `site.manage` ile sınırlar. Gerçek editor oturumunda `content.read` deny
-  override'ı sonrası sayfa/haber arama sonuçları yok; aynı admin-management
-  Chromium akışındaki iki rol/izin testi geçti. Kaynak bazlı tam Go role ve
-  override tablosu `internal/search/admin_http_test.go` içindedir.
+- Because the initial direct run was performed without preparing the fixture, generated Admin smoke
+  tests redirected to the login page. This was not a product defect, but an omission in the test
+  setup. Tests explicitly require a valid admin session.
+- With the correct isolated server and `setup-auth.mjs`, the full Chromium matrix passed **63/63**.
+  Scope covers 15 viewport/responsive checks, keyboard/focus and naming,
+  admin role/CSRF, invite/password/MFA, schema-driven dynamic collection CRUD,
+  generated CRUD, rich-text/relation/media, draft/publish, critical customer
+  journeys, and public/Admin smoke tests generated from the manifest.
+- On the first full run, the generated Admin axe scan produced a single contrast warning;
+  an isolated individual rerun and a full rerun with fixture-auth passed. Going forward, the E2E helper
+  also includes the axe node failure summary in the assertion output.
+  For this generated CRUD page, eight theme/mode combinations were also scanned via axe-core:
+  light/dark for HydroGo, shadcn, Nova, and Aurora;
+  **8/8 passed.** The audit discovered avatar contrast in dark HydroGo mode and
+  shadcn/Nova themes overriding the fixed avatar palette. Palette colors
+  were made independent of theme switches; the full Axe scan in the matrix now runs
+  across all eight combinations. Theme-based WCAG acceptance for other Admin pages and all public/generated
+  types remains open.
+- In a follow-up, the generated CRUD list view was scanned separately with axe-core across eight
+  family/mode combinations: light and dark for HydroGo, shadcn, Nova, and Aurora.
+  **8/8 passed.** The audit identified white avatar text contrast against the HydroGo accent color
+  in dark mode, and shadcn/Nova themes overriding the avatar palette.
+  Avatar palette colors were decoupled from the theme; tests now verify every theme/mode.
+  This submatrix does not claim that all Admin routes or public/generated page types have been scanned in every theme.
+- In the 2026-10-07 follow-up, the generated CRUD create form was also scanned with axe-core across the same four theme families
+  and light/dark mode combinations: **8/8 passed**.
+  Form inspection is also included in the responsive Chromium flow; other Admin
+  routes and public pages across all theme/mode combinations remain out of scope.
+- In a security follow-up, media list access was tested using editor/viewer sessions;
+  when an administrator revoked the `media.manage` permission from the editor, new sessions received a 403
+  on the `/admin/media` route, and upon revoking the permission, existing sessions were invalidated.
+  The standalone Chromium role flow passed **1/1**. Media handlers now use the same
+  `auth.Can` check; permission denial returns a 403, distinct from server component absence.
+- Admin quick search now restricts pages/news, media, members, and site settings
+  results via `content.read`, `media.manage`, `members.manage`, and
+  `site.manage`, respectively. In a real editor session with a `content.read` deny
+  override, page/news search results are absent; two role/permission tests in the same admin-management
+  Chromium flow passed. The complete resource-based Go role and override table can be found in `internal/search/admin_http_test.go`.
 
-2026-10-07 takip koşusunda `admin-management.spec.ts`, mevcut admin storage
-state'i yeniden kullanarak 15 yönetim rotasının hem 390px hem 768px viewport'ta
-200 döndüğünü ve yatay taşmadığını doğrulayan bir test ekledi. Böylece tam
-Chromium matrisi **64/64** geçti (2.9 dakika). Admin desktop visual golden
-koşusu 7/7 geçti. Tablet/mobile visual projeleri bu makinede WebKit bağımlı
-tarayıcı başlatma kütüphaneleri eksik olduğu için açılamadı; aynı viewport
-boyutlarındaki responsive kabul Chromium ile çalıştı. Bu sonuç fiziksel cihaz
-veya WebKit görsel parity testi olarak değerlendirilmez.
+In the 2026-10-07 follow-up run, `admin-management.spec.ts` added a test reusing the existing admin storage
+state to verify that 15 management routes return 200 on both 390px and 768px viewports
+without horizontal overflow. As a result, the full Chromium matrix passed **64/64** (2.9 minutes).
+The Admin desktop visual golden run passed 7/7. Tablet/mobile visual projects could not be launched
+on this machine due to missing WebKit browser launch dependencies; responsive acceptance at the same viewport
+dimensions was executed via Chromium. This result should not be construed as physical device
+or WebKit visual parity testing.
 
-Admin ve MFA grubu ayrıca `custom/admin-management.spec.ts`,
-`custom/admin-password-reset.spec.ts` ve `custom/admin-mfa-settings.spec.ts`
-ile yeni responsive kabul testi dahil 6/6 geçti. Suite aynı gerçek
-login/challenge ve mutasyon akışlarını bağımsız tekrarlar.
+The Admin and MFA group also passed 6/6 across `custom/admin-management.spec.ts`,
+`custom/admin-password-reset.spec.ts`, and `custom/admin-mfa-settings.spec.ts`,
+including the new responsive acceptance test. The suite independently repeats the same authentic
+login/challenge and mutation flows.
 
-Mobil kullanılabilirlik takibinde Admin Studio menüsü ve sık kullanılan
-form/kart/aksiyon düğmeleri için 390px ve 768px genişliklerde en az 44px hedef
-yüksekliği; bilgi ipuçları için en az 24×24px hedef boyutu tanımlandı. Rich-text
-araç çubuğu kontrolleri yoğun düzeni korumak için bu düğme kuralının dışında.
-`admin-management.spec.ts` 15 yönetim rotasını iki viewport'ta dolaşıp hedef
-boyutlarını ölçüyor; test tek başına **1/1**, aynı dosyanın tüm yönetim/rol/
-davet akışları **4/4**, `go test ./internal/ui -count=1` geçti. Bu, masaüstü
-golden veya WebKit/gerçek cihaz doğrulamasının yerine geçmez.
+In mobile usability follow-up, target heights of at least 44px were established for the Admin Studio menu and common
+form/card/action buttons at 390px and 768px widths, with tooltip target sizes defined as at least 24x24px.
+Rich-text toolbar controls are exempt from this button rule to maintain compact layout density.
+`admin-management.spec.ts` traverses 15 management routes across two viewports to measure target
+sizes; the standalone test passed **1/1**, all management/role/invite flows in the same file passed
+**4/4**, and `go test ./internal/ui -count=1` passed. This does not replace desktop
+golden or WebKit/physical device verification.
 
-Aynı mobil test hamburger menüsünü 390px'de açıp `aria-expanded` ve açık
-durumunu kontrol eder; Escape ile kapatmayı, hemen yeniden açmayı ve bir menü
-bağlantısı seçince hedef rotaya gidip menünün kapanmasını doğrular. Hemen
-yeniden açma denemesi mevcut 250ms tıklama kilidinin kullanıcı girdisini
-yuttuğunu ortaya çıkardı; redundant kilit kaldırıldı. Yeni menü akışıyla test
-tek başına **1/1**, tam admin-management dosyası **4/4** geçti.
+The same mobile test opens the hamburger menu at 390px and verifies `aria-expanded` and open
+state; it verifies closing via Escape, immediate reopening, and selecting a menu
+link navigating to the target route and closing the menu. The immediate reopening attempt revealed
+that an existing 250ms click lock swallowed user input; the redundant lock was removed. With the updated
+menu flow, the standalone test passed **1/1**, and the full admin-management file passed **4/4**.
 
-Faz 1 devamında Project Edition'e yeni bir `milestone` Blueprint kaynağı
-eklendi. Aynı generated Admin registration helper'ı bu kaynağı ayrıca ID
-tanımlamadan menüye aldı; API route ve onaylı migration ise Edition tarafından
-açıkça bağlandı. Tarayıcı testi yeni koleksiyonda create/edit/delete ve API
-readback yaptı, liste ve formu axe ile taradı ve 390px form taşmasını kontrol
-etti. Koyu/açık dört tema ailesi matrisi mevcut Project listesinde tekrar geçti.
-İlk yeni kaynak koşusunda koleksiyon açıklamasının kontrastı 3.7:1 çıktı;
-paylaşılan `.dashboard-card-head .muted` stili semantik
-`--ink-secondary` tokenına alındı ve Chromium matrisinin tamamı yeniden geçti.
-Kaynak ve DB kontrat kanıtı `blueprint-derived-admin-activation-2026-10-07.md`
-dosyasındadır.
+In Phase 1 progression, a new `milestone` Blueprint resource was added to Project Edition.
+The same generated Admin registration helper added this resource to the menu without requiring an explicit
+ID definition; the API route and approved migration were explicitly wired by the Edition.
+Browser testing executed create/edit/delete and API readback on the new collection, scanned the list and form with axe,
+and verified 390px form overflow. The dark/light four-theme-family matrix passed again on the existing Project list.
+On the initial new resource run, collection description contrast measured 3.7:1;
+the shared `.dashboard-card-head .muted` style was migrated to the semantic
+`--ink-secondary` token, and the entire Chromium matrix passed once again.
+Resource and DB contract verification is documented in `blueprint-derived-admin-activation-2026-10-07.md`.
 
-## Follow-up — tüm Admin rotalarında tema WCAG matrisi
+## Follow-up — Theme WCAG Matrix Across All Admin Routes
 
-2026-10-07'de gerçek tek Edition admin oturumuyla 14 yönetim rotası, dört
-Studio teması (HydroGo, shadcn, Nova, Aurora) ve açık/koyu modda axe-core
-WCAG 2.1 A/AA taramasından geçirildi: **112/112 kombinasyon geçti**. İlk
-koşuların yakaladığı düşük kontrastlı durum/izin rozetleri, medya metinleri ve
-ikincil metin tonları düzeltildi. Test komutu ve kesin kapsam:
+On 2026-10-07, using a single authentic Edition admin session, 14 management routes, four
+Studio themes (HydroGo, shadcn, Nova, Aurora), and light/dark modes were evaluated with axe-core
+WCAG 2.1 A/AA scans: **112/112 combinations passed**. Low-contrast status/permission badges, media text, and
+secondary text hues flagged in earlier runs were resolved. Test command and exact scope:
 `docs/validation/admin-theme-accessibility-2026-10-07.md`.
-Bu sonuç WebKit/cihaz görsel testi veya public/generated tüm türlerin tema
-kapsaması olarak yorumlanmamalıdır.
+This result should not be interpreted as WebKit/device visual testing or theme
+coverage for all public/generated types.
 
-## Linux WebKit tablet/mobile visual goldens
+## Linux WebKit Tablet/Mobile Visual Goldens
 
-2026-10-07 takip doğrulamasında, `@playwright/test` 1.63.0 ile eşleşen resmi
-`mcr.microsoft.com/playwright:v1.63.0-noble` container'ında Playwright'ın
-WebKit varsayılanını kullanan `visual-tablet` ve `visual-mobile` projeleri
-çalıştırıldı. İzole seeded SQLite Edition, geçici admin hesabı ve corporate
-tema kullanıldı. Home, news, admin login, dashboard, page editor, news editor
-ve media library için **14/14** Linux full-page screenshot baseline üretildi;
-aynı session/fixture ile `--update-snapshots` olmadan tekrar çalıştırma da
-**14/14** geçti. Canlı 390×664 WebKit viewport'unda news editor'ın sabit
-kaydet aksiyonu ekran altında 44px ölçüldü. Bu golden seti yedi yüzeyi kapsar;
-tüm yönetim rotaları, generated koleksiyonların tüm field varyantları veya
-fiziksel iOS cihazı kapsamı iddia edilmez.
+In the 2026-10-07 follow-up validation, the `visual-tablet` and `visual-mobile` projects utilizing
+Playwright's WebKit default were executed in the official `mcr.microsoft.com/playwright:v1.63.0-noble` container
+matching `@playwright/test` 1.63.0. An isolated seeded SQLite Edition, temporary admin account, and corporate
+theme were utilized. **14/14** Linux full-page screenshot baselines were generated for Home, news, admin login,
+dashboard, page editor, news editor, and media library; rerunning with the same session/fixture without
+`--update-snapshots` also passed **14/14**. In a live 390x664 WebKit viewport, the news editor's sticky save
+action measured 44px at the bottom of the screen. This golden suite covers seven surfaces; coverage of all
+management routes, all field variants of generated collections, or physical iOS devices is not claimed.
 
-Kapsamı aynı koşullarda yeniden çalıştırmak için:
+To rerun the scope under identical conditions:
 
 ```sh
 HYDRO_VISUAL=1 npx playwright test visual.spec.ts --project=visual-tablet --project=visual-mobile --workers=1

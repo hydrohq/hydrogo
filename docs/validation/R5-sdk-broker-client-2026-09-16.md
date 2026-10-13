@@ -1,13 +1,8 @@
-# R5 — SDK broker grant istemcisi
+# R5 — SDK broker grant client
 
-`internal/sdkdist.RequestGrant`, broker sözleşmesinin istemci tarafını sağlar:
-bounded JSON request/response, HTTPS/localhost test policy, Authorization header,
-redirect reddi ve non-200 hata eşlemesi. Access token response'a veya diske
-yazılmaz; çağıran `ValidateGrant` ile lock bağlamı eşleşmesini ayrıca kontrol eder.
-`RequestValidatedGrant` ise transport ve lock/grant doğrulamasını tek fail-closed
-çağrıda birleştirir; yanlış project/Core/SDK eşleşmesini reddeder.
-İstek koordinatları (project/Core/SDK/target/edition) network çağrısından önce
-zorunlu ve feature listesi duplicate/path içeriklerine karşı bounded doğrulanır.
+`internal/sdkdist.RequestGrant` provides the client side of the broker contract: bounded JSON request/response, HTTPS/localhost test policy, Authorization header, redirect rejection, and non-200 error mapping. The access token is never written to the response or disk; the caller additionally checks lock context match via `ValidateGrant`.
+`RequestValidatedGrant` unifies transport and lock/grant validation into a single fail-closed call, rejecting incorrect project/Core/SDK pairings.
+Request coordinates (project/Core/SDK/target/edition) are mandatory before network calls, and feature lists are validated boundedly against duplicates/path content.
 
 Windows:
 
@@ -23,13 +18,11 @@ go test ./internal/sdkdist ./internal/release ./cmd/hydro
 exit code 0
 ```
 
-Testler `httptest` ile başarılı grant, 403 ve oversized response senaryolarını
-çalıştırır. Gerçek OAuth client registration ve broker deployment kapsam dışıdır.
-WSL çalıştırması ayrıca `RequestValidatedGrant` lock mismatch regresyon testini
-de kapsar.
-Koordinat/feature preflight testleri de WSL’de exit code 0 ile geçti.
+Tests run successful grant, 403, and oversized response scenarios using `httptest`. Real OAuth client registration and broker deployment are out of scope.
+The WSL execution also covers the `RequestValidatedGrant` lock mismatch regression test.
+Coordinate/feature preflight tests also passed on WSL with exit code 0.
 
-Güncel race doğrulaması:
+Current race verification:
 
 ```text
 go test -race ./internal/sdkdist ./internal/release ./cmd/hydro

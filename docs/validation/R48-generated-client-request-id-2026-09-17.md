@@ -1,10 +1,6 @@
 # R48 — Generated client request ID parity
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel generator contract)
+**Status:** Successful (local generator contract)
 
-Generated `HydroAPIError` artık bounded `requestId` alanını taşır. Öncelik
-JSON body içindeki `request_id`, yoksa response `x-request-id` header’ıdır.
-Oversize response hataları da aynı header korelasyonunu korur. Bu davranış,
-headless starter’daki typed error sözleşmesiyle hizalıdır ve ham altyapı
-ayrıntılarını kullanıcıya açmadan destek/observability korelasyonu sağlar.
+Generated `HydroAPIError` now carries a bounded `requestId` field. Precedence favors `request_id` within the JSON body, falling back to the response `x-request-id` header. Oversize response errors retain the same header correlation. This behavior aligns with the typed error contract in headless starter and provides support/observability correlation without leaking raw infrastructure details to users.

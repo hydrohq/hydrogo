@@ -1,46 +1,35 @@
-# Domain'i Cloudflare'e bağlama ve SSL ayarları (insan rehberi)
+# Domain DNS & Cloudflare SSL Setup (Human Guide)
 
-## 1. Nameserver'ları değiştir
+## 1. Update Nameservers
 
-Domain'i satın aldığın yerde (registrar — GoDaddy, İsimtescil, Namecheap
-vb.), nameserver'ları Cloudflare'in sana verdiği ikiliyle değiştir
-(Cloudflare'de domain'i eklediğinde ekranda gösterir). Bu değişikliğin
-**dünya geneline yayılması** (propagation) birkaç dakikadan 48 saate kadar
-sürebilir — bu tamamen normal, acele etme.
+At your domain registrar (Namecheap, GoDaddy, Google Domains, Cloudflare Registrar, etc.), update the custom nameservers to the two nameserver addresses provided by Cloudflare during domain onboarding. Nameserver propagation across global ISPs typically takes from a few minutes up to 24–48 hours.
 
-**"Bende açılmıyor ama arkadaşımda açılıyor" gibi bir durumla
-karşılaşırsan** — bu da normal, farklı internet sağlayıcılarının DNS
-sunucuları farklı hızlarda güncelleniyor. `dnschecker.org` gibi bir
-siteden dünya genelinde ne durumda olduğunu görebilirsin.
+You can verify global propagation status using tools like `dnschecker.org`.
 
-## 2. DNS kayıtlarını ekle
+## 2. Configure DNS Records
 
+In Cloudflare DNS Management, add your host routing records:
+
+```text
+Type   Name   Content       Proxy Status
+A      @      <server-ip>   Proxied (Orange cloud)
+CNAME  www    @             Proxied (Orange cloud)
 ```
-A     @          sunucu-ip     Proxied (turuncu bulut)
-A     www        sunucu-ip     Proxied (turuncu bulut)
-```
-Mail ile ilgili kayıtlar (SPF, DKIM) ayrı bir konu —
-`mail-smtp-setup.md` rehberine bak, onlar **asla** turuncu bulut olmamalı.
 
-## 3. SSL modu
+*Note:* Mail records (MX, SPF TXT, DKIM CNAME/TXT) must **never be proxied** (DNS-only / Grey cloud). See [`docs/guides/human/mail-smtp-setup.md`](mail-smtp-setup.md) for mail DNS configuration.
 
-Cloudflare → SSL/TLS → Overview → **"Full (strict)"** seç. "Flexible"
-seçme — ziyaretçi ile Cloudflare arası şifreli olsa da, Cloudflare ile
-senin sunucun arası şifresiz kalır, bu da sitenin çerez/güvenlik
-ayarlarıyla çakışıp yönlendirme döngüsüne (sürekli HTTPS'e atıp
-döndürme) sokabilir.
+## 3. SSL/TLS Encryption Mode
 
-Sunucunda henüz geçerli bir sertifika yoksa iki seçenek:
-- Hosting panelinden ücretsiz **Let's Encrypt** sertifikası al.
-- Cloudflare → SSL/TLS → Origin Server → **Create Certificate** ile
-  Cloudflare'in kendi sertifikasını oluşturup hosting panelinden yükle.
+Navigate to Cloudflare → SSL/TLS → Overview:
+- Select **"Full (strict)"** mode. Avoid "Flexible" mode, as Flexible terminates TLS at Cloudflare and communicates with your origin unencrypted, causing redirect loops with HydroGo's secure cookie and HTTPS redirection middleware.
 
-Son olarak Cloudflare → SSL/TLS → Edge Certificates →
-**"Always Use HTTPS"**'i aç.
+If your origin server does not yet have a trusted TLS certificate:
+- Provision a free **Let's Encrypt** certificate via your host or `certbot`, OR
+- Navigate to Cloudflare → SSL/TLS → Origin Server → **Create Certificate**, and install the 15-year origin certificate onto your host.
 
-## 4. Test et
+Under Cloudflare → SSL/TLS → Edge Certificates:
+- Enable **"Always Use HTTPS"**.
 
-Siteyi `https://` ile aç, tarayıcıda kilit simgesinin göründüğünü
-doğrula. Bir şey garip görünürse, önce Cloudflare panelindeki domain
-durumunun "Active" olduğunu kontrol et — "Pending Nameserver Update"
-yazıyorsa henüz hazır değil demektir.
+## 4. Verification
+
+Navigate to `https://your-domain.com/` in your browser. Verify the TLS padlock icon appears without security warnings. If an error appears, verify that your Cloudflare zone status displays "Active" rather than "Pending Nameserver Update".

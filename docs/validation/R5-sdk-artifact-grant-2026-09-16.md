@@ -1,23 +1,16 @@
-# R5 SDK artifact grant sözleşmesi — 2026-09-16
+# R5 SDK artifact grant contract — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist.ArtifactGrant` ve `ValidateGrant`, broker ile CLI arasındaki
-kısa ömürlü yetki verisini tanımlar. Grant proje ID’si, Core/SDK sürümleri,
-artifact URL’si, issued/expiry zamanları ve access token’ı bağlar. Token
-persist edilmez veya log’lanmaz; expiry en fazla 24 saat, zaman toleransı 5
-dakikadır ve URL ayrıca download policy’den geçer.
+`internal/sdkdist.ArtifactGrant` and `ValidateGrant` define the short-lived authorization payload between the broker and CLI. The grant binds project ID, Core/SDK versions, artifact URL, issued/expiry timestamps, and access token. The token is never persisted or logged; expiry is at most 24 hours, clock skew tolerance is 5 minutes, and the URL additionally passes through download policy.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` ve `go test ./...` başarılı.
-- Yanlış proje/sürüm, expired, gelecekte geçerli olacak, uzun ömürlü ve unsafe
-  URL grant’leri reddedildi.
-- `RedactToken` kısa veya tam token sızıntısını önlüyor.
+- Windows: `go test ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` and `go test ./...` passed.
+- Incorrect project/version, expired, post-dated, long-lived, and unsafe URL grants were rejected.
+- `RedactToken` prevents short or full token leakage.
 
-## Sınır
+## Scope & Boundaries
 
-Bu bir broker veya OAuth uygulaması değildir. Token üretimi, kullanıcı oturumu,
-revocation ve entitlement kontrolü dış serviste kalır; CLI yalnızca broker’ın
-ürettiği grant’i bu sözleşmeyle doğrular.
+This is not a broker or OAuth implementation. Token issuance, user session, revocation, and entitlement checks remain in external services; the CLI only validates broker-issued grants against this contract.

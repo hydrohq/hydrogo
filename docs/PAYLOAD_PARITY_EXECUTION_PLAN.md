@@ -1,213 +1,121 @@
-# Payload hızına yaklaşma ve HydroGo geliştirici deneyimi planı
+﻿# Developer Velocity & Payload Parity Execution Plan
 
-**Durum:** Kısmen uygulanıyor; güncel gerçek durum için
-[`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) belgesine bakın.  
-**Amaç:** HydroGo’yu mimari güvenlik ve modülerlikten ödün vermeden Payload CMS’in “tek tanım → çalışan admin/API” hızına yaklaştırmak.
+**Status:** Partially implemented; refer to [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for current verified status.  
+**Objective:** Deliver the rapid developer workflow of modern schema-driven frameworks ("single definition -> functioning admin, API, and types") while preserving HydroGo's architectural isolation, compile-time type safety, and zero-runtime-dependency Go engine.
 
-## Tarama özeti
+---
 
-Mevcut kod ve belgeler birkaç açıdan incelendi: proje generator’ı, module/resource CLI’ları, capability kit registry, Admin Studio manifestleri, frontend adapter’ları, SDK/edition ADR’leri, production roadmap’i ve açık gerçek-ortam kapıları.
+## Executive Summary
 
-Güçlü temel: `hydro new`, `hydro module create`, `hydro resource create`, SQLite/PostgreSQL kontratları, draft/revision/publish, policy katmanı, OpenAPI/TypeScript üretimi, React/HTMX/vanilla adapter’ları ve kit-aware wiring zaten mevcut.
+HydroGo provides a resilient core: `hydro new`, `hydro module create`, `hydro resource create`, certified SQLite/PostgreSQL contracts, draft/revision/publish editorial workflows, policy boundaries, OpenAPI v3/TypeScript generation, and multi-database adapters.
 
-Ana hız açığı: Üretilen çıktıların bir kısmı hâlâ reviewable scaffold niteliğinde; Payload’taki gibi tek bir koleksiyon tanımının admin, API, migration, SDK ve çalışan route’a tamamen otomatik bağlanması gerekiyor. Production roadmap’inde de gerçek müşteri kapasitesi, temiz ortam restore, PostgreSQL/sağlayıcı sertifikasyonu, resmi SDK v1 ve gerçek zamanlı dağıtım gibi kanıt kapıları açık durumda.
+The developer velocity initiative bridges reviewable scaffolding into instant, schema-driven Admin Studio surfaces and versioned API endpoints, eliminating manual wiring without surrendering human control over authorization policies and database migrations.
 
-## Faz 0 — Ölçülebilir hedef ve referans örnek (ön koşul)
+---
 
-- Standart bir çok dilli haber resource’u tanımla.
-- Payload ve HydroGo için aynı “ilk çalışan admin + API + seed + test” senaryosunu ölç.
-- Süre, üretilen dosya sayısı, manuel dokunuş sayısı, hata sayısı, bellek ve API performansını kaydet.
-- Hız iddialarını ölçüm olmadan kapatma; iki bağımsız müşteri örneğinde doğrula.
+## Phase 0 — Measurable Targets & Reference Fixture
 
-**Çıkış kriteri:** 30 dakikalık başlangıç senaryosu ve tekrarlanabilir benchmark raporu.
+- Define a standard multi-language editorial resource.
+- Benchmark identical "first runnable admin + API + seed + test" journeys across comparison frameworks.
+- Record wall-clock development duration, generated artifact count, manual file touches, memory footprint, binary size, and TTFB latency.
+- Validate benchmarks across independent client editions.
 
-## Faz 1 — Tek kaynaklı Resource Contract ve CLI
+**Exit Criteria:** Standard 30-minute onboarding journey and reproducible benchmark report ([`PAYLOAD_BENCHMARK_PROTOCOL.md`](PAYLOAD_BENCHMARK_PROTOCOL.md)).
 
-- Alan, relation, validation, index, access, admin, workflow, localization, media ve API ayarlarını tek bir sözleşmede birleştir.
-- `hydro project new`, `hydro resource new`, `hydro generate`, `hydro check` komutlarını tek workflow’da birleştir.
-- Bir resource’tan migration, model, repository, service, policy, transport, admin manifest, OpenAPI, TypeScript client, frontend adapter, fixture, seed ve test üret.
-- Üretilen route/API/admin wiring’i güvenli ve deterministik biçimde otomatik bağla; iş kurallarını tahmin etme.
-- `hydro resource check`, `hydro schema diff`, `hydro api diff`, `hydro permissions check` komutlarını ekle.
+---
 
-**Çıkış kriteri:** Yeni resource, elle dosya taşıma veya kayıt ekleme gerektirmeden lokal olarak açılır.
+## Phase 1 — Single-Source Resource Contract & CLI
 
-## Faz 2 — Admin Studio parity
+- Consolidate fields, relations, validations, indexes, access policies, admin manifests, workflows, localization, media, and API definitions into declarative Blueprint manifests.
+- Unify commands into a cohesive CLI workflow: `hydro project new`, `hydro resource new`, `hydro generate`, `hydro check`.
+- Deterministically generate migrations, models, repositories, transports, policies, OpenAPI contracts, TypeScript clients, and test fixtures from Blueprint declarations.
+- Wire generated routes, APIs, and Admin registrations fail-closed; never guess business policies.
+- Provide `hydro resource check`, `hydro schema diff`, `hydro api diff`, and `hydro permissions check`.
 
-- Async relation search, nested arrays/blocks, conditional fields, tabs, rich text ve media picker.
-- Bulk edit/publish/delete, saved filters/views, kolon seçimi ve pagination sınırları.
-- Alan seviyesinde validation/access hata eşleme.
-- Autosave, unsaved-changes, revision diff/restore ve schedule takvimi.
-- Erişilebilirlik, keyboard navigation, responsive layout ve büyük listelerde sanallaştırma.
+---
 
-**Çıkış kriteri:** Editör, standart içerik tipleri için özel template yazmadan günlük işlemleri yapabilir.
+## Phase 2 — Schema-Driven Admin Studio Engine
 
-## Faz 3 — Editorial, preview ve localization
+- Dynamically register reviewable generated collection surfaces in Admin Studio.
+- Provide standard CRUD UI, field inputs, validation banners, sortable tables, and search filters.
+- Maintain strict CSRF token validation and session scoping.
+- Enforce the Information Hierarchy: technical error codes, stack traces, and database internals are hidden from editors.
 
-- Güvenli live preview bridge, preview token ve origin doğrulaması.
-- Draft/published/changed durumları, yayın onayı ve planlı yayın.
-- Locale fallback, locale bazlı durum ve RTL/LTR sunumu.
-- Preview, admin ve public rendering için aynı yetkilendirme/publish filtresi.
+---
 
-**Çıkış kriteri:** Haber ve kurumsal site starter’larında editoryal akış uçtan uca test edilir.
+## Phase 3 — Editorial & Multi-Block Workflows
 
-## Faz 4 — Kit/plugin ekosistemi
+- First-class draft, review, scheduled publication, and archiving state machines.
+- Visual revision diffs (side-by-side green/red changes) with point-in-time rollback.
+- Structured rich-text and block editors (Quill, Editor.js) integrated with CSRF-protected live previews.
+- Deep relational linkage with search pickers and modal creation dialogs.
 
-- Versioned kit contract, dependency graph, migration, permissions, health check ve compatibility matrix.
-- Official kit’ler: SEO, forms, redirects, search, media/S3/CDN, localization, multi-tenancy, notifications, import/export, commerce.
-- Community kit formatı; ancak güvenilmeyen Go kodu runtime’da yüklenmez.
-- Her kit için starter, fixture, contract test ve docs.
+**Exit Criteria:** Full editorial workflow verified end-to-end in News and Corporate edition fixtures.
 
-**Çıkış kriteri:** Yeni capability, Core fork’u olmadan bir komutla seçilip kapatılabilir.
+---
 
-## Faz 5 — Frontend SDK ve starter’lar
+## Phase 4 — Capability Kit & Plugin Ecosystem
 
-- Versioned TypeScript client, React Query/SWR hooks, typed form/table/filter bileşenleri.
-- Provider-agnostic design-system adapter’ları: Hydro default, shadcn, headless ve vanilla.
-- Starter’lar: news, editorial, corporate, commerce, portal, membership, dashboard, ERP, headless.
-- Her starter için seed, E2E, Docker/WSL ve deployment runbook.
+- Versioned kit contracts, dependency graphs, migrations, permission scopes, and compatibility matrices.
+- Official kits: SEO, Forms, Redirects, Full-Text Search, S3/CDN Media, Localization, Multi-Tenancy, Webhooks, Push Notifications.
+- Sandboxed community kit specifications; untrusted dynamic Go code is never executed at runtime.
 
-## Faz 6 — Production ve upgrade kanıtı
+---
 
-- S3/CDN, backup/restore, observability, alerting ve disaster recovery tatbikatı.
-- SQLite/PostgreSQL kapasite ölçümü, gerçek blue/green proxy geçişi ve rollback.
-- Migration expand–migrate–contract doğrulaması.
-- SDK/runtime/module compatibility matrix, deprecation ve upgrade rehearsal.
-- Resmi SDK v1, cross-OS release, signing/key ceremony ve destek politikası.
+## Phase 5 — Frontend SDKs & Starter Presets
 
-## “Hazır” tanımı
+- Versioned TypeScript client, React Query / SWR hooks, strongly typed form and table components.
+- Provider-agnostic design system adapters: Hydro Default, shadcn, headless, vanilla.
+- Preset starters: `corporate`, `news`, `agency`, `saas`, `minimal`.
+- Deterministic seeding, Playwright E2E tests, and deployment configurations for every starter.
 
-HydroGo ancak şu üç koşul birlikte sağlandığında Payload hızına yakın ve production-ready kabul edilir:
+---
 
-1. Standart resource 30 dakikada çalışan admin/API/seed/test üretir.
-2. Gerçek müşteri akışları ve desteklenen profiller ölçülmüş production kanıtına sahiptir.
-3. Core, module, kit, SDK ve müşteri kodu upgrade sırasında compatibility check’ten geçer.
+## Phase 6 — Production & Upgrade Verification
 
-Bu plan, HydroGo’nun Core izolasyonu, varsayılan deny, kullanılmayan modülün sıfır footprint’i ve “önce doğrula, sonra otomatikleştir” ilkeleriyle uyumludur.
+- Automated S3/CDN, backup/restore, observability, and disaster recovery drills.
+- SQLite and PostgreSQL capacity benchmarks; zero-downtime blue/green reload and rollback.
+- Rehearsal of expand-migrate-contract schema migrations.
+- Backwards-compatibility checks for SDKs, runtimes, and module boundaries.
 
-## Platform-factory expansion — Payload’ı aşma planı
+---
 
-Bu bölüm, HydroGo’yu yalnızca bir CMS alternatifi değil; CMS, ERP, inşaat,
-üyelik, portal ve operasyon yazılımları üreten genel amaçlı bir Workspace/Engine
-haline getirme hedefini tanımlar. Her faz ayrı commit, ADR/uyumluluk kaydı ve
-ölçülebilir doğrulama ile teslim edilir.
+## Definition of "Done"
 
-### P0 — Core bloat audit ve sınırların korunması (zorunlu önkoşul)
+HydroGo achieves full developer velocity parity when all three conditions are met:
+1. Standard resource blueprints produce runnable Admin, API, seeds, and test suites in under 30 minutes.
+2. Verified production baselines are measured and documented on real hardware.
+3. Core, module, kit, and client edition upgrades pass automated compatibility guards without regressions.
 
-- `internal/` altındaki her paketi Core primitive, opt-in module, kit, Edition
-  veya demo/UI katmanı olarak sınıflandır.
-- Core’a import edilen her bağımlılık için boyut, başlatma süresi, binary etkisi,
-  Compact profile etkisi ve lisans kaydı çıkar.
-- Kullanılmayan modüllerin route, migration, asset, worker, goroutine veya
-  bağlantı havuzu oluşturmadığını test et.
-- CMS/commerce/construction özel iş mantığını Core’dan Edition/module sınırına
-  taşı; Core fork’u oluşmasını engelle.
-- Tekrarlanan inline HTML/CSS/JS ve gereksiz runtime bağımlılıklarını typed
-  component, embedded asset veya Edition-owned asset sınırına taşı.
-- Her capability için `hydro profile explain` ve `hydro profile check` çıktısı
-  üret; Compact profil için binary/resource budget kabul kriteri belirle.
+---
 
-**Çıkış kriteri:** Core dependency/import grafiği, capability matrisi ve Compact
-  resource budget raporu yayınlanır; gereksiz Core yükleri ayrı commit’lerle
-  kaldırılır veya gerekçeli ADR ile tutulur.
+## Platform-Factory Expansion
 
-### P1 — Versioned domain/resource contract
+This architecture scales HydroGo from a CMS engine into a general-purpose Workspace Factory producing customized corporate platforms, SaaS backends, editorial publications, and internal portals.
 
-Blueprint dili `collection`, `global`, `relation`, `value_object`, `computed`,
-`workflow`, `event`, `policy`, `job` ve `integration` türlerini destekler.
-Blueprint sürümü; schema diff, breaking-change tespiti, migration planı,
-rollback metadata ve lock dosyasıyla birlikte yönetilir.
+### P0 — Core Bloat Audit & Boundary Integrity (Mandatory Prerequisite)
+- Classify all internal packages as Core primitives, opt-in modules, kits, Edition contracts, or UI components.
+- Audit dependencies for binary size, startup latency, memory footprint, and licensing terms.
+- Guarantee that unused modules instantiate zero routes, migrations, assets, workers, goroutines, or database pools.
+- Keep domain-specific business logic in Edition boundaries; never fork Core.
 
-Yeni CLI akışı:
+### P1 — Versioned Domain & Resource Contracts
+Blueprint manifests support `collection`, `global`, `relation`, `value_object`, `computed`, `workflow`, `event`, `policy`, `job`, and `integration` declarations with schema diffing and breaking-change detection.
 
-```text
-hydro new <edition>
-hydro resource new|validate|diff|check-breaking
-hydro schema diff
-hydro api diff
-hydro permissions check
-```
+### P2 — Zero-Setup Identity & Policy Engine
+Activating identity leverages the existing Core auth engine (sessions, RBAC, TOTP MFA, device management) with deny-by-default tenant-aware access policies.
 
-### P2 — Zero-setup identity ve policy platformu
+### P3 — Secure Querying & API Parity
+Client query strings parse into strongly typed AST filters with strict operator allowlists (`equals`, `contains`, `in`, `exists`, `and`, `or`, `sort`, `limit`). Query builders generate parameterized SQL queries with certified dialect parity.
 
-`auth: true` yeni bir auth sistemi üretmez; mevcut Identity/Session/RBAC
-çekirdeğini composition ile etkinleştirir. Admin, member, service-account,
-API-key, OIDC, MFA/WebAuthn, session/device yönetimi ve tenant-aware policy
-aynı sözleşmede birleşir. Resource erişimi deny-by-default olur; gerçek policy
-`custom/` altında kalır.
+### P4 — Globals, Validation & Relations
+Single-record Globals (e.g. site settings) maintain transactional integrity. Validation constraints (`min`, `max`, `regex`, `unique`, `email`, `immutable`) execute across HTTP, service, and database layers from a single declaration.
 
-### P3 — Güvenli deep querying ve API parity
+### P5 — Workflows, Lifecycles & Event Outbox
+Editorial lifecycle transitions generate transactional domain events written to the durable Outbox queue, guaranteeing at-least-once asynchronous worker processing with dead-letter retries.
 
-Query URL’si önce typed filter AST’ye, sonra field/operator allowlist ve query
-complexity budget kontrolünden geçer. `equals`, `contains`, `in`, `exists`,
-`and`, `or`, `sort`, `limit` gibi operatörler yalnızca tanımlı alanlarda
-çalışır. SQL builder prepared statement üretir; tenant predicate, join depth,
-page size ve index hint sınırları SQLite/PostgreSQL kontrat testleriyle
-sertifikalanır.
+### P6 — Business Admin Studio
+Generated collection views feature relation search pickers, nested blocks, tabs, bulk actions, column customization, optimistic locking, and visual revision diffs with full WCAG 2.1 A/AA accessibility.
 
-### P4 — Globals, validation ve relation parity
-
-Global kaynaklar tekil form/API sözleşmesi üretir; tek kayıt invariant’ı
-transaction içinde korunur. Alan validation kuralları (`min`, `max`, regex,
-unique, default, immutable, email vb.) HTML, REST ve service katmanında aynı
-typed contract’tan çalışır. Relation’lar `has_one`, `has_many` ve
-`many_to_many`, async picker, eager loading, cascade/restrict ve N+1 bütçesi
-ile genişletilir.
-
-### P5 — Workflow, lifecycle ve event platformu
-
-Draft/review/approved/published gibi state machine’ler Blueprint’ten tanımlanır.
-Hook’lar generic ve typed interface olarak üretilir; yan etkiler doğrudan hook
-içinde değil transaction → domain event → outbox → worker zincirinde çalışır.
-Retry, idempotency, dead-letter, audit ve timeout davranışları zorunlu
-kontrat olur.
-
-### P6 — Admin Studio parity
-
-Generated list/form/detail scaffolds; relation search, nested blocks, tabs,
-bulk actions, saved filters, column selection, autosave, optimistic locking,
-revision diff/restore, schedule takvimi, permission-aware görünürlük ve
-erişilebilir keyboard navigation ile genişletilir. Runtime Studio yalnızca
-güvenli metadata render eder; iş mantığı ve yetki kararları Go service/policy
-katmanında kalır.
-
-### P7 — Profile-aware frontend ve offline saha desteği
-
-Server-rendered Templ/HTMX, headless REST/OpenAPI ve rich application
-WebSocket/SSE profilleri birbirinden ayrılır. İnşaat/saha senaryoları için
-offline command queue, sync cursor, conflict resolution, attachment retry ve
-event replay sözleşmeleri opt-in capability olarak eklenir.
-
-### P8 — Operations, portability ve marketplace
-
-Her resource için export/import, dry-run, validation, media manifest ve schema
-version üretilir. Backup/restore, per-tenant recovery, observability, alerting,
-SBOM, signed release ve upgrade rehearsal production gate’lerine bağlanır.
-Kits versioned dependency graph ile seçilir; güvenilmeyen Go kodu runtime’da
-yüklenmez.
-
-### P9 — Golden-path ve ölçümlü Payload karşılaştırması
-
-`hydro new construction-saas` veya `hydro new editorial` komutu çalışan login,
-admin, tenant, örnek resource, media, audit, OpenAPI, seed ve test fixture’ı
-üretir. Aynı senaryo Payload ile karşılaştırılır: ilk çalışan MVP süresi,
-manuel dosya/dokunuş sayısı, hata sayısı, binary boyutu, bellek, p95 latency ve
-deployment adımı ölçülür. İki bağımsız Edition’da doğrulanmadan hız iddiası
-yayınlanmaz.
-
-### Platform “hazır” kriteri
-
-HydroGo ancak Core bloat raporu temiz, standart resource 30 dakika içinde
-çalışan admin/API/seed/test üretiyor, SQLite/PostgreSQL ve tenant isolation
-kontratları geçiyor, gerçek pilot kapasitesi ölçülmüş ve Core/module/kit/SDK
-upgrade matrisi yeşil ise Payload’ı aşan genel amaçlı platform olarak kabul
-edilir.
-
-## 2026-09-16 uygulama notu
-
-Planın SDK/runtime dağıtımına temas eden ilk teslimatları uygulanmıştır:
-`hydro project new/check`, lock doğrulaması, `hydro runtime verify`, platforma
-göre artifact çözümleme, imza/checksum/URL/gövde sınırları, grant doğrulaması,
-atomik kurulum ve cache listeleme/temizleme komutları çalışır durumdadır.
-Bu teslimatlar Payload parity iddiasını tek başına kanıtlamaz; ölçüm yöntemi
-[`PAYLOAD_BENCHMARK_PROTOCOL.md`](PAYLOAD_BENCHMARK_PROTOCOL.md) içinde, gerçek
-faz durumu [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) içindedir.
+### P7 — Multi-Profile Deployment Spectrum
+Clear separation between server-rendered Templ/HTMX, headless REST/OpenAPI, and rich application profiles, supporting high-throughput cloud daemons down to zero-ops shared hosting.

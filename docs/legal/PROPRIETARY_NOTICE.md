@@ -1,7 +1,12 @@
-# HydroGo proprietary runtime notice
+# HydroGo Open Source & Licensing Notice
 
-This repository and the HydroGo Core runtime are private, customer-specific software. Do not copy, publish, sublicense, or reuse the Core runtime or its signing materials in another project. Customer-generated Client Edition code remains separate from Core.
+> [!NOTE]
+> HydroGo is open-source software distributed under the [MIT License](../../LICENSE).
 
-The distributed `hydro` binary verifies a vendor-issued `hydro.lic`. License files are project-bound and may expire. License generation is vendor-only (`hydro-issuer`); private signing keys are never shipped to customers.
+This repository was transitioned from a private/commercial prototype model to open-source software under the MIT License. All source code within this repository is governed by the terms of the MIT License.
 
-This short notice describes the technical distribution boundary. It is not a substitute for a negotiated commercial agreement where one is required.
+## Cryptographic Licensing Subsystem Context
+The codebase contains optional cryptographic offline licensing primitives (`internal/licensing`, `hydro.lic`) originally engineered for air-gapped commercial deployments and Edition boundaries. In the open-source distribution:
+- Development and open-source deployments run freely without license restrictions (using `--dev` or `HYDRO_DEV_MODE=1` where applicable, or standard open-source builds).
+- The cryptographic verification primitives remain available in the repository as reusable architectural components for organizations that build custom closed-source or enterprise distributions on top of the open-source Core.
+- See the root [`LICENSE`](../../LICENSE) for governing legal terms.

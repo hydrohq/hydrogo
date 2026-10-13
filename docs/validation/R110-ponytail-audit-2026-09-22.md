@@ -1,31 +1,29 @@
-# R110 — Core over-engineering audit
+# R110 — Core Over-Engineering Audit
 
-**Tarih:** 2026-09-22  
-**Kapsam:** Whole repository, complexity/bloat only  
-**Durum:** Lean boundary review; no safe deletion applied
+**Date:** 2026-09-22  
+**Scope:** Whole repository, complexity/bloat only  
+**Status:** Lean boundary review; no safe deletion applied
 
-Ponytail whole-repo taraması aşağıdaki adayları inceledi:
+The Ponytail whole-repo scan evaluated the following candidates:
 
-- `yagni` `extension.Module` eski sözleşmesi yeni `extension/v1.Module` ile
-  örtüşüyor; ancak açık deprecation/compatibility kararı nedeniyle bugün
-  silinemez. Replacement: migration window tamamlanınca tek v1 contract.
-- `yagni` `observability.Exporter` tek built-in provider taşımıyor; bu bir
-  provider-neutral boundary'dir, gereksiz abstraction değildir. Replacement:
-  yok; external OTLP/exporter adapter'ları için korunur.
-- `yagni` `ui.DesignSystem` registry'si birkaç class mapping'i içeriyor; bu
-  Client Edition provider değişimini Core'dan ayıran bilinçli boundary'dir.
-  Replacement: yok.
-- `yagni` `database.Executor`/`QueryExecutor` küçük görünüyor; SQLite/Postgres
-  adapter izolasyonu ve test doubles için gerekli olduğundan silinmemelidir.
-  Replacement: yok.
-- `stdlib`/`native`: bağımlılık manifestinde doğrudan stdlib ile güvenle
-  değiştirilebilecek production dependency tespit edilmedi; templ, pgx,
-  Redis, S3, OTEL, SQLite ve YAML gerçek capability sınırlarıdır.
-- `go mod why` ile doğrudan kontrol edilen `x/net/idna`, `x/text/currency` ve
-  OTEL exporter paketleri gerçek production import'larına bağlandı; bunlar
-  transitif/ölü dependency değildir.
+- `yagni` `extension.Module` legacy contract overlaps with the new `extension/v1.Module`;
+  however, it cannot be deleted today due to an explicit deprecation/compatibility decision.
+  Replacement: a single v1 contract once the migration window concludes.
+- `yagni` `observability.Exporter` does not carry a single built-in provider; this is a
+  provider-neutral boundary, not unnecessary abstraction. Replacement:
+  none; preserved for external OTLP/exporter adapters.
+- `yagni` `ui.DesignSystem` registry contains several class mappings; this is a
+  deliberate boundary separating Client Edition provider switching from Core.
+  Replacement: none.
+- `yagni` `database.Executor`/`QueryExecutor` appears minimal; it must not be deleted as it is
+  required for SQLite/Postgres adapter isolation and test doubles.
+  Replacement: none.
+- `stdlib`/`native`: no production dependency in the dependency manifest was identified that could be safely
+  replaced directly with stdlib; templ, pgx,
+  Redis, S3, OTEL, SQLite, and YAML represent authentic capability boundaries.
+- `x/net/idna`, `x/text/currency`, and OTEL exporter packages checked directly via `go mod why`
+  resolve to real production imports; these are not transitive/dead dependencies.
 
-**Sonuç:** Davranışı bozmadan güvenle silinebilecek satır: 0; güvenle
-kaldırılabilecek dependency: 0. Deprecated `extension.Module` için ileride
-ayrı removal ADR'si açılabilir; bugün kaldırılması Edition compatibility'yi
-bozar.
+**Result:** Lines that can be safely deleted without breaking behavior: 0; dependencies that can be
+safely removed: 0. A dedicated removal ADR may be opened in the future for deprecated `extension.Module`;
+removing it today would break Edition compatibility.

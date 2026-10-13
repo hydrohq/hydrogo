@@ -1,11 +1,8 @@
-# PostgreSQL production-gate kanıtı (2026-09-16)
+# PostgreSQL production-gate evidence (2026-09-16)
 
-WSL Ubuntu üzerinde çalışan PostgreSQL 18.6 ile izole `hydro_gate_local`
-veritabanı kullanıldı. Bağlantı peer authentication üzerinden yapıldı;
-herhangi bir parola veya secret rapora yazılmadı. Geçici veritabanı test sonrası
-silinmelidir.
+An isolated `hydro_gate_local` database was used with PostgreSQL 18.6 running on WSL Ubuntu. The connection utilized peer authentication; no passwords or secrets were written to the report. The temporary database should be dropped post-test.
 
-## Komut
+## Command
 
 ```bash
 cd /path/to/project
@@ -14,16 +11,14 @@ HYDRO_TEST_POSTGRES_URL="postgres://user@localhost:5432/hydro_gate_local" \
   bash scripts/verify-production-gates.sh
 ```
 
-## Sonuç
+## Result
 
-Tam akış **PASS**:
+Full flow **PASS**:
 
-- gofmt, module integrity, workflow action pins, govulncheck ve go vet;
-- SQLite/PostgreSQL dâhil tam ve shuffled test suite;
-- race-sensitive paketler;
-- iki kez aynı hash üreten reproducible HydroGo build;
-- portable benchmark (`10.3 ms/op`, 10 iterasyon).
+- gofmt, module integrity, workflow action pins, govulncheck, and go vet;
+- full and shuffled test suite including SQLite/PostgreSQL;
+- race-sensitive packages;
+- reproducible HydroGo build yielding identical hashes twice;
+- portable benchmark (`10.3 ms/op`, 10 iterations).
 
-Bu çalışma PostgreSQL bağlantı/kontrat ve yerel otomatik gate kanıtıdır. Gerçek
-müşteri verisiyle temiz hedefe restore, proxy blue/green rollback, harici
-backup/key recovery ve kapasite/RPO/RTO tatbikatları hâlâ production kapısıdır.
+This execution provides PostgreSQL connectivity/contract and local automated gate evidence. Restore to a clean target with real customer data, proxy blue/green rollback, external backup/key recovery, and capacity/RPO/RTO drills remain production gates.

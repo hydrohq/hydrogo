@@ -1,20 +1,16 @@
-# R5 SDK artifact download URL politikası — 2026-09-16
+# R5 SDK artifact download URL policy — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist.ValidateDownloadURL`, broker’dan gelen artifact URL’sini
-HTTPS ve host zorunluluğu, credential/fragment reddi ve scheme allowlist’i ile
-kontrol eder. HTTP yalnızca açıkça etkinleştirilen localhost geliştirme
-senaryosunda kabul edilir.
+`internal/sdkdist.ValidateDownloadURL` checks broker-supplied artifact URLs enforcing HTTPS and host presence, rejecting credentials and URL fragments, and validating scheme allowlists. HTTP is only permitted in explicitly enabled localhost development scenarios.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` ve `go test ./...` başarılı.
-- Uzak HTTP, `file:` URL’si, credential, fragment ve malformed URL reddedildi.
-- Açık localhost HTTP geliştirme istisnası kabul edildi.
+- Windows: `go test ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` and `go test ./...` passed.
+- Remote HTTP, `file:` URLs, credentials, fragments, and malformed URLs were rejected.
+- Explicit localhost HTTP development exception was accepted.
 
-## Sınır
+## Scope & Boundaries
 
-Bu politika HTTP isteği yapmaz, token üretmez ve redirect takip etmez. İndirme
-client’ı ve broker authentication sonraki fazlardır.
+This policy does not make HTTP requests, generate tokens, or follow redirects. Download clients and broker authentication are subsequent phases.

@@ -1,9 +1,7 @@
-# WSL tam suite — broker client sonrası — 2026-09-16
+# WSL full suite — post broker client — 2026-09-16
 
-- Ubuntu WSL2, kullanıcı `testuser`
-- Komut: `go test ./... -p 1 -timeout=5m`
-- Sonuç: exit code 0; tüm paketler `ok` veya `[no test files]`.
+- Ubuntu WSL2, user `testuser`
+- Command: `go test ./... -p 1 -timeout=5m`
+- Result: exit code 0; all packages returned `ok` or `[no test files]`.
 
-Bu çalıştırma bounded broker grant istemcisi, release artifact hygiene ve önceki
-SDK/runtime fazlarının tamamını kapsar. Gerçek OAuth/broker endpoint'i ve
-production credential/key ceremony bu kanıtın kapsamı dışındadır.
+This run covers the bounded broker grant client, release artifact hygiene, and all previous SDK/runtime phases. Real OAuth/broker endpoints and production credential/key ceremonies remain outside the scope of this evidence.

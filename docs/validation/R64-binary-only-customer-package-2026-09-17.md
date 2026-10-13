@@ -1,13 +1,13 @@
 # R64 — Binary-only customer package (2026-09-17)
 
-## Doğrulama
+## Verification
 
-- `scripts/build-customer-runtime.ps1` ile örnek imzalı lisans kullanılarak müşteri paketi üretildi.
-- Paket yalnızca runtime, lisans, lock/config, tema ve dağıtım manifestini içerdi.
-- Paket içinde `.go`, `go.mod`, `go.sum`, `internal`, `modules`, `cmd`, `.git` veya private key bulunmadığı kontrol edildi.
-- Docker final image aşamasından kaynak `migrations/*.go` kopyası kaldırıldı; migration davranışı binary içindeki embed ile çalışır.
-- `HYDRO_TRUSTED_PUBLIC_KEYS` ve `HYDRO_CUSTOMER_LICENSE` olmadan builder fail-closed davranır.
+- Produced customer package using `scripts/build-customer-runtime.ps1` with sample signed license.
+- Package strictly contained runtime, license, lock/config, themes, and distribution manifest.
+- Verified that no `.go`, `go.mod`, `go.sum`, `internal`, `modules`, `cmd`, `.git`, or private keys were present in the package.
+- Removed source `migrations/*.go` copy from Docker final image stage; migration behavior runs via binary embed.
+- Builder behaves fail-closed without `HYDRO_TRUSTED_PUBLIC_KEYS` and `HYDRO_CUSTOMER_LICENSE`.
 
-## Not
+## Note
 
-Bu test kaynak sızıntısını ve yanlış paketlemeyi önler; yetkili müşterinin çalışan binary üzerinde yapabileceği reverse engineering’i ortadan kaldırmaz.
+This test prevents source leaks and improper packaging; it does not eliminate reverse engineering possibilities by authorized customers against running binaries.

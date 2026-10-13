@@ -1,11 +1,11 @@
 # ADR-0245: Blueprint relations emit bounded resolver metadata
 
-- **Durum:** Accepted; many-valued persistence decision superseded by [ADR-0246](0246-generated-many-relation-storage.md)
-- **Tarih:** 2026-09-22
-- **Kapsam:** Blueprint relation decoding, Admin form metadata and `relations.json`
-- **İlgili:** ADR-0029, ADR-0230, ADR-0235
+- **Status:** Accepted; many-valued persistence decision superseded by [ADR-0246](0246-generated-many-relation-storage.md)
+- **Date:** 2026-09-22
+- **Scope:** Blueprint relation decoding, Admin form metadata and `relations.json`
+- **Related:** ADR-0029, ADR-0230, ADR-0235
 
-## Karar
+## Decision
 
 Blueprint relation fields carry an explicit target collection and `one` or
 `many` cardinality. `many` may set `max_items` from 1 to 100; omitted means 50

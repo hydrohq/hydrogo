@@ -1,136 +1,84 @@
-# Paylaşımlı hosting'e FTP ile deploy (insan rehberi)
+# Deploying to Shared Hosting via FTP (Human Guide)
 
-Bu rehber, SSH ve Zamanlanmış Görevler (Scheduled Tasks) **olmayan** bir
-Plesk (veya benzeri) paylaşımlı hosting hesabına HydroGo'yu CGI modunda
-nasıl yayına alacağını, baştan sona, gerçek bir dağıtımda karşılaşılan
-sorunlarla birlikte anlatıyor. Bir AI ajanından (Claude Code gibi) bunu
-senin için yapmasını istiyorsan, ona bu dosyanın ikizi olan
-`docs/guides/ai/deploy-ftp-shared-hosting.md` dosyasını işaret et — orada
-aynı süreç, çalıştırılabilir komutlarla var.
+This guide covers how to deploy HydroGo in CGI mode to a standard shared hosting account (cPanel, Plesk, DirectAdmin, etc.) **without SSH access or scheduled cron tasks**, from initial setup to production verification. For automated or agent workflows, refer to the companion guide [`docs/guides/ai/deploy-ftp-shared-hosting.md`](../ai/deploy-ftp-shared-hosting.md).
 
-## Neden FTP ve CGI?
+## Why FTP and CGI?
 
-HydroGo normalde sürekli açık kalan bir sunucu process'i olarak tasarlanmış.
-SSH'siz paylaşımlı hostingde böyle bir process'i kendi başına ayakta
-tutamazsın, bu yüzden Apache'nin her isteği kendi başlatıp kapattığı **CGI
-modu** kullanılıyor. Dosyaları yüklemek için de en temel, her hosting
-panelinde bulunan yöntem: **FTP**.
+HydroGo is normally operated as a persistent standalone daemon. On shared hosting without SSH or daemon supervisor privileges, Apache/LiteSpeed manages incoming requests by invoking the binary in **CGI mode** (`hydro serve --cgi`). **FTP/SFTP** is the universal protocol supported across all shared hosts to upload assets and binaries.
 
-## Başlamadan önce elinde olması gerekenler
+## Prerequisites
 
-- **FTP bilgileri:** host (genelde domain adının kendisi, bazen sunucu IP'si
-  gerekebilir), kullanıcı adı, şifre. Plesk'te bunu genelde "Dosyalar" veya
-  "Hesap" sekmesinde, "FTP erişimi" başlığı altında bulursun.
-- **Veritabanı bilgileri:** Plesk → Databases'ten oluşturduğun DB adı,
-  kullanıcı adı, şifre. SQLite yerine **MySQL** önerilir — CGI'nin
-  "her istek yeni process" modeliyle SQLite'ın dosya kilidi iyi
-  anlaşmıyor.
-- Hosting planında **CGI desteğinin açık olduğunu** doğrula (Hosting
-  Ayarları → "Web komut dosyası" — PHP'nin FastCGI ayarıyla karıştırma,
-  ayrı bir şey).
+- **FTP credentials:** Hostname (domain or server IP), username, and password.
+- **Database details:** Database name, username, and password created in your hosting panel (MySQL / MariaDB recommended; SQLite file-locking can contend with CGI process models under concurrency).
+- **CGI support enabled:** Ensure CGI scripts (`.cgi`) are enabled in your hosting panel settings.
 
-## 1. FTP bağlantısını test et
+## 1. Verify FTP Connectivity
 
-FileZilla gibi bir FTP istemcisiyle bağlan, ya da bir ajana "FTP'yi dene"
-dersen `curl --list-only` ile aynı şeyi komut satırından yapar. Bağlantı
-başarılıysa karşına `httpdocs`, `logs`, `private` gibi klasörler çıkar — bu,
-gerçek webspace kökünün neresi olduğunu da sana gösterir.
+Connect via an FTP client like FileZilla or Cyberduck. Upon connection, observe your webspace root directory (typically containing `public_html` or `httpdocs`, `logs`, etc.).
 
-## 2. Klasör yapısını kur
+## 2. Directory Structure
 
-```
-<webspace kökü>/
-  private/            ← web'den ERİŞİLEMEZ, binary ve şifreler burada
+Isolate private binaries and credentials from publicly accessible document roots:
+
+```text
+<webspace-root>/
+  private/            ← NOT accessible via web; holds binary and secrets
     hydro
     config.yaml
-    themes/<tema>/
+    themes/<theme>/
     media/
-  httpdocs/            ← gerçek, web'e açık klasör
+  httpdocs/            ← Public web root (or public_html/)
     hydro.cgi
     .htaccess
 ```
 
-`private/` klasörü **`httpdocs`'un yanında, içinde değil** olmalı —
-içindeyse `config.yaml`'daki veritabanı şifren herkese açık bir URL'de
-görünür hale gelir.
+Keep `private/` outside of `httpdocs/` so that `config.yaml` and database credentials can never be downloaded directly via HTTP.
 
-## 3. Binary'yi derle
+## 3. Compile the Binary
 
-Bir geliştirici/ajan bunu senin için `go build` ile (Windows'tan bile Linux
-hedefine) derler. Sen sadece sonuçta ortaya çıkan `hydro` dosyasını
-alacaksın.
+Cross-compile the binary for the host architecture (typically Linux amd64):
 
-## 4. Dosyaları FTP ile yükle
-
-`hydro` binary'sini `private/`'a, `hydro.cgi` ve `.htaccess`'i
-`httpdocs/`'a yükle. Yükledikten sonra `hydro` ve `hydro.cgi`'nin
-**çalıştırılabilir (755)** izinlere sahip olduğunu kontrol et (FTP
-istemcinde dosyaya sağ tık → İzinler/Permissions).
-
-**Çok önemli bir tuzak:** `hydro.cgi` ve benzeri `.cgi` dosyalarını Plesk'in
-kendi "Yeni Dosya" metin editörüne yapıştırarak **oluşturma**. Editörle
-oluşturulan dosyalar farklı bir sahiplik alıyor ve sunucunun güvenlik
-katmanı (suexec) bunu reddediyor — hata log'unda şöyle bir şey görürsün:
+```bash
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o hydro ./cmd/hydro
 ```
-fopen: Permission denied
-```
-Çözüm: dosyayı yerelde hazırlayıp **upload** ile yükle, editöre yapıştırma.
 
-`hydro.cgi` içeriği şöyle olmalı (yollar kendi webspace köküne göre
-değişir):
+## 4. Upload Files via FTP
+
+Upload `hydro` to `private/`, and upload `hydro.cgi` and `.htaccess` to `httpdocs/`. Ensure `hydro` and `hydro.cgi` have **executable permissions (755)** (right-click file in FTP client → Permissions).
+
+**Important Note on suexec:** Do not create `hydro.cgi` by copy-pasting into web panel file editors. Web editors can assign differing file ownership, triggering suexec permission errors (`fopen: Permission denied`). Always prepare the file locally and upload it directly.
+
+`hydro.cgi` wrapper script:
 ```sh
 #!/bin/sh
-exec /webspace/kökü/private/hydro serve --cgi --config /webspace/kökü/private/config.yaml
+exec /absolute/path/to/private/hydro serve --cgi --config /absolute/path/to/private/config.yaml
 ```
 
-## 5. `config.yaml`'ı hazırla
+## 5. Prepare `config.yaml`
 
-Veritabanı bilgilerini, tema adını ve domain'ini içeren bir `config.yaml`
-dosyası gerekiyor. **YAML'de girintiye (boşluk sayısına) çok dikkat et** —
-bir satırın başında fazladan boşluk olması tüm siteyi 500 hatasıyla
-çökertebilir.
+Configure database connection strings, theme names, and public origin. Ensure YAML indentation uses clean spaces without tabs.
 
-## 6. Migration ve admin hesabı oluştur
+## 6. Run Migrations and Bootstrap Admin
 
-Bu en can alıcı kısım: SSH olmadan `hydro migrate` gibi komutları normalde
-çalıştıramazsın. Çözüm, **tek kullanımlık, şifre korumalı küçük bir
-tetikleyici dosya** oluşturup bir kez tarayıcıdan çağırmak, sonra hemen
-silmek. Bir ajan bunu senin için hazırlayıp yükleyebilir — sen sadece
-verdiği linki bir kez tarayıcından açıp "başarılı" çıktısını görüyorsun,
-sonra o dosya siliniyor.
+Without SSH, migrations cannot be triggered directly via shell. Use a single-use token-gated CGI script pattern or pre-seed the database:
+- Trigger the migration through an authenticated one-shot endpoint or script.
+- Create the initial admin user.
+- **Delete the one-shot bootstrap script immediately after use** to prevent security exposure.
 
-Aynı yöntemle bir admin kullanıcısı (e-posta + şifre) da oluşturuluyor.
-**İlk girişten sonra bu şifreyi değiştirmen önerilir** — özellikle bir
-AI asistanının ürettiği/bildiği bir şifreyse.
+## 7. Verification
 
-## 7. Test et
+Open `https://your-domain.com/` in your browser. Verify the home page renders correctly. Navigate to `/login`, sign into the Admin Studio, and confirm dashboard operations function without errors.
 
-`https://senin-domainin.com/` adresini aç — sayfa açılmalı. `/login`'den
-admin paneline gir, içerik/medya gibi temel ekranların 500 hatası vermeden
-açıldığını doğrula.
+## 8. Troubleshooting via Logs
 
-## 8. Bir şeyler ters giderse: log'a bak
+Check your hosting error logs (`logs/error_log` or panel Log Viewer). HydroGo errors are surfaced under `stderr from .../hydro.cgi:`.
 
-Plesk'te "Logs" sekmesi (veya FTP'den `logs/error_log` dosyası) genelde
-tam neyin yanlış gittiğini söyler. HydroGo kendi hata mesajlarını da bu
-log'a yazıyor, `stderr from .../hydro.cgi:` ile başlayan satırları ara.
+## Common Issues & Solutions
 
-## Sık karşılaşılan hatalar
-
-| Belirti | Sebep | Çözüm |
+| Symptom | Cause | Resolution |
 |---|---|---|
-| Ana sayfa 403 veriyor, hiç `hydro.cgi` çalışmamış | `.htaccess`'te `DirectoryIndex hydro.cgi` eksik, ya da hâlâ bir `index.html` duruyor | Satırı ekle / `index.html`'i sil |
-| `fopen: Permission denied` | Dosya editörle oluşturulmuş | Upload ile yeniden yükle |
-| "No such file or directory" | `hydro.cgi` içindeki yol yanlış | Gerçek webspace kökünü FTP'den doğrula |
-| `decode config: yaml: ...` | `config.yaml` girinti hatası | Satır satır boşlukları kontrol et |
-| `Table '...' doesn't exist` | Migration hiç çalışmamış | Adım 6'yı tekrarla |
-| Site aniden DNS hatası veriyor | Nameserver değişikliği henüz dünya geneline yayılmadı | Birkaç saat bekle, `dnschecker.org`'dan kontrol et |
-
-## Yapmaman gerekenler
-
-- Tek kullanımlık migration/admin dosyalarını (adım 6) işin bitince
-  silmeyi unutma — içlerinde şifre/token açık yazıyor.
-- `config.yaml`, binary, ya da `media/` klasörünü asla `httpdocs/`'un
-  içine koyma.
-- SSH yoksa `hydro serve --fastcgi` kullanmaya çalışma — sürekli açık bir
-  process gerektiriyor, SSH'sız ortamda ayakta tutamazsın.
+| Home page returns 403 Forbidden | Missing `DirectoryIndex hydro.cgi` in `.htaccess` or leftover `index.html` | Update `.htaccess` and remove placeholder `index.html` |
+| `fopen: Permission denied` | Script created in web editor with bad ownership | Upload file cleanly via FTP |
+| "No such file or directory" | Incorrect absolute path in `hydro.cgi` | Verify full path to binary |
+| `decode config: yaml: ...` | YAML syntax/indentation error | Validate `config.yaml` formatting |
+| `Table '...' doesn't exist` | Migrations have not run | Run migrations via bootstrap script |

@@ -1,16 +1,10 @@
-# R39 — Local Compose servislerini loopback ile sınırlandırma
+# R39 — Local Compose services restricted to loopback bindings
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (statik yapılandırma doğrulaması)
+**Status:** Successful (static configuration verification)
 
-`deploy/local/docker-compose.storage.yml` içindeki MinIO (API ve console) ile
-Redis portları artık yalnızca `127.0.0.1` üzerinde yayınlanıyor. Ana
-`compose.dev.yaml` zaten PostgreSQL ve Redis için aynı loopback sınırını
-kullanıyordu. Böylece yerel geliştirme stack'i aynı ağdaki cihazlara yanlışlıkla
-veritabanı, cache veya MinIO yönetim portu açmıyor.
+MinIO (API and console) and Redis ports in `deploy/local/docker-compose.storage.yml` are now published only on `127.0.0.1`. The main `compose.dev.yaml` already used the same loopback boundary for PostgreSQL and Redis. This ensures the local development stack does not accidentally expose database, cache, or MinIO management ports to devices on the same local network.
 
-Bu değişiklik production network policy veya gerçek firewall/ingress kanıtı
-değildir; local Compose fixture'ının güvenli varsayılanıdır. Container'lar
-arası erişim Compose ağı üzerinden devam eder.
+This change does not constitute proof of production network policy or real firewall/ingress rules; it is a secure default for local Compose fixtures. Inter-container access continues over the Compose network.
 
-Doğrulama: YAML diff kontrolü ve mevcut Go/local verification hook'ları PASS.
+Verification: YAML diff check and existing Go/local verification hooks passed.

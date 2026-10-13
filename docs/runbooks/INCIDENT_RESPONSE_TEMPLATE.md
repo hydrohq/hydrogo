@@ -1,42 +1,40 @@
-# HydroGo incident response template
+# HydroGo Incident Response Template
 
-Bu şablon olay sırasında doldurulur; hassas değerler, token’lar ve kişisel
-veriler buraya yazılmaz.
+This template is filled during operational incidents; sensitive values, tokens, and personal data must never be written here.
 
-## Olay özeti
+## Incident Summary
 
-- Başlangıç (UTC):
-- Bildiren kişi:
-- Etkilenen edition/profile:
-- Kullanıcı etkisi:
-- İlk request ID / alarm:
+- Start Time (UTC):
+- Reporter / Incident Commander:
+- Affected Edition / Profile:
+- User Impact:
+- Initial Request ID / Alert Name:
 
-## Güvenli ilk adımlar
+## Safe Immediate Steps
 
-1. Etki alanını `/healthz`, `/readyz`, metrics ve redacted log correlation ile
-   doğrula.
-2. Yeni deploy/migration/write işlemlerini durdur; kanıt toplamadan veri silme.
-3. Session, media, queue ve backup durumunu ayrı ayrı kaydet.
+1. Verify blast radius using `/healthz`, `/readyz`, metrics, and redacted log correlation.
+2. Halt pending deployments, migrations, and write operations; do not delete data without preserving evidence.
+3. Record state of sessions, media, worker queues, and backups separately.
 
-## Degraded mode kararı
+## Degraded Mode Decisions
 
-- Etkinleştirme koşulu ve onaylayan kişi:
-- Kapatılan capability/module:
-- Kullanıcıya gösterilecek sade mesaj:
-- Geri dönüş koşulu:
+- Activation condition and approver:
+- Disabled capability / module:
+- User-facing message:
+- Recovery / restoration criteria:
 
-## Rollback / restore
+## Rollback / Restore
 
-- Hedef binary/release manifest:
-- Migration compatibility sonucu:
-- Backup manifest ve verify sonucu:
-- Session revoke / write fence / egress quarantine durumu:
-- Geri dönüşü onaylayan kişi:
+- Target binary / release manifest:
+- Migration compatibility verification:
+- Backup manifest verification outcome:
+- Session revocation / write fence / egress quarantine status:
+- Rollback approver:
 
-## Kapanış
+## Incident Closure
 
-- Bitiş (UTC):
-- Doğrulanan SLO/SLI etkisi:
-- Kalıcı düzeltme task’ı:
-- ADR / validation raporu:
-- Hassas veri sızıntısı incelemesi:
+- End Time (UTC):
+- Verified SLO / SLI impact:
+- Permanent remediation task:
+- Associated ADR / validation report:
+- Sensitive data leak review outcome:

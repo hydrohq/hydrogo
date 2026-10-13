@@ -1,11 +1,11 @@
 # ADR-0243: Auth-enabled generated routes require an Edition checker
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** Generated `runtime.go` route composition for `auth: true`
-- **İlgili:** ADR-0013, ADR-0240, ADR-0242
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** Generated `runtime.go` route composition for `auth: true`
+- **Related:** ADR-0013, ADR-0240, ADR-0242
 
-## Karar
+## Decision
 
 When a resource declares `auth: true`, its generated `Register<Name>Route`
 helper requires an Edition-supplied `func(*http.Request) bool` authentication

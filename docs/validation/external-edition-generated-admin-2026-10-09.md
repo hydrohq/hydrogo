@@ -223,7 +223,7 @@ importguard passed against the final source tree.
 
 The browser replay exposed that a readable record title had no link when the
 current role lacked `Update`. Generated list rows now link to the read-only
-detail URL whenever the collection is readable; the explicit “Düzenle” action
+detail URL whenever the collection is readable; the explicit "Edit" action
 remains limited to update-capable users. The HTTP contract and browser journey
 both verify the detail contains no mutation form and Viewer writes remain
 denied. The separate generated rich-text Edition suite passed 8/8 on Chromium,

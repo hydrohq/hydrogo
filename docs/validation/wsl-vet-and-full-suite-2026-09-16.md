@@ -1,15 +1,14 @@
-# WSL kalite doğrulaması — 2026-09-16
+# WSL quality verification — 2026-09-16
 
-- Dağıtım: Ubuntu WSL2
-- Kullanıcı: `testuser`
-- Dizin: `/path/to/project`
+- Distribution: Ubuntu WSL2
+- User: `testuser`
+- Directory: `/path/to/project`
 
-Çalıştırılan komutlar:
+Executed commands:
 
 ```text
 go vet ./...
 go test ./... -p 1 -timeout=5m
 ```
 
-Her iki komut da exit code 0 döndürdü. `go vet` uyarı üretmedi; test suite'teki
-tüm paketler `ok` veya `[no test files]` sonucuyla tamamlandı.
+Both commands returned exit code 0. `go vet` produced no warnings; all packages in the test suite completed with `ok` or `[no test files]`.

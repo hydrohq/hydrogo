@@ -1,12 +1,8 @@
 # R55 — S3 endpoint URL boundary
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel contract)
+**Status:** Successful (local contract)
 
-S3-compatible endpoint URL'leri URL biçiminde verildiğinde yalnızca HTTP/HTTPS
-şeması kabul ediliyor. Userinfo, query ve fragment içeren endpoint'ler sessizce
-normalize edilmek yerine fail-closed reddediliyor; HTTPS endpoint `UseSSL`
-seçeneğini de deterministik olarak etkinleştiriyor.
+When provided in URL format, S3-compatible endpoint URLs only accept HTTP/HTTPS schemes. Endpoints containing userinfo, queries, or fragments are rejected fail-closed rather than silently normalized; HTTPS endpoints deterministically enable `UseSSL`.
 
-Doğrulama: `go test ./internal/media` ve push öncesi tam `verify-local` hook'u.
-Gerçek sağlayıcı TLS/IAM/certificate davranışı ayrıca production kapısıdır.
+Verification: `go test ./internal/media` and full pre-push `verify-local` hook. Real provider TLS/IAM/certificate behavior remains an external production gate.

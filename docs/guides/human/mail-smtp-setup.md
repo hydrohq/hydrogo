@@ -1,68 +1,52 @@
-# Mail (SMTP) kurulumu — Resend örneğiyle (insan rehberi)
+# Mail (SMTP) Setup Guide (Human Guide)
 
-Sitenin şifre sıfırlama, bildirim gibi sistem maillerini güvenilir şekilde
-göndermesi için Resend gibi bir "SMTP relay" servisi kullanıyoruz. HydroGo
-kendi başına mail imzalamıyor, sadece standart bir SMTP istemcisi —
-imzalama (DKIM) tamamen Resend'in (ya da hangi servisi kullanıyorsan onun)
-sunucularında oluyor.
+To reliably deliver transactional system emails (password resets, invitation links, form lead notifications), HydroGo connects to any standard SMTP relay service (such as Resend, Postmark, SendGrid, Amazon SES, or Mailgun). HydroGo acts as a standard SMTP client; email authentication (DKIM signing) is executed on the relay provider's mail servers based on your domain's DNS records.
 
-## 1. `config.yaml`'a eklenecek bilgiler
+## 1. Configure `config.yaml`
 
-Resend panelinden alacağın API key ile:
+Using credentials from your email delivery provider (e.g., Resend):
+
 ```yaml
 mail:
   host: "smtp.resend.com"
   port: 587
-  from: "bilgi@senin-domainin.com"
+  from: "info@your-domain.com"
   username: "resend"
   password: "re_xxxxxxxxxxxxxxxx"
   starttls: true
 ```
-**Port 587 ve `starttls: true` kullan, 465'i değil** — bizim sistemde
-doğrulanan kombinasyon bu.
 
-**Dikkat:** `mail:` satırının başında yanlışlıkla fazladan boşluk
-olmamalı, yoksa tüm `config.yaml` bozulur ve site çöker.
+*Note:* Port 587 with `starttls: true` is the standard verified configuration. Ensure YAML indentation uses clean spacing.
 
-## 2. Resend'in istediği DNS kayıtlarını ekle
+## 2. Configure Provider DNS Records
 
-Resend panelinde domain'ini eklediğinde sana birkaç DNS kaydı verir
-(genelde bir SPF, bir DKIM, bazen bir doğrulama kaydı). Bunları Cloudflare
-(veya DNS sağlayıcın neyse) panelinden ekle.
+When onboarding your sending domain in your email provider's console, you will receive DNS records (SPF TXT, DKIM CNAME/TXT, and optional DMARC).
 
-**Çok önemli: DKIM kaydı asla "Proxied" (turuncu bulut) olmamalı**, her
-zaman "DNS only" (gri bulut) olsun. Proxied olursa Resend'in imza
-doğrulaması hiçbir zaman geçmez, mailler imzasız gider, spam'e düşer.
+> [!IMPORTANT]
+> **Mail DNS records (MX, SPF, DKIM) must NEVER be proxied through Cloudflare (no orange cloud).** Set them to **DNS-Only (grey cloud)**. Proxying DKIM or MX records breaks cryptographic domain verification, causing outgoing mail to fail spam filters.
 
-## 3. SPF — tek domain'de tek kayıt kuralı
+## 3. The Single SPF Record Rule
 
-Eğer domain'inin mailini aynı zamanda hosting sağlayıcın da (Plesk'in
-kendi mail sunucusu gibi) kullanıyorsa, **iki ayrı SPF kaydı ekleme**.
-Bir domain'de yalnızca **bir** SPF TXT kaydı olabilir — ikisini tek kayıtta
-birleştirmen gerekiyor:
+RFC 7208 strictly specifies that a domain may publish **at most one** SPF TXT record. If you have existing mail servers (e.g., hosting server webmail), **do not add a second SPF TXT record**. Instead, merge them into a single string:
+
+```text
+v=spf1 +a +mx +ip4:<server-ip> include:resend.com ~all
 ```
-v=spf1 +a +mx +ip4:sunucu-ip include:resend-in-istedigi-deger ~all
-```
-İki ayrı SPF kaydı varsa, SPF tamamen geçersiz sayılır ve bu Gmail gibi
-servisler için güçlü bir spam sinyalidir.
 
-## 4. Mail hâlâ spam'e düşüyorsa, sırayla kontrol et
+Publishing multiple SPF records causes recipient MTAs (like Gmail and Outlook) to treat SPF verification as `permerror`, classifying your emails as spam or outright rejecting them.
 
-1. **Çift/çakışan SPF kaydı var mı?** (yukarıdaki madde)
-2. **DKIM kaydı yanlışlıkla "Proxied" mi?**
-3. **Eski, yanlış bir hesaptan kalma DKIM kaydı var mı?** Resend'de
-   domain'i birden fazla kez (yanlış hesap, sonra doğru hesap gibi)
-   eklediysen, aynı isimde iki farklı DKIM anahtarı kalmış olabilir —
-   bu doğrulamayı tutarsızlaştırır. Hangisinin güncel olduğunu (genelde
-   son eklenen) kontrol edip eskisini sil.
-4. Resend panelinde domain **"Verified"** (doğrulanmış) görünüyor mu?
-5. `from` adresi, doğruladığın domain ile aynı mı?
+## 4. Deliverability Troubleshooting Checklist
 
-## 5. Düzelttikten sonra nasıl test edilir
+If emails land in spam folders or fail delivery, verify in order:
+1. **Conflicting SPF records:** Confirm only a single `v=spf1` TXT record exists for the apex domain.
+2. **Proxied DKIM:** Ensure DKIM CNAME/TXT records are set to "DNS Only" in Cloudflare.
+3. **Stale DNS keys:** Check that no orphaned DKIM keys from previous test accounts exist.
+4. **Domain verification status:** Confirm your domain is marked "Verified" in your email provider's dashboard.
+5. **Sender address alignment:** Verify the `from` email domain exactly matches the authenticated domain.
 
-Gerçek bir test maili gönder (örn. "şifremi unuttum" akışını tetikle),
-Gmail'de mailin sağ üstündeki üç noktadan **"Orijinalini göster"**
-seçeneğine bak — orada `SPF: PASS`, `DKIM: PASS`, `DMARC: PASS` yazıp
-yazmadığını gör. Resend panelindeki "Verified" rozeti sadece DNS
-kayıtlarının okunabilir olduğunu gösterir, gerçek bir mailin başarıyla
-doğrulandığını değil — asıl kanıt bu "orijinalini göster" ekranı.
+## 5. End-to-End Verification
+
+Trigger a live transactional email (such as requesting a password reset). In Gmail, click the menu (three dots) → **"Show original"**. Confirm that the headers display:
+- `SPF: PASS`
+- `DKIM: PASS`
+- `DMARC: PASS`

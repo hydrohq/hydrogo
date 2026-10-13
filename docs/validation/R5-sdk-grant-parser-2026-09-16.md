@@ -1,22 +1,16 @@
 # R5 SDK grant parser — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-`internal/sdkdist.ParseGrant`, broker response gövdesini 64 KiB ile sınırlar,
-JSON içindeki trailing veriyi reddeder ve grant’i entitlement doğrulamasına hazır
-hale getirir. Token saklanmaz veya log’lanmaz; `ValidateGrant` sonrasında
-`DownloadGrantAndInstall` çağrılmalıdır.
+`internal/sdkdist.ParseGrant` limits the broker response body to 64 KiB, rejects trailing data in JSON, and prepares the grant for entitlement validation. Tokens are not retained or logged; `DownloadGrantAndInstall` must be called after `ValidateGrant`.
 
-## Kanıt
+## Evidence
 
-- Windows: `go test ./internal/sdkdist` başarılı.
-- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` başarılı.
-- WSL’de değişiklik sonrası tam `go test ./...` çalıştırıldı; paketler test
-  edilmeye devam ederken CLI gözlem süresi doldu, bu nedenle bu rapor yalnızca
-  tamamlanan `internal/sdkdist` kanıtını kapatır. Önceki tam suite kanıtı
-  `R5-sdk-grant-download-integration-2026-09-16.md` içinde korunur.
-- Oversized ve trailing JSON grant response’ları reddedildi.
+- Windows: `go test ./internal/sdkdist` passed.
+- WSL Ubuntu/Go 1.27: `go test ./internal/sdkdist` passed.
+- A full `go test ./...` was run on WSL following changes; CLI observation timed out while packages continued testing, so this report closes only the completed `internal/sdkdist` evidence. Previous full-suite evidence is preserved in `R5-sdk-grant-download-integration-2026-09-16.md`.
+- Oversized and trailing JSON grant responses were rejected.
 
-## Sınır
+## Scope & Boundaries
 
-Bu parser OAuth/device flow, token issuance veya revocation yapmaz.
+This parser does not handle OAuth/device flow, token issuance, or revocation.

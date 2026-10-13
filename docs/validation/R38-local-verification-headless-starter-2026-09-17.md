@@ -1,13 +1,8 @@
-# R38 — Yerel doğrulama hook'una headless starter smoke kapısı
+# R38 — Headless starter smoke gate added to local verification hook
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel Windows)
+**Status:** Successful (local Windows)
 
-`scripts/verify-local.ps1`, makinede `npm` bulunduğunda
-`examples/headless-starter/npm test` komutunu tam Go doğrulama akışına ekler.
-Node/npm olmayan minimal ortamlarda Go doğrulaması kırılmaz; kontrollü bir
-uyarı verilir. CI browser-e2e job'ı ise Node kurulumu yaptığı için bu kontrolü
-zorunlu çalıştırır.
+`scripts/verify-local.ps1` appends `examples/headless-starter/npm test` to the full Go verification flow whenever `npm` is present on the machine. In minimal environments without Node/npm, Go verification does not fail; a controlled warning is emitted. The CI browser-e2e job installs Node and runs this check mandatorily.
 
-Doğrulananlar: TypeScript build, idempotency key, typed API error/request-id,
-2 MiB response sınırı, timeout ayar/abort davranışı.
+Verified: TypeScript build, idempotency key, typed API error/request-id, 2 MiB response limit, timeout configuration and abort behavior.

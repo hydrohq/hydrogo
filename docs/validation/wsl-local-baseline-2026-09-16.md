@@ -1,28 +1,28 @@
-# WSL yerel test tabanı — 2026-09-16
+# WSL local baseline — 2026-09-16
 
-**Ortam:** Windows WSL2, Ubuntu, `Linux DESKTOP-RL4NSEN 6.18.33.2-microsoft-standard-WSL2`, `x86_64`  
-**Kullanıcı:** `testuser`  
+**Environment:** Windows WSL2, Ubuntu, `Linux DESKTOP-RL4NSEN 6.18.33.2-microsoft-standard-WSL2`, `x86_64`  
+**User:** `testuser`  
 **Go:** `go1.27.0 linux/amd64`
 
-## Komut
+## Command
 
 ```bash
 cd /path/to/project
 go test ./...
 ```
 
-## Sonuç
+## Result
 
-Test paketi başarıyla tamamlandı. `cmd/hydro`, extension, internal paketleri, modules, migrations, contract testleri ve tools paketlerinde başarısız test bulunmadı. Bazı paketler kaynak indirimi sonrasında cache’den çalıştı; bu rapor full production certification yerine WSL yerel baseline kanıtıdır.
+The test suite completed successfully. No test failures were observed in `cmd/hydro`, extensions, internal packages, modules, migrations, contract tests, or tools packages. Some packages ran from cache following source download; this report serves as a WSL local baseline evidence rather than full production certification.
 
-## Sınırlar
+## Scope & Boundaries
 
-Bu çalışma aşağıdakilerin yerine geçmez:
+This execution does not substitute for:
 
-- Temiz PostgreSQL hedefinde restore ve kapasite kanıtı
-- Gerçek reverse-proxy blue/green geçişi
-- Harici S3/CDN, SMTP ve backup sağlayıcı tatbikatı
+- Restore and capacity verification on a clean PostgreSQL target
+- Live reverse-proxy blue/green switchover
+- External S3/CDN, SMTP, and backup provider drills
 - Cross-platform signed release
-- Production RPO/RTO ve müşteri donanımı ölçümü
+- Production RPO/RTO and customer hardware measurement
 
-Kullanılan parola bu belgeye veya komut çıktısına yazılmamıştır.
+No passwords were written to this document or command output.

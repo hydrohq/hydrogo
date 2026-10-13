@@ -1,12 +1,9 @@
-# R37 — Headless starter gerçek timeout davranışı
+# R37 — Headless starter actual timeout behavior
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel Node runtime)
+**Status:** Successful (local Node runtime)
 
-Contract smoke testi artık yalnızca timeout yapılandırma sınırlarını değil,
-istek hiç tamamlanmadığında `AbortController` sinyalinin gerçekten tetiklenip
-çağrının sonlandırıldığını da doğruluyor. Bu, browser uygulamasında takılı kalan
-isteklerin sınırsız kaynak tüketmesini önleyen davranışın regresyon kapısıdır.
+The contract smoke test now verifies not only timeout configuration boundaries, but also that the `AbortController` signal actually fires and aborts the call when a request fails to complete. This serves as a regression gate preventing stalled requests in browser apps from consuming unbounded resources.
 
 ```powershell
 Push-Location examples/headless-starter
@@ -14,5 +11,4 @@ npm test
 Pop-Location
 ```
 
-Sonuç: **PASS** — timeout abort, idempotency, typed error/request-id ve bounded
-response kontrolleri.
+Result: **PASS** — timeout abort, idempotency, typed error/request-id, and bounded response checks.

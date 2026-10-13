@@ -1,9 +1,6 @@
 # R5 — Permission contract check
 
-`hydro permissions check --spec SPEC [--json]` artık resource spec'inin izin
-isimlerini offline doğrular. Boşluk, traversal benzeri adlar, büyük harf ve
-duplicate izinler reddedilir; geçerli spec yalnızca koleksiyon ve izin sayısını
-raporlar.
+`hydro permissions check --spec SPEC [--json]` now verifies permission names in resource specs offline. Whitespace, traversal-like names, uppercase letters, and duplicate permissions are rejected; valid specs report only collection and permission counts.
 
 Windows:
 

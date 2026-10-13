@@ -19,5 +19,5 @@ Both commands passed.
 
 The test `TestGeneratedAdminShowsRecoverableConflictMessage` verifies:
 - `409 Conflict` status code.
-- Presence of localized conflict copy in TR ("Siz düzenlerken bu kayıt değişti. Sayfayı yenileyip tekrar deneyin.") and EN ("This record changed while you were editing it. Reload the page and try again.").
+- Presence of localized conflict copy in Turkish and English ("This record changed while you were editing it. Reload the page and try again.").
 - Retention of user-entered field values (`value="Stale"`) in the form markup.

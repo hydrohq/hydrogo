@@ -1,76 +1,73 @@
-# Blueprint aggregate API route registration doğrulaması
+# Blueprint Aggregate API Route Registration Validation
 
-**Tarih:** 2026-10-07  
-**Durum:** SQLite ve PostgreSQL 18.6 Project Edition akışları geçti.  
-**Karar:** [ADR-0355](../architecture/0355-aggregate-generated-resource-route-registration.md)
+**Date:** 2026-10-07  
+**Status:** SQLite and PostgreSQL 18.6 Project Edition flows passed.  
+**Decision:** [ADR-0355](../architecture/0355-aggregate-generated-resource-route-registration.md)
 
-## Doğrulanan akış
+## Validated Flow
 
-- Bir Go modülü içindeki Blueprint seti deterministik
-  `generated.RegisterGeneratedResources` üretir. Helper her resource için
-  Edition policy callback'ini, tenant kaynakları için resolver zorunluluğunu
-  kontrol eder; eksik dependency varken hiçbir route kaydetmez.
-- `examples/project-edition` iki generated resource'u tek aggregate API
-  çağrısıyla bağlar. SQLite integration testi API create/read, Admin liste
-  görünümü ve eksik resource policy'si halinde tüm route'ların kapalı kalmasını
-  doğrular.
-- Bağımsız `tests/external-edition` Go modülüne Blueprint ile tenant-scoped
-  `article` üretilir. Generated migration SQLite'a uygulanır; API create,
-  tenant içi read, tenantlar arası 404, generated Admin create/update/delete,
-  CSRF reddi, viewer deny ve tenant başına ayrı Admin listesi aynı SQLite
-  veritabanıyla gerçek HTTP testinde doğrulanır. Eksik tenant resolver
-  başlangıçta reddedilir ve route kaydı oluşmaz.
-- Aynı bağımsız Edition, ayrı bir Chromium E2E server'ında SQLite ile açılır;
-  browser Admin üzerinden kayıt create/edit/delete, viewer deny, cross-tenant
-  API 404 ve diğer tenant listesindeki kayıt yokluğu doğrulanır.
-- `hydro project check` aggregate helper'ı module path ve Blueprint setiyle
-  karşılaştırır; generator testi helper'ın elle değiştirilmesini reddeder.
-- Göreli `--out tests/external-edition` yolu CLI'nin scaffold `gofmt` adımında
-  aynı dizinin iki kez eklenmesine neden oluyordu. CLI doğrulama kökünü mutlak
-  yola çevirir; ek regresyon testi göreli kökte gofmt ve `go test ./...`
-  çalıştırır. Göreli `--out` ile tam scaffold doğrulaması da geçti.
+- The Blueprint set within a Go module generates a deterministic
+  `generated.RegisterGeneratedResources`. For each resource, the helper checks
+  the Edition policy callback, and for tenant-scoped resources, checks the resolver requirement;
+  when a dependency is missing, no routes are registered.
+- `examples/project-edition` wires two generated resources with a single aggregate API
+  call. SQLite integration tests verify API create/read, Admin list
+  views, and that all routes remain disabled if a resource policy is missing.
+- In the independent `tests/external-edition` Go module, a tenant-scoped
+  `article` is generated via Blueprint. Generated migrations are applied to SQLite; API create,
+  same-tenant read, cross-tenant 404, generated Admin create/update/delete,
+  CSRF rejection, viewer deny, and separate per-tenant Admin lists are verified
+  in authentic HTTP tests against the same SQLite database. Missing tenant resolvers
+  are rejected at startup and prevent route registration.
+- The same independent Edition is started with SQLite on a separate Chromium E2E server;
+  record create/edit/delete via browser Admin, viewer deny, cross-tenant
+  API 404, and record absence in the other tenant's list are verified.
+- `hydro project check` verifies the aggregate helper against the module path and Blueprint set;
+  generator tests reject manual tampering with the helper.
+- The relative `--out tests/external-edition` path previously caused the same directory
+  to be appended twice during the CLI scaffold `gofmt` step. The CLI now converts the verification
+  root to an absolute path; an additional regression test runs gofmt and `go test ./...`
+  at the relative root. Full scaffold verification with a relative `--out` also passed.
 
-## Sonuçlar
+## Results
 
-- `go test ./... -count=1 -p 1 -timeout=5m` geçti.
-- `go vet ./...`, actionguard, moduleguard, migrationguard (110 migration) ve
-  Client Edition importguard'ları geçti. Yeni bağımsız
-  `tests/external-edition` fixture'ı da `importguard` kontrolünden geçti.
+- `go test ./... -count=1 -p 1 -timeout=5m` passed.
+- `go vet ./...`, actionguard, moduleguard, migrationguard (110 migrations), and
+  Client Edition importguards passed. The new independent
+  `tests/external-edition` fixture also passed the `importguard` check.
 - `go test ./internal/generator ./examples/project-edition/... -count=1`,
-  external Edition `go test -mod=mod ./... -count=1`, göreli scaffold CLI
-  regresyonu ve `hydro project check` stale-helper testi geçti.
-- Generated Admin Chromium CRUD **1/1** geçti.
-- Bağımsız Edition Chromium Admin CRUD ve tenant/role akışı **1/1** geçti.
-- İzole PostgreSQL 18.6 cluster'ında
-  `HYDRO_TEST_POSTGRES_URL=... go test ./examples/project-edition/custom
-  -run '^TestPostgresEditionGeneratedAdminCRUD$' -count=1` **1/1 geçti**.
-  Aynı aggregate helper'la API create ve generated Admin list readback yapıldı.
-- Aggregate helper mevcut resource SQL transport'unu route eder; yeni query,
-  schema, transaction veya migration davranışı getirmez.
+  external Edition `go test -mod=mod ./... -count=1`, relative scaffold CLI
+  regression, and `hydro project check` stale-helper test passed.
+- Generated Admin Chromium CRUD passed **1/1**.
+- Independent Edition Chromium Admin CRUD and tenant/role flow passed **1/1**.
+- On an isolated PostgreSQL 18.6 cluster,
+  `HYDRO_TEST_POSTGRES_URL=... go test ./examples/project-edition/custom -run '^TestPostgresEditionGeneratedAdminCRUD$' -count=1` passed **1/1**.
+  API create and generated Admin list readback were performed using the same aggregate helper.
+- The aggregate helper routes existing resource SQL transport; it introduces no new query,
+  schema, transaction, or migration behavior.
 
-## Komutlar
+## Commands
 
 ```sh
 go test ./internal/generator ./examples/project-edition/... -count=1
 go test ./cmd/hydro -run TestGeneratedScaffoldVerificationResolvesRelativeRoot -count=1
 ```
 
-Bağımsız Edition paket testi `tests/external-edition` dizininden
-`go test -mod=mod ./... -count=1` ile çalışır. Tam generated Admin Chromium
-CRUD testi de **1/1 geçti**:
+The independent Edition package test is executed from the `tests/external-edition` directory
+with `go test -mod=mod ./... -count=1`. Full generated Admin Chromium
+CRUD test also passed **1/1**:
 
 ```sh
 cd e2e
 npx playwright test custom/generated-admin-crud.spec.ts --project=chromium --workers=1 --reporter=line
 ```
 
-## Sınırlar
+## Boundaries
 
-Helper açıkça çağrılınca bütün aggregate Blueprint resource'ları API'ye
-bağlanır; kısmi Edition doğrudan seçili `Register<Name>Route` fonksiyonlarını
-kullanır. Auth, policy, CSRF, tenant scope ve migration kararı Edition'a
-aittir. Generator DDL çalıştırmaz. `hydro project new` hâlâ çalıştırılabilir Go
-Edition/server üretmediği için temiz scaffold'tan ilk browser CRUD süresi açık
-kalmıştır. `HYDRO_TEST_POSTGRES_URL` bu koşuda tanımlı değildi; bu değişiklik
-SQL/schema davranışını değiştirmedi ve mevcut SQLite/PostgreSQL resource
-contract'leri korunur.
+When the helper is explicitly called, all aggregate Blueprint resources are wired to the
+API; partial Editions directly use the selected `Register<Name>Route` functions.
+Auth, policy, CSRF, tenant scope, and migration decisions belong to the Edition.
+The generator does not execute DDL. Because `hydro project new` does not yet generate a runnable
+Go Edition/server, end-to-end time from a clean scaffold to initial browser CRUD remains open.
+`HYDRO_TEST_POSTGRES_URL` was not set in this run; this change does not alter SQL/schema
+behavior, and existing SQLite/PostgreSQL resource contracts are preserved.

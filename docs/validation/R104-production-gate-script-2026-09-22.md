@@ -1,19 +1,14 @@
 # R104 — Production gate runner compatibility
 
-**Tarih:** 2026-09-22  
-**Durum:** PASS (script parse/entry gate)
+**Date:** 2026-09-22  
+**Status:** PASS (script parse/entry gate)
 
-`scripts/verify-production-gates.ps1` Windows PowerShell 5 ve PowerShell 7
-üzerinde parse edilebilir hale getirildi. Önceki Unicode em-dash karakterleri
-Windows PowerShell 5'in kaynak kodu yorumlayıcısında yanlış string-terminator
-hatasına yol açıyordu; mesajlar ASCII `-` ile normalize edildi.
+`scripts/verify-production-gates.ps1` was made parseable under both Windows PowerShell 5 and PowerShell 7. Previous Unicode em-dash characters triggered invalid string-terminator errors in Windows PowerShell 5's source code interpreter; messages were normalized to ASCII `-`.
 
-Komut artık parser hatası vermeden beklenen fail-closed kontrolüne ulaşıyor:
+The command now reaches the expected fail-closed check without parser errors:
 
 ```text
 HYDRO_TEST_POSTGRES_URL is required; PostgreSQL contract tests must not be skipped.
 ```
 
-Bu makinede PostgreSQL URL'si bu çalıştırma sırasında sağlanmadığı için
-production gate suite çalıştırılmadı. Bu, kapının başarısızlığı değil,
-zorunlu dış servis yapılandırmasının eksikliği olarak raporlanır.
+Because a PostgreSQL URL was not provided on this machine during this run, the production gate suite was not executed. This is reported not as a gate failure, but as an absence of mandatory external service configuration.

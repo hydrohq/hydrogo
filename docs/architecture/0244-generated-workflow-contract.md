@@ -1,11 +1,11 @@
 # ADR-0244: Generated resources expose bounded workflow metadata
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** Blueprint workflow declaration and generated `workflow.json`
-- **İlgili:** ADR-0122, ADR-0227, ADR-0241
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** Blueprint workflow declaration and generated `workflow.json`
+- **Related:** ADR-0122, ADR-0227, ADR-0241
 
-## Karar
+## Decision
 
 A Blueprint may declare a bounded workflow with 1–32 unique lowercase states
 and transition targets that reference only declared states. The generator

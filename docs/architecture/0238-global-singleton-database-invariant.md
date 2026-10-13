@@ -1,27 +1,18 @@
-# ADR-0238: Enforce global singleton identity at the database boundary
+# ADR-0238: Enforce Global Singleton Identity at the Database Boundary
 
-- **Durum:** Accepted
-- **Tarih:** 2026-09-22
-- **Kapsam:** Generated global resource migrations
-- **İlgili:** ADR-0224 (versioned global resource contract)
+- **Status:** Accepted
+- **Date:** 2026-09-22
+- **Scope:** Generated global resource migrations
+- **Related:** ADR-0224 (versioned global resource contract)
 
-## Karar
+## Decision
 
-`type: global` kaynaklarının generated migration'ı `id = 'global'` CHECK
-kısıtını taşır. Generated validation/transport katmanı aynı sabit kimliği
-normalize etmeye devam eder; veritabanı kısıtı ise doğrudan SQL yazımı veya
-yanlış bir adapter kullanımıyla ikinci singleton satırı oluşturulmasını
-engeller.
+Generated migrations for `type: global` resources include an explicit `id = 'global'` CHECK constraint. The generated validation and transport layers normalize this constant identifier, while the database-level constraint prevents direct SQL queries or adapter misuse from creating multiple singleton rows.
 
-Kısıt SQLite ve PostgreSQL tarafından desteklenen provider-neutral bir
-invariant'tır. Migration hâlâ yalnızca reviewable bir artifact'tır; runtime
-DDL çalıştırılmaz. Mevcut production tablosuna uygulanması expand/migrate
-adımı ve önceden yapılacak duplicate-ID temizliği ile Edition/operator
-sorumluluğundadır.
+The constraint represents a provider-neutral invariant supported across both SQLite and PostgreSQL. Generated migrations remain reviewable artifacts; DDL is never executed implicitly at runtime. Applying this constraint to existing production tables follows standard expand/migrate procedures and deduplication by operators.
 
-## Sonuç
+## Consequences
 
-- Global transport'un stable ID sözleşmesi storage katmanında da korunur.
-- İki veritabanı adapter'ı arasında davranış farkı azalır.
-- Eski, geçersiz ID'ler otomatik silinmez; migration güvenli biçimde fail
-  eder ve operator'a düzeltme gereksinimini gösterir.
+- The stable singleton ID contract of global transports is enforced at the database storage boundary.
+- Dialect parity and consistency between SQLite and PostgreSQL are strengthened.
+- Existing records with invalid IDs fail closed during migration, alerting operators to remediate data prior to schema enforcement.

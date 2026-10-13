@@ -1,10 +1,9 @@
-# WSL tam suite — schema diff sonrası — 2026-09-16
+# WSL full suite — post schema diff — 2026-09-16
 
-- Dağıtım: Ubuntu WSL2
-- Kullanıcı: `testuser`
-- Dizin: `/path/to/project`
-- Komut: `go test ./... -p 1 -timeout=5m`
-- Sonuç: exit code 0; tüm paketler `ok` veya `[no test files]`.
+- Distribution: Ubuntu WSL2
+- User: `testuser`
+- Directory: `/path/to/project`
+- Command: `go test ./... -p 1 -timeout=5m`
+- Result: exit code 0; all packages returned `ok` or `[no test files]`.
 
-Bu çalıştırma signed schema compatibility diff ve ilgili release testlerini
-kapsar. Harici servis ve production deployment kapıları ayrıca doğrulanmalıdır.
+This run covers signed schema compatibility diff and associated release tests. External services and production deployment gates must be validated separately.

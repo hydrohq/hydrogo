@@ -1,16 +1,10 @@
 # R54 — S3 object-key and public-base boundary
 
 **Date:** 2026-09-17  
-**Status:** Başarılı (yerel contract)
+**Status:** Successful (local contract)
 
-S3-compatible media adapter'ı artık `Put`, `Get`, `Delete`, `PublicURL` ve
-`PresignedURL` işlemlerinin tamamında aynı bounded opaque-object-key doğrulamasını
-kullanıyor. Boş segment, `.`/`..`, backslash, kontrol karakteri ve aşırı uzun
-anahtarlar fail-closed reddediliyor.
+The S3-compatible media adapter now applies consistent bounded opaque-object-key validation across all `Put`, `Get`, `Delete`, `PublicURL`, and `PresignedURL` operations. Empty segments, `.`/`..`, backslashes, control characters, and overly long keys are rejected fail-closed.
 
-Public/CDN base URL'leri de credential, query veya fragment taşıyamıyor; HTTPS
-zorunluluğu ve loopback-only HTTP geliştirme istisnası korunuyor.
+Public/CDN base URLs also cannot contain credentials, queries, or fragments; HTTPS requirements and loopback-only HTTP development exceptions are preserved.
 
-Doğrulama: `go test ./internal/media` ve push öncesi `scripts/verify-local.ps1`.
-Gerçek S3/CDN IAM, purge, retention ve failover kanıtı production kapısı olarak
-açık kalır.
+Verification: `go test ./internal/media` and pre-push `scripts/verify-local.ps1`. Real S3/CDN IAM, purge, retention, and failover evidence remains open as a production gate.

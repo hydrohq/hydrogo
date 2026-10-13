@@ -1,19 +1,18 @@
-# ADR-0221: Endpoint raporlarında tenant/module boyutları
+# ADR-0221: Tenant and Module Dimensions in Endpoint Reporting
 
-## Durum
+## Status
 
-Kabul edildi — 2026-09-22.
+Accepted — 2026-09-22.
 
-## Karar
+## Decision
 
-Endpoint telemetrisi route-normalized path istatistiklerine ek olarak en fazla
-128 adet `(tenant_id,module)` boyutu tutar. Tenant yalnızca doğrulanmış tenant
-scope'tan, module ise route'un bounded ilk segmentinden alınır; scope yoksa
-`default` kullanılır. Query, slug ve kullanıcı kontrollü sınırsız etiketler
-ölçüme girmez.
+In addition to route-normalized path statistics, endpoint telemetry retains at most
+128 bounded `(tenant_id, module)` dimensions. The tenant is resolved exclusively from
+a verified tenant scope, and the module is extracted from the bounded first path segment;
+if no tenant scope is present, `default` is used. Query parameters, slugs, and user-controlled
+unbounded tags are strictly excluded from measurement.
 
-## Kanıt
+## Verification
 
-`Metrics.DimensionStats`, admin JSON/CSV export ve
-`TestMetricsExposeTenantAndModuleDimensions` bounded boyut sözleşmesini
-doğrular.
+`Metrics.DimensionStats`, the Admin JSON/CSV export, and
+`TestMetricsExposeTenantAndModuleDimensions` verify the bounded dimension contract.

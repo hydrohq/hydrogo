@@ -1,16 +1,11 @@
-# R106 — WSL PostgreSQL restore ve Redis race drills
+# R106 — WSL PostgreSQL restore and Redis race drills
 
-**Tarih:** 2026-09-22  
-**Durum:** PASS (disposable WSL servisleri)
+**Date:** 2026-09-22  
+**Status:** PASS (disposable WSL services)
 
-İki disposable servis tatbikatı çalıştırıldı:
+Two disposable service drills were executed:
 
-- `scripts/verify-wsl-postgres-drill.ps1`: yeni PostgreSQL database oluşturma,
-  backup/restore sözleşmesi ve `tests/contract` suite; sonuç PASS. Database
-  tatbikat sonunda silindi.
-- `scripts/verify-wsl-redis-drill.ps1`: geçici Redis 6xxx portunda atomic
-  admission/race testi (`go test -race ./internal/security`); sonuç PASS.
+- `scripts/verify-wsl-postgres-drill.ps1`: new PostgreSQL database provisioning, backup/restore contract, and `tests/contract` suite; result PASS. Database was dropped at conclusion of drill.
+- `scripts/verify-wsl-redis-drill.ps1`: atomic admission/race testing on temporary Redis 6xxx port (`go test -race ./internal/security`); result PASS.
 
-Redis yalnızca bellek overcommit ayarı için operasyonel uyarı verdi; test
-başarısını etkilemedi. Bu rapor production sağlayıcısı, reverse-proxy rollback,
-harici key escrow veya gerçek müşteri RPO/RTO kapasite ölçümünün yerine geçmez.
+Redis logged an operational notice regarding memory overcommit configuration only; this did not impact test success. This report does not replace production provider setup, reverse-proxy rollback, external key escrow, or actual customer RPO/RTO capacity measurement.

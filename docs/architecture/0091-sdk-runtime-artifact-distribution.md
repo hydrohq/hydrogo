@@ -1,4 +1,4 @@
-# ADR-0091: Public SDK ve private runtime artifact dağıtımı
+# ADR-0091: Public SDK and Runtime Artifact Distribution
 
 ## Status
 
@@ -6,38 +6,28 @@ Proposed
 
 ## Context
 
-HydroGo’nun Payload benzeri kurulum deneyimi için Linux, Windows ve macOS’ta kurulabilen bir `hydro` CLI gerekir. Ancak HydroGo Core private kalmalı; müşteri projelerine Core kaynak kodu, kalıcı GitHub token’ı veya private repository clone’u dağıtılmamalıdır.
+Providing a smooth CLI onboarding experience across Linux, Windows, and macOS requires a standalone `hydro` CLI. In architectures using standalone binaries or precompiled distributions, client projects should not be burdened with private repository clones, permanent personal access tokens, or unpinned dependencies.
 
 ## Decision
 
-Public SDK; CLI, generator, starter, contract, frontend adapter ve geliştirici araçlarını içerir. Core ve ticari modüller CI tarafından üretilmiş, imzalı runtime artifact’ları olarak dağıtılır. CLI, bir artifact/license broker üzerinden kısa ömürlü indirme yetkisi alır; GitHub App veya private registry credential’ları broker tarafında tutulur. `git ls-remote` yalnızca kurumsal teşhis komutu olabilir ve entitlement kontrolü yerine geçmez.
+The Public SDK provides the CLI, project generator, starters, contracts, frontend adapters, and developer tooling. Precompiled runtime artifacts are produced and signed via CI pipelines. When an artifact broker is configured, the CLI acquires short-lived download authorization; private registry credentials remain on the broker side. Diagnostic commands like `git ls-remote` serve only as connectivity diagnostics, not entitlement or authentication mechanisms.
 
-Projeler SDK/runtime/module sürümlerini ve hash’lerini `hydrogo.lock` ile kilitler. CLI checksum, imza, platform ve compatibility doğrulaması yapmadan runtime çalıştırmaz. Offline kullanım, imzalı lisans ve kontrollü artifact aktarımı ile ayrıca desteklenir.
+Projects lock their SDK, runtime, and module versions and SHA-256 hashes inside `hydrogo.lock`. The CLI performs strict checksum, signature, platform, and compatibility verification prior to executing runtimes. Offline operation is supported via local signed manifests and controlled artifact caching.
 
-İmzalı manifest doğrulaması ayrıca her artifact yolunu tekilleştirir; mutlak,
-traversal içeren veya geçersiz size/checksum metadata'sı fail-closed reddedilir.
+Signed manifest verification ensures every artifact path is canonical; absolute paths, relative traversal sequences (`../`), or invalid size/checksum metadata are rejected fail-closed.
 
-Public SDK, broker'a yalnızca entitlement koordinatlarını JSON body'de ve kısa
-ömürlü access token'ı Authorization header'ında gönderir. Response bounded
-olarak parse edilir; redirect, oversized response ve non-200 cevaplar fail-closed
-sonuçlanır. Grant yine lock bağlamına göre ayrıca doğrulanır.
+The Public SDK sends only entitlement coordinates in JSON bodies and short-lived tokens in Authorization headers. Responses are parsed with strict byte bounds; redirects, oversized payloads, and non-200 statuses result in fail-closed errors.
 
-Runtime cache yaşam döngüsü de dağıtım sözleşmesinin parçasıdır: artifact'lar
-`root/<version>/<canonical-target>` altında tutulur. Cache temizliği yalnızca
-explicit koruma listesiyle çalışır; önce dry-run planı üretilebilir, ardından
-yalnızca normal dosyalar atomik olmayan ama sınırlı bir silme işleminde kaldırılır.
-Symlink, traversal ve normal dosya olmayan girdiler reddedilir. Böylece eski
-lock'ların ihtiyaç duyduğu runtime'lar yanlışlıkla temizlenmez.
+The runtime cache lifecycle is part of the distribution contract: artifacts are stored under `root/<version>/<canonical-target>`. Cache garbage collection operates with an explicit preserve list, offering dry-run planning before deleting files. Symlinks, directory traversals, and non-regular files are rejected.
 
 ## Consequences
 
-Olumlu sonuçlar: Core kaynak kodu private kalır, kullanıcı deneyimi Node.js araçlarına yaklaşır, lisans/repository erişimi ayrıştırılır, air-gapped müşteriler desteklenebilir ve release bütünlüğü doğrulanabilir.
-
-Maliyetler: Artifact broker, cross-platform signing, installer bakımı, revocation/rotation ve resmi destek operasyonu gerekir. Binary dağıtımı tersine mühendisliği imkânsız kılmaz; hukuki lisans ve ticari kontroller teknik imzayı tamamlamalıdır.
+- Positive: Clean separation between developer tooling and runtime binaries; seamless onboarding experience comparable to modern package managers; air-gapped environments supported; release integrity cryptographically verified.
+- Costs & Tradeoffs: Requires broker infrastructure, cross-platform signing, installer maintenance, and artifact cache management.
 
 ## References
 
 - [ADR-0010: SDK lifecycle and Edition manifest](0010-sdk-lifecycle-and-edition-manifest.md)
 - [ADR-0028: Core isolation and commercial licensing](0028-core-isolation-and-licensing.md)
 - [Payload parity execution plan](../PAYLOAD_PARITY_EXECUTION_PLAN.md)
-- [SDK/private runtime distribution plan](../HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md)
+- [SDK runtime distribution plan](../HYDRO_SDK_PRIVATE_RUNTIME_DISTRIBUTION.md)

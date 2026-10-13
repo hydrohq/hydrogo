@@ -1,13 +1,10 @@
-# Headless starter istemci sertleştirme kanıtı (2026-09-16)
+# Headless starter client hardening evidence (2026-09-16)
 
-Generator tarafından üretilen `client/hydrogo.ts` artık generated collection
-istemcileriyle aynı temel sınırları uygular:
+`client/hydrogo.ts` produced by the generator now applies the same baseline boundaries as generated collection clients:
 
-- 100 ms–30 s aralığında, varsayılan 10 s `AbortController` timeout'u;
-- `Content-Length` ve streaming reader ile 2 MiB response sınırı;
-- bounded locale/slug girdileri (256 Unicode karakter);
-- HTTP hata gövdesinde typed `HydroAPIError` ve güvenli fallback mesajı.
+- 100 ms–30 s range, default 10 s `AbortController` timeout;
+- 2 MiB response limit via `Content-Length` and streaming reader;
+- bounded locale/slug inputs (256 Unicode characters);
+- typed `HydroAPIError` and safe fallback message in HTTP error bodies.
 
-`go test ./internal/projectgen ./internal/generator -count=1` generator çıktısında
-bu sözleşme işaretlerini doğrular. Üretilen client dosyası `client/` altında tutulur ve Core
-runtime'a bağımlılık eklemez.
+`go test ./internal/projectgen ./internal/generator -count=1` verifies these contract markers in generator output. The generated client file is maintained under `client/` and introduces no dependencies to Core runtime.

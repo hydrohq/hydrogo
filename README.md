@@ -10,7 +10,7 @@ HydroGo is not a customer-specific CMS or another heavy monolithic framework. It
 
 ## 📸 Product Showcase
 
-*(Asagidaki gorseller ornek yer tutuculardir. Lutfen projeden kendi ekran goruntulerinizi alarak docs/assets/ klasorune ekleyip isimlerini guncelleyin.)*
+*(The screenshots below are illustrative placeholders. You can replace them with your own screenshots in `docs/assets/`.)*
 
 <div align="center">
   <img src="docs/assets/admin-studio.png" alt="HydroGo Admin Studio" width="800" style="border-radius: 8px; border: 1px solid #ccc;" />
@@ -270,8 +270,39 @@ go test -race ./...
 
 ---
 
-## 📄 License & Commercial Terms
+## 📄 License
 
-HydroGo is proprietary software. Commercial licensing terms, distribution rights, and client edition permissions are detailed in [`PROPRIETARY_NOTICE.md`](docs/legal/PROPRIETARY_NOTICE.md) and [`docs/COMMERCIAL_LICENSING.md`](docs/COMMERCIAL_LICENSING.md).
+HydroGo is open-source software licensed under the [MIT License](LICENSE).
 
+---
 
+## ⚖️ Legal Disclaimer & Terms of Use
+
+### 1. Disclaimer of Warranties ("AS IS")
+THE SOFTWARE AND ALL ASSOCIATED DOCUMENTATION ARE PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, ACCURACY, SYSTEM INTEGRATION, QUIET ENJOYMENT, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHORS, MAINTAINERS, CONTRIBUTORS, AND COPYRIGHT HOLDERS MAKE NO REPRESENTATIONS OR WARRANTIES THAT THE SOFTWARE WILL BE ERROR-FREE, SECURE, UNINTERRUPTED, ACCURATE, COMPLETE, FREE OF DEFECTS OR HARMFUL CODE, OR THAT DEFECTS WILL BE DETECTED OR CORRECTED.
+
+### 2. Limitation of Liability
+IN NO EVENT SHALL THE AUTHORS, MAINTAINERS, CONTRIBUTORS, OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, LOSSES, EXPENSES, OR OTHER LIABILITY OF ANY NATURE WHATSOEVER, WHETHER IN AN ACTION OF CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE, ITS USE, THE INABILITY TO USE THE SOFTWARE, OR OTHER DEALINGS IN THE SOFTWARE. THIS LIMITATION APPLIES TO, WITHOUT LIMITATION:
+- ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL, EXEMPLARY, CONSEQUENTIAL, OR PUNITIVE DAMAGES;
+- ANY LOSS OF USE, DATA, SYSTEM UPTIME, REVENUE, PROFIT, GOODWILL, REPUTATION, OR BUSINESS ANTICIPATED SAVINGS;
+- ANY SECURITY INCIDENTS, UNAUTHORIZED ACCESS, DATA BREACHES, SYSTEM COMPROMISES, OR MALFUNCTION;
+- ANY CLAIMS OR DAMAGES ARISING OUT OF TRANSACTIONS, E-COMMERCE PAYMENTS, OR DATA PROCESSING CARRIED OUT THROUGH CLIENT EDITIONS, MODULES, OR THIRD-PARTY INTEGRATIONS.
+
+### 3. Trademark & Non-Affiliation Notice
+All trademarks, service marks, logos, brand names, product names, and registered trademarks appearing in this repository or documentation (including, but not limited to, Go, Golang, WordPress, Drupal, Laravel, Filament, Node.js, V8, PayloadCMS, Strapi, Next.js, PocketBase, PostgreSQL, SQLite, MySQL, MariaDB, Redis, Valkey, Caddy, Nginx, Docker, Kubernetes, Cloudflare, Turnstile, Google Authenticator, 1Password, Sentry, OpenTelemetry, Prometheus, Quill, Editor.js, HTMX, Tailwind, Playwright, Ubuntu, Apple, and others) are the property of their respective trademark holders.
+
+Their use in this repository, documentation, benchmarks, or codebase is strictly for technical identification, descriptive context, compatibility statements, and comparative architectural analysis under nominative fair use. The HydroGo project and its contributors are entirely independent and are **not affiliated with, associated with, endorsed by, sponsored by, or in any way officially connected** with any of these entities or their affiliates.
+
+### 4. Regulatory, Compliance & Privacy Notice
+While HydroGo includes technical primitives and architectural patterns designed to support privacy and governance workflows (such as cryptographic data erasure helpers, cookieless telemetry, CSP nonce propagation, and audit outboxes), **the provision of these capabilities does not constitute legal, regulatory, cybersecurity, or compliance advice**.
+
+Each individual, developer, company, or agency deploying HydroGo is solely and independently responsible for:
+- Ensuring that their deployment and data practices comply with all applicable local, national, and international laws, regulations, and industry standards (including, but not limited to, GDPR, CCPA/CPRA, KVKK, HIPAA, PCI-DSS, and SOC 2);
+- Reviewing and configuring data retention, encryption keys, access controls, backups, and consent banners;
+- Obtaining appropriate legal counsel to verify compliance with privacy and commercial laws in their operational jurisdictions.
+
+### 5. High-Risk Activities & Production Responsibility
+HydroGo is not designed, manufactured, or intended for use in mission-critical environments where software failure could directly lead to death, personal injury, environmental damage, or catastrophic physical property loss (e.g., life support, emergency response, aviation, or nuclear facilities). Deployments to production environments are executed entirely at the user's sole risk and discretion.
+
+### 6. Security & Responsible Disclosure
+If you identify a security vulnerability in HydroGo, please review our [Security Policy](docs/SECURITY.md) for instructions on responsible disclosure. Do not disclose vulnerabilities publicly through GitHub Issues or public forums before a fix is published.

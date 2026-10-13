@@ -1,18 +1,14 @@
-# ADR-0219: Scaffold doğrulama ve interaktif Blueprint akışı
+# ADR-0219: Scaffold Verification and Interactive Blueprint Workflow
 
-## Durum
+## Status
 
-Kabul edildi — 2026-09-22.
+Accepted — 2026-09-22
 
-## Karar
+## Decision
 
-`hydro generate scaffold` varsayılan olarak yalnızca üretilen Go dosyalarını
-formatlar ve mevcut bir `go.mod` varsa bounded `go test ./...` doğrulaması
-yapar. `go mod tidy`, `templ generate` ve benzeri çalışma ağacını genişleten
-araçlar otomatik çalıştırılmaz. `hydro new resource` aynı Blueprint formatını
-interaktif sorularla üretir; ikinci bir model veya kod üretim yolu yoktur.
+`hydro generate scaffold` formats generated Go files and, if a valid `go.mod` exists, runs a bounded `go test ./...` verification. Commands that mutate external dependency trees (such as `go mod tidy` or automatic tool downloads) are not invoked implicitly. `hydro new resource` produces identical Blueprint declarations through interactive CLI prompts; no secondary code-generation pathway exists.
 
-## Sonuçlar
+## Consequences
 
-Üretilen kod gözden geçirilebilir ve derlenebilir kalır; hook'lar müşteri
-modülünün bağımlılıklarını veya migration'larını sessizce değiştirmez.
+- Generated scaffolding remains reviewable, deterministic, and compilable.
+- Generation hooks never silently alter client module dependencies, schemas, or migrations.

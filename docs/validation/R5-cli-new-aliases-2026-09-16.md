@@ -1,6 +1,6 @@
-# R5 — CLI `new` uyumluluk takma adları
+# R5 — CLI `new` compatibility aliases
 
-`create` komutları geriye dönük korunurken Payload benzeri kısa yazım eklendi:
+While preserving existing `create` commands for backward compatibility, Payload-style shorthand commands were added:
 
 ```text
 hydro module new --spec SPEC --out OUTPUT
@@ -10,15 +10,12 @@ hydro api diff --baseline OPENAPI.json --current OPENAPI.json
 hydro check --config config.yaml --json
 ```
 
-Windows ve WSL Ubuntu'da `cmd/hydro` testleri geçti. `resource new --name
-article --field title:text` smoke testi deterministik scaffold üretti; mevcut
-`create` komutları için regresyon testleri de çalıştırıldı.
-`resource check` aynı spec ve çıktı köküyle generator uyumluluğunu da doğruladı.
-`api diff`, mevcut OpenAPI compatibility kontrolünü SDK workflow'una taşıyan
-uyumluluk takma adıdır; geriye dönük `validate api` komutu korunur.
-`check`, `project check` için üst seviye SDK kısayoludur.
+`cmd/hydro` tests passed on Windows and WSL Ubuntu. `resource new --name article --field title:text` smoke test produced deterministic scaffolds; regression tests were also executed for existing `create` commands.
+`resource check` confirmed generator compatibility against the same spec and output root.
+`api diff` is a compatibility alias bringing OpenAPI compatibility checks into the SDK workflow; the backward-compatible `validate api` command is preserved.
+`check` is a top-level SDK shortcut for `project check`.
 
-WSL komutu:
+WSL command:
 
 ```text
 go test ./cmd/hydro ./internal/generator ./internal/release ./internal/sdkdist

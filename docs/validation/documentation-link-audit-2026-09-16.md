@@ -1,13 +1,9 @@
-# Dokümantasyon bağlantı denetimi — 2026-09-16
+# Documentation link audit — 2026-09-16
 
-`docs/**/*.md` içindeki göreli Markdown bağlantıları tarandı. HTTP/mailto
-bağlantıları dışarıda bırakılarak her yerel hedef dosya sistemi üzerinde kontrol
-edildi.
+Scanned relative Markdown links across `docs/**/*.md`. Excluding HTTP/mailto links, each local target was validated on the filesystem.
 
 ```text
 MISSING_COUNT=0
 ```
 
-İki kırık ADR bağlantısı mevcut ADR-0065 ve ADR-0012 hedeflerine yönlendirildi.
-Bu denetim içerik doğruluğunu veya harici URL erişilebilirliğini garanti etmez;
-yalnızca yerel doküman hedeflerinin mevcut olduğunu kanıtlar.
+Two broken ADR links were redirected to existing ADR-0065 and ADR-0012 targets. This audit does not guarantee content accuracy or external URL availability; it confirms that local document targets exist.

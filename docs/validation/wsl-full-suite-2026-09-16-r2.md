@@ -1,13 +1,10 @@
-# WSL tam suite yeniden doğrulama — 2026-09-16
+# WSL full suite re-validation — 2026-09-16
 
-Ortam: Ubuntu WSL2, kullanıcı `testuser`, çalışma dizini `/path/to/project`.
+Environment: Ubuntu WSL2, user `testuser`, working directory `/path/to/project`.
 
 ```text
 go test ./... -p 1 -timeout=5m
 exit code 0
 ```
 
-Bu çalıştırma `api diff`, `resource check` ve SDK runtime cache değişiklikleri
-sonrasındaki mevcut branch'i kapsar. Tüm paketler `ok` veya `[no test files]`
-sonucu verdi. Harici PostgreSQL/S3/CDN, broker ve production deployment kapıları
-bu yerel testin kapsamı dışındadır.
+This run covers the current branch following `api diff`, `resource check`, and SDK runtime cache changes. All packages returned `ok` or `[no test files]`. External PostgreSQL/S3/CDN, broker, and production deployment gates remain outside the scope of this local test.

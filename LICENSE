@@ -1,60 +1,21 @@
-================================================================================
-HYDROGO COMMERCIAL SOFTWARE LICENSE DRAFT (PROPRIETARY)
-[LAWYER REVIEW REQUIRED / HUKUKİ İNCELEME GEREKLİDİR]
-================================================================================
+MIT License
 
-IMPORTANT NOTICE:
-This document is a draft commercial software license agreement for the HydroGo
-Platform (including HydroGo Core, Admin Studio, modules, and tooling). This text
-is intended as an operational template and MUST be reviewed, customized, and
-certified by qualified legal counsel prior to formal commercial distribution.
+Copyright (c) 2026 HydroGo Contributors
 
---------------------------------------------------------------------------------
-1. GRANT OF LICENSE
-Subject to the terms and conditions of this Agreement and the timely payment of
-applicable licensing fees, HydroGo Licensor grants to the Customer a non-exclusive,
-non-transferable, revocable license to install, execute, and utilize HydroGo Core
-in binary or private module form, strictly within the scope of the purchased
-Edition (e.g., Starter, Growth, Enterprise, Custom) and Project ID specified in
-the cryptographically signed offline license certificate ("hydro.lic").
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-2. RESTRICTIONS ON USE
-Except as explicitly authorized by Licensor in writing, Customer shall NOT:
-  a. Decompile, disassemble, reverse engineer, decrypt, or attempt to derive the
-     source code of HydroGo Core runtime components, except to the extent
-     mandated by applicable non-waivable laws;
-  b. Modify, forge, bypass, circumvent, or disable the cryptographic license
-     verification system or Ed25519 signature checks;
-  c. Sub-license, lease, rent, redistribute, resell, or provide HydroGo Core as
-     an unbundled standalone software product or third-party SaaS without a
-     valid Partnership or Reseller agreement;
-  d. Remove or alter any copyright notices, proprietary markings, or license
-     validation mechanisms embedded in HydroGo.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-3. CLIENT EDITION AND GENERATED CODE
-Source code generated exclusively for the Customer's project (including Client
-Editions, theme templates, migrations, frontend layouts, and custom extension
-hooks) is owned by Customer or licensed according to the applicable Client
-Edition delivery contract, provided that running or building such code with
-HydroGo Core requires a valid, active HydroGo license.
-
-4. OFFLINE VERIFICATION AND GRACE PERIOD
-HydroGo utilizes an offline cryptographic license verification mechanism. In the
-event of license expiration, a defined grace period may permit temporary
-operational continuity while renewal is processed. Continued operation after the
-grace period has elapsed constitutes an unlicensed use of the software.
-
-5. THIRD-PARTY COMPONENTS
-HydroGo incorporates third-party open-source components. The licensing terms of
-such third-party components are detailed in the accompanying NOTICE file and
-remain governed by their respective open-source licenses.
-
-6. DISCLAIMER OF WARRANTIES & LIMITATION OF LIABILITY
-EXCEPT AS EXPRESSLY SET FORTH IN A SEPARATE MASTER SERVICES AGREEMENT OR SLA,
-HYDROGO IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-DAMAGES, OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE.
-
---------------------------------------------------------------------------------
-For commercial licensing inquiries, custom editions, or legal inquiries:
-HydroGo Licensing Team
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

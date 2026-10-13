@@ -1,112 +1,112 @@
-# HydroGo Bilgi Hiyerarsisi ve Kullaniciya Saygi Ilkeleri (Information Hierarchy & Audience Separation)
+ï»¿# HydroGo Information Hierarchy & Respect for the User (Audience Separation)
 
-> **"Kullaniciya saygi, sadece hizli yanit vermek degil; onu anlamadigi, ihtiyaç duymadigi ve bilissel yük olusturan teknik gürültüden korumaktir."**
+> **"Respect for the user is not just delivering fast responses; it is shielding them from cognitive clutter, technical noise, and internal architecture they do not need and should not have to understand."**
 
-HydroGo platformunda sunulan her türlü arayüz, mesaj, log ve API yaniti belirli bir hedef kitle (audience) gözetilerek tasarlanir. Hiçbir gereksiz teknik bilgi ve iç mimari detay son kullaniciya (müsteriye) sizdirilamaz.
+Every user interface, notification, error message, log line, and API response across HydroGo is designed for a specific target **audience**. Technical noise and internal architectural mechanisms must never leak to end users or business operators.
 
 ---
 
-## ?? 5 Temel Bilgi Katmani (Information Tiers)
+## ğŸ›ï¸ The 5 Information Tiers
 
-Platform genelinde bilgi 5 farkli seviyede ayristirilir ve filtrelenir:
+Information across the platform is partitioned into five distinct layers:
 
-```
+```text
 +-------------------------------------------------------------+
-¦ 1. MÜSTERI / SON KULLANICI (Member & Public Customer)       ¦  ? Sade, nazik, eyleme dönük, sifir teknik jargon
-+-------------------------------------------------------------¦
-¦ 2. ISLETME YÖNETICISI / EDITÖR (Admin Studio User)          ¦  ? Içerik, siparis, katalog, müsteri ve is metrikleri
-+-------------------------------------------------------------¦
-¦ 3. SISTEM YÖNETICISI / OPERATÖR (Sysadmin & SRE)             ¦  ? Sunucu sagligi, DB havuzu, backup, drift, kuyruklar
-+-------------------------------------------------------------¦
-¦ 4. GELISTIRICI & ENTEGRATÖR (Developer & API Consumer)      ¦  ? API semalari, webhook loglari, payloadlar, SDK'ler
-+-------------------------------------------------------------¦
-¦ 5. DENETÇI & UYUM GÖREVLISI (Auditor & Compliance / DPO)    ¦  ? Denetim izleri (audit logs), veri silme, lisans kaniti
+â”‚ 1. MEMBER & PUBLIC CUSTOMER                                 â”‚  â” Clean, courteous, actionable, zero jargon
++-------------------------------------------------------------+
+â”‚ 2. BUSINESS OPERATOR & EDITOR (Admin Studio)                â”‚  â” Content, orders, catalog, leads, business KPIs
++-------------------------------------------------------------+
+â”‚ 3. SYSTEM ADMINISTRATOR & OPERATOR (Sysadmin & SRE)         â”‚  â” Host health, DB pool, backups, drift, worker queues
++-------------------------------------------------------------+
+â”‚ 4. DEVELOPER & INTEGRATOR (API Consumer)                    â”‚  â” API schemas, webhook payloads, events, client SDKs
++-------------------------------------------------------------+
+â”‚ 5. AUDITOR & COMPLIANCE OFFICER (Security & DPO)            â”‚  â” Immutable audit logs, data erasure, security events
 +-------------------------------------------------------------+
 ```
 
 ---
 
-### 1. Müsteri / Son Kullanici Katmani (Member & Public Customer)
+### 1. Member & Public Customer Tier
 
-**Amaç:** Kullanicinin isini en az çaba ve maksimum güvenle halletmesini saglamak.  
-**Dil ve Ton:** Net, nazik, anlasilir, çözüm odakli Türkçe / Ingilizce.
+**Objective:** Enable users to accomplish tasks with minimal friction and maximum confidence.  
+**Tone:** Concise, helpful, polite, and solution-focused.
 
-- ? **GÖSTERILECEKLER:**
-  - Siparis durumu, kargo/lisans kodu, fatura indirme baglantilari.
-  - Hesap bilgileri, kayit tarihi, üyelik rozeti.
-  - Basit ve anlasilir güvenlik durumu ("Güvenli", "2 Cihazda Açik", "Son Giris: Bugün 14:30").
-  - Anlasilir hata mesajlari ("E-posta veya sifre hatali", "Bu e-posta adresi zaten kayitli", "Lütfen bilgilerinizi kontrol edin").
-  - Açik yönlendirme ve eylem butonlari ("Sepete Git", "Güvenli Çikis", "Sifremi Sifirla").
+- âœ… **PERMITTED INFORMATION:**
+  - Order status, delivery tracking, receipt download links.
+  - Account profile details, registration date, membership badges.
+  - Clear security summaries ("Secure", "2 Active Devices", "Last login: Today at 14:30").
+  - Human-friendly validation guidance ("Incorrect email or password", "This email is already registered", "Please check your input").
+  - Clear navigation verbs ("Go to Cart", "Sign Out", "Reset Password").
 
-- ? **KESINLIKLE GÖSTERILMEYECEKLER (Yasak Bilgiler):**
-  - Kriptografik algoritma ve kütüphane isimleri (Örnek: `Argon2id`, `AES-256-GCM`, `Ed25519`, `bcrypt`, `crypto/subtle`).
-  - Veritabani ve motor ayrintilari (Örnek: `SQLite`, `PostgreSQL`, `pgx`, `database/sql`, SQL sorgulari, tablo/sütun adlari).
-  - Sunucu/Kod istisnalari ve hata yiginlari (Örnek: Go panic, stack trace, `nil pointer dereference`, file paths `C:\dev\...`).
-  - Dahili sistem kimlikleri ve hash dizgileri (Örnek: session token hash'leri, salt degerleri, internal worker ID'ler).
-  - Ham HTTP / Altyapi metrikleri (Örnek: response time ms, connection pool occupancy, memory allocation).
-
----
-
-### 2. Isletme Yöneticisi / Editör Katmani (Admin Studio User)
-
-**Amaç:** Günlük ticari ve editoryal operasyonlari kolayca yürütmek.  
-**Erisim Alani:** `/admin`, `/admin/news`, `/admin/pages`, `/admin/commerce/*`, `/admin/members`.
-
-- ? **GÖSTERILECEKLER:**
-  - Haber taslaklari, yayinlanma zamanlari, kategori ve etiketler.
-  - Ürün stoklari, varyant fiyatlari, siparis tutarlari ve müsteri iletisim detaylari.
-  - Satis grafikleri, sepet dönüsüm oranlari, son kayit olan üyeler.
-  - Rich Text editör araçlari, medya yükleme ve görsel önizlemeleri.
-
-- ? **GÖSTERILMEYECEKLER:**
-  - Sunucu CPU/RAM ham donanim sayaçlari.
-  - Outbox kuyruk retry gecikme algoritmalari veya ham SQL migration diff'leri.
-  - Sysadmin seviyesindeki yedekleme restore fence kilitleri.
+- âŒ **STRICTLY PROHIBITED (Technical Leakage):**
+  - Cryptographic algorithms and library names (e.g., `Argon2id`, `AES-256-GCM`, `Ed25519`, `bcrypt`, `crypto/subtle`).
+  - Database engine details (e.g., `SQLite`, `PostgreSQL`, `pgx`, `database/sql`, raw SQL queries, internal table/column names).
+  - Runtime exceptions and stack traces (e.g., Go panics, stack traces, `nil pointer dereference`, filesystem paths like `C:\dev\...` or `/var/www/...`).
+  - Internal system identifiers and hashes (e.g., session token hashes, salts, internal worker IDs).
+  - Raw HTTP / infrastructure telemetry (e.g., response time in ms, pool saturation, memory allocations).
 
 ---
 
-### 3. Sistem Yöneticisi / Operatör Katmani (Sysadmin & SRE)
+### 2. Business Operator & Editor Tier (Admin Studio User)
 
-**Amaç:** Sistemin yüksek erisilebilirligini, sifir kesintili dagitimlari ve felaket kurtarma süreçlerini garanti etmek.  
-**Erisim Alani:** CLI (`hydro doctor`, `hydro backup`, `hydro release`), `/admin/control`, `/admin/operations`.
+**Objective:** Facilitate day-to-day editorial, marketing, and business workflows.  
+**Surfaces:** `/admin`, `/admin/news`, `/admin/pages`, `/admin/commerce/*`, `/admin/members`.
 
-- ? **GÖSTERILECEKLER:**
-  - Veritabani baglanti havuzu (active / idle connections, max pool limit).
-  - Blue/Green dagitim durumu, write fence ve rollback hazir bulunuslugu.
-  - Disk doluluk orani, WAL boyutu, yedekleme bütünlük hash'leri (SHA-256).
-  - Dead-letter kuyruk dolulugu, outbox retry sayaçlari ve background worker sagligi.
-  - Rate limiting sayaçlari, bellek tüketimi ve lisans geçerlilik süresi (grace period takibi).
+- âœ… **PERMITTED INFORMATION:**
+  - Article drafts, publication schedules, categories, tags, and revisions.
+  - Product stock levels, variant prices, order values, customer contact information.
+  - Sales charts, form submission counts, newly registered members.
+  - Rich Text formatting controls, media upload pickers, and visual image previews.
 
----
-
-### 4. Gelistirici & Entegratör Katmani (Developer & API Consumer)
-
-**Amaç:** Harici sistemlerle API, webhook ve modül entegrasyonu saglamak.  
-**Erisim Alani:** `/admin/developer`, `/api/v1/*`, GraphQL semasi, Webhook loglari.
-
-- ? **GÖSTERILECEKLER:**
-  - REST ve GraphQL OpenAPI sema tanimlari.
-  - Webhook teslim durumu, HTTP durum kodlari (200, 429, 500) ve giden/gelen JSON payloadlari.
-  - API token'lari (maskelenmis), yetki kapsamlari (scopes) ve rate limit kotalari.
-  - Tip güvenli Go SDK ve Client Edition kontrat belgeleri.
+- âŒ **PROHIBITED:**
+  - Raw CPU/RAM hardware utilization counters.
+  - Outbox queue retry exponential backoff formulas or raw SQL migration diffs.
+  - Sysadmin-level restore fence locks and storage driver parameters.
 
 ---
 
-### 5. Denetçi & Uyum Görevlisi Katmani (Auditor & Compliance / DPO)
+### 3. System Administrator & Operator Tier (Sysadmin & SRE)
 
-**Amaç:** Hukuki yükümlülükleri, KVKK/GDPR uyumlulugunu ve güvenlik standartlarini denetlemek.  
-**Erisim Alani:** `/admin/security`, `/admin/permissions`, Audit Trail loglari.
+**Objective:** Ensure high availability, zero-downtime deployments, and verified disaster recovery.  
+**Surfaces:** CLI (`hydro doctor`, `hydro backup`, `hydro release`), `/admin/control`, `/admin/operations`.
 
-- ? **GÖSTERILECEKLER:**
-  - Degistirilemez (append-only) denetim günlükleri: Kim, ne zaman, hangi kaydi degistirdi/sildi.
-  - KVKK/GDPR kisisel veri silme ve anonimlestirme sertifikalari/tutanaklari.
-  - Güvenlik ihlali / basarisiz oturum açma denemeleri ve süpheli IP kaliplari.
-  - Ed25519 lisans imza dogrulama sertifikasi ve yasal kullanim sinirlari.
+- âœ… **PERMITTED INFORMATION:**
+  - Database connection pool health (active / idle connections, max pool limit).
+  - Blue/Green deployment state, write fences, and rollback readiness.
+  - Disk capacity utilization, WAL file sizes, backup integrity hashes (SHA-256).
+  - Dead-letter queue depth, outbox retry counters, and background worker status.
+  - Rate limiting telemetry, process memory usage, and operational status.
 
 ---
 
-## ??? Yazilim Gelistirme ve Tasarim Kurallari
+### 4. Developer & Integrator Tier (API Consumer)
 
-1. **Fail-Closed & Bilgi Sizdirmazlik:** Hata durumlarinda kullaniciya asla "internal error: sql syntax error at line 42" verilmez. Kullaniciya "Islem su anda gerçeklestirilemiyor, lütfen daha sonra tekrar deneyin" denirken, detay sysadmin loguna (`logger.Error`) yazilir.
-2. **Kelimelerin Seçimi:** Kriptografi ve mimari terimleri sadece yetkili teknik personelin ekranlarinda yer alir. Müsteri ekraninda "Argon2id" yerine "Sifreli Güvenlik", "HTTP 401 Unauthorized" yerine "Lütfen giris yapin" denir.
-3. **Bilissel Yükü Sifirlama:** Bir ekrana yeni bir alan veya metin eklenmeden önce "Bu bilgi son kullanicinin bir karar almasina yardimci oluyor mu?" sorusu sorulmalidir. Yanit "Hayir" ise o bilgi son kullanici arayüzünden çikarilmalidir.
+**Objective:** Support reliable third-party API, webhook, and custom module integrations.  
+**Surfaces:** `/admin/developer`, `/api/v1/*`, GraphQL schema, Webhook delivery logs.
+
+- âœ… **PERMITTED INFORMATION:**
+  - REST and GraphQL OpenAPI v3 schema definitions.
+  - Webhook delivery outcomes, HTTP status codes (200, 429, 500), and transmitted/received JSON payloads.
+  - Masked API access tokens, permission scopes, and rate limit headers.
+  - Strongly typed client SDK contracts.
+
+---
+
+### 5. Auditor & Compliance Officer Tier (Security & DPO)
+
+**Objective:** Verify compliance with data protection regulations (GDPR/KVKK), security standards, and governance policies.  
+**Surfaces:** `/admin/security`, `/admin/permissions`, Audit Trail logs.
+
+- âœ… **PERMITTED INFORMATION:**
+  - Append-only, tamper-evident audit logs: who altered or removed what resource and when.
+  - Data erasure and anonymization certificates/receipts.
+  - Security incident logs: failed authentication attempts, rate-limit bans, and anomalous IP activity.
+  - Role-based access control (RBAC) assignments and permission override records.
+
+---
+
+## ğŸ› ï¸ Software Engineering & UI Design Principles
+
+1. **Fail-Closed & Leak Prevention:** Error responses must never expose internal errors (e.g. `sql syntax error at line 42`). Show end users a graceful message (`"Unable to complete this action right now. Please try again later."`), while logging the structured error to internal observability logs (`logger.Error`).
+2. **Audience-Aware Vocabulary:** Cryptographic and database jargon belongs only in administrative and developer tools. Customer screens use plain language: `"Encrypted Security"` instead of `"Argon2id"`, `"Please sign in"` instead of `"HTTP 401 Unauthorized"`.
+3. **Minimize Cognitive Load:** Before adding any data point or text to an end-user screen, evaluate: *"Does this information help the user take a meaningful action?"* If not, eliminate it from the user-facing interface.

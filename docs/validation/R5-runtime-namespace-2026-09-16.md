@@ -1,25 +1,21 @@
-# R5 runtime namespace doğrulaması — 2026-09-16
+# R5 runtime namespace verification — 2026-09-16
 
-**Durum:** Başarılı (lokal/WSL)
+**Status:** Successful (local/WSL)
 
-Release bütünlük doğrulaması, SDK kullanıcıları için `hydro runtime verify`
-namespace’i üzerinden de erişilebilir. Komut, mevcut `hydro release verify`
-uygulamasını tekrar kullanır; iki farklı doğrulama mantığı oluşmaz.
+Release integrity verification is also accessible to SDK users via the `hydro runtime verify` namespace. The command reuses the existing `hydro release verify` implementation, avoiding dual verification logic.
 
-## Kanıt
+## Evidence
 
-- `go test ./cmd/hydro ./internal/release` başarılı.
-- WSL Ubuntu/Go 1.27 üzerinde `go test ./...` başarılı.
-- CLI testi, geçerli manifest/artifact’ı kabul eden ve değiştirilmiş artifact’ı
-  reddeden `runtime verify` alias’ını doğrular.
+- `go test ./cmd/hydro ./internal/release` passed.
+- `go test ./...` passed on WSL Ubuntu/Go 1.27.
+- CLI tests verify the `runtime verify` alias, accepting valid manifest/artifacts and rejecting tampered artifacts.
 
-## Kullanım
+## Usage
 
 ```bash
 hydro runtime verify --manifest release.json --public-key release.pub --root ./runtime
 ```
 
-## Sınır
+## Scope & Boundaries
 
-Bu yalnızca yerel doğrulamadır; indirme, login, entitlement veya artifact broker
-sağlamaz.
+This is local verification only; it does not provide downloading, login, entitlement, or artifact brokering.

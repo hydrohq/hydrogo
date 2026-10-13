@@ -1,23 +1,24 @@
-# Demo seed kapsamı
+# Demo Seed Scope
 
-`seed-demo --confirm-demo` yalnızca yerel geliştirme ve tarayıcı doğrulaması
-içindir. Açık onay olmadan komut fail-closed olur; üretim verisi, gerçek müşteri
-hesabı veya canlı ödeme bilgisi olarak kullanılmamalıdır.
+`seed-demo --confirm-demo` is strictly intended for local development and browser verification.
+Without explicit confirmation, the command fails closed. It must never be used with production
+data, real customer accounts, or live payment credentials.
 
-Demo seed varsayılan runtime yüzeyi değildir. HydroGo'nun `/` adresi backend
-runtime durumunu gösterir; demo frontend'i seed işleminden sonra
-`/public/pages/{locale}/demo/html` adresinden açılır. Üretim kurulumlarında demo
-seed çalıştırılmamalı ve ürün frontend'i `site.home_path` ile açıkça bağlanmalıdır.
-Seed edilmiş demo sayfaları public page route'larından varsayılan olarak gizlidir.
-Yerel tarayıcı doğrulaması gerektiğinde `HYDRO_ENABLE_DEMO_FRONTEND=true` ile
-sunucuyu başlatmak gerekir.
+Demo seed is not the default runtime surface. HydroGo's root `/` endpoint displays the backend
+runtime status; the demo frontend opens at `/public/pages/{locale}/demo/html` after the seed operation.
+In production deployments, demo seed must not be run, and the production frontend should be explicitly
+routed via `site.home_path`. Seeded demo pages are hidden by default from public page routes.
+When local browser verification is needed, start the server with `HYDRO_ENABLE_DEMO_FRONTEND=true`.
 
-Seed şu akışları görünür ve test edilebilir hale getirir:
+The seed makes the following flows visible and testable:
 
-- Sayfalar, haberler ve kapak medya varlıkları.
-- Public frontend üzerinden kullanılabilen örnek üye hesabı: `member@hydrogo.local` / `memberpass123`.
-- SQLite ve PostgreSQL için idempotent kayıtlar; mevcut aynı kimlikler ezilmez.
+- Pages, news articles, and cover media assets.
+- An example member account accessible via the public frontend: `member@hydrogo.local` / `memberpass123`.
+- Idempotent records across SQLite and PostgreSQL; existing identical identities are preserved.
 
-Örnek parola yalnızca yerel demo içindir. Dağıtım veya müşteri projesi oluşturulurken seed kapatılmalı ya da demo üye/parola mutlaka değiştirilmelidir. Canlı ödeme sağlayıcısı, gerçek e-posta, gerçek medya depolaması ve üretim analitiği seed tarafından taklit edilmez.
+The example password is exclusively for local demonstration. When deploying or provisioning customer
+projects, disable demo seeding or immediately change demo member credentials. Live payment providers,
+real email delivery, production object storage, and analytics are not simulated by the seed.
 
-Üye hesabı Admin Studio hesabından ayrıdır; admin oturumu public üye akışına yetki vermez.
+Member accounts are strictly segregated from Admin Studio accounts; an active admin session does not
+grant authorization to public member flows.
