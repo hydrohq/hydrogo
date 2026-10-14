@@ -23,6 +23,8 @@ type AdminAPI struct {
 	Types   []Definition
 	// Actor names the user making a change (stored with revisions).
 	Actor func(*http.Request) string
+	// Locales are the site's content locales (see localization.go).
+	Locales Locales
 }
 
 // withActor attaches the acting user to the request context for writes.

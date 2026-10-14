@@ -21,8 +21,10 @@ import (
 // contentTypeRoutes loads the YAML content types in dir, syncs their schemas
 // into collection storage (once per tenant scope when tenancy is on) and
 // returns the admin and public routes for them. A missing or empty directory
-// yields no routes.
-func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope) ([]router.Route, error) {
+// yields no routes. Localized fields get locale tabs in the admin only when
+// locales has more than one locale (site i18n enabled); otherwise they are
+// plain fields.
+func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales) ([]router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("content types: %w", err)
@@ -46,12 +48,12 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 			return nil, fmt.Errorf("content types: sync schemas: %w", err)
 		}
 	}
-	registry, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types))
+	registry, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled()))
 	if err != nil {
 		return nil, fmt.Errorf("content types: admin registry: %w", err)
 	}
-	api := contenttypes.AdminAPI{Service: service, Types: types, Actor: contentTypeActor}
-	admin := adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
+	api := contenttypes.AdminAPI{Service: service, Types: types, Actor: contentTypeActor, Locales: locales}
+	options := adminstudio.GeneratedAdminOptions{
 		API:             api,
 		Authorize:       isActiveAdmin,
 		CanTransition:   api.CanTransition,
@@ -67,13 +69,22 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 			return expected != "" && r.ParseForm() == nil && subtle.ConstantTimeCompare([]byte(r.FormValue("_csrf")), []byte(expected)) == 1
 		},
 		RenderPage: renderContentTypePage,
-	}}
+	}
+	if locales.Enabled() {
+		options.Locales = api.LocaleOptions
+		options.GetLocalized = api.GetLocalized
+		options.SaveLocalized = api.SaveLocalized
+		options.ListLocalized = api.ListLocalized
+		options.CanCopyLocale = api.CanCopyLocale
+		options.CopyLocale = api.CopyLocale
+	}
+	admin := adminstudio.GeneratedAdminHandler{Registry: registry, Options: options}
 	// Register validates the options; the routes themselves go through the
 	// application router so they get the standard protection and logging.
 	if err := admin.Register(http.NewServeMux()); err != nil {
 		return nil, fmt.Errorf("content types: admin: %w", err)
 	}
-	public := contenttypes.PublicAPI{Service: service, Types: types, RenderRichText: ui.RichTextHTML}
+	public := contenttypes.PublicAPI{Service: service, Types: types, RenderRichText: ui.RichTextHTML, Locales: locales}
 	// Patterns carry methods: a method-less prefix would conflict with the
 	// public "GET /{locale}/" route in net/http's mux.
 	return []router.Route{

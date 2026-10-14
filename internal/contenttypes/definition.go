@@ -35,6 +35,14 @@
 //     API's ?search= (text, textarea, richtext, select).
 //   - filterable: add a filter for the field to the admin list and allow
 //     ?filter[field]= on the public API (text, textarea, select, number).
+//   - localized: keep one value per site locale (text, textarea, richtext,
+//     media; not together with unique, searchable or filterable). A type
+//     with localized fields needs revisions: true. The record holds the
+//     default locale's value; the admin edits the other locales through
+//     its locale tabs, and the public API's ?locale= returns them, falling
+//     back to the default locale per field. Localization is active only
+//     when the site has i18n enabled with more than one locale; otherwise
+//     the flag changes nothing.
 //
 // The public API also accepts ?sort=field or ?sort=-field on any field and
 // on created_at and updated_at.
@@ -62,7 +70,8 @@ const AdminBasePath = "/admin/resources"
 var ErrInvalidDefinition = errors.New("invalid content type definition")
 
 // reserved field IDs are added by the storage layer to every record.
-var reserved = map[string]bool{"id": true, "version": true, "created_at": true, "updated_at": true}
+// "locale" is added to public API responses.
+var reserved = map[string]bool{"id": true, "version": true, "created_at": true, "updated_at": true, "locale": true}
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
@@ -105,6 +114,9 @@ type Field struct {
 	// Filterable fields (text, textarea, select, number) get a filter in
 	// the admin list and accept filter[field]= on the public API.
 	Filterable bool `yaml:"filterable"`
+	// Localized fields (text, textarea, richtext, media) have a value per
+	// site locale; see the package documentation.
+	Localized bool `yaml:"localized"`
 }
 
 // LoadDir reads every *.yaml file in dir. A missing directory yields no
@@ -167,6 +179,15 @@ func (d Definition) Validate() error {
 		if field.Filterable && !oneOf(field.Kind, "text", "textarea", "select", "number") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be filterable", ErrInvalidDefinition, field.ID, field.Kind)
 		}
+		if field.Localized && !oneOf(field.Kind, "text", "textarea", "richtext", "media") {
+			return fmt.Errorf("%w: field %q of kind %s cannot be localized", ErrInvalidDefinition, field.ID, field.Kind)
+		}
+		if field.Localized && (field.Unique || field.Searchable || field.Filterable) {
+			return fmt.Errorf("%w: localized field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
+		}
+	}
+	if d.Localized() && !d.Revisions {
+		return fmt.Errorf("%w: a type with localized fields needs revisions: true", ErrInvalidDefinition)
 	}
 	schema, err := d.Schema()
 	if err != nil {
@@ -192,6 +213,7 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
+			Localized: field.Localized,
 		})
 	}
 	if d.Drafts {
@@ -200,6 +222,16 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{ID: StatusField, Label: "Status", Kind: collections.Select, Options: []string{StatusDraft, StatusPublished}})
 	}
 	return schema, nil
+}
+
+// Localized reports whether any field is localized.
+func (d Definition) Localized() bool {
+	for _, field := range d.Fields {
+		if field.Localized {
+			return true
+		}
+	}
+	return false
 }
 
 func oneOf(value string, allowed ...string) bool {
@@ -241,7 +273,7 @@ func storageKind(field Field) (collections.FieldKind, error) {
 func (d Definition) AdminCollection() adminstudio.Collection {
 	collection := adminstudio.Collection{
 		ID: d.ID, Label: d.Label, Description: d.Description, Group: d.Group, Icon: d.Icon,
-		TitleField: d.TitleField, Versioned: true, Revisions: d.Revisions,
+		TitleField: d.TitleField, Versioned: true, Revisions: d.Revisions, Localization: d.Localized(),
 		Actions: []adminstudio.Action{{Label: "New " + d.Label, Href: AdminBasePath + "/" + d.ID + "/new"}},
 	}
 	if collection.Group == "" {
@@ -251,6 +283,7 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
 			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
+			Localized: field.Localized,
 		}
 		switch field.Kind {
 		case "text":
@@ -313,10 +346,19 @@ func Schemas(definitions []Definition) ([]collections.Schema, error) {
 	return result, nil
 }
 
-func AdminCollections(definitions []Definition) []adminstudio.Collection {
+// AdminCollections converts the definitions for the admin. With localize
+// false (the site has one locale) localized fields are plain fields.
+func AdminCollections(definitions []Definition, localize bool) []adminstudio.Collection {
 	result := make([]adminstudio.Collection, 0, len(definitions))
 	for _, definition := range definitions {
-		result = append(result, definition.AdminCollection())
+		collection := definition.AdminCollection()
+		if !localize {
+			collection.Localization = false
+			for index := range collection.Fields {
+				collection.Fields[index].Localized = false
+			}
+		}
+		result = append(result, collection)
 	}
 	return result
 }

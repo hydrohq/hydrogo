@@ -3,9 +3,14 @@ label: Team
 description: People shown on the about page.
 title_field: name
 public: true
+# localized: role and bio get a value per site locale when i18n is enabled
+# with more than one locale (edited through the admin's locale tabs; the
+# public API's ?locale= returns them, falling back to the default locale).
+# A type with localized fields needs revisions.
+revisions: true
 fields:
   - {id: name, label: Name, kind: text, required: true, list: true}
-  - {id: role, label: Role, kind: text, list: true}
+  - {id: role, label: Role, kind: text, list: true, localized: true}
   - {id: photo, label: Photo, kind: media}
-  - {id: bio, label: Bio, kind: textarea}
+  - {id: bio, label: Bio, kind: textarea, localized: true}
   - {id: sort_order, label: Order, kind: number}

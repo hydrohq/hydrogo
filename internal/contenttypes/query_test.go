@@ -124,7 +124,7 @@ func newServiceFor(t *testing.T, yamlFiles ...string) (collections.Service, []De
 // tests exercise the exact query strings the admin sends.
 func generatedAdmin(t *testing.T, api AdminAPI, options func(*adminstudio.GeneratedAdminOptions)) http.Handler {
 	t.Helper()
-	registry, err := adminstudio.NewRegistry(AdminCollections(api.Types))
+	registry, err := adminstudio.NewRegistry(AdminCollections(api.Types, api.Locales.Enabled()))
 	if err != nil {
 		t.Fatal(err)
 	}

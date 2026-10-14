@@ -13,6 +13,7 @@ import (
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	adminsearch "github.com/ardaozyildirim/hydrogo/internal/search"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -31,7 +32,8 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	}
 	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
 	collectionService := collections.Service{Repository: collectionDB}
-	contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes)
+	contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes,
+		contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales))
 	if err != nil {
 		return nil, err
 	}
