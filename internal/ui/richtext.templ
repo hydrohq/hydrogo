@@ -1,0 +1,104 @@
+package ui
+
+// Markup for RichTextHTML (richtext.go). Every component here receives
+// either plain text, which templ escapes, or child components built by the
+// renderer, so no user value reaches the output unescaped.
+
+templ richPlainParagraphs(paragraphs []string) {
+	for _, paragraph := range paragraphs {
+		<p>{ paragraph }</p>
+	}
+}
+
+templ richBlocks(blocks []templ.Component) {
+	for _, block := range blocks {
+		@block
+	}
+}
+
+templ richInline(parts []templ.Component) {
+	for _, part := range parts {
+		@part
+	}
+}
+
+templ richText(text string) {
+	{ text }
+}
+
+templ richParagraph(inner templ.Component) {
+	<p>@inner</p>
+}
+
+templ richHeading(level int, inner templ.Component) {
+	switch level {
+		case 1:
+			<h1>@inner</h1>
+		case 2:
+			<h2>@inner</h2>
+		case 3:
+			<h3>@inner</h3>
+		default:
+			<h4>@inner</h4>
+	}
+}
+
+templ richBlockquote(inner templ.Component) {
+	<blockquote>@inner</blockquote>
+}
+
+templ richList(ordered bool, items []templ.Component) {
+	if ordered {
+		<ol>
+			for _, item := range items {
+				<li>@item</li>
+			}
+		</ol>
+	} else {
+		<ul>
+			for _, item := range items {
+				<li>@item</li>
+			}
+		</ul>
+	}
+}
+
+templ richCodeFallback(code string) {
+	<pre><code>{ code }</code></pre>
+}
+
+// richImage renders an embedded image whose source richImageSource vetted.
+templ richImage(src string) {
+	<img src={ templ.SafeURL(src) } alt="Görsel" loading="lazy" class="richtext-image"/>
+}
+
+// richLink renders a link whose href richLinkHref vetted.
+templ richLink(href string, inner templ.Component) {
+	<a href={ templ.SafeURL(href) } target="_blank" rel="noopener noreferrer">@inner</a>
+}
+
+templ richStrong(inner templ.Component) {
+	<strong>@inner</strong>
+}
+
+templ richEm(inner templ.Component) {
+	<em>@inner</em>
+}
+
+templ richUnderline(inner templ.Component) {
+	<u>@inner</u>
+}
+
+templ richStrike(inner templ.Component) {
+	<s>@inner</s>
+}
+
+templ richCode(inner templ.Component) {
+	<code>@inner</code>
+}
+
+// richStyled applies one allowlisted inline declaration (size, font or a
+// validated hex colour); see richInlineStyles.
+templ richStyled(style templ.SafeCSS, inner templ.Component) {
+	<span style={ style }>@inner</span>
+}
