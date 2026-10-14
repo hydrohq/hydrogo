@@ -4,6 +4,8 @@
 //   HYDRO_ADMIN_EMAIL=... HYDRO_ADMIN_PASSWORD=... \
 //     node e2e/screenshot.mjs --base http://127.0.0.1:8090 /admin /admin/resources/faq
 //
+// --theme light|dark pins the admin colour scheme (default: browser preference).
+//
 // Screenshots go to .tmp/screenshots/<path>-<viewport>.png (override with --out).
 // In Git Bash on Windows, prefix with MSYS_NO_PATHCONV=1 so /paths stay URLs.
 import { chromium } from "@playwright/test";
@@ -13,10 +15,12 @@ import { join } from "node:path";
 const args = process.argv.slice(2);
 let base = "http://127.0.0.1:8090";
 let out = ".tmp/screenshots";
+let theme = "";
 const paths = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--base") base = args[++i];
   else if (args[i] === "--out") out = args[++i];
+  else if (args[i] === "--theme") theme = args[++i];
   else paths.push(args[i]);
 }
 if (paths.length === 0) {
@@ -28,6 +32,13 @@ mkdirSync(out, { recursive: true });
 const viewports = { desktop: { width: 1440, height: 900 }, mobile: { width: 390, height: 844 } };
 const browser = await chromium.launch();
 const context = await browser.newContext({ baseURL: base });
+if (theme) {
+  await context.addInitScript((value) => {
+    try {
+      localStorage.setItem("hydro-theme", value);
+    } catch {}
+  }, theme);
+}
 
 const email = process.env.HYDRO_ADMIN_EMAIL;
 const password = process.env.HYDRO_ADMIN_PASSWORD;
