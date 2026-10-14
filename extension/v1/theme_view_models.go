@@ -113,6 +113,18 @@ type MemberAuthView struct {
 	PasswordAutocomplete string
 	// PasswordStrength is the design-system meter shown on registration.
 	PasswordStrength template.HTML
+	// OAuthProviders lists configured social sign-in options; empty when
+	// none are configured, so a theme's {{if .OAuthProviders}} renders
+	// nothing and the page is visually unchanged.
+	OAuthProviders []MemberOAuthProviderView
+}
+
+// MemberOAuthProviderView is one "sign in with ..." link on the member auth
+// page.
+type MemberOAuthProviderView struct {
+	Name  string // "google", "github" or "apple"
+	Label string // display name, e.g. "Google"
+	URL   string // /member/oauth/{Name}/start, with return_to preserved
 }
 
 type MemberAccountView struct {

@@ -411,6 +411,8 @@ img{@apply tw:max-w-[100%] tw:h-auto tw:block;}
 .auth-back-link{@apply tw:text-[var(--accent)] tw:font-[600] tw:no-underline;transition:opacity 0.12s ease;}
 .member-auth-switch a:hover,
 .auth-back-link:hover{@apply tw:underline tw:opacity-85;}
+.member-auth-oauth{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.member-auth-oauth-btn{text-align:center;text-decoration:none;}
 .member-portal{@apply tw:max-w-[1200px] tw:mx-auto;padding:32px 0 64px;}
 .member-hero{@apply tw:bg-[var(--card)] tw:rounded-[var(--radius-xl)] tw:mb-[28px] tw:flex tw:items-center tw:justify-between tw:flex-wrap tw:gap-[20px] tw:shadow-[var(--shadow-card)];border:1px solid var(--card-border);padding:32px 36px;}
 .member-hero-left{@apply tw:flex tw:items-center tw:gap-[20px];}

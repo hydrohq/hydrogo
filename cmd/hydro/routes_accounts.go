@@ -52,7 +52,11 @@ func (a *serveApp) memberRoutes() []router.Route {
 	if !enabledModuleSet(a.cfg.Modules)["members"] {
 		return nil
 	}
-	return a.memberHTTP.Routes()
+	routes := a.memberHTTP.Routes()
+	if a.memberOAuthHTTP != nil {
+		routes = append(routes, a.memberOAuthHTTP.Routes()...)
+	}
+	return routes
 }
 
 // publicAccountRoutes registers the password-reset and admin login pages.

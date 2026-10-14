@@ -70,7 +70,7 @@ func TestSocialOAuthStartAndCallbackUseStatePKCEAndCreateOpaqueSession(t *testin
 	start := httptest.NewRecorder()
 	startRequest := httptest.NewRequest(http.MethodGet, "/auth/oauth/google/start?return_to=%2Fadmin%2Fpages", nil)
 	startRequest.SetPathValue("provider", "google")
-	handler.start(start, startRequest)
+	handler.Start(start, startRequest)
 	if start.Code != http.StatusFound {
 		t.Fatalf("start status=%d", start.Code)
 	}

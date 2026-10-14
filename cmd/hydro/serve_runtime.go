@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -217,6 +218,19 @@ func (a *serveApp) initOptionalModules() error {
 	}
 	if modules["members"] {
 		a.memberHTTP = membertransport.Handler{Service: a.memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale, Push: pushDispatcher}
+		if !cfg.SafeMode {
+			memberOAuth, err := configuredMemberSocialOAuth(db, cfg.Database.Dialect, a.memberService, newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), cfg.Security.SecureCookies, requireTenantScope)
+			if err != nil {
+				return fmt.Errorf("configure member social sign-in: %w", err)
+			}
+			a.memberOAuthHTTP = memberOAuth
+			if memberOAuth != nil {
+				for name := range memberOAuth.Providers {
+					a.memberHTTP.OAuthProviderNames = append(a.memberHTTP.OAuthProviderNames, name)
+				}
+				sort.Strings(a.memberHTTP.OAuthProviderNames)
+			}
+		}
 	}
 	return nil
 }

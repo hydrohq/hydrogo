@@ -85,6 +85,7 @@ type serveApp struct {
 	memberStore     memberstore.Store
 	memberService   members.Service
 	memberHTTP      membertransport.Handler
+	memberOAuthHTTP *membertransport.OAuthHandler
 	smtpSender      mailer.Sender
 
 	// Optional modules.
