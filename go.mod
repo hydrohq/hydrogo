@@ -2,6 +2,8 @@ module github.com/ardaozyildirim/hydrogo
 
 go 1.27.0
 
+toolchain go1.27.2
+
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/a-h/templ v0.3.1020
