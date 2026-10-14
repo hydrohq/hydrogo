@@ -29,14 +29,14 @@ func EditPresence(resource, endpoint, csrf string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"display:none; margin-bottom: 16px; border: 1px solid var(--amber, #f59e0b); background: var(--amber-subtle, rgba(245, 158, 11, 0.15)); padding: 14px; border-radius: var(--radius-md); color: var(--ink); box-shadow: var(--shadow-sm);\" role=\"status\" aria-live=\"polite\" data-edit-presence data-endpoint=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hidden style=\"margin-bottom: 16px; border: 1px solid var(--amber, #f59e0b); background: var(--amber-subtle, rgba(245, 158, 11, 0.15)); padding: 14px; border-radius: var(--radius-md); color: var(--ink); box-shadow: var(--shadow-sm);\" role=\"status\" aria-live=\"polite\" data-edit-presence data-endpoint=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(endpoint)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 4, Col: 322}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 4, Col: 315}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -49,7 +49,7 @@ func EditPresence(resource, endpoint, csrf string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(resource)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 4, Col: 349}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 4, Col: 342}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -62,13 +62,13 @@ func EditPresence(resource, endpoint, csrf string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 4, Col: 368}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `modules/designsystem/edit_presence.templ`, Line: 4, Col: 361}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><div style=\"display:flex; align-items:center; gap: 8px;\"><svg style=\"width:18px;height:18px;color:var(--amber, #f59e0b)\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z\"></path></svg> <strong style=\"font-size: .85rem;\">Bu içerik üzerinde başka bir editör çalışıyor.</strong></div><ul style=\"margin: 8px 0 0 26px; padding: 0; list-style: disc; font-size: .78rem; color: var(--ink-secondary);\" data-edit-presence-list></ul></div><script>\n\t\t(()=>{const box=document.querySelector('[data-edit-presence]');if(!box)return;const endpoint=box.dataset.endpoint,csrf=box.dataset.csrf,list=box.querySelector('[data-edit-presence-list]');let stopped=false;const refresh=async()=>{if(stopped)return;try{await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':csrf}});const response=await fetch(endpoint,{credentials:'same-origin',headers:{'Accept':'application/json'}});if(!response.ok)return;const editors=await response.json();list.replaceChildren();for(const editor of editors){const item=document.createElement('li');item.textContent=editor.name+' (son etkinlik '+editor.active_seconds+' sn önce)';list.append(item)}box.style.display=editors.length===0?'none':'block'}catch(_){}};refresh();const timer=setInterval(refresh,15000);window.addEventListener('pagehide',()=>{stopped=true;clearInterval(timer)},{once:true})})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><div style=\"display:flex; align-items:center; gap: 8px;\"><svg style=\"width:18px;height:18px;color:var(--amber, #f59e0b)\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z\"></path></svg> <strong style=\"font-size: .85rem;\">Bu içerik üzerinde başka bir editör çalışıyor.</strong></div><ul style=\"margin: 8px 0 0 26px; padding: 0; list-style: disc; font-size: .78rem; color: var(--ink-secondary);\" data-edit-presence-list></ul></div><script src=\"/admin-assets/js/edit-presence.js\" defer></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
