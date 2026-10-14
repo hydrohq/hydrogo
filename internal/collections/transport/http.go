@@ -465,15 +465,18 @@ func apiError(w http.ResponseWriter, err error) {
 	if errors.Is(err, collections.ErrCollectionNotFound) || errors.Is(err, collections.ErrRecordNotFound) {
 		status = http.StatusNotFound
 	}
-	if errors.Is(err, collections.ErrUniqueValue) {
+	if errors.Is(err, collections.ErrUniqueValue) || errors.Is(err, collections.ErrVersionConflict) {
 		status = http.StatusConflict
 	}
 	message := "collection request could not be completed"
 	if status == http.StatusNotFound {
 		message = "collection or record not found"
 	}
-	if status == http.StatusConflict {
+	if errors.Is(err, collections.ErrUniqueValue) {
 		message = "a field value conflicts with an existing record"
+	}
+	if errors.Is(err, collections.ErrVersionConflict) {
+		message = "the record was changed by someone else; reload and try again"
 	}
 	api.WriteJSON(w, status, map[string]string{"error": message})
 }

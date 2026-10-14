@@ -22,7 +22,10 @@ type Repository interface {
 	DeleteSchema(context.Context, string) error
 	ListRecords(context.Context, string, int, int) ([]Record, error)
 	GetRecord(context.Context, string, string) (Record, error)
-	SaveRecord(context.Context, string, string, map[string]any, []Field) (Record, error)
+	// SaveRecord creates (empty id) or updates a record. When expectedVersion
+	// is positive the update only applies if the stored version still matches,
+	// otherwise it fails with ErrVersionConflict.
+	SaveRecord(ctx context.Context, collectionID, id string, data map[string]any, unique []Field, expectedVersion int) (Record, error)
 	DeleteRecord(context.Context, string, string) error
 	RecordExists(context.Context, string, string) (bool, error)
 }
@@ -121,20 +124,26 @@ func (s Service) GetRecord(ctx context.Context, collectionID, id string) (Record
 }
 
 func (s Service) CreateRecord(ctx context.Context, collectionID string, data map[string]any) (Record, error) {
-	return s.saveRecord(ctx, collectionID, "", data)
+	return s.saveRecord(ctx, collectionID, "", data, 0)
 }
 
 func (s Service) UpdateRecord(ctx context.Context, collectionID, id string, data map[string]any) (Record, error) {
+	return s.UpdateRecordVersion(ctx, collectionID, id, data, 0)
+}
+
+// UpdateRecordVersion updates a record only if its stored version equals
+// expectedVersion (optimistic locking). An expectedVersion of 0 skips the check.
+func (s Service) UpdateRecordVersion(ctx context.Context, collectionID, id string, data map[string]any, expectedVersion int) (Record, error) {
 	if s.Repository == nil || id == "" {
 		return Record{}, ErrRecordNotFound
 	}
 	if _, err := s.Repository.GetRecord(ctx, collectionID, id); err != nil {
 		return Record{}, err
 	}
-	return s.saveRecord(ctx, collectionID, id, data)
+	return s.saveRecord(ctx, collectionID, id, data, expectedVersion)
 }
 
-func (s Service) saveRecord(ctx context.Context, collectionID, id string, data map[string]any) (Record, error) {
+func (s Service) saveRecord(ctx context.Context, collectionID, id string, data map[string]any, expectedVersion int) (Record, error) {
 	if s.Repository == nil {
 		return Record{}, ErrCollectionNotFound
 	}
@@ -176,7 +185,7 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 			}
 		}
 	}
-	return s.Repository.SaveRecord(ctx, collectionID, id, clean, unique)
+	return s.Repository.SaveRecord(ctx, collectionID, id, clean, unique, expectedVersion)
 }
 
 func (s Service) DeleteRecord(ctx context.Context, collectionID, id string) error {

@@ -222,13 +222,15 @@ func (s Store) GetRecord(ctx context.Context, collectionID, id string) (collecti
 	return result, err
 }
 
-func (s Store) SaveRecord(ctx context.Context, collectionID, id string, data map[string]any, unique []collections.Field) (collections.Record, error) {
+func (s Store) SaveRecord(ctx context.Context, collectionID, id string, data map[string]any, unique []collections.Field, expectedVersion int) (collections.Record, error) {
 	var result collections.Record
-	err := s.within(ctx, func(tx Store) error { return tx.saveRecord(ctx, collectionID, id, data, unique, &result) })
+	err := s.within(ctx, func(tx Store) error {
+		return tx.saveRecord(ctx, collectionID, id, data, unique, expectedVersion, &result)
+	})
 	return result, err
 }
 
-func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map[string]any, unique []collections.Field, result *collections.Record) error {
+func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map[string]any, unique []collections.Field, expectedVersion int, result *collections.Record) error {
 	tenantID, err := s.scope(ctx)
 	if err != nil {
 		return err
@@ -258,11 +260,20 @@ func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map
 	var version int
 	selectQuery := `SELECT created_at,version FROM hydro_collection_records WHERE tenant_id=` + s.p(1) + ` AND collection_id=` + s.p(2) + ` AND id=` + s.p(3)
 	if err := s.row(ctx, selectQuery, tenantID, collectionID, id).Scan(&created, &version); err == nil {
-		version++
-		update := `UPDATE hydro_collection_records SET data_json=` + s.p(1) + `,version=` + s.p(2) + `,updated_at=` + s.p(3) + ` WHERE tenant_id=` + s.p(4) + ` AND collection_id=` + s.p(5) + ` AND id=` + s.p(6)
-		if _, err := s.exec(ctx, update, string(encoded), version, now, tenantID, collectionID, id); err != nil {
+		if expectedVersion > 0 && version != expectedVersion {
+			return collections.ErrVersionConflict
+		}
+		// Conditioning on the version just read makes the write atomic even
+		// when another transaction updated the row in between.
+		update := `UPDATE hydro_collection_records SET data_json=` + s.p(1) + `,version=` + s.p(2) + `,updated_at=` + s.p(3) + ` WHERE tenant_id=` + s.p(4) + ` AND collection_id=` + s.p(5) + ` AND id=` + s.p(6) + ` AND version=` + s.p(7)
+		updated, err := s.exec(ctx, update, string(encoded), version+1, now, tenantID, collectionID, id, version)
+		if err != nil {
 			return err
 		}
+		if n, _ := updated.RowsAffected(); n == 0 {
+			return collections.ErrVersionConflict
+		}
+		version++
 	} else if errors.Is(err, sql.ErrNoRows) {
 		created = now
 		version = 1
