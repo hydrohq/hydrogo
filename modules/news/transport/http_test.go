@@ -31,22 +31,22 @@ func TestFloatingContactUsesConfiguredSupportOnly(t *testing.T) {
 
 func (s publicMediaURLStub) PublicURL(string) (string, error) { return s.URL, s.Err }
 
-func TestNewsCoverMarkupUsesConfiguredCDNAndEscapesMarkup(t *testing.T) {
+func TestNewsCoverURLsUseConfiguredCDN(t *testing.T) {
 	h := Handler{Media: publicMediaURLStub{URL: "https://cdn.example.test/media/hero.webp"}}
-	got := string(h.newsCoverMarkup(news.Item{CoverMediaID: "hero", Title: "<headline>"}))
-	if !strings.Contains(got, `src="https://cdn.example.test/media/hero.webp"`) {
-		t.Fatalf("cdn URL missing: %s", got)
+	src, fallback := h.coverURLs(news.Item{CoverMediaID: "hero", Title: "<headline>"})
+	if src != "https://cdn.example.test/media/hero.webp" || fallback != src {
+		t.Fatalf("cdn URL missing: src=%q fallback=%q", src, fallback)
 	}
-	if strings.Contains(got, "<headline>") || !strings.Contains(got, "&lt;headline&gt;") {
-		t.Fatalf("title was not escaped: %s", got)
+	if src, fallback := h.coverURLs(news.Item{Title: "No cover"}); src != "" || fallback != "" {
+		t.Fatalf("story without cover got URLs src=%q fallback=%q", src, fallback)
 	}
 }
 
-func TestNewsCoverMarkupFallsBackWhenCDNUnavailable(t *testing.T) {
+func TestNewsCoverURLsFallBackWhenCDNUnavailable(t *testing.T) {
 	h := Handler{Media: publicMediaURLStub{Err: errors.New("unavailable")}}
-	got := string(h.newsCoverMarkup(news.Item{CoverMediaID: "hero", Title: "Headline"}))
-	if !strings.Contains(got, `src="/media/hero?variant=card"`) {
-		t.Fatalf("local fallback missing: %s", got)
+	src, fallback := h.coverURLs(news.Item{CoverMediaID: "hero", Title: "Headline"})
+	if src != "/media/hero?variant=card" || fallback != "/media/hero" {
+		t.Fatalf("local fallback missing: src=%q fallback=%q", src, fallback)
 	}
 }
 
