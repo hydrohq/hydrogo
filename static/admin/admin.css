@@ -326,3 +326,32 @@ html .studio-form input[type="file"].control-file-input { padding: 8px 12px; bac
 .traffic-bar-fill.traffic-bar-fill--api { width: 45%; background: var(--purple); }
 .traffic-bar-fill.traffic-bar-fill--errors { width: 0%; background: var(--red); }
 .traffic-bar-fill.traffic-bar-fill--errors.has-errors { width: 15%; }
+
+/* ---- Generated admin: locale tabs (internal/adminstudio/generated_views.templ) ----
+   A segmented control: the current locale is a <span aria-current="page">, the
+   others are one-button GET forms that switch locale. The extra .studio-main
+   and the !important on the button colours beat the shell's !important
+   .button-quiet rules (polish.css, overrides.css). */
+.studio-main .locale-tabs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
+  width: fit-content; max-width: 100%; margin: 0 0 16px; padding: 3px;
+  border: 1px solid var(--line); border-radius: var(--radius-md, 12px); background: var(--bg-subtle);
+}
+.studio-main .locale-tabs > form { display: contents; }
+.studio-main .locale-tabs > [aria-current],
+.studio-main .locale-tabs > form .button {
+  display: inline-flex; flex: none; align-items: center; justify-content: center;
+  width: auto; min-width: 44px; height: auto; min-height: 32px; margin: 0; padding: 4px 14px;
+  border: 0; border-radius: var(--radius-sm, 8px); box-shadow: none;
+  font-size: .78rem; font-weight: 600; letter-spacing: .04em; line-height: 1;
+}
+.studio-main .locale-tabs > form .button {
+  border: 0 !important; background: transparent !important; color: var(--muted) !important; cursor: pointer;
+}
+.studio-main .locale-tabs > form .button:hover { background: var(--surface-hover) !important; color: var(--ink) !important; }
+.studio-main .locale-tabs > [aria-current] { background: var(--surface); color: var(--brand); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--line-light); }
+@media (max-width: 840px) {
+  /* Comfortable touch targets without stretching the tabs full width. */
+  .studio-main .locale-tabs > [aria-current],
+  .studio-main .locale-tabs > form .button { min-height: 40px !important; }
+}
