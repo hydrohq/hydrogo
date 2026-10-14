@@ -34,16 +34,20 @@ test.describe("HydroGo visual contract", () => {
           await expect(securityNotice).toBeHidden();
         }
       }
-      if (surface.id === "home") {
+      // Public pages reveal cards as they scroll into view; scroll once so the
+      // full-page capture shows them. The corporate theme sets
+      // scroll-behavior: smooth, so jump instantly.
+      if (surface.id === "home" || surface.id === "news") {
         await page.evaluate(async () => {
           const step = Math.max(1, Math.floor(innerHeight * 0.75));
           for (let top = 0; top < document.documentElement.scrollHeight; top += step) {
-            scrollTo(0, top);
+            scrollTo({ top, behavior: "instant" });
             await new Promise((resolve) => setTimeout(resolve, 100));
           }
-          scrollTo(0, 0);
+          scrollTo({ top: 0, behavior: "instant" });
         });
-        await page.waitForTimeout(300);
+        // Wait until every revealed block has finished fading in.
+        await page.waitForFunction(() => [...document.querySelectorAll(".reveal-item.is-revealed")].every((element) => getComputedStyle(element).opacity === "1"));
       }
       await page.mouse.move(0, 0);
       await page.evaluate(() => document.fonts?.ready);
