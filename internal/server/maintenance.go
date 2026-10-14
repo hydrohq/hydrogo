@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"net"
 	"net/http"
 	"strings"
@@ -76,7 +77,9 @@ func MaintenanceMiddleware(config MaintenanceConfig) func(http.Handler) http.Han
 				body, _ = config.Render(r)
 			}
 			if len(body) == 0 {
-				body = []byte("<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><title>We'll be back soon</title><h1>We'll be back soon</h1><p>We're making a few improvements. Please try again shortly.</p></html>")
+				var fallback bytes.Buffer
+				_ = maintenanceFallbackPage().Render(r.Context(), &fallback)
+				body = fallback.Bytes()
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
