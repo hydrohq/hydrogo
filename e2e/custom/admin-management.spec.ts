@@ -772,8 +772,6 @@ test.describe("single Edition administrator management", () => {
     await page.goto(`${baseURL}/admin/news/new`);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.locator("#theme-toggle-btn")).toHaveAccessibleName(/theme; click to change/);
-    await page.locator("#ui-family-select").selectOption("aurora");
-    await expect(page.locator(".studio-toast").last()).toContainText("Aurora appearance applied.");
     await page.locator("#theme-toggle-btn").click();
     await expect(page.locator(".studio-toast").last()).toContainText(/theme applied\./);
     await page.locator(".studio-search").click();
@@ -800,8 +798,6 @@ test.describe("single Edition administrator management", () => {
     await context.addCookies([{ name: "hydro_admin_locale", value: "tr", url: baseURL }]);
     await page.reload();
     await expect(page.locator("#theme-toggle-btn")).toHaveAccessibleName(/tema; değiştirmek için tıklayın/);
-    await page.locator("#ui-family-select").selectOption("hydrogo");
-    await expect(page.locator(".studio-toast").last()).toContainText("Görünüm HydroGo olarak değiştirildi.");
     await page.locator("#theme-toggle-btn").click();
     await expect(page.locator(".studio-toast").last()).toContainText("tema uygulandı.");
     await page.locator(".studio-search").click();
@@ -1784,10 +1780,10 @@ test.describe("single Edition administrator management", () => {
       "/admin/developer/resources",
       "/admin/reports",
     ])];
-    const themes = ["hydrogo", "shadcn", "nova", "aurora"];
+    const themes = ["hydrogo"];
     for (const theme of themes) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([family, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${family}-${colorMode}`), [theme, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         for (const route of routes) {
           const response = await page.goto(`${baseURL}${route}`);
           expect(response?.status(), `${route} must render with ${theme}-${mode}`).toBe(200);

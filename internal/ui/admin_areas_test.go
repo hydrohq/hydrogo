@@ -592,7 +592,6 @@ func TestAdminVisualControlsFollowAdminLanguage(t *testing.T) {
 	}
 	for _, want := range []string{
 		`english?label+'; click to change':label+'; değiştirmek için tıklayın'`,
-		`english ? familyName + ' appearance applied.' : 'Görünüm '`,
 		`english ? variantName + ' theme applied.' : variantName + ' tema uygulandı.'`,
 	} {
 		if !strings.Contains(out.String(), want) {
@@ -685,115 +684,80 @@ func TestAdminShellShowsAuthenticatedUserInitials(t *testing.T) {
 	}
 }
 
-func TestAdminShellIncludesShadcnThemeModes(t *testing.T) {
+func TestAdminShellLightDarkToggleContract(t *testing.T) {
 	for _, want := range []string{
-		// The CSS half is now compiled by the standalone Tailwind CLI
-		// (ADR-0341), which prints attribute selectors without quotes
-		// when they aren't required (`data-ui-theme=shadcn` instead of
-		// `data-ui-theme="shadcn"`) - functionally identical CSS, so the
-		// contract checks the unquoted form for selectors sourced from
-		// AdminShadcnCSS.
-		`data-ui-theme=shadcn`,
-		`data-theme=dark`,
-		`hydro-ui-theme`,
-		`shadcn-light`,
-		`shadcn-dark`,
 		`updateVisualModeLabel`,
 		`değiştirmek için tıklayın`,
+		`localStorage.setItem('hydro-theme', nextVariant)`,
+		`setAttribute('data-theme', nextVariant)`,
 	} {
-		if !strings.Contains(AdminShadcnCSS+AdminSPARouterJS, want) {
-			t.Fatalf("admin shell missing shadcn theme contract %q", want)
+		if !strings.Contains(AdminSPARouterJS, want) {
+			t.Fatalf("admin shell missing light/dark toggle contract %q", want)
 		}
+	}
+	if !strings.Contains(AdminHydroGoCSS, `html[data-ui-theme=hydrogo][data-theme=dark]`) {
+		t.Fatal("hydrogo styles lost their dark-mode palette")
 	}
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	for _, want := range []string{`data-ui-theme=shadcn`, `hydro-ui-theme`, `shadcn-dark`} {
-		if !strings.Contains(out.String(), want) {
-			t.Fatalf("rendered admin shell missing shadcn contract %q", want)
-		}
+	if !strings.Contains(out.String(), `id="theme-toggle-btn"`) {
+		t.Fatal("rendered admin shell missing the light/dark toggle button")
 	}
 }
 
-// TestWorkbenchFamilyIsFullyRemoved is a regression guard for ADR-0341's
-// removal of the "workbench" admin visual family: it must never reappear in
-// the rendered shell, the family-select allowlists, the migration/default
-// fallback logic, or the account-page family picker. hydrogo took over
-// workbench's former role as the default/fallback family.
-func TestWorkbenchFamilyIsFullyRemoved(t *testing.T) {
+// TestRemovedVisualFamiliesStayRemoved guards the consolidation of Studio on
+// the single hydrogo visual family: the former workbench, shadcn, nova and
+// aurora families and the family picker must not reappear in the rendered
+// shell or on the account page.
+func TestRemovedVisualFamiliesStayRemoved(t *testing.T) {
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
-	}
-	if strings.Contains(strings.ToLower(out.String()), "workbench") {
-		t.Fatal("rendered admin shell still mentions workbench - it must be fully removed (ADR-0341)")
 	}
 	var account bytes.Buffer
 	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account"}); err != nil {
 		t.Fatalf("render account area: %v", err)
 	}
-	if strings.Contains(strings.ToLower(account.String()), "workbench") {
-		t.Fatal("account area's family selector still mentions workbench - it must be fully removed (ADR-0341)")
+	for name, markup := range map[string]string{"admin shell": out.String(), "account area": account.String()} {
+		lower := strings.ToLower(markup)
+		for _, forbidden := range []string{"workbench", "shadcn", "aurora", "data-ui-theme=nova", "nova-", "ui-family-select"} {
+			if strings.Contains(lower, forbidden) {
+				t.Fatalf("%s still mentions removed visual family marker %q", name, forbidden)
+			}
+		}
 	}
 }
 
-// TestAdminShellIncludesHydroGoThemeMode verifies hydrogo (not workbench) is
-// now the default/fallback family everywhere a fallback is needed: the
-// pre-paint bootstrap script, the legacy-session migration script, and the
-// family-select change handler and theme-toggle handler in AdminSPARouterJS.
+// TestAdminShellIncludesHydroGoThemeMode verifies the pre-paint bootstrap
+// always pins the hydrogo family and resolves light/dark from the saved
+// preference or the OS setting.
 func TestAdminShellIncludesHydroGoThemeMode(t *testing.T) {
 	for _, want := range []string{
-		`includes(parts[0])?parts[0]:'hydrogo'`,
 		`setAttribute('data-ui-theme','hydrogo')`,
-		`['hydrogo', 'shadcn', 'nova', 'aurora'].includes(familySelect.value) ? familySelect.value : 'hydrogo'`,
-		`getAttribute('data-ui-theme') || 'hydrogo'`,
+		`localStorage.getItem('hydro-theme')`,
+		`prefers-color-scheme: dark`,
+		`setAttribute('data-theme',variant)`,
 	} {
-		if !strings.Contains(AdminSPARouterJS, want) {
-			t.Fatalf("admin shell missing hydrogo default-fallback contract %q", want)
+		if !strings.Contains(AdminThemeBootJS, want) {
+			t.Fatalf("theme bootstrap missing contract %q", want)
 		}
 	}
 	var out bytes.Buffer
 	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	if !strings.Contains(out.String(), `data-ui-theme`) || !strings.Contains(out.String(), "hydro-ui-theme-v2") {
+	if !strings.Contains(out.String(), "<script>"+AdminThemeBootJS+"</script>") {
 		t.Fatal("rendered admin shell missing pre-paint theme bootstrap")
 	}
-	if !strings.Contains(AdminThemeMigrationJS, "hydrogo-'+variant") {
-		t.Fatal("AdminThemeMigrationJS no longer seeds the hydrogo default for legacy sessions")
-	}
 }
 
-func TestAdminThemeMigrationDoesNotOverrideExplicitFamilyChoice(t *testing.T) {
-	// Regression test: an earlier version of AdminThemeMigrationJS ran on
-	// every page load and forced data-ui-theme back to "workbench" unless the
-	// stored preference literally started with "workbench-", silently
-	// reverting any explicit hydrogo/shadcn/nova selection on the next
-	// refresh. The migration must now only seed a default when no versioned
-	// preference exists at all, and must never call setAttribute itself.
-	if strings.Contains(AdminThemeMigrationJS, "setAttribute") {
-		t.Fatal("AdminThemeMigrationJS must not set data-ui-theme/data-theme itself; that would override an explicit family choice on every reload")
-	}
-	if strings.Contains(AdminThemeMigrationJS, "startsWith('workbench-')") {
-		t.Fatal("AdminThemeMigrationJS must not re-fire for every non-workbench saved family")
-	}
-	if !strings.Contains(AdminThemeMigrationJS, "!localStorage.getItem(key)") {
-		t.Fatal("AdminThemeMigrationJS must only seed a default when no versioned preference exists yet")
-	}
-}
-
-func TestHydroAndShadcnModesShareSemanticMarkupContract(t *testing.T) {
+func TestAdminCSSKeepsSemanticMarkupContract(t *testing.T) {
 	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
 		if !strings.Contains(AdminCSS, selector) {
 			t.Fatalf("Hydro mode missing semantic selector %q", selector)
 		}
-		if !strings.Contains(AdminShadcnCSS, selector) {
-			t.Fatalf("Shadcn mode missing shared semantic selector %q", selector)
-		}
-	}
-	if !strings.Contains(AdminShadcnCSS, `html[data-ui-theme=shadcn]`) {
-		t.Fatal("Shadcn styles are not scoped to the visual mode")
 	}
 }
 
@@ -820,116 +784,6 @@ func TestAdminShellSelfHostsInterFont(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), `/vendor/inter/inter-latin.woff2`) {
 		t.Fatal("rendered admin shell missing self-hosted Inter font reference")
-	}
-}
-
-func TestAdminShellIncludesNovaThemeMode(t *testing.T) {
-	for _, want := range []string{
-		`data-ui-theme=nova`,
-		`nova-light`,
-		`nova-dark`,
-		`nova:'Nova'`,
-	} {
-		if !strings.Contains(AdminNovaCSS+AdminSPARouterJS+AdminFamilySelectCSS, want) {
-			t.Fatalf("admin shell missing nova theme contract %q", want)
-		}
-	}
-	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", ""); err != nil {
-		t.Fatalf("render admin shell: %v", err)
-	}
-	if !strings.Contains(out.String(), `data-ui-theme=nova`) {
-		t.Fatal(`rendered admin shell missing data-ui-theme="nova" contract`)
-	}
-
-	// The family selector itself lives on the account settings page, not the
-	// shared shell (moved out of the header per customer feedback).
-	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account"}); err != nil {
-		t.Fatalf("render account area: %v", err)
-	}
-	for _, want := range []string{
-		`id="ui-family-select"`,
-		`<option value="hydrogo">HydroGo</option>`,
-		`<option value="shadcn">shadcn</option>`,
-		`<option value="nova">Nova</option>`,
-	} {
-		if !strings.Contains(account.String(), want) {
-			t.Fatalf("account area missing family selector contract %q", want)
-		}
-	}
-}
-
-func TestNovaModeSharesSemanticMarkupContract(t *testing.T) {
-	novaCSS := AdminNovaCSS + AdminNovaDensityCSS
-	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
-		if !strings.Contains(novaCSS, selector) {
-			t.Fatalf("Nova mode missing shared semantic selector %q", selector)
-		}
-	}
-	if !strings.Contains(AdminNovaCSS, `html[data-ui-theme=nova]`) {
-		t.Fatal("Nova styles are not scoped to the visual mode")
-	}
-}
-
-func TestAdminShellIncludesAuroraThemeMode(t *testing.T) {
-	for _, want := range []string{
-		`data-ui-theme="aurora"`,
-		`aurora-light`,
-		`aurora-dark`,
-		`aurora:'Aurora'`,
-	} {
-		if !strings.Contains(AdminAuroraDashboardLayoutCSS+AdminSPARouterJS, want) {
-			t.Fatalf("admin shell missing aurora theme contract %q", want)
-		}
-	}
-	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", ""); err != nil {
-		t.Fatalf("render admin shell: %v", err)
-	}
-	if !strings.Contains(out.String(), `data-ui-theme="aurora"`) {
-		t.Fatal(`rendered admin shell missing data-ui-theme="aurora" contract`)
-	}
-
-	var account bytes.Buffer
-	if err := RenderAdminArea(&account, AdminAreaData{Email: "admin@example.test", CSRF: "csrf", Area: "account"}); err != nil {
-		t.Fatalf("render account area: %v", err)
-	}
-	if !strings.Contains(account.String(), `<option value="aurora">Aurora</option>`) {
-		t.Fatal(`account area missing family selector contract for "aurora"`)
-	}
-}
-
-// TestAuroraChromeSharesSemanticMarkupContract mirrors
-// TestNovaModeSharesSemanticMarkupContract: Aurora re-skins the shared shell
-// chrome (sidebar/topbar/cards/buttons/inputs) the same way every other
-// family does, reusing the ADR-0053 semantic selectors. Only Aurora's
-// dashboard body (covered by the next test) is the documented exception.
-func TestAuroraChromeSharesSemanticMarkupContract(t *testing.T) {
-	auroraCSS := AdminAuroraCSS + AdminAuroraDensityCSS
-	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search", ".studio-sidebar", ".studio-topbar"} {
-		if !strings.Contains(auroraCSS, selector) {
-			t.Fatalf("Aurora chrome missing shared semantic selector %q", selector)
-		}
-	}
-	if !strings.Contains(AdminAuroraCSS, `html[data-ui-theme="aurora"]`) {
-		t.Fatal("Aurora chrome styles are not scoped to the visual mode")
-	}
-}
-
-// TestAuroraModeDoesNotShareSemanticMarkupContract documents the one
-// intentional exception ADR-0339 carves out: unlike hydrogo/shadcn/workbench/
-// nova, Aurora's dashboard is authored with Tailwind utility classes instead
-// of the ADR-0053 semantic token contract, so it must NOT reuse the shared
-// semantic selectors other families restyle.
-func TestAuroraModeDoesNotShareSemanticMarkupContract(t *testing.T) {
-	for _, selector := range []string{".studio-card", ".studio-form", ".button", ".studio-alert", ".studio-search"} {
-		if strings.Contains(AdminAuroraDashboardLayoutCSS, selector) {
-			t.Fatalf("Aurora layout CSS unexpectedly restyles shared semantic selector %q - it must stay isolated to its own compiled Tailwind stylesheet (ADR-0339)", selector)
-		}
-	}
-	if !strings.Contains(AdminAuroraDashboardLayoutCSS, `html[data-ui-theme="aurora"]`) {
-		t.Fatal("Aurora dashboard visibility toggle is not scoped to the visual mode")
 	}
 }
 

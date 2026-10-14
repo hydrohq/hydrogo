@@ -7,7 +7,7 @@ import (
 )
 
 // TestEmbeddedHydroGoCSSIsPresent is the contract test required by
-// ADR-0341 (mirroring ADR-0339's Aurora precedent): the compiled,
+// ADR-0341: the compiled,
 // Tailwind-prefixed stylesheet must ship inside the binary and must not be
 // an empty placeholder.
 func TestEmbeddedHydroGoCSSIsPresent(t *testing.T) {
@@ -16,9 +16,8 @@ func TestEmbeddedHydroGoCSSIsPresent(t *testing.T) {
 	}
 }
 
-// TestDashboardClassesAreCompiled guards against the exact bug class
-// documented in internal/ui/aurora: Tailwind utility classes used with zero
-// matching compiled CSS.
+// TestDashboardClassesAreCompiled guards against Tailwind utility classes
+// used with zero matching compiled CSS.
 func TestDashboardClassesAreCompiled(t *testing.T) {
 	wantSelectors := []string{
 		`.tw\:flex{`, `.tw\:grid{`, `.tw\:rounded-2xl{`, `.tw\:font-bold{`,

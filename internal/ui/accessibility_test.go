@@ -38,7 +38,7 @@ func TestAdminShellInteractiveElementsHaveAccessibleNames(t *testing.T) {
 }
 
 func TestAdminShellAccessibilityCSSContract(t *testing.T) {
-	css := AdminCSS + AdminPolishCSS + AdminInfoTipCSS + AdminShadcnCSS
+	css := AdminCSS + AdminPolishCSS + AdminInfoTipCSS
 	for _, required := range []string{
 		":focus-visible",
 		"prefers-reduced-motion:reduce",
@@ -64,9 +64,7 @@ func TestLightThemeAlertTextMeetsWCAGAA(t *testing.T) {
 		name, css, background string
 	}{
 		{"hydrogo", AdminHydroGoCSS, "#fdecee"},
-		{"shadcn", AdminCSS, "#fff1f2"},
-		{"nova", AdminNovaCSS, "#fef2f2"},
-		{"aurora", AdminAuroraCSS, "#fef2f2"},
+		{"base", AdminCSS, "#fff1f2"},
 	}
 	for _, palette := range palettes {
 		t.Run(palette.name, func(t *testing.T) {
