@@ -125,7 +125,10 @@ func parseBlockForm(r *http.Request) ([]pages.Block, error) {
 		} else {
 			payload["subtitle"] = r.FormValue("block_subtitle_" + strconv.Itoa(i))
 			payload["button_text"] = r.FormValue("block_button_text_" + strconv.Itoa(i))
-			payload["button_url"] = r.FormValue("block_button_url_" + strconv.Itoa(i))
+			// An empty URL is "no button", not an unsafe link.
+			if buttonURL := strings.TrimSpace(r.FormValue("block_button_url_" + strconv.Itoa(i))); buttonURL != "" {
+				payload["button_url"] = buttonURL
+			}
 		}
 		if background := r.FormValue("block_bg_color_" + strconv.Itoa(i)); background != "" && background != "default" {
 			payload["bg_color"] = background
