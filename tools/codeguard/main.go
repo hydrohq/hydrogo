@@ -2,7 +2,9 @@
 //
 //   - HTML markup must not live in Go string literals (use .templ files or
 //     theme HTML instead);
-//   - a file must not grow past maxLines.
+//   - a file must not grow past maxLines;
+//   - tests must not be disabled by renaming them (skip_TestX, xTestX): a
+//     failing test is fixed, rewritten or deleted, never hidden.
 //
 // Existing violations are recorded in a baseline file. A baselined file may
 // shrink but not get worse, and files not in the baseline must comply. Run
@@ -27,6 +29,9 @@ import (
 const maxLines = 800
 
 // htmlTag matches an opening tag of an element that only appears in markup.
+// disabledTest matches test functions renamed so `go test` ignores them.
+var disabledTest = regexp.MustCompile(`(?m)^func ([A-Za-z]+_|x|X|_)(Test|Benchmark|Fuzz)[A-Za-z0-9_]*\(`)
+
 var htmlTag = regexp.MustCompile(`<(?:!doctype|html|head|body|div|span|section|article|main|nav|header|footer|aside|button|form|input|label|select|textarea|table|thead|tbody|tr|td|th|ul|ol|li|p|a|h[1-6]|img|svg|style|script)[\s>/]`)
 
 type entry struct {
@@ -61,6 +66,11 @@ func main() {
 		fail(err)
 	}
 	problems := compare(known, current)
+	hidden, err := disabledTests()
+	if err != nil {
+		fail(err)
+	}
+	problems = append(problems, hidden...)
 	for _, problem := range problems {
 		fmt.Fprintln(os.Stderr, "codeguard:", problem)
 	}
@@ -171,4 +181,26 @@ func write(path string, value baseline) error {
 		return err
 	}
 	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+// disabledTests reports test functions that were renamed to hide them.
+func disabledTests() ([]string, error) {
+	out, err := exec.Command("git", "ls-files", "--cached", "--others", "--exclude-standard", "*_test.go").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git ls-files: %w", err)
+	}
+	var problems []string
+	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if name == "" || strings.HasPrefix(name, "docs/") {
+			continue
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			return nil, err
+		}
+		for _, match := range disabledTest.FindAllString(string(data), -1) {
+			problems = append(problems, fmt.Sprintf("%s: disabled test %q; fix, rewrite or delete it instead of hiding it", filepath.ToSlash(name), strings.TrimSuffix(strings.TrimPrefix(match, "func "), "(")))
+		}
+	}
+	return problems, nil
 }
