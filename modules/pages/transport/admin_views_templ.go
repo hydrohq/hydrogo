@@ -5,14 +5,14 @@ package transport
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
 import (
 	"fmt"
 	"strconv"
 
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
 	"github.com/ardaozyildirim/hydrogo/internal/ui"
+
 	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
