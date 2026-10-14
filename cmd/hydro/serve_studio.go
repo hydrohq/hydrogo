@@ -235,6 +235,7 @@ func (a *serveApp) initNewsHTTP(previewSigner *preview.Signer) error {
 			return siteStore.ListPublicSettings(contactCtx, db)
 		}
 	}
+	newsHTTP.Theme = a.selectedTheme
 	a.newsHTTP = newsHTTP
 	return nil
 }
