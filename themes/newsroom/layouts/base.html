@@ -5,97 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{.Title}} · HYDRO HABER</title>
     <link rel="stylesheet" href="/theme/static/theme.css?v=00013d55">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Crimson+Pro:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
     {{slot "head"}}
   </head>
-  <body class="bg-white text-stone-800 antialiased min-h-screen flex flex-col font-sans">
-    <a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 bg-stone-900 text-white px-4 py-2 z-50 font-bold" href="#main-content">İçeriğe geç</a>
-
-    <div class="hidden sm:block bg-stone-900 text-stone-400"><div class="max-w-7xl mx-auto px-4 sm:px-6 h-8"></div></div>
-    <header class="bg-white sticky top-0 z-40 shadow-sm">
-      <div class="border-b border-stone-100"><div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14 gap-4">
-        <a href="/" class="flex items-center gap-1 text-decoration-none shrink-0">
-          <span class="text-stone-900 font-black text-xl sm:text-2xl tracking-tight">HYDRO</span><span class="font-black text-xl sm:text-2xl tracking-tight" style="color:var(--red)">HABER</span>
-        </a>
-        <div class="flex items-center gap-3 sm:gap-4 shrink-0">
-          <a href="/public/news/tr/html#news-grid" class="inline-flex items-center gap-1.5 text-stone-900 hover:opacity-70 text-xs font-bold transition">
-            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--red)"></span>
-            <span class="hidden sm:inline">CANLI</span>
-          </a>
-          <a href="/member/login" class="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-stone-600 hover:text-stone-900 transition">Giriş</a>
-          <a href="/member/register" class="inline-flex items-center rounded bg-stone-900 px-3 h-8 text-xs font-semibold text-white hover:opacity-85 transition">Üye ol</a>
-        </div>
-      </div></div>
-
-      <div class="border-t-2 bg-white" style="border-color:var(--red)"><div class="max-w-7xl mx-auto px-4 sm:px-6">
-      <nav class="hidden md:flex items-center" aria-label="Bölümler">
-          {{if .Navigation}}
-          {{slot "navigation"}}
-          {{else}}
-          <a href="/" class="nav-cat-btn nav-cat-active">Ana Sayfa</a>
-          <a href="/public/news/tr/html?category=gundem" class="nav-cat-btn">Gündem</a>
-          <a href="/public/news/tr/html?category=ekonomi" class="nav-cat-btn">Ekonomi</a>
-          <a href="/public/news/tr/html?category=teknoloji" class="nav-cat-btn">Teknoloji</a>
-          <a href="/public/news/tr/html?category=dunya" class="nav-cat-btn">Dünya</a>
-          <a href="/public/news/tr/html?category=spor" class="nav-cat-btn">Spor</a>
-          <a href="/public/pages/tr/about/html" class="nav-cat-btn">Hakkında</a>
-          {{end}}
-      </nav>
-      </div></div>
-    </header>
-
+  <body>
+    <header><a href="/">HYDRO HABER</a>{{if .Navigation}} {{slot "navigation"}}{{end}}</header>
     {{slot "header"}}
-    <main id="main-content" class="max-w-7xl mx-auto px-4 py-6 w-full flex-1" tabindex="-1">
+    <main id="main-content" tabindex="-1">
       {{slot "content"}}
     </main>
     {{slot "footer"}}
-
-    <footer class="bg-stone-900 text-stone-400 py-14 px-4 mt-auto border-t border-stone-800">
-      <div class="max-w-7xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-stone-800">
-          <div>
-            <div class="font-black text-2xl mb-3"><span class="text-white">HYDRO</span><span style="color:var(--red)">HABER</span></div>
-            <p class="text-xs text-stone-400 leading-relaxed mb-4">Türkiye'nin ve dünyanın en önemli gelişmelerini tarafsız, doğru ve hızlı bir şekilde sunan bağımsız dijital haber portalı.</p>
-          </div>
-          <div>
-            <h4 class="text-white font-bold text-[11px] mb-3 uppercase tracking-wider">Kategoriler</h4>
-            <ul class="space-y-2 text-xs">
-              <li><a href="/public/news/tr/html?category=gundem" class="hover:text-white transition">Gündem Haberleri</a></li>
-              <li><a href="/public/news/tr/html?category=ekonomi" class="hover:text-white transition">Ekonomi & Finans</a></li>
-              <li><a href="/public/news/tr/html?category=teknoloji" class="hover:text-white transition">Teknoloji & Bilim</a></li>
-              <li><a href="/public/news/tr/html?category=dunya" class="hover:text-white transition">Dünya Gelişmeleri</a></li>
-              <li><a href="/public/news/tr/html?category=spor" class="hover:text-white transition">Spor Haberleri</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 class="text-white font-bold text-[11px] mb-3 uppercase tracking-wider">Kurumsal</h4>
-            <ul class="space-y-2 text-xs">
-              <li><a href="/public/pages/tr/about/html" class="hover:text-white transition">Hakkımızda & İlkeler</a></li>
-              <li><a href="/member/login" class="hover:text-white transition">Okur Girişi</a></li>
-              <li><a href="/member/register" class="hover:text-white transition">Üye Ol</a></li>
-              <li><a href="/admin" class="hover:text-white transition">Studio Yönetim Paneli</a></li>
-              <li><a href="/api/news?locale=tr" class="text-stone-300 hover:text-white font-mono">REST API / RSS</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 class="text-white font-bold text-[11px] mb-3 uppercase tracking-wider">İletişim & Künye</h4>
-            <p class="text-xs leading-relaxed text-stone-400 mb-3">HydroGo Medya & Yayıncılık A.Ş.<br>Maslak, İstanbul / Türkiye<br>haber@haber.test</p>
-            <p class="text-[11px] text-stone-500">Basın ahlak ilkelerine uymayı taahhüt ederiz.</p>
-          </div>
-        </div>
-        <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-stone-500">
-          <p>© 2026 HYDRO HABER. Tüm hakları saklıdır. İçerikler kaynak gösterilmeden iktibas edilemez.</p>
-          <div class="flex gap-4">
-            <a href="/public/pages/tr/about/html" class="hover:text-stone-400">Gizlilik Politikası</a>
-            <span>•</span>
-            <a href="/public/pages/tr/about/html" class="hover:text-stone-400">Kullanım Şartları</a>
-            <span>•</span>
-            <a href="/admin" class="hover:text-stone-400">Yönetim</a>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <footer><p>© 2026 HYDRO HABER.</p></footer>
   </body>
 </html>

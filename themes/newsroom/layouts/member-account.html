@@ -1,13 +1,13 @@
 {{template "nr-head" .Site}}<link rel="stylesheet" href="/theme/static/member.css">
 </head>
 {{template "nr-masthead" .Site}}
-<main data-testid="member-account" class="member-portal">
-<div class="member-hero"><div class="member-hero-left"><div class="member-avatar">{{.Initial}}</div><div class="member-hero-info"><h1>Hoş Geldiniz</h1><div class="member-hero-email">{{.Email}}</div><div class="member-badges-row"><span class="member-badge member-badge-success">✓ Aktif Üyelik</span>{{if .EmailVerified}}<span class="member-badge member-badge-success">✓ E-posta Doğrulandı</span>{{else}}<span class="member-badge">Doğrulanmamış E-posta</span>{{end}}<span class="member-badge member-badge-info">Güvenli Oturum</span></div></div></div><button class="member-logout-btn" data-member-logout data-csrf="{{.CSRF}}" type="button">Güvenli Çıkış Yap</button></div>
-<div class="member-kpi-grid"><div class="member-kpi-card"><span class="member-kpi-label">Hesap Güvenliği</span><div class="member-kpi-value member-kpi-value-good">Aktif &amp; Korumalı</div><span class="member-kpi-sub">Güvenli hesap erişimi</span></div><div class="member-kpi-card"><span class="member-kpi-label">Aktif Cihazlar</span><div class="member-kpi-value">{{len .Sessions}} Cihaz</div><span class="member-kpi-sub">Yetkilendirilmiş güvenli oturum</span></div><div class="member-kpi-card"><span class="member-kpi-label">Kayıt Tarihi</span><div class="member-kpi-value">{{.RegisteredAt}}</div><span class="member-kpi-sub">Platform katılım tarihi</span></div></div>
-<div class="member-dashboard-grid">
-<div><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">Okuma &amp; Takip Tercihleri</h2></div><p class="member-card-desc">Bülten abonelikleriniz, okuma tercihleriniz ve bildirimleriniz bu hesap üzerinden yönetilir.</p><div class="member-action-list"><a class="member-action-item" href="{{.Site.NewsURL}}"><span>Güncel Haber Akışı</span><span class="member-action-cta">Oku →</span></a><a class="member-action-item" href="{{.Site.PagesURL}}about/html"><span>Hakkımızda &amp; İlkeler</span><span class="member-action-cta">İncele →</span></a></div></div></div>
-<div><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">Aktif Oturumlar &amp; Cihazlar</h2></div><p class="member-card-desc">Hesabınıza erişim sağlayan yetkilendirilmiş oturumlar:</p><table class="member-sessions-table"><thead><tr><th>Cihaz Bilgisi</th><th>Son Görülme</th></tr></thead><tbody>{{range .Sessions}}<tr><td><strong>{{or .UserAgent "Standart Tarayıcı"}}</strong>{{if .Current}}<span class="member-session-current">Mevcut Oturum</span>{{end}}<br><small class="member-session-meta">IP: {{.IPAddress}}</small></td><td class="member-session-meta">{{.LastSeen}}</td></tr>{{end}}</tbody></table></div>
-<div class="member-card"><div class="member-card-header"><h2 class="member-card-title">Okur Desteği</h2></div><p class="member-card-desc">Hesabınız veya içerikler ile ilgili her türlü soru için ekibimizle iletişime geçebilirsiniz.</p><div class="member-support-contact">İletişim: <strong>destek@haber.test</strong></div></div></div>
-</div>
+<main data-testid="member-account">
+<h1>{{.Email}}</h1>
+<p>{{if .EmailVerified}}E-posta doğrulandı{{else}}E-posta doğrulanmadı{{end}} · {{.RegisteredAt}}</p>
+<table>
+<thead><tr><th>Cihaz</th><th>Son görülme</th></tr></thead>
+<tbody>{{range .Sessions}}<tr><td>{{.UserAgent}}{{if .Current}} (mevcut){{end}}<br><small>{{.IPAddress}}</small></td><td>{{.LastSeen}}</td></tr>{{end}}</tbody>
+</table>
+<button type="button" data-member-logout data-csrf="{{.CSRF}}">Güvenli Çıkış Yap</button>
 </main>
 {{template "nr-footer" .Site}}
