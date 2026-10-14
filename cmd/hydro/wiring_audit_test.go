@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -11,23 +13,32 @@ import (
 // losing its RequireTenantScope toggle — fails here and names the diverging
 // line instead of being discovered at runtime.
 
-// wiringBlock returns the source of serve() in main.go.
+// wiringBlock returns the boot wiring source: serve() and the serveApp
+// methods it calls are spread over the package, so this concatenates every
+// non-test Go file of package main.
 func wiringBlock(t *testing.T) string {
 	t.Helper()
-	data, err := os.ReadFile("main.go")
+	files, err := filepath.Glob("*.go")
 	if err != nil {
-		t.Fatalf("read main.go: %v", err)
+		t.Fatalf("list package sources: %v", err)
 	}
-	source := string(data)
-	start := strings.Index(source, "\nfunc serve(")
-	if start < 0 {
-		t.Fatal("serve() not found in main.go")
+	sort.Strings(files)
+	var source strings.Builder
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		source.Write(data)
+		source.WriteString("\n")
 	}
-	end := strings.Index(source[start+1:], "\nfunc ")
-	if end < 0 {
-		return source[start:]
+	if !strings.Contains(source.String(), "\nfunc serve(") {
+		t.Fatal("serve() not found in package main")
 	}
-	return source[start : start+1+end]
+	return source.String()
 }
 
 // TestWiringAnalyticsStoreStaysGlobal pins a deliberate non-uniformity found
