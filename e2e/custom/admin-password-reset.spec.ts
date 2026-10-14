@@ -1,5 +1,5 @@
-import { test, expect, type ChildProcess } from "@playwright/test";
-import { spawn } from "node:child_process";
+import { test, expect } from "@playwright/test";
+import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -16,6 +16,8 @@ let baseURL = "";
 
 test.describe("administrator-issued password reset", () => {
   test.beforeAll(async () => {
+    // Building and migrating with the Go toolchain can outlast the default hook timeout.
+    test.setTimeout(180_000);
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-password-reset-"));
     const database = path.join(tempDir, "edition.sqlite");
     const binary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
@@ -37,7 +39,7 @@ test.describe("administrator-issued password reset", () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     throw new Error("HydroGo server did not become healthy within 45 seconds");
-  }, 60_000);
+  });
 
   test.afterAll(async () => {
     if (server && server.exitCode === null) {
