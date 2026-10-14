@@ -1,0 +1,11 @@
+id: team
+label: Team
+description: People shown on the about page.
+title_field: name
+public: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, list: true}
+  - {id: role, label: Role, kind: text, list: true}
+  - {id: photo, label: Photo, kind: media}
+  - {id: bio, label: Bio, kind: textarea}
+  - {id: sort_order, label: Order, kind: number}

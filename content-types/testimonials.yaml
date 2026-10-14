@@ -1,0 +1,10 @@
+id: testimonials
+label: Testimonials
+description: Customer quotes.
+title_field: author
+public: true
+fields:
+  - {id: author, label: Author, kind: text, required: true, list: true}
+  - {id: company, label: Company, kind: text, list: true}
+  - {id: quote, label: Quote, kind: textarea, required: true}
+  - {id: published_on, label: Date, kind: date}

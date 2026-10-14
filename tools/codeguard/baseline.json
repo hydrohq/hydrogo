@@ -4,7 +4,7 @@
   },
   "cmd/hydro/main.go": {
     "html_strings": 3,
-    "lines": 6088
+    "lines": 6046
   },
   "extension/v1/theme_navigation.go": {
     "html_strings": 2
@@ -23,7 +23,7 @@
   },
   "internal/adminstudio/generated_http.go": {
     "html_strings": 22,
-    "lines": 2714
+    "lines": 2627
   },
   "internal/adminstudio/kit_badges.go": {
     "html_strings": 1
@@ -44,7 +44,7 @@
     "lines": 1158
   },
   "internal/config/config.go": {
-    "lines": 944
+    "lines": 896
   },
   "internal/generator/admin_templates.go": {
     "html_strings": 1
@@ -84,7 +84,7 @@
   },
   "internal/ui/admin_shell.go": {
     "html_strings": 49,
-    "lines": 2548
+    "lines": 2546
   },
   "internal/ui/admin_ux.go": {
     "html_strings": 9

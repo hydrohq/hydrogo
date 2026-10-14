@@ -15,6 +15,7 @@ done if either step failed.
 
 | You are adding… | Put it in |
 |---|---|
+| A simple content type (FAQ, team, events, …) | one YAML file in `content-types/` — no Go code. See `content-types/faq.yaml` and `internal/contenttypes/definition.go` for the field kinds |
 | Content module logic (pages, news, members, site) | `modules/<name>/` → `model.go`, `service/` or `service.go`, `repository/sqlstore/`, `transport/http.go` |
 | Shared core capability | `internal/<name>/` |
 | Admin UI component | `internal/ui/components/` (`.templ` files) |
@@ -22,7 +23,10 @@ done if either step failed.
 | Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql` |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
 
-Follow the closest existing example. `modules/news` is the reference module.
+Follow the closest existing example. `modules/news` is the reference module
+for content that needs custom behaviour; everything else should be a content
+type. Content types get admin screens at `/admin/resources/<id>` and, with
+`public: true`, a read API at `/api/v1/content/<id>`.
 
 ## Rules
 
@@ -54,8 +58,15 @@ Follow the closest existing example. `modules/news` is the reference module.
   writing one-off markup.
 - Every interactive element needs hover, focus-visible and disabled states,
   and HTMX swaps should use a short transition. Respect `prefers-reduced-motion`.
-- Look at the result: run `go run ./tools/devserver`, open the page at
-  `http://127.0.0.1:8090`, and check desktop and ~390px widths.
+- Look at the result. Start the dev server (`go run ./tools/devserver`), then
+  screenshot the pages you changed at desktop and phone width and open the PNGs:
+
+  ```bash
+  HYDRO_ADMIN_EMAIL=... HYDRO_ADMIN_PASSWORD=... node e2e/screenshot.mjs /admin/resources/faq
+  ```
+
+  It exits non-zero on HTTP errors or JavaScript errors. On Windows Git Bash,
+  prefix it with `MSYS_NO_PATHCONV=1`.
 
 ## Commands
 

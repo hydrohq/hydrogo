@@ -30,6 +30,7 @@ type Config struct {
 	Database        Database         `yaml:"database"`
 	Media           Media            `yaml:"media"`
 	ThemeDir        string           `yaml:"theme_dir"`
+	ContentTypesDir string           `yaml:"content_types_dir"`
 	Theme           string           `yaml:"theme"`
 	AdminExtensions AdminExtensions  `yaml:"admin_extensions"`
 	AdminSupport    AdminSupport     `yaml:"admin_support"`
@@ -211,7 +212,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ThemeDir: "themes", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "collections"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ThemeDir: "themes", ContentTypesDir: "content-types", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}}
 	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path)
@@ -332,6 +333,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_THEME_DIR"); ok && value != "" {
 		result.ThemeDir = value
+	}
+	if value, ok := lookup("HYDRO_CONTENT_TYPES_DIR"); ok && value != "" {
+		result.ContentTypesDir = value
 	}
 	if value, ok := lookup("HYDRO_THEME"); ok && value != "" {
 		result.Theme = value
@@ -881,19 +885,6 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func validTokenTTL(raw string, choices []time.Duration) bool {
-	value, err := time.ParseDuration(strings.TrimSpace(raw))
-	if err != nil {
-		return false
-	}
-	for _, choice := range choices {
-		if value == choice {
-			return true
-		}
-	}
-	return false
-}
-
 func (c Config) PasswordResetDuration() time.Duration {
 	value, _ := time.ParseDuration(c.Security.PasswordResetTTL)
 	return value
@@ -902,43 +893,4 @@ func (c Config) PasswordResetDuration() time.Duration {
 func (c Config) InvitationDuration() time.Duration {
 	value, _ := time.ParseDuration(c.Security.InvitationTTL)
 	return value
-}
-
-func isHTTPOrigin(parsed *url.URL) bool {
-	if parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
-		return false
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return false
-	}
-	return (parsed.Path == "" || parsed.Path == "/") && parsed.RawQuery == "" && parsed.Fragment == ""
-}
-
-func isHTTPBaseURL(parsed *url.URL) bool {
-	if parsed == nil || parsed.Host == "" || parsed.Hostname() == "" || parsed.User != nil {
-		return false
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return false
-	}
-	return len(parsed.Path) <= 512 && parsed.RawQuery == "" && parsed.Fragment == ""
-}
-
-func isHTTPSCallbackURL(raw string) bool {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	return err == nil && parsed != nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.Hostname() != "" && parsed.User == nil && parsed.Opaque == "" && parsed.Fragment == ""
-}
-
-func validConfigComponent(value string) bool {
-	value = strings.TrimSpace(value)
-	if value == "" || len(value) > 128 {
-		return false
-	}
-	for _, r := range value {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' {
-			continue
-		}
-		return false
-	}
-	return true
 }
