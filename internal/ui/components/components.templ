@@ -55,12 +55,17 @@ templ Form(p FormProps) {
 		if strings.TrimSpace(p.ConfirmAction) != "" {
 			data-confirm-action={ p.ConfirmAction }
 		}
-	>
-		if p.CSRF != "" {
-			<input type="hidden" name="_csrf" value={ p.CSRF }/>
-		}
-		if p.Body != nil {
-			@p.Body
-		}
-	</form>
+	>@formCSRF(p.CSRF)@formBody(p.Body)</form>
+}
+
+templ formCSRF(token string) {
+	if token != "" {
+		<input type="hidden" name="_csrf" value={ token }/>
+	}
+}
+
+templ formBody(body templ.Component) {
+	if body != nil {
+		@body
+	}
 }
