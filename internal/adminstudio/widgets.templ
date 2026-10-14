@@ -1,0 +1,56 @@
+package adminstudio
+
+import "strconv"
+
+// queryToolbarView renders RenderQueryToolbar. Filters are listed in key
+// order so the output is deterministic.
+templ queryToolbarView(d QueryToolbarData) {
+	<form method="get" action={ templ.URL(d.Action) } class="studio-query-toolbar" role="search">
+		<label>Arama<input type="search" name="search" value={ d.Query.Search } autocomplete="off"/></label>
+		for _, name := range sortedFilterNames(d.FilterOptions) {
+			<label>
+				{ name }
+				<select name={ "filter[" + name + "]" }>
+					<option value="">Tümü</option>
+					for _, option := range d.FilterOptions[name] {
+						<option value={ option }>{ option }</option>
+					}
+				</select>
+			</label>
+		}
+		if len(d.SortOptions) > 0 {
+			<label>
+				Sırala
+				<select name="sort">
+					<option value="">Varsayılan</option>
+					for _, option := range d.SortOptions {
+						<option value={ option }>{ option }</option>
+					}
+				</select>
+			</label>
+		}
+		<input type="hidden" name="per_page" value={ strconv.Itoa(d.Query.PerPage) }/>
+		<button type="submit">Uygula</button>
+	</form>
+}
+
+// kitBadgesView renders the capability names of a collection.
+templ kitBadgesView(kits []Kit) {
+	<div class="studio-kit-badges" aria-label="Etkin yetenekler">
+		for _, kit := range kits {
+			<span class="studio-kit-badge">{ string(kit) }</span>
+		}
+	</div>
+}
+
+// taxonomyEditorView renders the term checkboxes of RenderTaxonomyEditor.
+templ taxonomyEditorView(terms []taxonomyTermView) {
+	<fieldset class="studio-taxonomy-editor">
+		<legend>İçerik sınıflandırması</legend>
+		<div class="studio-taxonomy-terms">
+			for _, term := range terms {
+				<label class="studio-taxonomy-term"><input type="checkbox" name="taxonomy_term" value={ term.ID } checked?={ term.Selected }/><span>{ term.Label }</span><small>{ term.Kind }</small></label>
+			}
+		</div>
+	</fieldset>
+}

@@ -238,7 +238,7 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Try changing your search or filters. No records match them.", `caption class="visually-hidden">Projects list</caption>`, `<th scope="col" style="text-align:right">Actions</th>`} {
+	for _, want := range []string{"Try changing your search or filters. No records match them.", `caption class="visually-hidden">Projects list</caption>`, `<th scope="col" class="studio-table-actions">Actions</th>`} {
 		if response.StatusCode != http.StatusOK || !strings.Contains(string(body), want) {
 			t.Fatalf("English generated list missing %q: status=%d body=%s", want, response.StatusCode, body)
 		}

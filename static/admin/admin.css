@@ -195,3 +195,8 @@ html[data-theme="dark"] .translation-missing { background: color-mix(in srgb, #d
 .media-copy-link .media-copy-link-done { display: none; color: var(--green); }
 .media-copy-link.is-copied .media-copy-link-idle { display: none; }
 .media-copy-link.is-copied .media-copy-link-done { display: inline; }
+
+/* ---- Admin list table (internal/adminstudio/list.templ) ---- */
+
+.studio-table .studio-table-select { width: 38px; text-align: center; }
+.studio-table .studio-table-actions { text-align: right; }
