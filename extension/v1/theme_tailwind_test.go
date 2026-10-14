@@ -6,23 +6,23 @@ import (
 	"testing"
 )
 
-// TestCorporateThemeCSSIsTailwindCompiled is the contract test required by
-// ADR-0338/0340: the corporate theme's static/theme.css is now compiled by
-// the standalone Tailwind CLI (@apply against the theme's existing
-// selectors, zero markup changes - see ADR-0340), not hand-written from
-// scratch. It must not be empty, must not include Tailwind's preflight
+// TestNewsroomThemeCSSIsTailwindCompiled is the contract test required by
+// ADR-0338/0340: the theme's static/theme.css is compiled by the standalone
+// Tailwind CLI (@apply against the theme's existing selectors, zero markup
+// changes - see ADR-0340), not hand-written from scratch. It must not be
+// empty, must not include Tailwind's preflight
 // reset (which would silently change element defaults across the whole
 // public site), and must contain real, matching rules for a representative
 // sample of classes the theme's own block templates render.
-func TestCorporateThemeCSSIsTailwindCompiled(t *testing.T) {
-	data, err := os.ReadFile("../../themes/corporate/static/theme.css")
+func TestNewsroomThemeCSSIsTailwindCompiled(t *testing.T) {
+	data, err := os.ReadFile("../../themes/newsroom/static/theme.css")
 	if err != nil {
 		t.Fatalf("read theme.css: %v", err)
 	}
 	css := string(data)
 
 	if strings.TrimSpace(css) == "" {
-		t.Fatal("themes/corporate/static/theme.css is empty")
+		t.Fatal("themes/newsroom/static/theme.css is empty")
 	}
 	if strings.Contains(css, "box-sizing:border-box}html{") {
 		t.Fatal("theme.css appears to include Tailwind's preflight reset layer - it must be compiled from tailwindcss/theme.css + tailwindcss/utilities.css only, unprefixed and without preflight, since it is the theme's OWN top-level stylesheet (see scripts/build-theme-tailwind.ps1 / docs/archive/architecture/0340-tailwind-styling-migration.md)")
@@ -36,15 +36,15 @@ func TestCorporateThemeCSSIsTailwindCompiled(t *testing.T) {
 	// used by the block templates compiled to the right PROPERTY, not a
 	// plausible-looking wrong one.
 	for _, want := range []string{
-		// .cta-inner-card (themes/corporate/blocks/cta.html)
+		// .cta-inner-card (themes/newsroom/blocks/cta.html)
 		`.cta-inner-card{`,
-		// .faq-item (themes/corporate/blocks/faq.html)
+		// .faq-item (themes/newsroom/blocks/faq.html)
 		`.faq-item{`,
-		// .pricing-card (themes/corporate/blocks/pricing_table.html)
+		// .pricing-card (themes/newsroom/blocks/pricing_table.html)
 		`.pricing-card{`,
-		// .testimonial-card (themes/corporate/blocks/testimonials.html)
+		// .testimonial-card (themes/newsroom/blocks/testimonials.html)
 		`.testimonial-card{`,
-		// .theme-corporate-hero (themes/corporate/blocks/hero.html)
+		// .theme-corporate-hero (themes/newsroom/blocks/hero.html)
 		`.theme-corporate-hero{`,
 	} {
 		if !strings.Contains(css, want) {

@@ -35,14 +35,14 @@ import (
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 )
 
-// loadTheme loads the configured public theme (corporate by default). A
+// loadTheme loads the configured public theme (newsroom by default). A
 // missing default theme is tolerated; a missing configured one is an error.
 func (a *serveApp) loadTheme() error {
 	cfg, values := a.cfg, a.opts.runtime
 	var selectedTheme *themev1.ThemeBundle
 	themeName := cfg.Theme
 	if themeName == "" {
-		themeName = "corporate"
+		themeName = "newsroom"
 	}
 	if themeName != "" {
 		themeDir := cfg.ThemeDir

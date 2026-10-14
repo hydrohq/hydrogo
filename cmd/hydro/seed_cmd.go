@@ -417,7 +417,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 			coverMediaID: "demo-media-news-7",
 			featured:     false,
 			tags:         "theme, templates, slots, blocks, frontend",
-			body:         `{"ops":[{"insert":"Esnek ve Güvenli Tema Geliştirme\n","attributes":{"header":1}},{"insert":"HydroGo tema motoru, kurumsal markaların kurumsal kimliklerine uygun arayüzler oluşturmasını kolaylaştırır. themes/corporate klasörü altındaki şablonlar sıfır derleme adımı ile anında güncellenir.\n"}]}`,
+			body:         `{"ops":[{"insert":"Esnek ve Güvenli Tema Geliştirme\n","attributes":{"header":1}},{"insert":"HydroGo tema motoru, kurumsal markaların kurumsal kimliklerine uygun arayüzler oluşturmasını kolaylaştırır. themes/newsroom klasörü altındaki şablonlar sıfır derleme adımı ile anında güncellenir.\n"}]}`,
 		},
 		{
 			id:           "demo-news-commerce-pilot",

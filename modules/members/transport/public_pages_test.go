@@ -18,7 +18,7 @@ import (
 var inlineMemberScript = regexp.MustCompile(`(?s)<script(?:\s[^>]*)?>\s*[^<\s]`)
 
 func TestMemberPagesRenderThroughEveryTheme(t *testing.T) {
-	for _, name := range []string{"", "corporate", "newsroom"} {
+	for _, name := range []string{"", "newsroom"} {
 		var theme *v1.ThemeBundle
 		if name != "" {
 			bundle, err := v1.LoadTheme(filepath.Join("..", "..", "..", "themes"), name)
