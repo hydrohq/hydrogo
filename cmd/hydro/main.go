@@ -250,26 +250,9 @@ func (a *serveApp) adminLoginPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "admin login unavailable", http.StatusInternalServerError)
 		return
 	}
-	var successMessage string
-	if r.URL.Query().Get("invite_accepted") == "1" {
-		successMessage = `Your account is ready. Sign in with the password you just created.`
-		if loginLocale == "tr" {
-			successMessage = `Hesabın hazır. Az önce belirlediğin parolayla giriş yap.`
-		}
-	} else if r.URL.Query().Get("password_reset") == "1" {
-		successMessage = `Your password has been updated. Sign in with your new password.`
-		if loginLocale == "tr" {
-			successMessage = `Parolan güncellendi. Yeni parolanla giriş yap.`
-		}
-	}
-	if successMessage != "" {
-		message := `<div id="login-status" class="form-alert alert-success" role="status">` + successMessage + `</div>`
-		pageBytes := bytes.Replace(page.Bytes(), []byte(`<div id="login-status" class="form-alert" role="alert"></div>`), []byte(message), 1)
-		page.Reset()
-		_, _ = page.Write(pageBytes)
-	}
-	w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), ui.AdminLoginCSP(page.Bytes())))
-	_, _ = w.Write(page.Bytes())
+	document := withLoginSuccess(page.Bytes(), loginSuccessMessage(r.URL.Query(), loginLocale))
+	w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), ui.AdminLoginCSP(document)))
+	_, _ = w.Write(document)
 }
 
 type demoNewsSeed struct {
