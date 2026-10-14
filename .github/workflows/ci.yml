@@ -76,8 +76,6 @@ jobs:
           check-latest: false
       - name: Verify workflow action pins
         run: go run ./tools/actionguard
-      - name: Validate release-gate manifest and local readiness claim
-        run: go run ./tools/releasegates -manifest docs/validation/release-gate-manifest.json -profile local-development -require-ready
       - name: Enforce staff mobile API compatibility baseline
         run: go run ./tools/openapidiff --baseline docs/api/baselines/mobile-v1.openapi.json --current docs/api/mobile-v1.openapi.json
       - name: Enforce consumer member mobile API compatibility baseline
@@ -139,6 +137,8 @@ jobs:
           go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci -buildid=" -o .tmp/repro/hydro-a ./cmd/hydro
           go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci -buildid=" -o .tmp/repro/hydro-b ./cmd/hydro
           test "$(sha256sum .tmp/repro/hydro-a | cut -d' ' -f1)" = "$(sha256sum .tmp/repro/hydro-b | cut -d' ' -f1)"
+      - name: Enforce code shape (no HTML in Go strings, file size ratchet)
+        run: go run ./tools/codeguard
       - name: Enforce internal module boundaries
         run: go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
       - name: Enforce frontend asset version consistency

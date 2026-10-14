@@ -3,7 +3,7 @@ BUILD_DIR ?= bin
 GOOS ?= linux
 GOARCH ?= amd64
 
-.PHONY: build build-hosting build-vps test clean
+.PHONY: build build-hosting build-vps test check clean
 
 build:
 	mkdir -p $(BUILD_DIR)
@@ -24,6 +24,10 @@ build-vps:
 
 test:
 	$(GO) test ./...
+
+# Everything a change must pass before it is pushed.
+check:
+	$(GO) run ./tools/check
 
 clean:
 	rm -rf $(BUILD_DIR)

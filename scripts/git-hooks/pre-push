@@ -1,11 +1,9 @@
 #!/bin/sh
 set -eu
 
-if command -v pwsh >/dev/null 2>&1 && [ -f scripts/verify-push.ps1 ]; then
-  if [ "${HYDRO_PUSH_FULL:-0}" = "1" ]; then
-    exec pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local.ps1
-  fi
-  exec pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-push.ps1
+# Fast verification (build, vet, gofmt, guards, tests). Set HYDRO_PUSH_FULL=1
+# to run the long release suite in scripts/verify-local.ps1 instead.
+if [ "${HYDRO_PUSH_FULL:-0}" = "1" ] && command -v pwsh >/dev/null 2>&1; then
+  exec pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-local.ps1
 fi
-
-go test ./...
+exec go run ./tools/check
