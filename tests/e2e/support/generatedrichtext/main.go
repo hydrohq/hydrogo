@@ -286,6 +286,13 @@ func main() {
 		panic(err)
 	}
 	mux.Handle("GET /vendor/{path...}", http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS))))
+	// The admin shell loads its CSS and behaviour (rich text, item lists,
+	// media picker, onboarding) from /admin-assets/, like cmd/hydro serves it.
+	adminFS, err := fs.Sub(staticassets.FS, "admin")
+	if err != nil {
+		panic(err)
+	}
+	mux.Handle("GET /admin-assets/{path...}", http.StripPrefix("/admin-assets/", http.FileServer(http.FS(adminFS))))
 	mux.HandleFunc("GET /test/editorjs.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		_, _ = w.Write(editorJS)

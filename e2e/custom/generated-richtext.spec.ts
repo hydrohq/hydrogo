@@ -22,6 +22,8 @@ function externalFixtureURL(): string {
 
 test.describe("generated rich-text Edition Admin", () => {
   test.beforeAll(async () => {
+    // The hook compiles the Go fixture; the default 30s hook timeout is too short.
+    test.setTimeout(180_000);
     if (externalServer) {
       baseURL = externalFixtureURL();
       const health = await fetch(`${baseURL}/healthz`);
@@ -37,7 +39,8 @@ test.describe("generated rich-text Edition Admin", () => {
       stdio: "ignore",
       env: { ...process.env, HYDRO_E2E_ADDRESS: `127.0.0.1:${port}` },
     });
-    const deadline = Date.now() + 30_000;
+    // `go run` compiles the fixture first; a cold build cache takes well over 30s.
+    const deadline = Date.now() + 150_000;
     while (Date.now() < deadline) {
       if (server.exitCode !== null) throw new Error(`generated rich-text fixture exited with ${server.exitCode}`);
       try {
@@ -48,11 +51,17 @@ test.describe("generated rich-text Edition Admin", () => {
       }
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    throw new Error("generated rich-text fixture did not become healthy within 30 seconds");
-  }, 60_000);
+    throw new Error("generated rich-text fixture did not become healthy within 150 seconds");
+  });
 
   test.afterAll(async () => {
     if (!externalServer) await stopServer(server);
+  });
+
+  // The first-run onboarding tour is a modal that intercepts clicks; these
+  // journeys are about the generated editor, so start as a returning user.
+  test.beforeEach(async ({ context }) => {
+    await skipOnboarding(context);
   });
 
   test("generated field widget controls follow the Admin interface locale", async ({ page }) => {
@@ -188,6 +197,7 @@ test.describe("generated rich-text Edition Admin", () => {
   test("generated blocks lazy-load the Edition editor asset and round-trip JSON", async ({ browser, page, request }) => {
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    await skipOnboarding(mobileContext);
     const mobilePage = await mobileContext.newPage();
     await mobilePage.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await mobilePage.goto(`${baseURL}/admin/resources/article/new`);
@@ -312,6 +322,7 @@ test.describe("generated rich-text Edition Admin", () => {
 
   test("a stale generated edit gets a conflict and keeps the latest saved value", async ({ browser }) => {
     const context = await browser.newContext();
+    await skipOnboarding(context);
     const first = await context.newPage();
     await first.goto(`${baseURL}/admin/resources/article/new`);
     await dismissOnboarding(first);
@@ -333,7 +344,8 @@ test.describe("generated rich-text Edition Admin", () => {
 
     await secondForm.getByLabel("Title").fill("Stale generated title");
     await secondForm.getByRole("button", { name: "Kaydet" }).click();
-    await expect(second.locator("body")).toContainText("Bu kayıt başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin.");
+    // Copy from internal/i18n/catalogs/tr.json admin.generated.error.conflict.
+    await expect(second.locator("body")).toContainText("Siz düzenlerken bu kayıt değişti. Sayfayı yenileyip tekrar deneyin.");
     await second.goto(new URL(recordURL!, baseURL).toString());
     await expect(secondForm.getByLabel("Title")).toHaveValue("Latest generated title");
     await context.close();
@@ -497,7 +509,10 @@ test.describe("generated rich-text Edition Admin", () => {
     await expect(page.locator(".studio-table thead")).toContainText("Title");
     await expect(page.locator(".studio-table thead")).toContainText("State");
     await expect(page.locator(".studio-table thead")).toContainText("Version");
-    await expect(page.getByRole("link", { name: "Open draft" })).toBeVisible();
+    // The fixture holds two drafts (story-1 in review, story-discard), each
+    // with its own "Open draft" row action; check the review copy's row.
+    const reviewRow = page.locator(".studio-table tbody tr", { has: page.getByRole("link", { name: "Review copy" }) });
+    await expect(reviewRow.getByRole("link", { name: "Open draft" })).toHaveAttribute("href", /\/admin\/resources\/story\/story-1(?:\?locale=en)?$/);
     await expect(page.locator(".studio-table .status-pill--draft")).toContainText("Draft");
     await expectNoA11yViolations(page);
 
@@ -584,6 +599,17 @@ async function expectNoA11yViolations(page: import("@playwright/test").Page): Pr
     id: violation.id,
     targets: violation.nodes.map((node: any) => node.target),
   }))).toEqual([]);
+}
+
+async function skipOnboarding(context: import("@playwright/test").BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem("hydro-onboarding-dismissed", "1");
+      for (const role of ["admin", "editor", "viewer"]) localStorage.setItem(`hydro-onboarding-dismissed:${role}`, "1");
+    } catch {
+      // Storage can be unavailable on opaque origins; the tour then stays.
+    }
+  });
 }
 
 async function dismissOnboarding(page: import("@playwright/test").Page): Promise<void> {
