@@ -7,7 +7,7 @@ import (
 
 func TestSpotlightSearchUsesAccessibleDialogAndGlobalShortcuts(t *testing.T) {
 	for _, marker := range []string{"document.createElement('dialog')", "document.documentElement.lang === 'en' ? 'Search Studio' : 'Studio içinde ara'", "Quick actions & commands", "Search screens and commands (⌘K)", "toLocaleLowerCase(searchLocale)", "No matching results.", "showModal()", "spotlightDialog.close()", "e.key.toLowerCase() === 'k'", "e.key === '/'", "role', 'listbox'"} {
-		if !strings.Contains(AdminSPARouterJS, marker) {
+		if !strings.Contains(adminAsset(t, "js/studio.js"), marker) {
 			t.Errorf("spotlight script omitted %q", marker)
 		}
 	}

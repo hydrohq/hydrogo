@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
@@ -36,6 +37,15 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 		contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales))
 	if err != nil {
 		return nil, err
+	}
+	// contentTypeRoutes has validated the directory; list it for the sidebar.
+	definitions, err := contenttypes.LoadDir(cfg.ContentTypesDir)
+	if err != nil {
+		return nil, err
+	}
+	a.contentTypeLinks = make([]adminstudio.ContentTypeLink, 0, len(definitions))
+	for _, definition := range definitions {
+		a.contentTypeLinks = append(a.contentTypeLinks, adminstudio.ContentTypeLink{ID: definition.ID, Label: definition.Label})
 	}
 	return contentRoutes, nil
 }

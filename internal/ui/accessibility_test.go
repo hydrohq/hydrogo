@@ -22,6 +22,9 @@ func TestAdminShellInteractiveElementsHaveAccessibleNames(t *testing.T) {
 	var unnamed []string
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "template" {
+			return // inert until Alpine renders it with data
+		}
 		if node.Type == html.ElementNode && (node.Data == "a" || node.Data == "button") {
 			if accessibleHTMLName(node) == "" {
 				unnamed = append(unnamed, node.Data)
@@ -48,7 +51,7 @@ func TestAdminShellAccessibilityCSSContract(t *testing.T) {
 			t.Fatalf("accessibility CSS contract missing %q", required)
 		}
 	}
-	if !strings.Contains(AdminSPARouterJS, "keydown") {
+	if !strings.Contains(adminAsset(t, "js/studio.js"), "keydown") || !strings.Contains(adminAsset(t, "shell.js"), "Escape") {
 		t.Fatal("admin shell must retain keyboard interaction handling")
 	}
 }
@@ -83,7 +86,7 @@ func TestAdminShellDoesNotRenderRuntimeErrorDetails(t *testing.T) {
 	if err := AdminStart(&out, "Güvenli yönetim", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	body := out.String()
+	body := out.String() + adminAsset(t, "js/studio.js") + adminAsset(t, "js/ux.js") + adminAsset(t, "shell.js")
 	for _, forbidden := range []string{"err.message", "error.message"} {
 		if strings.Contains(body, forbidden) {
 			t.Fatalf("admin shell exposes runtime error detail %q", forbidden)

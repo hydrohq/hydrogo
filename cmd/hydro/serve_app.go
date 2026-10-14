@@ -120,6 +120,8 @@ type serveApp struct {
 	newsService      newsservice.Service
 	newsWorker       newsservice.Worker
 	studioRegistry   adminstudio.Registry
+	// contentTypeLinks lists the YAML content types for the admin sidebar.
+	contentTypeLinks []adminstudio.ContentTypeLink
 	pageHTTP         pagetransport.Handler
 	pageLLMSCache    *seo.DiscoveryCache
 	newsHTTP         newstransport.Handler

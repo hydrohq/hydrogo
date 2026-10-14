@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net/http"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/ui/hydrogoui"
+	"github.com/ardaozyildirim/hydrogo/internal/ui/shell"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
 type AdminDashboardData struct {
+	// Request, when set, supplies the frame's runtime state (enabled modules,
+	// banners, content types); the dashboard data itself does not depend on it.
+	Request                  *http.Request
 	User                     *auth.User
 	SearchInsightsEnabled    bool
 	Email                    string
@@ -53,10 +58,21 @@ type NoCookieAnalyticsRow struct {
 	EventCount             int64
 }
 
+func dashboardShellView(data AdminDashboardData, user *auth.User, title, eyebrow string) shell.View {
+	if data.Request != nil {
+		view := shellViewForRequest(data.Request, title, eyebrow, data.Active)
+		view.Locale = data.Locale
+		return view
+	}
+	view := shellView(user, nil, data.Locale, title, eyebrow, data.Active)
+	view.User.Email = data.Email
+	return view
+}
+
 func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 	user := dashboardUser(data.User)
 	data.CommerceWriteAllowed = data.CommerceModuleEnabled && auth.Can(user, auth.PermissionCommerceWrite)
-	if err := adminStartLocaleRoleSupport(w, "Dashboard", "", data.Active, data.Locale, string(user.Role), auth.Can(user, auth.PermissionContentWrite), shellPermissionList(user), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
+	if err := writeShellStart(w, dashboardShellView(data, user, "Dashboard", "")); err != nil {
 		return err
 	}
 	if err := AdminLoginSecurityNotice(data.PreviousLogin, data.PreviousLoginIP, data.FailedLoginAttempts).Render(context.Background(), w); err != nil {
@@ -84,7 +100,7 @@ func RenderAdminDashboard(w io.Writer, data AdminDashboardData) error {
 
 func RenderAdminReports(w io.Writer, data AdminDashboardData) error {
 	user := dashboardUser(data.User)
-	if err := adminStartLocaleRoleSupport(w, "Raporlar", "Analitik ve Performans", data.Active, data.Locale, string(user.Role), auth.Can(user, auth.PermissionContentWrite), shellPermissionList(user), adminstudio.SupportConfig{CollectionsModuleEnabled: data.CollectionsModuleEnabled}, data.Email, "", ""); err != nil {
+	if err := writeShellStart(w, dashboardShellView(data, user, "Raporlar", "Analitik ve Performans")); err != nil {
 		return err
 	}
 	if err := adminReportsKPIsTemplate.Execute(w, data); err != nil {

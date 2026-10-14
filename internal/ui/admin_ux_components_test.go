@@ -61,7 +61,7 @@ func TestAdminPasswordStrengthUsesDelegatedAccessibleFeedback(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"document.addEventListener('input'", "document.addEventListener('submit'", "[data-password-feedback]", "yeni ve güçlü bir parola seçin"} {
-		if !strings.Contains(AdminPasswordStrengthJS+AdminPasswordSubmitJS, want) {
+		if !strings.Contains(adminAsset(t, "js/password-strength.js")+adminAsset(t, "js/password-submit.js"), want) {
 			t.Fatalf("password strength behavior missing %q", want)
 		}
 	}
@@ -69,7 +69,7 @@ func TestAdminPasswordStrengthUsesDelegatedAccessibleFeedback(t *testing.T) {
 
 func TestAdminPasswordResetCopyUsesProtectedNoStoreEndpoint(t *testing.T) {
 	for _, want := range []string{"[data-password-reset-link]", "X-CSRF-Token", "credentials:'same-origin'", "navigator.clipboard.writeText", "expires in one hour"} {
-		if !strings.Contains(AdminResetLinkJS, want) {
+		if !strings.Contains(adminAsset(t, "js/reset-link.js"), want) {
 			t.Fatalf("reset link behavior missing %q", want)
 		}
 	}
@@ -77,11 +77,11 @@ func TestAdminPasswordResetCopyUsesProtectedNoStoreEndpoint(t *testing.T) {
 
 func TestAdminDraftAutosaveIsUserScopedAndRecoversOnlyEditableFields(t *testing.T) {
 	for _, want := range []string{"studioUserScope", "hydro-draft:", "data-autosave-resource", "localStorage.setItem", "localStorage.removeItem", "Taslağı geri yükle", "Sil", "block_csrf_", "3*1024*1024", "30*24*60*60*1000"} {
-		if !strings.Contains(AdminDraftAutosaveJS, want) {
+		if !strings.Contains(adminAsset(t, "js/draft-autosave.js"), want) {
 			t.Fatalf("autosave behavior missing %q", want)
 		}
 	}
-	if !strings.Contains(AdminDraftAutosaveJS, "'password','file'") {
+	if !strings.Contains(adminAsset(t, "js/draft-autosave.js"), "'password','file'") {
 		t.Fatal("autosave must exclude password controls")
 	}
 }
