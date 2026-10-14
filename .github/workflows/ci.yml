@@ -139,13 +139,6 @@ jobs:
           go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci -buildid=" -o .tmp/repro/hydro-a ./cmd/hydro
           go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=${GITHUB_SHA} -X main.buildTime=ci -buildid=" -o .tmp/repro/hydro-b ./cmd/hydro
           test "$(sha256sum .tmp/repro/hydro-a | cut -d' ' -f1)" = "$(sha256sum .tmp/repro/hydro-b | cut -d' ' -f1)"
-      - name: Enforce Client Edition import boundary
-        run: go run ./tools/importguard -root examples/client-edition
-      - name: Build external Client Edition
-        working-directory: examples/client-edition
-        run: go build ./...
-      - name: Enforce News Edition import boundary
-        run: go run ./tools/importguard -root examples/news-edition
       - name: Enforce internal module boundaries
         run: go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
       - name: Enforce frontend asset version consistency
@@ -154,14 +147,6 @@ jobs:
         run: go run ./tools/assetmanifest -root themes -output .tmp/asset-manifest.json
       - name: Enforce migration metadata consistency
         run: go run ./tools/migrationguard -root migrations
-      - name: Build external News Edition
-        working-directory: examples/news-edition
-        run: go build ./...
-      - name: Enforce Construction Edition import boundary
-        run: go run ./tools/importguard -root examples/construction-edition
-      - name: Build external Construction Edition
-        working-directory: examples/construction-edition
-        run: go test ./... && go build ./...
       - name: Run Linux binary health/readiness smoke
         run: bash ./scripts/smoke-local.sh
       - name: Run bounded fuzz smoke suite
@@ -224,13 +209,9 @@ jobs:
           $a = (Get-FileHash .tmp/repro/hydro-a.exe -Algorithm SHA256).Hash
           $b = (Get-FileHash .tmp/repro/hydro-b.exe -Algorithm SHA256).Hash
           if ($a -ne $b) { Write-Error "reproducible build digests differ: $a / $b" }
-      - name: Run generator preset smoke
-        shell: pwsh
-        run: ./scripts/generator-smoke.ps1
-      - name: Verify generated Edition footprint
+      - name: Verify build-tag footprints
         shell: pwsh
         run: |
-          ./scripts/verify-edition-footprint.ps1
           go test -tags hydro_compact ./internal/database ./internal/tenant ./internal/config -count=1
           go test -tags hydro_no_graphql ./cmd/hydro -count=1
           go test -tags hydro_compact,hydro_no_graphql ./cmd/hydro ./internal/database ./internal/tenant ./internal/config -count=1

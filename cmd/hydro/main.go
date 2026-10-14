@@ -76,7 +76,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
 	"github.com/ardaozyildirim/hydrogo/internal/portable"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
-	"github.com/ardaozyildirim/hydrogo/internal/projectgen"
 	pushservice "github.com/ardaozyildirim/hydrogo/internal/push"
 	pushstore "github.com/ardaozyildirim/hydrogo/internal/push/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
@@ -237,8 +236,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return collectionsCommand(args[1:], stdout, stderr)
 	case "api":
 		return apiCommand(args[1:], stdout, stderr)
-	case "frontend":
-		return frontendCommand(args[1:], stdout, stderr)
 	case "schema":
 		return schemaCommand(args[1:], stdout, stderr)
 	case "db":
@@ -269,11 +266,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		if len(args) > 1 && args[1] == "resource" {
 			return interactiveResourceCommand(args[2:], stdin, stdout, stderr)
 		}
-		return newProjectCommand(args[1:], stdin, stdout, stderr)
-	case "project":
-		return projectCommand(args[1:], stdin, stdout, stderr)
-	case "check":
-		return projectCheckCommand(args[1:], stdout, stderr)
+		return errors.New("new supports only the resource subcommand: hydro new resource")
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
 	case "tenant":
@@ -346,50 +339,20 @@ func fontsCommand(args []string, stdout io.Writer) error {
 	return err
 }
 
-// devCommand dispatches to the right "hydro dev" implementation depending on
-// where it is run from. HydroGo Core checkouts keep the existing
-// tools/devserver-based flow untouched; scaffolded Client Edition projects
-// (which have no go.mod/tools/devserver) use runEditionDev instead.
+// devCommand runs the tools/devserver-based development loop from a HydroGo
+// checkout.
 func devCommand(args []string, stdout, stderr io.Writer) error {
 	root, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	switch detectDevMode(root) {
-	case devModeCore:
-		return coreDevCommand(args, stdout, stderr)
-	case devModeClientEdition:
-		return runEditionDev(args, stdout, stderr)
-	default:
-		return fmt.Errorf("hydro dev: %q is neither a HydroGo Core checkout (go.mod + tools/devserver) nor a scaffolded Client Edition project (hydrogo.lock + config.yaml)", root)
+	if !isCoreCheckout(root) {
+		return fmt.Errorf("hydro dev: %q is not a HydroGo checkout (go.mod + tools/devserver)", root)
 	}
+	return coreDevCommand(args, stdout, stderr)
 }
 
-type devMode int
-
-const (
-	devModeUnknown devMode = iota
-	devModeCore
-	devModeClientEdition
-)
-
-// detectDevMode decides which `hydro dev` implementation to use for root.
-// A HydroGo Core checkout can itself carry a root-level config.yaml and
-// hydrogo.lock (used for the Core repo's own local dev/testing), so the two
-// signals are not mutually exclusive in practice — the Core checkout check
-// intentionally takes priority so existing Core-repo workflows never change.
-func detectDevMode(root string) devMode {
-	switch {
-	case isCoreCheckout(root):
-		return devModeCore
-	case isClientEdition(root):
-		return devModeClientEdition
-	default:
-		return devModeUnknown
-	}
-}
-
-// isCoreCheckout reports whether root is a HydroGo Core repository checkout,
+// isCoreCheckout reports whether root is a HydroGo repository checkout,
 // i.e. the source tree that owns tools/devserver.
 func isCoreCheckout(root string) bool {
 	if info, err := os.Stat(filepath.Join(root, "go.mod")); err != nil || info.IsDir() {
@@ -397,17 +360,6 @@ func isCoreCheckout(root string) bool {
 	}
 	info, err := os.Stat(filepath.Join(root, "tools", "devserver"))
 	return err == nil && info.IsDir()
-}
-
-// isClientEdition reports whether root is a project scaffolded by
-// `hydro new`/`hydro generate scaffold`: it ships its own config and lock
-// file but no Go source tree for tools/devserver to run against.
-func isClientEdition(root string) bool {
-	if info, err := os.Stat(filepath.Join(root, "hydrogo.lock")); err != nil || info.IsDir() {
-		return false
-	}
-	info, err := os.Stat(filepath.Join(root, "config.yaml"))
-	return err == nil && !info.IsDir()
 }
 
 func coreDevCommand(args []string, stdout, stderr io.Writer) error {
@@ -512,36 +464,6 @@ func validateResourceCommand(args []string, stdout, stderr io.Writer) error {
 
 // apiCommand exposes compatibility checks as a first-class SDK workflow while
 // retaining `validate api` as the lower-level spelling.
-func frontendCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "check" {
-		return errors.New("frontend requires the check subcommand")
-	}
-	flags := flag.NewFlagSet("frontend check", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	manifest := flags.String("manifest", "", "JSON frontend build manifest")
-	jsonOutput := flags.Bool("json", false, "emit normalized routes as JSON")
-	if err := flags.Parse(args[1:]); err != nil {
-		return err
-	}
-	if flags.NArg() != 0 || strings.TrimSpace(*manifest) == "" {
-		return errors.New("frontend check requires --manifest PATH")
-	}
-	routes, err := projectgen.ValidateFrontendManifest(*manifest)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		data, err := json.MarshalIndent(map[string]any{"version": 1, "routes": routes}, "", "  ")
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintln(stdout, string(data))
-		return err
-	}
-	_, err = fmt.Fprintf(stdout, "frontend-manifest-valid routes=%d path=%s\n", len(routes), *manifest)
-	return err
-}
-
 func apiCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] != "diff" {
 		return errors.New("api requires the diff subcommand")
