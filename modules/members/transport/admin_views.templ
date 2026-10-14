@@ -14,9 +14,9 @@ templ memberListPage(v memberListView) {
 		<form class="table-toolbar" method="get" action="/admin/members">
 			<div class="search-wrap">
 				<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-				<input type="search" name="q" value={ v.Query } placeholder="E-posta ile üye ara…"/>
+				<input type="search" name="q" value={ v.Query } placeholder="E-posta ile üye ara…" aria-label="E-posta ile üye ara"/>
 			</div>
-			<select name="status">
+			<select name="status" aria-label="Üye durumu">
 				for _, option := range v.StatusOptions {
 					<option value={ option.Value } selected?={ option.Value == v.Status }>{ option.Label }</option>
 				}

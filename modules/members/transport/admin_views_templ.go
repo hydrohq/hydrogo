@@ -50,7 +50,7 @@ func memberListPage(v memberListView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" placeholder=\"E-posta ile üye ara…\"></div><select name=\"status\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" placeholder=\"E-posta ile üye ara…\" aria-label=\"E-posta ile üye ara\"></div><select name=\"status\" aria-label=\"Üye durumu\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
