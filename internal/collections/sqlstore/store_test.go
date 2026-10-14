@@ -29,6 +29,7 @@ func TestStaticStoreSupportsSchemasUniqueValuesRelationsAndCRUD(t *testing.T) {
 	}
 	runStaticStoreContract(t, db, database.SQLite)
 	runTenantIsolationContract(t, db, database.SQLite)
+	runQueryContract(t, db, database.SQLite)
 }
 
 func TestPostgresStaticStoreSupportsSchemasUniqueValuesRelationsAndCRUD(t *testing.T) {
@@ -68,6 +69,7 @@ func TestPostgresStaticStoreSupportsSchemasUniqueValuesRelationsAndCRUD(t *testi
 	runStaticStoreContract(t, db, database.Postgres)
 	runTenantIsolationContract(t, db, database.Postgres)
 	runConcurrentUniqueContract(t, db)
+	runQueryContract(t, db, database.Postgres)
 }
 
 func runStaticStoreContract(t *testing.T, db database.Executor, dialect database.Dialect) {

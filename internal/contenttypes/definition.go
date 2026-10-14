@@ -9,10 +9,23 @@
 //	title_field: question
 //	public: true
 //	fields:
-//	  - {id: question, label: Question, kind: text, required: true, list: true}
-//	  - {id: answer, label: Answer, kind: richtext, required: true}
-//	  - {id: category, label: Category, kind: select, options: [general, billing], list: true}
+//	  - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
+//	  - {id: answer, label: Answer, kind: richtext, required: true, searchable: true}
+//	  - {id: category, label: Category, kind: select, options: [general, billing], list: true, filterable: true}
 //	  - {id: owner, label: Owner, kind: relation, to: team}
+//
+// Field keys: id, label, kind, required, unique, options (select), to and
+// many (relation), min and max (number), and:
+//
+//   - list: show the field as a column in the admin list. List columns are
+//     sortable by clicking their heading.
+//   - searchable: include the field in the admin list search and the public
+//     API's ?search= (text, textarea, richtext, select).
+//   - filterable: add a filter for the field to the admin list and allow
+//     ?filter[field]= on the public API (text, textarea, select, number).
+//
+// The public API also accepts ?sort=field or ?sort=-field on any field and
+// on created_at and updated_at.
 package contenttypes
 
 import (
@@ -67,6 +80,12 @@ type Field struct {
 	Many     bool     `yaml:"many"`
 	Min      *float64 `yaml:"min"`
 	Max      *float64 `yaml:"max"`
+	// Searchable fields (text, textarea, richtext, select) are matched by
+	// the admin list search box and the public API's search parameter.
+	Searchable bool `yaml:"searchable"`
+	// Filterable fields (text, textarea, select, number) get a filter in
+	// the admin list and accept filter[field]= on the public API.
+	Filterable bool `yaml:"filterable"`
 }
 
 // LoadDir reads every *.yaml file in dir. A missing directory yields no
@@ -120,6 +139,12 @@ func (d Definition) Validate() error {
 		if field.Kind != "relation" && (field.To != "" || field.Many) {
 			return fmt.Errorf("%w: only relation fields take to/many (field %q)", ErrInvalidDefinition, field.ID)
 		}
+		if field.Searchable && !oneOf(field.Kind, "text", "textarea", "richtext", "select") {
+			return fmt.Errorf("%w: field %q of kind %s cannot be searchable", ErrInvalidDefinition, field.ID, field.Kind)
+		}
+		if field.Filterable && !oneOf(field.Kind, "text", "textarea", "select", "number") {
+			return fmt.Errorf("%w: field %q of kind %s cannot be filterable", ErrInvalidDefinition, field.ID, field.Kind)
+		}
 	}
 	schema, err := d.Schema()
 	if err != nil {
@@ -148,6 +173,15 @@ func (d Definition) Schema() (collections.Schema, error) {
 		})
 	}
 	return schema, nil
+}
+
+func oneOf(value string, allowed ...string) bool {
+	for _, candidate := range allowed {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func storageKind(field Field) (collections.FieldKind, error) {
@@ -187,7 +221,10 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		collection.Group = "Content"
 	}
 	for _, field := range d.Fields {
-		admin := adminstudio.Field{ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List, Options: append([]string(nil), field.Options...)}
+		admin := adminstudio.Field{
+			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
+			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
+		}
 		switch field.Kind {
 		case "text":
 			admin.Kind = adminstudio.FieldText

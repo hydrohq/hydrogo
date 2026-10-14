@@ -1,5 +1,6 @@
 // Package sqlstore persists dynamic collection metadata and JSON records in
-// static, versioned tables. It never builds SQL from collection field names.
+// static, versioned tables. It never builds SQL from collection field names:
+// list queries pass field paths as bound parameters (see query.go).
 package sqlstore
 
 import (
@@ -193,38 +194,6 @@ func (s Store) DeleteSchema(ctx context.Context, id string) error {
 	})
 }
 
-func (s Store) ListRecords(ctx context.Context, collectionID string, limit, offset int) ([]collections.Record, error) {
-	var result []collections.Record
-	err := s.within(ctx, func(tx Store) error {
-		tenantID, err := tx.scope(ctx)
-		if err != nil {
-			return err
-		}
-		query := `SELECT id,data_json,version,created_at,updated_at FROM hydro_collection_records WHERE tenant_id=` + tx.p(1) + ` AND collection_id=` + tx.p(2) + ` ORDER BY updated_at DESC,id ASC LIMIT ` + tx.p(3) + ` OFFSET ` + tx.p(4)
-		rows, err := tx.rows(ctx, query, tenantID, collectionID, limit, offset)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		result = make([]collections.Record, 0, limit)
-		for rows.Next() {
-			item := collections.Record{CollectionID: collectionID}
-			var raw, created, updated string
-			if err := rows.Scan(&item.ID, &raw, &item.Version, &created, &updated); err != nil {
-				return err
-			}
-			if json.Unmarshal([]byte(raw), &item.Data) != nil {
-				return errors.New("stored collection record is invalid")
-			}
-			item.CreatedAt = parseTime(created)
-			item.UpdatedAt = parseTime(updated)
-			result = append(result, item)
-		}
-		return rows.Err()
-	})
-	return result, err
-}
-
 func (s Store) GetRecord(ctx context.Context, collectionID, id string) (collections.Record, error) {
 	var result collections.Record
 	err := s.within(ctx, func(tx Store) error {
@@ -396,8 +365,10 @@ func (s Store) RecordExists(ctx context.Context, collectionID, id string) (bool,
 	return count == 1, err
 }
 
+// newID returns "r_" and 30 hex digits: 32 characters, the width of the
+// MySQL id columns.
 func newID() (string, error) {
-	raw := make([]byte, 16)
+	raw := make([]byte, 15)
 	if _, err := rand.Read(raw); err != nil {
 		return "", err
 	}

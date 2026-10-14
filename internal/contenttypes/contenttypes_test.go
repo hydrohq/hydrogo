@@ -11,9 +11,6 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
 const faqYAML = `id: faq
@@ -72,32 +69,7 @@ func TestShippedContentTypesAreValid(t *testing.T) {
 
 func newService(t *testing.T) (collections.Service, []Definition) {
 	t.Helper()
-	ctx := context.Background()
-	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "content.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "faq.yaml"), []byte(faqYAML), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	types, err := LoadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	schemas, err := Schemas(types)
-	if err != nil {
-		t.Fatal(err)
-	}
-	service := collections.Service{Repository: sqlstore.Store{DB: db, Dialect: database.SQLite}}
-	if err := service.SyncSchemas(ctx, schemas); err != nil {
-		t.Fatal(err)
-	}
-	return service, types
+	return newServiceFor(t, faqYAML)
 }
 
 func call(t *testing.T, h http.Handler, method, path, body string) (*httptest.ResponseRecorder, map[string]any) {
