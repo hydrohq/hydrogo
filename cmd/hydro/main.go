@@ -65,7 +65,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	mailstore "github.com/ardaozyildirim/hydrogo/internal/mailer/sqlstore"
@@ -258,10 +257,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return releaseCommand(args[1:], stdout, stderr)
 	case "runtime":
 		return runtimeCommand(args[1:], stdout, stderr)
-	case "license":
-		return licenseCommand(args[1:], stdout, stderr)
-	case "extension":
-		return extensionCommand(args[1:], stdout, stderr)
 	case "new":
 		if len(args) > 1 && args[1] == "resource" {
 			return interactiveResourceCommand(args[2:], stdin, stdout, stderr)
@@ -1196,15 +1191,6 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if cfg.License.Required {
-		licenseResult, licenseErr := licensing.VerifyFile(context.Background(), cfg.License.File, cfg.License.ProjectID, cfg.License.Edition, cfg.License.Features)
-		if licenseErr != nil {
-			return fmt.Errorf("runtime license verification failed: %w", licenseErr)
-		}
-		if licenseResult.State == licensing.StateGracePeriod {
-			_, _ = fmt.Fprintf(stderr, "hydro: warning: %s\n", licenseResult.Message)
-		}
-	}
 	if *mediaDir != "" {
 		cfg.Media.Dir = *mediaDir
 	}
@@ -1438,22 +1424,9 @@ func restoreCommand(args []string, stdout, stderr io.Writer) error {
 	}
 }
 
-// enforceDevModeOfficialBuild refuses --dev/HYDRO_DEV_MODE when this binary
-// was built as an official release with a vendor public key embedded
-// (internal/licensing.TrustedPublicKeyBase64 injected via -ldflags). Dev mode
-// must only be reachable from ordinary `go build` binaries that were never
-// part of the official distribution pipeline, regardless of bind address or
-// any reverse proxy placed in front of the process.
-func enforceDevModeOfficialBuild() error {
-	if licensing.TrustedPublicKeyBase64 != "" {
-		return errors.New("dev mode is not available in official builds: --dev/HYDRO_DEV_MODE is disabled because this binary was built with a vendor public key embedded")
-	}
-	return nil
-}
-
 // enforceDevModeLocalBind requires --dev/HYDRO_DEV_MODE to bind only to a
-// loopback address, so the unlicensed server can never be reachable from
-// outside the local machine.
+// loopback address, so a development server is never reachable from outside
+// the local machine.
 func enforceDevModeLocalBind(address string) error {
 	host, _, err := net.SplitHostPort(strings.TrimSpace(address))
 	if err != nil {
@@ -1465,18 +1438,13 @@ func enforceDevModeLocalBind(address string) error {
 	return nil
 }
 
-// printDevModeWarning prints a large, impossible-to-miss banner so an
-// unlicensed dev-mode server is never mistaken for a licensed one.
+// printDevModeWarning prints a banner so a dev-mode server is never mistaken
+// for a production one.
 func printDevModeWarning(stderr io.Writer) {
 	fmt.Fprint(stderr, `
 ################################################################
-#                                                              #
-#   UNLICENSED DEV MODE - NOT FOR PRODUCTION                   #
-#                                                              #
-#   License verification was bypassed via --dev/HYDRO_DEV_MODE #
-#   This server only works on 127.0.0.1/localhost/::1 and is   #
-#   disabled in official builds. Never expose it publicly.     #
-#                                                              #
+#   DEV MODE - NOT FOR PRODUCTION                              #
+#   Enabled via --dev/HYDRO_DEV_MODE; bound to loopback only.  #
 ################################################################
 `)
 }
@@ -1492,7 +1460,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	fastCGIAddress := flags.String("fastcgi-address", "127.0.0.1:9001", "FastCGI listener address (loopback by default)")
 	sslMode := flags.String("ssl", "", "enable standalone HTTPS with --ssl=auto")
 	sslDomain := flags.String("domain", "", "hostname for standalone HTTPS")
-	devLicenseBypass := flags.Bool("dev", false, "bypass license verification; only works in non-official builds bound to 127.0.0.1/localhost, never for production")
+	devFlag := flags.Bool("dev", false, "development mode: relaxed headers, demo frontend and Redis fallback; requires a loopback --address")
 	values := addRuntimeFlags(flags)
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -1558,22 +1526,17 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		tenantResolver = &resolver
 	}
 	devModeEnv := strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE")) == "1"
-	devMode := *devLicenseBypass || devModeEnv
+	devMode := *devFlag || devModeEnv
 	if devMode {
 		if !devModeEnv {
 			// Other packages read HYDRO_DEV_MODE; scope it to this serve call.
 			_ = os.Setenv("HYDRO_DEV_MODE", "1")
 			defer func() { _ = os.Unsetenv("HYDRO_DEV_MODE") }()
 		}
-		if err := enforceDevModeOfficialBuild(); err != nil {
-			return err
-		}
 		if err := enforceDevModeLocalBind(cfg.HTTP.Address); err != nil {
 			return err
 		}
 		printDevModeWarning(stderr)
-	} else if _, err := validateRuntimeLicense(cfg, stderr); err != nil {
-		return err
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
