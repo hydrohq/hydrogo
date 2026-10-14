@@ -179,3 +179,19 @@ html[data-theme="dark"] .translation-missing { background: color-mix(in srgb, #d
 .navigation-order [data-drag-handle] { cursor: grab; }
 [data-navigation-row].is-dragging { opacity: .55; }
 .navigation-editor .studio-actions .button[aria-current="page"] { border-color: var(--brand); color: var(--brand); }
+
+/* ---- Media library (internal/media/admin_view.templ, media-library.js) ---- */
+.media-search-toolbar { margin-bottom: 0; flex: 1; }
+.media-search-wrap { max-width: 320px; }
+.media-empty {
+  grid-column: 1 / -1;
+  padding: 32px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.media-copy.is-copied { color: var(--green); }
+.media-copy-link .media-copy-link-done { display: none; color: var(--green); }
+.media-copy-link.is-copied .media-copy-link-idle { display: none; }
+.media-copy-link.is-copied .media-copy-link-done { display: inline; }

@@ -2,7 +2,6 @@ package media
 
 import (
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"os"
@@ -167,22 +166,13 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 		filtered = append(filtered, asset)
 	}
 	assets = filtered
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := ui.AdminStart(w, "Medya", "Medya kütüphanesi", "media"); err != nil {
-		return
-	}
-	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
-
-	folderItems := mediaFolderTree(folders)
 	settings, settingsErr := h.adminSettings(r.Context())
 	if settingsErr != nil {
 		http.Error(w, "media settings unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	watermarkFolders := make([]string, 0, len(settings.WatermarkFolders))
-	for _, folder := range settings.WatermarkFolders {
-		watermarkFolders = append(watermarkFolders, folder)
-	}
+	csrf := security.CSRFTokenFromContext(r.Context())
+	folderItems := mediaFolderTree(folders)
 	formFolders := make([]ui.MediaFolderItem, 0, len(folderItems))
 	for _, folder := range folderItems {
 		formFolders = append(formFolders, ui.MediaFolderItem{ID: folder.ID, Name: folder.Name, Depth: folder.Depth})
@@ -193,198 +183,53 @@ func (h HTTPHandler) adminList(w http.ResponseWriter, r *http.Request) {
 			logos = append(logos, ui.MediaLogoItem{ID: asset.ID, Name: asset.OriginalFilename})
 		}
 	}
-
-	if err := ui.MediaUploadFolderField(selectedFolder).Render(r.Context(), w); err != nil {
-		return
+	user := auth.UserFromContext(r.Context())
+	view := mediaLibraryView{
+		CSRF:           csrf,
+		SelectedFolder: selectedFolder,
+		SelectedTag:    selectedTag,
+		Folders:        folderItems,
+		ShowCleanup:    user != nil && user.Role == auth.RoleAdmin && h.Garbage != nil,
+		Settings:       ui.MediaSettingsFormProps{CSRF: csrf, HotlinkProtection: settings.HotlinkProtection, AllowedRefererHosts: strings.Join(settings.AllowedRefererHosts, ", "), WatermarkEnabled: settings.WatermarkEnabled, WatermarkText: settings.WatermarkText, WatermarkPosition: settings.WatermarkPosition, WatermarkOpacity: strconv.Itoa(int(settings.WatermarkOpacity * 100)), WatermarkMargin: strconv.Itoa(settings.WatermarkMargin), WatermarkLogoID: settings.WatermarkLogoID, WatermarkFolders: formFolders, WatermarkFoldersSelected: append([]string(nil), settings.WatermarkFolders...), WatermarkLogos: logos},
+		Cards:          make([]mediaCardView, 0, len(assets)),
 	}
-
-	_, _ = fmt.Fprintf(w, `<section class="media-overview"><div class="media-dropzone-card"><div class="media-dropzone-wrap" id="media-dropzone"><div class="media-dropzone-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div><div class="media-dropzone-text"><strong>Yeni Medya Yükle</strong><small>Dosyaları sürükleyip bırakın veya aşağıdan seçin (JPEG, PNG, WebP, MP4, WebM)</small></div><form class="media-upload-form" id="media-upload-form" method="post" action="/admin/media" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="%s"><input type="file" id="media-file-input" name="file" aria-label="Yüklenecek medya dosyaları" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple><select name="visibility" aria-label="Görünürlük"><option value="public" selected>Herkese açık</option><option value="private">Özel</option></select><button class="button" type="submit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Yükle</span></button></form><div id="media-upload-progress" aria-live="polite"></div></div></div><div class="media-toolbar-card"><div class="table-toolbar" style="margin-bottom:0;flex:1;"><div class="search-wrap" style="max-width:320px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="search" id="media-search" aria-label="Medya dosya adı veya ID ile ara" placeholder="Dosya adı veya ID ile ara..." autocomplete="off"></div><span class="status-badge" id="media-count-badge">%d asset</span></div></div></section>`, csrf, len(assets))
-
-	// A single flex-wrap toolbar row instead of side-by-side columns: two
-	// columns of uneven height (e.g. the settings disclosure taller than the
-	// view toggle) always leaves dead space under the shorter one. Wrapped
-	// flex items pack left-to-right and only take the vertical space their
-	// own line needs, so there is never an empty block to leave behind.
-	_, _ = fmt.Fprint(w, `<div class="media-toolbar-row">`)
-	if err := ui.ListViewSwitcher("media-grid", "hydro-view-media").Render(r.Context(), w); err != nil {
-		return
-	}
-	if err := ui.MediaFolderTree(folderItems, selectedFolder).Render(r.Context(), w); err != nil {
-		return
-	}
-	if err := ui.MediaCreateFolderForm(folderItems, csrf, selectedFolder).Render(r.Context(), w); err != nil {
-		return
-	}
-	if err := ui.MediaTagFilter(selectedTag, selectedFolder).Render(r.Context(), w); err != nil {
-		return
-	}
-	if user := auth.UserFromContext(r.Context()); user != nil && user.Role == auth.RoleAdmin && h.Garbage != nil {
-		if err := ui.MediaCleanupLink().Render(r.Context(), w); err != nil {
-			return
-		}
-	}
-	if err := ui.MediaSettingsForm(ui.MediaSettingsFormProps{CSRF: csrf, HotlinkProtection: settings.HotlinkProtection, AllowedRefererHosts: strings.Join(settings.AllowedRefererHosts, ", "), WatermarkEnabled: settings.WatermarkEnabled, WatermarkText: settings.WatermarkText, WatermarkPosition: settings.WatermarkPosition, WatermarkOpacity: strconv.Itoa(int(settings.WatermarkOpacity * 100)), WatermarkMargin: strconv.Itoa(settings.WatermarkMargin), WatermarkLogoID: settings.WatermarkLogoID, WatermarkFolders: formFolders, WatermarkFoldersSelected: watermarkFolders, WatermarkLogos: logos}).Render(r.Context(), w); err != nil {
-		return
-	}
-	_, _ = fmt.Fprint(w, `</div>`)
-	_, _ = fmt.Fprint(w, `<div class="media-grid" id="media-grid" data-view-mode="cards">`)
-
 	for _, asset := range assets {
-		preview := `<div class="media-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>Dosya</span></div>`
-		if strings.HasPrefix(asset.MimeType, "image/") && asset.Status == "ready" {
-			preview = `<img class="media-focal-preview cursor-crosshair" src="/media/` + template.HTMLEscapeString(asset.ID) + `" alt="` + template.HTMLEscapeString(asset.OriginalFilename) + `" loading="lazy" style="object-position:` + template.HTMLEscapeString((FocalPoint{X: asset.FocalX, Y: asset.FocalY}).ObjectPosition()) + `">`
-		} else if asset.MimeType == "application/pdf" && asset.Status == "ready" {
-			if repo, ok := h.Service.Assets.(DerivativeRepository); ok {
-				if _, err := repo.GetReady(r.Context(), h.DB, asset.ID, VariantPDFCover); err == nil {
-					var cover strings.Builder
-					if err := ui.MediaPDFCoverPreview(ui.MediaPDFCoverProps{AssetID: template.HTMLEscapeString(asset.ID), Filename: asset.OriginalFilename}).Render(r.Context(), &cover); err == nil {
-						preview = cover.String()
-					}
-				}
-			}
-		} else if strings.HasPrefix(asset.MimeType, "video/") && asset.Status == "ready" {
-			preview = `<video preload="metadata" src="/media/` + template.HTMLEscapeString(asset.ID) + `"></video>`
-		}
-
-		visBadge := `<span class="media-badge is-public">Açık</span>`
-		if asset.Visibility == VisibilityPrivate {
-			visBadge = `<span class="media-badge is-private">Özel</span>`
-		}
-
-		metaInfo := formatBytes(asset.SizeBytes)
-		if asset.Width > 0 && asset.Height > 0 {
-			metaInfo = fmt.Sprintf("%d × %d · %s", asset.Width, asset.Height, metaInfo)
-		}
-
-		overlay := fmt.Sprintf(`<div class="media-thumb-overlay"><a href="/media/%s" target="_blank" rel="noopener noreferrer" class="media-overlay-btn" title="Yeni sekmede aç"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" x2="21" y1="14" y2="3"></line></svg></a><button type="button" class="media-overlay-btn media-copy-link" data-url="/media/%s" title="Bağlantıyı kopyala"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button></div>`, url.PathEscape(asset.ID), url.PathEscape(asset.ID))
-
-		_, _ = fmt.Fprintf(w, `<article id="media-%s" class="media-card" data-filename="%s" data-id="%s"><div class="media-thumb-wrap">%s%s%s</div><div class="media-card-body"><strong class="media-title" title="%s">%s</strong><small class="media-sub">%s</small><div class="media-card-actions"><code>%s</code><button class="button button-quiet media-copy" type="button" data-copy="%s" title="ID Kopyala">Kopyala</button></div><form class="media-visibility-form" method="post" action="/admin/media/%s/visibility"><input type="hidden" name="_csrf" value="%s"><select name="visibility" aria-label="Görünürlük"><option value="private" %s>Özel</option><option value="public" %s>Herkese açık</option></select><button class="button button-quiet" type="submit">Güncelle</button></form>`,
-			template.HTMLEscapeString(asset.ID),
-			template.HTMLEscapeString(asset.OriginalFilename),
-			template.HTMLEscapeString(asset.ID),
-			preview,
-			visBadge,
-			overlay,
-			template.HTMLEscapeString(asset.OriginalFilename),
-			template.HTMLEscapeString(asset.OriginalFilename),
-			metaInfo,
-			template.HTMLEscapeString(asset.ID),
-			template.HTMLEscapeString(asset.ID),
-			url.PathEscape(asset.ID),
-			csrf,
-			selectedVisibility(asset.Visibility, VisibilityPrivate),
-			selectedVisibility(asset.Visibility, VisibilityPublic),
-		)
-		formFolders := make([]ui.MediaFolderItem, 0, len(folderItems))
-		for _, folder := range folderItems {
-			formFolders = append(formFolders, ui.MediaFolderItem{ID: folder.ID, Name: folder.Name, Depth: folder.Depth})
-		}
-		if err := ui.MediaAssetMetadataForm(ui.MediaMetadataFormProps{Action: "/admin/media/" + url.PathEscape(asset.ID) + "/metadata", CSRF: csrf, ReturnFolder: selectedFolder, FolderID: asset.FolderID, Tags: strings.Join(asset.Tags, ", "), FocalX: fmt.Sprintf("%.2f", asset.FocalX), FocalY: fmt.Sprintf("%.2f", asset.FocalY), Folders: formFolders}).Render(r.Context(), w); err != nil {
-			return
-		}
-		_, _ = fmt.Fprint(w, `</div></article>`)
+		view.Cards = append(view.Cards, h.mediaCard(r, asset, csrf, selectedFolder, formFolders))
 	}
-
-	if len(assets) == 0 {
-		_, _ = fmt.Fprint(w, `<p class="empty" style="grid-column:1/-1;padding:32px;text-align:center;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);">Henüz medya yüklenmedi. Yukarıdaki alandan dosya sürükleyerek veya seçerek yükleyebilirsiniz.</p>`)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := ui.AdminStart(w, "Medya", "Medya kütüphanesi", "media"); err != nil {
+		return
 	}
-
-	_, _ = fmt.Fprint(w, `</div><script>(()=>{
-const copyHandler = (e) => {
-	const copyBtn = e.target.closest('.media-copy');
-	if (copyBtn) {
-		const text = copyBtn.dataset.copy || '';
-		if (navigator.clipboard) {
-			navigator.clipboard.writeText(text);
-			const orig = copyBtn.textContent;
-			copyBtn.textContent = 'Kopyalandı';
-			copyBtn.style.color = 'var(--green)';
-			setTimeout(() => {
-				copyBtn.textContent = orig;
-				copyBtn.style.color = '';
-			}, 1400);
-		}
-		return;
+	if err := mediaLibrary(view).Render(r.Context(), w); err != nil {
+		return
 	}
-	const copyLinkBtn = e.target.closest('.media-copy-link');
-	if (copyLinkBtn) {
-		const relUrl = copyLinkBtn.dataset.url || '';
-		const fullUrl = window.location.origin + relUrl;
-		if (navigator.clipboard) {
-			navigator.clipboard.writeText(fullUrl);
-			const origSvg = copyLinkBtn.innerHTML;
-			copyLinkBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-			copyLinkBtn.setAttribute('title', 'Bağlantı kopyalandı');
-			setTimeout(() => {
-				copyLinkBtn.innerHTML = origSvg;
-				copyLinkBtn.setAttribute('title', 'Bağlantıyı kopyala');
-			}, 1400);
-		}
-		return;
-	}
-};
-document.addEventListener('click', copyHandler);
-
-
-const searchInput = document.getElementById('media-search');
-const countBadge = document.getElementById('media-count-badge');
-if (searchInput) {
-	searchInput.addEventListener('input', () => {
-		const q = searchInput.value.toLowerCase().trim();
-		let visibleCount = 0;
-		document.querySelectorAll('.media-card').forEach(c => {
-			const f = (c.dataset.filename || '').toLowerCase();
-			const id = (c.dataset.id || '').toLowerCase();
-			if (!q || f.includes(q) || id.includes(q)) {
-				c.classList.remove('is-hidden');
-				visibleCount++;
-			} else {
-				c.classList.add('is-hidden');
-			}
-		});
-		if (countBadge) {
-			countBadge.textContent = visibleCount + ' asset';
-		}
-	});
-}
-
-const dropzone = document.getElementById('media-dropzone');
-const fileInput = document.getElementById('media-file-input');
-if (dropzone && fileInput) {
-	['dragenter', 'dragover'].forEach(name => {
-		dropzone.addEventListener(name, (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			dropzone.classList.add('is-dragover');
-		});
-	});
-	['dragleave', 'drop'].forEach(name => {
-		dropzone.addEventListener(name, (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			dropzone.classList.remove('is-dragover');
-		});
-	});
-	dropzone.addEventListener('drop', (e) => {
-		if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-			fileInput.files = e.dataTransfer.files;
-		}
-	});
-}
-
-const settingsDialog = document.querySelector('.media-settings-dialog');
-if (settingsDialog) {
-	document.addEventListener('click', (e) => {
-		if (e.target.closest('[data-media-settings-open]')) {
-			settingsDialog.showModal();
-		} else if (e.target.closest('[data-media-settings-close]') || e.target === settingsDialog) {
-			settingsDialog.close();
-		}
-	});
-}
-})();</script>`)
-	_, _ = fmt.Fprint(w, `<script src="/admin/media/static/uploader.js" defer></script>`)
 	_ = ui.AdminEnd(w)
+}
+
+// mediaCard builds the view of one library card, choosing the preview kind
+// from the asset type and whether a PDF cover derivative is ready.
+func (h HTTPHandler) mediaCard(r *http.Request, asset Asset, csrf, selectedFolder string, folders []ui.MediaFolderItem) mediaCardView {
+	card := mediaCardView{ID: asset.ID, Filename: asset.OriginalFilename, Private: asset.Visibility == VisibilityPrivate, Preview: "file"}
+	ready := asset.Status == "ready"
+	switch {
+	case ready && strings.HasPrefix(asset.MimeType, "image/"):
+		card.Preview = "image"
+		card.ObjectPosition = (FocalPoint{X: asset.FocalX, Y: asset.FocalY}).ObjectPosition()
+	case ready && asset.MimeType == "application/pdf":
+		if repo, ok := h.Service.Assets.(DerivativeRepository); ok {
+			if _, err := repo.GetReady(r.Context(), h.DB, asset.ID, VariantPDFCover); err == nil {
+				card.Preview = "pdf"
+			}
+		}
+	case ready && strings.HasPrefix(asset.MimeType, "video/"):
+		card.Preview = "video"
+	}
+	card.Meta = formatBytes(asset.SizeBytes)
+	if asset.Width > 0 && asset.Height > 0 {
+		card.Meta = fmt.Sprintf("%d × %d · %s", asset.Width, asset.Height, card.Meta)
+	}
+	card.Metadata = ui.MediaMetadataFormProps{Action: "/admin/media/" + url.PathEscape(asset.ID) + "/metadata", CSRF: csrf, ReturnFolder: selectedFolder, FolderID: asset.FolderID, Tags: strings.Join(asset.Tags, ", "), FocalX: fmt.Sprintf("%.2f", asset.FocalX), FocalY: fmt.Sprintf("%.2f", asset.FocalY), Folders: folders}
+	return card
 }
 
 func splitMediaTags(raw string) []string {
@@ -602,13 +447,6 @@ func (h HTTPHandler) adminVisibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/media", http.StatusSeeOther)
-}
-
-func selectedVisibility(value, expected string) string {
-	if value == expected {
-		return "selected"
-	}
-	return ""
 }
 
 func mediaFolderTree(folders []Folder) []ui.MediaFolderItem {
