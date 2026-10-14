@@ -2,12 +2,10 @@ package adminstudio
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
@@ -72,9 +70,8 @@ func (h GeneratedAdminHandler) renderPageStatus(w http.ResponseWriter, r *http.R
 	if status != 0 {
 		w.WriteHeader(status)
 	}
-	locale := generatedAdminLocale(r)
-	navigation := &generatedNavigationWriter{ResponseWriter: w, items: h.visibleCollections(r), current: r.URL.Path, locale: locale}
-	if err := h.Options.RenderPage(navigation, r, title, body); err != nil {
+	// The admin shell lists the content types in its sidebar itself.
+	if err := h.Options.RenderPage(w, r, title, body); err != nil {
 		http.Error(w, "admin page unavailable", http.StatusInternalServerError)
 	}
 }
@@ -86,61 +83,6 @@ func generatedAdminLocale(r *http.Request) string {
 		}
 	}
 	return i18n.ResolveCatalogLocale("")
-}
-
-type generatedNavigationWriter struct {
-	http.ResponseWriter
-	items   []Collection
-	current string
-	locale  string
-	wrote   bool
-}
-
-func (w *generatedNavigationWriter) Write(payload []byte) (int, error) {
-	if !w.wrote && len(w.items) > 0 {
-		var err error
-		payload, err = injectGeneratedNavigation(payload, w.items, w.current, w.locale)
-		if err != nil {
-			return 0, err
-		}
-		w.wrote = true
-	}
-	return w.ResponseWriter.Write(payload)
-}
-
-func injectGeneratedNavigation(markup []byte, collections []Collection, current, locale string) ([]byte, error) {
-	items := make([]ui.SidebarItem, 0, len(collections))
-	for _, collection := range collections {
-		if collection.Hidden {
-			continue
-		}
-		group := strings.TrimSpace(collection.Group)
-		if group == "" || strings.EqualFold(group, "content") {
-			group = "İÇERİK"
-			if locale == "en" {
-				group = "CONTENT"
-			}
-		}
-		route := "/admin/resources/" + url.PathEscape(collection.ID)
-		icon := collection.Icon
-		if icon == "" {
-			icon = "collection"
-		}
-		items = append(items, ui.SidebarItem{Route: route, Label: collection.Label, Icon: icon, Group: group, Active: current == route || strings.HasPrefix(current, route+"/")})
-	}
-	if len(items) == 0 {
-		return markup, nil
-	}
-	var sidebar bytes.Buffer
-	if err := ui.SidebarItems(items).Render(context.Background(), &sidebar); err != nil {
-		return nil, err
-	}
-	navigation := sidebar.String()
-	result := string(markup)
-	if end := strings.Index(result, `</nav>`); end >= 0 {
-		result = result[:end] + navigation + result[end:]
-	}
-	return []byte(result), nil
 }
 
 func (h GeneratedAdminHandler) apiError(w http.ResponseWriter, r *http.Request) {
