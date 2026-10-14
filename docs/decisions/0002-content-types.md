@@ -43,5 +43,5 @@ not have yet.
   be added to collection storage behind the callbacks `GeneratedAdminHandler`
   already defines.
 - The blueprint generator and the browser-based schema builder at
-  `/admin/collections` overlap with this and should be retired once nothing
-  depends on them.
+  `/admin/collections` (with its `/api/v1/collections` API) overlapped with
+  this and have been removed.

@@ -223,19 +223,6 @@ func TestRenderAdminDashboardUsesCollectionActionRoute(t *testing.T) {
 	}
 }
 
-func TestRenderAdminDashboardShowsDynamicCollectionsOnlyWhenEnabled(t *testing.T) {
-	var enabled, disabled bytes.Buffer
-	if err := RenderAdminDashboard(&enabled, AdminDashboardData{Active: "dashboard", CollectionsModuleEnabled: true}); err != nil {
-		t.Fatal(err)
-	}
-	if err := RenderAdminDashboard(&disabled, AdminDashboardData{Active: "dashboard"}); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(enabled.String(), `href="/admin/collections"`) || strings.Contains(disabled.String(), `href="/admin/collections"`) {
-		t.Fatal("dynamic collections navigation does not follow module activation")
-	}
-}
-
 func TestPushQuickActionAppearsOnlyWhenModuleEnabled(t *testing.T) {
 	var active, inactive bytes.Buffer
 	if err := RenderAdminDashboard(&active, AdminDashboardData{Active: "dashboard", PushEnabled: true}); err != nil {
