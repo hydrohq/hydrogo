@@ -23,7 +23,7 @@ func (r *countingReader) Read(p []byte) (int, error) {
 
 func skip_TestSecurityHeadersAndCSPNonce(t *testing.T) {
 	handler := HeadersMiddleware(HeaderConfig{EnableHSTS: true})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}))

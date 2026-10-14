@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -35,6 +36,9 @@ func main() {
 		}
 		if entry.IsDir() {
 			if entry.Name() == ".tmp" || entry.Name() == ".git" || entry.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+			if path != *root && ignored(*root, path) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -158,4 +162,11 @@ func inspectVendorReferences(root string) ([]string, error) {
 	}
 	sort.Strings(unused)
 	return unused, nil
+}
+
+// ignored reports whether git ignores path, so local build output and
+// separately-versioned client projects are not scanned. Without git it
+// reports false and the directory is scanned.
+func ignored(root, path string) bool {
+	return exec.Command("git", "-C", root, "check-ignore", "-q", path).Run() == nil
 }

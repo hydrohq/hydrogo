@@ -4,5 +4,6 @@ package generated
 import _ "embed"
 
 // AdminRegistry contains the deterministic Admin metadata for this Edition.
+//
 //go:embed admin_registry.json
 var AdminRegistry []byte
