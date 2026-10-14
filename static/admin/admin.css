@@ -115,3 +115,16 @@ details[open] > :not(summary) { animation: mi-reveal var(--motion-slow, .2s) var
   a:is(.studio-card, .dashboard-card, .kpi-card, .resource-card, .collection-card):hover { transform: none; }
   details[open] > :not(summary), [data-mi-flash] { animation: none; }
 }
+
+/* ---- Site: form builder (internal/adminstudio/form_builder.templ) ---- */
+/* Labelled checkboxes (components.Checkbox) sit at the start of their cell. */
+.studio-form > label.studio-form-field.studio-form-field-checkbox { justify-content: flex-start; }
+.form-builder .studio-form > :is(fieldset, .form-builder-fields, .studio-actions, .studio-form-field-checkbox) { grid-column: 1 / -1; }
+.form-builder .form-builder-row {
+  grid-template-columns: minmax(100px, 1fr) minmax(140px, 1.5fr) 140px auto minmax(120px, 1fr) auto;
+}
+.form-builder .form-builder-row .checkbox-label { display: flex; flex-direction: row; grid-column: auto; }
+@media (max-width: 900px) { .form-builder .form-builder-row { grid-template-columns: 1fr 1fr 1fr; } }
+@media (max-width: 560px) { .form-builder .form-builder-row { grid-template-columns: 1fr; } }
+.form-builder-tracking { display: grid; gap: 10px; }
+.form-builder-tracking .studio-form-field-checkbox { display: flex; }
