@@ -1,0 +1,13 @@
+package main
+
+// loginStatusPlaceholder is the empty status region the admin login page
+// (internal/ui/admin_login.go) renders below its form.
+templ loginStatusPlaceholder() {
+	<div id="login-status" class="form-alert" role="alert"></div>
+}
+
+// loginStatusSuccess replaces the placeholder after an accepted invitation
+// or a password reset.
+templ loginStatusSuccess(message string) {
+	<div id="login-status" class="form-alert alert-success" role="status">{ message }</div>
+}
