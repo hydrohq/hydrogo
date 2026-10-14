@@ -8,7 +8,7 @@ supported. Older commits and unreleased development snapshots are not a
 security-support promise.
 
 The support status of profiles and database providers is documented in
-`docs/SUPPORT_MATRIX.md` and the release gates in `docs/ROADMAP.md`.
+`docs/archive/SUPPORT_MATRIX.md` (historical).
 
 ## Reporting a vulnerability
 
@@ -36,7 +36,7 @@ whether an external provider must publish a coordinated fix.
 ## Scope and assumptions
 
 The threat model and deployment assumptions are maintained in
-`docs/security/THREAT_MODEL.md`. A contract test, local benchmark, or
+`docs/archive/security/THREAT_MODEL.md`. A contract test, local benchmark, or
 development-only configuration is not by itself a production security
 certification. Please identify the profile, database, storage provider, and
 deployment topology when reporting an operational security issue.

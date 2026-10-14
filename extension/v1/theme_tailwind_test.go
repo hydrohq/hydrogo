@@ -25,7 +25,7 @@ func TestCorporateThemeCSSIsTailwindCompiled(t *testing.T) {
 		t.Fatal("themes/corporate/static/theme.css is empty")
 	}
 	if strings.Contains(css, "box-sizing:border-box}html{") {
-		t.Fatal("theme.css appears to include Tailwind's preflight reset layer - it must be compiled from tailwindcss/theme.css + tailwindcss/utilities.css only, unprefixed and without preflight, since it is the theme's OWN top-level stylesheet (see scripts/build-theme-tailwind.ps1 / docs/architecture/0340-tailwind-styling-migration.md)")
+		t.Fatal("theme.css appears to include Tailwind's preflight reset layer - it must be compiled from tailwindcss/theme.css + tailwindcss/utilities.css only, unprefixed and without preflight, since it is the theme's OWN top-level stylesheet (see scripts/build-theme-tailwind.ps1 / docs/archive/architecture/0340-tailwind-styling-migration.md)")
 	}
 
 	// Regression guard against the exact bug class documented at

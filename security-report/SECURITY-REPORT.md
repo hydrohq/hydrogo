@@ -28,4 +28,4 @@ Eight environment-dependent validation items remain explicitly listed in
 
 Detailed architecture, coverage and dependency evidence are in the companion
 files in this directory. Remediation and release sequencing remain governed by
-`docs/OPEN_GATES_AND_OPERATOR_ACTIONS.md` and `docs/ROADMAP.md`.
+`docs/archive/OPEN_GATES_AND_OPERATOR_ACTIONS.md` and `docs/archive/ROADMAP.md`.

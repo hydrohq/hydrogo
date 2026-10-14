@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$Root = "docs/architecture",
-    [string]$Index = "docs/architecture/README.md"
+    [string]$Root = "docs/decisions",
+    [string]$Index = "docs/decisions/README.md"
 )
 
 $ErrorActionPreference = 'Stop'

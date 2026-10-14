@@ -1,82 +1,66 @@
-# HydroGo Contribution Rules
+# Working in HydroGo
 
-Before starting work that alters the architecture or product behavior in this repository, read the following documents:
+HydroGo is a **single-binary Go CMS**: pages, news, media, members, themes, an
+admin panel and a REST API. It is not a framework or a product factory. If a
+change does not serve that, don't make it. Background:
+`docs/decisions/0001-cms-focus.md`.
 
-1. `docs/HYDROGO_PHILOSOPHY.md`
-2. `docs/INFORMATION_HIERARCHY.md`
-3. `docs/implementation_plan.md`
-4. `docs/architecture/README.md`
-5. Affected ADR files
+## Before you finish any task
 
-## Architectural Discipline & Respect for the User
+Run `make check` (build, vet, gofmt, guards, tests). If you changed UI, also
+open the page and look at it (see "UI work" below). Don't report a task as
+done if either step failed.
 
-- Never expose unnecessary technical noise, internal errors, cryptographic algorithms, or cognitive clutter to end users/members. Follow `docs/INFORMATION_HIERARCHY.md` strictly across all user, admin, sysadmin, developer, and auditor surfaces.
-- Do not silently apply changes that contradict an accepted ADR.
-- If new information supersedes an old decision, do not delete the old ADR; create a new ADR, mark the previous decision as "Superseded", and link the two documents.
-- Never fork HydroCore for a specific customer need. Place general capabilities in versioned Core/Module contracts and specific customer behaviors in Client Editions.
-- An inactive module must not create routes, migrations, assets, workers, or mandatory resource overhead.
-- Never leak SQL dialect or cache driver details into domain and application service code.
+## Where things go
 
-## Change Verification
+| You are adding… | Put it in |
+|---|---|
+| Content module logic (pages, news, members, site) | `modules/<name>/` → `model.go`, `service/` or `service.go`, `repository/sqlstore/`, `transport/http.go` |
+| Shared core capability | `internal/<name>/` |
+| Admin UI component | `internal/ui/components/` (`.templ` files) |
+| Public site markup and styles | `themes/<theme>/layouts`, `themes/<theme>/blocks`, `themes/<theme>/static` |
+| Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql` |
+| CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
 
-For a new or modified module, evaluate the following:
+Follow the closest existing example. `modules/news` is the reference module.
 
-- SQLite/PostgreSQL contract behavior and impact on future adapters
-- Dialect migrations and rollback/compatibility metadata
-- Cache key, TTL, invalidation, stampede protection, and failure fallback
-- Preventing unnecessary services and unbounded resource consumption in the Compact profile
-- Connection pool, worker, and backpressure behavior in larger profiles
-- Old and new version compatibility during Blue/Green deployments
-- Continuity of sessions, media, assets, and background jobs
-- Security, auditability, and data lifecycle management
+## Rules
 
-## Definition of Done
+1. **No HTML or CSS in Go strings.** Markup goes in `.templ` files or theme
+   HTML; styles go in CSS files. Existing string-built HTML (for example
+   `modules/news/transport/http.go`) is legacy to migrate, not a pattern to copy.
+2. **No customer-specific content in core.** Brand names, hardcoded menus,
+   dates, exchange rates or demo credentials belong in a theme, seed data or
+   config, not in `modules/` or `internal/`.
+3. **Every migration ships all three dialects** (SQLite, PostgreSQL, MySQL)
+   and never edits an already-released migration. Never delete a migration
+   directory: databases that applied it refuse to start without it.
+4. **No SQL dialect or cache details in services.** Keep them in
+   `repository/sqlstore` and `internal/cache`.
+5. **An inactive module adds nothing:** no routes, migrations, workers or assets.
+6. **Keep files small.** Split a file before it passes about 800 lines.
+   `cmd/hydro/main.go` is legacy; don't add to it, move code out of it.
+7. **Don't write status reports, evidence logs or plans into the repo.**
+   Put the explanation in the commit message. Add a decision record in
+   `docs/decisions/` only when you change a module boundary or a public
+   contract (routes, API, config, migrations).
+8. **Regenerate, don't hand-edit**, generated files (`*_templ.go`, compiled
+   CSS): `go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate`.
 
-An architectural change is not considered complete until its corresponding ADR, implementation, certified database behavior tests, required migration metadata, and capacity/deployment impact documentation are all delivered together.
+## UI work
 
-**Full ADR required** when a change moves a module boundary, adds a new
-contract/route/migration, or makes a decision that contradicts an existing
-ADR. In these cases, deliver the full ADR together with the implementation,
-certified database behavior tests, migration metadata, and capacity/
-deployment documentation (`docs/architecture/000X-...md`, using
-`ADR_TEMPLATE.md`).
+- Admin UI: Go + Templ + HTMX. Build screens from the components in
+  `internal/ui/components`; if one is missing, add it there rather than
+  writing one-off markup.
+- Every interactive element needs hover, focus-visible and disabled states,
+  and HTMX swaps should use a short transition. Respect `prefers-reduced-motion`.
+- Look at the result: run `go run ./tools/devserver`, open the page at
+  `http://127.0.0.1:8090`, and check desktop and ~390px widths.
 
-**No ADR required** for an improvement, bug fix, or small refactor that stays
-within an existing module and does not change its behavior. A 2-3 sentence
-note in the PR description ("what changed, why") is sufficient.
+## Commands
 
-Automated CI guards such as moduleguard, migrationguard, and importguard are
-always mandatory and cannot be skipped, regardless of this distinction — they
-enforce real protection at the code level, not a documentation check.
-
-## Workspace Generation and AI UI Rules
-
-HydroGo is a Workspace/Engine that produces Client Editions; it is not a
-customer-specific CMS, ERP, or construction product. Core changes must remain
-generic and versioned. Customer behavior belongs in an Edition or module.
-
-- Keep machine-owned output under `generated/`; keep human-owned policy,
-  workflow, authorization, and integration code under `custom/`. Never edit a
-  generated file to implement business logic; change the blueprint or
-  generator instead.
-- Server-rendered UI must use typed Design System components. Prefer Templ
-  components such as `ui.Button`, `ui.Input`, `ui.Card`, and `ui.Form` over
-  ad-hoc raw HTML. Components own escaping, accessibility defaults, and visual
-  tokens.
-- HTMX is an explicitly allowlisted enhancement layer, not a client-side state
-  replacement. Use only registered attributes and contracts; every mutation
-  must declare target, swap, CSRF, authorization, tenant scope, and idempotency
-  behavior. New attributes require a component contract or ADR.
-- Never use React-style `className` or stringly concatenated markup in Templ.
-  Use `class` and typed class/token helpers. Do not introduce a frontend
-  runtime dependency into Core or the Compact profile for a generated view.
-- Blueprints may generate migration proposals, typed models, repository
-  interfaces, route metadata, SDK contracts, and test skeletons. They must
-  never execute DDL, invent authorization policy, or silently add a worker,
-  route, asset, or service to an inactive module.
-- Development conveniences such as `templ --watch`, `air`, and live reload
-  belong only to `hydro dev`; production binaries must remain self-contained
-  and dependency-light.
-- All generated migrations require SQLite/PostgreSQL compatibility metadata,
-  rollback/recovery notes, and certified contract tests before an Edition can
-  enable them.
+```bash
+go run ./tools/devserver   # dev server with rebuilds + demo data, http://127.0.0.1:8090
+make check                 # everything CI checks that runs fast locally
+go test ./modules/news/... # one package
+```
