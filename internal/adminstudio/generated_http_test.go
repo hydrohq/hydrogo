@@ -257,7 +257,7 @@ func TestGeneratedAdminUsesInterfaceLocaleForSearchEmptyState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-label="Actions"`, `aria-label="Published"`, `label for="resource-search">Search</label>`, `selected="selected">All</option>`, `>Apply</button>`, `>New record</a>`, `>Edit</a>`, `>Next</button>`} {
+	for _, want := range []string{`data-label="Actions"`, `aria-label="Published"`, `for="resource-search">Search</label>`, `selected>All</option>`, `>Apply</button>`, `>New record</a>`, `>Edit</a>`, `>Next</button>`} {
 		if listResponse.StatusCode != http.StatusOK || !strings.Contains(string(listBody), want) {
 			t.Fatalf("English generated list row missing %q: status=%d body=%s", want, listResponse.StatusCode, listBody)
 		}

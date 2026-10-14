@@ -76,7 +76,8 @@ func fail(err error) {
 }
 
 func trackedGoFiles() ([]string, error) {
-	out, err := exec.Command("git", "ls-files", "*.go").Output()
+	// Include untracked files too, so a new file is checked before it is added.
+	out, err := exec.Command("git", "ls-files", "--cached", "--others", "--exclude-standard", "*.go").Output()
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files: %w", err)
 	}

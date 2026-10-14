@@ -29,39 +29,6 @@ type SelectProps struct {
 
 type SelectOption struct{ Value, Label string }
 
-func Select(p SelectProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		attrs := ` id="` + esc(p.ID) + `" name="` + esc(p.Name) + `"` + htmxAttrs(p.HTMX)
-		if p.Required {
-			attrs += ` required="required"`
-		}
-		if p.Multiple {
-			attrs += ` multiple="multiple"`
-		}
-		if _, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><select`+attrs+`>`); err != nil {
-			return err
-		}
-		items := p.Items
-		if len(items) == 0 {
-			items = make([]SelectOption, len(p.Options))
-			for index, option := range p.Options {
-				items[index] = SelectOption{Value: option, Label: option}
-			}
-		}
-		for _, option := range items {
-			selected := ""
-			if option.Value == p.Value || slices.Contains(p.Selected, option.Value) {
-				selected = ` selected="selected"`
-			}
-			if _, err := io.WriteString(w, `<option value="`+esc(option.Value)+`"`+selected+`>`+esc(option.Label)+`</option>`); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</select>`)
-		return err
-	})
-}
-
 // TextareaProps describes a typed multiline control.
 type TextareaProps struct {
 	ID           string
@@ -117,27 +84,6 @@ func ItemListEditor(p ItemListEditorProps) templ.Component {
 		}
 		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `" data-item-list-input-placeholder="` + esc(itemPlaceholder) + `" data-item-list-item-aria="` + esc(itemAriaLabelPattern) + `" data-item-list-remove-aria="` + esc(removeAriaLabelPattern) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(addAriaLabel) + `">+ ` + esc(addLabel) + `</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
 		_, err := io.WriteString(w, markup)
-		return err
-	})
-}
-
-func Textarea(p TextareaProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		rows := p.Rows
-		if rows < 1 {
-			rows = 5
-		}
-		attrs := ` id="` + esc(p.ID) + `" name="` + esc(p.Name) + `" rows="` + strconv.Itoa(rows) + `"` + htmxAttrs(p.HTMX)
-		if p.Required {
-			attrs += ` required="required"`
-		}
-		if p.HasMinLength && p.MinLength >= 0 {
-			attrs += ` minlength="` + strconv.Itoa(p.MinLength) + `"`
-		}
-		if p.HasMaxLength && p.MaxLength >= 0 {
-			attrs += ` maxlength="` + strconv.Itoa(p.MaxLength) + `"`
-		}
-		_, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><textarea`+attrs+`>`+esc(p.Value)+`</textarea>`)
 		return err
 	})
 }
@@ -282,3 +228,16 @@ func max(a, b int) int {
 	}
 	return b
 }
+
+func selectItems(p SelectProps) []SelectOption {
+	if len(p.Items) > 0 {
+		return p.Items
+	}
+	items := make([]SelectOption, len(p.Options))
+	for index, option := range p.Options {
+		items[index] = SelectOption{Value: option, Label: option}
+	}
+	return items
+}
+
+func containsValue(values []string, wanted string) bool { return slices.Contains(values, wanted) }
