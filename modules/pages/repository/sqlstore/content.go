@@ -578,6 +578,12 @@ func (s Store) replacePageTags(ctx context.Context, tx database.Executor, pageID
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return err
 	}
+	// Without tenant scoping the column keeps its '' default; NULL would
+	// violate its NOT NULL constraint.
+	tenantID := scopeID
+	if tenantID == nil {
+		tenantID = ""
+	}
 	seen := make(map[string]struct{}, len(tags))
 	for _, tag := range tags {
 		tag = strings.ToLower(strings.TrimSpace(tag))
@@ -589,7 +595,7 @@ func (s Store) replacePageTags(ctx context.Context, tx database.Executor, pageID
 		}
 		seen[tag] = struct{}{}
 		insert := `INSERT INTO ` + relation + ` (tenant_id,page_id,tag) VALUES (` + s.placeholder(1) + `,` + s.placeholder(2) + `,` + s.placeholder(3) + `)`
-		_, err := tx.ExecContext(ctx, insert, scopeID, pageID, tag)
+		_, err := tx.ExecContext(ctx, insert, tenantID, pageID, tag)
 		if err != nil {
 			return err
 		}
