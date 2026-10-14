@@ -1,0 +1,255 @@
+package ui
+
+// developerTab is one entry of the developer area's tab bar.
+type developerTab struct {
+	ID    string
+	Label string
+	Href  string
+}
+
+var developerTabs = []developerTab{
+	{ID: "console", Label: "API & Entegrasyon", Href: "/admin/developer"},
+	{ID: "resources", Label: "Sistem Kaynakları", Href: "/admin/developer/resources"},
+	{ID: "link-check", Label: "Bağlantı Denetimi", Href: "/admin/site/link-check"},
+	{ID: "broadcast", Label: "Staff Notice", Href: "/admin/site/broadcast"},
+	{ID: "custom-code", Label: "Custom Code", Href: "/admin/site/custom-code"},
+	{ID: "control", Label: "Yönetim Araçları", Href: "/admin/control"},
+	{ID: "security", Label: "Güvenlik & Yetkiler", Href: "/admin/security"},
+}
+
+func developerTabClass(id, active string) string {
+	if id == active {
+		return "studio-tab-item is-active"
+	}
+	return "studio-tab-item"
+}
+
+// DeveloperTabs is the tab bar shared by the developer, resources, control,
+// security and site tool pages.
+templ DeveloperTabs(active string) {
+	<nav class="studio-tabs-nav" aria-label="Geliştirici sekmeleri">
+		for _, tab := range developerTabs {
+			<a href={ templ.SafeURL(tab.Href) } class={ developerTabClass(tab.ID, active) }>
+				@developerTabIcon(tab.ID)
+				<span>{ tab.Label }</span>
+			</a>
+		}
+	</nav>
+}
+
+templ developerTabIcon(id string) {
+	switch id {
+		case "console":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m8 9-3 3 3 3"></path><path d="m16 9 3 3-3 3"></path><path d="m14 5-4 14"></path></svg>
+		case "resources":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
+		case "link-check":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+		case "broadcast":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>
+		case "custom-code":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+		case "control":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 21v-7"></path><path d="M4 10V3"></path><path d="M12 21v-9"></path><path d="M12 8V3"></path><path d="M20 21v-5"></path><path d="M20 12V3"></path><path d="M1 14h6"></path><path d="M9 8h6"></path><path d="M17 16h6"></path></svg>
+		case "security":
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+	}
+}
+
+// devEndpoint is one live-testable API endpoint card on the developer console.
+type devEndpoint struct {
+	Path, TestURL, TestLabel, OpenLabel, Description string
+}
+
+var devEndpoints = []devEndpoint{
+	{Path: "/api/v1/commerce/products", TestURL: "/api/v1/commerce/products", TestLabel: "▶ Canlı Test Et", OpenLabel: "JSON Aç ↗", Description: "E-Ticaret ürün kataloğu, aktif fiyatlar, varyant stokları ve görsellerin genel JSON projeksiyonu."},
+	{Path: "/api/news?locale=tr", TestURL: "/api/news?locale=tr", TestLabel: "▶ Canlı Test Et", OpenLabel: "JSON Aç ↗", Description: "Yayınlanmış editoryal haberler, öne çıkan manşetler, etiketler ve medya referansları listesi."},
+	{Path: "/readyz & /healthz", TestURL: "/readyz", TestLabel: "▶ Readiness Test Et", OpenLabel: "Status Aç ↗", Description: "Kubernetes, Docker ve yük dengeleyiciler (Reverse Proxy) için canlılık ve veritabanı hazır bulunuşluk sondaları."},
+}
+
+const devCurlSnippet = "curl -X GET \"http://127.0.0.1:8090/api/v1/commerce/products\" \\\n  -H \"Accept: application/json\""
+
+const devSDKSnippet = "// Go SDK Örneği\nclient := hydrogo.NewClient(\"http://127.0.0.1:8090\")\nproducts, err := client.Commerce.ListProducts(ctx)"
+
+// developerConsole is the body of /admin/developer. The "live test" buttons
+// are wired by /admin-assets/js/developer-console.js.
+templ developerConsole() {
+	@DeveloperTabs("console")
+	<div class="dev-console" data-testid="developer-area">
+		<div class="dev-banner">
+			<div>
+				<span class="eyebrow">HEADLESS &amp; API MERKEZİ</span>
+				<h2>Geliştirici &amp; Entegrasyon Konsolu</h2>
+				<p>HydroGo Core, headless mimariyle tüm içerik, e-ticaret ve medya yeteneklerini tip-güvenli JSON API'leri üzerinden bağımsız frontend ve uygulamalara sunar.</p>
+			</div>
+			<a href="/admin/developer/resources" class="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg> <span>Canlı Kaynak Tüketimi →</span></a>
+		</div>
+		<div class="dev-endpoints-grid">
+			for _, endpoint := range devEndpoints {
+				<div class="dev-endpoint-card">
+					<div class="dev-ep-header">
+						<div class="dev-ep-route">
+							<span class="dev-method dev-method-get">GET</span>
+							<span class="dev-path">{ endpoint.Path }</span>
+						</div>
+						<div class="dev-ep-actions">
+							<button class="button button-quiet" type="button" data-test-endpoint={ endpoint.TestURL }>{ endpoint.TestLabel }</button>
+							<a class="button button-quiet" href={ templ.SafeURL(endpoint.TestURL) } target="_blank">{ endpoint.OpenLabel }</a>
+						</div>
+					</div>
+					<div class="dev-ep-description">{ endpoint.Description }</div>
+					<pre class="dev-preview-box"></pre>
+				</div>
+			}
+		</div>
+		<div class="dev-two-col">
+			<div class="dev-code-card">
+				<h3>🚀 Hızlı API Tüketimi (cURL &amp; Fetch)</h3>
+				<p>Uygulamanızdan içerik ve ürünleri çekmek için standart HTTP istemcinizi kullanabilirsiniz:</p>
+				<pre class="dev-code-snippet">{ devCurlSnippet }</pre>
+			</div>
+			<div class="dev-code-card">
+				<h3>📦 Tip Güvenli Entegrasyon</h3>
+				<p>HydroGo SDK ve OpenAPI şeması sayesinde tüm tipler derleme anında doğrulanır. Drift ve şema uyuşmazlığı engellenir.</p>
+				<pre class="dev-code-snippet">{ devSDKSnippet }</pre>
+			</div>
+		</div>
+	</div>
+}
+
+templ operationsArea() {
+	<div class="ops-grid" data-testid="operations-area">
+		<div class="ops-kpis">
+			<div class="ops-kpi"><small>SERVİS DURUMU</small><strong>Canlı doğrulama</strong><span>Durumu /readyz üzerinden kontrol edin</span></div>
+			<div class="ops-kpi"><small>VERİTABANI</small><strong>Yapılandırmaya bağlı</strong><span>Etkin adaptörü dağıtım ayarlarından doğrulayın</span></div>
+			<div class="ops-kpi"><small>ARKA PLAN KUYRUKLARI</small><strong>Gözlem gerekli</strong><span>Bekleyen işleri operasyon panelinden inceleyin</span></div>
+			<div class="ops-kpi"><small>DEAD-LETTER JOBS</small><strong>Gözlem gerekli</strong><span>Hata durumunu canlı veriden doğrulayın</span></div>
+		</div>
+		<div class="ops-two-col">
+			<div class="ops-card">
+				<h3>🛠️ Yedekleme &amp; Felaket Kurtarma (Backup &amp; Restore)</h3>
+				<p>Yedekleme ve geri yükleme prosedürlerini bu ortamın çalıştırma kılavuzuna göre yürütün; işlemi üretim benzeri bir ortamda doğrulamadan başarılı kabul etmeyin.</p>
+				<div class="ops-cli-label">CLI Yedekleme Komutu:</div>
+				<div class="ops-cli-box">hydro backup create --config hydro.yaml</div>
+				<div class="ops-cli-label ops-cli-label--spaced">Sağlık Kontrolü (Doctor):</div>
+				<div class="ops-cli-box">hydro doctor --config hydro.yaml</div>
+				<div class="ops-action-row">
+					<a href="/admin/control#operations" class="button">Operasyon Kontrol Paneli ↗</a>
+					<a href="/admin/developer/resources" class="button button-quiet">Canlı Kaynak Metrikleri</a>
+					<a href="/admin/commerce/refunds/pending" class="button button-quiet">Bekleyen İadeler</a>
+				</div>
+			</div>
+			<div class="ops-card">
+				<h3>🛡️ Blue/Green Dağıtım &amp; Güvenlik Fensi</h3>
+				<p>Blue/green geçişi ve geri alma, sürüm uyumluluğu ile işletim prosedürlerine bağlıdır. Canlı ortamda uygulanmadan önce geçiş planını test edin.</p>
+				<ul class="ops-checklist">
+					<li>Şema ve uygulama sürümlerinin uyumluluğunu yayın öncesi doğrulayın.</li>
+					<li>Medya, oturum ve arka plan işlerinin sürekliliği için geri dönüş planı hazırlayın.</li>
+					<li>Geri yüklemeyi önce izole bir ortamda deneyin.</li>
+				</ul>
+				<div class="ops-note">
+					Sistem kimliği ve sürümü için çalışma zamanı durum uç noktasını kullanın.
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ resourceKPI(label, value, color, area, line, caption string) {
+	<div class="resource-kpi">
+		<small>{ label }</small>
+		<strong>{ value }</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill={ color } d={ area }></path>
+			<path class="spark-line" stroke={ color } d={ line }></path>
+		</svg>
+		<span>{ caption }</span>
+	</div>
+}
+
+templ resourceCard(title, badge string) {
+	<article class="studio-card"><div class="resource-card-title"><h3>{ title }</h3><span class="resource-badge">{ badge }</span></div><dl class="resource-list">{ children... }
+</dl></article>
+}
+
+templ resourceUsagePage(view adminResourceUsageView) {
+	@DeveloperTabs("resources")
+	<section class="resource-page" data-testid="resource-page">
+		<div class="resource-banner">
+			<div><span class="eyebrow">CANLI PROCESS GÖRÜNÜMÜ</span><h2>Sistem kaynakları</h2><p>Bu ekran yalnızca mevcut process'in ölçebildiği anlık değerleri gösterir. Tarihsel veri, host CPU yüzdesi ve disk telemetrisi bu uygulama tarafından uydurulmaz.</p></div>
+			<div class="resource-banner-actions">
+				if view.Snapshot.ReadinessState {
+					<span class="resource-status is-ready"><i></i>Hazır</span>
+				} else {
+					<span class="resource-status is-waiting"><i></i>Hazırlanıyor</span>
+				}
+				<a href="/admin/developer/resources" class="button button-quiet resource-refresh">Yenile ↻</a>
+			</div>
+		</div>
+		<div class="resource-kpis">
+			@resourceKPI("Heap kullanımı", view.HeapAlloc, "var(--brand)", "M0 20 L0 14 Q25 6 50 12 T100 4 L100 20 Z", "M0 14 Q25 6 50 12 T100 4", view.HeapInUse+" kullanım alanı")
+			@resourceKPI("Goroutine", itoa(view.Snapshot.Goroutines), "var(--green)", "M0 20 L0 16 Q35 12 70 8 T100 2 L100 20 Z", "M0 16 Q35 12 70 8 T100 2", itoa(view.Snapshot.GOMAXPROCS)+" paralel çalışma limiti")
+			@resourceKPI("İstek / gecikme", itoa(view.Snapshot.Requests), "var(--purple, #a855f7)", "M0 20 L0 10 Q30 18 60 8 T100 4 L100 20 Z", "M0 10 Q30 18 60 8 T100 4", "Ortalama "+itoa(view.Snapshot.AvgLatencyMS)+" ms")
+			@resourceKPI("Uptime", view.Uptime, "var(--brand)", "M0 20 L0 15 Q40 10 70 12 T100 6 L100 20 Z", "M0 15 Q40 10 70 12 T100 6", "Başlangıç: "+view.StartedAt)
+		</div>
+		<div class="resource-grid">
+			@resourceCard("Process belleği", "runtime.ReadMemStats") {
+				<dt>Heap alloc</dt>
+				<dd>{ view.HeapAlloc }</dd>
+				<dt>Heap in-use</dt>
+				<dd>{ view.HeapInUse }</dd>
+				<dt>Heap system</dt>
+				<dd>{ view.HeapSys }</dd>
+				<dt>Heap objects</dt>
+				<dd>{ itoa(view.Snapshot.HeapObjects) }</dd>
+			}
+			@resourceCard("HTTP ve trafik", "Process ömrü") {
+				<dt>Toplam istek</dt>
+				<dd>{ itoa(view.Snapshot.Requests) }</dd>
+				<dt>Aktif istek</dt>
+				<dd>{ itoa(view.Snapshot.InFlight) }</dd>
+				<dt>Sayfa görüntüleme</dt>
+				<dd>{ itoa(view.Snapshot.Views) }</dd>
+				<dt>4xx / 5xx hata</dt>
+				<dd>{ itoa(view.Snapshot.Errors) }</dd>
+				<dt>Benzersiz ziyaretçi</dt>
+				<dd>{ itoa(view.Snapshot.UniqueVisitors) }</dd>
+			}
+			if view.Snapshot.HasDatabase {
+				@resourceCard("Veritabanı havuzu", "sql.DB") {
+					<dt>Açık bağlantı</dt>
+					<dd>{ itoa(view.Snapshot.Database.OpenConnections) } / { itoa(view.Snapshot.Database.MaxOpenConnections) }</dd>
+					<dt>Kullanımda</dt>
+					<dd>{ itoa(view.Snapshot.Database.InUseConnections) }</dd>
+					<dt>Boşta</dt>
+					<dd>{ itoa(view.Snapshot.Database.IdleConnections) }</dd>
+					<dt>Bekleme sayısı</dt>
+					<dd>{ itoa(view.Snapshot.Database.WaitCount) }</dd>
+				}
+			}
+			if view.Snapshot.HasCache {
+				@resourceCard("Cache", "public content") {
+					<dt>Hit / miss</dt>
+					<dd>{ itoa(view.Snapshot.Cache.Hits) } / { itoa(view.Snapshot.Cache.Misses) }</dd>
+					<dt>Load / hata</dt>
+					<dd>{ itoa(view.Snapshot.Cache.Loads) } / { itoa(view.Snapshot.Cache.LoadErrors) }</dd>
+					<dt>Eviction / expiry</dt>
+					<dd>{ itoa(view.Snapshot.Cache.Evictions) } / { itoa(view.Snapshot.Cache.Expirations) }</dd>
+				}
+			}
+			if view.Snapshot.HasJobs {
+				@resourceCard("Arka plan işleri", "bounded queue") {
+					<dt>Bekleyen / lease</dt>
+					<dd>{ itoa(view.Snapshot.Jobs.Depth) } / { itoa(view.Snapshot.Jobs.Leased) }</dd>
+					<dt>Dead-letter</dt>
+					<dd>{ itoa(view.Snapshot.Jobs.DeadLettered) }</dd>
+					<dt>Worker paralelliği</dt>
+					<dd>{ itoa(view.Snapshot.WorkerConcurrency) }</dd>
+					<dt>İşlenen / başarısız</dt>
+					<dd>{ itoa(view.Snapshot.WorkerProcessed) } / { itoa(view.Snapshot.WorkerFailures) }</dd>
+				}
+			}
+		</div>
+		<p class="resource-note">Başlangıç: { view.StartedAt } · Readiness hataları: { itoa(view.Snapshot.ReadinessFails) } · Değerler süreç yeniden başladığında sıfırlanan process-local telemetridir.</p>
+	</section>
+}

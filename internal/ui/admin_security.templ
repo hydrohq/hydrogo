@@ -1,0 +1,168 @@
+package ui
+
+import (
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
+)
+
+// permissionRow is one row of the static RBAC matrix shown on the security
+// and permissions pages. Each cell is a badge class and its label.
+type permissionRow struct {
+	Area   string
+	Admin  [2]string
+	Editor [2]string
+	Viewer [2]string
+}
+
+var permissionMatrix = []permissionRow{
+	{Area: "📰 Haberler & İçerik", Admin: [2]string{"badge-full", "✓ Tam Yetki & Yayın"}, Editor: [2]string{"badge-edit", "✏️ Taslak & Düzenle"}, Viewer: [2]string{"badge-view", "👁️ Yalnızca Oku"}},
+	{Area: "📄 Sayfalar & Bloklar", Admin: [2]string{"badge-full", "✓ Tam Yetki & Yayın"}, Editor: [2]string{"badge-edit", "✏️ Taslak & Düzenle"}, Viewer: [2]string{"badge-view", "👁️ Yalnızca Oku"}},
+	{Area: "🛍️ Ürün Kataloğu & Varyantlar", Admin: [2]string{"badge-full", "✓ Ürün Ekle / Sil / Fiyat"}, Editor: [2]string{"badge-view", "👁️ Katalog İnceleme"}, Viewer: [2]string{"badge-view", "👁️ Public JSON API"}},
+	{Area: "📦 Siparişler & Müşteri Verisi", Admin: [2]string{"badge-full", "✓ Sipariş Yönetimi"}, Editor: [2]string{"badge-none", "✗ Erişim Yok"}, Viewer: [2]string{"badge-none", "✗ Erişim Yok"}},
+	{Area: "👥 Üye & Kullanıcı Hesapları", Admin: [2]string{"badge-full", "✓ Üye Yönetimi & Oturum"}, Editor: [2]string{"badge-none", "✗ Erişim Yok"}, Viewer: [2]string{"badge-none", "✗ Erişim Yok"}},
+	{Area: "🖼️ Medya Kütüphanesi", Admin: [2]string{"badge-full", "✓ Yükle & Sil"}, Editor: [2]string{"badge-edit", "✏️ Görsel Yükle"}, Viewer: [2]string{"badge-view", "👁️ CDN / WebP"}},
+	{Area: "⚙️ Sistem, Yedekleme & Operasyon", Admin: [2]string{"badge-full", "✓ CLI & Tam Kontrol"}, Editor: [2]string{"badge-none", "✗ Yetkisiz"}, Viewer: [2]string{"badge-none", "✗ Yetkisiz"}},
+}
+
+templ permissionBadge(cell [2]string) {
+	<td><span class={ "badge-perm " + cell[0] }>{ cell[1] }</span></td>
+}
+
+templ permissionTable() {
+	<table class="perm-table">
+		<thead>
+			<tr>
+				<th>Çalışma Alanı / Modül</th>
+				<th>👑 Admin (Yönetici)</th>
+				<th>✍️ Editor (Editör)</th>
+				<th>👁️ Viewer (İzleyici / API)</th>
+			</tr>
+		</thead>
+		<tbody>
+			for _, row := range permissionMatrix {
+				<tr>
+					<td><strong>{ row.Area }</strong></td>
+					@permissionBadge(row.Admin)
+					@permissionBadge(row.Editor)
+					@permissionBadge(row.Viewer)
+				</tr>
+			}
+		</tbody>
+	</table>
+}
+
+templ securityArea(data AdminAreaData) {
+	@DeveloperTabs("security")
+	@designsystem.TokenLifetimeLink()
+	<div class="sec-grid" data-testid="security-area">
+		<div class="sec-kpis">
+			<div class="sec-kpi"><small>KİMLİK KORUMASI</small><strong>Güçlü Şifreleme</strong><span>Endüstri standardı hash &amp; salt koruması</span></div>
+			<div class="sec-kpi"><small>OTURUM GÜVENLİĞİ</small><strong>Güvenli Oturum</strong><span>Yetkisiz erişime karşı korumalı çerezler</span></div>
+			<div class="sec-kpi"><small>İÇERİK GÜVENLİĞİ</small><strong>Aktif Kalkan</strong><span>Zararlı script ve kod enjeksiyonu engelleme</span></div>
+		</div>
+		<div class="sec-two-col">
+			<div class="sec-card">
+				<h3>✉️ Yeni Yönetici / Editör Davet Et</h3>
+				<p>Yeni bir ekip üyesine Studio erişimi vermek için güvenli davet bağlantısı oluşturun:</p>
+				<form class="studio-form sec-form-row" method="post" action="/admin/auth/invites" data-admin-invite>
+					<input type="hidden" name="_csrf" value={ data.CSRF }/>
+					<input type="hidden" name="_action" value="invite"/>
+					<label>E-posta Adresi <input type="email" name="email" required placeholder="yeni-editor@sirket.com"/></label>
+					<label>
+						Erişim Rolü
+						<select name="role">
+							<option value="editor">Editor (İçerik &amp; Taslak Düzenleme)</option>
+							<option value="admin">Admin (Tam Yönetim Yetkisi)</option>
+						</select>
+					</label>
+					<button class="button sec-invite-submit" type="submit">Davet Bağlantısı Oluştur ✉️</button>
+					<p role="status" aria-live="polite" data-invite-status></p>
+					<div data-invite-result hidden>
+						<label for="admin-invite-link">Davet bağlantısı</label>
+						<input id="admin-invite-link" type="url" readonly data-invite-link/>
+						<button class="button button-quiet" type="button" data-invite-copy>Bağlantıyı kopyala</button>
+					</div>
+				</form>
+			</div>
+			<div class="sec-card">
+				<h3>🔐 İki Faktörlü Doğrulama (MFA / TOTP)</h3>
+				<p>Yönetici hesabınızı Google Authenticator veya 1Password gibi doğrulama uygulamaları ile ek koruma altına alın.</p>
+				<div class="sec-session-box">
+					<div class="sec-session-user">Oturum Açan: { data.Email }</div>
+					<div class="sec-session-role">Rol: Sistem Yöneticisi (Admin)</div>
+				</div>
+				<a href="/admin/control#security" class="button button-quiet sec-mfa-link">MFA Kurulumunu Yönet 🔑</a>
+			</div>
+		</div>
+		<div class="perm-table-card">
+			<div class="perm-table-head">
+				<strong>🛡️ Rol &amp; Yetki Matrisi (RBAC)</strong>
+				<span class="status-badge">En Az Yetki İlkesi</span>
+			</div>
+			<div class="perm-table-scroll">
+				@permissionTable()
+			</div>
+		</div>
+	</div>
+	<section class="sec-card" aria-labelledby="ip-ban-title">
+		<h3 id="ip-ban-title">IP engelleme</h3>
+		<p>Bir IP adresini veya CIDR aralığını geçici ya da süresiz engelleyin.</p>
+		<form method="post" action="/admin/security/bans" class="studio-form">
+			<input type="hidden" name="_csrf" value={ data.CSRF }/>
+			@uicomponents.Input(uicomponents.InputProps{ID: "security-ban-address", Name: "address", Label: "IP adresi veya CIDR", Type: "text", Placeholder: "192.0.2.10 veya 192.0.2.0/24", Required: true, MaxLength: 64, HasMaxLength: true})
+			@uicomponents.Input(uicomponents.InputProps{ID: "security-ban-duration", Name: "duration", Label: "Süre (örn. 24h; boş bırakılırsa süresiz)", Type: "text", Placeholder: "24h", MaxLength: 32, HasMaxLength: true})
+			@uicomponents.Button(uicomponents.ButtonProps{Label: "IP engelle", Type: "submit", Variant: uicomponents.Primary})
+		</form>
+		<form method="post" action="/admin/security/bans/remove" class="studio-form">
+			<input type="hidden" name="_csrf" value={ data.CSRF }/>
+			@uicomponents.Input(uicomponents.InputProps{ID: "security-unban-address", Name: "address", Label: "Engeli kaldırılacak adres veya CIDR", Type: "text", Required: true, MaxLength: 64, HasMaxLength: true})
+			@uicomponents.Button(uicomponents.ButtonProps{Label: "Engeli kaldır", Type: "submit", Variant: uicomponents.Quiet})
+		</form>
+		@uicomponents.Table(uicomponents.TableProps{Caption: "Engellenen IP adresleri", Columns: []string{"Adres", "Bitiş"}, Rows: securityBanRows(data.IPBans), EmptyMessage: "Etkin engelleme yok."})
+	</section>
+}
+
+templ permissionsArea(permissions []string) {
+	<div class="perm-grid" data-testid="permissions-area">
+		<div class="perm-table-card">
+			@permissionTable()
+		</div>
+		<div class="perm-rules-card">
+			<h3>🛡️ En Az Yetki Prensibi (Principle of Least Privilege)</h3>
+			<p>Yetkilendirme kuralları yalnızca arayüzdeki menüleri gizlemekle kalmaz; tüm servis ve veri işlemlerinde sistem yetkilendirme çekirdeği tarafından merkezi olarak zorunlu doğrulanır.</p>
+			<div class="perm-rules-actions">
+				<a href="/admin/security" class="button">Güvenlik &amp; Davet Merkezi →</a>
+				<a href="/admin/users" class="button button-quiet">Kullanıcıları Yönet</a>
+			</div>
+		</div>
+	</div>
+	if len(permissions) != 0 {
+		<section class="studio-card" data-testid="edition-permission-catalog">
+			<h2>Edition resource permissions</h2>
+			<p class="muted">Only permissions declared by active Edition resources can be assigned. Resource policy still decides how each permission is enforced.</p>
+			<ul>
+				for _, permission := range permissions {
+					<li><code>{ permission }</code></li>
+				}
+			</ul>
+		</section>
+	}
+}
+
+templ siteArea(fontTools bool) {
+	@uicomponents.Card(uicomponents.CardProps{Title: "Site keşfi ve bağlantılar", Body: siteAreaLinks(fontTools)})
+}
+
+templ siteAreaLinks(fontTools bool) {
+	@uicomponents.Link(uicomponents.LinkProps{Href: "/admin/site/seo", Label: "SEO ayarları", Class: "button button-primary"})
+	@uicomponents.Link(uicomponents.LinkProps{Href: "/admin/site/redirect-rules", Label: "Yönlendirmeler", Class: "button button-quiet"})
+	@uicomponents.Link(uicomponents.LinkProps{Href: "/admin/site/navigation/editor", Label: "Menüler", Class: "button button-quiet"})
+	@uicomponents.Link(uicomponents.LinkProps{Href: "/admin/translations", Label: "Çeviriler", Class: "button button-quiet"})
+	if fontTools {
+		@uicomponents.Link(uicomponents.LinkProps{Href: "/admin/site/fonts", Label: "Yazı tipi", Class: "button button-quiet"})
+	}
+}
+
+templ areaLoading() {
+	<div class="studio-card"><p>Yönetim alanı yükleniyor...</p></div>
+}

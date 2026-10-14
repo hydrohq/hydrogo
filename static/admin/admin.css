@@ -253,3 +253,76 @@ html[data-theme="dark"] .translation-missing { background: color-mix(in srgb, #d
 .admin-media-picker-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .admin-media-picker-search { flex: 1; min-height: 32px; padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-subtle); color: var(--ink); font-size: .8rem; }
 .admin-media-picker-hint { margin: 0; font-size: .78rem; white-space: nowrap; }
+
+/* ---- Admin area pages (internal/ui/admin_*.templ) ----
+   Layout details these pages used to carry as style attributes. */
+
+/* Developer console, operations and resources */
+.dev-ep-description { color: var(--muted); font-size: .78rem; }
+.ops-cli-label { margin-bottom: 4px; color: var(--ink); font-size: .8rem; font-weight: 600; }
+.ops-cli-label.ops-cli-label--spaced { margin: 10px 0 4px; }
+.ops-card .ops-checklist { margin: 0 0 14px; padding-left: 18px; color: var(--muted); font-size: .8rem; line-height: 1.55; }
+.ops-note { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-subtle); color: var(--muted); font-size: .76rem; }
+.resource-banner-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.button.resource-refresh { height: 28px; min-height: 28px; font-size: .76rem; }
+
+/* Security and permissions */
+.button.sec-invite-submit { display: inline-flex; align-self: start; width: auto; margin-top: 6px; }
+.sec-session-box { margin-bottom: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.sec-session-user { color: var(--ink); font-size: .84rem; font-weight: 600; }
+.sec-session-role { margin-top: 2px; color: var(--muted); font-size: .74rem; }
+.button.sec-mfa-link { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; text-decoration: none; }
+.perm-table-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.perm-table-head strong { color: var(--ink); font-size: .88rem; }
+.perm-table-scroll { overflow-x: auto; }
+.perm-rules-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Users and account */
+.user-permissions, .user-permissions > form { margin-top: 8px; }
+.user-permission-row { display: flex; align-items: center; gap: 8px; font-size: .78rem; }
+.user-permission-row > span { flex: 1; }
+.acc-info-list { margin: 12px 0; }
+.acc-info-val.acc-info-val--accent { color: var(--brand-light); }
+.acc-actions { display: flex; gap: 8px; margin-top: 16px; }
+.acc-actions [data-admin-logout] { cursor: pointer; }
+.acc-note { margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.acc-note-title { margin-bottom: 4px; color: var(--ink); font-size: .85rem; font-weight: 700; }
+.acc-note-body { color: var(--muted); font-size: .78rem; line-height: 1.45; }
+.studio-form.acc-credentials-form { margin-top: 14px; }
+
+/* Management tools (/admin/control) */
+.control-icon { color: var(--brand-light); }
+.control-icon.control-icon--green { color: var(--green); }
+.muted.control-meta { font-size: .8rem; }
+.control-stack { display: flex; flex-direction: column; gap: 20px; }
+.control-subtitle { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--ink); font-size: .95rem; font-weight: 700; }
+.control-subtitle.control-subtitle--small { font-size: .92rem; }
+.studio-form.control-form { margin-top: 0; }
+.studio-form .control-span, .studio-form .control-form-actions, .studio-form .control-form-footer { grid-column: 1 / -1; }
+.studio-form textarea.control-textarea { min-height: 70px; }
+.control-form-actions { display: flex; justify-content: flex-end; }
+.control-form-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.control-form-footer.control-form-footer--spaced { margin-top: 6px; }
+/* Outranks the theme's ".studio-form input:not(...)" field rules, like the
+   style attribute it replaces (dark mode still wins with its !important). */
+html .studio-form input[type="file"].control-file-input { padding: 8px 12px; background: var(--bg-subtle); }
+.control-divider { height: 1px; background: var(--line); }
+.control-divider.control-divider--spaced { margin: 20px 0; }
+.status.control-format-badge { font-size: .75rem; }
+.control-link-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.button.control-link { flex: 1; justify-content: center; min-height: 38px; }
+.tool-grid.control-tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.studio-card.control-shortcuts { margin-top: 0; }
+.dashboard-card-head.control-shortcuts-head { margin-bottom: 14px; padding-bottom: 10px; }
+.studio-actions.control-shortcut-actions { margin: 0; }
+
+/* Reports */
+.radial-legend-dot.radial-legend-dot--brand { background: var(--brand); }
+.radial-legend-dot.radial-legend-dot--green { background: var(--green); }
+.radial-legend-dot.radial-legend-dot--red { background: var(--red); }
+.radial-legend-dot.radial-legend-dot--muted { background: var(--muted); }
+.radial-legend-val.radial-legend-val--danger, .reports-error-count { color: var(--red); }
+.traffic-bar-fill.traffic-bar-fill--views { width: 85%; background: var(--brand); }
+.traffic-bar-fill.traffic-bar-fill--api { width: 45%; background: var(--purple); }
+.traffic-bar-fill.traffic-bar-fill--errors { width: 0%; background: var(--red); }
+.traffic-bar-fill.traffic-bar-fill--errors.has-errors { width: 15%; }

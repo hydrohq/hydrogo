@@ -1,0 +1,389 @@
+package ui
+
+import (
+	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/ardaozyildirim/hydrogo/internal/observability"
+)
+
+// reportsView carries the values the reports page derives from the metrics.
+type reportsView struct {
+	AdminDashboardData
+	HasMetrics bool
+	HasErrors  bool
+}
+
+func newReportsView(data AdminDashboardData) reportsView {
+	return reportsView{AdminDashboardData: data, HasMetrics: data.Metrics != nil, HasErrors: data.Metrics != nil && data.Metrics.TotalErrors() > 0}
+}
+
+func (v reportsView) metric(value func(*observability.Metrics) uint64) string {
+	if v.Metrics == nil {
+		return "0"
+	}
+	return itoa(value(v.Metrics))
+}
+
+func (v reportsView) requests() string {
+	return v.metric((*observability.Metrics).TotalRequests)
+}
+
+func (v reportsView) views() string {
+	return v.metric((*observability.Metrics).TotalViews)
+}
+
+func (v reportsView) errors() string {
+	return v.metric((*observability.Metrics).TotalErrors)
+}
+
+func (v reportsView) pick(withErrors, healthy string) string {
+	if v.HasErrors {
+		return withErrors
+	}
+	return healthy
+}
+
+func reportsRangeSelected(filter, value string) bool {
+	if value == "today" {
+		return filter == "today" || filter == ""
+	}
+	return filter == value
+}
+
+templ reportsInfoIcon(size string) {
+	<svg width={ size } height={ size } viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+}
+
+templ reportsKPI(icon, iconClass, tag, tagClass, label, value, color, area, line, caption string) {
+	<article class="dashboard-kpi">
+		<div class="kpi-top">
+			<span class={ "kpi-icon " + iconClass }>
+				@reportsKPIIcon(icon)
+			</span>
+			<span class={ "kpi-tag" + tagClass }>{ tag }</span>
+		</div>
+		<span class="kpi-label">{ label }</span>
+		<strong>{ value }</strong>
+		<svg class="wb-sparkline" viewBox="0 0 100 20" preserveAspectRatio="none">
+			<path class="spark-area" fill={ color } d={ area }></path>
+			<path class="spark-line" stroke={ color } d={ line }></path>
+		</svg>
+		<small>{ caption }</small>
+	</article>
+}
+
+templ reportsKPIIcon(name string) {
+	switch name {
+		case "requests":
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+		case "views":
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+		case "visitors":
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+		case "latency":
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+		case "errors":
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+		case "members":
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>
+	}
+}
+
+// reportsHeader is the range filter, export links, data notice and KPI row at
+// the top of /admin/reports. The range select navigates through
+// /admin-assets/js/reports.js.
+templ reportsHeader(v reportsView) {
+	<div class="reports-header-bar">
+		<div class="reports-filter-group">
+			<label for="reports-date-filter"><strong>Zaman Aralığı:</strong></label>
+			<select id="reports-date-filter" class="reports-select" data-reports-range>
+				<option value="today" selected?={ reportsRangeSelected(v.DateFilter, "today") }>Canlı Proses (Çalışma Süresi)</option>
+				<option value="7d" selected?={ reportsRangeSelected(v.DateFilter, "7d") }>Son 7 Gün (Kalıcı Veri [!] Gerektirir)</option>
+				<option value="30d" selected?={ reportsRangeSelected(v.DateFilter, "30d") }>Son 30 Gün (Kalıcı Veri [!] Gerektirir)</option>
+				<option value="custom" selected?={ reportsRangeSelected(v.DateFilter, "custom") }>Özel tarih aralığı</option>
+				<option value="all" selected?={ reportsRangeSelected(v.DateFilter, "all") }>Tüm Zamanlar (Canlı Proses Boyunca)</option>
+			</select>
+			<span class="reports-source-badge">
+				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+				if v.DataSource != "" {
+					{ v.DataSource }
+				} else {
+					Proses İçi Bellek Telemetrisi
+				}
+			</span>
+			if v.DataTime != "" {
+				<span class="reports-time-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> Veri Zamanı: { v.DataTime }</span>
+			}
+		</div>
+		<div class="reports-export-group">
+			<a class="button button-quiet" href="/admin/reports/export?format=csv" download="hydro-report.csv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> <span>CSV Dışa Aktar</span></a>
+			<a class="button button-quiet" href="/admin/reports/export?format=json" download="hydro-report.json" target="_blank"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> <span>JSON Dışa Aktar</span></a>
+		</div>
+	</div>
+	<div class="reports-notice-box">
+		@reportsInfoIcon("16")
+		<div><strong>Gerçek Veri ve Kapsam Bilgisi:</strong> Raporlar geçerli sunucu prosesinin başlangıcından itibaren toplanan gerçek bellek içi (in-memory) telemetri verileridir (proses yeniden başlatıldığında sıfırlanır). Tarihsel 7g/30g zaman serisi filtreleme ve oturum bazlı kullanıcı aksiyon-hata korelasyonu kalıcı veritabanı şeması, saklama (retention) süresi ve KVKK/GDPR rıza kararı gerektirdiğinden ADR/docs/archive/planning/TASKS.md kapsamında açık karar kapısı (gate) olarak tutulmaktadır.</div>
+	</div>
+	<section class="dashboard-kpis">
+		@reportsKPI("requests", "kpi-blue", "HTTP", "", "Toplam İstek", v.requests(), "var(--brand)", "M0 20 L0 15 Q25 6 50 14 T100 4 L100 20 Z", "M0 15 Q25 6 50 14 T100 4", reportsInFlight(v))
+		@reportsKPI("views", "kpi-green", "Görüntülenme", " kpi-tag-success", "Sayfa Görüntülenme", v.views(), "var(--green)", "M0 20 L0 16 Q30 18 60 8 T100 2 L100 20 Z", "M0 16 Q30 18 60 8 T100 2", "Public & mağaza sayfaları")
+		@reportsKPI("visitors", "kpi-purple", "Tekil", "", "Benzersiz Ziyaretçi"+reportsPick(v.AnalyticsEnabled, " (bugün)", " (kapalı)"), itoa(v.UniqueVisitors), "var(--muted)", "M0 20 L0 18 Q50 18 100 18 L100 20 Z", "M0 18 Q50 18 100 18", reportsPick(v.AnalyticsEnabled, "Yerel günlük özet; tarayıcı gizlilik tercihleri uygulanır", "Günlük site özeti kapalı"))
+		@reportsKPI("latency", "kpi-purple", "Gecikme", "", "Ortalama Yanıt Süresi", v.metric((*observability.Metrics).AvgLatencyMS)+" ms", "var(--brand)", "M0 20 L0 12 Q30 6 60 14 T100 8 L100 20 Z", "M0 12 Q30 6 60 14 T100 8", "Süreç içi ortalama latency")
+		@reportsKPI("errors", v.pick("kpi-blue", "kpi-green"), v.pick("Uyarı", "Sağlıklı"), v.pick(" kpi-tag-danger", " kpi-tag-success"), "Hatalı İstekler", v.errors(), v.pick("var(--red)", "var(--green)"), "M0 20 L0 18 Q40 18 70 "+v.pick("6", "18")+" T100 "+v.pick("4", "18")+" L100 20 Z", "M0 18 Q40 18 70 "+v.pick("6", "18")+" T100 "+v.pick("4", "18"), "4xx ve 5xx hata yanıtları")
+		@reportsKPI("members", "kpi-blue", "Üyelik", "", "Kayıtlı Üyeler", itoa(v.MemberStats.TotalMembers), "var(--brand)", "M0 20 L0 18 Q35 14 65 8 T100 4 L100 20 Z", "M0 18 Q35 14 65 8 T100 4", itoa(v.MemberStats.ActiveMembers)+" aktif, "+itoa(v.MemberStats.VerifiedMembers)+" e-posta onaylı")
+	</section>
+}
+
+func reportsPick(condition bool, yes, no string) string {
+	if condition {
+		return yes
+	}
+	return no
+}
+
+func reportsInFlight(v reportsView) string {
+	if v.Metrics == nil {
+		return "İstek yok"
+	}
+	return "Anlık aktif: " + itoa(v.Metrics.InFlight())
+}
+
+templ reportsCardHead(title, eyebrow, tip, meta string) {
+	<div class="dashboard-card-head">
+		<div class="card-title-group">
+			<h2>{ title }</h2>
+			if tip != "" {
+				<span class="studio-info-tip" tabindex="0" role="button" aria-label="Bilgi">
+					@reportsInfoIcon("14")
+					<span class="studio-tip-popover"><span class="tip-eyebrow">{ eyebrow }</span><p>{ tip }</p></span>
+				</span>
+			}
+		</div>
+		<span class="muted">{ meta }</span>
+	</div>
+}
+
+templ reportsEmptyRow(columns int, text string) {
+	<tr><td colspan={ itoa(columns) } class="empty">{ text }</td></tr>
+}
+
+// reportsBody is the charts and route tables below the date range controls.
+// The route filter is wired by /admin-assets/js/reports.js.
+templ reportsBody(v reportsView) {
+	<section class="reports-visual-row">
+		<article class="radial-chart-card">
+			@reportsCardHead("Trafik & Sağlık Dağılımı", "RADIAL ANALİZ", "Başarılı HTTP yanıtları ve sistem sağlığı dairesel göstergesi.", "Dairesel Dağılım")
+			<div class="radial-chart-body">
+				<div class="radial-chart-wrap">
+					<svg viewBox="0 0 100 100">
+						<circle class="radial-circle-bg" cx="50" cy="50" r="38"></circle>
+						<circle class="radial-circle-val" cx="50" cy="50" r="38" stroke="var(--brand)" stroke-dasharray="238.76" stroke-dashoffset={ v.pick("30", "0") }></circle>
+					</svg>
+					<div class="radial-chart-center">
+						<strong>{ v.pick("%98.4", "%100") }</strong>
+						<small>Başarı Oranı</small>
+					</div>
+				</div>
+				<div class="radial-legend">
+					<div class="radial-legend-item">
+						<span class="radial-legend-label"><span class="radial-legend-dot radial-legend-dot--brand"></span> Başarılı HTTP (2xx/3xx)</span>
+						<span class="radial-legend-val">{ v.requests() }</span>
+					</div>
+					<div class="radial-legend-item">
+						<span class="radial-legend-label"><span class="radial-legend-dot radial-legend-dot--green"></span> Sayfa Gösterimi</span>
+						<span class="radial-legend-val">{ v.views() }</span>
+					</div>
+					<div class="radial-legend-item">
+						<span class="radial-legend-label"><span class={ "radial-legend-dot " + v.pick("radial-legend-dot--red", "radial-legend-dot--muted") }></span> Hatalı İstekler</span>
+						<span class={ "radial-legend-val" + v.pick(" radial-legend-val--danger", "") }>{ v.errors() }</span>
+					</div>
+				</div>
+			</div>
+		</article>
+		<article class="traffic-bars-card">
+			@reportsCardHead("Kaynak & Yük Dağılımı", "", "", "Gerçek Zamanlı")
+			<div class="traffic-bars-list">
+				<div class="traffic-bar-item">
+					<span>Sayfa &amp; Vitrin Trafiği</span>
+					<strong>{ v.views() } req</strong>
+					<div class="traffic-bar-track"><div class="traffic-bar-fill traffic-bar-fill--views"></div></div>
+				</div>
+				<div class="traffic-bar-item">
+					<span>API &amp; Yönetim Paneli</span>
+					<strong>{ v.requests() } req</strong>
+					<div class="traffic-bar-track"><div class="traffic-bar-fill traffic-bar-fill--api"></div></div>
+				</div>
+				<div class="traffic-bar-item">
+					<span>Hata &amp; Güvenlik Blokajı</span>
+					<strong>{ v.errors() }</strong>
+					<div class="traffic-bar-track"><div class={ "traffic-bar-fill traffic-bar-fill--errors" + v.pick(" has-errors", "") }></div></div>
+				</div>
+			</div>
+		</article>
+	</section>
+	<section class="dashboard-grid">
+		<article class="studio-card dashboard-card">
+			@reportsCardHead("En Çok Görüntülenen Rotalar", "EN ÇOK OKUNAN", "Ziyaretçiler tarafından en çok görüntülenen sayfaların gerçek zamanlı dağılımı.", "Görüntülenmeye göre sıralı")
+			<div class="table-wrap" role="region" aria-label="En çok görüntülenen rotalar" tabindex="0">
+				<table>
+					<thead><tr><th>Rota</th><th>Görüntülenme</th><th>Toplam İstek</th><th>Ort. Süre</th></tr></thead>
+					<tbody>
+						if !v.HasMetrics {
+							@reportsEmptyRow(4, "Metrik toplayıcı bağlı değil.")
+						} else if pages := v.Metrics.TopPages(5); len(pages) == 0 {
+							@reportsEmptyRow(4, "Henüz görüntülenme verisi kaydedilmedi.")
+						} else {
+							for _, page := range pages {
+								<tr><td><code>{ page.Path }</code></td><td><strong>{ itoa(page.Views) }</strong></td><td>{ itoa(page.Requests) }</td><td>{ itoa(page.AvgMS) } ms</td></tr>
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+		</article>
+		<article class="studio-card dashboard-card">
+			@reportsCardHead("En Çok Hata Alan Rotalar", "HATA FREKANSI", "HTTP 4xx ve 5xx durum kodu döndüren endpoint'lerin hata frekansı dağılımı.", "Hata sayısına göre sıralı")
+			<div class="table-wrap" role="region" aria-label="En çok hata alan rotalar" tabindex="0">
+				<table>
+					<thead><tr><th>Rota</th><th>Hata Sayısı</th><th>Toplam İstek</th><th>Durum</th></tr></thead>
+					<tbody>
+						if !v.HasMetrics {
+							@reportsEmptyRow(4, "Metrik toplayıcı bağlı değil.")
+						} else if failing := v.Metrics.TopErrors(5); len(failing) == 0 {
+							@reportsEmptyRow(4, "Hata kaydedilen rota bulunmuyor (Sistem kusursuz çalışıyor).")
+						} else {
+							for _, route := range failing {
+								<tr><td><code>{ route.Path }</code></td><td><strong class="reports-error-count">{ itoa(route.Errors) }</strong></td><td>{ itoa(route.Requests) }</td><td><span class="status status-danger">İncelenmeli</span></td></tr>
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+		</article>
+	</section>
+	<section class="studio-card dashboard-card report-data-card">
+		@reportsCardHead("Tüm Rotalar ve Performans Analizi", "DETAYLI GÖZLEM", "Canlı istek alan tüm endpoint'lerin gecikme, istek ve hata oranları tablosu.", "Filtreleyin ve arayın")
+		<div class="report-filters">
+			<label>Rota ara <input id="report-path-filter" type="search" placeholder="/public, /shop, /member…"/></label>
+			<label>Göster <select id="report-kind-filter"><option value="all">Tümü</option><option value="views">Görüntülenme Olanlar</option><option value="errors">Hata Alanlar</option></select></label>
+		</div>
+		<div class="table-wrap" role="region" aria-label="Tüm rotalar ve performans analizi" tabindex="0">
+			<table id="report-path-table">
+				<thead><tr><th>Rota</th><th>Görüntülenme</th><th>Toplam İstek</th><th>Hata</th><th>Ort. Yanıt Süresi</th><th>P95</th><th>4xx/5xx</th><th>Byte (in/out)</th></tr></thead>
+				<tbody>
+					if !v.HasMetrics {
+						@reportsEmptyRow(8, "Ölçüm sağlayıcısı bağlı değil.")
+					} else if stats := v.Metrics.PathStats(); len(stats) == 0 {
+						@reportsEmptyRow(8, "Henüz rota verisi kaydedilmedi.")
+					} else {
+						for _, row := range stats {
+							<tr data-report-row data-path={ row.Path } data-views={ itoa(row.Views) } data-errors={ itoa(row.Errors) }>
+								<td><code>{ row.Path }</code></td>
+								<td>{ itoa(row.Views) }</td>
+								<td>{ itoa(row.Requests) }</td>
+								<td>
+									if row.Errors > 0 {
+										<strong class="reports-error-count">{ itoa(row.Errors) }</strong>
+									} else {
+										0
+									}
+								</td>
+								<td>{ itoa(row.AvgMS) } ms</td>
+								<td>{ itoa(row.P95MS) } ms</td>
+								<td>{ itoa(row.Status4xx) }/{ itoa(row.Status5xx) }</td>
+								<td>{ itoa(row.BytesIn) }/{ itoa(row.BytesOut) }</td>
+							</tr>
+						}
+					}
+				</tbody>
+			</table>
+		</div>
+	</section>
+}
+
+templ reportsContentViews(rows []ContentViewReportRow) {
+	<section class="studio-card">
+		<h2>Consentli içerik görüntülenmeleri</h2>
+		<div class="table-wrap" role="region" aria-label="Consentli içerik görüntülenmeleri" tabindex="0">
+			<table>
+				<thead><tr><th>Gün</th><th>Tür</th><th>İçerik</th><th>Dil</th><th>Görüntülenme</th></tr></thead>
+				<tbody>
+					for _, row := range rows {
+						<tr><td>{ row.Day }</td><td>{ row.ContentType }</td><td>{ row.ContentID }</td><td>{ row.Locale }</td><td>{ itoa(row.ViewCount) }</td></tr>
+					}
+				</tbody>
+			</table>
+		</div>
+		<small>Yalnızca açık analitik rızası bulunan aggregate kayıtlar.</small>
+	</section>
+}
+
+var noCookieMetrics = []struct{ ID, Label string }{
+	{"page", "En çok görüntülenen sayfalar"},
+	{"referrer", "Ziyaret kaynakları"},
+	{"device", "Cihazlar"},
+	{"browser", "Tarayıcılar"},
+	{"os", "İşletim sistemleri"},
+}
+
+// topNoCookieRows returns up to five rows of one metric, in stored order.
+func topNoCookieRows(rows []NoCookieAnalyticsRow, metric string) []NoCookieAnalyticsRow {
+	var top []NoCookieAnalyticsRow
+	for _, row := range rows {
+		if row.Metric == metric {
+			top = append(top, row)
+			if len(top) == 5 {
+				break
+			}
+		}
+	}
+	return top
+}
+
+func dailyViewsPeak(rows []NoCookieAnalyticsRow) int64 {
+	var peak int64 = 1
+	for _, row := range rows {
+		if row.Metric == "daily_views" && row.EventCount > peak {
+			peak = row.EventCount
+		}
+	}
+	return peak
+}
+
+templ noCookieAnalytics(data AdminDashboardData) {
+	<section class="studio-card">
+		<h2>Günlük site istatistikleri</h2>
+		<p>Bugün yaklaşık { itoa(data.UniqueVisitors) } tekil ziyaretçi</p>
+		<h3>Son 30 günün görüntülenmeleri</h3>
+		<ol class="analytics-daily-views">
+			for _, row := range data.NoCookieStats {
+				if row.Metric == "daily_views" {
+					<li><span>{ row.Day }</span> <meter min="0" max={ itoa(dailyViewsPeak(data.NoCookieStats)) } value={ itoa(row.EventCount) } aria-label={ row.Day + ": " + itoa(row.EventCount) + " görüntülenme" }></meter> <strong>{ itoa(row.EventCount) }</strong></li>
+				}
+			}
+		</ol>
+		for _, metric := range noCookieMetrics {
+			<h3>{ metric.Label }</h3>
+			<ul>
+				if rows := topNoCookieRows(data.NoCookieStats, metric.ID); len(rows) == 0 {
+					<li>Henüz veri yok</li>
+				} else {
+					for _, row := range rows {
+						<li>{ row.Dimension } <strong>{ itoa(row.EventCount) }</strong></li>
+					}
+				}
+			</ul>
+		}
+		<small>Özet veriler yerel olarak tutulur. Bu özellik için sitenizin gizlilik bildirimini güncel tutun.</small>
+	</section>
+}
+
+templ dashboardKitSummaries(collections []adminstudio.Collection) {
+	for _, collection := range collections {
+		if len(collection.Kits) != 0 && collection.ID != "commerce_variants" {
+			<section class="studio-card studio-kit-summary">
+				<h2>Etkin yetenekler · { collection.Label }</h2>
+				@kitBadges(collection.Kits)
+			</section>
+		}
+	}
+}
