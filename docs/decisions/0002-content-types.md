@@ -38,8 +38,8 @@ not have yet.
 - New simple content needs no Go code. The 11 sectoral modules removed in
   0001 come back as YAML files when needed (FAQ, team and testimonials ship
   as examples).
-- Not yet supported for content types: localisation, separate draft copies
-  of published records, scheduling, array and block fields. They will be added to collection storage
+- Not yet supported for content types: separate draft copies of published
+  records, scheduling, array and block fields. They will be added to collection storage
   behind the callbacks `GeneratedAdminHandler` already defines.
 - Lists support search (`searchable: true` fields), filters
   (`filterable: true`) and sorting by list columns. Collection storage runs
@@ -63,6 +63,34 @@ not have yet.
   deleted with the record. The admin lists, compares and restores them
   through `GeneratedAdminHandler`'s revision callbacks; a restore saves a new
   version with optimistic locking and keeps the record's current status.
+- `localized: true` on text, textarea, richtext and media fields (not
+  together with `unique`, `searchable` or `filterable`; the type needs
+  `revisions: true`, as `GeneratedAdminHandler` requires for localization)
+  gives the field a value per site locale. The record keeps the default
+  locale's values, so drafts status, search, filters, sorting, uniqueness
+  and revisions work exactly as before and only ever see the default
+  locale. Other locales are stored in `hydro_collection_translations`
+  (migration `202610140002_collection_translations`, module `collections`):
+  one row per record and locale with its own `version` for optimistic
+  locking, tenant-scoped and deleted with the record. Revisions cover the
+  default-locale record only; translations are not revisioned, and
+  restoring a revision leaves them unchanged.
+- Localization is active only when the site config has i18n enabled with
+  more than one locale (`i18n.enabled`, `i18n.locales`, `i18n.default_locale`;
+  `HYDRO_I18N_ENABLED`, `HYDRO_LOCALES`, `HYDRO_DEFAULT_LOCALE`). The admin
+  then shows `GeneratedAdminHandler`'s locale tabs, wired to
+  `AdminAPI.LocaleOptions`/`GetLocalized`/`SaveLocalized`/`ListLocalized`/
+  `CanCopyLocale`/`CopyLocale`; a non-default locale's form shows empty
+  inputs for untranslated fields, and copying is offered only into
+  non-default locales. Otherwise `localized` changes nothing and the admin
+  shows plain fields.
+- The public API accepts `?locale=` (a configured locale, case-insensitive;
+  default: the default locale, anything else answers 400). Localized fields
+  carry that locale's value, falling back to the default locale's value
+  field by field when a translation is missing or empty. Records and list
+  responses include `"locale"`, so `locale` is a reserved field ID.
+  Publication status is checked on the record before translations are
+  read, so drafts never leak in any locale.
 - The blueprint generator and the browser-based schema builder at
   `/admin/collections` (with its `/api/v1/collections` API) overlapped with
   this and have been removed.

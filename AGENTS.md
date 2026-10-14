@@ -27,7 +27,8 @@ Follow the closest existing example. `modules/news` is the reference module
 for content that needs custom behaviour; everything else should be a content
 type. Content types get admin screens at `/admin/resources/<id>` and, with
 `public: true`, a read API at `/api/v1/content/<id>`; YAML flags add list
-search/filters, drafts and revisions (see `definition.go`).
+search/filters, drafts, revisions and per-locale (`localized`) fields (see
+`definition.go`).
 
 ## Rules
 

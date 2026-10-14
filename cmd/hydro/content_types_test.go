@@ -8,6 +8,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -24,7 +25,7 @@ func TestContentTypeRoutesRegisterNextToPublicLocaleRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := collections.Service{Repository: sqlstore.Store{DB: db, Dialect: database.SQLite}}
-	routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil)
+	routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}))
 	if err != nil {
 		t.Fatal(err)
 	}

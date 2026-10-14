@@ -16,6 +16,12 @@ import (
 // descending order; filter[field] matches fields marked filterable exactly;
 // search matches fields marked searchable. See parsePublicQuery.
 //
+// Both accept ?locale= (a configured site locale, default: the default
+// locale). Localized fields then carry that locale's values, falling back
+// to the default locale's value field by field; search, filters and sorting
+// always use the default locale. Records and lists include "locale". An
+// unknown locale answers 400.
+//
 // Types that are not public answer 404, exactly like unknown types. For
 // types with drafts only published records exist here: lists filter on the
 // status and a draft's ID answers 404. Rich
@@ -24,10 +30,14 @@ type PublicAPI struct {
 	Service        collections.Service
 	Types          []Definition
 	RenderRichText func(stored string) string
+	Locales        Locales
 }
 
-func (p PublicAPI) present(typeID string, record collections.Record) map[string]any {
+func (p PublicAPI) present(typeID, locale string, record collections.Record) map[string]any {
 	result := Flatten(record)
+	if locale != "" {
+		result["locale"] = locale
+	}
 	if p.RenderRichText == nil {
 		return result
 	}
@@ -60,6 +70,11 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
+	locale, ok := p.publicLocale(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "unsupported locale")
+		return
+	}
 	query, err := parsePublicQuery(r.URL.Query(), definition)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid list query")
@@ -69,15 +84,22 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		query.Where = append(query.Where, publishedCondition())
 	}
 	records, err := p.Service.QueryRecords(r.Context(), typeID, query)
+	if err == nil {
+		err = p.translate(r, definition, locale, records)
+	}
 	if err != nil {
 		writeServiceError(w, err, collections.Schema{}, nil)
 		return
 	}
 	items := make([]map[string]any, 0, len(records))
 	for _, record := range records {
-		items = append(items, p.present(typeID, record))
+		items = append(items, p.present(typeID, locale, record))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items, "limit": query.Limit, "offset": query.Offset})
+	body := map[string]any{"items": items, "limit": query.Limit, "offset": query.Offset}
+	if locale != "" {
+		body["locale"] = locale
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
@@ -87,13 +109,24 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
+	locale, ok := p.publicLocale(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "unsupported locale")
+		return
+	}
 	record, err := p.Service.GetRecord(r.Context(), typeID, r.PathValue("id"))
+	// The status is checked on the record before any translation is read.
 	if err == nil && definition.Drafts && recordStatus(record.Data) != StatusPublished {
 		err = collections.ErrRecordNotFound
+	}
+	if err == nil {
+		records := []collections.Record{record}
+		err = p.translate(r, definition, locale, records)
+		record = records[0]
 	}
 	if err != nil {
 		writeServiceError(w, err, collections.Schema{}, nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, p.present(typeID, record))
+	writeJSON(w, http.StatusOK, p.present(typeID, locale, record))
 }
