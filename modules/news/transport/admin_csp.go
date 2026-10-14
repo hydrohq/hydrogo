@@ -1,8 +1,8 @@
 package transport
 
-// AdminScriptHashes returns the reviewed static inline script hash used by
-// the new-story form. The generated Admin browser acceptance validates the
-// exact rendered script against the host CSP.
+// AdminScriptHashes returns the CSP hashes of inline scripts the news admin
+// screens render. There are none: the editors load their behaviour from
+// /admin-assets/js/, so nothing needs to be added to the admin script-src.
 func AdminScriptHashes() []string {
-	return []string{"OOFj6mnRw6uOmEf/Y9GdfiaaUEMDftOsAn3MhxmNw2g="}
+	return nil
 }

@@ -1,0 +1,253 @@
+package transport
+
+import (
+	"strconv"
+
+	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
+)
+
+templ newsListScreen(v newsListView) {
+	@ui.ListViewSwitcher("admin-content-list", "hydro-view-content")
+	<section class="studio-card">
+		<div class="table-wrap" id="admin-content-list" data-view-mode="table">
+			if v.ViewSort != nil {
+				@designsystem.ContentViewSort(*v.ViewSort)
+			}
+			@v.List
+		</div>
+	</section>
+}
+
+// newsListFragment is the htmx table fragment of /admin/news?fragment=table.
+templ newsListFragment(v newsListView) {
+	if v.ViewSort != nil {
+		@designsystem.ContentViewSort(*v.ViewSort)
+	}
+	@v.List
+}
+
+// newsEditorHeader is the sticky title bar of the split editor; the title
+// follows the title field (static/admin/js/editor-live-title.js).
+templ newsEditorHeader(title string, sub templ.Component, actions templ.Component) {
+	<div class="editor-top-nav">
+		<div class="editor-top-info">
+			<strong class="editor-live-title">{ title }</strong>
+			<span class="editor-live-sub">
+				@sub
+			</span>
+		</div>
+		<div class="editor-top-actions">
+			@actions
+		</div>
+	</div>
+}
+
+templ newsNewSub() {
+	Yeni bir Haber oluşturuluyor
+}
+
+templ newsSaveButton(form string) {
+	<button type="submit" form={ form } class="button">Taslağı kaydet</button>
+}
+
+templ newsNewScreen(v newsNewView) {
+	@newsEditorHeader(untitledNews, newsNewSub(), newsSaveButton("news-form"))
+	<form id="news-form" class="studio-form" method="post" action="/admin/news" data-editor-live-title>
+		<div class="editor-split-container">
+			<div class="editor-main-col">
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "Haber İçeriği"}) {
+					@v.Content
+				}
+			</div>
+			<div class="editor-side-col">
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "Yayın Bilgileri", Tag: "YENİ"}) {
+					<div class="editor-side-fields">
+						<div class="editor-side-status"><span>Durum</span><strong>Taslak</strong></div>
+						<div class="editor-side-status"><span>Dil</span><strong>{ v.Locale }</strong></div>
+						<p class="muted" style="margin:8px 0 0;font-size:.78rem">Kaydedildikten sonra zamanlama ve yayına alma butonları aktifleşir.</p>
+					</div>
+				}
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "Genel Bilgiler"}) {
+					<div class="editor-side-fields">
+						@v.Meta
+					</div>
+				}
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "SEO & Arama Motoru"}) {
+					<div class="editor-side-fields">
+						@v.SEO
+					</div>
+				}
+			</div>
+		</div>
+		<input type="hidden" name="locale" value={ v.Locale }/>
+		<input type="hidden" name="_csrf" value={ v.CSRF }/>
+	</form>
+	<script src="/admin-assets/js/editor-live-title.js" defer></script>
+}
+
+templ newsEditSub(status string) {
+	Haber düzenleniyor · <span class="status">{ status }</span>
+}
+
+templ newsEditActions(v newsEditView) {
+	if v.LiveURL != "" {
+		<button type="button" class="button button-quiet" data-copy-text={ v.LiveURL } aria-label="Canlı URL'yi kopyala" title="Canlı URL'yi kopyala">🔗 URL kopyala</button>
+		<span data-copy-status role="status" style="font-size:.75rem;color:var(--muted)"></span>
+	}
+	<button type="button" class="button button-quiet" data-device-preview-open data-preview-endpoint={ v.PreviewEndpoint } data-preview-csrf={ v.CSRF } title="Önizleme">👁 Önizle</button>
+	@newsSaveButton("news-edit-form")
+}
+
+templ newsEditScreen(v newsEditView) {
+	if v.Presence != nil {
+		@v.Presence
+	}
+	@newsEditorHeader(v.Title, newsEditSub(v.Status), newsEditActions(v))
+	<form id="news-edit-form" class="studio-form" method="post" action={ templ.SafeURL(v.Action) } data-local-autosave data-autosave-resource={ "news:" + v.ID } data-editor-live-title>
+		<div class="editor-split-container">
+			<div class="editor-main-col">
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "Haber İçeriği"}) {
+					@v.Content
+				}
+			</div>
+			<div class="editor-side-col">
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "Yayın & İşlem", Status: v.Status}) {
+					<div class="editor-side-fields">
+						<div class="editor-side-status"><span>Durum</span><strong>{ v.Status }</strong></div>
+						<div class="editor-side-status"><span>Dil</span><strong>{ v.Locale }</strong></div>
+						<div class="editor-workflow-actions">
+							@newsWorkflowActions(v.Workflow)
+						</div>
+					</div>
+				}
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "Genel Bilgiler"}) {
+					<div class="editor-side-fields">
+						@v.Meta
+					</div>
+				}
+				if v.Taxonomy != nil {
+					@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "İçerik Sınıflandırması"}) {
+						<div class="editor-side-fields">
+							@v.Taxonomy
+						</div>
+					}
+				}
+				@uicomponents.EditorCard(uicomponents.EditorCardProps{Title: "SEO & Arama Motoru"}) {
+					<div class="editor-side-fields">
+						@v.SEO
+					</div>
+				}
+			</div>
+		</div>
+		<input type="hidden" name="locale" value={ v.Locale }/>
+		<input type="hidden" name="version" value={ strconv.Itoa(v.Version) }/>
+		<input type="hidden" name="_csrf" value={ v.CSRF }/>
+	</form>
+	@newsWorkflowForms(v.Workflow)
+	@newsPreviewDialog()
+	<script src="/admin-assets/js/editor-live-title.js" defer></script>
+}
+
+// newsWorkflowActions renders the controls of the allowed transitions. They
+// submit the separate forms of newsWorkflowForms (via the form attribute), so
+// the workflow posts never carry the draft fields.
+templ newsWorkflowActions(v newsWorkflowView) {
+	if v.CanSchedule {
+		<label for="news-scheduled-at">Yayın tarihi ve saati</label>
+		<input id="news-scheduled-at" name="scheduled_at" type="datetime-local" form="news-schedule-form" required/>
+		<button type="submit" form="news-schedule-form" class="button">Zamanla</button>
+	}
+	if v.CanPublish {
+		<button type="submit" form="news-publish-form" class="button button-success">Yayına Al</button>
+	}
+	if v.CanRetract {
+		<button type="submit" form="news-retract-form" class="button button-quiet button-danger">Yayından Çek</button>
+	}
+	if !v.CanSchedule && !v.CanPublish && !v.CanRetract {
+		<p class="muted">Bu durum için kullanılabilir yayın aksiyonu yok.</p>
+	}
+}
+
+templ newsWorkflowForms(v newsWorkflowView) {
+	if v.CanSchedule {
+		@newsWorkflowForm("news-schedule-form", v.Base+"/schedule", v)
+	}
+	if v.CanPublish {
+		@newsWorkflowForm("news-publish-form", v.Base+"/publish", v)
+	}
+	if v.CanRetract {
+		@newsWorkflowForm("news-retract-form", v.Base+"/retract", v)
+	}
+}
+
+templ newsWorkflowForm(id, action string, v newsWorkflowView) {
+	<form id={ id } method="post" action={ templ.SafeURL(action) }>
+		<input type="hidden" name="_csrf" value={ v.CSRF }/>
+		<input type="hidden" name="version" value={ strconv.Itoa(v.Version) }/>
+	</form>
+}
+
+// newsPreviewDialog is driven by the admin device preview script: it asks the
+// preview endpoint for a (signed) public URL and loads it at a device width.
+// The frame runs no scripts; allow-same-origin only lets the page load its own
+// stylesheets and media (the server's same-origin resource policy refuses them
+// to an opaque origin).
+templ newsPreviewDialog() {
+	<dialog class="device-preview-dialog" data-device-preview-dialog aria-labelledby="device-preview-title">
+		<div class="device-preview-header">
+			<div>
+				<h2 id="device-preview-title">Haber Önizlemesi</h2>
+				<p data-device-preview-status>Önizle butonuna basarak güncel taslağı yükleyin.</p>
+			</div>
+			<div class="studio-actions">
+				<button type="button" class="button button-quiet" data-device-preview-size="desktop" aria-pressed="true" title="Masaüstü">🖥 Masaüstü</button>
+				<button type="button" class="button button-quiet" data-device-preview-size="tablet" aria-pressed="false" title="Tablet">📟 Tablet</button>
+				<button type="button" class="button button-quiet" data-device-preview-size="mobile" aria-pressed="false" title="Mobil">📱 Mobil</button>
+				<button type="button" class="button button-quiet" data-device-preview-close aria-label="Önizlemeyi kapat">✕ Kapat</button>
+			</div>
+		</div>
+		<div class="device-preview-stage">
+			<iframe data-device-preview-frame src="about:blank" title="Haber önizlemesi" sandbox="allow-same-origin" referrerpolicy="no-referrer"></iframe>
+		</div>
+	</dialog>
+}
+
+templ newsReadOnlyBody(v newsReadOnlyView) {
+	for _, field := range v.Fields {
+		@uicomponents.Input(field)
+	}
+	<article class="readonly-content-preview rich-article-content">
+		@templ.Raw(v.BodyHTML)
+	</article>
+}
+
+// newsTaxonomyScreen is the taxonomy term catalog with its create form.
+templ newsTaxonomyScreen(csrf string, terms uicomponents.TableProps) {
+	<section class="studio-card">
+		<h2>Yeni terim</h2>
+		<p class="muted">Etiket ve kategorilerde çoklu dil desteği için etiketleri JSON olarak girin.</p>
+		<form class="studio-form" method="post" action="/admin/news/taxonomy">
+			<label>ID<input name="id" required maxlength="128"/></label>
+			<label>Slug<input name="slug" required maxlength="128" pattern="[a-z0-9][a-z0-9-]*"/></label>
+			<label>
+				Tür
+				<select name="kind">
+					<option value="category">Kategori</option>
+					<option value="tag">Etiket</option>
+				</select>
+			</label>
+			<label>Üst terim ID<input name="parent" maxlength="128"/></label>
+			<label>Etiketler JSON<textarea name="labels_json" required placeholder='{"tr":"Haber","en":"News"}'></textarea></label>
+			<input type="hidden" name="_csrf" value={ csrf }/>
+			<button type="submit">Terimi kaydet</button>
+		</form>
+	</section>
+	<section class="studio-card">
+		<h2>Terim kataloğu</h2>
+		<div class="table-wrap">
+			@uicomponents.Table(terms)
+		</div>
+	</section>
+}
