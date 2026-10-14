@@ -12,7 +12,7 @@ import (
 // an empty placeholder.
 func TestEmbeddedHydroGoCSSIsPresent(t *testing.T) {
 	if strings.TrimSpace(CSSText) == "" {
-		t.Fatal("embedded hydrogo dashboard CSS is empty - run scripts/build-hydrogoui-tailwind.ps1 to regenerate dist/hydrogo.css")
+		t.Fatal("embedded hydrogo dashboard CSS is empty - run scripts/build-hydrogoui-tailwind.ps1 to regenerate static/admin/css/hydrogo-dashboard.css")
 	}
 }
 

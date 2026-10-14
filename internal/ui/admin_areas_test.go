@@ -743,7 +743,7 @@ func TestAdminShellSelfHostsInterFont(t *testing.T) {
 	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	if !strings.Contains(out.String(), `/vendor/inter/inter-latin.woff2`) {
+	if !strings.Contains(out.String(), `<link rel="stylesheet" href="/admin-assets/css/fonts.css">`) || !strings.Contains(AdminInterFontCSS, `/vendor/inter/inter-latin.woff2`) {
 		t.Fatal("rendered admin shell missing self-hosted Inter font reference")
 	}
 }

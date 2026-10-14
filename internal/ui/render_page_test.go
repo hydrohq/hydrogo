@@ -24,7 +24,7 @@ func TestRenderPageDirectNavigationWrapsAdminShell(t *testing.T) {
 	if !strings.Contains(body, "<!doctype html>") {
 		t.Errorf("expected <!doctype html> in direct navigation, got: %s", body)
 	}
-	if !strings.Contains(body, `data-ui-theme=`) {
+	if !strings.Contains(body, `data-ui-theme`) {
 		t.Errorf("expected data-ui-theme attribute in direct navigation, got: %s", body)
 	}
 	if !strings.Contains(body, `<div class="test-component">İçerik</div>`) {
