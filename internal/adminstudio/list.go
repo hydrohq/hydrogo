@@ -88,8 +88,6 @@ func (d ListData) ResolvedActionColumnLabel() string {
 	return "İşlemler"
 }
 
-var listTemplate = template.Must(template.New("admin-list").Parse(`<div class="table-wrap"><table class="studio-table" data-admin-list-state><caption class="visually-hidden">{{.ResolvedListCaption}}</caption><thead><tr>{{if .Collection.BulkActions}}<th scope="col" style="width:38px;text-align:center"><span class="visually-hidden">Seç</span><input type="checkbox" aria-label="Tümünü seç" data-bulk-select-all></th>{{end}}{{range .Collection.Fields}}{{if .VisibleInList}}<th scope="col">{{with index $.SortURLs .ID}}<a class="text-link" href="{{.}}">{{end}}{{.Label}}{{with index $.SortURLs .ID}}</a>{{end}}</th>{{end}}{{end}}<th scope="col" style="text-align:right">{{.ResolvedActionColumnLabel}}</th></tr></thead><tbody>{{if .Rows}}{{range .Rows}}{{$row := .}}<tr{{if $row.Status.Value}} data-status-row="{{$row.Status.Value}}"{{end}}>{{if $.Collection.BulkActions}}<td data-label="Seç" style="width:38px;text-align:center"><input type="checkbox" value="{{$row.ID}}" aria-label="{{$.Collection.Label}} kaydını seç" data-bulk-select></td>{{end}}{{range $.Collection.Fields}}{{if .VisibleInList}}<td data-label="{{.Label}}">{{if and (eq .ID $.Collection.TitleField) $row.DetailURL}}<a class="text-link" href="{{$row.DetailURL}}">{{index $row.Values .ID}}</a>{{else if index $row.ValueHTML .ID}}{{index $row.ValueHTML .ID}}{{else if and (eq .ID "status") $row.StatusHTML}}{{$row.StatusHTML}}{{else}}{{index $row.Values .ID}}{{end}}</td>{{end}}{{end}}<td data-label="{{$.ResolvedActionColumnLabel}}" style="text-align:right">{{range $index, $action := .Actions}}{{if index $row.ActionHTML $index}} {{index $row.ActionHTML $index}} {{else}}<a class="text-link" href="{{$action.Href}}">{{$action.Label}}</a> {{end}}{{end}}</td></tr>{{end}}{{else}}<tr><td colspan="{{.ColumnCount}}" class="empty-state"><p role="status">{{.ResolvedEmptyMessage}}</p></td></tr>{{end}}</tbody></table></div>{{if .Collection.BulkActions}}<div class="studio-bulk-actions" role="group" aria-label="Toplu işlemler">{{range .Collection.BulkActions}}<a class="button button-quiet button-sm" href="{{.Href}}" data-bulk-action="{{.Label}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg><span>{{.Label}}</span></a>{{end}}</div>{{end}}`))
-
 // RenderList renders read-only collection rows. Action URLs are constrained by
 // the collection registry, while record mutations remain module-owned routes.
 func RenderList(w io.Writer, data ListData) error {
@@ -166,5 +164,5 @@ func RenderList(w io.Writer, data ListData) error {
 			row.StatusHTML = template.HTML(markup.String())
 		}
 	}
-	return listTemplate.Execute(w, data)
+	return listView(data).Render(context.Background(), w)
 }

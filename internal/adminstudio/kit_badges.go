@@ -1,7 +1,7 @@
 package adminstudio
 
 import (
-	"html/template"
+	"context"
 	"io"
 	"sort"
 )
@@ -12,6 +12,5 @@ import (
 func RenderKitBadges(w io.Writer, kits []Kit) error {
 	ordered := append([]Kit(nil), kits...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
-	const tpl = `<div class="studio-kit-badges" aria-label="Etkin yetenekler">{{range .}}<span class="studio-kit-badge">{{.}}</span>{{end}}</div>`
-	return template.Must(template.New("kit-badges").Parse(tpl)).Execute(w, ordered)
+	return kitBadgesView(ordered).Render(context.Background(), w)
 }
