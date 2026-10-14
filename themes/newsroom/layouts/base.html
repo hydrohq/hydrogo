@@ -13,7 +13,6 @@
   <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
     <a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 bg-red-600 text-white px-4 py-2 rounded z-50 font-bold" href="#main-content">İçeriğe geç</a>
 
-    <!-- TOP BAR -->
     <div class="bg-slate-900 text-slate-300 text-xs border-b border-slate-800">
       <div class="max-w-7xl mx-auto px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-3">
@@ -50,7 +49,6 @@
       </div>
     </div>
 
-    <!-- MAIN HEADER -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
       <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center gap-2 group text-decoration-none shrink-0">
@@ -59,7 +57,6 @@
           <span class="hidden lg:inline-block border-l-2 border-slate-200 pl-3 ml-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Doğru · Hızlı · Bağımsız</span>
         </a>
 
-        <!-- NAV LINKS -->
         <nav class="hidden md:flex items-center gap-1 font-bold text-xs">
           {{if .Navigation}}
           {{slot "navigation"}}
@@ -90,7 +87,6 @@
     </main>
     {{slot "footer"}}
 
-    <!-- FOOTER -->
     <footer class="bg-slate-900 text-slate-400 py-12 px-4 mt-auto border-t border-slate-800">
       <div class="max-w-7xl mx-auto">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800">
