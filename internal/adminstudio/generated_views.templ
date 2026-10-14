@@ -1,0 +1,187 @@
+package adminstudio
+
+import ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+
+// Views of the generated admin (/admin/resources). Handlers build the typed
+// view models in generated_views.go; these components only render them.
+
+templ generatedLocaleNavView(v generatedLocaleNav) {
+	if v.Enabled {
+		<nav class="locale-tabs" aria-label={ v.Label }>
+			for _, item := range v.Items {
+				if item.Current {
+					<span aria-current="page">{ item.Label }</span>{ " " }
+				} else {
+					@ui.ActionForm(item.Switch)
+					{ " " }
+				}
+			}
+		</nav>
+	}
+}
+
+templ generatedIndexView(heading string, tiles []ui.LinkProps) {
+	<section class="studio-card">
+		<h2>{ heading }</h2>
+		<div class="collection-grid">
+			for _, tile := range tiles {
+				@ui.Link(tile)
+			}
+		</div>
+	</section>
+}
+
+templ generatedListPageView(v generatedListPage) {
+	<section class="resource-page">
+		<header class="dashboard-card-head">
+			<div><p class="muted">{ v.Description }</p></div>
+			if v.NewRecord != nil {
+				@ui.Link(*v.NewRecord)
+			}
+			if v.DraftsForm != nil {
+				@ui.ActionForm(*v.DraftsForm)
+			}
+			if v.DraftsLink != nil {
+				@ui.Link(*v.DraftsLink)
+			}
+		</header>
+		@generatedLocaleNavView(v.LocaleNav)
+		<section class="studio-card">
+			if v.Controls != nil {
+				@generatedListControlsView(*v.Controls)
+			}
+			@v.List
+			for _, form := range v.Pager {
+				@ui.ActionForm(form)
+			}
+		</section>
+	</section>
+}
+
+templ generatedListControlsView(v generatedListControls) {
+	<form class="admin-list-toolbar studio-form" method="get" action={ templ.URL(v.Action) }>
+		for _, hidden := range v.Hidden {
+			@ui.HiddenInput(hidden)
+		}
+		if v.Search != nil {
+			@ui.Input(*v.Search)
+		}
+		for _, filter := range v.Filters {
+			if filter.Select != nil {
+				@ui.Select(*filter.Select)
+			} else if filter.Input != nil {
+				@ui.Input(*filter.Input)
+			}
+		}
+		<div class="studio-actions">
+			@ui.Button(v.Apply)
+		</div>
+	</form>
+}
+
+templ generatedRecordDetailsView(rows []generatedDetailRow, back ui.LinkProps) {
+	<dl class="studio-record-details">
+		for _, row := range rows {
+			<div><dt>{ row.Label }</dt><dd>{ row.Value }</dd></div>
+		}
+	</dl>
+	@ui.Link(back)
+}
+
+templ generatedFormPageView(v generatedFormPage) {
+	@generatedLocaleNavView(v.LocaleNav)
+	if v.ConflictMessage != "" {
+		<p role="alert">{ v.ConflictMessage }</p>
+	}
+	@ui.Form(v.Form)
+	if v.Delete != nil {
+		@ui.ActionForm(*v.Delete)
+	}
+	if v.Workflow != nil {
+		<section class="studio-card" aria-labelledby="generated-workflow-heading">
+			<h2 id="generated-workflow-heading">{ v.Workflow.Title }</h2>
+			<div class="studio-actions">
+				for _, form := range v.Workflow.Forms {
+					@ui.ActionForm(form)
+				}
+			</div>
+		</section>
+	}
+	if v.Revisions != nil {
+		@generatedRevisionHistoryView(*v.Revisions)
+	}
+	if v.CopyLocale != nil {
+		<section class="studio-card" aria-labelledby="locale-copy-heading">
+			<h2 id="locale-copy-heading">{ v.CopyLocale.Title }</h2>
+			for _, form := range v.CopyLocale.Forms {
+				@ui.ActionForm(form)
+			}
+		</section>
+	}
+	if v.Discard != nil {
+		@ui.ActionForm(*v.Discard)
+	}
+}
+
+templ generatedFormBodyView(summary *ui.ValidationSummaryProps, fields templ.Component) {
+	if summary != nil {
+		@ui.ValidationSummary(*summary)
+	}
+	@fields
+}
+
+templ generatedRevisionHistoryView(v generatedRevisionHistory) {
+	<section class="studio-card" aria-labelledby="generated-revisions-heading">
+		<h2 id="generated-revisions-heading">{ v.Title }</h2>
+		if len(v.Items) == 0 {
+			<p role="status">{ v.Empty }</p>
+		} else {
+			<ol class="revision-list">
+				for _, item := range v.Items {
+					<li>
+						<div class="revision-list-item">
+							@ui.ActionForm(item.Open)
+							<p>{ item.Summary }</p>
+						</div>
+						if item.Restore != nil {
+							@ui.ActionForm(*item.Restore)
+						}
+					</li>
+				}
+			</ol>
+		}
+	</section>
+}
+
+templ generatedRevisionDiffView(changed bool, diffs []generatedDiffRow, noChanges string) {
+	if !changed {
+		<p role="status">{ noChanges }</p>
+	} else {
+		<dl class="revision-diff-list">
+			for _, diff := range diffs {
+				<div><dt>{ diff.Label }</dt><dd><del>{ diff.Before }</del><br/><ins>{ diff.After }</ins></dd></div>
+			}
+		</dl>
+	}
+}
+
+templ generatedRevisionPageView(card ui.CardProps, restore *ui.ActionFormProps, back ui.ActionFormProps) {
+	@ui.Card(card)
+	if restore != nil {
+		@ui.ActionForm(*restore)
+	}
+	@ui.ActionForm(back)
+}
+
+templ generatedDraftsPageView(v generatedDraftsPage) {
+	@generatedLocaleNavView(v.LocaleNav)
+	<section class="studio-card">
+		<h1>{ v.Title }</h1>
+		<div class="table-wrap" id="generated-drafts-list" data-view-mode="table">
+			@v.List
+			for _, form := range v.Pager {
+				@ui.ActionForm(form)
+			}
+		</div>
+	</section>
+}

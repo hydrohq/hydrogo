@@ -1,12 +1,9 @@
 package adminstudio
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
-	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -14,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 )
@@ -90,26 +86,14 @@ func (h GeneratedAdminHandler) edit(w http.ResponseWriter, r *http.Request, coll
 }
 
 func (h GeneratedAdminHandler) renderReadOnlyRecord(w http.ResponseWriter, r *http.Request, collection Collection, record map[string]any) {
-	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if _, err := io.WriteString(out, `<dl class="studio-record-details">`); err != nil {
-			return err
+	rows := make([]generatedDetailRow, 0, len(collection.Fields))
+	for _, field := range collection.Fields {
+		if field.VisibleInList {
+			rows = append(rows, generatedDetailRow{Label: field.Label, Value: displayFormValue(field, record[field.ID])})
 		}
-		for _, field := range collection.Fields {
-			if !field.VisibleInList {
-				continue
-			}
-			if _, err := fmt.Fprintf(out, `<div><dt>%s</dt><dd>%s</dd></div>`, template.HTMLEscapeString(field.Label), template.HTMLEscapeString(displayFormValue(field, record[field.ID]))); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(out, `</dl>`); err != nil {
-			return err
-		}
-		return ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: i18n.T(generatedAdminLocale(r), "admin.generated.form.back_to_list"), Class: "button button-quiet"}).Render(ctx, out)
-	})
-	card := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		return ui.Card(ui.CardProps{Title: collection.Label + " · " + displayValue(record[collection.TitleField]), Class: "studio-card", Body: body}).Render(ctx, out)
-	})
+	}
+	back := ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: i18n.T(generatedAdminLocale(r), "admin.generated.form.back_to_list"), Class: "button button-quiet"}
+	card := ui.Card(ui.CardProps{Title: collection.Label + " · " + displayValue(record[collection.TitleField]), Class: "studio-card", Body: generatedRecordDetailsView(rows, back)})
 	if err := h.Options.RenderPage(w, r, collection.Label, card); err != nil {
 		h.apiError(w, r)
 	}
@@ -217,83 +201,57 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 	if collection.Localization {
 		action = localePath(action, localeState(r).Current)
 	}
-	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if err := h.generatedLocaleNav(ctx, out, r, collection, id); err != nil {
-			return err
+	uiLocale := generatedAdminLocale(r)
+	localeInfo := localeState(r)
+	localizedEdit := collection.Localization && localeInfo.Current != localeInfo.Options.Default
+	draftEdit := collection.Drafts
+	saveAllowed := !draftEdit || h.Options.CanSaveDraft(r, collection, id, localeInfo.Current) && record["published_conflict"] != true
+	fields := generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, uiLocale, h.Options.BlockEditor)
+	var summary *ui.ValidationSummaryProps
+	if status == http.StatusUnprocessableEntity || len(fieldErrors) > 0 {
+		summary = &ui.ValidationSummaryProps{
+			Title:   i18n.T(uiLocale, "admin.generated.validation.title"),
+			Message: i18n.T(uiLocale, "admin.generated.validation.message"),
+			Fields:  fieldErrors,
 		}
-		localeInfo := localeState(r)
-		localizedEdit := collection.Localization && localeInfo.Current != localeInfo.Options.Default
-		draftEdit := collection.Drafts
-		saveAllowed := !draftEdit || h.Options.CanSaveDraft(r, collection, id, localeInfo.Current) && record["published_conflict"] != true
-		if draftEdit && record["published_conflict"] == true {
-			if _, err := fmt.Fprintf(out, `<p role="alert">%s</p>`, template.HTMLEscapeString(i18n.T(generatedAdminLocale(r), "admin.generated.error.published_conflict"))); err != nil {
-				return err
-			}
+	} else if status == http.StatusBadGateway || status == http.StatusConflict {
+		titleKey, messageKey := "admin.generated.error.title", "admin.generated.error.operation"
+		if failureKind == "delete" {
+			titleKey, messageKey = "admin.generated.error.delete_title", "admin.generated.error.delete_operation"
+		} else if failureKind == "conflict" || status == http.StatusConflict {
+			titleKey, messageKey = "admin.generated.error.title", "admin.generated.error.conflict"
 		}
-		fields := generatedFormFields(collection, values, relationOptions, id, editing, localeInfo.Current, localeInfo.Options.Default, localizedEdit, draftEdit, saveAllowed, generatedAdminLocale(r), h.Options.BlockEditor)
-		formBody := templ.Component(fields)
-		if status == http.StatusUnprocessableEntity || len(fieldErrors) > 0 {
-			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-				if err := ui.ValidationSummary(ui.ValidationSummaryProps{
-					Title:   i18n.T(generatedAdminLocale(r), "admin.generated.validation.title"),
-					Message: i18n.T(generatedAdminLocale(r), "admin.generated.validation.message"),
-					Fields:  fieldErrors,
-				}).Render(ctx, out); err != nil {
-					return err
-				}
-				return fields.Render(ctx, out)
-			})
-		} else if status == http.StatusBadGateway || status == http.StatusConflict {
-			formBody = templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-				titleKey, messageKey := "admin.generated.error.title", "admin.generated.error.operation"
-				if failureKind == "delete" {
-					titleKey, messageKey = "admin.generated.error.delete_title", "admin.generated.error.delete_operation"
-				} else if failureKind == "conflict" || status == http.StatusConflict {
-					titleKey, messageKey = "admin.generated.error.title", "admin.generated.error.conflict"
-				}
-				if err := ui.ValidationSummary(ui.ValidationSummaryProps{
-					Title:   i18n.T(generatedAdminLocale(r), titleKey),
-					Message: i18n.T(generatedAdminLocale(r), messageKey),
-				}).Render(ctx, out); err != nil {
-					return err
-				}
-				return fields.Render(ctx, out)
-			})
+		summary = &ui.ValidationSummaryProps{Title: i18n.T(uiLocale, titleKey), Message: i18n.T(uiLocale, messageKey)}
+	}
+	view := generatedFormPage{
+		LocaleNav: h.generatedLocaleNav(r, collection),
+		Form:      ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: generatedFormBodyView(summary, fields)},
+	}
+	if draftEdit && record["published_conflict"] == true {
+		view.ConflictMessage = i18n.T(uiLocale, "admin.generated.error.published_conflict")
+	}
+	defaultLocale := !collection.Localization || localeInfo.Current == localeInfo.Options.Default
+	if editing && !collection.Drafts && h.resourceAccess(r, collection, id).Delete && collection.Type != "global" && defaultLocale {
+		deleteAction := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/delete"
+		if collection.Localization {
+			deleteAction = localePath(deleteAction, localeInfo.Current)
 		}
-		props := ui.FormProps{Action: action, Method: "post", Class: "studio-form", CSRF: h.Options.CSRFToken(r), Body: formBody}
-		if err := ui.Form(props).Render(ctx, out); err != nil {
-			return err
-		}
-		if editing && !collection.Drafts && h.resourceAccess(r, collection, id).Delete && collection.Type != "global" && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default) {
-			deleteAction := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/delete"
-			if collection.Localization {
-				deleteAction = localePath(deleteAction, localeState(r).Current)
-			}
-			locale := generatedAdminLocale(r)
-			if err := ui.Form(ui.FormProps{Action: deleteAction, Method: "post", CSRF: h.Options.CSRFToken(r), ConfirmAction: i18n.T(locale, "admin.generated.form.delete_confirm"), Body: ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.form.delete"), Variant: ui.Danger})}).Render(ctx, out); err != nil {
-				return err
-			}
-		}
-		if editing && collection.Workflow != nil && (!collection.Localization || localeState(r).Current == localeState(r).Options.Default || collection.Drafts) {
-			if err := h.generatedWorkflowActions(ctx, out, r, collection, id, record); err != nil {
-				return err
-			}
-		}
-		if editing && collection.Revisions {
-			if err := h.generatedRevisionHistory(ctx, out, r, collection, id, record, revisions); err != nil {
-				return err
-			}
-		}
-		if editing && collection.Localization {
-			if err := h.generatedCopyLocaleActions(ctx, out, r, collection, id, record); err != nil {
-				return err
-			}
-		}
-		if editing && collection.Drafts && record["draft_exists"] == true {
-			return h.generatedDiscardDraft(ctx, out, r, collection, id, record)
-		}
-		return nil
-	})
+		form := postForm(deleteAction, h.Options.CSRFToken(r), nil, i18n.T(uiLocale, "admin.generated.form.delete"), ui.Danger)
+		form.ConfirmAction = i18n.T(uiLocale, "admin.generated.form.delete_confirm")
+		view.Delete = &form
+	}
+	if editing && collection.Workflow != nil && (defaultLocale || collection.Drafts) {
+		view.Workflow = h.generatedWorkflowActions(r, collection, id, record)
+	}
+	if editing && collection.Revisions {
+		view.Revisions = h.generatedRevisionHistory(r, collection, id, record, revisions)
+	}
+	if editing && collection.Localization {
+		view.CopyLocale = h.generatedCopyLocaleActions(r, collection, id, record)
+	}
+	if editing && collection.Drafts && record["draft_exists"] == true {
+		view.Discard = h.generatedDiscardDraft(r, collection, id, record)
+	}
 	title := i18n.T(generatedAdminLocale(r), "admin.generated.form.create_title") + " · " + collection.Label
 	if editing {
 		title = i18n.T(generatedAdminLocale(r), "admin.generated.form.edit_title") + " · " + collection.Label
@@ -301,7 +259,7 @@ func (h GeneratedAdminHandler) renderFormState(w http.ResponseWriter, r *http.Re
 	if status != 0 {
 		w.WriteHeader(status)
 	}
-	h.renderPage(w, r, title, body)
+	h.renderPage(w, r, title, generatedFormPageView(view))
 }
 
 func (h GeneratedAdminHandler) loadRelationOptions(r *http.Request, field Field, selectedValue any) ([]ui.SelectOption, error) {
@@ -379,7 +337,9 @@ func relationIDs(value any) []string {
 	}
 }
 
-func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
+// generatedWorkflowActions lists the transitions the user may apply to the
+// record (or its draft), or nil when there are none.
+func (h GeneratedAdminHandler) generatedWorkflowActions(r *http.Request, collection Collection, id string, record map[string]any) *generatedActionGroup {
 	current := PublicationState(displayValue(record[collection.Workflow.StateField]))
 	expectedVersion := generatedRecordVersion(record)
 	draft := draftForRecord(collection, id, record)
@@ -393,7 +353,12 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 	if !slices.Contains(collection.Workflow.States, current) || current == "" || expectedVersion < 1 {
 		return nil
 	}
-	allowedTargets := make([]PublicationState, 0, len(collection.Workflow.Transitions[current]))
+	locale := generatedAdminLocale(r)
+	action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/workflow"
+	if collection.Localization {
+		action = localePath(action, localeState(r).Current)
+	}
+	group := &generatedActionGroup{Title: i18n.T(locale, "admin.generated.workflow.title")}
 	for _, target := range collection.Workflow.Transitions[current] {
 		allowed := false
 		if collection.Drafts {
@@ -401,45 +366,23 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 		} else {
 			allowed = h.Options.CanTransition(r, collection, record, target)
 		}
-		if allowed {
-			allowedTargets = append(allowedTargets, target)
+		if !allowed {
+			continue
 		}
+		hidden := []ui.HiddenInputProps{{Name: "target", Value: string(target)}}
+		if collection.Drafts {
+			hidden = append(hidden,
+				ui.HiddenInputProps{Name: "expected_draft_version", Value: strconv.FormatInt(expectedVersion, 10)},
+				ui.HiddenInputProps{Name: "expected_published_version", Value: strconv.FormatInt(draft.PublishedVersion, 10)})
+		} else {
+			hidden = append(hidden, ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)})
+		}
+		group.Forms = append(group.Forms, postForm(action, h.Options.CSRFToken(r), hidden, workflowActionLabel(locale, target), ui.Primary))
 	}
-	if len(allowedTargets) == 0 {
+	if len(group.Forms) == 0 {
 		return nil
 	}
-	if _, err := fmt.Fprintf(out, `<section class="studio-card" aria-labelledby="generated-workflow-heading"><h2 id="generated-workflow-heading">%s</h2><div class="studio-actions">`, template.HTMLEscapeString(i18n.T(generatedAdminLocale(r), "admin.generated.workflow.title"))); err != nil {
-		return err
-	}
-	for _, target := range allowedTargets {
-		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "target", Value: string(target)}).Render(ctx, form); err != nil {
-				return err
-			}
-			versionName := "expected_version"
-			if collection.Drafts {
-				versionName = "expected_draft_version"
-			}
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: versionName, Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
-				return err
-			}
-			if collection.Drafts {
-				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_published_version", Value: strconv.FormatInt(draft.PublishedVersion, 10)}).Render(ctx, form); err != nil {
-					return err
-				}
-			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: workflowActionLabel(generatedAdminLocale(r), target), Variant: ui.Primary}).Render(ctx, form)
-		})
-		action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/workflow"
-		if collection.Localization {
-			action = localePath(action, localeState(r).Current)
-		}
-		if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
-			return err
-		}
-	}
-	_, err := io.WriteString(out, `</div></section>`)
-	return err
+	return group
 }
 
 func draftForRecord(collection Collection, id string, record map[string]any) DraftDocument {
@@ -449,82 +392,49 @@ func draftForRecord(collection Collection, id string, record map[string]any) Dra
 	return DraftDocument{ID: id, Version: recordVersion(record["draft_version"]), PublishedVersion: recordVersion(record["published_version"]), State: PublicationState(displayValue(record[collection.Workflow.StateField])), Exists: record["draft_exists"] == true}
 }
 
-func (h GeneratedAdminHandler) generatedDiscardDraft(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
+// generatedDiscardDraft is the discard-draft form, or nil when the draft
+// cannot be discarded.
+func (h GeneratedAdminHandler) generatedDiscardDraft(r *http.Request, collection Collection, id string, record map[string]any) *ui.ActionFormProps {
 	draft := draftForRecord(collection, id, record)
 	if !draft.Exists || !h.Options.CanDiscardDraft(r, collection, draft) {
 		return nil
 	}
-	body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-		if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(draft.Version, 10)}).Render(ctx, form); err != nil {
-			return err
-		}
-		return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(generatedAdminLocale(r), "admin.generated.form.discard_draft"), Variant: ui.Danger}).Render(ctx, form)
-	})
 	action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/draft/discard"
 	if collection.Localization {
 		action = localePath(action, localeState(r).Current)
 	}
-	return ui.Form(ui.FormProps{Action: action, Method: http.MethodPost, CSRF: h.Options.CSRFToken(r), ConfirmAction: i18n.T(generatedAdminLocale(r), "admin.generated.form.discard_draft_confirm"), Body: body}).Render(ctx, out)
+	locale := generatedAdminLocale(r)
+	form := postForm(action, h.Options.CSRFToken(r), []ui.HiddenInputProps{{Name: "expected_version", Value: strconv.FormatInt(draft.Version, 10)}}, i18n.T(locale, "admin.generated.form.discard_draft"), ui.Danger)
+	form.Method = http.MethodPost
+	form.ConfirmAction = i18n.T(locale, "admin.generated.form.discard_draft_confirm")
+	return &form
 }
 
-func (h GeneratedAdminHandler) generatedRevisionHistory(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any, revisions []RevisionSummary) error {
+// generatedRevisionHistory lists the record's revisions, newest first, each
+// with a link to its diff and, where allowed, a restore form.
+func (h GeneratedAdminHandler) generatedRevisionHistory(r *http.Request, collection Collection, id string, record map[string]any, revisions []RevisionSummary) *generatedRevisionHistory {
 	locale := generatedAdminLocale(r)
-	if _, err := fmt.Fprintf(out, `<section class="studio-card" aria-labelledby="generated-revisions-heading"><h2 id="generated-revisions-heading">%s</h2>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.revisions.title"))); err != nil {
-		return err
-	}
-	if len(revisions) == 0 {
-		if _, err := fmt.Fprintf(out, `<p role="status">%s</p></section>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.revisions.empty"))); err != nil {
-			return err
-		}
-		return nil
-	}
+	history := &generatedRevisionHistory{Title: i18n.T(locale, "admin.generated.revisions.title"), Empty: i18n.T(locale, "admin.generated.revisions.empty")}
 	revisions = append([]RevisionSummary(nil), revisions...)
 	sort.Slice(revisions, func(i, j int) bool { return revisions[i].Version > revisions[j].Version })
-	if _, err := io.WriteString(out, `<ol class="revision-list">`); err != nil {
-		return err
-	}
 	currentVersion := generatedRecordVersion(record)
 	for _, revision := range revisions {
 		href := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(revision.Version, 10)
-		if _, err := io.WriteString(out, `<li><div class="revision-list-item">`); err != nil {
-			return err
-		}
-		label := fmt.Sprintf(i18n.T(locale, "admin.generated.revisions.version"), revision.Version)
-		visit := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-			if collection.Localization {
-				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
-					return err
-				}
-			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
-		})
-		if err := ui.Form(ui.FormProps{Action: href, Method: http.MethodGet, Body: visit}).Render(ctx, out); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, `<p>`+template.HTMLEscapeString(revisionSummaryText(locale, revision))+`</p></div>`); err != nil {
-			return err
+		item := generatedRevisionItem{
+			Open:    getForm(href, localeHidden(collection.Localization, localeState(r).Current), fmt.Sprintf(i18n.T(locale, "admin.generated.revisions.version"), revision.Version)),
+			Summary: revisionSummaryText(locale, revision),
 		}
 		if revision.Version != currentVersion && h.Options.CanRestore(r, collection, id, revision.Version) {
-			body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(currentVersion, 10)}).Render(ctx, form); err != nil {
-					return err
-				}
-				return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.revisions.restore"), Variant: ui.Quiet}).Render(ctx, form)
-			})
 			action := href + "/restore"
 			if collection.Localization {
 				action = localePath(action, localeState(r).Current)
 			}
-			if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
-				return err
-			}
+			restore := postForm(action, h.Options.CSRFToken(r), []ui.HiddenInputProps{{Name: "expected_version", Value: strconv.FormatInt(currentVersion, 10)}}, i18n.T(locale, "admin.generated.revisions.restore"), ui.Quiet)
+			item.Restore = &restore
 		}
-		if _, err := io.WriteString(out, `</li>`); err != nil {
-			return err
-		}
+		history.Items = append(history.Items, item)
 	}
-	_, err := io.WriteString(out, `</ol></section>`)
-	return err
+	return history
 }
 
 func revisionSummaryText(locale string, revision RevisionSummary) string {

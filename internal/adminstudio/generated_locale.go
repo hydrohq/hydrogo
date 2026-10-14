@@ -1,18 +1,14 @@
 package adminstudio
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 )
@@ -94,68 +90,43 @@ func applyLocalizedValues(collection Collection, record, values map[string]any) 
 	return nil
 }
 
-func (h GeneratedAdminHandler) generatedLocaleNav(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string) error {
+// generatedLocaleNav lists the collection's locales; the current one is
+// marked and the others are GET forms that switch the locale.
+func (h GeneratedAdminHandler) generatedLocaleNav(r *http.Request, collection Collection) generatedLocaleNav {
 	if !collection.Localization {
-		return nil
+		return generatedLocaleNav{}
 	}
 	state := localeState(r)
-	if _, err := fmt.Fprintf(out, `<nav class="locale-tabs" aria-label="%s">`, template.HTMLEscapeString(i18n.T(generatedAdminLocale(r), "admin.generated.locale.navigation"))); err != nil {
-		return err
-	}
+	nav := generatedLocaleNav{Enabled: true, Label: i18n.T(generatedAdminLocale(r), "admin.generated.locale.navigation")}
 	for _, locale := range state.Options.Allowed {
 		label := strings.ToUpper(locale)
-		if locale == state.Current {
-			if _, err := io.WriteString(out, `<span aria-current="page">`+template.HTMLEscapeString(label)+`</span> `); err != nil {
-				return err
-			}
-			continue
+		item := generatedLocaleNavItem{Label: label, Current: locale == state.Current}
+		if !item.Current {
+			item.Switch = getForm(r.URL.Path, []ui.HiddenInputProps{{Name: "locale", Value: locale}}, label)
 		}
-		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: locale}).Render(ctx, form); err != nil {
-				return err
-			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
-		})
-		if err := ui.Form(ui.FormProps{Action: r.URL.Path, Method: http.MethodGet, Body: body}).Render(ctx, out); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, " "); err != nil {
-			return err
-		}
+		nav.Items = append(nav.Items, item)
 	}
-	_, err := io.WriteString(out, `</nav>`)
-	return err
+	return nav
 }
 
-func (h GeneratedAdminHandler) generatedCopyLocaleActions(ctx context.Context, out io.Writer, r *http.Request, collection Collection, id string, record map[string]any) error {
+// generatedCopyLocaleActions offers copying the record from every other
+// locale the user may copy from.
+func (h GeneratedAdminHandler) generatedCopyLocaleActions(r *http.Request, collection Collection, id string, record map[string]any) *generatedActionGroup {
 	locale := generatedAdminLocale(r)
-	if _, err := fmt.Fprintf(out, `<section class="studio-card" aria-labelledby="locale-copy-heading"><h2 id="locale-copy-heading">%s</h2>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.locale.copy_heading"))); err != nil {
-		return err
-	}
+	group := &generatedActionGroup{Title: i18n.T(locale, "admin.generated.locale.copy_heading")}
 	expected := generatedRecordVersion(record)
 	if collection.Localization {
 		expected = recordVersion(record["locale_version"])
 	}
+	action := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id)+"/locale-copy", localeState(r).Current)
 	for _, from := range localeState(r).Options.Allowed {
 		if from == localeState(r).Current || !h.Options.CanCopyLocale(r, collection, id, from) {
 			continue
 		}
-		body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "from_locale", Value: from}).Render(ctx, form); err != nil {
-				return err
-			}
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expected, 10)}).Render(ctx, form); err != nil {
-				return err
-			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: fmt.Sprintf(i18n.T(locale, "admin.generated.locale.copy_action"), strings.ToUpper(from)), Variant: ui.Quiet}).Render(ctx, form)
-		})
-		action := localePath("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id)+"/locale-copy", localeState(r).Current)
-		if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: body}).Render(ctx, out); err != nil {
-			return err
-		}
+		hidden := []ui.HiddenInputProps{{Name: "from_locale", Value: from}, {Name: "expected_version", Value: strconv.FormatInt(expected, 10)}}
+		group.Forms = append(group.Forms, postForm(action, h.Options.CSRFToken(r), hidden, fmt.Sprintf(i18n.T(locale, "admin.generated.locale.copy_action"), strings.ToUpper(from)), ui.Quiet))
 	}
-	_, err := io.WriteString(out, `</section>`)
-	return err
+	return group
 }
 
 func (h GeneratedAdminHandler) copyLocale(w http.ResponseWriter, r *http.Request, collection Collection, id string) {

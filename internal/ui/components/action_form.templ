@@ -1,0 +1,27 @@
+package components
+
+// ActionFormProps describes a form whose body is only hidden fields and one
+// submit button: workflow transitions, restores, deletes, locale switches and
+// list pagination. It renders through Form, so CSRF and confirmation hooks
+// behave exactly as they do there.
+type ActionFormProps struct {
+	Action        string
+	Method        string
+	Class         string
+	CSRF          string
+	ConfirmAction string
+	Hidden        []HiddenInputProps
+	Button        ButtonProps
+}
+
+// ActionForm renders a hidden-fields-and-button form.
+templ ActionForm(p ActionFormProps) {
+	@Form(FormProps{Action: p.Action, Method: p.Method, Class: p.Class, CSRF: p.CSRF, ConfirmAction: p.ConfirmAction, Body: actionFormBody(p.Hidden, p.Button)})
+}
+
+templ actionFormBody(hidden []HiddenInputProps, button ButtonProps) {
+	for _, field := range hidden {
+		@HiddenInput(field)
+	}
+	@Button(button)
+}

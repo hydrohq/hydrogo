@@ -1,16 +1,12 @@
 package adminstudio
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 
-	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 )
@@ -60,59 +56,26 @@ func (h GeneratedAdminHandler) revision(w http.ResponseWriter, r *http.Request, 
 	}
 	diffs := CompareFields(before, after)
 	locale := generatedAdminLocale(r)
-	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		content := templ.ComponentFunc(func(_ context.Context, body io.Writer) error {
-			if len(diffs) == 0 {
-				_, err := fmt.Fprintf(body, `<p role="status">%s</p>`, template.HTMLEscapeString(i18n.T(locale, "admin.generated.revisions.no_changes")))
-				return err
-			}
-			if _, err := io.WriteString(body, `<dl class="revision-diff-list">`); err != nil {
-				return err
-			}
-			for _, diff := range diffs {
-				label := labels[diff.Field]
-				if label == "" {
-					continue
-				}
-				if _, err := fmt.Fprintf(body, `<div><dt>%s</dt><dd><del>%s</del><br><ins>%s</ins></dd></div>`, template.HTMLEscapeString(label), template.HTMLEscapeString(diff.Before), template.HTMLEscapeString(diff.After)); err != nil {
-					return err
-				}
-			}
-			_, err := io.WriteString(body, `</dl>`)
-			return err
-		})
-		if err := ui.Card(ui.CardProps{Title: fmt.Sprintf(i18n.T(locale, "admin.generated.revisions.detail_title"), revision.Version), Class: "studio-card", Body: content}).Render(ctx, out); err != nil {
-			return err
+	rows := make([]generatedDiffRow, 0, len(diffs))
+	for _, diff := range diffs {
+		if label := labels[diff.Field]; label != "" {
+			rows = append(rows, generatedDiffRow{Label: label, Before: diff.Before, After: diff.After})
 		}
-		if h.Options.CanRestore(r, collection, id, version) {
-			expectedVersion := generatedRecordVersion(current)
-			if expectedVersion > 0 {
-				formBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)}).Render(ctx, form); err != nil {
-						return err
-					}
-					return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.revisions.restore"), Variant: ui.Primary}).Render(ctx, form)
-				})
-				action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(version, 10) + "/restore"
-				if collection.Localization {
-					action = localePath(action, localeState(r).Current)
-				}
-				if err := ui.Form(ui.FormProps{Action: action, Method: "post", CSRF: h.Options.CSRFToken(r), Body: formBody}).Render(ctx, out); err != nil {
-					return err
-				}
-			}
-		}
-		back := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id)
-		backBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
+	}
+	card := ui.CardProps{Title: fmt.Sprintf(i18n.T(locale, "admin.generated.revisions.detail_title"), revision.Version), Class: "studio-card", Body: generatedRevisionDiffView(len(diffs) > 0, rows, i18n.T(locale, "admin.generated.revisions.no_changes"))}
+	var restore *ui.ActionFormProps
+	if h.Options.CanRestore(r, collection, id, version) {
+		if expectedVersion := generatedRecordVersion(current); expectedVersion > 0 {
+			action := "/admin/resources/" + url.PathEscape(collection.ID) + "/" + url.PathEscape(id) + "/revisions/" + strconv.FormatInt(version, 10) + "/restore"
 			if collection.Localization {
-				if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
-					return err
-				}
+				action = localePath(action, localeState(r).Current)
 			}
-			return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.form.back_to_record"), Variant: ui.Quiet}).Render(ctx, form)
-		})
-		return ui.Form(ui.FormProps{Action: back, Method: http.MethodGet, Body: backBody}).Render(ctx, out)
-	})
+			form := postForm(action, h.Options.CSRFToken(r), []ui.HiddenInputProps{{Name: "expected_version", Value: strconv.FormatInt(expectedVersion, 10)}}, i18n.T(locale, "admin.generated.revisions.restore"), ui.Primary)
+			restore = &form
+		}
+	}
+	back := getForm("/admin/resources/"+url.PathEscape(collection.ID)+"/"+url.PathEscape(id), localeHidden(collection.Localization, localeState(r).Current), i18n.T(locale, "admin.generated.form.back_to_record"))
+	body := generatedRevisionPageView(card, restore, back)
 	h.renderPage(w, r, i18n.T(locale, "admin.generated.revisions.title")+" · "+collection.Label, body)
 }
 
