@@ -1,12 +1,9 @@
 package adminstudio
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
-	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -14,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	ui "github.com/ardaozyildirim/hydrogo/internal/ui/components"
 )
@@ -26,19 +22,11 @@ func (h GeneratedAdminHandler) index(w http.ResponseWriter, r *http.Request) {
 	if locale == "en" {
 		title, heading = "Generated resources", "Collections"
 	}
-	content := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if _, err := io.WriteString(out, `<section class="studio-card"><h2>`+template.HTMLEscapeString(heading)+`</h2><div class="collection-grid">`); err != nil {
-			return err
-		}
-		for _, collection := range collections {
-			if err := ui.Link(ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: collection.Label, Class: "collection-tile"}).Render(ctx, out); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(out, `</div></section>`)
-		return err
-	})
-	h.renderPage(w, r, title, content)
+	tiles := make([]ui.LinkProps, 0, len(collections))
+	for _, collection := range collections {
+		tiles = append(tiles, ui.LinkProps{Href: "/admin/resources/" + url.PathEscape(collection.ID), Label: collection.Label, Class: "collection-tile"})
+	}
+	h.renderPage(w, r, title, generatedIndexView(heading, tiles))
 }
 
 func (h GeneratedAdminHandler) visibleCollections(r *http.Request) []Collection {
@@ -152,77 +140,43 @@ func (h GeneratedAdminHandler) list(w http.ResponseWriter, r *http.Request, coll
 		}
 		rows = append(rows, row)
 	}
-	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		newURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/new"
-		if collection.Localization && localeState(r).Current != localeState(r).Options.Default {
-			newURL = ""
-		}
-		if _, err := io.WriteString(out, `<section class="resource-page"><header class="dashboard-card-head"><div><p class="muted">`+template.HTMLEscapeString(collection.Description)+`</p></div>`); err != nil {
-			return err
-		}
-		canCreate := collection.Drafts || h.resourceAccess(r, collection, "").Create
-		if newURL != "" && canCreate {
-			if err := ui.Link(ui.LinkProps{Href: newURL, Label: i18n.T(uiLocale, "admin.generated.list.new_record"), Class: "button"}).Render(ctx, out); err != nil {
-				return err
-			}
-		}
-		if collection.Drafts {
-			draftsPath := "/admin/resources/" + url.PathEscape(collection.ID) + "/drafts"
-			if collection.Localization {
-				draftsBody := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-					if err := ui.HiddenInput(ui.HiddenInputProps{Name: "locale", Value: localeState(r).Current}).Render(ctx, form); err != nil {
-						return err
-					}
-					return ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(uiLocale, "admin.generated.drafts.title"), Variant: ui.Quiet}).Render(ctx, form)
-				})
-				if err := ui.Form(ui.FormProps{Action: draftsPath, Method: http.MethodGet, Body: draftsBody}).Render(ctx, out); err != nil {
-					return err
-				}
-			} else if err := ui.Link(ui.LinkProps{Href: draftsPath, Label: i18n.T(uiLocale, "admin.generated.drafts.title"), Class: "button button-quiet"}).Render(ctx, out); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(out, `</header>`); err != nil {
-			return err
-		}
-		if err := h.generatedLocaleNav(context.Background(), out, r, collection, ""); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, `<section class="studio-card">`); err != nil {
-			return err
-		}
-		if err := generatedListControls(out, collection, query, localeState(r).Current, uiLocale); err != nil {
-			return err
-		}
-		if err := RenderList(out, ListData{
-			Collection: collection, Rows: rows, BaseURL: "/admin/resources/" + url.PathEscape(collection.ID),
+	listPath := "/admin/resources/" + url.PathEscape(collection.ID)
+	view := generatedListPage{
+		Description: collection.Description,
+		LocaleNav:   h.generatedLocaleNav(r, collection),
+		Controls:    generatedListControlsFor(collection, query, localeState(r).Current, uiLocale),
+		List: renderListComponent(ListData{
+			Collection: collection, Rows: rows, BaseURL: listPath,
 			Locale: localeState(r).Current, UILocale: uiLocale, Query: query,
 			ListCaption:       fmt.Sprintf(i18n.T(uiLocale, "admin.generated.list.caption"), collection.Label),
 			ActionColumnLabel: i18n.T(uiLocale, "admin.generated.list.actions"),
-		}); err != nil {
-			return err
+		}),
+	}
+	localizedView := collection.Localization && localeState(r).Current != localeState(r).Options.Default
+	if !localizedView && (collection.Drafts || h.resourceAccess(r, collection, "").Create) {
+		view.NewRecord = &ui.LinkProps{Href: listPath + "/new", Label: i18n.T(uiLocale, "admin.generated.list.new_record"), Class: "button"}
+	}
+	if collection.Drafts {
+		draftsPath := listPath + "/drafts"
+		draftsLabel := i18n.T(uiLocale, "admin.generated.drafts.title")
+		if collection.Localization {
+			form := getForm(draftsPath, []ui.HiddenInputProps{{Name: "locale", Value: localeState(r).Current}}, draftsLabel)
+			view.DraftsForm = &form
+		} else {
+			view.DraftsLink = &ui.LinkProps{Href: draftsPath, Label: draftsLabel, Class: "button button-quiet"}
 		}
-		if page > 1 {
-			previous := query
-			previous.Page = page - 1
-			if err := generatedListPageForm(context.Background(), out, collection.ID, previous, localeState(r).Current, i18n.T(uiLocale, "admin.generated.list.previous")); err != nil {
-				return err
-			}
-		}
-		if hasNext {
-			next := query
-			next.Page = page + 1
-			if err := generatedListPageForm(context.Background(), out, collection.ID, next, localeState(r).Current, i18n.T(uiLocale, "admin.generated.list.next")); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(out, `</section>`); err != nil {
-			return err
-		}
-		_, err := io.WriteString(out, `</section>`)
-		return err
-	})
-	h.renderPage(w, r, collection.Label, body)
+	}
+	if page > 1 {
+		previous := query
+		previous.Page = page - 1
+		view.Pager = append(view.Pager, generatedListPageForm(listPath, previous, localeState(r).Current, i18n.T(uiLocale, "admin.generated.list.previous")))
+	}
+	if hasNext {
+		next := query
+		next.Page = page + 1
+		view.Pager = append(view.Pager, generatedListPageForm(listPath, next, localeState(r).Current, i18n.T(uiLocale, "admin.generated.list.next")))
+	}
+	h.renderPage(w, r, collection.Label, generatedListPageView(view))
 }
 
 func generatedResourceQuery(collection Collection, query ListQuery, page int) (url.Values, error) {
@@ -321,45 +275,35 @@ func parseGeneratedListQuery(values url.Values) (ListQuery, error) {
 	return query, nil
 }
 
-func generatedListPageForm(ctx context.Context, out io.Writer, id string, query ListQuery, locale, label string) error {
-	return generatedListPageFormAt(ctx, out, "/admin/resources/"+url.PathEscape(id), query, locale, label)
-}
-
-func generatedListPageFormAt(ctx context.Context, out io.Writer, action string, query ListQuery, locale, label string) error {
-	body := templ.ComponentFunc(func(ctx context.Context, form io.Writer) error {
-		values := url.Values{}
-		if query.Search != "" {
-			values.Set("search", query.Search)
-		}
-		if query.Sort != "" {
-			values.Set("sort", query.Sort)
-		}
-		if query.Page > 0 {
-			values.Set("page", strconv.Itoa(query.Page))
-		}
-		if locale != "" {
-			values.Set("locale", locale)
-		}
-		for field, value := range query.Filters {
-			values.Set("filter["+field+"]", value)
-		}
-		keys := make([]string, 0, len(values))
-		for name := range values {
-			keys = append(keys, name)
-		}
-		sort.Strings(keys)
-		for _, name := range keys {
-			entries := values[name]
-			if len(entries) != 1 {
-				return errors.New("invalid list pagination query")
-			}
-			if err := ui.HiddenInput(ui.HiddenInputProps{Name: name, Value: entries[0]}).Render(ctx, form); err != nil {
-				return err
-			}
-		}
-		return ui.Button(ui.ButtonProps{Type: "submit", Label: label, Variant: ui.Quiet}).Render(ctx, form)
-	})
-	return ui.Form(ui.FormProps{Action: action, Method: http.MethodGet, Body: body}).Render(ctx, out)
+// generatedListPageForm is a GET form that keeps the list query and moves to
+// query.Page.
+func generatedListPageForm(action string, query ListQuery, locale, label string) ui.ActionFormProps {
+	values := url.Values{}
+	if query.Search != "" {
+		values.Set("search", query.Search)
+	}
+	if query.Sort != "" {
+		values.Set("sort", query.Sort)
+	}
+	if query.Page > 0 {
+		values.Set("page", strconv.Itoa(query.Page))
+	}
+	if locale != "" {
+		values.Set("locale", locale)
+	}
+	for field, value := range query.Filters {
+		values.Set("filter["+field+"]", value)
+	}
+	keys := make([]string, 0, len(values))
+	for name := range values {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	hidden := make([]ui.HiddenInputProps, 0, len(keys))
+	for _, name := range keys {
+		hidden = append(hidden, ui.HiddenInputProps{Name: name, Value: values.Get(name)})
+	}
+	return getForm(action, hidden, label)
 }
 
 func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request, collection Collection) {
@@ -459,40 +403,26 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 	}
 	baseURL := "/admin/resources/" + url.PathEscape(collection.ID) + "/drafts"
 	query.Page = page
-	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if err := h.generatedLocaleNav(ctx, out, r, collection, ""); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, `<section class="studio-card"><h1>`+template.HTMLEscapeString(i18n.T(locale, "admin.generated.drafts.title"))+` · `+template.HTMLEscapeString(collection.Label)+`</h1>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(out, `<div class="table-wrap" id="generated-drafts-list" data-view-mode="table">`); err != nil {
-			return err
-		}
-		if err := RenderList(out, ListData{
+	title := i18n.T(locale, "admin.generated.drafts.title") + " · " + collection.Label
+	view := generatedDraftsPage{
+		LocaleNav: h.generatedLocaleNav(r, collection),
+		Title:     title,
+		List: renderListComponent(ListData{
 			Collection: listCollection, Rows: rows, Locale: localeState(r).Current, UILocale: locale,
 			EmptyMessage:      i18n.T(locale, "admin.generated.drafts.empty"),
 			ListCaption:       fmt.Sprintf(i18n.T(locale, "admin.generated.drafts.caption"), collection.Label),
 			ActionColumnLabel: i18n.T(locale, "admin.generated.drafts.actions"),
-		}); err != nil {
-			return err
-		}
-		if h.Options.ListDraftPage != nil && page > 1 {
-			previous := query
-			previous.Page = page - 1
-			if err := generatedListPageFormAt(ctx, out, baseURL, previous, localeState(r).Current, i18n.T(locale, "admin.generated.list.previous")); err != nil {
-				return err
-			}
-		}
-		if h.Options.ListDraftPage != nil && hasNext {
-			next := query
-			next.Page = page + 1
-			if err := generatedListPageFormAt(ctx, out, baseURL, next, localeState(r).Current, i18n.T(locale, "admin.generated.list.next")); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(out, `</div></section>`)
-		return err
-	})
-	h.renderPage(w, r, i18n.T(locale, "admin.generated.drafts.title")+" · "+collection.Label, body)
+		}),
+	}
+	if h.Options.ListDraftPage != nil && page > 1 {
+		previous := query
+		previous.Page = page - 1
+		view.Pager = append(view.Pager, generatedListPageForm(baseURL, previous, localeState(r).Current, i18n.T(locale, "admin.generated.list.previous")))
+	}
+	if h.Options.ListDraftPage != nil && hasNext {
+		next := query
+		next.Page = page + 1
+		view.Pager = append(view.Pager, generatedListPageForm(baseURL, next, localeState(r).Current, i18n.T(locale, "admin.generated.list.next")))
+	}
+	h.renderPage(w, r, title, generatedDraftsPageView(view))
 }

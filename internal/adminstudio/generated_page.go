@@ -132,11 +132,10 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 		return markup, nil
 	}
 	var sidebar bytes.Buffer
-	if err := ui.Sidebar(items).Render(context.Background(), &sidebar); err != nil {
+	if err := ui.SidebarItems(items).Render(context.Background(), &sidebar); err != nil {
 		return nil, err
 	}
-	navigation := strings.TrimPrefix(sidebar.String(), `<nav aria-label="Modüller">`)
-	navigation = strings.TrimSuffix(navigation, `</nav>`)
+	navigation := sidebar.String()
 	result := string(markup)
 	if end := strings.Index(result, `</nav>`); end >= 0 {
 		result = result[:end] + navigation + result[end:]
@@ -146,19 +145,16 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 
 func (h GeneratedAdminHandler) apiError(w http.ResponseWriter, r *http.Request) {
 	locale := generatedAdminLocale(r)
-	body := templ.ComponentFunc(func(ctx context.Context, out io.Writer) error {
-		if err := ui.ValidationSummary(ui.ValidationSummaryProps{
-			Title:   i18n.T(locale, "admin.generated.error.load_title"),
-			Message: i18n.T(locale, "admin.generated.error.load_message"),
-		}).Render(ctx, out); err != nil {
-			return err
-		}
-		return ui.Form(ui.FormProps{
-			Action: r.URL.Path,
-			Method: http.MethodGet,
-			Class:  "generated-load-retry",
-			Body:   ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.error.retry"), Variant: ui.Primary}),
-		}).Render(ctx, out)
+	summary := &ui.ValidationSummaryProps{
+		Title:   i18n.T(locale, "admin.generated.error.load_title"),
+		Message: i18n.T(locale, "admin.generated.error.load_message"),
+	}
+	retry := ui.Form(ui.FormProps{
+		Action: r.URL.Path,
+		Method: http.MethodGet,
+		Class:  "generated-load-retry",
+		Body:   ui.Button(ui.ButtonProps{Type: "submit", Label: i18n.T(locale, "admin.generated.error.retry"), Variant: ui.Primary}),
 	})
+	body := generatedFormBodyView(summary, retry)
 	h.renderPageStatus(w, r, i18n.T(locale, "admin.generated.error.load_title"), body, http.StatusBadGateway)
 }

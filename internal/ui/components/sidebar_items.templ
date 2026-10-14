@@ -1,0 +1,29 @@
+package components
+
+import "strings"
+
+// sidebarGroupLabels returns, per item, the group heading to print before it
+// ("" when the item continues the previous group), matching Sidebar.
+func sidebarGroupLabels(items []SidebarItem) []string {
+	labels := make([]string, len(items))
+	lastGroup := ""
+	for index, item := range items {
+		group := strings.TrimSpace(item.Group)
+		if group != lastGroup && group != "" {
+			labels[index] = strings.ToUpper(group)
+			lastGroup = group
+		}
+	}
+	return labels
+}
+
+// SidebarItems renders Sidebar's entries without the surrounding <nav>, for
+// callers that append module entries to an existing navigation.
+templ SidebarItems(items []SidebarItem) {
+	for index, item := range items {
+		if label := sidebarGroupLabels(items)[index]; label != "" {
+			<span class="sidebar-section-label">{ label }</span>
+		}
+		<a class={ "nav-item", templ.KV("is-active", item.Active) } href={ templ.URL(item.Route) }><span class="nav-icon" data-icon={ item.Icon } aria-hidden="true"></span><span>{ item.Label }</span></a>
+	}
+}
