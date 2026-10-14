@@ -21,7 +21,7 @@ func (r *countingReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
-func skip_TestSecurityHeadersAndCSPNonce(t *testing.T) {
+func TestSecurityHeadersAndStrictCSP(t *testing.T) {
 	handler := HeadersMiddleware(HeaderConfig{EnableHSTS: true})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
@@ -37,8 +37,15 @@ func skip_TestSecurityHeadersAndCSPNonce(t *testing.T) {
 	}
 
 	csp := rec.Header().Get("Content-Security-Policy")
-	if !strings.Contains(csp, "script-src 'self' 'nonce-") {
-		t.Errorf("expected CSP header with script nonce, got %q", csp)
+	// Inline code is allowed only by hash; the strict preset never allows
+	// arbitrary inline scripts or styles.
+	for _, want := range []string{"default-src 'self'", "script-src 'self'", "object-src 'none'", "frame-ancestors 'none'"} {
+		if !strings.Contains(csp, want) {
+			t.Errorf("CSP %q missing %q", csp, want)
+		}
+	}
+	if strings.Contains(csp, "'unsafe-inline'") && !strings.Contains(csp, "style-src-attr 'unsafe-inline'") || strings.Contains(csp, "'unsafe-eval'") {
+		t.Errorf("strict CSP allows unsafe sources: %q", csp)
 	}
 	if rec.Header().Get("X-Frame-Options") != "DENY" {
 		t.Errorf("expected X-Frame-Options DENY, got %q", rec.Header().Get("X-Frame-Options"))

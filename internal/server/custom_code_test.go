@@ -9,7 +9,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
-func skip_TestCustomCodeMiddlewareInsertsOnlyPublicHTML(t *testing.T) {
+func TestCustomCodeMiddlewareInsertsAndAllowsSnippets(t *testing.T) {
 	provider := func(*http.Request) (string, string) {
 		return `<script src="https://www.googletagmanager.com/gtm.js"></script>`, `<script>gtag('config')</script>`
 	}
@@ -21,8 +21,12 @@ func skip_TestCustomCodeMiddlewareInsertsOnlyPublicHTML(t *testing.T) {
 	req.Header.Set("Accept", "text/html")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-	if !strings.Contains(rec.Body.String(), "googletagmanager") || !strings.Contains(rec.Body.String(), "nonce=") {
-		t.Fatalf("custom code was not inserted/nonced: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "googletagmanager") || !strings.Contains(rec.Body.String(), "gtag('config')") {
+		t.Fatalf("custom code was not inserted: %s", rec.Body.String())
+	}
+	inlineHash, _ := security.InlineCSPHashes([]byte(`<script>gtag('config')</script>`))
+	if len(inlineHash) != 1 || !strings.Contains(rec.Header().Get("Content-Security-Policy"), "'sha256-"+inlineHash[0]+"'") {
+		t.Fatalf("CSP does not allow the inline snippet by hash: %s", rec.Header().Get("Content-Security-Policy"))
 	}
 	if !strings.Contains(rec.Header().Get("Content-Security-Policy"), "https://www.googletagmanager.com") {
 		t.Fatalf("CSP did not permit validated source: %s", rec.Header().Get("Content-Security-Policy"))

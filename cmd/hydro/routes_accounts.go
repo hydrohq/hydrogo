@@ -35,7 +35,8 @@ func (a *serveApp) authRoutes() []router.Route {
 }
 
 func (a *serveApp) pushRoutes() []router.Route {
-	if !a.modules["push"] {
+	// Safe mode leaves the dispatcher unset even when the module is enabled.
+	if !a.modules["push"] || a.pushDispatcher == nil {
 		return nil
 	}
 	pushDispatcher, newRateLimiter := a.pushDispatcher, a.newRateLimiter
