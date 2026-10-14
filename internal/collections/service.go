@@ -21,7 +21,9 @@ type Repository interface {
 	CreateSchema(context.Context, Schema) error
 	UpdateSchema(context.Context, Schema) error
 	DeleteSchema(context.Context, string) error
-	ListRecords(context.Context, string, int, int) ([]Record, error)
+	// QueryRecords lists records matching a query already checked by
+	// Schema.ValidateQuery.
+	QueryRecords(ctx context.Context, collectionID string, query Query) ([]Record, error)
 	GetRecord(context.Context, string, string) (Record, error)
 	// SaveRecord creates (empty id) or updates a record. When expectedVersion
 	// is positive the update only applies if the stored version still matches,
@@ -111,10 +113,21 @@ func (s Service) ListRecords(ctx context.Context, collectionID string, limit, of
 	if limit < 1 || limit > 100 || offset < 0 || offset > MaxCollectionRecords {
 		return nil, ErrInvalidRecord
 	}
-	if _, err := s.GetSchema(ctx, collectionID); err != nil {
+	return s.QueryRecords(ctx, collectionID, Query{Limit: limit, Offset: offset})
+}
+
+// QueryRecords validates the query against the collection schema and returns
+// the matching page of records. Without a sort, records come newest first.
+func (s Service) QueryRecords(ctx context.Context, collectionID string, query Query) ([]Record, error) {
+	schema, err := s.GetSchema(ctx, collectionID)
+	if err != nil {
 		return nil, err
 	}
-	return s.Repository.ListRecords(ctx, collectionID, limit, offset)
+	checked, err := schema.ValidateQuery(query)
+	if err != nil {
+		return nil, err
+	}
+	return s.Repository.QueryRecords(ctx, collectionID, checked)
 }
 
 func (s Service) GetRecord(ctx context.Context, collectionID, id string) (Record, error) {

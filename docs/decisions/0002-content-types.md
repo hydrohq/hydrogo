@@ -39,9 +39,14 @@ not have yet.
   0001 come back as YAML files when needed (FAQ, team and testimonials ship
   as examples).
 - Not yet supported for content types: drafts, revisions, localisation,
-  workflow, search and filtering in lists, array and block fields. They will
-  be added to collection storage behind the callbacks `GeneratedAdminHandler`
-  already defines.
+  workflow, array and block fields. They will be added to collection storage
+  behind the callbacks `GeneratedAdminHandler` already defines.
+- Lists support search (`searchable: true` fields), filters
+  (`filterable: true`) and sorting by list columns. Collection storage runs
+  them as dialect-specific JSON queries (SQLite `json_extract`, PostgreSQL
+  `->>`, MySQL `JSON_EXTRACT`) with field paths as bound parameters, after
+  checking every field ID against the schema. The public API accepts
+  `?search=`, `?filter[field]=` and `?sort=[-]field`.
 - The blueprint generator and the browser-based schema builder at
   `/admin/collections` (with its `/api/v1/collections` API) overlapped with
   this and have been removed.

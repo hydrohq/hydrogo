@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -68,12 +67,12 @@ func (a AdminAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a AdminAPI) list(w http.ResponseWriter, r *http.Request, schema collections.Schema) {
-	limit, offset, ok := paging(r)
-	if !ok {
-		writeError(w, http.StatusBadRequest, "invalid limit or offset")
+	query, err := parseAdminQuery(r.URL.Query())
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid list query")
 		return
 	}
-	records, err := a.Service.ListRecords(r.Context(), schema.ID, limit, offset)
+	records, err := a.Service.QueryRecords(r.Context(), schema.ID, query)
 	if err != nil {
 		writeServiceError(w, err, schema, nil)
 		return
@@ -179,25 +178,6 @@ func toStorage(schema collections.Schema, payload map[string]any) map[string]any
 	return data
 }
 
-func paging(r *http.Request) (int, int, bool) {
-	limit, offset := 25, 0
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 || value > 100 {
-			return 0, 0, false
-		}
-		limit = value
-	}
-	if raw := r.URL.Query().Get("offset"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 0 || value > collections.MaxCollectionRecords {
-			return 0, 0, false
-		}
-		offset = value
-	}
-	return limit, offset, true
-}
-
 // writeServiceError maps collection errors onto the responses the generated
 // admin understands: 404, 409 for a stale version, and 422 with per-field
 // codes for validation and uniqueness failures.
@@ -205,6 +185,8 @@ func writeServiceError(w http.ResponseWriter, err error, schema collections.Sche
 	switch {
 	case errors.Is(err, collections.ErrCollectionNotFound), errors.Is(err, collections.ErrRecordNotFound):
 		writeError(w, http.StatusNotFound, "not found")
+	case errors.Is(err, collections.ErrInvalidQuery):
+		writeError(w, http.StatusBadRequest, "invalid list query")
 	case errors.Is(err, collections.ErrVersionConflict):
 		writeError(w, http.StatusConflict, "the record was changed by someone else")
 	case errors.Is(err, collections.ErrUniqueValue):
