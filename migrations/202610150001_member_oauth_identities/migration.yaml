@@ -1,0 +1,30 @@
+id: "202610150001_member_oauth_identities"
+module: "members"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609190009_members_tenant_scope"
+  - "202609200003_postgres_tenant_rls"
+checksum_sha256:
+  sqlite: "3c423f3f8102cb9d626ca07d31b5a6fc24c0eed47b1b74a14f0fa5b61bc853b2"
+  postgres: "1e851b45fcadc917fd29001d48d94f9ecd9d008ffb39ccfa4b43ccc01f3938fd"
+  mysql: "660b45a1088373e7d092c7bc047ec0fc76a2cc3b8640f387ef61fce8beed07ce"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The members table includes tenant_id"
+disk_estimate: "One identity mapping row and index per linked member social account"
+lock_timeout: "Bounded by the migration runner lock timeout"
+compatibility: "Adds optional provider subject mappings; existing members, passwords and sessions are unchanged."
+smoke:
+  - "A verified provider identity links to an existing member by identity, or by email, within the same tenant"
+  - "A verified provider identity with no existing match provisions a new active member"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Back up linked identity mappings before dropping the table; members and passwords are unaffected."

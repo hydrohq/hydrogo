@@ -10,6 +10,7 @@
 <button type="submit">{{if .Register}}Register{{else}}Sign in{{end}}</button>
 <div data-member-status role="alert"></div>
 </form>
+{{if .OAuthProviders}}<p>{{range .OAuthProviders}}<a href="{{.URL}}">Continue with {{.Label}}</a> {{end}}</p>{{end}}
 <p><a href="{{.SwitchURL}}">{{if .Register}}Sign in{{else}}Create an account{{end}}</a></p>
 </main>
 {{template "builtin-foot" .Site}}

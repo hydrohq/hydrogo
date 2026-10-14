@@ -69,10 +69,30 @@ func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, reg
 	if returnTo != "/member/account" {
 		view.SwitchURL += "?return_to=" + url.QueryEscape(returnTo)
 	}
+	for _, name := range h.OAuthProviderNames {
+		startURL := "/member/oauth/" + url.PathEscape(name) + "/start"
+		if returnTo != "/member/account" {
+			startURL += "?return_to=" + url.QueryEscape(returnTo)
+		}
+		view.OAuthProviders = append(view.OAuthProviders, v1.MemberOAuthProviderView{Name: name, Label: memberOAuthProviderLabel(name), URL: startURL})
+	}
 	view.Site = h.memberSiteView(locale, "")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := v1.RenderThemeView(h.Theme, w, v1.ViewMemberAuth, view); err != nil {
 		http.Error(w, "member page unavailable", http.StatusInternalServerError)
+	}
+}
+
+func memberOAuthProviderLabel(name string) string {
+	switch name {
+	case "google":
+		return "Google"
+	case "github":
+		return "GitHub"
+	case "apple":
+		return "Apple"
+	default:
+		return name
 	}
 }
 

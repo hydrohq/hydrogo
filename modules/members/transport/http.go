@@ -39,6 +39,10 @@ type Handler struct {
 	VerificationEnabled  bool
 	// Theme renders the public member pages; nil uses the built-in views.
 	Theme *v1.ThemeBundle
+	// OAuthProviderNames lists the social providers configured for member
+	// sign-in ("google", "github", "apple"), in display order. Empty hides
+	// the social sign-in section entirely.
+	OAuthProviderNames []string
 }
 
 // memberResponseWriter removes legacy client-side member state persistence

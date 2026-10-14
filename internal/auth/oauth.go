@@ -48,16 +48,40 @@ func (f OAuthIdentityResolverFunc) ResolveOAuth(ctx context.Context, identity OA
 	return f(ctx, identity)
 }
 
-type SocialOAuthHandler struct {
+// OAuthFlow is the provider-facing half of a social sign-in: it validates
+// the provider name, runs the PKCE + signed-state dance, exchanges the
+// authorization code and verifies the returned identity (including Apple's
+// signed id_token). It knows nothing about accounts, roles or sessions —
+// callers (SocialOAuthHandler here for admin staff, and the member-facing
+// handler in modules/members/transport) each supply their own resolver and
+// session issuance on top of the OAuthIdentity it returns. This split exists
+// so the token-exchange and Apple JWT verification code, the parts most
+// worth getting right once, are never duplicated between the two.
+type OAuthFlow struct {
 	Providers              map[string]OAuthProviderConfig
-	Resolver               OAuthAccountResolver
-	Service                *AuthService
-	Audit                  AuditRecorder
 	HTTPClient             *http.Client
 	StateKey               []byte
 	Secure                 bool
 	AllowInsecureLocalhost bool
 	Now                    func() time.Time
+	// CookieName, CookiePath, DefaultReturnTo and CancelRedirect default to
+	// the admin surface's historical values ("hydro_oauth_state",
+	// "/auth/oauth/", "/admin", "/login?social=cancelled") when empty, so
+	// existing admin wiring and tests are unaffected. A second consumer
+	// (member sign-in) sets its own values so the two flows' state cookies
+	// and redirects never collide, even though both can run in the same
+	// process.
+	CookieName      string
+	CookiePath      string
+	DefaultReturnTo string
+	CancelRedirect  string
+}
+
+type SocialOAuthHandler struct {
+	OAuthFlow
+	Resolver OAuthAccountResolver
+	Service  *AuthService
+	Audit    AuditRecorder
 }
 
 type oauthState struct {
@@ -88,89 +112,17 @@ func (h SocialOAuthHandler) Routes() []HTTPRoute {
 		return nil
 	}
 	return []HTTPRoute{
-		{Pattern: "GET /auth/oauth/{provider}/start", Public: true, Handler: http.HandlerFunc(h.start)},
+		{Pattern: "GET /auth/oauth/{provider}/start", Public: true, Handler: http.HandlerFunc(h.Start)},
 		{Pattern: "GET /auth/oauth/{provider}/callback", Public: true, Handler: http.HandlerFunc(h.callback)},
 	}
 }
 
-func (h SocialOAuthHandler) start(w http.ResponseWriter, r *http.Request) {
-	provider, ok := h.provider(r.PathValue("provider"))
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	if !validOAuthURL(provider.AuthorizationURL, h.AllowInsecureLocalhost) || !validOAuthURL(provider.RedirectURL, h.AllowInsecureLocalhost) || provider.ClientID == "" {
-		http.Error(w, "social login unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	returnTo := safeOAuthReturnTo(r.URL.Query().Get("return_to"))
-	state, err := randomOAuthValue(32)
-	if err != nil {
-		http.Error(w, "social login unavailable", http.StatusInternalServerError)
-		return
-	}
-	verifier, err := randomOAuthValue(48)
-	if err != nil {
-		http.Error(w, "social login unavailable", http.StatusInternalServerError)
-		return
-	}
-	nonce, err := randomOAuthValue(32)
-	if err != nil {
-		http.Error(w, "social login unavailable", http.StatusInternalServerError)
-		return
-	}
-	now := h.now()
-	serialized, _ := json.Marshal(oauthState{State: state, Verifier: verifier, Nonce: nonce, ReturnTo: returnTo, Expires: now.Add(10 * time.Minute).Unix()})
-	encoded := base64.RawURLEncoding.EncodeToString(serialized)
-	mac := hmac.New(sha256.New, h.StateKey)
-	_, _ = mac.Write([]byte(encoded))
-	value := encoded + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	http.SetCookie(w, &http.Cookie{Name: "hydro_oauth_state", Value: value, Path: "/auth/oauth/", MaxAge: 600, HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode})
-	u, _ := url.Parse(provider.AuthorizationURL)
-	query := u.Query()
-	query.Set("response_type", "code")
-	query.Set("client_id", provider.ClientID)
-	query.Set("redirect_uri", provider.RedirectURL)
-	query.Set("scope", strings.Join(provider.Scopes, " "))
-	query.Set("state", state)
-	query.Set("code_challenge_method", "S256")
-	challenge := sha256.Sum256([]byte(verifier))
-	query.Set("code_challenge", base64.RawURLEncoding.EncodeToString(challenge[:]))
-	if provider.Apple {
-		query.Set("nonce", nonce)
-		query.Set("response_mode", "query")
-	}
-	u.RawQuery = query.Encode()
-	http.Redirect(w, r, u.String(), http.StatusFound)
-}
-
+// callback resolves the generic exchange, then applies admin policy: only an
+// existing, active admin or editor account may be signed in this way — the
+// resolver (OAuthIdentityStore) never creates one.
 func (h SocialOAuthHandler) callback(w http.ResponseWriter, r *http.Request) {
-	provider, ok := h.provider(r.PathValue("provider"))
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-	if r.URL.Query().Get("error") != "" {
-		clearOAuthCookie(w, h.Secure)
-		http.Redirect(w, r, "/login?social=cancelled", http.StatusSeeOther)
-		return
-	}
-	state := r.URL.Query().Get("state")
-	code := r.URL.Query().Get("code")
-	cookie, err := r.Cookie("hydro_oauth_state")
-	if err != nil || state == "" || code == "" {
-		http.Error(w, "invalid social login response", http.StatusBadRequest)
-		return
-	}
-	clearOAuthCookie(w, h.Secure)
-	pending, err := h.decodeState(cookie.Value)
-	if err != nil || subtle.ConstantTimeCompare([]byte(pending.State), []byte(state)) != 1 || pending.Expires < h.now().Unix() {
-		http.Error(w, "social login expired; please try again", http.StatusBadRequest)
-		return
-	}
-	identity, err := h.exchange(r.Context(), provider, code, pending)
-	if err != nil {
-		http.Error(w, "social login could not be completed", http.StatusUnauthorized)
+	identity, returnTo, handled := h.HandleCallback(w, r)
+	if handled {
 		return
 	}
 	user, err := h.Resolver.ResolveOAuth(r.Context(), identity)
@@ -191,11 +143,133 @@ func (h SocialOAuthHandler) callback(w http.ResponseWriter, r *http.Request) {
 	if h.Audit != nil {
 		_ = h.Audit.Record(r.Context(), "auth.oauth.login", user.ID)
 	}
-	http.Redirect(w, r, pending.ReturnTo, http.StatusSeeOther)
+	http.Redirect(w, r, returnTo, http.StatusSeeOther)
 }
 
-func (h SocialOAuthHandler) exchange(ctx context.Context, provider OAuthProviderConfig, code string, pending oauthState) (OAuthIdentity, error) {
-	if !validOAuthURL(provider.TokenURL, h.AllowInsecureLocalhost) || (!provider.Apple && !validOAuthURL(provider.UserInfoURL, h.AllowInsecureLocalhost)) {
+// Start begins a provider's authorization-code + PKCE flow: it validates the
+// provider and its configured URLs, mints a signed, time-boxed state cookie
+// (and a PKCE verifier, and a nonce for Apple), and redirects to the
+// provider's authorization endpoint.
+func (f OAuthFlow) Start(w http.ResponseWriter, r *http.Request) {
+	provider, ok := f.provider(r.PathValue("provider"))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if !validOAuthURL(provider.AuthorizationURL, f.AllowInsecureLocalhost) || !validOAuthURL(provider.RedirectURL, f.AllowInsecureLocalhost) || provider.ClientID == "" {
+		http.Error(w, "social login unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	returnTo := safeOAuthReturnTo(r.URL.Query().Get("return_to"), f.defaultReturnTo())
+	state, err := randomOAuthValue(32)
+	if err != nil {
+		http.Error(w, "social login unavailable", http.StatusInternalServerError)
+		return
+	}
+	verifier, err := randomOAuthValue(48)
+	if err != nil {
+		http.Error(w, "social login unavailable", http.StatusInternalServerError)
+		return
+	}
+	nonce, err := randomOAuthValue(32)
+	if err != nil {
+		http.Error(w, "social login unavailable", http.StatusInternalServerError)
+		return
+	}
+	now := f.now()
+	serialized, _ := json.Marshal(oauthState{State: state, Verifier: verifier, Nonce: nonce, ReturnTo: returnTo, Expires: now.Add(10 * time.Minute).Unix()})
+	encoded := base64.RawURLEncoding.EncodeToString(serialized)
+	mac := hmac.New(sha256.New, f.StateKey)
+	_, _ = mac.Write([]byte(encoded))
+	value := encoded + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	http.SetCookie(w, &http.Cookie{Name: f.cookieName(), Value: value, Path: f.cookiePath(), MaxAge: 600, HttpOnly: true, Secure: f.Secure, SameSite: http.SameSiteLaxMode})
+	u, _ := url.Parse(provider.AuthorizationURL)
+	query := u.Query()
+	query.Set("response_type", "code")
+	query.Set("client_id", provider.ClientID)
+	query.Set("redirect_uri", provider.RedirectURL)
+	query.Set("scope", strings.Join(provider.Scopes, " "))
+	query.Set("state", state)
+	query.Set("code_challenge_method", "S256")
+	challenge := sha256.Sum256([]byte(verifier))
+	query.Set("code_challenge", base64.RawURLEncoding.EncodeToString(challenge[:]))
+	if provider.Apple {
+		query.Set("nonce", nonce)
+		query.Set("response_mode", "query")
+	}
+	u.RawQuery = query.Encode()
+	http.Redirect(w, r, u.String(), http.StatusFound)
+}
+
+// HandleCallback is the provider-facing half of a callback: it always clears
+// the state cookie, handles a user-cancelled flow, validates and decodes the
+// signed state, and exchanges the code for a verified identity. On any
+// outcome that the caller should not continue past (cancellation, a missing
+// or invalid state, or a failed exchange) it writes the response itself and
+// returns handled=true; the caller's own account-resolution and session
+// logic only runs when handled is false.
+func (f OAuthFlow) HandleCallback(w http.ResponseWriter, r *http.Request) (identity OAuthIdentity, returnTo string, handled bool) {
+	provider, ok := f.provider(r.PathValue("provider"))
+	if !ok {
+		http.NotFound(w, r)
+		return OAuthIdentity{}, "", true
+	}
+	if r.URL.Query().Get("error") != "" {
+		clearOAuthCookie(w, f.Secure, f.cookieName(), f.cookiePath())
+		http.Redirect(w, r, f.cancelRedirect(), http.StatusSeeOther)
+		return OAuthIdentity{}, "", true
+	}
+	state := r.URL.Query().Get("state")
+	code := r.URL.Query().Get("code")
+	cookie, err := r.Cookie(f.cookieName())
+	if err != nil || state == "" || code == "" {
+		http.Error(w, "invalid social login response", http.StatusBadRequest)
+		return OAuthIdentity{}, "", true
+	}
+	clearOAuthCookie(w, f.Secure, f.cookieName(), f.cookiePath())
+	pending, err := f.decodeState(cookie.Value)
+	if err != nil || subtle.ConstantTimeCompare([]byte(pending.State), []byte(state)) != 1 || pending.Expires < f.now().Unix() {
+		http.Error(w, "social login expired; please try again", http.StatusBadRequest)
+		return OAuthIdentity{}, "", true
+	}
+	identity, err = f.exchange(r.Context(), provider, code, pending)
+	if err != nil {
+		http.Error(w, "social login could not be completed", http.StatusUnauthorized)
+		return OAuthIdentity{}, "", true
+	}
+	return identity, pending.ReturnTo, false
+}
+
+func (f OAuthFlow) cookieName() string {
+	if f.CookieName != "" {
+		return f.CookieName
+	}
+	return "hydro_oauth_state"
+}
+
+func (f OAuthFlow) cookiePath() string {
+	if f.CookiePath != "" {
+		return f.CookiePath
+	}
+	return "/auth/oauth/"
+}
+
+func (f OAuthFlow) defaultReturnTo() string {
+	if f.DefaultReturnTo != "" {
+		return f.DefaultReturnTo
+	}
+	return "/admin"
+}
+
+func (f OAuthFlow) cancelRedirect() string {
+	if f.CancelRedirect != "" {
+		return f.CancelRedirect
+	}
+	return "/login?social=cancelled"
+}
+
+func (f OAuthFlow) exchange(ctx context.Context, provider OAuthProviderConfig, code string, pending oauthState) (OAuthIdentity, error) {
+	if !validOAuthURL(provider.TokenURL, f.AllowInsecureLocalhost) || (!provider.Apple && !validOAuthURL(provider.UserInfoURL, f.AllowInsecureLocalhost)) {
 		return OAuthIdentity{}, errors.New("invalid provider endpoint")
 	}
 	form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "client_id": {provider.ClientID}, "redirect_uri": {provider.RedirectURL}, "code_verifier": {pending.Verifier}}
@@ -208,7 +282,7 @@ func (h SocialOAuthHandler) exchange(ctx context.Context, provider OAuthProvider
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
-	client := h.client()
+	client := f.client()
 	response, err := client.Do(req)
 	if err != nil {
 		return OAuthIdentity{}, err
@@ -223,12 +297,12 @@ func (h SocialOAuthHandler) exchange(ctx context.Context, provider OAuthProvider
 		return OAuthIdentity{}, err
 	}
 	if provider.Apple {
-		return verifyAppleIdentity(ctx, token.IDToken, provider.ClientID, pending.Nonce, provider.JWKSURL, client, h.AllowInsecureLocalhost)
+		return verifyAppleIdentity(ctx, token.IDToken, provider.ClientID, pending.Nonce, provider.JWKSURL, client, f.AllowInsecureLocalhost)
 	}
 	if token.AccessToken == "" {
 		return OAuthIdentity{}, errors.New("provider returned no access token")
 	}
-	identity, err := h.fetchIdentity(ctx, provider, token.AccessToken, client)
+	identity, err := f.fetchIdentity(ctx, provider, token.AccessToken, client)
 	if err != nil {
 		return OAuthIdentity{}, err
 	}
@@ -239,7 +313,7 @@ func (h SocialOAuthHandler) exchange(ctx context.Context, provider OAuthProvider
 	return identity, nil
 }
 
-func (h SocialOAuthHandler) fetchIdentity(ctx context.Context, provider OAuthProviderConfig, accessToken string, client *http.Client) (OAuthIdentity, error) {
+func (f OAuthFlow) fetchIdentity(ctx context.Context, provider OAuthProviderConfig, accessToken string, client *http.Client) (OAuthIdentity, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, provider.UserInfoURL, nil)
 	if err != nil {
 		return OAuthIdentity{}, err
@@ -278,12 +352,12 @@ func (h SocialOAuthHandler) fetchIdentity(ctx context.Context, provider OAuthPro
 	}
 	identity := OAuthIdentity{Provider: provider.Name, Subject: subject, Email: strings.ToLower(strings.TrimSpace(raw.Email)), EmailVerified: raw.Verified, Name: name, Picture: raw.Avatar}
 	if provider.Name == "github" {
-		return h.fetchGitHubEmail(ctx, provider, accessToken, identity, client)
+		return f.fetchGitHubEmail(ctx, provider, accessToken, identity, client)
 	}
 	return identity, nil
 }
 
-func (h SocialOAuthHandler) fetchGitHubEmail(ctx context.Context, provider OAuthProviderConfig, accessToken string, identity OAuthIdentity, client *http.Client) (OAuthIdentity, error) {
+func (f OAuthFlow) fetchGitHubEmail(ctx context.Context, provider OAuthProviderConfig, accessToken string, identity OAuthIdentity, client *http.Client) (OAuthIdentity, error) {
 	u, err := url.Parse(provider.UserInfoURL)
 	if err != nil {
 		return identity, err
@@ -331,12 +405,12 @@ func (h SocialOAuthHandler) fetchGitHubEmail(ctx context.Context, provider OAuth
 	return identity, nil
 }
 
-func (h SocialOAuthHandler) decodeState(value string) (oauthState, error) {
+func (f OAuthFlow) decodeState(value string) (oauthState, error) {
 	parts := strings.Split(value, ".")
 	if len(parts) != 2 {
 		return oauthState{}, errors.New("invalid state cookie")
 	}
-	mac := hmac.New(sha256.New, h.StateKey)
+	mac := hmac.New(sha256.New, f.StateKey)
 	_, _ = mac.Write([]byte(parts[0]))
 	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil || !hmac.Equal(signature, mac.Sum(nil)) {
@@ -353,9 +427,9 @@ func (h SocialOAuthHandler) decodeState(value string) (oauthState, error) {
 	return state, nil
 }
 
-func (h SocialOAuthHandler) provider(name string) (OAuthProviderConfig, bool) {
+func (f OAuthFlow) provider(name string) (OAuthProviderConfig, bool) {
 	name = strings.ToLower(strings.TrimSpace(name))
-	p, ok := h.Providers[name]
+	p, ok := f.Providers[name]
 	if !ok {
 		return OAuthProviderConfig{}, false
 	}
@@ -365,8 +439,8 @@ func (h SocialOAuthHandler) provider(name string) (OAuthProviderConfig, bool) {
 	}
 	return p, p.Name == name && (p.Name == "google" || p.Name == "github" || p.Name == "apple")
 }
-func (h SocialOAuthHandler) client() *http.Client {
-	client := h.HTTPClient
+func (f OAuthFlow) client() *http.Client {
+	client := f.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -374,14 +448,14 @@ func (h SocialOAuthHandler) client() *http.Client {
 	copy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &copy
 }
-func (h SocialOAuthHandler) now() time.Time {
-	if h.Now != nil {
-		return h.Now()
+func (f OAuthFlow) now() time.Time {
+	if f.Now != nil {
+		return f.Now()
 	}
 	return time.Now()
 }
-func clearOAuthCookie(w http.ResponseWriter, secure bool) {
-	http.SetCookie(w, &http.Cookie{Name: "hydro_oauth_state", Value: "", Path: "/auth/oauth/", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+func clearOAuthCookie(w http.ResponseWriter, secure bool, name, path string) {
+	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: path, MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
 }
 func randomOAuthValue(size int) (string, error) {
 	data := make([]byte, size)
@@ -390,13 +464,13 @@ func randomOAuthValue(size int) (string, error) {
 	}
 	return base64.RawURLEncoding.EncodeToString(data), nil
 }
-func safeOAuthReturnTo(value string) string {
+func safeOAuthReturnTo(value, fallback string) string {
 	if value == "" {
-		return "/admin"
+		return fallback
 	}
 	u, err := url.Parse(value)
 	if err != nil || u.IsAbs() || u.Host != "" || !strings.HasPrefix(u.Path, "/") || strings.HasPrefix(u.Path, "//") || strings.ContainsAny(value, "\r\n\\") {
-		return "/admin"
+		return fallback
 	}
 	return value
 }

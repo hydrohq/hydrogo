@@ -16,6 +16,8 @@
       <button class="btn-primary auth-submit-btn" type="submit"><span>{{if .Register}}Üye ol{{else}}Giriş yap{{end}}</span></button>
       <div class="member-auth-status" data-member-status role="alert"></div>
     </form>
+    {{if .OAuthProviders}}<div class="member-auth-oauth">{{range .OAuthProviders}}<a class="btn-secondary member-auth-oauth-btn" href="{{.URL}}">{{.Label}} ile devam et</a>
+{{end}}</div>{{end}}
     <div class="auth-trust-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><span>Güvenli bağlantı ve KVKK uyumu</span></div>
     <p class="member-auth-switch">{{if .Register}}Zaten hesabınız var mı?{{else}}Hesabınız yok mu?{{end}} <a href="{{.SwitchURL}}">{{if .Register}}Giriş yapın{{else}}Üye olun{{end}}</a></p>
   </section>
