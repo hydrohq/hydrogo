@@ -17,22 +17,6 @@
   "internal/server/maintenance.go": {
     "html_strings": 1
   },
-  "internal/ui/admin_areas.go": {
-    "html_strings": 31,
-    "lines": 802
-  },
-  "internal/ui/admin_control.go": {
-    "html_strings": 1
-  },
-  "internal/ui/admin_dashboard.go": {
-    "html_strings": 12
-  },
-  "internal/ui/admin_login.go": {
-    "html_strings": 5
-  },
-  "internal/ui/article_reading.go": {
-    "html_strings": 5
-  },
   "internal/ui/components.go": {
     "html_strings": 16
   },
@@ -50,9 +34,6 @@
   },
   "internal/ui/components/sidebar.go": {
     "html_strings": 5
-  },
-  "internal/ui/editor.go": {
-    "html_strings": 1
   },
   "internal/ui/richtext.go": {
     "html_strings": 9
