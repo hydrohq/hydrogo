@@ -18,14 +18,17 @@ const faqYAML = `id: faq
 label: FAQ
 title_field: question
 public: true
+drafts: true
 fields:
-  - {id: question, label: Question, kind: text, required: true, list: true}
-  - {id: answer, label: Answer, kind: textarea}
-  - {id: category, label: Category, kind: select, options: [general, billing], list: true}
+  - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
+  - {id: answer, label: Answer, kind: textarea, searchable: true}
+  - {id: category, label: Category, kind: select, options: [general, billing], list: true, filterable: true}
 `;
 
 test.describe("content types", () => {
   test.beforeAll(async () => {
+    // Building the binary alone can take longer than the default hook timeout.
+    test.setTimeout(180_000);
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-content-types-"));
     const typesDir = path.join(tempDir, "content-types");
     await mkdir(typesDir);
@@ -54,7 +57,7 @@ test.describe("content types", () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     throw new Error("HydroGo server did not become healthy within 45 seconds");
-  }, 120_000);
+  });
 
   test.afterAll(async () => {
     await stopServer(server);
@@ -75,24 +78,65 @@ test.describe("content types", () => {
     await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
     await expect(page.locator('.studio-sidebar a[href="/admin/resources"]')).toBeVisible();
 
-    await page.goto(`${baseURL}/admin/resources/faq/new`);
-    await page.getByLabel("Question").fill("How long does shipping take?");
-    await page.getByLabel("Answer").fill("Two to three working days.");
-    await page.getByLabel("Category").selectOption("billing");
-    await page.locator('form button[type="submit"]').last().click();
-    await expect(page).toHaveURL(`${baseURL}/admin/resources/faq`);
-    await expect(page.locator("table")).toContainText("How long does shipping take?");
+    const createFAQ = async (question: string, answer: string, category: string) => {
+      await page.goto(`${baseURL}/admin/resources/faq/new`);
+      await page.getByLabel("Question").fill(question);
+      await page.getByLabel("Answer").fill(answer);
+      await page.getByLabel("Category").selectOption(category);
+      await page.locator('form.studio-form button[type="submit"]').last().click();
+      await expect(page).toHaveURL(`${baseURL}/admin/resources/faq`);
+    };
+    await createFAQ("How long does shipping take?", "Two to three working days.", "billing");
+    await createFAQ("Where is your office?", "In the city centre.", "general");
+    const table = page.locator("table");
+    await expect(table).toContainText("How long does shipping take?");
+    await expect(table).toContainText("Where is your office?");
+
+    // Search matches the question and the answer, case-insensitively.
+    // Locators avoid UI strings: the admin language depends on the browser.
+    const search = page.locator("#resource-search");
+    const apply = page.locator('.admin-list-toolbar button[type="submit"]');
+    await search.fill("WORKING DAYS");
+    await apply.click();
+    await expect(page).toHaveURL(/search=WORKING\+DAYS/);
+    await expect(table).toContainText("How long does shipping take?");
+    await expect(table).not.toContainText("Where is your office?");
+    await search.fill("");
+    await page.locator("#filter-category").selectOption("general");
+    await apply.click();
+    await expect(table).toContainText("Where is your office?");
+    await expect(table).not.toContainText("How long does shipping take?");
 
     const a11y = await page.evaluate(async () => (window as any).axe.run(document.querySelector(".studio-main"), {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] },
     }));
     expect(a11y.violations.map((violation: any) => violation.id)).toEqual([]);
 
-    const list = await page.request.get(`${baseURL}/api/v1/content/faq`);
+    // New records are drafts: the public API does not return them.
+    const drafts = await page.request.get(`${baseURL}/api/v1/content/faq`);
+    expect(drafts.status()).toBe(200);
+    expect((await drafts.json()).items).toHaveLength(0);
+
+    await page.goto(`${baseURL}/admin/resources/faq?search=shipping`);
+    await page.getByRole("link", { name: "How long does shipping take?" }).click();
+    const status = page.locator("input#status");
+    const workflowButton = (target: string) => page.locator(`form[action$="/workflow"]:has(input[name="target"][value="${target}"]) button`);
+    await expect(status).toHaveValue("draft");
+    await workflowButton("published").click();
+    await expect(status).toHaveValue("published");
+
+    const list = await page.request.get(`${baseURL}/api/v1/content/faq?sort=-question`);
     expect(list.status()).toBe(200);
     const body = await list.json();
     expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({ question: "How long does shipping take?", category: "billing", version: 1 });
+    expect(body.items[0]).toMatchObject({ question: "How long does shipping take?", category: "billing", status: "published", version: 2 });
+    const filtered = await page.request.get(`${baseURL}/api/v1/content/faq?filter[category]=general`);
+    expect((await filtered.json()).items).toHaveLength(0);
+
+    await workflowButton("draft").click();
+    await expect(status).toHaveValue("draft");
+    const unpublished = await page.request.get(`${baseURL}/api/v1/content/faq`);
+    expect((await unpublished.json()).items).toHaveLength(0);
 
     const unknown = await page.request.get(`${baseURL}/api/v1/content/does_not_exist`);
     expect(unknown.status()).toBe(404);

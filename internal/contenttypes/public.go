@@ -16,7 +16,9 @@ import (
 // descending order; filter[field] matches fields marked filterable exactly;
 // search matches fields marked searchable. See parsePublicQuery.
 //
-// Types that are not public answer 404, exactly like unknown types. Rich
+// Types that are not public answer 404, exactly like unknown types. For
+// types with drafts only published records exist here: lists filter on the
+// status and a draft's ID answers 404. Rich
 // text fields are returned as HTML when RenderRichText is set.
 type PublicAPI struct {
 	Service        collections.Service
@@ -63,6 +65,9 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid list query")
 		return
 	}
+	if definition.Drafts {
+		query.Where = append(query.Where, publishedCondition())
+	}
 	records, err := p.Service.QueryRecords(r.Context(), typeID, query)
 	if err != nil {
 		writeServiceError(w, err, collections.Schema{}, nil)
@@ -77,11 +82,15 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 
 func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 	typeID := r.PathValue("type")
-	if _, ok := p.definition(typeID); !ok {
+	definition, ok := p.definition(typeID)
+	if !ok {
 		writeError(w, http.StatusNotFound, "not found")
 		return
 	}
 	record, err := p.Service.GetRecord(r.Context(), typeID, r.PathValue("id"))
+	if err == nil && definition.Drafts && recordStatus(record.Data) != StatusPublished {
+		err = collections.ErrRecordNotFound
+	}
 	if err != nil {
 		writeServiceError(w, err, collections.Schema{}, nil)
 		return

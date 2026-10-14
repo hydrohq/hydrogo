@@ -59,3 +59,17 @@ func TestE2EManifestIsSafeAndDeterministic(t *testing.T) {
 		t.Fatalf("unexpected collection manifest: %#v", collection)
 	}
 }
+
+func TestWorkflowNeedsVersionedRecordsButNotRevisions(t *testing.T) {
+	workflow := &Workflow{StateField: "status", States: []PublicationState{StateDraft, StatePublished}, Transitions: map[PublicationState][]PublicationState{StateDraft: {StatePublished}}}
+	collection := Collection{ID: "faq", Label: "FAQ", Versioned: true, Workflow: workflow,
+		Fields:  []Field{{ID: "status", Label: "Status", Kind: FieldSelect, Options: []string{"draft", "published"}}},
+		Actions: []Action{{Label: "New", Href: "/admin/resources/faq/new"}}}
+	if _, err := NewRegistry([]Collection{collection}); err != nil {
+		t.Fatalf("workflow without revisions: %v", err)
+	}
+	collection.Versioned = false
+	if _, err := NewRegistry([]Collection{collection}); err == nil {
+		t.Fatal("workflow without versioned records was accepted")
+	}
+}

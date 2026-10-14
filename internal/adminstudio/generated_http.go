@@ -1238,7 +1238,7 @@ func (h GeneratedAdminHandler) generatedWorkflowActions(ctx context.Context, out
 	if len(allowedTargets) == 0 {
 		return nil
 	}
-	if _, err := io.WriteString(out, `<section class="studio-card" aria-labelledby="generated-workflow-heading"><h2 id="generated-workflow-heading">Yayın akışı</h2><div class="studio-actions">`); err != nil {
+	if _, err := fmt.Fprintf(out, `<section class="studio-card" aria-labelledby="generated-workflow-heading"><h2 id="generated-workflow-heading">%s</h2><div class="studio-actions">`, template.HTMLEscapeString(i18n.T(generatedAdminLocale(r), "admin.generated.workflow.title"))); err != nil {
 		return err
 	}
 	for _, target := range allowedTargets {

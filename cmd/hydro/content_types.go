@@ -50,9 +50,12 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 	if err != nil {
 		return nil, fmt.Errorf("content types: admin registry: %w", err)
 	}
+	api := contenttypes.AdminAPI{Service: service, Types: types}
 	admin := adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
-		API:             contenttypes.AdminAPI{Service: service, Types: types},
+		API:             api,
 		Authorize:       isActiveAdmin,
+		CanTransition:   api.CanTransition,
+		Transition:      api.Transition,
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken:       func(r *http.Request) string { return security.CSRFTokenFromContext(r.Context()) },
 		ValidateCSRF: func(r *http.Request) bool {

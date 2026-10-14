@@ -3,6 +3,9 @@ label: FAQ
 description: Questions and answers shown on the site.
 title_field: question
 public: true
+# drafts: new records start as drafts; the admin publishes them, and only
+# published records appear in the public API.
+drafts: true
 # Field flags: list (admin column, sortable), searchable (admin search box and
 # the public API's ?search=), filterable (admin filter and ?filter[field]=).
 fields:
