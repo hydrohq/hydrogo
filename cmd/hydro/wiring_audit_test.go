@@ -6,25 +6,28 @@ import (
 	"testing"
 )
 
-// Wiring-audit invariants for the serve() boot block (cmd/hydro/main.go 1500-2300).
-// The tests read the wiring source directly so a regression — a tenant-scoped
-// store construction losing its RequireTenantScope toggle — fails here and
-// names the diverging line instead of being discovered at runtime.
+// Wiring-audit invariants for the serve() boot block. The tests read the
+// wiring source directly so a regression — a tenant-scoped store construction
+// losing its RequireTenantScope toggle — fails here and names the diverging
+// line instead of being discovered at runtime.
 
-const wiringStartLine = 1500
-const wiringEndLine = 2300
-
+// wiringBlock returns the source of serve() in main.go.
 func wiringBlock(t *testing.T) string {
 	t.Helper()
 	data, err := os.ReadFile("main.go")
 	if err != nil {
 		t.Fatalf("read main.go: %v", err)
 	}
-	lines := strings.Split(string(data), "\n")
-	if len(lines) < wiringEndLine {
-		t.Fatalf("main.go has %d lines, want >= %d", len(lines), wiringEndLine)
+	source := string(data)
+	start := strings.Index(source, "\nfunc serve(")
+	if start < 0 {
+		t.Fatal("serve() not found in main.go")
 	}
-	return strings.Join(lines[wiringStartLine-1:wiringEndLine], "\n")
+	end := strings.Index(source[start+1:], "\nfunc ")
+	if end < 0 {
+		return source[start:]
+	}
+	return source[start : start+1+end]
 }
 
 // TestWiringAnalyticsStoreStaysGlobal pins a deliberate non-uniformity found
