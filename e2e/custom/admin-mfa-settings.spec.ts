@@ -26,7 +26,7 @@ test.describe("Admin Studio MFA self-service", () => {
     if (dialect === "postgres" && !process.env.HYDRO_PG_PRIVILEGED_ROLE) {
       throw new Error("HYDRO_PG_PRIVILEGED_ROLE must name the PostgreSQL backup operator role for the Admin MFA run");
     }
-    const binary = path.join(tempDir, "hydro");
+    const binary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
     const databaseArgs = ["--database-dialect", dialect, "--database-dsn", database];
     runCommand("go", ["run", "./cmd/hydro", "migrate", ...databaseArgs], { cwd: repoRoot, stdio: "pipe" });
     runCommand("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", ...databaseArgs], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
