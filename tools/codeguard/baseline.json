@@ -6,8 +6,7 @@
     "html_strings": 1
   },
   "cmd/hydro/main.go": {
-    "html_strings": 2,
-    "lines": 2820
+    "html_strings": 2
   },
   "extension/v1/theme_navigation.go": {
     "html_strings": 2

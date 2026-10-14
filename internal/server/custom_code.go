@@ -28,7 +28,9 @@ func CustomCodeMiddleware(provider func(*http.Request) (string, string)) func(ht
 				next.ServeHTTP(w, r)
 				return
 			}
-			capture := &customCodeWriter{header: make(http.Header), limit: customCodeResponseLimit}
+			// Start from the outer headers so handlers that merge into the security
+			// policy (MergeCSP) see the full CSP instead of an empty one.
+			capture := &customCodeWriter{header: w.Header().Clone(), limit: customCodeResponseLimit}
 			next.ServeHTTP(capture, r)
 			if capture.overflow {
 				copyHeaders(w.Header(), capture.header)
@@ -150,7 +152,14 @@ func (w *customCodeWriter) Write(data []byte) (int, error) {
 	return w.buf.Write(data)
 }
 
+// copyHeaders makes dst equal to src, so headers the handler deleted from its
+// copy are removed from the real response too.
 func copyHeaders(dst, src http.Header) {
+	for key := range dst {
+		if _, ok := src[key]; !ok {
+			delete(dst, key)
+		}
+	}
 	for key, values := range src {
 		dst[key] = append([]string(nil), values...)
 	}
