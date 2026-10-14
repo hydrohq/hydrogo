@@ -1952,7 +1952,7 @@ func TestGeneratedAdminDraftsStayIsolatedAndUseTwoVersionCAS(t *testing.T) {
 
 	list := httptest.NewRecorder()
 	mux.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/admin/resources/article/drafts", nil))
-	for _, want := range []string{"Working title", `class="studio-table"`, "Başlık", "Durum", "Sürüm", "Son düzenleme", "Taslak", `class="status-pill status-pill--draft"`, `href="/admin/resources/article/a1"`, `id="generated-drafts-list"`} {
+	for _, want := range []string{`<a class="text-link" href="/admin/resources/article/a1">Working title</a>`, `class="studio-table"`, "Başlık", "Durum", "Sürüm", "Son düzenleme", "Taslak", `class="status-pill status-pill--draft"`, `href="/admin/resources/article/a1"`, `id="generated-drafts-list"`} {
 		if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), want) {
 			t.Fatalf("draft list missing %q: status=%d body=%s", want, list.Code, list.Body.String())
 		}
