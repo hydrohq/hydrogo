@@ -2,7 +2,6 @@ package transport
 
 import (
 	"bytes"
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
@@ -44,6 +44,8 @@ type Handler struct {
 	VerificationLimiter  security.RateLimiter
 	PublicOrigin         string
 	VerificationEnabled  bool
+	// Theme renders the public member pages; nil uses the built-in views.
+	Theme *v1.ThemeBundle
 }
 
 // memberResponseWriter removes legacy client-side member state persistence
@@ -66,7 +68,13 @@ func (w memberResponseWriter) Write(payload []byte) (int, error) {
 	output = strings.ReplaceAll(output, `<html lang="tr"`, `<html lang="`+template.HTMLEscapeString(locale)+`"`)
 	output = strings.ReplaceAll(output, "/public/pages/tr/", "/public/pages/"+template.HTMLEscapeString(locale)+"/")
 	output = strings.ReplaceAll(output, "/public/news/tr/", "/public/news/"+template.HTMLEscapeString(locale)+"/")
-	w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), security.InlineCSPDirectives([]byte(output))))
+	// Only extend a policy that is already set. Behind a capturing middleware
+	// (custom code injection) the header map starts empty, and writing a
+	// hash-only policy there replaced the site-wide CSP and blocked every
+	// same-origin stylesheet and script on the page.
+	if policy := w.Header().Get("Content-Security-Policy"); policy != "" {
+		w.Header().Set("Content-Security-Policy", security.MergeCSP(policy, security.InlineCSPDirectives([]byte(output))))
+	}
 	return w.ResponseWriter.Write([]byte(output))
 }
 
@@ -99,6 +107,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "GET /api/v1/mobile/member/me", Access: router.Public, Handler: http.HandlerFunc(h.mobileMe)},
 		{Pattern: "GET /api/v1/mobile/member/orders", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrders)},
 		{Pattern: "GET /api/v1/mobile/member/orders/{orderID}", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrder)},
+		{Pattern: "GET /member/assets/member-auth.js", Access: router.Public, Handler: http.HandlerFunc(serveMemberAuthScript)},
 		{Pattern: "GET /member/login", Access: router.Public, Handler: http.HandlerFunc(h.loginPage)},
 		{Pattern: "GET /member/register", Access: router.Public, Handler: http.HandlerFunc(h.registerPage)},
 		{Pattern: "GET /member/account", Access: router.Public, Handler: http.HandlerFunc(h.accountPage)},
@@ -220,100 +229,6 @@ func (h Handler) registerPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.writeMemberAuthPage(w, r, true)
-}
-
-func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, register bool) {
-	w = sanitizeMemberResponse(w)
-	returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
-	title, heading, endpoint, submit, prompt, linkText, linkHref := "Giriş yap", "Hesabınıza giriş yapın", "/member/login", "Giriş yap", "Hesabınız yok mu?", "Üye olun", "/member/register"
-	if register {
-		title, heading, endpoint, submit, prompt, linkText, linkHref = "Üye ol", "Yeni hesabınızı oluşturun", "/member/register", "Üye ol", "Zaten hesabınız var mı?", "Giriş yapın", "/member/login"
-	}
-	if returnTo != "/member/account" {
-		linkHref += "?return_to=" + url.QueryEscape(returnTo)
-	}
-	returnToJSON, _ := json.Marshal(returnTo)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
-	page := &bufferedAuthPage{ResponseWriter: w, register: register, ctx: r.Context()}
-	w = page
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Haber Merkezi</title><link rel="stylesheet" href="/theme/static/theme.css?v=00013d55"><style>:root{--bg-canvas:#f1f5f9;--bg-card:#ffffff;--bg-input:#f8fafc;--border-card:#e2e8f0;--border-input:#cbd5e1;--text-main:#0f172a;--text-muted:#64748b;--text-sub:#334155;--brand-blue:#ed1c24;--brand-accent:#c81017;--color-success:#10b981;--color-error:#ef4444}*{box-sizing:border-box}body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background-color:var(--bg-canvas);color:var(--text-main);min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;background-image:radial-gradient(circle at 50%% 0%%,rgba(37,99,235,0.08) 0%%,transparent 70%%)}.member-auth-page{width:100%%;max-width:440px;padding:36px 20px;margin:0 auto;display:flex;flex-direction:column;align-items:center}.back-to-home{display:inline-flex;align-items:center;gap:6px;color:var(--text-muted);font-size:0.82rem;text-decoration:none;margin-bottom:18px;transition:color 0.15s}.back-to-home:hover{color:var(--text-main)}.member-auth-brand{display:inline-flex;align-items:center;gap:10px;color:var(--text-main);text-decoration:none;font-size:1.5rem;font-weight:800;letter-spacing:-0.03em;margin-bottom:22px}.member-auth-brand-icon{width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,0.15);color:var(--brand-accent);border:1px solid rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center}.member-auth-brand b{color:var(--brand-accent)}.member-auth-card{width:100%%;background:var(--bg-card);border:1px solid var(--border-card);border-radius:16px;padding:30px 26px;box-shadow:0 20px 40px rgba(0,0,0,0.6);position:relative}.section-badge{display:inline-flex;align-items:center;gap:6px;font-size:0.72rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--brand-accent);background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);border-radius:6px;padding:3px 8px;margin-bottom:12px}.badge-dot{width:6px;height:6px;border-radius:50%%;background:var(--brand-accent)}.member-auth-card h1{font-size:1.35rem;font-weight:700;letter-spacing:-0.02em;margin:0 0 6px 0;color:var(--text-main)}.member-auth-lead{font-size:0.86rem;color:var(--text-muted);line-height:1.5;margin:0 0 20px 0}.member-auth-form{display:flex;flex-direction:column;gap:14px}.auth-field{display:flex;flex-direction:column;gap:6px;font-size:0.82rem;font-weight:600;color:var(--text-sub)}.field-input-wrap{position:relative;display:flex;align-items:center}.field-icon{position:absolute;left:12px;color:var(--text-muted);pointer-events:none}.field-input-wrap input{width:100%%;height:42px;padding:0 14px 0 38px;background:var(--bg-input);border:1px solid var(--border-input);border-radius:8px;color:var(--text-main);font-size:0.9rem;outline:none;transition:all 0.15s}.field-input-wrap input:focus{border-color:var(--brand-accent);box-shadow:0 0 0 3px rgba(59,130,246,0.25)}.auth-submit-btn{width:100%%;height:42px;border-radius:8px;background:var(--brand-blue);color:#fff;font-size:0.9rem;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;transition:all 0.15s}.auth-submit-btn:hover{background:#1d4ed8;transform:translateY(-1px)}.auth-submit-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}.member-auth-status{padding:10px 14px;border-radius:8px;font-size:0.82rem;line-height:1.4;display:none}.status-error{background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);display:block}.status-success{background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);display:block}.auth-trust-badge{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-muted);font-size:0.75rem;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-card)}.auth-trust-badge svg{color:var(--color-success)}.demo-hint-box{margin-top:14px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;font-size:0.75rem;color:var(--text-muted);text-align:center;line-height:1.4}.demo-hint-box strong{color:var(--brand-accent)}.member-auth-switch{text-align:center;font-size:0.84rem;color:var(--text-muted);margin-top:18px}.auth-back-link{color:var(--brand-accent);font-weight:600;text-decoration:none}.auth-back-link:hover{text-decoration:underline}</style></head><body class="theme-corporate-body"><main data-testid="member-auth" class="member-auth-page"><a class="back-to-home" href="/">← Gazeteye / Haber Odasına Dön</a><a class="member-auth-brand" href="/" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;"><span style="background:#ed1c24;color:#fff;font-weight:900;font-size:1.3rem;padding:2px 8px;border-radius:4px;letter-spacing:-0.03em;">HYDRO</span><span style="color:#0f172a;font-weight:900;font-size:1.3rem;letter-spacing:-0.03em;">HABER</span></a><section class="member-auth-card"><div class="section-badge"><span class="badge-dot"></span> OKUR MERKEZİ</div><h1>%s</h1><p class="member-auth-lead">Haber bültenlerini, kaydedilen yazıları ve okur tercihlerinizi tek bir güvenli hesaptan yönetin.</p><form class="member-auth-form" method="post" data-member-form action="%s"><input type="hidden" name="_csrf" value="%s"><input type="hidden" name="return_to" value="%s"><label class="auth-field"><span class="field-label">E-posta Adresi</span><div class="field-input-wrap"><svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg><input name="email" type="email" autocomplete="email" required placeholder="ornek@site.com"></div></label><label class="auth-field"><span class="field-label">Şifre</span><div class="field-input-wrap"><svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input name="password" type="password" autocomplete="%s" minlength="8" required placeholder="En az 8 karakter"></div></label><button class="btn-primary auth-submit-btn" type="submit"><span>%s</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button><div class="member-auth-status" data-member-status role="alert"></div></form><div class="auth-trust-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><span>Güvenli bağlantı ve KVKK uyumu</span></div><p class="member-auth-switch">%s <a href="%s" class="auth-back-link">%s →</a></p></section></main><script>(function(){var form=document.querySelector('[data-member-form]'),status=document.querySelector('[data-member-status]');function showMsg(type,text){status.className='member-auth-status status-'+type;status.textContent=text;status.style.display='block';}form.addEventListener('submit',async function(event){event.preventDefault();var button=form.querySelector('button');var originalContent=button.innerHTML;button.disabled=true;button.innerHTML='<span>İşleniyor…</span>';status.style.display='none';status.textContent='';try{var csrfInput=form.querySelector('input[name="_csrf"]');var csrfVal=csrfInput?csrfInput.value:'';var formData=new FormData(form);var body=new URLSearchParams(formData);var response=await fetch(form.action,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':csrfVal,'Accept':'application/json'},body:body});var rawText=await response.text();var data=null;try{data=JSON.parse(rawText);}catch(e){}if(!response.ok){var errMsg=(data&&data.error)?data.error:rawText;var lower=(errMsg||'').toLowerCase();if(lower.indexOf('already registered')!==-1||response.status===409){showMsg('error','Bu e-posta adresi zaten kayıtlı. Giriş yapmayı deneyin.');}else if(lower.indexOf('invalid credentials')!==-1||response.status===401){showMsg('error','E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edin.');}else if(lower.indexOf('too many')!==-1||response.status===429){showMsg('error','Çok fazla deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.');}else if(lower.indexOf('csrf')!==-1||response.status===403){showMsg('error','Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyin.');}else{showMsg('error',errMsg||'İşlem tamamlanamadı. Bilgilerinizi kontrol edin.');}button.disabled=false;button.innerHTML=originalContent;return;}if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}var target=(data&&data.redirect)?data.redirect:%s;showMsg('success','İşlem başarılı! Yönlendiriliyorsunuz…');setTimeout(function(){window.location.href=target;},200);}catch(err){showMsg('error','Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').');button.disabled=false;button.innerHTML=originalContent;}});})();</script></body></html>`, title, heading, endpoint, csrf, template.HTMLEscapeString(returnTo), map[bool]string{true: "new-password", false: "current-password"}[register], submit, prompt, linkHref, linkText, string(returnToJSON))
-}
-
-type bufferedAuthPage struct {
-	http.ResponseWriter
-	register bool
-
-	ctx context.Context
-}
-
-func (w *bufferedAuthPage) Write(value []byte) (int, error) {
-	markup := string(value)
-	if w.register {
-		markup = strings.Replace(markup, `autocomplete="new-password" minlength="8" required placeholder="En az 8 karakter"`, `autocomplete="new-password" minlength="8" required data-password-strength placeholder="En az 8 karakter"`, 1)
-		var strength bytes.Buffer
-		if err := designsystem.PasswordStrengthMeter().Render(w.ctx, &strength); err == nil {
-			markup = strings.Replace(markup, `placeholder="En az 8 karakter"></div></label><button class="btn-primary auth-submit-btn"`, `placeholder="En az 8 karakter"></div></label>`+strength.String()+`<button class="btn-primary auth-submit-btn"`, 1)
-		}
-		markup = strings.Replace(markup, `</body>`, `<script>(function(){var form=document.querySelector('[data-member-form]'),input=form&&form.querySelector('[data-password-strength]'),meter=form&&form.querySelector('[data-password-meter]'),feedback=form&&form.querySelector('[data-password-feedback]');if(!input||!meter)return;function score(value){var chars=Array.from(value),lower=value.toLowerCase(),pool=0,classes=0;if(chars.length<8||chars.length>1024||new Set(chars).size<4||['password','qwerty','welcome','admin','secret','letmein','iloveyou','monkey','dragon','football','abc123'].some(function(word){return lower.indexOf(word)!==-1}))return 0;if(/[a-z]/.test(value)){pool+=26;classes++}if(/[A-Z]/.test(value)){pool+=26;classes++}if(/[0-9]/.test(value)){pool+=10;classes++}if(/[^A-Za-z0-9]/.test(value)){pool+=32;classes++}var entropy=chars.length*Math.log2(pool||1);return classes&&entropy>=40?Math.min(4,1+Math.floor((entropy-40)/20)):0}input.addEventListener('input',function(){var strength=score(input.value);meter.value=strength;if(feedback)feedback.textContent=strength?'Parola gücü: '+(strength>=3?'Güçlü':'Uygun')+'.':'En az 8 karakter seçin; yaygın parolalardan kaçının ve farklı karakterler ekleyin.'});form.addEventListener('submit',function(event){if(score(input.value)===0){event.preventDefault();event.stopImmediatePropagation();if(feedback)feedback.textContent='Daha uzun ve tahmin edilmesi zor bir parola seçin.';input.focus()}},true)})();</script></body>`, 1)
-	}
-	return w.ResponseWriter.Write([]byte(markup))
-}
-
-func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
-	w = sanitizeMemberResponseWithLocale(w, h.defaultLocale())
-	cookie, err := r.Cookie(members.SessionCookieName)
-	if err != nil || cookie.Value == "" {
-		http.Redirect(w, r, "/member/login", http.StatusSeeOther)
-		return
-	}
-	currentSession, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
-	if err != nil {
-		http.Redirect(w, r, "/member/login", http.StatusSeeOther)
-		return
-	}
-	sessions, _ := h.Service.Sessions.ListByMemberID(r.Context(), member.ID)
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	csrf := template.HTMLEscapeString(security.CSRFTokenFromContext(r.Context()))
-
-	initial := "U"
-	if len(member.Email) > 0 {
-		initial = strings.ToUpper(string([]rune(member.Email)[0]))
-	}
-
-	verifiedBadge := `<span class="member-badge member-badge-muted">Doğrulanmamış E-posta</span>`
-	if member.EmailVerifiedAt != nil {
-		verifiedBadge = `<span class="member-badge member-badge-success">✓ E-posta Doğrulandı</span>`
-	}
-
-	regDate := member.CreatedAt.Format("02.01.2006")
-	if member.CreatedAt.IsZero() {
-		regDate = time.Now().Format("02.01.2006")
-	}
-
-	var sessionRows strings.Builder
-	for _, s := range sessions {
-		isCurrent := ""
-		if currentSession != nil && s.ID == currentSession.ID {
-			isCurrent = `<span class="member-session-current">Mevcut Oturum</span>`
-		}
-		ua := s.UserAgent
-		if len(ua) > 42 {
-			ua = ua[:40] + "…"
-		}
-		if strings.TrimSpace(ua) == "" {
-			ua = "Standart Tarayıcı"
-		}
-		fmt.Fprintf(&sessionRows, `<tr><td><strong>%s</strong>%s<br><small style="color:var(--theme-muted);font-family:'JetBrains Mono',monospace;font-size:0.78rem;">IP: %s</small></td><td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">%s</td></tr>`,
-			template.HTMLEscapeString(ua),
-			isCurrent,
-			template.HTMLEscapeString(s.IPAddress),
-			s.LastSeenAt.Format("02.01 15:04"),
-		)
-	}
-
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Hesabım · HydroGo</title><link rel="stylesheet" href="/theme/static/theme.css?v=00013d55"></head><body class="theme-corporate-body"><header class="news-header"><div class="header-container"><a class="news-logo" href="/" aria-label="HydroGo Ana Sayfa"><div class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDROGO</span></div></a><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Menüyü aç"><span class="hamburger-bar"></span><span class="hamburger-bar"></span><span class="hamburger-bar"></span></button><nav id="primary-nav" class="news-nav" aria-label="Ana navigasyon"><a href="/" class="nav-item">Ana Sayfa</a><a href="/public/news/tr/html" class="nav-item">Haberler</a><a href="/public/pages/tr/about/html" class="nav-item">Hakkında</a><a href="/member/account" class="nav-member-badge is-active"><span class="nav-member-icon">👤</span> %s</a><button class="nav-admin-btn" style="cursor:pointer;" data-member-logout type="button">Çıkış ↗</button></nav></div></header><main class="member-portal"><div class="member-hero"><div class="member-hero-left"><div class="member-avatar">%s</div><div class="member-hero-info"><h1>Hoş Geldiniz</h1><div class="member-hero-email">%s</div><div class="member-badges-row"><span class="member-badge member-badge-success">✓ Aktif Üyelik</span>%s<span class="member-badge member-badge-info">🛡️ Güvenli Oturum</span></div></div></div><div style="display:flex;gap:10px;align-items:center;"><button class="btn-secondary" data-member-logout type="button" style="padding:10px 18px;font-size:0.9rem;">Güvenli Çıkış Yap</button></div></div><div class="member-kpi-grid"><div class="member-kpi-card"><span class="member-kpi-label">HESAP GÜVENLİĞİ</span><div class="member-kpi-value" style="color:#166534;">Aktif &amp; Korumalı</div><span class="member-kpi-sub">Güvenli hesap erişimi</span></div><div class="member-kpi-card"><span class="member-kpi-label">AKTİF CİHAZLAR</span><div class="member-kpi-value">%d Cihaz</div><span class="member-kpi-sub">Yetkilendirilmiş güvenli oturum</span></div><div class="member-kpi-card"><span class="member-kpi-label">KAYIT TARİHİ</span><div class="member-kpi-value" style="font-size:1.15rem;font-family:'JetBrains Mono',monospace;">%s</div><span class="member-kpi-sub">Platform katılım tarihi</span></div></div><div class="member-dashboard-grid"><div class="member-left-col"><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">📰 Okuma &amp; Takip Tercihleri</h2></div><p class="member-card-desc">HydroGo Haber Odası üzerindeki bülten abonelikleriniz, okuma tercihleriniz ve bildirimleriniz bu hesap üzerinden yönetilir.</p><div class="member-action-list"><a class="member-action-item" href="/public/news/tr/html"><span>📰 Güncel Haber Akışı</span><span style="color:var(--theme-primary);">Oku →</span></a><a class="member-action-item" href="/public/pages/tr/about/html"><span>📖 Felsefe ve Hakkında</span><span style="color:var(--theme-primary);">İncele →</span></a></div></div><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">🔔 Platform &amp; Keşif</h2></div><p class="member-card-desc">HydroGo platform yenilikleri, kurumsal duyurular ve geliştirici blog yazılarını inceleyin.</p><div class="member-action-list"><a class="member-action-item" href="/public/news/tr/html"><span>📰 Haberler ve Duyurular</span><span style="color:var(--theme-primary);">Oku →</span></a><a class="member-action-item" href="/public/pages/tr/about/html"><span>📖 Mimari Felsefe ve Hakkında</span><span style="color:var(--theme-primary);">Detaylar →</span></a></div></div></div><div class="member-right-col"><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">🔒 Aktif Oturumlar &amp; Cihazlar</h2></div><p class="member-card-desc">Hesabınıza erişim sağlayan yetkilendirilmiş oturumlar:</p><table class="member-sessions-table"><thead><tr><th>Cihaz Bilgisi</th><th>Son Görülme</th></tr></thead><tbody>%s</tbody></table></div><div class="member-card"><div class="member-card-header"><h2 class="member-card-title">💬 Okur Desteği</h2></div><p class="member-card-desc">Hesabınız veya içerikler ile ilgili her türlü soru için teknik ekibimizle dilediğiniz an iletişime geçebilirsiniz.</p><div style="font-size:0.88rem;color:var(--theme-muted);">İletişim: <strong style="color:var(--theme-ink);">destek@haber.test</strong></div></div></div></div></main><footer class="news-footer" style="margin-top:40px;"><div class="footer-container"><div class="footer-brand-col"><div class="footer-logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><strong>HYDROGO <span>HABER MERKEZİ</span></strong></div><p>Yüksek performanslı Go altyapısı ile bağımsız, hızlı ve modern dijital haber yayıncılığı.</p></div></div></footer><script>document.querySelectorAll('[data-member-logout]').forEach(function(el){el.addEventListener('click',function(){fetch('/member/logout',{method:'POST',headers:{'X-CSRF-Token':'%s'}}).then(function(){try{localStorage.removeItem('hydro_member_state');if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGOUT'});}}catch(e){}window.location.assign('/member/login');});});});</script></body></html>`, template.HTMLEscapeString(member.Email), initial, template.HTMLEscapeString(member.Email), verifiedBadge, len(sessions), regDate, sessionRows.String(), csrf)
 }
 
 const maxMemberFormBytes = 16 << 10
