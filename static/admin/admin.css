@@ -200,3 +200,27 @@ html[data-theme="dark"] .translation-missing { background: color-mix(in srgb, #d
 
 .studio-table .studio-table-select { width: 38px; text-align: center; }
 .studio-table .studio-table-actions { text-align: right; }
+
+/* ---- Members admin (modules/members/transport/admin_views.templ) ---- */
+
+.member-admin .member-muted { color: var(--muted); font-size: .8rem; }
+.member-admin .member-verified { color: var(--green); font-weight: 600; font-size: .8rem; }
+.member-admin .member-mono { font-family: var(--font-mono); font-size: .84rem; }
+.member-admin .member-email-link { color: var(--ink); text-decoration: none; }
+.member-admin .member-row-actions { display: inline-flex; gap: 6px; }
+.member-admin .button.member-row-button { min-height: 28px; padding: 4px 12px; font-size: .78rem; font-weight: 600; display: inline-flex; align-items: center; }
+.member-admin .member-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); font-size: .86rem; }
+.member-admin .member-pagination-links { display: flex; gap: 6px; }
+.member-admin .button.member-page-button { min-height: 32px; padding: 4px 12px; }
+.member-detail { display: flex; flex-direction: column; gap: 20px; }
+.member-detail-toolbar { display: flex; justify-content: space-between; align-items: center; }
+.member-detail-actions { display: flex; gap: 8px; }
+.member-admin .button.member-action-button { min-height: 36px; }
+.member-admin .kpi-grid.member-kpis { margin-bottom: 20px; }
+.member-admin .member-kpi-value { font-size: 1.15rem; margin-top: 6px; display: block; }
+.member-admin .member-quick-actions { display: flex; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); align-items: center; flex-wrap: wrap; }
+.member-admin .member-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.member-admin .button.member-small-button { min-height: 32px; font-size: .8rem; }
+.member-admin .member-user-agent { font-size: .84rem; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-admin .button.member-tiny-button { min-height: 28px; padding: 2px 8px; font-size: .75rem; }
+.member-admin .member-request-id { font-family: var(--font-mono); font-size: .82rem; color: var(--muted); }
