@@ -23,7 +23,7 @@ func TestAIAssistantComponentsExplainConsentAndKeepApplyInDraft(t *testing.T) {
 	if err := AIAssistantSuggestion("Old title", "Old body", ai.Suggestion{Title: "New title", Body: "New body"}, "/admin/pages/page1/ai-applied", "csrf-token").Render(context.Background(), &suggestion); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Old body", "New body", "setText(nextBody)", "Taslak düzenleyici güncellendi", "X-CSRF-Token"} {
+	for _, want := range []string{"Old body", "New body", `src="/admin-assets/js/ai-assistant.js"`, `data-audit-action="/admin/pages/page1/ai-applied"`, `data-csrf="csrf-token"`} {
 		if !strings.Contains(suggestion.String(), want) {
 			t.Fatalf("suggestion component lacks %q", want)
 		}
