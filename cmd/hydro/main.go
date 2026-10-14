@@ -2387,7 +2387,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
 		SecurityScriptHashes:  adminScriptHashes,
-		SecurityStyleHashes:   ui.AdminStyleHashes(),
 		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"]},
 		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {
 			if !modules["site"] {

@@ -52,7 +52,7 @@ func TestAdminLoginCSPHashesRenderedInlineBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 	policy := AdminLoginCSP(output.Bytes())
-	if strings.Count(policy, "'sha256-") != 3 || !strings.Contains(policy, "script-src") || !strings.Contains(policy, "style-src") {
+	if strings.Count(policy, "'sha256-") != 2 || !strings.Contains(policy, "script-src") || strings.Contains(policy, "style-src") {
 		t.Fatalf("unexpected login CSP hashes: %s", policy)
 	}
 	if AdminLoginCSP([]byte(`<html><script>alert(1)</script></html>`)) == "" {
