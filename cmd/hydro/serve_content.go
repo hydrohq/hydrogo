@@ -60,6 +60,7 @@ func (a *serveApp) loadTheme() error {
 		}
 	}
 	a.selectedTheme = selectedTheme
+	a.memberHTTP.Theme = selectedTheme
 	return nil
 }
 
