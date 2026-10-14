@@ -1,0 +1,11 @@
+{{template "builtin-head" .Site}}
+<main data-testid="member-account">
+<h1>{{.Email}}</h1>
+<p>{{if .EmailVerified}}Email verified{{else}}Email not verified{{end}} · {{.RegisteredAt}}</p>
+<table>
+<thead><tr><th>Device</th><th>Last seen</th></tr></thead>
+<tbody>{{range .Sessions}}<tr><td>{{.UserAgent}}{{if .Current}} (current){{end}}<br><small>{{.IPAddress}}</small></td><td>{{.LastSeen}}</td></tr>{{end}}</tbody>
+</table>
+<button type="button" data-member-logout data-csrf="{{.CSRF}}">Sign out</button>
+</main>
+{{template "builtin-foot" .Site}}

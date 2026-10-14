@@ -18,6 +18,9 @@ type ThemeManifest struct {
 	Tokens       map[string]string `json:"tokens" yaml:"tokens"`
 	Slots        []string          `json:"slots" yaml:"slots"`
 	Assets       []string          `json:"assets" yaml:"assets"`
+	// Views lists the page templates (layouts/<view>.html) the theme
+	// provides for module-rendered pages such as news and member screens.
+	Views []string `json:"views,omitempty" yaml:"views,omitempty"`
 }
 
 var ErrInvalidThemeManifest = errors.New("invalid theme manifest")
@@ -53,6 +56,19 @@ func (m ThemeManifest) Validate() error {
 			return ErrInvalidThemeManifest
 		}
 	}
+	if len(m.Views) > maxThemeViews {
+		return ErrInvalidThemeManifest
+	}
+	views := map[string]struct{}{}
+	for _, view := range m.Views {
+		if !themeName.MatchString(view) {
+			return fmt.Errorf("%w: invalid view", ErrInvalidThemeManifest)
+		}
+		if _, ok := views[view]; ok {
+			return ErrInvalidThemeManifest
+		}
+		views[view] = struct{}{}
+	}
 	return nil
 }
 
@@ -71,6 +87,7 @@ type ThemeBundle struct {
 	Manifest ThemeManifest
 	Root     string
 	Layout   string
+	views    map[string]*template.Template
 }
 
 type PageTemplateData struct {
@@ -120,5 +137,9 @@ func LoadTheme(root, name string) (ThemeBundle, error) {
 			return ThemeBundle{}, fmt.Errorf("theme asset %q: %w", asset, err)
 		}
 	}
-	return ThemeBundle{Manifest: manifest, Root: themeRoot, Layout: string(layout)}, nil
+	views, err := parseThemeViews(os.DirFS(themeRoot), manifest.Views)
+	if err != nil {
+		return ThemeBundle{}, err
+	}
+	return ThemeBundle{Manifest: manifest, Root: themeRoot, Layout: string(layout), views: views}, nil
 }

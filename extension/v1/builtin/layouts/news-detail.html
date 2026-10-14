@@ -1,0 +1,20 @@
+{{template "builtin-head" .Site}}
+<main>
+<article data-testid="public-news-article">
+{{with .Article}}
+{{if .Category}}<p><a href="{{.CategoryURL}}">{{.Category}}</a></p>{{end}}
+<h1>{{.Title}}</h1>
+{{if .Excerpt}}<p>{{.Excerpt}}</p>{{end}}
+<p><small>{{.Author}}{{if .Date}} · {{.Date}}{{end}} · {{.ReadingMinutes}} min</small></p>
+{{if .CoverURL}}<img src="{{.CoverURL}}" alt="{{.Title}}">{{end}}
+{{if .KeyTakeaways}}<ul>{{range .KeyTakeaways}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{.ReadingTools}}
+{{.TableOfContents}}
+<div class="article-reading-body">{{.Body}}</div>
+{{if .Tags}}<p>{{range .Tags}}<span>#{{.}}</span> {{end}}</p>{{end}}
+{{.Feedback}}
+{{end}}
+</article>
+{{if .Related}}<section><h2>Related</h2>{{range .Related}}{{template "builtin-card" .}}{{end}}</section>{{end}}
+</main>
+{{template "builtin-foot" .Site}}

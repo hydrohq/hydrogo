@@ -1,0 +1,27 @@
+{{/* Minimal built-in chrome used when the active theme has no page view. */}}
+{{define "builtin-head"}}<!doctype html>
+<html lang="{{.Locale}}" dir="{{.Direction}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+{{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
+{{range .Stylesheets}}<link rel="stylesheet" href="{{.}}">
+{{end}}{{range .Scripts}}<script src="{{.}}" defer></script>
+{{end}}</head>
+<body>
+<header><a href="/">Home</a> <a href="{{.NewsURL}}">News</a>{{if .Navigation}} {{.Navigation}}{{end}}</header>
+{{end}}
+
+{{define "builtin-foot"}}{{.Widgets}}
+</body>
+</html>
+{{end}}
+
+{{define "builtin-card"}}<article data-news-card data-cat="{{.CategoryKey}}">
+{{if .CoverURL}}<img src="{{.CoverURL}}" alt="{{.Title}}" loading="lazy">{{end}}
+<h3><a href="{{.URL}}">{{.Title}}</a></h3>
+{{if .Excerpt}}<p>{{.Excerpt}}</p>{{end}}
+<p><small>{{.Category}}{{if .Author}} · {{.Author}}{{end}} · {{.ReadingMinutes}} min</small></p>
+</article>
+{{end}}
