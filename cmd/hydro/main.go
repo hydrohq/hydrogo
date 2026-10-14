@@ -2099,7 +2099,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 	}
 
-	graphqlHTTP, graphqlEnabled := newGraphQLHandler(db, contentService, modules["pages"])
 	studioRegistry, err := adminstudio.NewRegistry([]adminstudio.Collection{
 		{ID: "pages", Label: "Sayfalar", Description: "Taslak, bloklar ve yayınlanmış içerik.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}, {ID: "blocks", Label: "Bloklar", Kind: adminstudio.FieldRelation}}, Actions: []adminstudio.Action{{Label: "Tüm sayfalar", Href: "/admin/pages"}, {Label: "Ana sayfayı düzenle", Href: "/admin/pages/demo-home"}, {Label: "Showcase'i düzenle", Href: "/admin/pages/demo-showcase"}, {Label: "Hakkında sayfasını düzenle", Href: "/admin/pages/demo-about"}}},
 		{ID: "news", Label: "Haberler", Description: "Taslak, zamanlama ve yayın akışı.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "cover_media_id", Label: "Kapak görseli (herkese açık asset)", Kind: adminstudio.FieldText, Widget: "media"}, {ID: "excerpt", Label: "Kısa özet", Kind: adminstudio.FieldText, Widget: "textarea"}, {ID: "key_takeaways", Label: "Önemli Noktalar (Key Takeaways)", Kind: adminstudio.FieldText, Widget: "list"}, {ID: "category", Label: "Kategori", Kind: adminstudio.FieldText}, {ID: "author_name", Label: "Yazar adı", Kind: adminstudio.FieldText}, {ID: "featured", Label: "Öne çıkan", Kind: adminstudio.FieldText, Widget: "checkbox"}, {ID: "tags", Label: "Etiketler", Kind: adminstudio.FieldText}, {ID: "seo_title", Label: "SEO başlığı", Kind: adminstudio.FieldText}, {ID: "seo_description", Label: "SEO açıklaması", Kind: adminstudio.FieldText, Widget: "textarea"}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}}, Actions: []adminstudio.Action{{Label: "Tüm haberler", Href: "/admin/news"}, {Label: "Release notes", Href: "/admin/news/demo-news"}, {Label: "Başlangıç rehberi", Href: "/admin/news/demo-news-guide"}}},
@@ -3247,74 +3246,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		return fmt.Errorf("prepare embedded vendor assets: %w", err)
 	}
 	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
-	/* Commerce is intentionally deferred; see ADR-0199. Retain this historical
-	composition only until the removed module files disappear from all supported
-	customer branches. It is excluded from the build below. */
-	/*
-		if moduleEnabled(cfg.Modules, "commerce") {
-			commerceStore := commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-			commerceService := commerce.Service{Transactions: transactioner, Store: commerceStore, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
-			go runCommerceReservationReleaser(ctx, commerceService, 15*time.Minute, stderr)
-			commerceCatalog := commerce.CatalogService{Transactions: transactioner, Store: commerceStore, Variants: commerceStore}
-			graphqlHTTP.Catalog = commerceCatalog
-			graphqlHTTP.Commerce = true
-			providers := make(map[string]commerce.PaymentProvider)
-			if cfg.Payments.StripeSecretKey != "" {
-				providers["stripe"] = stripeprovider.Provider{SecretKey: cfg.Payments.StripeSecretKey, WebhookSecret: cfg.Payments.StripeWebhookSecret}
-			}
-			if cfg.Payments.IyzicoSecretKey != "" {
-				providers["iyzico"] = iyzicoprovider.Provider{APIKey: cfg.Payments.IyzicoAPIKey, SecretKey: cfg.Payments.IyzicoSecretKey, BaseURL: cfg.Payments.IyzicoBaseURL, CallbackURL: cfg.Payments.IyzicoCallbackURL}
-			}
-			if cfg.Payments.PayTRMerchantKey != "" {
-				providers["paytr"] = paytrprovider.Provider{MerchantID: cfg.Payments.PayTRMerchantID, MerchantKey: cfg.Payments.PayTRMerchantKey, MerchantSalt: cfg.Payments.PayTRMerchantSalt, Currency: cfg.Payments.PayTRCurrency, BaseURL: cfg.Payments.PayTRBaseURL, SuccessURL: cfg.Payments.PayTRSuccessURL, FailURL: cfg.Payments.PayTRFailURL}
-			}
-			paymentService := commerce.PaymentService{Transactions: transactioner, Store: commerceStore, Providers: providers}
-			commerceCollection, ok := studioRegistry.Collection("commerce")
-			if !ok {
-				return errors.New("commerce admin studio metadata missing")
-			}
-			commerceCollection.Fields = append(commerceCollection.Fields, adminstudio.Field{ID: "description", Label: "Ürün açıklaması", Kind: adminstudio.FieldText, Widget: "richtext"})
-			commerceHTTP := commercetransport.Handler{DB: db, Media: mediaService, Commerce: commerceService, Catalog: commerceCatalog, CatalogVariants: commerceStore, Orders: commerceStore, Payments: providers, PaymentService: paymentService, Limiter: newRateLimiter(10, time.Minute), Cart: commerce.CartService{Transactions: transactioner, Store: commerceStore}, AdminCollection: commerceCollection, SecureCookies: cfg.Security.SecureCookies, DefaultLocale: cfg.I18N.DefaultLocale,
-				ResolveMemberID: func(r *http.Request) (string, bool) {
-					cookie, err := r.Cookie(members.SessionCookieName)
-					if err != nil || strings.TrimSpace(cookie.Value) == "" {
-						return "", false
-					}
-					_, member, err := memberService.ValidateSession(r.Context(), cookie.Value)
-					if err != nil || member == nil || !member.Active {
-						return "", false
-					}
-					return member.ID, true
-				},
-				ResolveMobileMemberID: func(r *http.Request) (string, bool) {
-					if memberHTTP.Mobile == nil {
-						return "", false
-					}
-					parts := strings.Fields(r.Header.Get("Authorization"))
-					if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || strings.TrimSpace(parts[1]) == "" {
-						return "", false
-					}
-					memberID, _, err := memberHTTP.Mobile.ValidateAccess(r.Context(), parts[1])
-					if err != nil || strings.TrimSpace(memberID) == "" {
-						return "", false
-					}
-					return memberID, true
-				},
-			}
-			variantCollection, ok := studioRegistry.Collection("commerce_variants")
-			if !ok {
-				return errors.New("commerce variants admin studio metadata missing")
-			}
-			commerceHTTP.VariantCollection = variantCollection
-			paymentHTTP := commercetransport.PaymentWebhookHandler{Service: paymentService}
-			routes = append(routes, commerceRouterRoutes(commerceHTTP.Routes())...)
-			routes = append(routes, commerceRouterRoutes(paymentHTTP.Routes())...)
-		}
-	*/
-	graphqlEnabled = graphqlEnabled && modules["pages"]
-	if graphqlEnabled {
-		routes = append(routes, graphQLRoutes(graphqlHTTP, newRateLimiter(60, time.Minute))...)
-	}
 
 	metrics := observability.NewMetrics()
 	runtimeMetrics = metrics

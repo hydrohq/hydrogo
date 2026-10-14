@@ -244,14 +244,6 @@ var adminControlTemplate = template.Must(template.New("admin-control").Parse(`<d
 					<small>İstek, gecikme ve bellek verileri</small>
 				</a>
 
-				<a class="tool-tile" href="/api/graphql" target="_blank">
-					<div class="tool-header">
-						<span class="tool-badge tool-badge-purple">GRAPHQL</span>
-						<b>↗</b>
-					</div>
-					<strong>GraphQL Endpoint</strong>
-					<small>Headless veri sorgu arabirimi</small>
-				</a>
 			</div>
 		</article>
 	</div>
