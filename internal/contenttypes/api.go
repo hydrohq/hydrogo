@@ -21,9 +21,20 @@ const maxBodyBytes = collections.MaxRecordBytes + 4096
 type AdminAPI struct {
 	Service collections.Service
 	Types   []Definition
+	// Actor names the user making a change (stored with revisions).
+	Actor func(*http.Request) string
+}
+
+// withActor attaches the acting user to the request context for writes.
+func (a AdminAPI) withActor(r *http.Request) *http.Request {
+	if a.Actor == nil {
+		return r
+	}
+	return r.WithContext(collections.WithActor(r.Context(), a.Actor(r)))
 }
 
 func (a AdminAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r = a.withActor(r)
 	parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/"), "/"), "/")
 	if len(parts) == 0 || len(parts) > 2 || parts[0] == "" {
 		writeError(w, http.StatusNotFound, "not found")

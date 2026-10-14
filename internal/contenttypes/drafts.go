@@ -56,6 +56,7 @@ func (a AdminAPI) Transition(r *http.Request, collection adminstudio.Collection,
 	if !a.CanTransition(r, collection, record, target) || expectedVersion < 1 {
 		return errTransition
 	}
+	r = a.withActor(r)
 	id, _ := record["id"].(string)
 	stored, err := a.Service.GetRecord(r.Context(), collection.ID, id)
 	if err != nil {

@@ -38,8 +38,8 @@ not have yet.
 - New simple content needs no Go code. The 11 sectoral modules removed in
   0001 come back as YAML files when needed (FAQ, team and testimonials ship
   as examples).
-- Not yet supported for content types: revisions, localisation, separate
-  draft copies of published records, scheduling, array and block fields. They will be added to collection storage
+- Not yet supported for content types: localisation, separate draft copies
+  of published records, scheduling, array and block fields. They will be added to collection storage
   behind the callbacks `GeneratedAdminHandler` already defines.
 - Lists support search (`searchable: true` fields), filters
   (`filterable: true`) and sorting by list columns. Collection storage runs
@@ -56,6 +56,13 @@ not have yet.
   storage, publish and discard) was not used because it needs a second
   storage model for working copies. A workflow therefore no longer requires
   `Revisions` in `adminstudio`, only versioned records.
+- `revisions: true` stores a snapshot of every saved version in
+  `hydro_collection_revisions` (migration
+  `202610140001_collection_revisions`, module `collections`), written in the
+  record's transaction with the acting user, capped at 50 per record and
+  deleted with the record. The admin lists, compares and restores them
+  through `GeneratedAdminHandler`'s revision callbacks; a restore saves a new
+  version with optimistic locking and keeps the record's current status.
 - The blueprint generator and the browser-based schema builder at
   `/admin/collections` (with its `/api/v1/collections` API) overlapped with
   this and have been removed.

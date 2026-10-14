@@ -9,6 +9,7 @@
 //	title_field: question
 //	public: true
 //	drafts: true
+//	revisions: true
 //	fields:
 //	  - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
 //	  - {id: answer, label: Answer, kind: richtext, required: true, searchable: true}
@@ -21,6 +22,9 @@
 //   - drafts: give records a draft/published status (a "status" field the
 //     admin changes with Publish and Move to draft). New records are drafts;
 //     the public API never returns drafts.
+//   - revisions: keep the last 50 saved versions of each record. The edit
+//     page lists them; each can be compared with the current record and
+//     restored (restoring saves a new version and keeps the current status).
 //
 // Field keys: id, label, kind, required, unique, options (select), to and
 // many (relation), min and max (number), and:
@@ -74,8 +78,11 @@ type Definition struct {
 	// Drafts adds a draft/published status to every record. New records
 	// start as drafts, the admin publishes and unpublishes them, and the
 	// public API only returns published records.
-	Drafts bool    `yaml:"drafts"`
-	Fields []Field `yaml:"fields"`
+	Drafts bool `yaml:"drafts"`
+	// Revisions keeps the last collections.MaxRevisionsPerRecord saved
+	// versions of each record; the admin can view and restore them.
+	Revisions bool    `yaml:"revisions"`
+	Fields    []Field `yaml:"fields"`
 }
 
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
@@ -176,7 +183,7 @@ func (d Definition) Validate() error {
 
 // Schema returns the storage schema.
 func (d Definition) Schema() (collections.Schema, error) {
-	schema := collections.Schema{ID: d.ID, Label: d.Label, Description: d.Description}
+	schema := collections.Schema{ID: d.ID, Label: d.Label, Description: d.Description, Revisions: d.Revisions}
 	for _, field := range d.Fields {
 		kind, err := storageKind(field)
 		if err != nil {
@@ -234,7 +241,7 @@ func storageKind(field Field) (collections.FieldKind, error) {
 func (d Definition) AdminCollection() adminstudio.Collection {
 	collection := adminstudio.Collection{
 		ID: d.ID, Label: d.Label, Description: d.Description, Group: d.Group, Icon: d.Icon,
-		TitleField: d.TitleField, Versioned: true,
+		TitleField: d.TitleField, Versioned: true, Revisions: d.Revisions,
 		Actions: []adminstudio.Action{{Label: "New " + d.Label, Href: AdminBasePath + "/" + d.ID + "/new"}},
 	}
 	if collection.Group == "" {

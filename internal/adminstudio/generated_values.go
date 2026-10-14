@@ -61,6 +61,11 @@ func parseAdminField(field Field, values []string) (any, error) {
 	}
 }
 
+// DisplayValue renders a record value as generated Admin lists, forms and
+// revision diffs show it; revision callbacks use it so snapshots compare
+// equal to the current record.
+func DisplayValue(value any) string { return displayValue(value) }
+
 func displayValue(value any) string {
 	if value == nil {
 		return ""

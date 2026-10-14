@@ -61,6 +61,9 @@ type Schema struct {
 	Label       string  `json:"label"`
 	Description string  `json:"description,omitempty"`
 	Fields      []Field `json:"fields"`
+	// Revisions keeps a snapshot of every saved version of a record (see
+	// MaxRevisionsPerRecord).
+	Revisions bool `json:"revisions,omitempty"`
 }
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)

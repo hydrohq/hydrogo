@@ -332,6 +332,11 @@ func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map
 			}
 		}
 	}
+	if schema.Revisions {
+		if err := s.writeRevision(ctx, tenantID, collectionID, id, version, string(encoded), now); err != nil {
+			return err
+		}
+	}
 	*result = collections.Record{ID: id, CollectionID: collectionID, Data: data, Version: version, CreatedAt: parseTime(created), UpdatedAt: parseTime(now)}
 	return nil
 }
