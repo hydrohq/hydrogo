@@ -124,8 +124,8 @@
     "lines": 970
   },
   "modules/news/transport/http.go": {
-    "html_strings": 57,
-    "lines": 1918
+    "html_strings": 58,
+    "lines": 1919
   },
   "modules/pages/render/render.go": {
     "html_strings": 1
