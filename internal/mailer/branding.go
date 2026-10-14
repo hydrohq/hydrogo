@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	stdhtml "html"
 	"net/url"
 	"regexp"
 	"strings"
 
+	"github.com/a-h/templ"
 	xhtml "golang.org/x/net/html"
 )
 
@@ -102,34 +102,31 @@ func applyEmailBranding(message Message, branding EmailBranding, origin string) 
 	}
 	content := message.HTMLBody
 	if strings.TrimSpace(content) == "" {
-		content = `<!doctype html><html><body><p>` + stdhtml.EscapeString(baseText) + `</p></body></html>`
+		content = renderEmailMarkup(emailPlainDocument(baseText))
 	}
 	message.HTMLBody = brandedHTML(content, branding, origin)
 	return message
 }
 
+// brandedHTML adds the branding header and footer (branding.templ) inside
+// the body of an HTML message, leaving the message itself untouched.
 func brandedHTML(content string, branding EmailBranding, origin string) string {
-	logo := ""
+	logoURL := ""
 	if branding.LogoAssetID != "" && strings.TrimSpace(origin) != "" {
-		logoURL := strings.TrimRight(origin, "/") + "/media/" + url.PathEscape(branding.LogoAssetID)
-		logo = `<img src="` + stdhtml.EscapeString(logoURL) + `" alt="` + stdhtml.EscapeString(branding.LegalName) + `" style="display:block;max-width:180px;max-height:64px;margin:0 0 18px">`
+		logoURL = strings.TrimRight(origin, "/") + "/media/" + url.PathEscape(branding.LogoAssetID)
 	}
 	name := branding.LegalName
 	if name == "" {
 		name = "HydroGo"
 	}
-	header := `<header style="border-bottom:3px solid ` + branding.PrimaryColor + `;padding:0 0 16px;margin:0 0 20px">` + logo + `<strong style="font:600 18px Arial,sans-serif">` + stdhtml.EscapeString(name) + `</strong></header>`
-	var footer strings.Builder
-	footer.WriteString(`<footer style="border-top:1px solid #d6dbe1;padding-top:16px;margin-top:24px;color:#536170;font:12px/1.5 Arial,sans-serif">`)
+	header := renderEmailMarkup(emailBrandingHeader(logoURL, branding.LegalName, name, branding.PrimaryColor))
+	lines := make([]string, 0, 4)
 	for _, value := range []string{branding.LegalName, branding.PhysicalAddress, branding.FooterText, branding.FooterNotice} {
 		if value = strings.TrimSpace(value); value != "" {
-			footer.WriteString(`<p style="margin:4px 0">` + stdhtml.EscapeString(value) + `</p>`)
+			lines = append(lines, value)
 		}
 	}
-	if branding.PrivacyPolicyURL != "" {
-		footer.WriteString(`<p style="margin:4px 0"><a href="` + stdhtml.EscapeString(branding.PrivacyPolicyURL) + `">Privacy policy</a></p>`)
-	}
-	footer.WriteString(`</footer>`)
+	footer := renderEmailMarkup(emailBrandingFooter(lines, branding.PrivacyPolicyURL))
 	doc, err := xhtml.Parse(strings.NewReader(content))
 	if err != nil {
 		return content
@@ -139,10 +136,20 @@ func brandedHTML(content string, branding EmailBranding, origin string) string {
 		return content
 	}
 	prependEmailFragment(body, header)
-	appendEmailFragment(body, footer.String())
+	appendEmailFragment(body, footer)
 	var output bytes.Buffer
 	if err := xhtml.Render(&output, doc); err != nil {
 		return content
+	}
+	return output.String()
+}
+
+// renderEmailMarkup renders a branding component. They only write to a
+// buffer, so an error leaves the fragment empty rather than failing a send.
+func renderEmailMarkup(component templ.Component) string {
+	var output bytes.Buffer
+	if err := component.Render(context.Background(), &output); err != nil {
+		return ""
 	}
 	return output.String()
 }
