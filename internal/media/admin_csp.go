@@ -1,8 +1,8 @@
 package media
 
-// AdminScriptHashes returns the reviewed hash for the static media library
-// page script. The browser acceptance test checks the rendered block against
-// this source so edits cannot silently leave the CSP catalog stale.
+// AdminScriptHashes returns the CSP hashes for inline scripts on the media
+// library page. There are none any more: the page loads
+// /admin-assets/js/media-library.js instead, which 'self' already allows.
 func AdminScriptHashes() []string {
-	return []string{"jZaUqlEd1qqBBHN7Zr5m6BSqZgRyxqVnclI6NYCwNp4="}
+	return nil
 }
