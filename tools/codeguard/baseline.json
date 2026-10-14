@@ -11,20 +11,8 @@
   "extension/v1/theme_navigation.go": {
     "html_strings": 2
   },
-  "internal/analytics/sqlstore/store.go": {
-    "lines": 844
-  },
-  "internal/auth/http.go": {
-    "lines": 1158
-  },
-  "internal/config/config.go": {
-    "lines": 896
-  },
   "internal/mailer/branding.go": {
     "html_strings": 6
-  },
-  "internal/sdkdist/openapi.go": {
-    "lines": 1149
   },
   "internal/server/maintenance.go": {
     "html_strings": 1
@@ -78,14 +66,7 @@
   "modules/pages/transport/http.go": {
     "html_strings": 9
   },
-  "modules/site/repository/sqlstore/store.go": {
-    "lines": 878
-  },
-  "modules/site/transport/http.go": {
-    "lines": 2301
-  },
   "tools/devserver/main.go": {
-    "html_strings": 10,
-    "lines": 860
+    "html_strings": 10
   }
 }
