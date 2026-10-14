@@ -3,7 +3,6 @@ package transport
 import (
 	"encoding/json"
 	"errors"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -45,9 +44,10 @@ type Handler struct {
 // memberResponseWriter removes legacy client-side member state persistence
 // from rendered auth pages. Session cookies and /member/me remain the only
 // source of truth; member identity must not survive in browser storage.
+// Document language and site links are not rewritten here: the member views
+// receive the locale in their view model (memberSiteView) and render it.
 type memberResponseWriter struct {
 	http.ResponseWriter
-	locale string
 }
 
 func (w memberResponseWriter) Write(payload []byte) (int, error) {
@@ -55,13 +55,6 @@ func (w memberResponseWriter) Write(payload []byte) (int, error) {
 	output = strings.ReplaceAll(output, "if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}", "")
 	output = strings.ReplaceAll(output, "try{localStorage.removeItem('hydro_member_state');if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGOUT'});}}catch(e){}", "")
 	output = strings.ReplaceAll(output, "Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').", "Bağlantı hatası: Sunucuya ulaşılamadı.")
-	locale := strings.TrimSpace(w.locale)
-	if locale == "" {
-		locale = "tr"
-	}
-	output = strings.ReplaceAll(output, `<html lang="tr"`, `<html lang="`+template.HTMLEscapeString(locale)+`"`)
-	output = strings.ReplaceAll(output, "/public/pages/tr/", "/public/pages/"+template.HTMLEscapeString(locale)+"/")
-	output = strings.ReplaceAll(output, "/public/news/tr/", "/public/news/"+template.HTMLEscapeString(locale)+"/")
 	// Only extend a policy that is already set. Behind a capturing middleware
 	// (custom code injection) the header map starts empty, and writing a
 	// hash-only policy there replaced the site-wide CSP and blocked every
@@ -73,11 +66,7 @@ func (w memberResponseWriter) Write(payload []byte) (int, error) {
 }
 
 func sanitizeMemberResponse(w http.ResponseWriter) http.ResponseWriter {
-	return memberResponseWriter{ResponseWriter: w, locale: "tr"}
-}
-
-func sanitizeMemberResponseWithLocale(w http.ResponseWriter, locale string) http.ResponseWriter {
-	return memberResponseWriter{ResponseWriter: w, locale: locale}
+	return memberResponseWriter{ResponseWriter: w}
 }
 
 func (h Handler) defaultLocale() string {

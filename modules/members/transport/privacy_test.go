@@ -63,17 +63,19 @@ func TestMemberResponseWriterRedactsRuntimeErrorDetails(t *testing.T) {
 	}
 }
 
-func TestMemberResponseWriterLocalizesAccountLinks(t *testing.T) {
+// The member views render the configured locale themselves; nothing rewrites
+// a hardcoded "tr" in the output afterwards.
+func TestMemberAuthPageRendersConfiguredLocale(t *testing.T) {
 	response := httptest.NewRecorder()
-	writer := sanitizeMemberResponseWithLocale(response, "en-US")
-	_, _ = writer.Write([]byte(`<html lang="tr"><a href="/public/pages/tr/about/html">About</a><a href="/public/news/tr/html">News</a>`))
+	request := httptest.NewRequest("GET", "/member/login", nil)
+	(Handler{DefaultLocale: "en-US"}).loginPage(response, request)
 	body := response.Body.String()
-	for _, want := range []string{"/public/pages/en-US/about/html", "/public/news/en-US/html"} {
+	for _, want := range []string{`lang="en-US"`, "/public/news/en-US/html"} {
 		if !strings.Contains(body, want) {
-			t.Fatalf("localized member response missing %q: %s", want, body)
+			t.Fatalf("member auth page missing %q: %s", want, body)
 		}
 	}
-	if !strings.Contains(body, `<html lang="en-US"`) {
-		t.Fatalf("localized member response has stale document language: %s", body)
+	if strings.Contains(body, `lang="tr"`) || strings.Contains(body, "/public/news/tr/") {
+		t.Fatalf("member auth page kept the default locale: %s", body)
 	}
 }

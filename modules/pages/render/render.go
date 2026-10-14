@@ -228,7 +228,7 @@ func blockHTML(block pages.Block, options RenderOptions) (string, error) {
 		}
 		return renderComponent(designsystem.BusinessStatusBadge(p))
 	default:
-		return `<aside class="ds-block-unavailable" role="status">Some content is temporarily unavailable.</aside>`, nil
+		return renderComponent(unavailableBlock())
 	}
 }
 

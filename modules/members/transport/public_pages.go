@@ -49,7 +49,7 @@ func (h Handler) memberSiteView(locale, title string) v1.ThemeSiteView {
 
 func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, register bool) {
 	locale := h.defaultLocale()
-	w = sanitizeMemberResponseWithLocale(w, locale)
+	w = sanitizeMemberResponse(w)
 	returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
 	view := v1.MemberAuthView{
 		Register:             register,
@@ -78,7 +78,7 @@ func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, reg
 
 func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
 	locale := h.defaultLocale()
-	w = sanitizeMemberResponseWithLocale(w, locale)
+	w = sanitizeMemberResponse(w)
 	cookie, err := r.Cookie(members.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/member/login", http.StatusSeeOther)
