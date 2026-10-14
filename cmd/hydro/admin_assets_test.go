@@ -21,4 +21,18 @@ func TestAdminAssetsRouteServesEmbeddedMotionAssets(t *testing.T) {
 			t.Fatalf("%s: Cache-Control=%q", path, recorder.Header().Get("Cache-Control"))
 		}
 	}
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/admin-assets/admin.css", nil))
+	etag := recorder.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("missing ETag")
+	}
+	conditional := httptest.NewRequest(http.MethodGet, "/admin-assets/admin.css", nil)
+	conditional.Header.Set("If-None-Match", etag)
+	recorder = httptest.NewRecorder()
+	mux.ServeHTTP(recorder, conditional)
+	if recorder.Code != http.StatusNotModified {
+		t.Fatalf("conditional request status=%d, want 304", recorder.Code)
+	}
 }
