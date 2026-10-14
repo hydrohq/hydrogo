@@ -1,14 +1,13 @@
 // Package hydrogoui provides the "hydrogo" admin Studio visual family's own
 // flagship dashboard body (ADR-0341), authored with real Tailwind utility
 // classes and compiled with the standalone Tailwind CLI (ADR-0338's
-// toolchain), the same pattern internal/ui/aurora and internal/ui/shadcnui
-// already established. hydrogo is the default/flagship family: its chrome
+// toolchain). hydrogo is Studio's only visual family: its chrome
 // (sidebar/topbar) restyle lives in internal/ui/admin_hydrogo.go
-// (AdminHydroGoCSS, applied to the shared markup via plain CSS, same as
-// every other family's chrome); only the dashboard body is its own isolated
-// markup here, genuinely restructured (icon-badge stat cards, a collections
-// grid, a system-status card, and a quick-actions panel) rather than a
-// reskin of the old shared wb-* dashboard layout.
+// (AdminHydroGoCSS, applied to the shared markup via plain CSS); only the
+// dashboard body is its own isolated markup here, genuinely restructured
+// (icon-badge stat cards, a collections grid, a system-status card, and a
+// quick-actions panel) rather than a reskin of the old shared wb-* dashboard
+// layout.
 package hydrogoui
 
 import (

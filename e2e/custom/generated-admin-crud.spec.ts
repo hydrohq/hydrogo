@@ -91,16 +91,16 @@ test.describe("generated Edition Admin CRUD", () => {
     await expect(page.locator("h1", { hasText: "Projects" })).toBeVisible();
     await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible();
     await expectNoA11yViolations(page);
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         await page.reload();
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
         await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
         await expectNoA11yViolations(page);
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
     await page.reload();
     await expect(page.locator("#filter-status option").first()).toHaveText("Tümü");
     for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }]) {
@@ -113,9 +113,9 @@ test.describe("generated Edition Admin CRUD", () => {
     const newRecord = page.getByRole("link", { name: "Yeni kayıt" });
     await newRecord.focus();
     await page.keyboard.press("Enter");
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         const formResponse = await page.goto(`${baseURL}/admin/resources/project/new`);
         expect(formResponse?.status(), `create form should render in ${family}-${mode}`).toBe(200);
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
@@ -136,7 +136,7 @@ test.describe("generated Edition Admin CRUD", () => {
         await expectNoA11yViolations(page);
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
     await page.goto(`${baseURL}/admin/resources/project/new`);
     const create = page.locator('form[action="/admin/resources/project/new"]');
     await create.getByLabel("Title").fill("HydroGo E2E project");
@@ -164,9 +164,9 @@ test.describe("generated Edition Admin CRUD", () => {
     const recordPath = await recordLink.getAttribute("href");
     expect(recordPath).toMatch(/^\/admin\/resources\/project\//);
 
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         const response = await page.goto(`${baseURL}${recordPath}`);
         expect(response?.status(), `${recordPath} should render in ${family}-${mode}`).toBe(200);
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
@@ -279,9 +279,9 @@ test.describe("generated Edition Admin CRUD", () => {
     const articleForm = page.locator('form[action="/admin/resources/article/new"]');
     const articleEditor = articleForm.getByRole("textbox", { name: "Body" });
     await expect(articleEditor).toBeVisible();
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         await page.reload();
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
         await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
@@ -289,7 +289,7 @@ test.describe("generated Edition Admin CRUD", () => {
         await expectNoA11yViolations(page);
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
     await page.reload();
     await expectNoA11yViolations(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -355,9 +355,9 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await expectNoA11yViolations(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         await page.reload();
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
         await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
@@ -366,7 +366,7 @@ test.describe("generated Edition Admin CRUD", () => {
         await expectNoA11yViolations(page);
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
     await page.reload();
     await expectNoA11yViolations(page);
     await blockForm.getByLabel("Title").fill("Generated Edition block content");
@@ -390,9 +390,9 @@ test.describe("generated Edition Admin CRUD", () => {
     await blockLink.click();
     const editParagraph = page.locator('[data-editorjs-mount="body"] .ce-paragraph[contenteditable="true"]');
     await expect(editParagraph).toHaveText("A real Edition block paragraph.");
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         await page.reload();
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
         await expect(page.locator("html")).toHaveAttribute("data-theme", mode);
@@ -401,7 +401,7 @@ test.describe("generated Edition Admin CRUD", () => {
         await expectNoA11yViolations(page, `generated block edit (${family}/${mode})`);
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-ui-theme", "hydrogo");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -425,9 +425,9 @@ test.describe("generated Edition Admin CRUD", () => {
     await page.goto(`${baseURL}/admin/resources/milestone/new`);
     await expect(page.getByLabel("Title")).toBeVisible();
     expect(await page.evaluate(() => typeof (window as any).htmx)).toBe("undefined");
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         await page.reload();
         await expect(page.locator("html")).toHaveAttribute("data-ui-theme", family);
         await expect(page.locator("html")).toHaveAttribute("data-theme", mode);

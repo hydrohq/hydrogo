@@ -218,9 +218,9 @@ test.describe("generated rich-text Edition Admin", () => {
 
     await page.goto(`${baseURL}/admin/resources/article/new`);
     await dismissOnboarding(page);
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         const response = await page.goto(`${baseURL}/admin/resources/article/new`);
         expect(response?.status(), `generated block editor should render in ${family}-${mode}`).toBe(200);
         await dismissOnboarding(page);
@@ -230,7 +230,7 @@ test.describe("generated rich-text Edition Admin", () => {
         await expectNoA11yViolations(page);
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
 
     await page.goto(`${baseURL}/admin/resources/article`);
     await expect(page.locator('script[src="/test/editorjs.js"]')).toHaveCount(0);
@@ -440,10 +440,10 @@ test.describe("generated rich-text Edition Admin", () => {
       { path: "/admin/resources/story/story-1?locale=tr", heading: "Kaydı düzenle · Stories" },
     ];
     await page.goto(`${baseURL}${screens[0].path}`);
-    for (const family of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const family of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
         for (const screen of screens) {
-          await page.evaluate(([theme, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${theme}-${colorMode}`), [family, mode]);
+          await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
           const response = await page.goto(`${baseURL}${screen.path}`);
           expect(response?.status(), `${screen.path} should render in ${family}-${mode}`).toBe(200);
           await dismissOnboarding(page);
@@ -454,7 +454,7 @@ test.describe("generated rich-text Edition Admin", () => {
         }
       }
     }
-    await page.evaluate(() => localStorage.setItem("hydro-ui-theme-v2", "hydrogo-light"));
+    await page.evaluate(() => localStorage.setItem("hydro-theme", "light"));
   });
 
   test("generated draft inbox pagination is bounded, stable, and keyboard reachable", async ({ page, request }) => {

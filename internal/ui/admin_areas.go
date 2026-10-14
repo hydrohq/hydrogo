@@ -720,10 +720,6 @@ function testEndpoint(btn, url){
 		passwordHelp := "Parolanızı yenilemek için Güvenlik Merkezinden şifre sıfırlama akışını başlatabilir veya CLI üzerinden <code>hydro user reset-password</code> komutunu çalıştırabilirsiniz."
 		accountSave, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel := "Hesap Bilgilerini Kaydet", "Mevcut Parola", "Yeni Parola", "Yeni Parola (Tekrar)"
 		accountHelp := "Email veya parolanızı değiştirmek için mevcut parolanızı doğrulayın. Değişiklikten sonra güvenlik için tüm oturumlar kapatılır."
-		appearanceTitle, appearanceIntro, appearanceLabel := "Görünüm", "Studio'nun görsel temasını seçin. Tercihiniz bu tarayıcıda saklanır.", "Tema"
-		if data.Locale == "en" {
-			appearanceTitle, appearanceIntro, appearanceLabel = "Appearance", "Choose Studio's visual theme. Your choice is saved in this browser.", "Theme"
-		}
 		if data.Locale == "en" {
 			profileTitle = "👤 Administrator profile"
 			profileIntro = "The administrator account currently authorized to access Admin Studio:"
@@ -786,12 +782,7 @@ function testEndpoint(btn, url){
       <button class="button" type="submit">%s</button>
     </form>
   </div>
-  <div class="acc-card">
-    <h3>🎨 %s</h3>
-    <p>%s</p>
-    <label class="studio-form-field"><span>%s</span><select id="ui-family-select" class="ui-family-select" aria-label="%s"><option value="hydrogo">HydroGo</option><option value="shadcn">shadcn</option><option value="nova">Nova</option><option value="aurora">Aurora</option></select></label>
-  </div>
-		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"), appearanceTitle, appearanceIntro, appearanceLabel, appearanceLabel)
+		</div>`, profileTitle, profileIntro, emailLabel, email, roleLabel, roleValue, sessionLabel, sessionValue, scopeLabel, scopeValue, securityTitle, securityIntro, passwordLabel, passwordHelp, accountSave, accountHelp, csrf, emailLabel, email, currentPasswordLabel, newPasswordLabel, confirmPasswordLabel, accountSave, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), languageSaved, csrf, i18n.TForTenant(data.TenantID, data.Locale, "admin.language"), selectedLocale(data.Locale, "tr"), selectedLocale(data.Locale, "en"), i18n.TForTenant(data.TenantID, data.Locale, "admin.language.save"))
 		if err := designsystem.MFASettings(designsystem.MFASettingsProps{CSRF: data.CSRF, Locale: data.Locale, Enabled: data.MFAEnabled, Available: data.MFAAvailable, StatusLoaded: data.MFAStatusLoaded}).Render(context.Background(), w); err != nil {
 			return err
 		}

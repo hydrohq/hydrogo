@@ -2588,22 +2588,6 @@ func injectGeneratedNavigation(markup []byte, collections []Collection, current,
 	if end := strings.Index(result, `</nav>`); end >= 0 {
 		result = result[:end] + navigation + result[end:]
 	}
-	var novaLinks bytes.Buffer
-	for _, item := range items {
-		className := "nova-topnav-link"
-		if item.Active {
-			className += " is-active"
-		}
-		if err := ui.Link(ui.LinkProps{Href: item.Route, Label: item.Label, Class: className}).Render(context.Background(), &novaLinks); err != nil {
-			return nil, err
-		}
-	}
-	if start := strings.Index(result, `class="nova-topnav-links"`); start >= 0 {
-		if end := strings.Index(result[start:], `</nav>`); end >= 0 {
-			end += start
-			result = result[:end] + novaLinks.String() + result[end:]
-		}
-	}
 	return []byte(result), nil
 }
 

@@ -163,9 +163,9 @@ test.describe("dynamic Admin collections", () => {
       "/admin/collections/e2e_catalog",
       `/admin/collections/e2e_catalog/records/${recordID}`,
     ];
-    for (const theme of ["hydrogo", "shadcn", "nova", "aurora"]) {
+    for (const theme of ["hydrogo"]) {
       for (const mode of ["light", "dark"]) {
-        await page.evaluate(([family, colorMode]) => localStorage.setItem("hydro-ui-theme-v2", `${family}-${colorMode}`), [theme, mode]);
+        await page.evaluate((colorMode) => localStorage.setItem("hydro-theme", colorMode), mode);
         for (const route of themeRoutes) {
           const response = await page.goto(`${baseURL}${route}`);
           expect(response?.status(), `${route} should render in ${theme}-${mode}`).toBe(200);

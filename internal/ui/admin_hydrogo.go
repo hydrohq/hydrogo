@@ -2,12 +2,11 @@ package ui
 
 // AdminHydroGoCSS gives "hydrogo" its own distinct flagship visual identity
 // (ADR-0341), replacing the undifferentiated base tokens it silently
-// inherited from AdminCSS before this change (hydrogo and the former
-// "workbench" family were, in effect, the same unstyled default). It
-// restyles the shared, mode-agnostic sidebar/topbar/card/button/input markup
-// the same way AdminShadcnCSS/AdminNovaCSS/AdminAuroraCSS do (ADR-0041) -
-// only hydrogo's *dashboard body* gets its own isolated Tailwind-authored
-// markup (internal/ui/hydrogoui), matching the shadcn/Aurora precedent.
+// inherited from AdminCSS before this change. It restyles the shared
+// sidebar/topbar/card/button/input markup; only the *dashboard body* gets its
+// own isolated Tailwind-authored markup (internal/ui/hydrogoui). The shell
+// always sets data-ui-theme="hydrogo" on <html>, so these selectors apply on
+// every admin page.
 //
 // Design brief executed here: one confident, saturated brand hue (a cobalt
 // blue distinct from the old default sky-blue, and deliberately not a
@@ -49,14 +48,9 @@ html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--5{background-color:#047857
 html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--6{background-color:#4338ca;color:#fff}
 html[data-ui-theme] .user-avatar.ds-avatar.ds-avatar--7{background-color:#a21caf;color:#fff}`
 
-// AdminShadcnDashboardLayoutCSS toggles which dashboard body markup is
-// visible for the shadcn family, following the same client-only
-// display-toggle pattern AdminNovaDashboardLayoutCSS/
-// AdminAuroraDashboardLayoutCSS established (ADR-0041's family selection has
-// no server-side signal to branch on, so every family's dashboard body
-// renders unconditionally and CSS hides the inactive ones). hydrogo has no
-// self-hiding rule of its own - it is the default/flagship family and stays
-// visible unless another family explicitly hides it, exactly like the old
-// "workbench" family it replaced.
-const AdminShadcnDashboardLayoutCSS = `html:not([data-ui-theme=shadcn]) .shadcn-dashboard{display:none}
-html[data-ui-theme=shadcn] .hydrogo-dashboard{display:none}`
+// AdminFormControlBaseCSS is the unscoped base styling for native form
+// controls (and its dark-mode companion). It used to ship inside the
+// removed Nova family's stylesheet while applying to every family, so it is
+// kept here, at the same position in the shell's style block, to leave the
+// hydrogo look unchanged.
+const AdminFormControlBaseCSS = `input,select,textarea,.studio-form input,.studio-form select,.studio-form textarea,.studio-card input,.studio-card select,.studio-card textarea{box-sizing:border-box;border-radius:var(--radius-md);background-color:var(--surface);min-height:32px;color:var(--ink);border:1px solid var(--line);font-size:.82rem;font:inherit}html[data-theme=dark] input,html[data-theme=dark] select,html[data-theme=dark] textarea{border-color:var(--line);background-color:var(--bg-subtle);color:var(--ink)}`

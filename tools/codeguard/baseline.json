@@ -26,7 +26,7 @@
   },
   "internal/adminstudio/generated_http.go": {
     "html_strings": 22,
-    "lines": 2627
+    "lines": 2611
   },
   "internal/adminstudio/kit_badges.go": {
     "html_strings": 1
@@ -63,7 +63,7 @@
   },
   "internal/ui/admin_areas.go": {
     "html_strings": 31,
-    "lines": 811
+    "lines": 802
   },
   "internal/ui/admin_control.go": {
     "html_strings": 1
@@ -75,12 +75,9 @@
     "html_strings": 5,
     "lines": 930
   },
-  "internal/ui/admin_nova_dashboard.go": {
-    "html_strings": 1
-  },
   "internal/ui/admin_shell.go": {
-    "html_strings": 49,
-    "lines": 2546
+    "html_strings": 47,
+    "lines": 2463
   },
   "internal/ui/admin_ux.go": {
     "html_strings": 9
