@@ -11,34 +11,6 @@
   "extension/v1/theme_navigation.go": {
     "html_strings": 2
   },
-  "internal/adminstudio/digest.go": {
-    "html_strings": 6
-  },
-  "internal/adminstudio/extension_surface.go": {
-    "html_strings": 1
-  },
-  "internal/adminstudio/form.go": {
-    "html_strings": 5
-  },
-  "internal/adminstudio/generated_http.go": {
-    "html_strings": 20,
-    "lines": 2552
-  },
-  "internal/adminstudio/generated_list_controls.go": {
-    "html_strings": 2
-  },
-  "internal/adminstudio/kit_badges.go": {
-    "html_strings": 1
-  },
-  "internal/adminstudio/list.go": {
-    "html_strings": 1
-  },
-  "internal/adminstudio/taxonomy.go": {
-    "html_strings": 3
-  },
-  "internal/adminstudio/toolbar.go": {
-    "html_strings": 1
-  },
   "internal/analytics/sqlstore/store.go": {
     "lines": 844
   },
@@ -105,8 +77,7 @@
     "html_strings": 9
   },
   "modules/members/transport/http.go": {
-    "html_strings": 41,
-    "lines": 885
+    "html_strings": 2
   },
   "modules/news/transport/http.go": {
     "html_strings": 17,
