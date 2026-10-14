@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"errors"
 	"html/template"
 	"net/url"
@@ -55,47 +56,54 @@ func RenderThemeNavigation(items []ThemeNavigationItem) (template.HTML, error) {
 			return children[parent][i].Position < children[parent][j].Position
 		})
 	}
-	var output strings.Builder
 	rendered := 0
-	var render func(string, int, map[string]bool) error
-	render = func(parent string, depth int, stack map[string]bool) error {
+	var build func(string, int, map[string]bool) ([]themeNavigationNode, error)
+	build = func(parent string, depth int, stack map[string]bool) ([]themeNavigationNode, error) {
 		if depth > 8 {
-			return ErrInvalidThemeNavigation
+			return nil, ErrInvalidThemeNavigation
 		}
-		items := children[parent]
-		if len(items) == 0 {
-			return nil
-		}
-		class := "site-navigation-list"
-		if depth > 0 {
-			class = "site-navigation-child-list"
-		}
-		output.WriteString(`<ul class="` + class + `">`)
-		for _, item := range items {
+		nodes := make([]themeNavigationNode, 0, len(children[parent]))
+		for _, item := range children[parent] {
 			if stack[item.ID] {
-				return ErrInvalidThemeNavigation
+				return nil, ErrInvalidThemeNavigation
 			}
 			stack[item.ID] = true
 			rendered++
-			output.WriteString(`<li class="site-navigation-item"><a class="site-navigation-link" href="` + template.HTMLEscapeString(item.Href) + `"`)
-			if item.Target == "_blank" {
-				output.WriteString(` target="_blank" rel="noopener noreferrer"`)
-			}
-			output.WriteString(`>` + template.HTMLEscapeString(item.Label) + `</a>`)
-			if err := render(item.ID, depth+1, stack); err != nil {
-				return err
+			nested, err := build(item.ID, depth+1, stack)
+			if err != nil {
+				return nil, err
 			}
 			delete(stack, item.ID)
-			output.WriteString(`</li>`)
+			nodes = append(nodes, themeNavigationNode{Item: item, Children: nested})
 		}
-		output.WriteString(`</ul>`)
-		return nil
+		return nodes, nil
 	}
-	if err := render("", 0, make(map[string]bool)); err != nil {
+	roots, err := build("", 0, make(map[string]bool))
+	if err != nil {
 		return "", err
 	}
 	if rendered != len(items) {
 		return "", ErrInvalidThemeNavigation
 	}
+	if len(roots) == 0 {
+		return "", nil
+	}
+	var output strings.Builder
+	if err := themeNavigationList(roots, 0).Render(context.Background(), &output); err != nil {
+		return "", err
+	}
 	return template.HTML(output.String()), nil
+}
+
+// themeNavigationNode is a validated menu entry with its sorted children.
+type themeNavigationNode struct {
+	Item     ThemeNavigationItem
+	Children []themeNavigationNode
+}
+
+func themeNavigationListClass(depth int) string {
+	if depth > 0 {
+		return "site-navigation-child-list"
+	}
+	return "site-navigation-list"
 }
