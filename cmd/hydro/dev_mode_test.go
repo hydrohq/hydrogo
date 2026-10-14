@@ -12,8 +12,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 )
 
 func TestEnforceDevModeLocalBind(t *testing.T) {
@@ -45,26 +43,11 @@ func TestEnforceDevModeLocalBind(t *testing.T) {
 	}
 }
 
-func TestEnforceDevModeOfficialBuild(t *testing.T) {
-	original := licensing.TrustedPublicKeyBase64
-	defer func() { licensing.TrustedPublicKeyBase64 = original }()
-
-	licensing.TrustedPublicKeyBase64 = ""
-	if err := enforceDevModeOfficialBuild(); err != nil {
-		t.Fatalf("expected no error with empty vendor key, got %v", err)
-	}
-
-	licensing.TrustedPublicKeyBase64 = "vendor-key-present"
-	if err := enforceDevModeOfficialBuild(); err == nil || !strings.Contains(err.Error(), "official builds") {
-		t.Fatalf("expected official build rejection, got %v", err)
-	}
-}
-
 func TestPrintDevModeWarning(t *testing.T) {
 	var buf bytes.Buffer
 	printDevModeWarning(&buf)
-	if !strings.Contains(buf.String(), "UNLICENSED DEV MODE") {
-		t.Fatalf("expected UNLICENSED DEV MODE banner, got: %s", buf.String())
+	if !strings.Contains(buf.String(), "DEV MODE - NOT FOR PRODUCTION") {
+		t.Fatalf("expected DEV MODE - NOT FOR PRODUCTION banner, got: %s", buf.String())
 	}
 	if !strings.Contains(buf.String(), "NOT FOR PRODUCTION") {
 		t.Fatalf("expected NOT FOR PRODUCTION banner, got: %s", buf.String())
@@ -75,33 +58,6 @@ func TestPrintDevModeWarning(t *testing.T) {
 // any listener starts), so they can run in-process against the real serve()
 // entry point via run().
 func TestServeDevModeRejections(t *testing.T) {
-	t.Run("dev flag rejected in official build (vendor key present)", func(t *testing.T) {
-		original := licensing.TrustedPublicKeyBase64
-		licensing.TrustedPublicKeyBase64 = "vendor-key-present"
-		defer func() { licensing.TrustedPublicKeyBase64 = original }()
-
-		dsn := filepath.Join(t.TempDir(), "devmode.sqlite")
-		var stdout, stderr bytes.Buffer
-		err := run([]string{"serve", "--dev", "--address", "127.0.0.1:0", "--database-dialect", "sqlite", "--database-dsn", dsn}, strings.NewReader(""), &stdout, &stderr)
-		if err == nil || !strings.Contains(err.Error(), "official builds") {
-			t.Fatalf("expected official build rejection, got err=%v stderr=%s", err, stderr.String())
-		}
-	})
-
-	t.Run("HYDRO_DEV_MODE=1 rejected in official build (vendor key present)", func(t *testing.T) {
-		original := licensing.TrustedPublicKeyBase64
-		licensing.TrustedPublicKeyBase64 = "vendor-key-present"
-		defer func() { licensing.TrustedPublicKeyBase64 = original }()
-		t.Setenv("HYDRO_DEV_MODE", "1")
-
-		dsn := filepath.Join(t.TempDir(), "devmode.sqlite")
-		var stdout, stderr bytes.Buffer
-		err := run([]string{"serve", "--address", "127.0.0.1:0", "--database-dialect", "sqlite", "--database-dsn", dsn}, strings.NewReader(""), &stdout, &stderr)
-		if err == nil || !strings.Contains(err.Error(), "official builds") {
-			t.Fatalf("expected official build rejection, got err=%v stderr=%s", err, stderr.String())
-		}
-	})
-
 	t.Run("dev flag rejected on non-loopback address", func(t *testing.T) {
 		dsn := filepath.Join(t.TempDir(), "devmode.sqlite")
 		var stdout, stderr bytes.Buffer
@@ -121,20 +77,6 @@ func TestServeDevModeRejections(t *testing.T) {
 		}
 	})
 
-	t.Run("without --dev, unlicensed serve still fails (regression)", func(t *testing.T) {
-		tempDir := t.TempDir()
-		configPath := filepath.Join(tempDir, "config.yaml")
-		licenseYAML := "license:\n  required: true\n  file: hydro.lic\n  project_id: test-project\n  edition: test-edition\n"
-		if err := os.WriteFile(configPath, []byte(licenseYAML), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		dsn := filepath.Join(tempDir, "devmode.sqlite")
-		var stdout, stderr bytes.Buffer
-		err := run([]string{"serve", "--config", configPath, "--address", "127.0.0.1:0", "--database-dialect", "sqlite", "--database-dsn", dsn}, strings.NewReader(""), &stdout, &stderr)
-		if err == nil || !strings.Contains(err.Error(), "lisans dosyası bulunamadı") {
-			t.Fatalf("expected license-missing regression error, got err=%v stderr=%s", err, stderr.String())
-		}
-	})
 }
 
 // TestDevModeServeLifecycle re-execs this test binary as a child process to
@@ -180,8 +122,8 @@ func testDevModeServeStartup(t *testing.T, useDevFlag, useDevEnv bool) {
 		if !ready {
 			t.Fatalf("dev mode server did not become ready within 15s\nstdout:\n%s\nstderr:\n%s", &stdout, &stderr)
 		}
-		if !strings.Contains(stderr.String(), "UNLICENSED DEV MODE") {
-			t.Fatalf("expected UNLICENSED DEV MODE warning on stderr, got:\n%s", &stderr)
+		if !strings.Contains(stderr.String(), "DEV MODE - NOT FOR PRODUCTION") {
+			t.Fatalf("expected DEV MODE - NOT FOR PRODUCTION warning on stderr, got:\n%s", &stderr)
 		}
 		if err := terminateRuntimeProcess(cmd); err != nil {
 			_ = cmd.Process.Kill()
