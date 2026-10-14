@@ -125,6 +125,7 @@ func TestSQLiteModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 		{name: "hydro_collection_unique", want: false},
 		{name: "hydro_collection_relations", want: false},
 		{name: "hydro_collection_revisions", want: false},
+		{name: "hydro_collection_translations", want: false},
 	} {
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table.name).Scan(&count); err != nil {
@@ -150,7 +151,7 @@ func TestSQLiteCollectionsMigrationIsOptIn(t *testing.T) {
 	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"collections": true}); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"hydro_collections", "hydro_collection_records", "hydro_collection_unique", "hydro_collection_relations", "hydro_collection_revisions"} {
+	for _, table := range []string{"hydro_collections", "hydro_collection_records", "hydro_collection_unique", "hydro_collection_relations", "hydro_collection_revisions", "hydro_collection_translations"} {
 		var count int
 		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&count); err != nil {
 			t.Fatal(err)
