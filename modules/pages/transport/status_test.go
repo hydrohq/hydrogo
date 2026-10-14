@@ -14,6 +14,21 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
 
+func TestParseBlockFormAcceptsBlocksWithoutButton(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("block_count=1&block_type_0=cta&block_title_0=Talk+to+us&block_button_text_0=&block_button_url_0=&block_bg_color_0=&block_padding_y_0=normal"))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := r.ParseForm(); err != nil {
+		t.Fatal(err)
+	}
+	blocks, err := parseBlockForm(r)
+	if err != nil {
+		t.Fatalf("a CTA without a button URL was rejected: %v", err)
+	}
+	if len(blocks) != 1 || strings.Contains(string(blocks[0].Payload), "button_url") {
+		t.Fatalf("blocks = %+v", blocks)
+	}
+}
+
 func TestParseBlockFormBuildsStructuredBlocks(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("block_count=1&block_type_0=hero&block_title_0=Welcome&block_button_url_0=%2Fstart&block_bg_color_0=primary_tint&block_padding_y_0=spacious"))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
