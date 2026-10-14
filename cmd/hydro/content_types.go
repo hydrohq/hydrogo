@@ -50,12 +50,16 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 	if err != nil {
 		return nil, fmt.Errorf("content types: admin registry: %w", err)
 	}
-	api := contenttypes.AdminAPI{Service: service, Types: types}
+	api := contenttypes.AdminAPI{Service: service, Types: types, Actor: contentTypeActor}
 	admin := adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
 		API:             api,
 		Authorize:       isActiveAdmin,
 		CanTransition:   api.CanTransition,
 		Transition:      api.Transition,
+		ListRevisions:   api.ListRevisions,
+		GetRevision:     api.GetRevision,
+		CanRestore:      api.CanRestore,
+		RestoreRevision: api.RestoreRevision,
 		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
 		CSRFToken:       func(r *http.Request) string { return security.CSRFTokenFromContext(r.Context()) },
 		ValidateCSRF: func(r *http.Request) bool {
@@ -84,6 +88,14 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 func isActiveAdmin(r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
 	return user != nil && user.Active && user.Role == auth.RoleAdmin
+}
+
+// contentTypeActor names the signed-in user in content-type revisions.
+func contentTypeActor(r *http.Request) string {
+	if user := auth.UserFromContext(r.Context()); user != nil {
+		return user.Email
+	}
+	return ""
 }
 
 func renderContentTypePage(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {

@@ -19,6 +19,7 @@ label: FAQ
 title_field: question
 public: true
 drafts: true
+revisions: true
 fields:
   - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
   - {id: answer, label: Answer, kind: textarea, searchable: true}
@@ -135,6 +136,8 @@ test.describe("content types", () => {
 
     await workflowButton("draft").click();
     await expect(status).toHaveValue("draft");
+    // Every save is kept as a revision: create, publish, move to draft.
+    await expect(page.locator('.revision-list form[action*="/revisions/"][method="get"]')).toHaveCount(3);
     const unpublished = await page.request.get(`${baseURL}/api/v1/content/faq`);
     expect((await unpublished.json()).items).toHaveLength(0);
 

@@ -1,0 +1,28 @@
+id: "202610140001_collection_revisions"
+module: "collections"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "5aa5826fa3effdbe305f47f6d8b8ebb32af0e56b83ad4e3814b92451146d2f0c"
+  postgres: "5aa5826fa3effdbe305f47f6d8b8ebb32af0e56b83ad4e3814b92451146d2f0c"
+  mysql: "37ff4a5eaff8195ff4ead9e4589273486a6de7bc4f0dbd02ce33479398975232"
+dependencies:
+  - "202609290002_dynamic_collections"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The dynamic collections tables are installed"
+lock_timeout: "bounded by the migration runner deadline"
+disk_estimate: "One static revision table; at most 50 revisions per record of a content type with revisions enabled, each bounded by the record JSON limit"
+compatibility: "Adds an empty table; records of types without revisions never write to it"
+smoke:
+  - "Saving a record of a type with revisions stores a tenant-scoped snapshot, and deleting the record deletes its snapshots"
+restart: "Safe to rerun; the migration ledger verifies checksums before no-op"
+rollback: "No production down migration; the table can be dropped after disabling revisions, or restore/forward migrate"
