@@ -31,7 +31,7 @@ import (
 // listen builds the server configuration and serves it as a single CGI
 // request, a FastCGI listener or the standalone HTTP(S) server.
 func (a *serveApp) listen(routes []router.Route) error {
-	serverConfig, err := a.serverConfig(routes)
+	serverConfig, err := a.serverConfig(append(routes, a.mailerRoutes()...))
 	if err != nil {
 		return err
 	}
@@ -46,10 +46,6 @@ func (a *serveApp) listen(routes []router.Route) error {
 		handler = server.LazyCron(handler, a.cgiLazyCron)
 		return server.ServeCGI(handler)
 	}
-	// NOTE: serve() has always built these mailer routes only after
-	// serverConfig captured the route table, so the server never registers
-	// them. Kept as-is by the serve() split; wiring them up is a separate change.
-	_ = a.mailerRoutes()
 	if a.opts.fastCGI {
 		return server.ServeFastCGI(a.ctx, "tcp", a.opts.fastCGIAddress, serverConfig)
 	}
@@ -107,7 +103,7 @@ func (a *serveApp) cgiLazyCron(cronCtx context.Context) {
 }
 
 // mailerRoutes are the email test, branding, verification and DNS
-// diagnostics routes. See the note in listen: they are not registered.
+// diagnostics routes (admin-only; each handler checks the admin role).
 func (a *serveApp) mailerRoutes() []router.Route {
 	cfg, db, modules, smtpSender := a.cfg, a.db, a.modules, a.smtpSender
 	userStore, auditRecorder := a.userStore, a.auditRecorder

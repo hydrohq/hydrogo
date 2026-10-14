@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/customcode"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 const customCodeResponseLimit = 2 << 20
@@ -46,8 +47,6 @@ func CustomCodeMiddleware(provider func(*http.Request) (string, string)) func(ht
 				return
 			}
 			content := capture.buf.Bytes()
-			head = customcode.AddNonces(head)
-			body = customcode.AddNonces(body)
 			if head != "" {
 				content = insertBeforeClosingTag(content, "</head>", head)
 			}
@@ -61,7 +60,10 @@ func CustomCodeMiddleware(provider func(*http.Request) (string, string)) func(ht
 				return
 			}
 			copyHeaders(w.Header(), capture.header)
-			if value := customCSPValue(sources); value != "" {
+			// Allow the snippet's external origins and, by hash, its inline
+			// <script>/<style> blocks; without the hashes the strict policy
+			// would silently block inline analytics snippets.
+			if value := strings.Trim(customCSPValue(sources)+"; "+security.InlineCSPDirectives([]byte(head+body)), "; "); value != "" {
 				w.Header().Set("X-Hydro-Custom-CSP", value)
 			}
 			w.Header().Del("Content-Length")

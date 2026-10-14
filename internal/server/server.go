@@ -176,8 +176,7 @@ func NewHandler(config Config) http.Handler {
 	if config.CustomCodeProvider != nil && !config.SafeMode {
 		handler = CustomCodeMiddleware(config.CustomCodeProvider)(handler)
 	}
-	// Cache the uncompressed representation so CSP nonces can be regenerated
-	// safely before compression transforms the body.
+	// Cache the uncompressed representation; compression runs per response.
 
 	handler = CompressionMiddleware(handler)
 	handler = ETagMiddleware(handler)
@@ -248,7 +247,7 @@ func NewHandler(config Config) http.Handler {
 		handler = config.IPBlocklist.Middleware(handler)
 	}
 
-	// Apply Security Headers with CSP nonces
+	// Apply security headers (CSP allows inline code only by hash)
 	handler = security.HeadersMiddleware(security.HeaderConfig{
 		EnableHSTS:   config.EnableHSTS,
 		Preset:       config.SecurityHeadersPreset,

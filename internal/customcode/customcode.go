@@ -2,7 +2,6 @@
 package customcode
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"net/url"
@@ -158,35 +157,4 @@ func resourceHost(tag, value string) (string, error) {
 		}
 	}
 	return "", ErrInvalidCode
-}
-
-// AddNonces preserves the supplied markup and adds the request nonce to
-// executable script and style tags that do not already carry one.
-func AddNonces(code string) string { return code }
-
-func hasNonce(attrs []xhtml.Attribute) bool {
-	for _, attr := range attrs {
-		if strings.EqualFold(attr.Key, "nonce") {
-			return true
-		}
-	}
-	return false
-}
-
-func addNonceAttribute(raw []byte, nonce string) []byte {
-	end := bytes.LastIndexByte(raw, '>')
-	if end < 0 {
-		return raw
-	}
-	insertAt := end
-	if end > 0 && raw[end-1] == '/' {
-		insertAt--
-	}
-	result := make([]byte, 0, len(raw)+len(nonce)+10)
-	result = append(result, raw[:insertAt]...)
-	result = append(result, ` nonce="`...)
-	result = append(result, nonce...)
-	result = append(result, '"')
-	result = append(result, raw[insertAt:]...)
-	return result
 }

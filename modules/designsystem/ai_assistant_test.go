@@ -9,7 +9,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/ai"
 )
 
-func skip_TestAIAssistantComponentsExplainConsentAndKeepApplyInDraft(t *testing.T) {
+func TestAIAssistantComponentsExplainConsentAndKeepApplyInDraft(t *testing.T) {
 	var request bytes.Buffer
 	if err := AIAssistantRequest("/admin/pages/page1/ai-suggest", "csrf-token", []string{"en", "tr"}).Render(context.Background(), &request); err != nil {
 		t.Fatal(err)
@@ -23,7 +23,7 @@ func skip_TestAIAssistantComponentsExplainConsentAndKeepApplyInDraft(t *testing.
 	if err := AIAssistantSuggestion("Old title", "Old body", ai.Suggestion{Title: "New title", Body: "New body"}, "/admin/pages/page1/ai-applied", "csrf-token").Render(context.Background(), &suggestion); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Old body", "New body", `nonce="nonce-safe"`, "setText(nextBody)", "Taslak düzenleyici güncellendi", "X-CSRF-Token"} {
+	for _, want := range []string{"Old body", "New body", "setText(nextBody)", "Taslak düzenleyici güncellendi", "X-CSRF-Token"} {
 		if !strings.Contains(suggestion.String(), want) {
 			t.Fatalf("suggestion component lacks %q", want)
 		}
