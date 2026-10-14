@@ -1,8 +1,31 @@
-/* HydroGo admin micro-interactions.
-   One place for hover, focus, press and swap feedback across every
-   admin screen (focus rings and the submit spinner come from the base CSS).
-   Uses the shell's design tokens (--brand, --line, --motion-*,
-   --ease-*). Reduced-motion users get state changes without movement. */
+/* HydroGo admin stylesheet: new admin CSS goes here, not into Go strings.
+   Uses the shell's design tokens (--brand, --line, --motion-*, --ease-*).
+   Sections: form fields, micro-interactions (hover, focus, press and swap
+   feedback; focus rings on inputs and the submit spinner come from the base
+   CSS). Reduced-motion users get state changes without movement. */
+
+/* ---- Form fields (internal/ui/components/fields.templ) ---- */
+
+/* A field is one grid cell: label above its control. */
+.studio-form > .studio-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.studio-form > .studio-form-field > :is(input, select, textarea) {
+  width: 100%;
+}
+.studio-form > .studio-form-field:has(textarea) {
+  grid-column: 1 / -1;
+}
+.studio-form > .studio-form-field:has(> input[type="checkbox"], > input[type="radio"]) {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* ---- Micro-interactions ---- */
 
 :root {
   --mi-ring: 0 0 0 3px color-mix(in srgb, var(--brand, #2f5bff) 22%, transparent);

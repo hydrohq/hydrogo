@@ -25,8 +25,11 @@
     "html_strings": 24
   },
   "internal/adminstudio/generated_http.go": {
-    "html_strings": 22,
-    "lines": 2611
+    "html_strings": 20,
+    "lines": 2552
+  },
+  "internal/adminstudio/generated_list_controls.go": {
+    "html_strings": 2
   },
   "internal/adminstudio/kit_badges.go": {
     "html_strings": 1
@@ -92,10 +95,10 @@
     "html_strings": 4
   },
   "internal/ui/components/components.go": {
-    "html_strings": 12
+    "html_strings": 11
   },
   "internal/ui/components/data_components.go": {
-    "html_strings": 16
+    "html_strings": 14
   },
   "internal/ui/components/media_picker.go": {
     "html_strings": 10

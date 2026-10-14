@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -174,37 +173,6 @@ func Button(p ButtonProps) templ.Component {
 			attrs += ` disabled="disabled"`
 		}
 		_, err := io.WriteString(w, `<button type="`+esc(typ)+`" class="`+esc(className)+`"`+attrs+`>`+esc(p.Label)+`</button>`)
-		return err
-	})
-}
-
-func Input(p InputProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		typ := p.Type
-		if typ == "" {
-			typ = "text"
-		}
-		attrs := ` id="` + esc(p.ID) + `" name="` + esc(p.Name) + `" type="` + esc(typ) + `" value="` + esc(p.Value) + `"`
-		if p.Placeholder != "" {
-			attrs += ` placeholder="` + esc(p.Placeholder) + `"`
-		}
-		if p.Required {
-			attrs += ` required="required"`
-		}
-		if p.ReadOnly {
-			attrs += ` readonly="readonly"`
-		}
-		if p.Checked {
-			attrs += ` checked="checked"`
-		}
-		if p.HasMinLength && p.MinLength >= 0 {
-			attrs += ` minlength="` + strconv.Itoa(p.MinLength) + `"`
-		}
-		if p.HasMaxLength && p.MaxLength >= 0 {
-			attrs += ` maxlength="` + strconv.Itoa(p.MaxLength) + `"`
-		}
-		attrs += htmxAttrs(p.HTMX)
-		_, err := io.WriteString(w, `<label for="`+esc(p.ID)+`">`+esc(p.Label)+`</label><input`+attrs+`>`)
 		return err
 	})
 }

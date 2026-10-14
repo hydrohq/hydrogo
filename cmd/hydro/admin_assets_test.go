@@ -11,7 +11,7 @@ func TestAdminAssetsRouteServesEmbeddedMotionAssets(t *testing.T) {
 	route := adminAssetsRoute()
 	mux := http.NewServeMux()
 	mux.Handle(route.Pattern, route.Handler)
-	for path, contentType := range map[string]string{"/admin-assets/motion.css": "text/css", "/admin-assets/motion.js": "javascript"} {
+	for path, contentType := range map[string]string{"/admin-assets/admin.css": "text/css", "/admin-assets/motion.js": "javascript"} {
 		recorder := httptest.NewRecorder()
 		mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
 		if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Type"), contentType) {

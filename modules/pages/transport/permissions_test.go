@@ -106,7 +106,7 @@ func TestReadOnlyPageDetailRendersNoMutationControls(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
-	for _, want := range []string{`id="page-title-readonly"`, `readonly="readonly"`, `title="Public page"`, `srcdoc=`, "Read-only body"} {
+	for _, want := range []string{`id="page-title-readonly"`, ` readonly`, `title="Public page"`, `srcdoc=`, "Read-only body"} {
 		if !strings.Contains(recorder.Body.String(), want) {
 			t.Errorf("read-only page is missing %q", want)
 		}

@@ -98,7 +98,7 @@ func TestTypedLinksRequireLocalPathsAndEscapeLabels(t *testing.T) {
 
 func TestFormAndInputRenderCSRFAndEscapedValues(t *testing.T) {
 	out := render(t, Form(FormProps{Action: `/projects/<x>`, Class: "studio-form", CSRF: `a"b`, ConfirmAction: `Delete <project>?`, Body: Input(InputProps{ID: "title", Name: "title", Label: "Title", Required: true})}))
-	if !strings.Contains(out, `name="_csrf" value="a&#34;b"`) || !strings.Contains(out, `action="/projects/&lt;x&gt;"`) || !strings.Contains(out, `class="studio-form"`) || !strings.Contains(out, `data-confirm-action="Delete &lt;project&gt;?"`) || !strings.Contains(out, `required="required"`) {
+	if !strings.Contains(out, `name="_csrf" value="a&#34;b"`) || !strings.Contains(out, `action="/projects/&lt;x&gt;"`) || !strings.Contains(out, `class="studio-form"`) || !strings.Contains(out, `data-confirm-action="Delete &lt;project&gt;?"`) || !strings.Contains(out, `required`) || !strings.Contains(out, `class="studio-form-field"`) {
 		t.Fatalf("unexpected form output: %s", out)
 	}
 }
@@ -118,7 +118,7 @@ func TestInputsRenderTypedLengthConstraints(t *testing.T) {
 
 func TestTypedDataComponentsEscapeValuesAndRenderHTMX(t *testing.T) {
 	out := render(t, Select(SelectProps{ID: "status", Name: "status", Label: "Status", Value: "<x>", Options: []string{"<x>", "published"}, HTMX: HTMX{Get: "/admin/articles", Target: "#list", Swap: "innerHTML"}}))
-	if !strings.Contains(out, `value="&lt;x&gt;" selected="selected"`) || !strings.Contains(out, `hx-target="#list"`) || strings.Contains(out, "<x>") {
+	if !strings.Contains(out, `value="&lt;x&gt;" selected`) || !strings.Contains(out, `hx-target="#list"`) || strings.Contains(out, "<x>") {
 		t.Fatalf("select output was not safely rendered: %s", out)
 	}
 	out = render(t, Table(TableProps{Caption: "Articles", Columns: []string{"Title"}, Rows: [][]string{{`<script>alert(1)</script>`}}}))

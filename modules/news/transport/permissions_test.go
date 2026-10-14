@@ -109,7 +109,7 @@ func TestReadOnlyNewsDetailRendersNoMutationControls(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
-	for _, want := range []string{`id="news-title-readonly"`, `readonly="readonly"`, "Public news", "Read-only body", "Salt okunur içerik"} {
+	for _, want := range []string{`id="news-title-readonly"`, ` readonly`, "Public news", "Read-only body", "Salt okunur içerik"} {
 		if !strings.Contains(recorder.Body.String(), want) {
 			t.Errorf("read-only news is missing %q", want)
 		}
