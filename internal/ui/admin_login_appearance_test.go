@@ -14,7 +14,7 @@ func TestAdminLoginUsesValidatedBackgroundAndOverlay(t *testing.T) {
 	if err := RenderAdminLoginWithAppearance(&output, "csrf", "/admin", appearance); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output.String(), `linear-gradient(rgba(9,10,15,0.35),rgba(9,10,15,0.35)),url("/media/hero.webp")`) {
+	if !strings.Contains(output.String(), `linear-gradient(rgba(9,10,15,0.35),rgba(9,10,15,0.35)),url(&#34;/media/hero.webp&#34;)`) {
 		t.Fatal("validated login appearance missing")
 	}
 	output.Reset()

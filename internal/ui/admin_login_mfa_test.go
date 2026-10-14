@@ -51,9 +51,15 @@ func TestAdminLoginCSPHashesRenderedInlineBlocks(t *testing.T) {
 	if err := RenderAdminLoginWithLocaleAndAppearance(&output, "csrf", "/admin", "en", site.Appearance{}); err != nil {
 		t.Fatal(err)
 	}
-	policy := AdminLoginCSP(output.Bytes())
-	if strings.Count(policy, "'sha256-") != 2 || !strings.Contains(policy, "script-src") || strings.Contains(policy, "style-src") {
-		t.Fatalf("unexpected login CSP hashes: %s", policy)
+	// The login page loads its scripts from /admin-assets/js/, so it needs no
+	// inline hash at all.
+	if policy := AdminLoginCSP(output.Bytes()); policy != "" {
+		t.Fatalf("login page should render no inline blocks, got CSP additions: %s", policy)
+	}
+	for _, want := range []string{`<script src="/admin-assets/js/login-theme.js"></script>`, `<script defer src="/admin-assets/js/login.js"></script>`} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("login page does not load %s", want)
+		}
 	}
 	if AdminLoginCSP([]byte(`<html><script>alert(1)</script></html>`)) == "" {
 		t.Fatal("script hash should be generated for an inline block")

@@ -65,7 +65,7 @@ func TestAdminLoginBackgroundNeedsNoInlineStyleBlock(t *testing.T) {
 	if strings.Contains(out.String(), "<style") || strings.Contains(AdminLoginCSP(out.Bytes()), "style-src") {
 		t.Fatal("login background must not need an inline <style> block or a style hash")
 	}
-	if !strings.Contains(out.String(), `<aside class="login-hero-pane" style='--login-background:`) || !strings.Contains(mustAdminCSS("login.css"), "var(--login-background)") {
+	if !strings.Contains(out.String(), `<aside class="login-hero-pane" style="--login-background:`) || !strings.Contains(mustAdminCSS("login.css"), "var(--login-background)") {
 		t.Fatal("login background is not passed to login.css as --login-background")
 	}
 }
