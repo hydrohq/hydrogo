@@ -86,3 +86,6 @@ scratch*.py
 # Local scratch scripts and separately-versioned client projects
 /scratch/
 /news-portal/
+
+# Claude Code local state (agent worktrees)
+/.claude/

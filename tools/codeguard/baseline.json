@@ -2,9 +2,12 @@
   "cmd/hydro/docs_portal.go": {
     "html_strings": 1
   },
+  "cmd/hydro/home.go": {
+    "html_strings": 1
+  },
   "cmd/hydro/main.go": {
-    "html_strings": 3,
-    "lines": 6046
+    "html_strings": 2,
+    "lines": 2840
   },
   "extension/v1/theme_navigation.go": {
     "html_strings": 2
