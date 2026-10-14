@@ -26,7 +26,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
@@ -187,12 +186,6 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 // opening the database or exposing secret values. It is safe for CI and local
 // editor/pre-commit workflows where dependencies may not be running yet.
 func validateCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) > 0 && args[0] == "generator" {
-		return validateGeneratorCommand(args[1:], stdout, stderr)
-	}
-	if len(args) > 0 && args[0] == "api" {
-		return validateAPICommand(args[1:], stdout, stderr)
-	}
 	flags := flag.NewFlagSet("validate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
@@ -485,43 +478,6 @@ func parseIPBanPrefix(value string) (netip.Prefix, error) {
 		bits = 32
 	}
 	return netip.PrefixFrom(address, bits), nil
-}
-
-func permissionsCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "check" {
-		return errors.New("permissions requires the check subcommand")
-	}
-	flags := flag.NewFlagSet("permissions check", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	specPath := flags.String("spec", "", "Versioned module spec (.yaml, .yml, or .json)")
-	jsonOutput := flags.Bool("json", false, "Print machine-readable result")
-	if err := flags.Parse(args[1:]); err != nil {
-		return err
-	}
-	if flags.NArg() != 0 || strings.TrimSpace(*specPath) == "" {
-		return errors.New("permissions check requires --spec")
-	}
-	spec, err := generator.LoadSpec(*specPath)
-	if err != nil {
-		return err
-	}
-	if err := generator.Validate(spec); err != nil {
-		return fmt.Errorf("permission contract: %w", err)
-	}
-	if *jsonOutput {
-		payload, err := json.Marshal(struct {
-			Valid       bool   `json:"valid"`
-			Collection  string `json:"collection"`
-			Permissions int    `json:"permissions"`
-		}{true, spec.Name, len(spec.Permissions)})
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintln(stdout, string(payload))
-		return err
-	}
-	_, err = fmt.Fprintf(stdout, "permissions-valid collection=%s permissions=%d\n", spec.Name, len(spec.Permissions))
-	return err
 }
 
 func fontsCommand(args []string, stdout io.Writer) error {
