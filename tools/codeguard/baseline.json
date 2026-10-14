@@ -79,16 +79,11 @@
   "modules/members/transport/http.go": {
     "html_strings": 2
   },
-  "modules/news/transport/http.go": {
-    "html_strings": 17,
-    "lines": 1251
-  },
   "modules/pages/render/render.go": {
     "html_strings": 1
   },
   "modules/pages/transport/http.go": {
-    "html_strings": 25,
-    "lines": 2148
+    "html_strings": 9
   },
   "modules/site/repository/sqlstore/store.go": {
     "lines": 878
