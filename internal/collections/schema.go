@@ -18,6 +18,7 @@ var (
 	ErrUniqueValue        = errors.New("a unique field value already exists")
 	ErrCollectionNotFound = errors.New("collection not found")
 	ErrRecordNotFound     = errors.New("record not found")
+	ErrVersionConflict    = errors.New("record was changed since it was loaded")
 )
 
 const (

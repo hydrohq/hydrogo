@@ -104,6 +104,12 @@ func runStaticStoreContract(t *testing.T, db database.Executor, dialect database
 	if err != nil || updated.Version != 2 {
 		t.Fatalf("updated=%+v err=%v", updated, err)
 	}
+	if _, err := service.UpdateRecordVersion(ctx, articles.ID, article.ID, map[string]any{"slug": "stale", "topic": topic.ID}, 1); !errors.Is(err, collections.ErrVersionConflict) {
+		t.Fatalf("stale version update error=%v, want ErrVersionConflict", err)
+	}
+	if current, err := service.UpdateRecordVersion(ctx, articles.ID, article.ID, map[string]any{"slug": "two", "topic": topic.ID}, 2); err != nil || current.Version != 3 {
+		t.Fatalf("matching version update=%+v err=%v", current, err)
+	}
 	list, err = service.ListRecords(ctx, articles.ID, 10, 0)
 	if err != nil || len(list) != 1 || list[0].ID != article.ID {
 		t.Fatalf("list=%+v err=%v", list, err)
