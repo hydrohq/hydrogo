@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"html/template"
+	"context"
 	"io"
 )
 
@@ -15,43 +15,9 @@ type EditorData struct {
 	BodyDelta string
 }
 
-var editorTemplate = template.Must(template.New("editor").Parse(`
-<form class="hydro-editor" method="post" action="{{.Action}}" hx-post="{{.Action}}" hx-target="#editor-status" hx-swap="innerHTML">
-  <label for="editor-title">Title</label>
-  <input id="editor-title" name="title" value="{{.Title}}" autocomplete="off">
-  <div id="editor-toolbar" class="ql-toolbar ql-snow">
-    <button type="button" class="ql-bold" aria-label="Bold"></button>
-    <button type="button" class="ql-italic" aria-label="Italic"></button>
-    <button type="button" class="ql-link" aria-label="Link"></button>
-  </div>
-  <div id="editor-body" class="ql-container ql-snow"></div>
-  <textarea id="editor-delta" name="body_delta" hidden>{{.BodyDelta}}</textarea>
-  <input type="hidden" name="_csrf" value="{{.CSRFToken}}">
-  <button type="submit">Save</button>
-  <output id="editor-status" aria-live="polite"></output>
-</form>
-<link rel="stylesheet" href="/vendor/quill/quill.snow.css">
-<script nonce="{{.Nonce}}" src="/vendor/htmx/htmx.min.js"></script>
-<script nonce="{{.Nonce}}" src="/vendor/quill/quill.js"></script>
-<script nonce="{{.Nonce}}">
-document.addEventListener("DOMContentLoaded", function () {
-  htmx.config.allowEval = false;
-  htmx.config.allowScriptTags = false;
-  const deltaField = document.getElementById("editor-delta");
-  const quill = new Quill("#editor-body", { theme: "snow", modules: { toolbar: "#editor-toolbar" } });
-  if (deltaField.value) {
-    try { quill.setContents(JSON.parse(deltaField.value)); } catch (_) { deltaField.value = JSON.stringify(quill.getContents()); }
-  }
-  document.querySelector(".hydro-editor").addEventListener("submit", function () {
-    deltaField.value = JSON.stringify(quill.getContents());
-  });
-});
-</script>
-`))
-
-// RenderEditor writes a local-asset Quill/HTMX editor. It deliberately keeps
-// initialization in nonce-bearing script blocks so the default CSP can remain
-// free of unsafe-inline and unsafe-eval.
+// RenderEditor writes a local-asset Quill/HTMX editor. Every script is a
+// same-origin file, so the default CSP can remain free of unsafe-inline and
+// unsafe-eval.
 func RenderEditor(w io.Writer, data EditorData) error {
-	return editorTemplate.Execute(w, data)
+	return editorPage(data).Render(context.Background(), w)
 }

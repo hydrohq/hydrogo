@@ -1,0 +1,25 @@
+package ui
+
+// editorPage is the CSP-compatible Quill/HTMX editor fixture. Its
+// initialisation lives in /admin-assets/js/quill-editor.js, so the page has no
+// inline script; the nonce stays on the script tags for policies that use one.
+templ editorPage(data EditorData) {
+	<form class="hydro-editor" method="post" action={ templ.URL(data.Action) } hx-post={ data.Action } hx-target="#editor-status" hx-swap="innerHTML">
+		<label for="editor-title">Title</label>
+		<input id="editor-title" name="title" value={ data.Title } autocomplete="off"/>
+		<div id="editor-toolbar" class="ql-toolbar ql-snow">
+			<button type="button" class="ql-bold" aria-label="Bold"></button>
+			<button type="button" class="ql-italic" aria-label="Italic"></button>
+			<button type="button" class="ql-link" aria-label="Link"></button>
+		</div>
+		<div id="editor-body" class="ql-container ql-snow"></div>
+		<textarea id="editor-delta" name="body_delta" hidden>{ data.BodyDelta }</textarea>
+		<input type="hidden" name="_csrf" value={ data.CSRFToken }/>
+		<button type="submit">Save</button>
+		<output id="editor-status" aria-live="polite"></output>
+	</form>
+	<link rel="stylesheet" href="/vendor/quill/quill.snow.css"/>
+	<script nonce={ data.Nonce } src="/vendor/htmx/htmx.min.js"></script>
+	<script nonce={ data.Nonce } src="/vendor/quill/quill.js"></script>
+	<script nonce={ data.Nonce } src="/admin-assets/js/quill-editor.js"></script>
+}

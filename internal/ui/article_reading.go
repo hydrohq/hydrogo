@@ -2,11 +2,13 @@ package ui
 
 import (
 	"bytes"
+	"context"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 const PublicArticleCSS = `.article-read-tools{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.article-read-tools button{min-height:40px;padding:7px 12px;border:1px solid #94a3b8;border-radius:6px;background:#fff;color:#0f172a;font:inherit;cursor:pointer}.article-read-tools button:focus-visible,.article-toc a:focus-visible,.ds-code-block button:focus-visible{outline:3px solid #2563eb;outline-offset:2px}.article-toc{margin:16px 0;padding:16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#0f172a}.article-toc ul{margin:8px 0;padding-inline-start:22px}.article-toc a{color:inherit}.article-toc a[aria-current=location]{font-weight:700;text-decoration-thickness:2px}.article-reading-body{font-size:calc(1em * var(--article-font-scale,1));scroll-behavior:smooth}.ds-code-block{margin:1.5rem 0;overflow:hidden;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#e2e8f0}.ds-code-block-head{display:flex;align-items:center;gap:.75rem;min-height:42px;padding:0 .75rem;background:#1e293b;color:#cbd5e1;font:500 .8rem/1.3 system-ui,sans-serif}.ds-code-block-language{margin-right:auto}.ds-code-block button{min-height:32px;padding:.35rem .65rem;border:1px solid #64748b;border-radius:6px;background:#334155;color:#f8fafc;font:inherit;cursor:pointer}.ds-code-block pre{margin:0;padding:1rem;overflow:auto;tab-size:4}.ds-code-block code{font:400 .9rem/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}.code-token-keyword{color:#c4b5fd}.code-token-string{color:#86efac}.code-token-number{color:#fcd34d}.code-token-comment{color:#94a3b8;font-style:italic}.code-token-function{color:#7dd3fc}.ds-code-copy-status{font-size:.75rem}.ds-code-copy-status:empty{display:none}@media(prefers-color-scheme:dark){.article-read-tools button,.article-toc{background:#111827;color:#f8fafc;border-color:#475569}} @media print{body{background:#fff!important;color:#111!important;font-size:11pt!important}header{display:block!important;padding:0 0 8pt!important;border-bottom:1px solid #aaa!important;background:#fff!important;color:#111!important;box-shadow:none!important}header nav,footer,aside,nav,.article-read-tools,.news-share-box,.news-sidebar-sticky,.nav-toggle,.ds-code-block button{display:none!important}header a{color:#111!important}header svg{max-height:24pt}.news-article-page,.news-article-card,.article-reading-body{display:block!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;background:#fff!important;color:#111!important;box-shadow:none!important;border:0!important}.news-article-body{font-size:11pt!important;line-height:1.55!important}.news-article-title{font-size:22pt!important;color:#111!important}a[href^="http"]:after{content:" (" attr(href) ")";font-size:8pt;overflow-wrap:anywhere}}`
@@ -16,100 +18,69 @@ const PublicArticleJS = `(function(){document.addEventListener('click',async e=>
 // PrepareArticleHTML assigns stable anchor IDs to article H2/H3 headings and
 // returns a compact, nested table of contents. Input must already be sanitized.
 func PrepareArticleHTML(source string) (string, string, error) {
-	root, err := html.Parse(strings.NewReader("<div id=\"hydro-article-root\">" + source + "</div>"))
+	body := &html.Node{Type: html.ElementNode, Data: "div", DataAtom: atom.Div}
+	nodes, err := html.ParseFragment(strings.NewReader(source), body)
 	if err != nil {
 		return "", "", err
 	}
-	var article *html.Node
-	var find func(*html.Node)
-	find = func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "div" && hasAttr(node, "id", "hydro-article-root") {
-			article = node
-			return
-		}
-		for child := node.FirstChild; child != nil && article == nil; child = child.NextSibling {
-			find(child)
-		}
-	}
-	find(root)
-	if article == nil {
-		return "", "", nil
-	}
-	type entry struct {
-		id, title string
-		level     int
-	}
-	var entries []entry
+	var entries []tocEntry
 	used := make(map[string]int)
 	var walk func(*html.Node)
 	walk = func(node *html.Node) {
 		if node.Type == html.ElementNode && (node.Data == "h2" || node.Data == "h3") {
-			level := 2
-			if node.Data == "h3" {
-				level = 3
-			}
-			title := strings.TrimSpace(nodeText(node))
-			if title != "" {
+			if title := strings.TrimSpace(nodeText(node)); title != "" {
 				id := slugAnchor(title)
 				used[id]++
 				if used[id] > 1 {
 					id += "-" + strconv.Itoa(used[id])
 				}
 				setAttr(node, "id", id)
-				entries = append(entries, entry{id: id, title: title, level: level})
+				entries = append(entries, tocEntry{ID: id, Title: title, Level: 2})
+				if node.Data == "h3" {
+					entries[len(entries)-1].Level = 3
+				}
 			}
 		}
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			walk(child)
 		}
 	}
-	walk(article)
 	var rendered bytes.Buffer
-	for child := article.FirstChild; child != nil; child = child.NextSibling {
-		if err := html.Render(&rendered, child); err != nil {
+	for _, node := range nodes {
+		walk(node)
+		if err := html.Render(&rendered, node); err != nil {
 			return "", "", err
 		}
 	}
 	if len(entries) == 0 {
 		return rendered.String(), "", nil
 	}
-	var toc strings.Builder
-	toc.WriteString(`<nav class="article-toc" aria-label="İçindekiler"><h2>İçindekiler</h2><ul>`)
-	inHeading, inSublist := false, false
-	for _, item := range entries {
-		if item.level == 2 {
-			if inSublist {
-				toc.WriteString("</ul>")
-				inSublist = false
-			}
-			if inHeading {
-				toc.WriteString("</li>")
-			}
-			toc.WriteString("<li>")
-			inHeading = true
-		} else if inHeading && !inSublist {
-			toc.WriteString("<ul>")
-			inSublist = true
-		}
-		toc.WriteString(`<li><a href="#` + item.id + `">` + html.EscapeString(item.title) + `</a></li>`)
+	var toc bytes.Buffer
+	if err := articleTOC(nestTOC(entries)).Render(context.Background(), &toc); err != nil {
+		return "", "", err
 	}
-	if inSublist {
-		toc.WriteString("</ul>")
-	}
-	if inHeading {
-		toc.WriteString("</li>")
-	}
-	toc.WriteString("</ul></nav>")
 	return rendered.String(), toc.String(), nil
 }
 
-func hasAttr(node *html.Node, key, value string) bool {
-	for _, attr := range node.Attr {
-		if attr.Key == key && attr.Val == value {
-			return true
+// tocEntry is one heading in an article's table of contents; H3 headings
+// nest under the H2 before them.
+type tocEntry struct {
+	ID, Title string
+	Level     int
+	Children  []tocEntry
+}
+
+func nestTOC(entries []tocEntry) []tocEntry {
+	var top []tocEntry
+	for _, entry := range entries {
+		if entry.Level == 3 && len(top) > 0 && top[len(top)-1].Level == 2 {
+			parent := &top[len(top)-1]
+			parent.Children = append(parent.Children, entry)
+			continue
 		}
+		top = append(top, entry)
 	}
-	return false
+	return top
 }
 
 func setAttr(node *html.Node, key, value string) {

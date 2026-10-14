@@ -24,12 +24,19 @@ func TestRenderEditorUsesLocalAssetsAndCSPNonce(t *testing.T) {
 		`/vendor/quill/quill.js`,
 		`/vendor/quill/quill.snow.css`,
 		`nonce="nonce-value"`,
-		`htmx.config.allowEval = false`,
-		`htmx.config.allowScriptTags = false`,
+		`/admin-assets/js/quill-editor.js`,
 		`name="body_delta"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rendered editor missing %q", want)
+		}
+	}
+	if strings.Contains(html, "<script nonce=\"nonce-value\">") {
+		t.Error("rendered editor still has an inline script")
+	}
+	for _, want := range []string{`htmx.config.allowEval = false`, `htmx.config.allowScriptTags = false`} {
+		if !strings.Contains(adminAsset(t, "js/quill-editor.js"), want) {
+			t.Errorf("editor script missing %q", want)
 		}
 	}
 	for _, forbidden := range []string{"https://cdn.", "http://cdn.", "onclick=", "onload="} {
