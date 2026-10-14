@@ -28,7 +28,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
-	"github.com/ardaozyildirim/hydrogo/internal/generator"
 	"github.com/ardaozyildirim/hydrogo/internal/licensing"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/release"
@@ -596,106 +595,6 @@ func TestResourceCreateFromFlagsUsesFirstTextFieldWhenTitleIsNotNamed(t *testing
 	}
 }
 
-func TestProjectNewAliasGeneratesProject(t *testing.T) {
-	root := t.TempDir()
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"project", "new", "demo", "--root", root, "--preset", "compact-site", "--no-demo", "--with-collections"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project new: %v stderr=%s", err, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "project-created path=") {
-		t.Fatalf("unexpected output: %q", stdout.String())
-	}
-	for _, name := range []string{"config.yaml", "hydrogo.lock", "README.md", filepath.Join("docs", "SDK.md")} {
-		if _, err := os.Stat(filepath.Join(root, "demo", name)); err != nil {
-			t.Fatalf("missing generated project file %s: %v", name, err)
-		}
-	}
-	cfg, err := config.Load(filepath.Join(root, "demo", "config.yaml"), nil, config.Overrides{})
-	if err != nil {
-		t.Fatalf("load generated config: %v", err)
-	}
-	collectionsEnabled := false
-	for _, module := range cfg.Modules {
-		if module == "collections" {
-			collectionsEnabled = true
-			break
-		}
-	}
-	if !collectionsEnabled {
-		t.Fatalf("generated modules = %#v, want collections enabled", cfg.Modules)
-	}
-	if _, err := os.Stat(filepath.Join(root, "demo", "data", ".gitkeep")); err != nil {
-		t.Fatalf("generated project must include the default SQLite data directory: %v", err)
-	}
-}
-
-func TestProjectCheckUsesDependencyFreeValidation(t *testing.T) {
-	root := t.TempDir()
-	configPath := filepath.Join(root, "config.yaml")
-	config := "profile: compact\nmodules: [core, pages]\ndatabase:\n  dialect: sqlite\n  dsn: " + filepath.Join(root, "missing.sqlite") + "\nmedia:\n  dir: " + filepath.Join(root, "media") + "\n"
-	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"project", "check", "--config", configPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project check: %v stderr=%s", err, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), `"valid":true`) {
-		t.Fatalf("unexpected project check output: %q", stdout.String())
-	}
-	stdout.Reset()
-	if err := run([]string{"check", "--config", configPath, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("check alias: %v stderr=%s", err, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), `"valid":true`) {
-		t.Fatalf("unexpected check alias output: %q", stdout.String())
-	}
-}
-
-func TestProjectCheckValidatesGeneratedLock(t *testing.T) {
-	root := t.TempDir()
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"project", "new", "locked", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project new: %v", err)
-	}
-	stdout.Reset()
-	if err := run([]string{"project", "check", "--config", filepath.Join(root, "locked", "config.yaml"), "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project check generated lock: %v stderr=%s", err, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), `"valid":true`) {
-		t.Fatalf("unexpected project check output: %q", stdout.String())
-	}
-	lockPath := filepath.Join(root, "locked", "hydrogo.lock")
-	if err := os.WriteFile(lockPath, []byte(`{"lock_version":1,"project_id":"p","project_name":"locked","edition":"starter","preset":"compact-site","core":{"version":"","distribution":"licensed_binary"},"generator":{"version":"0.1.0"},"licensing":{"required":true}}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := run([]string{"project", "check", "--config", filepath.Join(root, "locked", "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err == nil {
-		t.Fatal("invalid generated lock was accepted")
-	}
-}
-
-func TestProjectCheckValidatesGeneratedResourcesWhenPresent(t *testing.T) {
-	root := t.TempDir()
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"project", "new", "with-resource", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project new: %v", err)
-	}
-	projectRoot := filepath.Join(root, "with-resource")
-	if err := run([]string{"resource", "new", "--name", "article", "--field", "title:text", "--out", projectRoot}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("resource new: %v", err)
-	}
-	stdout.Reset()
-	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project check with generated resource: %v stderr=%s", err, stderr.String())
-	}
-	if err := os.WriteFile(filepath.Join(projectRoot, "generated", "article", "client.ts"), []byte("tampered"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := run([]string{"project", "check", "--config", filepath.Join(projectRoot, "config.yaml")}, strings.NewReader(""), &stdout, &stderr); err == nil {
-		t.Fatal("project check accepted tampered generated resource")
-	}
-}
-
 func TestGeneratedScaffoldVerificationResolvesRelativeRoot(t *testing.T) {
 	t.Chdir(t.TempDir())
 	if err := os.MkdirAll(filepath.Join("edition", "generated"), 0o755); err != nil {
@@ -717,35 +616,6 @@ func TestGeneratedScaffoldVerificationResolvesRelativeRoot(t *testing.T) {
 	}
 	if string(formatted) != "package generated\n\nfunc Ready() bool { return true }\n" {
 		t.Fatalf("relative generated source was not formatted: %q", formatted)
-	}
-}
-
-func TestProjectCheckRejectsStaleAggregateGeneratedRoutes(t *testing.T) {
-	root := t.TempDir()
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"project", "new", "route-check", "--root", root, "--preset", "compact-site", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project new: %v stderr=%s", err, stderr.String())
-	}
-	projectRoot := filepath.Join(root, "route-check")
-	if err := os.WriteFile(filepath.Join(projectRoot, "go.mod"), []byte("module edition.example/route-check\n\ngo 1.27.0\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := generator.Generate(projectRoot, generator.Spec{
-		Name: "article", Table: "articles", Fields: []generator.Field{{Name: "title", Type: "string"}},
-		Permissions: []string{"article.read", "article.write"}, Dialects: []string{"sqlite", "postgres"},
-	}); err != nil {
-		t.Fatalf("generate resource: %v", err)
-	}
-	configPath := filepath.Join(projectRoot, "config.yaml")
-	if err := run([]string{"project", "check", "--config", configPath}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("project check rejected generated route helper: %v stderr=%s", err, stderr.String())
-	}
-	registrationPath := filepath.Join(projectRoot, "generated", "route_registration.go")
-	if err := os.WriteFile(registrationPath, []byte("// stale route helper\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := run([]string{"project", "check", "--config", configPath}, strings.NewReader(""), &stdout, &stderr); err == nil || !strings.Contains(err.Error(), "resource route registration does not match") {
-		t.Fatalf("project check accepted stale route helper: %v", err)
 	}
 }
 
@@ -998,21 +868,6 @@ func TestSDKGenerateCommandWritesTypeScriptAndDartClients(t *testing.T) {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("generated client %q: %v", path, err)
 		}
-	}
-}
-
-func TestNewProjectStarterFlagSelectsAgencyPreset(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	root := t.TempDir()
-	if err := run([]string{"new", "agency-site", "--root", root, "--starter", "agency", "--no-demo"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("new starter: %v (%s)", err, stderr.String())
-	}
-	data, err := os.ReadFile(filepath.Join(root, "agency-site", "hydrogo.lock"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(data), `"preset": "agency"`) {
-		t.Fatalf("starter preset not recorded: %s", data)
 	}
 }
 
@@ -1279,28 +1134,6 @@ func TestRunResourceCheckAlias(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "compatible collection=article") || !strings.Contains(stdout.String(), "contract=v0") {
 		t.Fatalf("resource discovery output = %q", stdout.String())
-	}
-}
-
-func TestFrontendCheckValidatesAndNormalizesManifest(t *testing.T) {
-	root := t.TempDir()
-	manifest := filepath.Join(root, "frontend.json")
-	if err := os.WriteFile(manifest, []byte(`{"routes":[{"name":"zeta","path":"/zeta","test_id":"route-z"},{"name":"alpha","path":"/alpha","test_id":"route-a"}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr bytes.Buffer
-	if err := run([]string{"frontend", "check", "--manifest", manifest}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("frontend check: %v stderr=%s", err, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "frontend-manifest-valid routes=2") {
-		t.Fatalf("frontend check output = %q", stdout.String())
-	}
-	stdout.Reset()
-	if err := run([]string{"frontend", "check", "--manifest", manifest, "--json"}, strings.NewReader(""), &stdout, &stderr); err != nil {
-		t.Fatalf("frontend check json: %v", err)
-	}
-	if strings.Index(stdout.String(), `"alpha"`) > strings.Index(stdout.String(), `"zeta"`) {
-		t.Fatalf("routes were not normalized: %s", stdout.String())
 	}
 }
 

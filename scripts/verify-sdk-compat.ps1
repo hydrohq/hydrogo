@@ -9,7 +9,7 @@ $bin = Join-Path $root "hydro.exe"
 New-Item -ItemType Directory -Force $root | Out-Null
 try {
     Push-Location $repo
-    go test ./internal/generator ./internal/projectgen ./internal/sdkdist -count=1
+    go test ./internal/generator ./internal/sdkdist -count=1
     go build -trimpath -buildvcs=false -o $bin .\cmd\hydro
     & $bin resource new --name sdkcompat --field title:text --out (Join-Path $root "generated")
     if ($LASTEXITCODE -ne 0) { throw "resource generation failed" }

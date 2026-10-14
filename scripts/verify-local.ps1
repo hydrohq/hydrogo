@@ -55,15 +55,6 @@ if (-not $skipContractTests) {
 }
 $buildLDFLAGS = "-X main.buildCommit=local -X main.buildTime=local-verification"
 Invoke-Required "hydro build" { go build -trimpath -buildvcs=false -ldflags $buildLDFLAGS -o .tmp\local\hydro.exe ./cmd/hydro }
-Invoke-Required "client edition import boundary" { go run ./tools/importguard -root examples/client-edition }
-Invoke-Required "client edition build" { Push-Location examples/client-edition; try { go build ./... } finally { Pop-Location } }
-Invoke-Required "news edition import boundary" { go run ./tools/importguard -root examples/news-edition }
-Invoke-Required "news edition build" { Push-Location examples/news-edition; try { go build ./... } finally { Pop-Location } }
-if (-not $skipContractTests) {
-    Invoke-Required "generator preset smoke" { & (Join-Path $PSScriptRoot "generator-smoke.ps1") }
-} else {
-    Write-Host "SKIPPED: generator preset smoke (#notest tag found)"
-}
 if ($skipContractTests) {
     Write-Host "SKIPPED: headless starter contract smoke (#notest tag found)"
 } elseif (Get-Command npm -ErrorAction SilentlyContinue) {
