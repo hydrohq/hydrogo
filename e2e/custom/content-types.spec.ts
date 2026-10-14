@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import type { ChildProcess } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
@@ -7,7 +7,8 @@ import path from "node:path";
 import { runCommand, spawnServer, stopServer } from "./server-process";
 
 // End-to-end check of content types (docs/decisions/0002-content-types.md):
-// a YAML file becomes admin screens and a public read API.
+// a YAML file becomes admin screens and a public read API. The server runs
+// with two site locales so localized fields get locale tabs.
 const repoRoot = path.resolve(process.cwd(), "..");
 const adminPassword = "Lime-Train7!Harbor";
 let server: ChildProcess | undefined;
@@ -26,6 +27,17 @@ fields:
   - {id: category, label: Category, kind: select, options: [general, billing], list: true, filterable: true}
 `;
 
+const teamYAML = `id: team
+label: Team
+title_field: name
+public: true
+revisions: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, list: true}
+  - {id: role, label: Role, kind: text, list: true, localized: true}
+  - {id: bio, label: Bio, kind: textarea, localized: true}
+`;
+
 test.describe("content types", () => {
   test.beforeAll(async () => {
     // Building the binary alone can take longer than the default hook timeout.
@@ -34,6 +46,7 @@ test.describe("content types", () => {
     const typesDir = path.join(tempDir, "content-types");
     await mkdir(typesDir);
     await writeFile(path.join(typesDir, "faq.yaml"), faqYAML);
+    await writeFile(path.join(typesDir, "team.yaml"), teamYAML);
     const databaseDSN = path.join(tempDir, "site.sqlite");
     const hydroBinary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
     runCommand("go", ["build", "-o", hydroBinary, "./cmd/hydro"], { cwd: repoRoot, stdio: "pipe" });
@@ -45,7 +58,7 @@ test.describe("content types", () => {
     server = spawnServer(hydroBinary, ["serve", "--dev", "--address", `127.0.0.1:${port}`, ...db], {
       cwd: tempDir,
       stdio: "ignore",
-      env: { ...process.env, HYDRO_CONTENT_TYPES_DIR: typesDir, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_REDIS_URL: "" },
+      env: { ...process.env, HYDRO_CONTENT_TYPES_DIR: typesDir, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_REDIS_URL: "", HYDRO_I18N_ENABLED: "true", HYDRO_DEFAULT_LOCALE: "en", HYDRO_LOCALES: "en,de" },
     });
     const deadline = Date.now() + 45_000;
     while (Date.now() < deadline) {
@@ -67,17 +80,7 @@ test.describe("content types", () => {
 
   test("a YAML content type gets admin CRUD and a public API", async ({ page }) => {
     test.setTimeout(120_000);
-    await page.addInitScript(() => {
-      localStorage.setItem("hydro-onboarding-dismissed", "1");
-      localStorage.setItem("hydro-onboarding-dismissed:admin", "1");
-    });
-    await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
-    await page.goto(`${baseURL}/login`);
-    await page.locator('input[name="email"]').fill("admin@example.test");
-    await page.locator('input[name="password"]').fill(adminPassword);
-    await page.locator('button[type="submit"]').first().click();
-    await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
-    await expect(page.locator('.studio-sidebar a[href="/admin/resources"]')).toBeVisible();
+    await signIn(page);
 
     const createFAQ = async (question: string, answer: string, category: string) => {
       await page.goto(`${baseURL}/admin/resources/faq/new`);
@@ -144,7 +147,53 @@ test.describe("content types", () => {
     const unknown = await page.request.get(`${baseURL}/api/v1/content/does_not_exist`);
     expect(unknown.status()).toBe(404);
   });
+
+  test("localized fields are edited per locale and served with ?locale=", async ({ page }) => {
+    test.setTimeout(120_000);
+    await signIn(page);
+    await page.goto(`${baseURL}/admin/resources/team/new`);
+    await page.getByLabel("Name").fill("Ada Example");
+    await page.getByLabel("Role").fill("Engineer");
+    await page.getByLabel("Bio").fill("Writes the compiler.");
+    await page.locator('form.studio-form button[type="submit"]').last().click();
+    await expect(page).toHaveURL(`${baseURL}/admin/resources/team?locale=en`);
+
+    await page.getByRole("link", { name: "Ada Example" }).click();
+    // The locale tabs are GET forms; DE switches the form to German.
+    await page.locator('nav.locale-tabs form:has(input[name="locale"][value="de"]) button').click();
+    await expect(page).toHaveURL(/locale=de/);
+    const role = page.getByLabel("Role");
+    await expect(role).toHaveValue("");
+    await role.fill("Ingenieurin");
+    await page.locator('form[action*="/locale?locale=de"] button[type="submit"]').last().click();
+    await expect(page).toHaveURL(/\/admin\/resources\/team\/[^/?]+\?locale=de$/);
+    await expect(page.getByLabel("Role")).toHaveValue("Ingenieurin");
+
+    const german = await page.request.get(`${baseURL}/api/v1/content/team?locale=de`);
+    expect(german.status()).toBe(200);
+    const germanBody = await german.json();
+    expect(germanBody.locale).toBe("de");
+    // Bio has no German value and falls back to English.
+    expect(germanBody.items[0]).toMatchObject({ name: "Ada Example", role: "Ingenieurin", bio: "Writes the compiler.", locale: "de" });
+    const english = await (await page.request.get(`${baseURL}/api/v1/content/team/${germanBody.items[0].id}`)).json();
+    expect(english).toMatchObject({ role: "Engineer", locale: "en" });
+    expect((await page.request.get(`${baseURL}/api/v1/content/team?locale=fr`)).status()).toBe(400);
+  });
 });
+
+async function signIn(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem("hydro-onboarding-dismissed", "1");
+    localStorage.setItem("hydro-onboarding-dismissed:admin", "1");
+  });
+  await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
+  await page.goto(`${baseURL}/login`);
+  await page.locator('input[name="email"]').fill("admin@example.test");
+  await page.locator('input[name="password"]').fill(adminPassword);
+  await page.locator('button[type="submit"]').first().click();
+  await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
+  await expect(page.locator('.studio-sidebar a[href="/admin/resources"]')).toBeVisible();
+}
 
 async function unusedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
