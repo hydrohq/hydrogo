@@ -19,6 +19,7 @@ type Repository interface {
 	ListSchemas(context.Context) ([]Schema, error)
 	GetSchema(context.Context, string) (Schema, error)
 	CreateSchema(context.Context, Schema) error
+	UpdateSchema(context.Context, Schema) error
 	DeleteSchema(context.Context, string) error
 	ListRecords(context.Context, string, int, int) ([]Record, error)
 	GetRecord(context.Context, string, string) (Record, error)

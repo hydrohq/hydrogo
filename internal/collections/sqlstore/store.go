@@ -149,6 +149,32 @@ func (s Store) CreateSchema(ctx context.Context, schema collections.Schema) erro
 	})
 }
 
+func (s Store) UpdateSchema(ctx context.Context, schema collections.Schema) error {
+	if err := schema.Validate(); err != nil {
+		return err
+	}
+	raw, err := json.Marshal(schema)
+	if err != nil {
+		return err
+	}
+	return s.within(ctx, func(tx Store) error {
+		tenantID, err := tx.scope(ctx)
+		if err != nil {
+			return err
+		}
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		query := `UPDATE hydro_collections SET label=` + tx.p(1) + `,schema_json=` + tx.p(2) + `,version=version+1,updated_at=` + tx.p(3) + ` WHERE tenant_id=` + tx.p(4) + ` AND id=` + tx.p(5)
+		result, err := tx.exec(ctx, query, schema.Label, string(raw), now, tenantID, schema.ID)
+		if err != nil {
+			return err
+		}
+		if n, _ := result.RowsAffected(); n == 0 {
+			return collections.ErrCollectionNotFound
+		}
+		return nil
+	})
+}
+
 func (s Store) DeleteSchema(ctx context.Context, id string) error {
 	return s.within(ctx, func(tx Store) error {
 		tenantID, err := tx.scope(ctx)
