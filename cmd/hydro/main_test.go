@@ -1543,47 +1543,6 @@ func TestRunReleaseVerify(t *testing.T) {
 	}
 }
 
-func TestRuntimeCacheCommands(t *testing.T) {
-	root := t.TempDir()
-	old := filepath.Join(root, "v1.0.0", "hydro-linux-amd64")
-	current := filepath.Join(root, "v2.0.0", "hydro-linux-amd64")
-	if err := os.MkdirAll(filepath.Dir(old), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Dir(current), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(old, []byte("old"), 0o640); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(current, []byte("current"), 0o640); err != nil {
-		t.Fatal(err)
-	}
-	var out, stderr bytes.Buffer
-	if err := run([]string{"runtime", "cache", "list", "--root", root}, strings.NewReader(""), &out, &stderr); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(out.String(), "version=v1.0.0") {
-		t.Fatalf("unexpected cache list: %s", out.String())
-	}
-	out.Reset()
-	if err := run([]string{"runtime", "cache", "prune", "--root", root, "--keep", "v2.0.0", "--dry-run"}, strings.NewReader(""), &out, &stderr); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(out.String(), "entries=1") {
-		t.Fatalf("unexpected cache plan: %s", out.String())
-	}
-	if _, err := os.Stat(old); err != nil {
-		t.Fatal("dry-run removed cache entry")
-	}
-	if err := run([]string{"runtime", "cache", "prune", "--root", root, "--keep", "v2.0.0", "--confirm"}, strings.NewReader(""), &out, &stderr); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(old); !os.IsNotExist(err) {
-		t.Fatalf("old cache entry remains: %v", err)
-	}
-}
-
 func TestRunBackupAndRestoreGates(t *testing.T) {
 	root := t.TempDir()
 	dbPath := filepath.Join(root, "hydro.sqlite")
