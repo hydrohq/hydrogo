@@ -1,0 +1,34 @@
+package adminstudio
+
+import "strconv"
+
+// digestEmail is the HTML body of the weekly and monthly admin digest email.
+templ digestEmail(stats DigestStats, title, from, to string, monthly bool) {
+	<h1>{ title }</h1>
+	<p>{ from } – { to }</p>
+	<ul>
+		<li>Yeni müşteri talepleri: { strconv.FormatInt(stats.NewLeads, 10) }</li>
+		<li>Yanıt bekleyen talepler: { strconv.FormatInt(stats.UnresolvedLeads, 10) }</li>
+		if monthly {
+			<li>Toplam ziyaret: { strconv.FormatInt(stats.TotalVisits, 10) }</li>
+			<li>Tekil ziyaretçi: { strconv.FormatInt(stats.UniqueVisitors, 10) }</li>
+			<li>Yeni üye: { strconv.FormatInt(stats.NewMembers, 10) }</li>
+		}
+	</ul>
+	if monthly && len(stats.TopPages) > 0 {
+		<h2>En çok görüntülenen sayfalar</h2>
+		<ol>
+			for _, page := range stats.TopPages {
+				<li>{ page.Path }: { strconv.FormatInt(page.Count, 10) }</li>
+			}
+		</ol>
+	}
+	if len(stats.TopReferrers) > 0 {
+		<h2>En çok ziyaretçi getiren kaynaklar</h2>
+		<ul>
+			for _, referrer := range stats.TopReferrers {
+				<li>{ referrer.Host }: { strconv.FormatInt(referrer.Count, 10) }</li>
+			}
+		</ul>
+	}
+}

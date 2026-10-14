@@ -3,7 +3,6 @@ package adminstudio
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"strings"
 	"time"
 	_ "time/tzdata"
@@ -161,24 +160,9 @@ func BuildDigestHTML(stats DigestStats, start, end time.Time, frequency DigestFr
 		label = "Aylık yönetici özeti"
 	}
 	var out strings.Builder
-	fmt.Fprintf(&out, "<h1>%s</h1><p>%s – %s</p><ul><li>Yeni müşteri talepleri: %d</li><li>Yanıt bekleyen talepler: %d</li>", label, template.HTMLEscapeString(start.Format("02.01.2006")), template.HTMLEscapeString(end.AddDate(0, 0, -1).Format("02.01.2006")), stats.NewLeads, stats.UnresolvedLeads)
-	if frequency == DigestMonthly {
-		fmt.Fprintf(&out, "<li>Toplam ziyaret: %d</li><li>Tekil ziyaretçi: %d</li><li>Yeni üye: %d</li>", stats.TotalVisits, stats.UniqueVisitors, stats.NewMembers)
-	}
-	out.WriteString("</ul>")
-	if frequency == DigestMonthly && len(stats.TopPages) > 0 {
-		out.WriteString("<h2>En çok görüntülenen sayfalar</h2><ol>")
-		for _, p := range stats.TopPages {
-			fmt.Fprintf(&out, "<li>%s: %d</li>", template.HTMLEscapeString(p.Path), p.Count)
-		}
-		out.WriteString("</ol>")
-	}
-	if len(stats.TopReferrers) > 0 {
-		out.WriteString("<h2>En çok ziyaretçi getiren kaynaklar</h2><ul>")
-		for _, r := range stats.TopReferrers {
-			fmt.Fprintf(&out, "<li>%s: %d</li>", template.HTMLEscapeString(r.Host), r.Count)
-		}
-		out.WriteString("</ul>")
+	from, to := start.Format("02.01.2006"), end.AddDate(0, 0, -1).Format("02.01.2006")
+	if err := digestEmail(stats, label, from, to, frequency == DigestMonthly).Render(context.Background(), &out); err != nil {
+		return ""
 	}
 	return out.String()
 }
