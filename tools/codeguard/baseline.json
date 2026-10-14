@@ -7,7 +7,7 @@
   },
   "cmd/hydro/main.go": {
     "html_strings": 2,
-    "lines": 2821
+    "lines": 2820
   },
   "extension/v1/theme_navigation.go": {
     "html_strings": 2
@@ -75,12 +75,11 @@
     "html_strings": 12
   },
   "internal/ui/admin_login.go": {
-    "html_strings": 5,
-    "lines": 930
+    "html_strings": 5
   },
   "internal/ui/admin_shell.go": {
     "html_strings": 45,
-    "lines": 2444
+    "lines": 2312
   },
   "internal/ui/admin_ux.go": {
     "html_strings": 9
