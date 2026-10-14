@@ -4,7 +4,7 @@
 // a data table, badges, and button variants) and compiled with the
 // standalone Tailwind CLI (ADR-0338's toolchain), the same pattern
 // internal/ui/aurora already established. See
-// docs/architecture/0341-admin-family-overhaul.md for the full rationale:
+// docs/archive/architecture/0341-admin-family-overhaul.md for the full rationale:
 // shadcn previously only reused the shared wb-*/dashboard-* markup restyled
 // with shadcn's color tokens, which never actually looked like shadcn/ui's
 // component system. The chrome (sidebar/topbar) stays on the shared markup,

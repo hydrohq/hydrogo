@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     # Path to the standalone tailwindcss CLI executable (no Node/npm
-    # involved - see docs/architecture/0338-standalone-tailwind-build-time-css.md
-    # and docs/architecture/0339-tailwind-admin-visual-family.md).
+    # involved - see docs/archive/architecture/0338-standalone-tailwind-build-time-css.md
+    # and docs/archive/architecture/0339-tailwind-admin-visual-family.md).
     # Download the matching binary for your platform from
     # https://github.com/tailwindlabs/tailwindcss/releases (asset named
     # tailwindcss-<os>-<arch>[.exe]) and pass its path here, or place it on

@@ -2,7 +2,7 @@
 // additive dashboard rendering authored with real Tailwind utility classes
 // (compiled by the standalone Tailwind CLI, ADR-0338's toolchain) instead of
 // the ADR-0053 semantic token contract the other four families share. See
-// docs/architecture/0339-tailwind-admin-visual-family.md for the full
+// docs/archive/architecture/0339-tailwind-admin-visual-family.md for the full
 // rationale, including why the compiled stylesheet is safe to load alongside
 // AdminCSS (Tailwind's preflight layer is excluded and both the utility
 // classes and the generated theme CSS variables are namespaced under the
