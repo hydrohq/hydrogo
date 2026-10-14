@@ -111,12 +111,12 @@
     "html_strings": 9
   },
   "modules/members/transport/http.go": {
-    "html_strings": 50,
-    "lines": 970
+    "html_strings": 41,
+    "lines": 885
   },
   "modules/news/transport/http.go": {
-    "html_strings": 58,
-    "lines": 1919
+    "html_strings": 17,
+    "lines": 1251
   },
   "modules/pages/render/render.go": {
     "html_strings": 1
