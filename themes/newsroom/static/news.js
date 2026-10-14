@@ -4,10 +4,10 @@
 (function () {
   'use strict';
 
-  var SLIDE_ACTIVE = 'slide-btn slide-btn-active w-8 h-8 flex items-center justify-center font-bold text-xs cursor-pointer transition';
-  var SLIDE_IDLE = 'slide-btn slide-btn-idle w-8 h-8 flex items-center justify-center font-bold text-xs cursor-pointer transition';
-  var PILL_ACTIVE = 'filter-pill filter-pill-active px-3 py-1.5 text-xs font-bold transition';
-  var PILL_IDLE = 'filter-pill filter-pill-idle px-3 py-1.5 text-xs font-bold transition';
+  var SLIDE_ACTIVE = 'hero-num hero-num-active cursor-pointer';
+  var SLIDE_IDLE = 'hero-num cursor-pointer';
+  var PILL_ACTIVE = 'category-filter-chip category-filter-chip-active';
+  var PILL_IDLE = 'category-filter-chip';
 
   // Cover images fall back to the original upload when a CDN variant fails.
   document.addEventListener('error', function (event) {
@@ -80,7 +80,7 @@
 
   function selectCategory(category) {
     var key = norm(category) || 'all';
-    document.querySelectorAll('.filter-pill[data-filter-pill]').forEach(function (pill) {
+    document.querySelectorAll('.category-filter-chip[data-filter-pill]').forEach(function (pill) {
       pill.className = norm(pill.dataset.filterPill) === key ? PILL_ACTIVE : PILL_IDLE;
     });
     document.querySelectorAll('#main-nav-links [data-news-category]').forEach(function (link) {
