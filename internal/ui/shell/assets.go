@@ -57,6 +57,9 @@ var Scripts = []string{
 	"/admin-assets/js/guide.js",
 	"/admin-assets/js/session-warning.js",
 	"/admin-assets/js/external-links.js",
+	"/admin-assets/js/developer-console.js",
+	"/admin-assets/js/admin-control.js",
+	"/admin-assets/js/reports.js",
 }
 
 // EnglishScript translates page copy that has no English version yet; it is

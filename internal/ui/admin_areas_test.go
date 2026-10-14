@@ -778,9 +778,15 @@ func TestDeveloperTabsRendered(t *testing.T) {
 	if err := RenderAdminControl(&ctrlOut, AdminControlData{Email: "admin@example.test", CSRF: "csrf", Active: "control"}); err != nil {
 		t.Fatalf("RenderAdminControl error = %v", err)
 	}
-	for _, want := range []string{`data-invite-share-dialog`, `data-invite-share-message`, `data-invite-share-copy`, `dialog.showModal()`, `clipboard.writeText`} {
+	for _, want := range []string{`data-invite-share-dialog`, `data-invite-share-message`, `data-invite-share-copy`, `id="invite-form"`} {
 		if !strings.Contains(ctrlOut.String(), want) {
 			t.Fatalf("admin invite share UI missing %q", want)
+		}
+	}
+	// The invite flow runs from a same-origin script, not an inline block.
+	for _, want := range []string{`dialog.showModal()`, `clipboard.writeText`, `"invite-form"`, `"/admin/auth/invites"`} {
+		if !strings.Contains(adminAsset(t, "js/admin-control.js"), want) {
+			t.Fatalf("admin control script missing %q", want)
 		}
 	}
 	if !strings.Contains(ctrlOut.String(), "studio-tabs-nav") || !strings.Contains(ctrlOut.String(), `href="/admin/control" class="studio-tab-item is-active"`) {

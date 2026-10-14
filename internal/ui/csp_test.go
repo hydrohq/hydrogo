@@ -36,6 +36,7 @@ func TestAdminScriptHashesAuthorizeTheThemeBootstrap(t *testing.T) {
 		t.Fatal(err)
 	}
 	inline, _ := security.InlineCSPHashes(out.Bytes())
+	inline = withoutEmptyBlocks(inline)
 	if len(inline) == 0 {
 		t.Fatal("admin shell has no inline theme bootstrap")
 	}
@@ -43,5 +44,10 @@ func TestAdminScriptHashesAuthorizeTheThemeBootstrap(t *testing.T) {
 		if !slices.Contains(hashes, want) {
 			t.Fatalf("admin CSP catalog misses inline shell script hash %s", want)
 		}
+	}
+	// Page scripts are same-origin files, so the catalog holds the theme
+	// bootstrap and nothing else.
+	if len(hashes) != len(inline) {
+		t.Fatalf("admin CSP catalog has %d hashes, want only the shell's %d: %v", len(hashes), len(inline), hashes)
 	}
 }
