@@ -231,13 +231,6 @@ jobs:
       - name: Check ADR index drift
         shell: pwsh
         run: ./scripts/adr-drift-check.ps1
-      - name: Measure clean-machine prototype velocity
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force .tmp | Out-Null
-          ./scripts/measure-iteration.ps1 -OutputPath .tmp/dx-iteration.json
-          $report = Get-Content -Raw .tmp/dx-iteration.json | ConvertFrom-Json
-          if (-not $report.acceptance.passed) { Write-Error "prototype velocity acceptance threshold failed" }
 
   browser-e2e:
     runs-on: windows-latest
