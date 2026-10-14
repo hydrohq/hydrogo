@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"math"
 	"mime/multipart"
@@ -517,49 +516,36 @@ func (h Handler) translations(w http.ResponseWriter, r *http.Request) {
 			localizedRows[cellLocale][row.Key] = row
 		}
 	}
+	view := translationMatrixView{CSRF: security.CSRFTokenFromContext(r.Context())}
+	for _, cellLocale := range i18n.SupportedCatalogLocales() {
+		view.Locales = append(view.Locales, translationLocaleView{Code: cellLocale, Label: translationLocaleLabel(cellLocale)})
+	}
+	for _, row := range i18n.CatalogRows(scope.TenantID, "tr") {
+		item := translationRowView{Key: row.Key, Default: row.Default}
+		searchText := row.Key + " " + row.Default
+		for _, cellLocale := range i18n.SupportedCatalogLocales() {
+			localized := localizedRows[cellLocale][row.Key]
+			searchText += " " + localized.Translation
+			item.Cells = append(item.Cells, translationCellView{ID: "translation-" + cellLocale + "-" + strings.ReplaceAll(row.Key, ".", "-"), Key: row.Key, Locale: cellLocale, Value: localized.Translation, Missing: localized.Missing})
+		}
+		item.Search = strings.ToLower(searchText)
+		view.Rows = append(view.Rows, item)
+	}
 	if ui.AdminStartForRequest(w, r, "Çeviri düzenleyici", "Sabit arayüz metinlerini düzenleyin", "site") != nil {
 		return
 	}
-	_, _ = io.WriteString(w, `<main class="studio-card"><label for="translation-search">Çevirilerde ara</label><input id="translation-search" type="search" autocomplete="off" aria-controls="translation-matrix"><p>Eksik çeviriler sarı renkle işaretlenir. Boş bırakılan değerler Türkçe metne geri döner.</p><div class="studio-table-wrap"><table id="translation-matrix"><thead><tr><th scope="col">Anahtar</th><th scope="col">Türkçe (TR)</th><th scope="col">English (EN)</th></tr></thead><tbody>`)
-	for _, row := range i18n.CatalogRows(scope.TenantID, "tr") {
-		searchText := row.Key + " " + row.Default
-		for _, cellLocale := range i18n.SupportedCatalogLocales() {
-			searchText += " " + localizedRows[cellLocale][row.Key].Translation
-		}
-		_, _ = io.WriteString(w, `<tr data-translation-row data-search="`+template.HTMLEscapeString(strings.ToLower(searchText))+`"><th scope="row"><code>`+template.HTMLEscapeString(row.Key)+`</code><small>`+template.HTMLEscapeString(row.Default)+`</small></th>`)
-		for _, cellLocale := range i18n.SupportedCatalogLocales() {
-			localized := localizedRows[cellLocale][row.Key]
-			if err := renderTranslationCell(r.Context(), w, row.Key, cellLocale, localized.Translation, localized.Missing, security.CSRFTokenFromContext(r.Context())); err != nil {
-				return
-			}
-		}
-		_, _ = io.WriteString(w, `</tr>`)
-	}
-	_, _ = io.WriteString(w, `</tbody></table></div></main><style>.translation-missing{background:#fef3c7}.translation-missing input{border-color:#d97706}#translation-matrix small{display:block;color:var(--muted);font-weight:400}#translation-matrix form{display:flex;gap:6px;align-items:center}#translation-matrix input:not([type=hidden]){min-width:180px;width:100%}</style><script>(()=>{const input=document.getElementById('translation-search');input?.addEventListener('input',()=>{const query=input.value.trim().toLocaleLowerCase();document.querySelectorAll('[data-translation-row]').forEach(row=>{row.hidden=!row.dataset.search.includes(query)})})})()</script>`)
+	_ = translationMatrix(view).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }
 
-func renderTranslationCell(ctx context.Context, output io.Writer, key, locale, value string, missing bool, csrf string) error {
-	if _, err := io.WriteString(output, `<td`); err != nil {
-		return err
+func translationLocaleLabel(locale string) string {
+	switch locale {
+	case "tr":
+		return "Türkçe (TR)"
+	case "en":
+		return "English (EN)"
 	}
-	if missing {
-		if _, err := io.WriteString(output, ` class="translation-missing"`); err != nil {
-			return err
-		}
-	}
-	id := "translation-" + locale + "-" + strings.ReplaceAll(key, ".", "-")
-	if _, err := io.WriteString(output, `><form method="post" action="/admin/translations"><input type="hidden" name="_csrf" value="`+template.HTMLEscapeString(csrf)+`"><input type="hidden" name="key" value="`+template.HTMLEscapeString(key)+`"><input type="hidden" name="locale" value="`+template.HTMLEscapeString(locale)+`">`); err != nil {
-		return err
-	}
-	if err := uicomponents.Input(uicomponents.InputProps{ID: id, Name: "value", Type: "text", Label: locale + " " + key, Value: value, HasMaxLength: true, MaxLength: 1000}).Render(ctx, output); err != nil {
-		return err
-	}
-	if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Kaydet", Type: "submit", Variant: uicomponents.Quiet}).Render(ctx, output); err != nil {
-		return err
-	}
-	_, err := io.WriteString(output, `</form></td>`)
-	return err
+	return strings.ToUpper(locale)
 }
 
 func (h Handler) saveTranslation(w http.ResponseWriter, r *http.Request) {
@@ -840,7 +826,7 @@ func (h Handler) redirectRules(w http.ResponseWriter, r *http.Request) {
 	if ui.AdminStartForRequest(w, r, "Yönlendirmeler", "Eski bağlantıları güncel sayfalara yönetin", "site") != nil {
 		return
 	}
-	_, _ = io.WriteString(w, `<p><a href="/admin/redirects">Bulunamayan bağlantı raporunu aç</a></p>`)
+	_ = redirectReportLink().Render(r.Context(), w)
 	newRuleBody := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
 		for _, component := range []templ.Component{
 			uicomponents.Input(uicomponents.InputProps{ID: "redirect-pattern", Name: "pattern", Label: "Eski yol", Placeholder: "/old-page", Required: true, MaxLength: 512, HasMaxLength: true}),
@@ -1062,15 +1048,15 @@ func (h Handler) forms(w http.ResponseWriter, r *http.Request) {
 	if err := ui.AdminStartForRequest(w, r, "Formlar", "Schema yönetimi", "site"); err != nil {
 		return
 	}
-	_, _ = fmt.Fprint(w, `<section class="studio-card"><p class="muted">Kayıtlı formlar</p><div class="studio-actions">`)
+	savedForms := make([]savedFormLink, 0, len(items))
 	for _, item := range items {
-		_, _ = fmt.Fprintf(w, `<a class="button button-quiet" href="/admin/site/forms?id=%s">%s</a>`, template.URLQueryEscaper(item.ID), template.HTMLEscapeString(item.Title))
+		savedForms = append(savedForms, savedFormLink{ID: item.ID, Title: item.Title})
 	}
-	_, _ = fmt.Fprint(w, `</div></section>`)
+	_ = savedFormsList(savedForms, selected.ID).Render(r.Context(), w)
 	if len(formMetrics) > 0 {
 		_ = designsystem.FormConversionMetrics(formMetrics).Render(r.Context(), w)
 	}
-	_ = adminstudio.RenderFormBuilder(w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context())})
+	_ = adminstudio.RenderFormBuilderContext(r.Context(), w, adminstudio.FormBuilderData{Form: selected, Action: "/admin/site/forms", CSRFToken: security.CSRFTokenFromContext(r.Context())})
 	workingHours := forms.WorkingHours{Timezone: "UTC"}
 	if selected.WorkingHours != nil {
 		workingHours = *selected.WorkingHours
@@ -1201,12 +1187,7 @@ func (h Handler) inbox(w http.ResponseWriter, r *http.Request) {
 	if ui.AdminStartForRequest(w, r, "Gelen talepler", "Form gelen kutusu", "site") != nil {
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<form method="get" action="/admin/site/inbox/%s" class="studio-form">`, template.URLQueryEscaper(r.PathValue("form")))
-	_ = uicomponents.Input(uicomponents.InputProps{ID: "inbox-search", Name: "q", Label: "Ara", Value: query, Type: "search", MaxLength: 128, HasMaxLength: true}).Render(r.Context(), w)
-	formPath := template.URLQueryEscaper(r.PathValue("form"))
-	_, _ = fmt.Fprint(w, `<button class="button button-primary" type="submit">Ara</button></form><p>`)
-	_ = designsystem.ExportLinks([]designsystem.ExportLink{{Label: "CSV indir", URL: "/admin/site/inbox/" + formPath + "/export.csv"}, {Label: "Excel indir", URL: "/admin/site/inbox/" + formPath + "/export.xlsx"}}).Render(r.Context(), w)
-	_, _ = fmt.Fprint(w, `</p>`)
+	_ = inboxToolbar(r.PathValue("form"), query).Render(r.Context(), w)
 	_ = uicomponents.Table(uicomponents.TableProps{Caption: "Form talepleri", Columns: []string{"E-posta", "Durum", "Lead aşaması", "Atanan kişi", "Konum", "Tarih"}, Rows: rows, EmptyMessage: "Eşleşen talep yok."}).Render(r.Context(), w)
 	if h.assistantEnabled() {
 		options := make([]designsystem.AIInboxOption, 0, len(items))
@@ -1792,49 +1773,27 @@ func (h Handler) appearance(w http.ResponseWriter, r *http.Request) {
 	if ui.AdminStartForRequest(w, r, "Marka ve görünüm", "Renkleri ve yazı tipini sitenizin görünümüne uygulayın", "site") != nil {
 		return
 	}
-	body := templ.ComponentFunc(func(ctx context.Context, output io.Writer) error {
-		for _, field := range []uicomponents.InputProps{
-			{ID: "appearance-primary", Name: "primary_color", Type: "color", Label: "Ana renk (açık tema)", Value: value.PrimaryColor, Required: true},
-			{ID: "appearance-accent", Name: "accent_color", Type: "color", Label: "Vurgu rengi (açık tema)", Value: value.AccentColor, Required: true},
-			{ID: "appearance-dark-primary", Name: "dark_primary_color", Type: "color", Label: "Ana renk (koyu tema)", Value: value.DarkPrimaryColor, Required: true},
-			{ID: "appearance-dark-accent", Name: "dark_accent_color", Type: "color", Label: "Vurgu rengi (koyu tema)", Value: value.DarkAccentColor, Required: true},
-			{ID: "appearance-logo", Name: "logo_url", Type: "text", Label: "Logo medya yolu (ör. /media/logo.svg)", Value: value.LogoURL},
-			{ID: "appearance-dark-logo", Name: "dark_logo_url", Type: "text", Label: "Koyu tema logo medya yolu", Value: value.DarkLogoURL},
-			{ID: "appearance-favicon", Name: "favicon_url", Type: "text", Label: "Favicon medya yolu", Value: value.FaviconURL},
-			{ID: "appearance-social-image", Name: "social_image_url", Type: "text", Label: "Sosyal paylaşım görseli medya yolu", Value: value.SocialImageURL},
-			{ID: "appearance-login-background", Name: "login_background_url", Type: "text", Label: "Giriş ekranı arka plan görseli", Value: value.LoginBackgroundURL},
-			{ID: "appearance-login-overlay", Name: "login_overlay_opacity", Type: "range", Label: "Giriş görseli karartma oranı (0–80%)", Value: strconv.Itoa(int(math.Round(value.LoginOverlayOpacity * 100)))},
-		} {
-			if err := uicomponents.Input(field).Render(ctx, output); err != nil {
-				return err
-			}
-			if strings.HasSuffix(field.Name, "_url") {
-				if _, err := fmt.Fprintf(output, `<button type="button" class="button button-quiet media-picker-open" data-media-target="%s">Medyadan seç</button>`, template.HTMLEscapeString(field.ID)); err != nil {
-					return err
-				}
-			}
-		}
-		if err := uicomponents.Select(uicomponents.SelectProps{ID: "appearance-font", Name: "font_family", Label: "Yazı tipi", Value: value.FontFamily, Options: []string{"system", "inter", "lato", "roboto"}}).Render(ctx, output); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(output, `<p id="appearance-contrast" role="status" aria-live="polite">Renk kontrastı denetleniyor…</p>`); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(output, `<section id="appearance-preview" aria-label="Canlı site görünümü önizlemesi" style="padding:24px;border-radius:12px;background:var(--appearance-primary,#334155);color:white;font-family:var(--appearance-font,system-ui)"><p>Site görünümü önizlemesi</p><img id="appearance-preview-logo" alt="Logo önizlemesi" hidden style="max-width:180px;max-height:72px;object-fit:contain"><h2>İşinizi büyütmeye hazır mısınız?</h2><button type="button" style="background:var(--appearance-accent,#0f766e);color:white;border:0;border-radius:6px;padding:10px 16px">İletişime geçin</button><p id="appearance-preview-font">Örnek metin • Aa 123</p></section>`); err != nil {
-			return err
-		}
-		if err := uicomponents.Button(uicomponents.ButtonProps{Label: "Görünümü kaydet", Type: "submit", Variant: uicomponents.Primary}).Render(ctx, output); err != nil {
-			return err
-		}
-		_, err := io.WriteString(output, `<script>(()=>{const ids=['appearance-primary','appearance-accent','appearance-dark-primary','appearance-dark-accent'];const out=document.getElementById('appearance-contrast');const preview=document.getElementById('appearance-preview');const lum=h=>{const c=h.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]};const update=()=>{const ratios=ids.map(id=>{const x=document.getElementById(id);return 1.05/(lum(x.value)+.05)});const min=Math.min(...ratios);const low=min<4.5;out.textContent=low?'Kontrast yetersiz: beyaz metin için en az 4,5:1 gerekli.':min>=7?'WCAG AAA uyumlu: en düşük oran '+min.toFixed(2)+':1.':'WCAG AA uyumlu: en düşük oran '+min.toFixed(2)+':1.';out.dataset.state=low?'low':min>=7?'aaa':'aa';preview.style.setProperty('--appearance-primary',document.getElementById(ids[0]).value);preview.style.setProperty('--appearance-accent',document.getElementById(ids[1]).value);preview.style.fontFamily=document.getElementById('appearance-font').value+', system-ui'};ids.forEach(id=>document.getElementById(id)?.addEventListener('input',update));document.getElementById('appearance-font')?.addEventListener('change',update);['appearance-logo','appearance-dark-logo'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{const img=document.getElementById('appearance-preview-logo');const path=document.getElementById(id).value;img.src=path;img.hidden=!path}));update()})()</script>`)
-		return err
-	})
-	form := uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/appearance", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})
-	if err := uicomponents.Card(uicomponents.CardProps{Title: "Renkler ve tipografi", Body: form}).Render(r.Context(), w); err != nil {
+	view := appearanceView{Font: value.FontFamily, CSRF: security.CSRFTokenFromContext(r.Context()), Fields: []uicomponents.InputProps{
+		{ID: "appearance-primary", Name: "primary_color", Type: "color", Label: "Ana renk (açık tema)", Value: value.PrimaryColor, Required: true},
+		{ID: "appearance-accent", Name: "accent_color", Type: "color", Label: "Vurgu rengi (açık tema)", Value: value.AccentColor, Required: true},
+		{ID: "appearance-dark-primary", Name: "dark_primary_color", Type: "color", Label: "Ana renk (koyu tema)", Value: value.DarkPrimaryColor, Required: true},
+		{ID: "appearance-dark-accent", Name: "dark_accent_color", Type: "color", Label: "Vurgu rengi (koyu tema)", Value: value.DarkAccentColor, Required: true},
+		{ID: "appearance-logo", Name: "logo_url", Type: "text", Label: "Logo medya yolu (ör. /media/logo.svg)", Value: value.LogoURL},
+		{ID: "appearance-dark-logo", Name: "dark_logo_url", Type: "text", Label: "Koyu tema logo medya yolu", Value: value.DarkLogoURL},
+		{ID: "appearance-favicon", Name: "favicon_url", Type: "text", Label: "Favicon medya yolu", Value: value.FaviconURL},
+		{ID: "appearance-social-image", Name: "social_image_url", Type: "text", Label: "Sosyal paylaşım görseli medya yolu", Value: value.SocialImageURL},
+		{ID: "appearance-login-background", Name: "login_background_url", Type: "text", Label: "Giriş ekranı arka plan görseli", Value: value.LoginBackgroundURL},
+		{ID: "appearance-login-overlay", Name: "login_overlay_opacity", Type: "range", Label: "Giriş görseli karartma oranı (0–80%)", Value: strconv.Itoa(int(math.Round(value.LoginOverlayOpacity * 100)))},
+	}}
+	if err := appearanceCard(view).Render(r.Context(), w); err != nil {
 		return
 	}
 	_ = ui.AdminEnd(w)
 }
+
+// isMediaPathField marks appearance inputs that hold a media path and get a
+// "choose from media" button.
+func isMediaPathField(name string) bool { return strings.HasSuffix(name, "_url") }
 
 func (h Handler) saveAppearance(w http.ResponseWriter, r *http.Request) {
 	if !h.admin(r) || h.Service == nil {
@@ -1976,12 +1935,11 @@ func (h Handler) fontPicker(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	activeFont := ""
 	if current != "" {
-		_, _ = fmt.Fprintf(w, `<p>Etkin yerel yazı tipi: <code>%s</code></p>`, template.HTMLEscapeString(filepath.Base(current)))
+		activeFont = filepath.Base(current)
 	}
-	if r.URL.Query().Get("saved") == "1" {
-		_, _ = io.WriteString(w, `<p role="status">Yazı tipi indirildi ve siteye uygulandı.</p>`)
-	}
+	_ = fontPickerStatus(activeFont, r.URL.Query().Get("saved") == "1").Render(r.Context(), w)
 	_ = uicomponents.Card(uicomponents.CardProps{Title: "Yazı tipi seç", Body: uicomponents.Form(uicomponents.FormProps{Action: "/admin/site/fonts", Method: "post", CSRF: security.CSRFTokenFromContext(r.Context()), Body: body})}).Render(r.Context(), w)
 	_ = ui.AdminEnd(w)
 }

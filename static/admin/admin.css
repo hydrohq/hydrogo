@@ -128,3 +128,54 @@ details[open] > :not(summary) { animation: mi-reveal var(--motion-slow, .2s) var
 @media (max-width: 560px) { .form-builder .form-builder-row { grid-template-columns: 1fr; } }
 .form-builder-tracking { display: grid; gap: 10px; }
 .form-builder-tracking .studio-form-field-checkbox { display: flex; }
+
+/* ---- Site: translation editor (modules/site/transport/admin_views.templ) ---- */
+.translation-editor .translation-search { max-width: 420px; }
+.translation-missing { background: #fef3c7; }
+html[data-theme="dark"] .translation-missing { background: color-mix(in srgb, #d97706 18%, transparent); }
+.translation-missing input { border-color: #d97706; }
+#translation-matrix small { display: block; color: var(--muted); font-weight: 400; }
+#translation-matrix form { display: flex; gap: 6px; align-items: center; }
+#translation-matrix form .studio-form-field { flex: 1; min-width: 180px; }
+/* The column header names the locale; the per-cell label stays for screen readers. */
+#translation-matrix form .studio-form-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+#translation-matrix input:not([type=hidden]) { width: 100%; }
+
+/* ---- Site: brand and appearance preview (colours set by appearance.js) ---- */
+.appearance-preview {
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--appearance-primary, #334155);
+  color: #fff;
+  font-family: var(--appearance-font, system-ui);
+}
+.appearance-preview h2, .appearance-preview p { color: inherit; }
+.appearance-preview-logo { max-width: 180px; max-height: 72px; object-fit: contain; }
+.appearance-preview-cta {
+  background: var(--appearance-accent, #0f766e);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .4);
+}
+#appearance-contrast[data-state="low"] { color: var(--red, #b91c1c); font-weight: 600; }
+
+/* ---- Site: forms list and inbox ---- */
+.saved-forms .button[aria-current="page"] { border-color: var(--brand); color: var(--brand); }
+.studio-form.inbox-search { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.studio-form.inbox-search > .button { grid-column: auto; width: auto; align-self: end; }
+.inbox-exports { margin: 4px 0 10px; }
+
+/* ---- Site: navigation editor (navigation-editor.js) ---- */
+/* The table keeps its columns and scrolls sideways on phones. */
+.navigation-editor-form .table-wrap { max-width: 100%; overflow-x: auto; }
+.navigation-table { min-width: 760px; }
+.navigation-table td { vertical-align: top; }
+.navigation-order { white-space: nowrap; }
+.navigation-order .button { width: auto; min-width: 0; display: inline-flex; }
+.navigation-order [data-drag-handle] { cursor: grab; }
+[data-navigation-row].is-dragging { opacity: .55; }
+.navigation-editor .studio-actions .button[aria-current="page"] { border-color: var(--brand); color: var(--brand); }
