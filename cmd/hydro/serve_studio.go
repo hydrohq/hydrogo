@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -34,9 +35,9 @@ func (a *serveApp) initAdminStudio() error {
 		return fmt.Errorf("admin studio registry: %w", err)
 	}
 	a.studioRegistry = studioRegistry
-	var previewSigner *preview.Signer
-	if len(a.cfg.Security.PreviewSigningKey) >= 32 {
-		previewSigner = &preview.Signer{Key: []byte(a.cfg.Security.PreviewSigningKey)}
+	previewSigner, err := newPreviewSigner(a.cfg.Security.PreviewSigningKey)
+	if err != nil {
+		return fmt.Errorf("preview signer: %w", err)
 	}
 	if err := a.initPagesHTTP(previewSigner); err != nil {
 		return err
@@ -61,6 +62,21 @@ func (a *serveApp) localizeStudioCollection(collection *adminstudio.Collection) 
 			}
 		}
 	}
+}
+
+// newPreviewSigner uses the configured HYDRO_PREVIEW_SIGNING_KEY. Without
+// one it signs with a random per-process key, so the editor's draft preview
+// works out of the box; links then stop verifying after a restart or on
+// another instance, which is why multi-instance sites should set the key.
+func newPreviewSigner(configured string) (*preview.Signer, error) {
+	if len(configured) >= 32 {
+		return &preview.Signer{Key: []byte(configured)}, nil
+	}
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return nil, err
+	}
+	return &preview.Signer{Key: key}, nil
 }
 
 func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {

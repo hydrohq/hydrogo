@@ -141,7 +141,7 @@ func (h Handler) createPreviewLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
-	if err != nil || page.Status != pages.StatusDraft {
+	if err != nil || (page.Status != pages.StatusDraft && page.Status != pages.StatusPublished) {
 		http.Error(w, "draft unavailable", http.StatusNotFound)
 		return
 	}

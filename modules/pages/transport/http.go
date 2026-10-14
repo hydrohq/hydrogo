@@ -622,7 +622,7 @@ func (h Handler) publicDraftPreview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	page, err := h.Content.Get(r.Context(), h.DB, claims.PageID)
-	if err != nil || page.Status != pages.StatusDraft || page.Revision != claims.Revision {
+	if err != nil || (page.Status != pages.StatusDraft && page.Status != pages.StatusPublished) || page.Revision != claims.Revision {
 		http.NotFound(w, r)
 		return
 	}
@@ -645,6 +645,9 @@ func (h Handler) publicDraftPreview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// The page editor's device preview embeds this response in a same-origin
+	// iframe; everything else keeps the strict frame-ancestors 'none'.
+	security.AllowSameOriginFrame(w.Header())
 	if h.Theme != nil {
 		if err := h.Theme.RenderPage(w, themev1.PageTemplateData{Title: page.Title, Slug: page.Slug, Locale: page.Locale, Direction: canonical.Direction(page.Locale), Content: template.HTML(body), Slots: map[string]template.HTML{"content": template.HTML(body)}}); err != nil {
 			return
