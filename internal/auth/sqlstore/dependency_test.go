@@ -142,6 +142,12 @@ func TestMySQLOAuthIdentityLinksOnlyExistingUser(t *testing.T) {
 	if err != nil || user.ID != "oauth-user" {
 		t.Fatalf("OAuth link user=%+v err=%v", user, err)
 	}
+	// Regression: the UPDATE ... SET email_verified_at=... used to send a Go
+	// RFC3339Nano string unconditionally, which MySQL's DATETIME column
+	// rejects (error 1292); first-time OAuth linking failed on MySQL.
+	if user.EmailVerifiedAt == nil {
+		t.Fatal("OAuth link did not record email_verified_at")
+	}
 	identity.Email = "changed@example.test"
 	user, err = store.ResolveOAuth(ctx, identity)
 	if err != nil || user.ID != "oauth-user" {

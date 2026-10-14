@@ -111,7 +111,15 @@ func (s OAuthIdentityStore) markOAuthEmailVerified(ctx context.Context, tx datab
 	}
 	now := time.Now().UTC()
 	query := `UPDATE users SET email_verified_at=COALESCE(email_verified_at,` + s.bind(1) + `) WHERE id=` + s.bind(2) + ` AND tenant_id=` + s.bind(3)
-	if _, err := tx.ExecContext(ctx, query, now.Format(time.RFC3339Nano), user.ID, tenantID); err != nil {
+	// MySQL and PostgreSQL drivers marshal time.Time natively; only SQLite
+	// (TEXT storage) needs the string form. The RFC3339Nano string this used
+	// to send unconditionally ("...T...Z" with up to 9 fractional digits) is
+	// not a valid MySQL DATETIME literal and failed with error 1292.
+	var verifiedAt any = now
+	if s.Dialect == database.SQLite {
+		verifiedAt = now.Format(time.RFC3339Nano)
+	}
+	if _, err := tx.ExecContext(ctx, query, verifiedAt, user.ID, tenantID); err != nil {
 		return err
 	}
 	user.EmailVerifiedAt = &now
