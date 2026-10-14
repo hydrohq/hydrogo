@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect, type Browser, type BrowserContext, type BrowserContextOptions, type Page } from "@playwright/test";
 import type { ChildProcess } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import net from "node:net";
@@ -25,6 +25,8 @@ let restrictedMutationTargets: string[] = [];
 test.describe("single Edition administrator management", () => {
   test.describe.configure({ mode: "serial" });
   test.beforeAll(async () => {
+    // Building and migrating with the Go toolchain can outlast the default hook timeout.
+    test.setTimeout(180_000);
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-management-"));
     const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
     const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
@@ -42,7 +44,7 @@ test.describe("single Edition administrator management", () => {
     serverArgs = ["run", "./cmd/hydro", "serve", "--dev", "--database-dialect", dialect, "--database-dsn", database, "--address", `127.0.0.1:${port}`];
     serverEnv = { ...process.env, HYDRO_PUBLIC_ORIGIN: baseURL, HYDRO_MEDIA_DIR: path.join(tempDir, "media"), HYDRO_BACKUP_SIGNING_SEED: backupSigningSeed, HYDRO_PREVIEW_SIGNING_KEY: "cd".repeat(32) };
     await startAdminServer();
-  }, 60_000);
+  });
 
   test.afterEach(async ({}, testInfo) => {
     if (testInfo.status !== "passed") return;
@@ -59,17 +61,7 @@ test.describe("single Edition administrator management", () => {
 
   test("editor and viewer sessions enforce the Edition role boundary", async ({ browser }) => {
     test.setTimeout(120_000);
-    const expectAxeClean = async (page: Page, label: string) => {
-      const result = await page.evaluate(async () => (window as any).axe.run(document, {
-        runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
-      }));
-      expect(result.violations.map((violation: any) => ({
-        id: violation.id,
-        impact: violation.impact,
-        nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
-      })), `${label} WCAG 2.1 A/AA violations`).toEqual([]);
-    };
-    const adminContext = await browser.newContext();
+    const adminContext = await newContextWithoutTour(browser);
     const adminPage = await adminContext.newPage();
     await adminPage.goto(`${baseURL}/login`);
     await adminPage.getByLabel("Email address").fill("admin@example.test");
@@ -83,7 +75,7 @@ test.describe("single Edition administrator management", () => {
     };
     expect(tokenLifetimeBaseline.passwordReset).not.toBe("");
     expect(tokenLifetimeBaseline.invitation).not.toBe("");
-    adminNavigationPaths = await adminPage.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
+    adminNavigationPaths = await adminPage.locator('.studio-sidebar nav a[href^="/admin"]').evaluateAll((links) =>
       [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
     );
     expect(adminNavigationPaths.length).toBeGreaterThan(0);
@@ -269,7 +261,7 @@ test.describe("single Edition administrator management", () => {
       { email: "editor@example.test", expectedRole: "editor", allowedPath: "/admin/pages/new" },
       { email: "viewer@example.test", expectedRole: "viewer", allowedPath: "/admin/pages/new" },
     ]) {
-      const context = await browser.newContext();
+      const context = await newContextWithoutTour(browser);
       const page = await context.newPage();
       await page.goto(`${baseURL}/login`);
       await page.getByLabel("Email address").fill(account.email);
@@ -278,7 +270,11 @@ test.describe("single Edition administrator management", () => {
       await expect(page).toHaveURL(/\/admin(?:\?.*)?$/);
       if (account.expectedRole === "viewer") viewerStorageState = await context.storageState();
 
-      const visibleNavPaths = await page.locator('.studio-sidebar a[href^="/admin"]').evaluateAll((links) =>
+      // Viewers have no dashboard (/admin answers 403), so read the sidebar
+      // menu from a page every role may open. The brand link always points
+      // at /admin, so only the navigation menu counts.
+      expect((await page.goto(`${baseURL}/admin/account`))?.status()).toBe(200);
+      const visibleNavPaths = await page.locator('.studio-sidebar nav a[href^="/admin"]').evaluateAll((links) =>
         [...new Set(links.map((link) => new URL((link as HTMLAnchorElement).href).pathname))],
       );
       for (const path of visibleNavPaths) {
@@ -286,7 +282,7 @@ test.describe("single Edition administrator management", () => {
         expect(response?.status(), `${account.expectedRole} navigation link ${path} must open`).toBe(200);
       }
       const visibleNavPathSet = new Set(visibleNavPaths);
-      for (const path of adminNavPaths.filter((candidate) => !visibleNavPathSet.has(candidate))) {
+      for (const path of adminNavigationPaths.filter((candidate) => !visibleNavPathSet.has(candidate))) {
         const response = await page.goto(`${baseURL}${path}`);
         expect(response?.status(), `${account.expectedRole} must be denied hidden Admin navigation route ${path}`).toBe(403);
       }
@@ -501,7 +497,7 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
         await expect(page.locator(".readonly-content-preview")).toContainText("A draft for the Viewer read-only route check.");
         await expect(page.locator('form[action^="/admin/news/"]')).toHaveCount(0);
-        const a11yContext = await browser.newContext({ storageState: await context.storageState() });
+        const a11yContext = await newContextWithoutTour(browser, { storageState: await context.storageState() });
         try {
           const a11yPage = await a11yContext.newPage();
           await a11yPage.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
@@ -563,7 +559,7 @@ test.describe("single Edition administrator management", () => {
         await page.goto(`${baseURL}/admin/news/${createdNewsID}`);
         await expect(page.locator("#news-title-readonly")).toHaveValue("Editor role news draft");
         await expect(page.locator("#news-status-readonly")).toHaveValue("draft");
-        const taxonomyVerifierContext = await browser.newContext({ storageState: adminStorageState });
+        const taxonomyVerifierContext = await newContextWithoutTour(browser, { storageState: adminStorageState });
         try {
           const taxonomyVerifier = await taxonomyVerifierContext.newPage();
           expect((await taxonomyVerifier.goto(`${baseURL}/admin/news/taxonomy`))?.status()).toBe(200);
@@ -626,7 +622,7 @@ test.describe("single Edition administrator management", () => {
         });
         expect(denied.status(), `${account.expectedRole} cannot submit ${restrictedMutation.route} even with valid CSRF`).toBe(403);
       }
-      const securityStateContext = await browser.newContext({ storageState: adminStorageState });
+      const securityStateContext = await newContextWithoutTour(browser, { storageState: adminStorageState });
       try {
         const securityStatePage = await securityStateContext.newPage();
         expect((await securityStatePage.goto(`${baseURL}/admin/security`))?.status()).toBe(200);
@@ -667,7 +663,7 @@ test.describe("single Edition administrator management", () => {
       const deniedAccountDisable = await page.request.post(new URL(target.disable, baseURL).href, { form: { _csrf: token } });
       expect(deniedAccountDisable.status(), `${account.expectedRole} cannot disable another user's account`).toBe(403);
 
-      const stateContext = await browser.newContext({ storageState: adminStorageState });
+      const stateContext = await newContextWithoutTour(browser, { storageState: adminStorageState });
       try {
         const statePage = await stateContext.newPage();
         expect((await statePage.goto(`${baseURL}/admin/users`))?.status()).toBe(200);
@@ -680,7 +676,7 @@ test.describe("single Edition administrator management", () => {
       }
 
       if (account.expectedRole === "editor") {
-        const overrideContext = await browser.newContext({ storageState: adminStorageState });
+        const overrideContext = await newContextWithoutTour(browser, { storageState: adminStorageState });
         const overridePage = await overrideContext.newPage();
         try {
           const editorPermissionForm = async () => {
@@ -707,7 +703,7 @@ test.describe("single Edition administrator management", () => {
             expect(saved.status(), `Admin can set editor media.manage to ${value}`).toBe(204);
           };
           const signInFreshEditor = async () => {
-            const freshContext = await browser.newContext();
+            const freshContext = await newContextWithoutTour(browser);
             const freshPage = await freshContext.newPage();
             await freshPage.goto(`${baseURL}/login`);
             await freshPage.getByLabel("Email address").fill("editor@example.test");
@@ -754,7 +750,7 @@ test.describe("single Edition administrator management", () => {
       }
       await context.close();
     }
-    const verificationContext = await browser.newContext({ storageState: adminStorageState });
+    const verificationContext = await newContextWithoutTour(browser, { storageState: adminStorageState });
     const mediaAdmin = await verificationContext.newPage();
     const mediaListing = await mediaAdmin.request.get(`${baseURL}/admin/media`);
     expect(mediaListing.status()).toBe(200);
@@ -766,7 +762,7 @@ test.describe("single Edition administrator management", () => {
 
   test("legacy item-list controls follow the selected Admin locale", async ({ browser }) => {
     expect(adminStorageState, "the preceding role test must create an authenticated state").toBeTruthy();
-    const context = await browser.newContext({ storageState: adminStorageState });
+    const context = await newContextWithoutTour(browser, { storageState: adminStorageState });
     await context.addCookies([{ name: "hydro_admin_locale", value: "en", url: baseURL }]);
     const page = await context.newPage();
     await page.goto(`${baseURL}/admin/news/new`);
@@ -823,7 +819,7 @@ test.describe("single Edition administrator management", () => {
   test("session expiry warning follows the Admin language and stays accessible", async ({ browser }) => {
     expect(adminStorageState, "the preceding role test must create an authenticated state").toBeTruthy();
     for (const locale of ["en", "tr"] as const) {
-      const context = await browser.newContext({ storageState: adminStorageState });
+      const context = await newContextWithoutTour(browser, { storageState: adminStorageState });
       await context.addCookies([{ name: "hydro_admin_locale", value: locale, url: baseURL }]);
       const page = await context.newPage();
       await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
@@ -882,7 +878,9 @@ test.describe("single Edition administrator management", () => {
     const loginResponse = await page.goto(`${baseURL}/login`);
     const loginHTML = await loginResponse?.text() ?? "";
     const csp = loginResponse?.headers()["content-security-policy"] ?? "";
-    for (const [, kind, body] of loginHTML.matchAll(/<(script|style)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g)) {
+    for (const [, kind, attributes, body] of loginHTML.matchAll(/<(script|style)(\s[^>]*)?>([\s\S]*?)<\/\1>/g)) {
+      // External scripts (login.js since the templ login page) need no hash.
+      if (/\ssrc=/.test(attributes ?? "") && body.trim() === "") continue;
       const hash = `sha256-${Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body))).toString("base64")}`;
       expect(csp).toContain(`'${hash}'`);
       expect(csp).toContain(kind === "script" ? "script-src" : "style-src");
@@ -1053,7 +1051,7 @@ test.describe("single Edition administrator management", () => {
     await page.reload();
     await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("deny");
 
-    const restrictedContext = await browser.newContext();
+    const restrictedContext = await newContextWithoutTour(browser);
     const restrictedEditor = await restrictedContext.newPage();
     await restrictedEditor.goto(`${baseURL}/login`);
     await restrictedEditor.getByLabel("Email address").fill("editor@example.test");
@@ -1139,6 +1137,9 @@ test.describe("single Edition administrator management", () => {
     expect(deniedSearchBody.items.map((item: { badge: string }) => item.badge)).not.toContain("Sayfa");
     expect(deniedSearchBody.items.map((item: { badge: string }) => item.badge)).not.toContain("Haber");
 
+    // The page has been on the page editor since the persistence check; the
+    // editor row lives on the users screen.
+    expect((await page.goto(`${baseURL}/admin/users`))?.status()).toBe(200);
     const grantToken = await editorRow.locator('form[action$="/permissions"] [name="_csrf"]').inputValue();
     const permissionUpdate = await page.request.post(new URL(permissionAction!, baseURL).href, {
       form: { _csrf: grantToken, "perm_admin.content.read": "allow", "perm_admin.content.write": "allow", "perm_admin.media.manage": "inherit" },
@@ -1149,7 +1150,7 @@ test.describe("single Edition administrator management", () => {
     await expect(editorRow.locator('[name="perm_admin.content.write"]')).toHaveValue("allow");
     expect((await restrictedEditor.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
     await restrictedContext.close();
-    const grantedContext = await browser.newContext();
+    const grantedContext = await newContextWithoutTour(browser);
     const grantedEditor = await grantedContext.newPage();
     await grantedEditor.goto(`${baseURL}/login`);
     await grantedEditor.getByLabel("Email address").fill("editor@example.test");
@@ -1173,7 +1174,7 @@ test.describe("single Edition administrator management", () => {
     });
     expect(allowViewerContent.status()).toBe(204);
 
-    const elevatedViewerContext = await browser.newContext();
+    const elevatedViewerContext = await newContextWithoutTour(browser);
     const elevatedViewer = await elevatedViewerContext.newPage();
     await elevatedViewer.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await elevatedViewer.goto(`${baseURL}/login`);
@@ -1236,6 +1237,17 @@ test.describe("single Edition administrator management", () => {
     expect(revokeViewerContent.status()).toBe(204);
     expect((await elevatedViewer.request.get(`${baseURL}/auth/me`)).status()).toBe(401);
     await elevatedViewerContext.close();
+    // Changing the viewer's permissions revoked every viewer session, including
+    // the one the role test stored; later viewer checks need a fresh login.
+    const refreshedViewerContext = await newContextWithoutTour(browser);
+    const refreshedViewer = await refreshedViewerContext.newPage();
+    await refreshedViewer.goto(`${baseURL}/login`);
+    await refreshedViewer.getByLabel("Email address").fill("viewer@example.test");
+    await refreshedViewer.getByLabel("Password").fill(adminPassword);
+    await refreshedViewer.getByRole("button", { name: "Sign in" }).click();
+    await expect(refreshedViewer).toHaveURL(/\/admin(?:\?.*)?$/);
+    viewerStorageState = await refreshedViewerContext.storageState();
+    await refreshedViewerContext.close();
 
     const roleForm = editorRow.locator('form[action$="/role"]');
     const roleToken = await roleForm.locator('[name="_csrf"]').inputValue();
@@ -1273,13 +1285,12 @@ test.describe("single Edition administrator management", () => {
     expect(pickerLayout.columns.split(" ").length).toBe(2);
     expect(pickerLayout.span).toBe("-1");
     expect(pickerLayout.finalOptionSpan).toBe("auto");
+    // The layout picker styles now ship in /admin-assets/css/areas.css (the
+    // computed grid above proves they load) instead of a hashed inline
+    // <style>; the strict CSP must not need 'unsafe-inline' for them.
     const editorHTML = await editorResponse?.text() ?? "";
-    const inlineLayoutCSS = [...editorHTML.matchAll(/<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g)]
-      .map((match) => match[1])
-      .find((style) => style.includes(".ds-layout-picker"));
-    expect(inlineLayoutCSS, "Admin shell must include the layout picker styles").toBeTruthy();
-    const styleHash = `sha256-${Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(inlineLayoutCSS!))).toString("base64")}`;
-    expect(editorResponse?.headers()["content-security-policy"]).toContain(`'${styleHash}'`);
+    expect(editorHTML).toContain('href="/admin-assets/css/areas.css"');
+    expect(editorResponse?.headers()["content-security-policy"]).not.toMatch(/style-src [^;]*'unsafe-inline'/);
     await page.getByLabel("Başarı hikâyesi").check();
     await expect(page.locator(".ds-layout-picker input[value=case_study]")).toBeChecked();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -1384,7 +1395,9 @@ test.describe("single Edition administrator management", () => {
     for (const selector of [".media-card .media-copy", ".media-card .media-visibility-form select", ".media-card .media-visibility-form button"]) {
       const control = page.locator(selector).first();
       await expect(control).toBeVisible();
-      expect((await control.boundingBox())?.height ?? 0, `${selector} should meet the 44px touch target`).toBeGreaterThanOrEqual(44);
+      // Buttons animate size changes (transition: all), so poll until the
+      // phone-width min-height has settled.
+      await expect.poll(async () => (await control.boundingBox())?.height ?? 0, { message: `${selector} should meet the 44px touch target` }).toBeGreaterThanOrEqual(44);
     }
     await expectAxeClean(page, "mobile media library");
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -1444,7 +1457,7 @@ test.describe("single Edition administrator management", () => {
     const scheduledStory = await page.request.get(`${baseURL}/public/news/tr/e2e-media-picker-story/html`);
     expect(scheduledStory.status(), "scheduled news must stay private until its publication time").toBe(404);
     expect(viewerStorageState, "the preceding role test must capture a viewer session").toBeDefined();
-    const workflowViewerContext = await browser.newContext({ storageState: viewerStorageState });
+    const workflowViewerContext = await newContextWithoutTour(browser, { storageState: viewerStorageState });
     const workflowViewer = await workflowViewerContext.newPage();
     const viewerCSRFResponse = await workflowViewer.request.get(`${baseURL}/csrf-token`);
     expect(viewerCSRFResponse.status()).toBe(200);
@@ -1521,7 +1534,7 @@ test.describe("single Edition administrator management", () => {
     await staleEditor.close();
 
     expect(viewerStorageState, "role-boundary test must capture the authenticated viewer session").toBeDefined();
-    const viewerContext = await browser.newContext({ storageState: viewerStorageState });
+    const viewerContext = await newContextWithoutTour(browser, { storageState: viewerStorageState });
     const viewerPage = await viewerContext.newPage();
     expect((await viewerPage.request.get(`${baseURL}/auth/me`)).status()).toBe(200);
 
@@ -1540,7 +1553,7 @@ test.describe("single Edition administrator management", () => {
   });
 
   test("admin routes fit mobile and tablet viewports", async ({ browser }) => {
-    const context = await browser.newContext(adminStorageState ? { storageState: adminStorageState } : undefined);
+    const context = await newContextWithoutTour(browser, adminStorageState ? { storageState: adminStorageState } : undefined);
     const page = await context.newPage();
     if (!adminStorageState) {
       await page.goto(`${baseURL}/login`);
@@ -1630,7 +1643,7 @@ test.describe("single Edition administrator management", () => {
     const dialect = process.env.HYDRO_E2E_DATABASE_DIALECT ?? "sqlite";
     const database = process.env.HYDRO_E2E_DATABASE_DSN ?? path.join(tempDir, "edition.sqlite");
     const token = runCommand("go", ["run", "./tests/e2e/support/seedinvite", "--database-dialect", dialect, "--database-dsn", database, "--email", "invited-editor@example.test"], { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] }).trim();
-    const context = await browser.newContext();
+    const context = await newContextWithoutTour(browser);
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     const inviteURL = `${baseURL}/auth/invites/accept?token=${token}`;
@@ -1681,7 +1694,7 @@ test.describe("single Edition administrator management", () => {
 
   test("public Admin confirmation states remain accessible in both color modes", async ({ browser }) => {
     test.setTimeout(180_000);
-    const context = await browser.newContext();
+    const context = await newContextWithoutTour(browser);
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     const colorModes = ["light", "dark"];
@@ -1714,7 +1727,7 @@ test.describe("single Edition administrator management", () => {
 
   test("failed Admin login gives accessible localized feedback in both color modes", async ({ browser }) => {
     test.setTimeout(180_000);
-    const context = await browser.newContext();
+    const context = await newContextWithoutTour(browser);
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     for (const mode of ["light", "dark"]) {
@@ -1751,7 +1764,7 @@ test.describe("single Edition administrator management", () => {
     expect(adminStorageState, "the preceding admin login test must create an authenticated state").toBeTruthy();
     expect(createdPageID, "the preceding role journey must persist an Editor-created Page").not.toBe("");
     expect(createdNewsID, "the preceding role journey must persist an Editor-created News draft").not.toBe("");
-    const context = await browser.newContext({ storageState: adminStorageState });
+    const context = await newContextWithoutTour(browser, { storageState: adminStorageState });
     const page = await context.newPage();
     await page.addInitScript({ path: path.join(repoRoot, "e2e/node_modules/axe-core/axe.min.js") });
     await page.goto(`${baseURL}/admin`);
@@ -1833,6 +1846,34 @@ async function unusedPort(): Promise<number> {
       probe.close((error) => error ? reject(error) : resolve(address.port));
     });
   });
+}
+
+async function expectAxeClean(page: Page, label: string): Promise<void> {
+  const result = await page.evaluate(async () => (window as any).axe.run(document, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+  }));
+  expect(result.violations.map((violation: any) => ({
+    id: violation.id,
+    impact: violation.impact,
+    nodes: violation.nodes.map((node: any) => ({ target: node.target, summary: node.failureSummary })),
+  })), `${label} WCAG 2.1 A/AA violations`).toEqual([]);
+}
+
+// The first-run onboarding tour is a modal that intercepts clicks. These
+// journeys are about management screens, so every browser context starts as
+// a returning user who dismissed it (plain and role-scoped keys, as the
+// tour's "Bir daha gösterme" button stores them).
+async function newContextWithoutTour(browser: Browser, options?: BrowserContextOptions): Promise<BrowserContext> {
+  const context = await browser.newContext(options);
+  await context.addInitScript(() => {
+    try {
+      localStorage.setItem("hydro-onboarding-dismissed", "1");
+      for (const role of ["admin", "editor", "viewer"]) localStorage.setItem(`hydro-onboarding-dismissed:${role}`, "1");
+    } catch {
+      // Storage can be unavailable on opaque origins; the tour then stays.
+    }
+  });
+  return context;
 }
 
 async function dismissAdminTour(page: import("@playwright/test").Page): Promise<void> {
