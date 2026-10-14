@@ -287,7 +287,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
     <div>
       <span class="eyebrow">HEADLESS &amp; API MERKEZİ</span>
       <h2>Geliştirici &amp; Entegrasyon Konsolu</h2>
-      <p>HydroGo Core, headless mimariyle tüm içerik, e-ticaret ve medya yeteneklerini tip-güvenli JSON ve GraphQL API'leri üzerinden bağımsız frontend ve uygulamalara sunar.</p>
+      <p>HydroGo Core, headless mimariyle tüm içerik, e-ticaret ve medya yeteneklerini tip-güvenli JSON API'leri üzerinden bağımsız frontend ve uygulamalara sunar.</p>
     </div>
     <a href="/admin/developer/resources" class="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg> <span>Canlı Kaynak Tüketimi →</span></a>
   </div>
@@ -326,20 +326,6 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
     <div class="dev-endpoint-card">
       <div class="dev-ep-header">
         <div class="dev-ep-route">
-          <span class="dev-method dev-method-post">POST</span>
-          <span class="dev-path">/api/graphql</span>
-        </div>
-        <div class="dev-ep-actions">
-          <button class="button button-quiet" type="button" data-test-graphql>▶ Canlı Query Test Et</button>
-        </div>
-      </div>
-      <div style="color:var(--muted);font-size:.78rem;">Next.js, React veya mobil uygulamalar için tek istekte birleşik içerik ve katalog sorgulama uç noktası.</div>
-      <pre class="dev-preview-box"></pre>
-    </div>
-
-    <div class="dev-endpoint-card">
-      <div class="dev-ep-header">
-        <div class="dev-ep-route">
           <span class="dev-method dev-method-get">GET</span>
           <span class="dev-path">/readyz &amp; /healthz</span>
         </div>
@@ -362,7 +348,7 @@ func RenderAdminArea(w io.Writer, data AdminAreaData) error {
     </div>
     <div class="dev-code-card">
       <h3>📦 Tip Güvenli Entegrasyon</h3>
-      <p>HydroGo SDK ve GraphQL şeması sayesinde tüm tipler derleme anında doğrulanır. Drift ve şema uyuşmazlığı engellenir.</p>
+      <p>HydroGo SDK ve OpenAPI şeması sayesinde tüm tipler derleme anında doğrulanır. Drift ve şema uyuşmazlığı engellenir.</p>
       <pre class="dev-code-snippet">// Go SDK Örneği
 client := hydrogo.NewClient("http://127.0.0.1:8090")
 products, err := client.Commerce.ListProducts(ctx)</pre>
@@ -373,8 +359,6 @@ products, err := client.Commerce.ListProducts(ctx)</pre>
 document.addEventListener('click', event => {
   const endpointButton = event.target.closest('[data-test-endpoint]');
   if (endpointButton) testEndpoint(endpointButton, endpointButton.dataset.testEndpoint);
-  const graphqlButton = event.target.closest('[data-test-graphql]');
-  if (graphqlButton) testGraphQL(graphqlButton);
 });
 function testEndpoint(btn, url){
   const box = btn.closest('.dev-endpoint-card').querySelector('.dev-preview-box');
@@ -397,30 +381,6 @@ function testEndpoint(btn, url){
     });
 }
 
-function testGraphQL(btn){
-  const box = btn.closest('.dev-endpoint-card').querySelector('.dev-preview-box');
-  btn.disabled = true;
-  btn.textContent = 'Query çalışıyor…';
-  fetch('/api/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ query: '{ products { id title priceCents currency } }' })
-  })
-    .then(r => r.text())
-    .then(txt => {
-      try { txt = JSON.stringify(JSON.parse(txt), null, 2); } catch(e){}
-      box.textContent = txt;
-      box.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = '✓ Query Tamam';
-    })
-    .catch(err => {
-      box.textContent = 'GraphQL isteği tamamlanamadı.';
-      box.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Tekrar Dene';
-    });
-}
 </script>`, nonce)
 
 	case "operations":

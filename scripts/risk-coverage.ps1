@@ -2,8 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $targets = @(
     @{ Package = "internal/auth/sqlstore"; Floor = 4.0 },
-    @{ Package = "modules/members/transport"; Floor = 45.0 },
-    @{ Package = "modules/api/graphql"; Floor = 65.0 }
+    @{ Package = "modules/members/transport"; Floor = 45.0 }
 )
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path

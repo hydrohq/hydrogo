@@ -2,11 +2,10 @@
 set -euo pipefail
 
 # Package-specific floors prevent a broad repository average from hiding
-# regressions in security, member, payment, and GraphQL paths.
+# regressions in security and member paths.
 targets=(
   "internal/auth/sqlstore:4.0"
   "modules/members/transport:45.0"
-  "modules/api/graphql:65.0"
 )
 tmp_root="${TMPDIR:-/tmp}/hydrogo-risk-coverage-$$"
 mkdir -p "$tmp_root"
