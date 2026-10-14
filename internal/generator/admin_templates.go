@@ -144,7 +144,7 @@ func {{.Name}}ListColumns() []string {
 
 func {{.Name}}ListRows(rows []{{.Name}}ListRow) [][]string {
 	result := make([][]string, 0, len(rows))
-	for _, row := range rows {
+	{{if .ListFields}}for _, row := range rows{{else}}for range rows{{end}} {
 		result = append(result, []string{ {{range $i, $field := .ListFields}}{{if $i}}, {{end}}row.Values[{{printf "%q" $field.Name}}]{{end}} })
 	}
 	return result

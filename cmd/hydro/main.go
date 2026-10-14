@@ -1638,7 +1638,11 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	devModeEnv := strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE")) == "1"
 	devMode := *devLicenseBypass || devModeEnv
 	if devMode {
-		_ = os.Setenv("HYDRO_DEV_MODE", "1")
+		if !devModeEnv {
+			// Other packages read HYDRO_DEV_MODE; scope it to this serve call.
+			_ = os.Setenv("HYDRO_DEV_MODE", "1")
+			defer func() { _ = os.Unsetenv("HYDRO_DEV_MODE") }()
+		}
 		if err := enforceDevModeOfficialBuild(); err != nil {
 			return err
 		}
