@@ -98,3 +98,15 @@ func TestTrashLinkOnlyWhenEnabled(t *testing.T) {
 		t.Fatal("trash missing when enabled")
 	}
 }
+
+func TestHomeHrefPointsAtFirstAllowedPage(t *testing.T) {
+	modules := map[string]bool{"news": true, "pages": true}
+	admin := View{User: User{Role: "admin", Permissions: []string{auth.PermissionContentRead}}, Modules: modules}
+	if got := admin.HomeHref(); got != "/admin" {
+		t.Fatalf("admin home = %q", got)
+	}
+	viewer := View{User: User{Role: "viewer", Permissions: []string{auth.PermissionContentRead}}, Modules: modules}
+	if got := viewer.HomeHref(); got == "/admin" {
+		t.Fatalf("viewer home = %q, want a page the viewer may open", got)
+	}
+}

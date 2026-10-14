@@ -294,7 +294,7 @@ test.describe("single Edition administrator management", () => {
       if (account.expectedRole === "editor") {
         expect(allowed?.status()).toBe(200);
         await expect(page.locator(`body[data-studio-role="${account.expectedRole}"]`)).toBeVisible();
-        await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/pages"]')).toBeVisible();
         await page.goto(`${baseURL}/admin/pages`);
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toBeVisible();
         await page.locator('.studio-search').click();
@@ -442,11 +442,11 @@ test.describe("single Edition administrator management", () => {
         expect((await page.goto(`${baseURL}/admin/media`))?.status()).toBe(403);
         expect(createdPageID).not.toBe("");
         expect((await page.goto(`${baseURL}/admin/pages`))?.status()).toBe(200);
-        await expect(page.locator('.studio-sidebar a[href="/admin/pages"]')).toBeVisible();
-        await expect(page.locator('.studio-sidebar a[href="/admin/news"]')).toBeVisible();
-        await expect(page.locator('.studio-sidebar a[href="/admin/users"]')).toHaveCount(0);
-        await expect(page.locator('.studio-sidebar a[href="/admin/reports"]')).toHaveCount(0);
-        await expect(page.locator('.studio-sidebar a[href="/admin/media"]')).toHaveCount(0);
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/pages"]')).toBeVisible();
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/news"]')).toBeVisible();
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/users"]')).toHaveCount(0);
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/reports"]')).toHaveCount(0);
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/media"]')).toHaveCount(0);
         await expect(page.locator('.studio-heading a[href="/admin/pages/new"]')).toHaveCount(0);
         await page.locator('.studio-search').click();
         await expect(page.locator('.studio-search-dialog .search-result-item').filter({ hasText: "Yeni Sayfa Ekle" })).toHaveCount(0);
@@ -462,7 +462,7 @@ test.describe("single Edition administrator management", () => {
         await expect(page.locator('iframe.readonly-content-preview')).toBeVisible();
         expect((await page.request.get(`${baseURL}/api/pages/${createdPageID}`)).status()).toBe(200);
         expect((await page.goto(`${baseURL}/admin/news`))?.status(), "Viewer content.read grants access to the news list").toBe(200);
-        await expect(page.locator('.studio-sidebar a[href="/admin/news"]')).toBeVisible();
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/news"]')).toBeVisible();
         await expect(page.locator('.studio-heading a[href="/admin/news/new"]')).toHaveCount(0);
         const newsCSRFResponse = await page.request.get(`${baseURL}/csrf-token`);
         expect(newsCSRFResponse.status()).toBe(200);
@@ -571,7 +571,7 @@ test.describe("single Edition administrator management", () => {
       }
 
       if (account.expectedRole === "editor") {
-        await expect(page.locator('.studio-sidebar a[href="/admin/users"]')).toHaveCount(0);
+        await expect(page.locator('.studio-sidebar nav a[href="/admin/users"]')).toHaveCount(0);
       }
       for (const route of [
         "/admin/users",
@@ -1576,7 +1576,7 @@ test.describe("single Edition administrator management", () => {
         await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
         await expect(page.locator("body")).not.toHaveClass(/studio-mobile-nav-open/);
         await menuToggle.click();
-        await page.locator('.studio-sidebar a[href="/admin/pages"]').click();
+        await page.locator('.studio-sidebar nav a[href="/admin/pages"]').click();
         await expect(page).toHaveURL(`${baseURL}/admin/pages`);
         await expect(page.locator("body")).not.toHaveClass(/studio-mobile-nav-open/);
       }

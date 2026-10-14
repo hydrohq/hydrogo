@@ -67,7 +67,16 @@ test.describe("HydroGo visual contract", () => {
         });
         expect(overlaps, "news editor sidebar cards must not overlap").toBe(false);
       }
+      // Other specs upload files into the shared e2e database; keep the
+      // library capture to the seeded assets so the baseline does not
+      // depend on test order.
+      const mask = [];
+      if (surface.id === "admin-media-library") {
+        await page.locator('.media-card[data-filename="e2e-media.png"]').evaluateAll((cards) => cards.forEach((card) => card.remove()));
+        mask.push(page.locator("#media-count-badge"));
+      }
       await expect(page).toHaveScreenshot(`${surface.id}.png`, {
+        mask,
         fullPage: true,
         animations: "disabled",
         caret: "hide",

@@ -355,3 +355,10 @@ html .studio-form input[type="file"].control-file-input { padding: 8px 12px; bac
   .studio-main .locale-tabs > [aria-current],
   .studio-main .locale-tabs > form .button { min-height: 40px !important; }
 }
+
+/* ---- Rich text toolbar ---- */
+
+/* Keep the paragraph/heading picker label ("Normal Metin") on one line. */
+.richtext-field .ql-toolbar .ql-picker-label {
+  white-space: nowrap;
+}
