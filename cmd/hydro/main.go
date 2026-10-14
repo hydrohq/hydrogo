@@ -1638,6 +1638,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	devModeEnv := strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE")) == "1"
 	devMode := *devLicenseBypass || devModeEnv
 	if devMode {
+		_ = os.Setenv("HYDRO_DEV_MODE", "1")
 		if err := enforceDevModeOfficialBuild(); err != nil {
 			return err
 		}
@@ -1718,7 +1719,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	invitationService := &auth.InvitationService{Users: userStore, Invites: userStore, ArgonParams: auth.DefaultArgon2Params}
 	redisClient, err := newRedisRuntime(ctx, cfg.Redis.URL)
 	if err != nil {
-		return fmt.Errorf("connect redis: %w", err)
+		if devMode || strings.EqualFold(string(cfg.Profile), "compact") {
+			if stderr != nil {
+				_, _ = fmt.Fprintf(stderr, "warning: Redis connection failed (%v); falling back to in-memory rate limiting and cache\n", err)
+			}
+			redisClient = redisRuntime{}
+		} else {
+			return fmt.Errorf("connect redis: %w", err)
+		}
 	}
 	defer redisClient.Close()
 	newRateLimiter := func(limit int, window time.Duration) security.RateLimiter {
@@ -1963,7 +1971,14 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		themeName = "corporate"
 	}
 	if themeName != "" {
-		bundle, err := themev1.LoadTheme(cfg.ThemeDir, themeName)
+		themeDir := cfg.ThemeDir
+		if !filepath.IsAbs(themeDir) && values.configPath != nil && *values.configPath != "" {
+			candidate := filepath.Join(filepath.Dir(*values.configPath), themeDir)
+			if info, statErr := os.Stat(filepath.Join(candidate, themeName)); statErr == nil && info.IsDir() {
+				themeDir = candidate
+			}
+		}
+		bundle, err := themev1.LoadTheme(themeDir, themeName)
 		if err == nil {
 			selectedTheme = &bundle
 		} else if cfg.Theme != "" {
@@ -2267,7 +2282,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				return siteService.RecordNotFound(missCtx, path, time.Now().UTC())
 			}
 		}
-		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, Assistant: contentAssistant, AIAudit: contentAIAudit, AllowDemoFrontend: demoFrontendEnabled(), SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, Feedback: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
+		pageHTTP = pagetransport.Handler{DB: db, Content: contentService, Theme: selectedTheme, Media: mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, Assistant: contentAssistant, AIAudit: contentAIAudit, AllowDemoFrontend: demoFrontendEnabled() || devMode, SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, Feedback: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: editPresence, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
 			if !modules["site"] {
 				return nil, nil
 			}
@@ -2534,6 +2549,9 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 				if settings, err := siteStore.ListPublicSettings(r.Context(), db); err == nil {
 					homePath = site.ResolvePublicHomePath(settings, "")
 				}
+			}
+			if homePath == "" && modules["news"] {
+				homePath = "/public/news/" + url.PathEscape(cfg.I18N.DefaultLocale) + "/html"
 			}
 			if homePath != "" && homePath != "/" {
 				http.Redirect(w, r, homePath, http.StatusFound)
@@ -4803,6 +4821,9 @@ func moduleEnabled(modules []string, wanted string) bool {
 }
 
 func demoFrontendEnabled() bool {
+	if strings.TrimSpace(os.Getenv("HYDRO_DEV_MODE")) == "1" {
+		return true
+	}
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("HYDRO_ENABLE_DEMO_FRONTEND"))) {
 	case "1", "true", "yes", "on":
 		return true

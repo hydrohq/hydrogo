@@ -488,21 +488,37 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxAuthFormBytes)
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid login request", http.StatusBadRequest)
-		return
+	contentType := strings.ToLower(r.Header.Get("Content-Type"))
+	var email, password, mfaCode string
+	if strings.HasPrefix(contentType, "application/json") {
+		var req struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+			MFACode  string `json:"mfa_code"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid login request", http.StatusBadRequest)
+			return
+		}
+		email, password, mfaCode = req.Email, req.Password, req.MFACode
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid login request", http.StatusBadRequest)
+			return
+		}
+		email, password, mfaCode = r.FormValue("email"), r.FormValue("password"), r.FormValue("mfa_code")
 	}
 	if h.LoginLimiter != nil && !security.AllowForRequest(h.LoginLimiter, r.Context(), clientIP(r)) {
 		security.WriteRateLimitedResponse(w, "too many authentication attempts", time.Minute)
 		return
 	}
-	user, err := h.Service.Authenticate(r.Context(), r.FormValue("email"), r.FormValue("password"))
+	user, err := h.Service.Authenticate(r.Context(), email, password)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
 			if h.LoginSecurity != nil {
-				_ = h.LoginSecurity.RecordFailedLogin(r.Context(), r.FormValue("email"))
+				_ = h.LoginSecurity.RecordFailedLogin(r.Context(), email)
 			}
-			h.recordAuthFailure(r, r.FormValue("email"))
+			h.recordAuthFailure(r, email)
 			if h.LoginTarpit != nil {
 				if err := h.LoginTarpit.Wait(r.Context(), loginAttemptKey(r)); err != nil {
 					return
@@ -525,7 +541,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if enabled {
-			code := strings.TrimSpace(r.FormValue("mfa_code"))
+			code := strings.TrimSpace(mfaCode)
 			if code == "" {
 				api.WriteJSON(w, http.StatusUnauthorized, map[string]any{
 					"error":               "mfa_code_required",

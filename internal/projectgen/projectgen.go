@@ -212,7 +212,11 @@ func Generate(opts Options) (string, error) {
 
 	features := presetFeatures(opts.Preset)
 	if opts.Collections {
-		features = append(features, "auth", "members", "collections")
+		for _, extra := range []string{"auth", "members", "collections"} {
+			if !contains(features, extra) {
+				features = append(features, extra)
+			}
+		}
 	}
 	if opts.Presentation == "headless" && !contains(features, "headless") {
 		features = append(features, "headless")
@@ -437,23 +441,23 @@ func presetTheme(preset string) string {
 func presetFeatures(preset string) []string {
 	switch strings.ToLower(preset) {
 	case "news", "editorial":
-		return []string{"pages", "news", "media", "members", "site"}
+		return []string{"auth", "pages", "news", "media", "members", "site"}
 	case "membership":
-		return []string{"pages", "members", "media", "site"}
+		return []string{"auth", "pages", "members", "media", "site"}
 	case "dashboard":
-		return []string{"pages", "members", "media"}
+		return []string{"auth", "pages", "members", "media"}
 	case "erp":
-		return []string{"pages", "members", "media", "site", "jobs"}
+		return []string{"auth", "pages", "members", "media", "site", "jobs"}
 	case "portal":
-		return []string{"pages", "news", "media", "members", "site"}
+		return []string{"auth", "pages", "news", "media", "members", "site"}
 	case "headless":
-		return []string{"pages", "news", "media", "members"}
+		return []string{"auth", "pages", "news", "media", "members"}
 	case "agency":
-		return []string{"pages", "news", "media", "site", "forms", "locations", "team", "portfolio", "testimonials"}
+		return []string{"auth", "pages", "news", "media", "site", "forms", "locations", "team", "portfolio", "testimonials"}
 	case "saas":
-		return []string{"pages", "members", "media", "site", "forms", "jobs"}
+		return []string{"auth", "pages", "members", "media", "site", "forms", "jobs"}
 	default:
-		return []string{"pages", "media", "site"}
+		return []string{"auth", "pages", "media", "site"}
 	}
 }
 

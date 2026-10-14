@@ -744,7 +744,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 			sbKicker = strings.ToUpper(sb.Category)
 		}
 		trendingHTML.WriteString(fmt.Sprintf(
-			`<a class="trending-item" href="/public/news/%s/%s/html"><span class="trending-number">%02d</span><div class="trending-content"><div class="trending-kicker">%s</div><h4 class="trending-title">%s</h4></div></a>`,
+			`<a href="/public/news/%s/%s/html" class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition group border border-slate-100"><span class="w-6 h-6 rounded-full bg-[#ed1c24] text-white font-black text-xs flex items-center justify-center shrink-0">%02d</span><div class="flex-1 min-w-0"><span class="text-[10px] font-bold text-[#ed1c24] uppercase block">%s</span><h4 class="text-xs font-bold text-slate-800 group-hover:text-red-600 line-clamp-2">%s</h4></div></a>`,
 			template.HTMLEscapeString(locale),
 			template.HTMLEscapeString(sb.Slug),
 			itemIndex,
@@ -761,12 +761,16 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 	}
 	var relatedCards strings.Builder
 	if len(sidebarItems) > 0 {
-		relatedCards.WriteString(`<section class="related-content" aria-labelledby="related-content-title"><h2 id="related-content-title">Bunlar da ilginizi çekebilir</h2><div class="related-content-grid">`)
+		relatedCards.WriteString(`<section class="mt-8 border-t border-slate-200 pt-6"><div class="flex items-center gap-2 border-b-2 border-[#ed1c24] pb-2 mb-4"><span class="w-2.5 h-6 bg-[#ed1c24] rounded-sm"></span><h2 class="text-lg font-black text-slate-900 uppercase">Bunlar da İlginizi Çekebilir</h2></div><div class="grid grid-cols-1 md:grid-cols-3 gap-4">`)
 		for _, related := range sidebarItems {
 			if related.Slug == item.Slug {
 				continue
 			}
-			fmt.Fprintf(&relatedCards, `<article class="related-content-card">%s<h3><a href="/public/news/%s/%s/html">%s</a></h3><p>%d dk okuma</p></article>`, h.newsCoverMarkup(related), template.HTMLEscapeString(locale), template.HTMLEscapeString(related.Slug), template.HTMLEscapeString(related.Title), readingMinutes(related.Excerpt))
+			relCat := "GÜNDEM"
+			if strings.TrimSpace(related.Category) != "" {
+				relCat = strings.ToUpper(related.Category)
+			}
+			fmt.Fprintf(&relatedCards, `<article class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col group"><div class="aspect-[16/9] relative overflow-hidden bg-slate-100">%s<span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow-xs uppercase">%s</span></div><div class="p-3 flex flex-col justify-between flex-1"><h3 class="text-xs font-extrabold text-slate-900 group-hover:text-red-600 line-clamp-2 mb-2 leading-snug"><a href="/public/news/%s/%s/html">%s</a></h3><div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-auto"><svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>%d dk okuma</span></div></div></article>`, h.newsCoverMarkup(related), template.HTMLEscapeString(relCat), template.HTMLEscapeString(locale), template.HTMLEscapeString(related.Slug), template.HTMLEscapeString(related.Title), readingMinutes(related.Body))
 		}
 		relatedCards.WriteString(`</div></section>`)
 	}
@@ -800,12 +804,17 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		footer = strings.Replace(footer, `</body>`, consentNotice+h.socialLinksMarkup(r.Context())+h.floatingContact(r.Context(), locale)+`</body>`, 1)
 	}
 
-	_, _ = fmt.Fprintf(w, `<main class="news-portal news-article-page"><nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/public/news/%s/html">← Haber Odası</a><span class="sep">/</span><span class="current">%s</span></nav><div class="news-detail-layout"><div class="news-article-column"><article class="news-article-card"><div class="news-article-kicker">HYDROGO NEWSROOM · %s</div><h1 class="news-article-title">%s</h1><div class="news-meta-bar">%s</div>%s%s%s%s<div class="news-article-body rich-article-content article-reading-body">%s</div>%s%s%s<div class="news-share-box"><span class="share-label">Haberi Paylaş:</span><div class="share-actions"><a class="btn-secondary share-btn" href="mailto:?subject=%s&amp;body=/public/news/%s/%s/html">✉ E-Posta</a><button class="btn-secondary share-btn" type="button" data-copy-url>🔗 Bağlantıyı Kopyala</button></div></div></article></div><aside class="news-sidebar-sticky"><div class="sidebar-widget"><h3><span class="widget-icon">🔗</span> Bununla ilgili</h3><div class="trending-news-list">%s</div></div><div class="sidebar-widget widget-card-promo"><h3><span class="widget-icon">🚀</span> HydroGo Çözümleri</h3><p>Sözleşmeli modüler mimari ve yüksek performanslı Go altyapısı ile projelerinizi büyütün.</p><a class="btn-primary" href="/shop">Mağazayı Ziyaret Et →</a></div></aside></div></main>%s%s`,
-		template.HTMLEscapeString(locale),
+	_, _ = fmt.Fprintf(w, `<main class="max-w-7xl mx-auto px-4 py-6 w-full"><nav class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-4" aria-label="Breadcrumb"><a href="/" class="hover:text-red-600 transition">Ana Sayfa</a><svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg><a href="/?category=%s#news-grid" class="text-red-600 hover:underline uppercase">%s</a><svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg><span class="text-slate-800 truncate max-w-md">%s</span></nav><div class="grid grid-cols-1 lg:grid-cols-12 gap-8"><article class="lg:col-span-8 flex flex-col"><div class="mb-3"><span class="bg-red-600 text-white text-xs font-black px-3 py-1 rounded shadow-xs uppercase tracking-wider">%s</span></div><h1 class="text-2xl md:text-4xl font-black text-slate-900 leading-tight tracking-tight mb-4">%s</h1><div class="bg-slate-50 border border-slate-200/80 p-5 rounded-xl text-base md:text-lg font-medium text-slate-700 leading-relaxed mb-6">%s</div><div class="flex flex-wrap items-center justify-between gap-3 border-y border-slate-200 py-3 mb-6"><div class="flex items-center gap-2.5 text-xs text-slate-600"><div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-700"><svg class="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><div><span class="font-bold text-slate-800 block text-sm">%s</span><span class="text-slate-400 text-xs">14 Ekim 2026 · %d dk okuma</span></div></div><div class="flex items-center gap-2"><span class="text-xs font-bold text-slate-400 mr-1 hidden sm:inline">Paylaş:</span><a href="https://wa.me/?text=%s" target="_blank" rel="noopener" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-xs"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.81 13.47 3.81 11.91C3.81 7.37 7.5 3.67 12.05 3.67Z"/></svg>WhatsApp</a><a href="https://twitter.com/intent/tweet?text=%s" target="_blank" rel="noopener" class="bg-black hover:bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-xs"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</a><button type="button" onclick="navigator.clipboard.writeText(window.location.href);alert('Haber bağlantısı kopyalandı!')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-slate-200 shadow-xs"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>Kopyala</button></div></div><div class="w-full aspect-[16/9] rounded-xl overflow-hidden mb-6 bg-slate-100 border border-slate-200 shadow-xs">%s</div><div class="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-xs text-slate-800 editorial-prose mb-6">%s%s%s%s%s</div>%s%s</article><aside class="lg:col-span-4 flex flex-col gap-6"><div class="bg-white rounded-xl border border-slate-200 p-5 shadow-xs"><div class="flex items-center gap-2 border-b-2 border-red-600 pb-2 mb-4"><span class="w-2 h-5 bg-red-600 rounded-sm"></span><h3 class="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5"><svg class="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>Günün Öne Çıkanları</h3></div><div class="space-y-3">%s</div></div><div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-xl shadow-md"><span class="bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-wider inline-flex items-center gap-1"><svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>OKUR BÜLTENİ</span><h4 class="text-base font-black mt-3 mb-1">Önemli Haberleri Kaçırmayın</h4><p class="text-xs text-slate-300 mb-4 leading-relaxed">Günün en önemli gelişmelerini her sabah e-postanıza gönderiyoruz.</p><a href="/member/register" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2 px-4 rounded-lg block text-center transition shadow-xs">Ücretsiz Abone Ol →</a></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs text-center"><span class="text-xs text-slate-500 block mb-2 font-medium">Haber Merkezi Yönetimi</span><a href="/admin/news" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2 px-4 rounded-lg inline-flex items-center gap-1.5 transition shadow-xs"><svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Studio Editör Masası ↗</a></div></aside></div></main>%s%s`,
+		template.HTMLEscapeString(strings.ToLower(item.Category)),
+		template.HTMLEscapeString(item.Category),
 		template.HTMLEscapeString(item.Title),
-		strings.ToUpper(template.HTMLEscapeString(locale)),
+		strings.ToUpper(template.HTMLEscapeString(item.Category)),
 		template.HTMLEscapeString(item.Title),
-		newsMetaBadgesMarkup(item),
+		template.HTMLEscapeString(newsLeadItem(item)),
+		template.HTMLEscapeString(item.AuthorName),
+		readingMinutes(item.Body),
+		template.URLQueryEscaper(item.Title),
+		template.URLQueryEscaper(item.Title),
 		h.newsCoverMarkup(item),
 		newsKeyTakeawaysMarkup(item),
 		readingTools.String(),
@@ -814,9 +823,6 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		newsTagsMarkup(item),
 		helpfulFeedback.String(),
 		template.HTML(relatedCards.String()),
-		template.URLQueryEscaper(item.Title),
-		template.HTMLEscapeString(locale),
-		template.HTMLEscapeString(item.Slug),
 		trendingHTML.String(),
 		readingEnhancement,
 		footer,
@@ -890,16 +896,16 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	documentStart := newsDocumentStart(locale, "Haberler & Duyurular", h.themeNavigation(r.Context(), locale))
+	documentStart := newsDocumentStart(locale, "Son Dakika ve Güncel Haberler", h.themeNavigation(r.Context(), locale))
 	if h.PublicSupport.Enabled || h.PublicContactSettings != nil {
 		documentStart = strings.Replace(documentStart, `</head>`, `<link rel="stylesheet" href="/designsystem/static/designsystem.css"></head>`, 1)
 	}
 	_, _ = fmt.Fprint(w, localizePublicLinks(documentStart, locale))
-	_, _ = fmt.Fprintf(w, `<main data-testid="public-news" class="news-portal"><section class="news-hero-banner"><div class="news-hero-content"><div class="news-tag-badge">HYDROGO YAYIN MERKEZİ</div><h1>Haberler, Duyurular ve Güncellemeler</h1><p>Panelden yönetilen tüm editoryal içerikler, ürün notları ve sistem duyuruları anlık olarak burada listelenir.</p><div class="news-hero-actions"><a class="btn-primary" href="/shop">Mağazayı Keşfet →</a><a class="btn-secondary" href="/admin/news">Admin Panelinde Düzenle ↗</a></div></div></section>`)
+	_, _ = fmt.Fprintf(w, `<main data-testid="public-news" class="max-w-7xl mx-auto px-4 py-4 w-full">`)
+
 	if len(items) == 0 {
-		_, _ = fmt.Fprint(w, `<section class="news-empty-state"><div class="empty-icon">📰</div><h2>Henüz yayınlanmış bir haber bulunmuyor</h2><p>Admin panelinden yeni bir haber oluşturup yayınlayarak burada görüntüleyebilirsiniz.</p><a class="btn-primary" href="/admin/news">Yeni Haber Ekle</a></section>`)
+		_, _ = fmt.Fprint(w, `<div class="bg-white rounded-xl border border-slate-200 p-12 text-center my-6"><div class="w-12 h-12 mx-auto mb-3 text-slate-400 flex items-center justify-center"><svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="7" y1="16" x2="13" y2="16"></line></svg></div><h2 class="text-xl font-extrabold text-slate-900 mb-2">Henüz yayınlanmış bir haber bulunmuyor</h2><p class="text-sm text-slate-500 mb-6">Admin panelinden yeni bir haber oluşturup yayınlayarak burada görüntüleyebilirsiniz.</p><a class="inline-flex items-center gap-2 bg-[#ed1c24] hover:bg-red-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg transition" href="/admin/news">Yeni Haber Ekle ↗</a></div>`)
 	} else {
-		// Featured item
 		featured := items[0]
 		for _, candidate := range items {
 			if candidate.Featured {
@@ -907,23 +913,250 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		featuredKicker := "ÖNE ÇIKAN İÇERİK"
-		if strings.TrimSpace(featured.Category) != "" {
-			featuredKicker = strings.ToUpper(featured.Category)
-		}
-		_, _ = fmt.Fprintf(w, `<section class="news-featured-section"><div class="section-badge" style="margin-bottom:12px;">SON YAYINLANAN MANŞET</div><article class="featured-card">%s<div class="featured-card-body"><div class="featured-kicker">%s</div><h2><a href="/public/news/%s/%s/html">%s</a></h2><p class="featured-lead">%s</p><div class="featured-footer"><div class="featured-meta"><span>%s</span>%s</div><a class="read-more-btn" href="/public/news/%s/%s/html">Haberi Oku →</a></div></div></article></section>`, h.newsCoverMarkup(featured), template.HTMLEscapeString(featuredKicker), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(newsLeadItem(featured)), template.HTMLEscapeString(featured.AuthorName), newsCategoryMeta(featured), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
 
-		// Grid for all items
-		_, _ = fmt.Fprintf(w, `<section class="news-grid-section" style="margin-top:48px;"><div class="section-header" style="margin-bottom:24px;"><div><div class="section-badge">TÜM YAYINLAR</div><h2 style="font-size:1.8rem;font-weight:800;color:var(--theme-ink);margin:4px 0 0;">Haber Akışı (%d)</h2></div><span class="section-desc" style="color:var(--theme-muted);font-size:.95rem;">Panelde aktif olan tüm kayıtlar</span></div><div class="news-cards-grid">`, len(items))
+		// Prepare slider items (up to 10 items)
+		sliderItems := []news.Item{featured}
 		for _, item := range items {
-			cardKicker := "YAYIN"
-			if strings.TrimSpace(item.Category) != "" {
-				cardKicker = strings.ToUpper(item.Category)
+			if item.ID != featured.ID && len(sliderItems) < 10 {
+				sliderItems = append(sliderItems, item)
 			}
-			_, _ = fmt.Fprintf(w, `<article class="news-card">%s<div class="news-card-body"><div class="card-header"><span class="card-kicker">%s</span><span class="card-author">%s</span></div><h3 class="card-title"><a href="/public/news/%s/%s/html">%s</a></h3><p class="card-lead">%s</p><div class="card-footer"><span class="card-category">%s</span><a class="card-link" href="/public/news/%s/%s/html">Detaylar →</a></div></div></article>`, h.newsCoverMarkup(item), template.HTMLEscapeString(cardKicker), template.HTMLEscapeString(item.AuthorName), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLeadItem(item)), template.HTMLEscapeString(item.Category), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug))
+		}
+
+		// Helper to resolve cover URL
+		getCoverURL := func(item news.Item) string {
+			if strings.TrimSpace(item.CoverMediaID) == "" {
+				return ""
+			}
+			key := template.URLQueryEscaper(item.CoverMediaID)
+			src := "/media/" + key + "?variant=card"
+			if h.Media != nil {
+				if publicURL, err := h.Media.PublicURL(item.CoverMediaID); err == nil && strings.TrimSpace(publicURL) != "" {
+					src = publicURL
+				}
+			}
+			return src
+		}
+
+		// 1. TGRT HABER HERO: MANŞET SLIDER (8 col) + YAN MANŞETLER (4 col)
+		_, _ = fmt.Fprint(w, `<section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">`)
+
+		// Left: Main Slider (lg:col-span-8)
+		featCover := getCoverURL(featured)
+		featCat := "GÜNDEM"
+		if strings.TrimSpace(featured.Category) != "" {
+			featCat = strings.ToUpper(featured.Category)
+		}
+		featLead := newsLeadItem(featured)
+
+		_, _ = fmt.Fprintf(w, `<div class="lg:col-span-8"><div id="main-slider-box" class="relative bg-slate-900 rounded-xl overflow-hidden aspect-[16/9] shadow-md group"><div class="absolute inset-0">`)
+		if featCover != "" {
+			_, _ = fmt.Fprintf(w, `<img id="slider-main-img" src="%s" alt="%s" class="w-full h-full object-cover transition duration-300">`, template.HTMLEscapeString(featCover), template.HTMLEscapeString(featured.Title))
+		} else {
+			_, _ = fmt.Fprintf(w, `<div id="slider-main-img-fallback" class="w-full h-full bg-slate-800 flex items-center justify-center text-slate-500"><svg class="w-16 h-16 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`)
+		}
+		_, _ = fmt.Fprintf(w, `</div><div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-5 md:p-8"><div class="mb-2"><span id="slider-main-tag" class="bg-[#ed1c24] text-white text-xs font-black px-3 py-1 rounded shadow-md uppercase tracking-wider">%s</span></div><h2 class="mb-2"><a id="slider-main-title" href="/public/news/%s/%s/html" class="text-white font-black text-xl md:text-3xl leading-snug hover:text-red-400 transition block drop-shadow-md">%s</a></h2><p id="slider-main-excerpt" class="text-slate-200 text-xs md:text-sm line-clamp-2 max-w-2xl drop-shadow mb-3">%s</p><div class="flex items-center gap-3"><a id="slider-main-link" href="/public/news/%s/%s/html" class="bg-[#ed1c24] hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded transition flex items-center gap-1.5 shadow">Haberi Oku →</a></div></div></div>`, template.HTMLEscapeString(featCat), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug), template.HTMLEscapeString(featured.Title), template.HTMLEscapeString(featLead), template.HTMLEscapeString(locale), template.HTMLEscapeString(featured.Slug))
+
+		// Numbered Buttons Bar below Slider (1 - 10)
+		_, _ = fmt.Fprint(w, `<div class="flex items-center justify-between gap-1.5 mt-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm overflow-x-auto whitespace-nowrap">`)
+		for i, sl := range sliderItems {
+			cURL := getCoverURL(sl)
+			cCat := "GÜNDEM"
+			if strings.TrimSpace(sl.Category) != "" {
+				cCat = strings.ToUpper(sl.Category)
+			}
+			cLead := newsLeadItem(sl)
+			activeCls := "w-9 h-8 flex items-center justify-center font-bold text-xs rounded bg-slate-900/80 text-white hover:bg-slate-700 transition cursor-pointer"
+			if i == 0 {
+				activeCls = "w-9 h-8 flex items-center justify-center font-black text-xs rounded bg-[#ed1c24] text-white scale-110 shadow cursor-pointer"
+			}
+			_, _ = fmt.Fprintf(w, `<button type="button" data-slide-btn="%d" data-index="%d" data-title="%s" data-img="%s" data-cat="%s" data-url="/public/news/%s/%s/html" data-excerpt="%s" onclick="setSlide(%d)" class="%s">%d</button>`, i, i, template.HTMLEscapeString(sl.Title), template.HTMLEscapeString(cURL), template.HTMLEscapeString(cCat), template.HTMLEscapeString(locale), template.HTMLEscapeString(sl.Slug), template.HTMLEscapeString(cLead), i, activeCls, i+1)
+		}
+		_, _ = fmt.Fprint(w, `</div></div>`)
+
+		// Right: Yan Manşetler (lg:col-span-4)
+		_, _ = fmt.Fprint(w, `<div class="lg:col-span-4 flex flex-col gap-4">`)
+		sideCount := 0
+		for _, sItem := range sliderItems {
+			if sItem.ID == featured.ID {
+				continue
+			}
+			sCat := "GÜNDEM"
+			if strings.TrimSpace(sItem.Category) != "" {
+				sCat = strings.ToUpper(sItem.Category)
+			}
+			_, _ = fmt.Fprintf(w, `<article class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col group flex-1"><div class="relative aspect-[16/9] overflow-hidden bg-slate-100">%s<span class="absolute top-2 left-2 bg-[#ed1c24] text-white text-[10px] font-black px-2 py-0.5 rounded shadow">%s</span></div><div class="p-3.5 flex flex-col justify-between flex-1"><h3 class="text-slate-900 font-extrabold text-sm line-clamp-2 group-hover:text-red-600 leading-snug mb-1"><a href="/public/news/%s/%s/html">%s</a></h3><p class="text-slate-500 text-xs line-clamp-2 mb-2 leading-relaxed">%s</p><div class="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100 pt-2 mt-auto"><span class="inline-flex items-center gap-1"><svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>%s</span><span>%d dk okuma</span></div></div></article>`, h.newsCoverMarkup(sItem), template.HTMLEscapeString(sCat), template.HTMLEscapeString(locale), template.HTMLEscapeString(sItem.Slug), template.HTMLEscapeString(sItem.Title), template.HTMLEscapeString(newsLeadItem(sItem)), template.HTMLEscapeString(sItem.AuthorName), readingMinutes(sItem.Body))
+			sideCount++
+			if sideCount >= 2 {
+				break
+			}
 		}
 		_, _ = fmt.Fprint(w, `</div></section>`)
+
+		// 2. KATEGORİLİ HABER AKIŞI IZGARASI (GÜNÜN TÜM HABERLERİ)
+		_, _ = fmt.Fprintf(w, `<section id="news-grid" class="mb-10"><div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b-2 border-[#ed1c24] pb-3 mb-4"><div class="flex items-center gap-2"><span class="w-2.5 h-6 bg-[#ed1c24] rounded-sm"></span><h2 class="text-xl font-black text-slate-900 tracking-tight">GÜNÜN TÜM HABERLERİ</h2><span id="news-counter" class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-1">(%d)</span></div><div class="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none"><button onclick="selectCategory('all')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#ed1c24] text-white shadow-sm transition" data-filter-pill="all">Tümü</button><button onclick="selectCategory('gundem')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition" data-filter-pill="gundem">Gündem</button><button onclick="selectCategory('ekonomi')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition" data-filter-pill="ekonomi">Ekonomi</button><button onclick="selectCategory('teknoloji')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition" data-filter-pill="teknoloji">Teknoloji</button><button onclick="selectCategory('dunya')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition" data-filter-pill="dunya">Dünya</button><button onclick="selectCategory('spor')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition" data-filter-pill="spor">Spor</button><button onclick="selectCategory('yasam')" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition" data-filter-pill="yasam">Yaşam</button></div></div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="cards-container">`, len(items))
+
+		for _, item := range items {
+			catStr := "Gündem"
+			if strings.TrimSpace(item.Category) != "" {
+				catStr = item.Category
+			}
+			cardRead := readingMinutes(item.Body)
+			_, _ = fmt.Fprintf(w, `<article data-news-card data-cat="%s" data-title="%s" class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition duration-200 flex flex-col group"><div class="relative aspect-[16/9] overflow-hidden bg-slate-100">%s<span class="absolute top-2 left-2 bg-[#ed1c24] text-white text-[10px] font-black px-2 py-0.5 rounded shadow uppercase">%s</span></div><div class="p-3.5 flex flex-col justify-between flex-1"><h3 class="text-slate-900 font-extrabold text-sm line-clamp-2 group-hover:text-red-600 leading-snug mb-1.5"><a href="/public/news/%s/%s/html">%s</a></h3><p class="text-slate-500 text-xs line-clamp-2 leading-relaxed mb-3">%s</p><div class="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium"><span class="inline-flex items-center gap-1"><svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>%s</span><span>%d dk okuma</span></div></div></article>`, template.HTMLEscapeString(strings.ToLower(catStr)), template.HTMLEscapeString(strings.ToLower(item.Title)), h.newsCoverMarkup(item), template.HTMLEscapeString(strings.ToUpper(catStr)), template.HTMLEscapeString(locale), template.HTMLEscapeString(item.Slug), template.HTMLEscapeString(item.Title), template.HTMLEscapeString(newsLeadItem(item)), template.HTMLEscapeString(item.AuthorName), cardRead)
+		}
+		_, _ = fmt.Fprint(w, `</div><div id="no-news-alert" style="display:none;" class="col-span-full py-12 text-center bg-white rounded-xl border border-slate-200 p-8 my-4"><div class="w-12 h-12 mx-auto mb-2 text-slate-400 flex items-center justify-center"><svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></div><h3 class="text-base font-bold text-slate-800 mb-1">Bu kategoride henüz haber bulunamadı</h3><p class="text-xs text-slate-500 mb-4">Farklı bir kategori seçebilir veya tüm haberleri görüntüleyebilirsiniz.</p><button onclick="selectCategory('all')" class="bg-[#ed1c24] hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition">Tüm Haberleri Göster</button></div></section>`)
+
+		// 3. ALT BÖLÜM: ÇOK OKUNANLAR (TOP 5) & HABER BÜLTENİ
+		_, _ = fmt.Fprint(w, `<section class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8"><div class="lg:col-span-7"><div class="flex items-center gap-2 border-b-2 border-[#ed1c24] pb-2 mb-3"><span class="w-2 h-5 bg-[#ed1c24] rounded-sm"></span><h3 class="text-base font-black text-slate-900 uppercase flex items-center gap-1.5"><svg class="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>Günün En Çok Okunanları</h3></div><div class="space-y-2.5">`)
+		for i, tr := range sliderItems {
+			if i >= 5 {
+				break
+			}
+			tCat := "GÜNDEM"
+			if strings.TrimSpace(tr.Category) != "" {
+				tCat = strings.ToUpper(tr.Category)
+			}
+			_, _ = fmt.Fprintf(w, `<a href="/public/news/%s/%s/html" class="flex items-center gap-3 p-2.5 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 shadow-sm transition group"><span class="w-7 h-7 rounded-full bg-[#ed1c24] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm">%d</span><div class="flex-1 min-w-0"><span class="text-[10px] font-black text-[#ed1c24] uppercase">%s</span><h4 class="text-xs font-bold text-slate-900 group-hover:text-red-600 truncate">%s</h4></div><span class="text-[11px] text-slate-400 shrink-0 hidden sm:inline-flex items-center gap-1"><svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>%s</span></a>`, template.HTMLEscapeString(locale), template.HTMLEscapeString(tr.Slug), i+1, template.HTMLEscapeString(tCat), template.HTMLEscapeString(tr.Title), template.HTMLEscapeString(tr.AuthorName))
+		}
+		_, _ = fmt.Fprint(w, `</div></div><div class="lg:col-span-5"><div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-xl shadow-md h-full flex flex-col justify-between"><span class="bg-[#ed1c24] text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-wider self-start">E-BÜLTEN</span><div><h3 class="text-lg font-black mt-3 mb-1">Günün Önemli Gelişmelerini Kaçırmayın</h3><p class="text-xs text-slate-300 leading-relaxed mb-4">Her sabah en sıcak gündem, ekonomi ve teknoloji haberleri doğrudan e-posta kutunuzda.</p></div><form action="/member/register" method="get" class="flex gap-2"><input type="email" placeholder="E-posta adresiniz..." required class="flex-1 px-3.5 py-2 text-xs bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-600"><button type="submit" class="bg-[#ed1c24] hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shrink-0">Abone Ol</button></form></div></div></section>`)
+
+		// 4. CLIENT JAVASCRIPT: SLIDER AND CATEGORY FILTERING
+		_, _ = fmt.Fprint(w, `<script>
+let currentSlide = 0;
+const slideBtns = document.querySelectorAll('[data-slide-btn]');
+const slideCount = slideBtns.length;
+let slideTimer = null;
+
+function setSlide(idx) {
+	const btn = document.querySelector('[data-slide-btn="' + idx + '"]');
+	if (!btn) return;
+	currentSlide = idx;
+
+	const mainImg = document.getElementById('slider-main-img');
+	const mainTag = document.getElementById('slider-main-tag');
+	const mainTitle = document.getElementById('slider-main-title');
+	const mainLink = document.getElementById('slider-main-link');
+	const mainExcerpt = document.getElementById('slider-main-excerpt');
+
+	if (mainImg && btn.dataset.img) mainImg.src = btn.dataset.img;
+	if (mainTag && btn.dataset.cat) mainTag.textContent = btn.dataset.cat.toUpperCase();
+	if (mainTitle && btn.dataset.title) {
+		mainTitle.textContent = btn.dataset.title;
+		mainTitle.href = btn.dataset.url;
 	}
+	if (mainLink && btn.dataset.url) mainLink.href = btn.dataset.url;
+	if (mainExcerpt && btn.dataset.excerpt) mainExcerpt.textContent = btn.dataset.excerpt;
+
+	slideBtns.forEach(function(b) {
+		b.className = 'w-9 h-8 flex items-center justify-center font-bold text-xs rounded bg-slate-900/80 text-white hover:bg-slate-700 transition cursor-pointer';
+	});
+	btn.className = 'w-9 h-8 flex items-center justify-center font-black text-xs rounded bg-[#ed1c24] text-white scale-110 shadow cursor-pointer';
+}
+
+function nextSlide() {
+	if (slideCount > 1) {
+		setSlide((currentSlide + 1) % slideCount);
+	}
+}
+
+function startSlideTimer() {
+	if (slideTimer) clearInterval(slideTimer);
+	slideTimer = setInterval(nextSlide, 4500);
+}
+
+const sliderBox = document.getElementById('main-slider-box');
+if (sliderBox) {
+	sliderBox.addEventListener('mouseenter', function() { clearInterval(slideTimer); });
+	sliderBox.addEventListener('mouseleave', startSlideTimer);
+	startSlideTimer();
+}
+
+function normTr(str) {
+	if (!str) return '';
+	return str.toLowerCase().replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c').trim();
+}
+
+function selectCategory(cat) {
+	const norm = normTr(cat);
+
+	document.querySelectorAll('[data-filter-pill]').forEach(function(pill) {
+		if (normTr(pill.dataset.filterPill) === norm) {
+			pill.className = 'filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#ed1c24] text-white shadow-sm transition';
+		} else {
+			pill.className = 'filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition';
+		}
+	});
+
+	document.querySelectorAll('#main-nav-links button').forEach(function(nb) {
+		if (normTr(nb.dataset.cat) === norm) {
+			nb.className = 'nav-cat-btn px-4 py-2.5 transition flex items-center gap-1 bg-red-800 text-white';
+		} else {
+			nb.className = 'nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition text-white';
+		}
+	});
+
+	let visibleCount = 0;
+	const cards = document.querySelectorAll('[data-news-card]');
+	cards.forEach(function(card) {
+		const cardCat = normTr(card.dataset.cat);
+		if (norm === 'all' || norm === '' || cardCat === norm) {
+			card.style.display = 'flex';
+			visibleCount++;
+		} else {
+			card.style.display = 'none';
+		}
+	});
+
+	const counter = document.getElementById('news-counter');
+	if (counter) counter.textContent = '(' + visibleCount + ')';
+
+	const emptyBox = document.getElementById('no-news-alert');
+	if (emptyBox) {
+		emptyBox.style.display = visibleCount === 0 ? 'block' : 'none';
+	}
+
+	try {
+		const url = new URL(window.location);
+		if (norm === 'all') {
+			url.searchParams.delete('category');
+		} else {
+			url.searchParams.set('category', cat);
+		}
+		window.history.replaceState({}, '', url);
+	} catch(e) {}
+}
+
+function liveFilterNews(term) {
+	const q = normTr(term);
+	let visibleCount = 0;
+	const cards = document.querySelectorAll('[data-news-card]');
+	cards.forEach(function(card) {
+		const title = normTr(card.dataset.title);
+		const cat = normTr(card.dataset.cat);
+		if (!q || title.indexOf(q) !== -1 || cat.indexOf(q) !== -1) {
+			card.style.display = 'flex';
+			visibleCount++;
+		} else {
+			card.style.display = 'none';
+		}
+	});
+	const counter = document.getElementById('news-counter');
+	if (counter) counter.textContent = '(' + visibleCount + ')';
+	const emptyBox = document.getElementById('no-news-alert');
+	if (emptyBox) {
+		emptyBox.style.display = visibleCount === 0 ? 'block' : 'none';
+	}
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+	const params = new URLSearchParams(window.location.search);
+	const cat = params.get('category');
+	if (cat) {
+		selectCategory(cat);
+	}
+});
+</script>`)
+	}
+
 	footer := localizePublicLinks(enterpriseFooterMarkup(), locale)
 	if h.PublicSupport.Enabled || h.PublicContactSettings != nil {
 		footer = strings.Replace(footer, `</body>`, h.socialLinksMarkup(r.Context())+h.floatingContact(r.Context(), locale)+`</body>`, 1)
@@ -992,9 +1225,9 @@ func localizePublicLinks(markup, locale string) string {
 func newsDocumentStart(locale, title string, navigation template.HTML) string {
 	navigationHTML := string(navigation)
 	if navigationHTML == "" {
-		navigationHTML = `<a href="/" class="nav-item">Ana Sayfa</a><a href="/public/pages/tr/showcase/html" class="nav-item">Showcase</a><a href="/public/pages/tr/about/html" class="nav-item">Hakkında</a><a href="/public/news/tr/html" class="nav-item is-active">Haberler</a><a href="/shop" class="nav-item">Mağaza</a>`
+		navigationHTML = `<button onclick="selectCategory('all')" class="nav-cat-btn px-4 py-2.5 transition flex items-center gap-1 bg-red-800 text-white font-bold" data-cat="all">ANA SAYFA</button><button onclick="selectCategory('gundem')" class="nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition font-bold" data-cat="gundem">GÜNDEM</button><button onclick="selectCategory('ekonomi')" class="nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition font-bold" data-cat="ekonomi">EKONOMİ</button><button onclick="selectCategory('teknoloji')" class="nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition font-bold" data-cat="teknoloji">TEKNOLOJİ</button><button onclick="selectCategory('dunya')" class="nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition font-bold" data-cat="dunya">DÜNYA</button><button onclick="selectCategory('spor')" class="nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition font-bold" data-cat="spor">SPOR</button><button onclick="selectCategory('yasam')" class="nav-cat-btn px-4 py-2.5 hover:bg-red-700 transition font-bold" data-cat="yasam">YAŞAM</button>`
 	}
-	return fmt.Sprintf(`<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>%s · HydroGo Newsroom</title><link rel="stylesheet" href="/theme/static/theme.css?v=00013d55"></head><body class="theme-corporate-body"><header class="news-header"><div class="header-container"><a class="news-logo" href="/" aria-label="HydroGo Ana Sayfa"><div class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><div class="logo-text"><span>HYDROGO</span></div></a><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Menüyü aç"><span class="hamburger-bar"></span><span class="hamburger-bar"></span><span class="hamburger-bar"></span></button><nav id="primary-nav" class="news-nav" aria-label="Ana navigasyon">%s<a href="/member/login" class="nav-item nav-login-link">Giriş</a><a class="nav-admin-btn" href="/admin">Studio Paneli ↗</a></nav></div></header>`, template.HTMLEscapeString(locale), canonical.Direction(locale), template.HTMLEscapeString(title), navigationHTML)
+	return `<!doctype html><html lang="` + template.HTMLEscapeString(locale) + `" dir="` + canonical.Direction(locale) + `"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>` + template.HTMLEscapeString(title) + ` · HYDRO HABER</title><link rel="stylesheet" href="/theme/static/theme.css?v=news-tgrt-v3"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>` + newsThemeMasterCSS + `</style></head><body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans"><div class="bg-slate-900 text-slate-300 text-xs border-b border-slate-800"><div class="max-w-7xl mx-auto px-4 py-1.5 flex flex-wrap items-center justify-between gap-2"><div class="flex items-center gap-3"><span class="inline-flex items-center gap-1.5 font-medium text-slate-200"><svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>14 Ekim 2026, Çarşamba</span><span class="text-slate-700">|</span><span class="inline-flex items-center gap-1.5 text-slate-300"><svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>İstanbul 19°C</span><span class="text-slate-700 hidden md:inline">|</span><div class="hidden md:flex items-center gap-3 font-semibold text-[11px]"><span>DOLAR <b class="text-emerald-400">34.22</b></span><span>EURO <b class="text-emerald-400">37.15</b></span><span>ALTIN <b class="text-amber-400">3.015 ₺</b></span><span>BIST 100 <b class="text-emerald-400">9.020 (+1.42%)</b></span></div></div><div class="flex items-center gap-3"><a href="/member/login" class="hover:text-white transition inline-flex items-center gap-1 font-medium text-xs"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Okur Girişi</a><span class="text-slate-700">|</span><a href="/member/register" class="hover:text-white transition text-xs font-medium">Kayıt Ol</a><span class="text-slate-700">|</span><a href="/admin" class="text-amber-400 hover:text-amber-300 font-bold transition inline-flex items-center gap-1 text-xs"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Studio Paneli ↗</a></div></div></div><header class="bg-white border-b border-slate-200 shadow-xs sticky top-0 z-40"><div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4"><a href="/" class="flex items-center gap-2 group text-decoration-none shrink-0"><span class="bg-red-600 text-white font-black text-2xl px-3 py-0.5 rounded tracking-tighter shadow-xs group-hover:bg-red-700 transition">HYDRO</span><span class="text-slate-900 font-black text-2xl tracking-tighter">HABER</span><span class="hidden md:inline-block border-l-2 border-slate-200 pl-3 ml-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Doğru · Hızlı · Bağımsız</span></a><div class="flex-1 max-w-md mx-4 hidden md:block"><div class="relative"><input id="news-live-search" type="text" placeholder="Haberlerde ara (başlık, konu veya yazar)..." class="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-100 border border-slate-200 rounded-full focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-600 transition" oninput="liveFilterNews(this.value)"><svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></div></div><div class="flex items-center gap-3"><a href="/#news-grid" class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3.5 py-1.5 rounded-full shadow-xs transition"><span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>CANLI AKIŞ</a><a href="/public/pages/tr/about/html" class="text-xs font-bold text-slate-600 hover:text-slate-900 px-2 py-1">Hakkında</a></div></div><nav class="bg-red-600 text-white shadow"><div class="max-w-7xl mx-auto px-4 flex items-center justify-between overflow-x-auto whitespace-nowrap"><div class="flex items-center text-xs font-black tracking-wide" id="main-nav-links">` + navigationHTML + `</div><div class="hidden lg:flex items-center text-xs font-bold text-red-100 pr-2"><span>7/24 KESİNTİSİZ HABER</span></div></div></nav></header><div class="bg-red-50 border-b border-red-200 py-2"><div class="max-w-7xl mx-auto px-4 flex items-center gap-3"><div class="bg-red-600 text-white text-[11px] font-black px-2.5 py-1 rounded inline-flex items-center gap-1.5 shrink-0 shadow-xs"><span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>SON DAKİKA</div><div class="flex-1 overflow-hidden"><a id="ticker-headline-link" href="/#news-grid" class="text-xs md:text-sm font-bold text-slate-800 hover:text-red-600 transition truncate block">HydroGo 2.0 Yayında: Tip Güvenli Mimari ve Editoryal Haber Odası Devrede!</a></div><span class="text-xs text-slate-500 font-semibold hidden md:inline shrink-0">Hızlı Akış</span></div></div>`
 }
 
 func (h Handler) themeNavigation(ctx context.Context, locale string) template.HTML {
@@ -1013,7 +1246,7 @@ func (h Handler) themeNavigation(ctx context.Context, locale string) template.HT
 }
 
 func enterpriseFooterMarkup() string {
-	return `<footer class="news-footer"><div class="footer-container"><div class="footer-brand-col"><div class="footer-logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><strong>HYDROGO <span>PLATFORM</span></strong></div><p class="footer-summary">Yüksek performanslı Go altyapısı, katı mimari sınırlar ve sözleşme testli çift veritabanı desteği ile kurumsal içerik ve e-ticaret platformu.</p><div class="footer-badge-list"><span class="f-badge">⚡ Go 1.22+</span><span class="f-badge">🛡️ Tip Güvenli</span><span class="f-badge">📦 Modüler Core</span></div></div><div class="footer-nav-col"><h4>Platform</h4><nav><a href="/">Ana Sayfa</a><a href="/public/pages/tr/showcase/html">Showcase</a><a href="/public/pages/tr/about/html">Hakkında</a><a href="/public/news/tr/html">Haberler & Blog</a></nav></div><div class="footer-nav-col"><h4>Çözümler</h4><nav><a href="/shop">E-Ticaret Mağazası</a><a href="/admin">Admin Studio Paneli</a><a href="/api/v1/pages">REST API v1</a></nav></div></div><div class="footer-bottom-bar"><p>© 2026 HydroGo Platform. Tüm hakları saklıdır.</p><div class="footer-sub-links"><a href="/public/pages/tr/about/html">Güvenlik & Felsefe</a><span>•</span><a href="/admin">Yönetim Girişi</a></div></div></footer><script src="/theme/static/theme.js?v=60d7340a"></script></body></html>`
+	return `<footer class="bg-slate-900 text-slate-400 py-12 px-4 mt-12 border-t border-slate-800"><div class="max-w-7xl mx-auto"><div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800"><div><div class="flex items-center gap-2 mb-3"><span class="bg-red-600 text-white font-black text-xl px-2.5 py-0.5 rounded tracking-tighter">HYDRO</span><span class="text-white font-black text-xl tracking-tighter">HABER</span></div><p class="text-xs text-slate-400 leading-relaxed mb-4">Türkiye'nin ve dünyanın en önemli gelişmelerini tarafsız, doğru ve hızlı bir şekilde sunan bağımsız dijital haber portalı.</p><div class="flex gap-2"><span class="bg-slate-800 text-slate-300 text-[11px] font-medium px-2.5 py-1 rounded inline-flex items-center gap-1"><svg class="w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>Go Altyapısı</span><span class="bg-slate-800 text-slate-300 text-[11px] font-medium px-2.5 py-1 rounded inline-flex items-center gap-1"><svg class="w-3 h-3 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Tip Güvenli</span></div></div><div><h4 class="text-white font-bold text-sm mb-3 uppercase tracking-wider">Kategoriler</h4><ul class="space-y-2 text-xs"><li><button onclick="selectCategory('gundem')" class="hover:text-white transition text-left">Gündem Haberleri</button></li><li><button onclick="selectCategory('ekonomi')" class="hover:text-white transition text-left">Ekonomi & Finans</button></li><li><button onclick="selectCategory('teknoloji')" class="hover:text-white transition text-left">Teknoloji & Bilim</button></li><li><button onclick="selectCategory('dunya')" class="hover:text-white transition text-left">Dünya Gelişmeleri</button></li><li><button onclick="selectCategory('spor')" class="hover:text-white transition text-left">Spor Haberleri</button></li></ul></div><div><h4 class="text-white font-bold text-sm mb-3 uppercase tracking-wider">Kurumsal</h4><ul class="space-y-2 text-xs"><li><a href="/public/pages/tr/about/html" class="hover:text-white transition">Hakkımızda & İlkeler</a></li><li><a href="/member/login" class="hover:text-white transition">Okur Girişi</a></li><li><a href="/member/register" class="hover:text-white transition">Üye Ol</a></li><li><a href="/admin" class="hover:text-white transition">Studio Yönetim Paneli</a></li><li><a href="/api/news?locale=tr" class="text-amber-400 hover:text-amber-300 font-mono">REST API / RSS</a></li></ul></div><div><h4 class="text-white font-bold text-sm mb-3 uppercase tracking-wider">İletişim & Künye</h4><p class="text-xs leading-relaxed text-slate-400 mb-3">HydroGo Medya & Yayıncılık A.Ş.<br>Maslak, İstanbul / Türkiye<br>haber@haber.test</p><p class="text-[11px] text-slate-500">Basın ahlak ilkelerine uymayı taahhüt ederiz.</p></div></div><div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500"><p>© 2026 HYDRO HABER. Tüm hakları saklıdır. İçerikler kaynak gösterilmeden iktibas edilemez.</p><div class="flex gap-4"><a href="/public/pages/tr/about/html" class="hover:text-slate-400">Gizlilik Politikası</a><span>•</span><a href="/public/pages/tr/about/html" class="hover:text-slate-400">Kullanım Şartları</a><span>•</span><a href="/admin" class="hover:text-slate-400">Yönetim</a></div></div></div></footer><script src="/theme/static/theme.js?v=60d7340a"></script></body></html>`
 }
 
 func newsLead(body string) string {
@@ -1039,9 +1272,6 @@ func newsLeadItem(item news.Item) string {
 }
 
 func (h Handler) newsCoverMarkup(item news.Item) template.HTML {
-	if strings.TrimSpace(item.CoverMediaID) == "" {
-		return ""
-	}
 	key := template.URLQueryEscaper(item.CoverMediaID)
 	src := "/media/" + key + "?variant=card"
 	fallback := "/media/" + key
@@ -1051,7 +1281,10 @@ func (h Handler) newsCoverMarkup(item news.Item) template.HTML {
 			fallback = publicURL
 		}
 	}
-	return template.HTML(`<img class="news-cover-image" src="` + template.HTMLEscapeString(src) + `" alt="` + template.HTMLEscapeString(item.Title) + `" loading="lazy" data-fallback-src="` + template.HTMLEscapeString(fallback) + `">`)
+	if strings.TrimSpace(item.CoverMediaID) == "" {
+		return template.HTML(`<div class="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 select-none"><svg class="w-8 h-8 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></div>`)
+	}
+	return template.HTML(`<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="` + template.HTMLEscapeString(src) + `" alt="` + template.HTMLEscapeString(item.Title) + `" loading="lazy" onerror="this.onerror=null;this.src='` + template.HTMLEscapeString(fallback) + `';">`)
 }
 
 func newsMetaBadgesMarkup(item news.Item) template.HTML {
@@ -1060,7 +1293,7 @@ func newsMetaBadgesMarkup(item news.Item) template.HTML {
 		b.WriteString(`<span class="meta-pill-category">` + template.HTMLEscapeString(item.Category) + `</span>`)
 	}
 	if strings.TrimSpace(item.AuthorName) != "" {
-		b.WriteString(`<span class="meta-pill-text">✍ ` + template.HTMLEscapeString(item.AuthorName) + `</span>`)
+		b.WriteString(`<span class="meta-pill-text">` + template.HTMLEscapeString(item.AuthorName) + `</span>`)
 	}
 	return template.HTML(b.String())
 }
@@ -1101,13 +1334,13 @@ func newsKeyTakeawaysMarkup(item news.Item) template.HTML {
 		trimmed = strings.TrimPrefix(trimmed, "•")
 		trimmed = strings.TrimSpace(trimmed)
 		if trimmed != "" {
-			itemsHTML.WriteString(`<li><span class="takeaway-bullet">✓</span><span class="takeaway-text">` + template.HTMLEscapeString(trimmed) + `</span></li>`)
+			itemsHTML.WriteString(`<li><svg class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span class="takeaway-text">` + template.HTMLEscapeString(trimmed) + `</span></li>`)
 		}
 	}
 	if itemsHTML.Len() == 0 {
 		return ""
 	}
-	return template.HTML(`<div class="news-key-takeaways"><div class="takeaways-header"><span class="takeaways-icon">📌</span><h3>Önemli Çıkarımlar & Özet</h3></div><ul class="takeaways-list">` + itemsHTML.String() + `</ul></div>`)
+	return template.HTML(`<div class="news-key-takeaways"><div class="takeaways-header"><svg class="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg><h3>Önemli Çıkarımlar & Özet</h3></div><ul class="takeaways-list">` + itemsHTML.String() + `</ul></div>`)
 }
 
 func renderParagraphs(body string) string {
