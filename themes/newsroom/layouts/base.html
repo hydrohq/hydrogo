@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/theme/static/theme.css?v=00013d55">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700;8..60,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     {{slot "head"}}
   </head>
   <body class="bg-white text-slate-800 antialiased min-h-screen flex flex-col font-sans">
@@ -33,14 +33,12 @@
       </div>
     </div>
 
-    <header class="bg-white sticky top-0 z-40 border-b-2 border-slate-900">
-      <div class="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between gap-4">
-        <div class="flex-1 hidden md:flex"></div>
-        <a href="/" class="flex items-center justify-center gap-1 text-decoration-none shrink-0">
-          <span class="font-serif text-slate-900 font-black text-3xl md:text-4xl tracking-tight">HYDRO</span>
-          <span class="font-serif font-black text-3xl md:text-4xl tracking-tight" style="color:var(--red)">HABER</span>
+    <header class="bg-white sticky top-0 z-40 border-b border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-1 text-decoration-none shrink-0">
+          <span class="text-slate-900 font-black text-2xl md:text-3xl tracking-tight">HYDRO</span><span class="font-black text-2xl md:text-3xl tracking-tight" style="color:var(--red)">HABER</span>
         </a>
-        <div class="flex-1 flex items-center justify-end gap-3">
+        <div class="flex items-center gap-4 shrink-0">
           <a href="/public/news/tr/html#news-grid" class="inline-flex items-center gap-1.5 text-slate-900 hover:opacity-70 text-xs font-bold transition">
             <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--red)"></span>
             CANLI
@@ -48,17 +46,17 @@
         </div>
       </div>
 
-      <nav class="hidden md:flex items-center justify-center gap-1 font-bold text-xs border-t border-slate-200 py-2.5">
+      <nav class="hidden md:flex items-center gap-1 font-bold text-xs border-t border-slate-100 bg-slate-50 py-2">
           {{if .Navigation}}
           {{slot "navigation"}}
           {{else}}
-          <a href="/" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Ana Sayfa</a>
-          <a href="/public/news/tr/html?category=gundem" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Gündem</a>
-          <a href="/public/news/tr/html?category=ekonomi" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Ekonomi</a>
-          <a href="/public/news/tr/html?category=teknoloji" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Teknoloji</a>
-          <a href="/public/news/tr/html?category=dunya" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Dünya</a>
-          <a href="/public/news/tr/html?category=spor" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Spor</a>
-          <a href="/public/pages/tr/about/html" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Hakkında</a>
+          <a href="/" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Ana Sayfa</a>
+          <a href="/public/news/tr/html?category=gundem" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Gündem</a>
+          <a href="/public/news/tr/html?category=ekonomi" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Ekonomi</a>
+          <a href="/public/news/tr/html?category=teknoloji" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Teknoloji</a>
+          <a href="/public/news/tr/html?category=dunya" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Dünya</a>
+          <a href="/public/news/tr/html?category=spor" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Spor</a>
+          <a href="/public/pages/tr/about/html" class="px-2.5 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition text-[11px] font-bold">Hakkında</a>
           {{end}}
       </nav>
     </header>
@@ -73,7 +71,7 @@
       <div class="max-w-7xl mx-auto">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800">
           <div>
-            <div class="font-serif font-black text-2xl mb-3"><span class="text-white">HYDRO</span> <span style="color:var(--red)">HABER</span></div>
+            <div class="font-black text-2xl mb-3"><span class="text-white">HYDRO</span><span style="color:var(--red)">HABER</span></div>
             <p class="text-xs text-slate-400 leading-relaxed mb-4">Türkiye'nin ve dünyanın en önemli gelişmelerini tarafsız, doğru ve hızlı bir şekilde sunan bağımsız dijital haber portalı.</p>
           </div>
           <div>
