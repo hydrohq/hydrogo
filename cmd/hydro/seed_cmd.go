@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"image/png"
 	"io"
 	"math"
@@ -29,6 +28,104 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
+
+// drawDemoCoverImage paints an abstract, editorial-looking cover placeholder
+// for seed media: a soft gradient field tinted from (r,g,b), not a "tech
+// dashboard" diagram. The id selects one of a few gradient compositions
+// (hashed, so it's stable across runs) so the handful of seed images reused
+// across many demo articles don't all read as copies of the same graphic.
+func drawDemoCoverImage(img *image.RGBA, id string, width, height int, r, g, b uint8) {
+	hash := fnv32(id)
+	variant := hash % 4
+	// A deep, desaturated shade of the same hue anchors the gradient so the
+	// result reads as a toned photo rather than a flat color swatch.
+	deepR, deepG, deepB := uint8(float64(r)*0.22), uint8(float64(g)*0.22), uint8(float64(b)*0.22+6)
+
+	lerp := func(a, c uint8, t float64) uint8 {
+		if t < 0 {
+			t = 0
+		} else if t > 1 {
+			t = 1
+		}
+		return uint8(float64(a) + (float64(c)-float64(a))*t)
+	}
+
+	switch variant {
+	case 0: // diagonal: light corner to deep corner
+		diag := math.Hypot(float64(width), float64(height))
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				t := (float64(x) + float64(y)) / diag
+				img.Set(x, y, color.RGBA{R: lerp(deepR, r, 1-t), G: lerp(deepG, g, 1-t), B: lerp(deepB, b, 1-t), A: 255})
+			}
+		}
+	case 1: // radial glow offset toward one corner (varies by hash)
+		cx := float64(width) * (0.3 + 0.4*float64(hash%7)/6)
+		cy := float64(height) * (0.3 + 0.4*float64((hash/7)%7)/6)
+		maxDist := math.Hypot(float64(width), float64(height)) * 0.65
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				t := math.Hypot(float64(x)-cx, float64(y)-cy) / maxDist
+				img.Set(x, y, color.RGBA{R: lerp(r, deepR, t), G: lerp(g, deepG, t), B: lerp(b, deepB, t), A: 255})
+			}
+		}
+	case 2: // horizontal duotone with a soft blended seam
+		seam := float64(height) * (0.35 + 0.3*float64(hash%5)/4)
+		band := float64(height) * 0.25
+		for y := 0; y < height; y++ {
+			t := (float64(y) - (seam - band)) / (2 * band)
+			for x := 0; x < width; x++ {
+				img.Set(x, y, color.RGBA{R: lerp(r, deepR, t), G: lerp(g, deepG, t), B: lerp(b, deepB, t), A: 255})
+			}
+		}
+	default: // vertical gradient with a thin accent horizon line
+		horizon := height * (55 + int(hash%20)) / 100
+		for y := 0; y < height; y++ {
+			t := float64(y) / float64(height)
+			for x := 0; x < width; x++ {
+				img.Set(x, y, color.RGBA{R: lerp(r, deepR, t), G: lerp(g, deepG, t), B: lerp(b, deepB, t), A: 255})
+			}
+		}
+		for x := 0; x < width; x++ {
+			img.Set(x, horizon, color.RGBA{R: minUint8(r+50, 255), G: minUint8(g+50, 255), B: minUint8(b+50, 255), A: 160})
+		}
+	}
+
+	// Gentle vignette so edges aren't flat, without any diagram motifs.
+	cx, cy := float64(width)/2, float64(height)/2
+	maxDist := math.Hypot(cx, cy)
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			dist := math.Hypot(float64(x)-cx, float64(y)-cy) / maxDist
+			if dist > 0.7 {
+				orig := img.RGBAAt(x, y)
+				darken := (dist - 0.7) / 0.3 * 0.35
+				img.Set(x, y, color.RGBA{
+					R: uint8(float64(orig.R) * (1 - darken)),
+					G: uint8(float64(orig.G) * (1 - darken)),
+					B: uint8(float64(orig.B) * (1 - darken)),
+					A: 255,
+				})
+			}
+		}
+	}
+}
+
+func fnv32(s string) uint32 {
+	var h uint32 = 2166136261
+	for i := 0; i < len(s); i++ {
+		h ^= uint32(s[i])
+		h *= 16777619
+	}
+	return h
+}
+
+func minUint8(a, b uint8) uint8 {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 func seedDemo(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("seed-demo", flag.ContinueOnError)
@@ -109,96 +206,9 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("seed media directory: %w", err)
 	}
 
-	minUint8 := func(a, b uint8) uint8 {
-		if a < b {
-			return a
-		}
-		return b
-	}
-
 	seedMedia := func(id, filename string, width, height int, r, g, b uint8) error {
 		img := image.NewRGBA(image.Rect(0, 0, width, height))
-		// Rich dark background with radial mesh gradient
-		cx, cy := width/2, height/2
-		maxDist := math.Hypot(float64(cx), float64(cy))
-		for y := 0; y < height; y++ {
-			for x := 0; x < width; x++ {
-				dist := math.Hypot(float64(x-cx), float64(y-cy))
-				glow := 1.0 - (dist / maxDist)
-				if glow < 0 {
-					glow = 0
-				}
-				// Dark background with subtle color tint
-				bgR := uint8(float64(10) + float64(r)*0.35*glow)
-				bgG := uint8(float64(12) + float64(g)*0.35*glow)
-				bgB := uint8(float64(18) + float64(b)*0.45*glow)
-				img.Set(x, y, color.RGBA{R: bgR, G: bgG, B: bgB, A: 255})
-			}
-		}
-
-		// Technical grid pattern
-		gridStep := 32
-		if width > 500 {
-			gridStep = 40
-		}
-		for x := 0; x < width; x += gridStep {
-			for y := 0; y < height; y++ {
-				if y%4 == 0 {
-					orig := img.RGBAAt(x, y)
-					img.Set(x, y, color.RGBA{R: minUint8(orig.R+15, 255), G: minUint8(orig.G+20, 255), B: minUint8(orig.B+30, 255), A: 255})
-				}
-			}
-		}
-		for y := 0; y < height; y += gridStep {
-			for x := 0; x < width; x++ {
-				if x%4 == 0 {
-					orig := img.RGBAAt(x, y)
-					img.Set(x, y, color.RGBA{R: minUint8(orig.R+15, 255), G: minUint8(orig.G+20, 255), B: minUint8(orig.B+30, 255), A: 255})
-				}
-			}
-		}
-
-		// Central architectural badge card
-		cardW, cardH := width*6/10, height*5/10
-		if cardW < 120 {
-			cardW = 120
-		}
-		if cardH < 80 {
-			cardH = 80
-		}
-		cardRect := image.Rect(cx-cardW/2, cy-cardH/2, cx+cardW/2, cy+cardH/2)
-		draw.Draw(img, cardRect, &image.Uniform{color.RGBA{R: 20, G: 26, B: 38, A: 220}}, image.Point{}, draw.Over)
-
-		// Border of card
-		for x := cardRect.Min.X; x <= cardRect.Max.X; x++ {
-			img.Set(x, cardRect.Min.Y, color.RGBA{r, g, b, 180})
-			img.Set(x, cardRect.Max.Y, color.RGBA{r, g, b, 100})
-		}
-		for y := cardRect.Min.Y; y <= cardRect.Max.Y; y++ {
-			img.Set(cardRect.Min.X, y, color.RGBA{r, g, b, 180})
-			img.Set(cardRect.Max.X, y, color.RGBA{r, g, b, 100})
-		}
-
-		// Decorative tech circles / nodes
-		nodeRadius := 8
-		if width < 500 {
-			nodeRadius = 5
-		}
-		for _, nodeX := range []int{cardRect.Min.X + 24, cx, cardRect.Max.X - 24} {
-			for dy := -nodeRadius; dy <= nodeRadius; dy++ {
-				for dx := -nodeRadius; dx <= nodeRadius; dx++ {
-					if dx*dx+dy*dy <= nodeRadius*nodeRadius {
-						img.Set(nodeX+dx, cy+dy, color.RGBA{R: minUint8(r+60, 255), G: minUint8(g+60, 255), B: minUint8(b+60, 255), A: 255})
-					}
-				}
-			}
-		}
-
-		// Connecting line between nodes
-		for x := cardRect.Min.X + 24; x <= cardRect.Max.X-24; x++ {
-			img.Set(x, cy, color.RGBA{R: minUint8(r+80, 255), G: minUint8(g+80, 255), B: minUint8(b+80, 255), A: 180})
-			img.Set(x, cy+1, color.RGBA{R: minUint8(r+80, 255), G: minUint8(g+80, 255), B: minUint8(b+80, 255), A: 100})
-		}
+		drawDemoCoverImage(img, id, width, height, r, g, b)
 
 		var buf bytes.Buffer
 		if err := png.Encode(&buf, img); err != nil {
