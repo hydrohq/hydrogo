@@ -43,7 +43,7 @@ func serveNewsHTML(t *testing.T, h Handler, rawURL string) *httptest.ResponseRec
 // same-origin iframe. Only that response may be framed; the plain public
 // article keeps the strict preset's frame-ancestors 'none'.
 func TestNewsPreviewResponseIsFrameableBySameOriginOnly(t *testing.T) {
-	h := publicNewsHandler(t, loadShippedTheme(t, "corporate"))
+	h := publicNewsHandler(t, loadShippedTheme(t, "newsroom"))
 	repo := h.Service.Repository.(publicNewsRepo)
 	for i := range repo.items {
 		repo.items[i].Locale, repo.items[i].Status, repo.items[i].Revision = "en", news.StatusPublished, 3

@@ -84,7 +84,7 @@ func renderPublicNews(t *testing.T, h Handler, path, locale, slug string) string
 }
 
 func TestPublicNewsPagesRenderThroughEveryTheme(t *testing.T) {
-	for _, theme := range []string{"", "corporate", "newsroom"} {
+	for _, theme := range []string{"", "newsroom"} {
 		var bundle *v1.ThemeBundle
 		if theme != "" {
 			bundle = loadShippedTheme(t, theme)
@@ -109,7 +109,7 @@ func TestPublicNewsPagesRenderThroughEveryTheme(t *testing.T) {
 }
 
 func TestNewsLayoutRendersLocalizedNestedNavigation(t *testing.T) {
-	for _, theme := range []string{"corporate", "newsroom"} {
+	for _, theme := range []string{"newsroom"} {
 		h := publicNewsHandler(t, loadShippedTheme(t, theme))
 		h.NavigationProvider = func(context.Context, string) ([]v1.ThemeNavigationItem, error) {
 			return []v1.ThemeNavigationItem{

@@ -8,7 +8,7 @@ param(
     # tailwindcss-<os>-<arch>[.exe]) and pass its path here, or place it on
     # PATH as `tailwindcss`.
     [string]$TailwindCli = "tailwindcss",
-    [string]$Theme = "corporate"
+    [string]$Theme = "newsroom"
 )
 
 $ErrorActionPreference = 'Stop'

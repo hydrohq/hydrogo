@@ -114,7 +114,7 @@ func TestRenderThemeViewFallsBackToBuiltinViews(t *testing.T) {
 }
 
 func TestShippedThemesProvideEveryPageView(t *testing.T) {
-	for _, name := range []string{"corporate", "newsroom"} {
+	for _, name := range []string{"newsroom"} {
 		bundle, err := LoadTheme("../../themes", name)
 		if err != nil {
 			t.Fatalf("load %s: %v", name, err)

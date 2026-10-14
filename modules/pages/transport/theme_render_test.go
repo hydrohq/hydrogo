@@ -15,12 +15,12 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
-func TestThemeRenderCorporateShowcaseAndBlocks(t *testing.T) {
+func TestThemeRenderNewsroomShowcaseAndBlocks(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Join(filepath.Dir(filename), "..", "..", "..")
-	bundle, err := themev1.LoadTheme(filepath.Join(repoRoot, "themes"), "corporate")
+	bundle, err := themev1.LoadTheme(filepath.Join(repoRoot, "themes"), "newsroom")
 	if err != nil {
-		t.Fatalf("load corporate theme: %v", err)
+		t.Fatalf("load newsroom theme: %v", err)
 	}
 
 	showcaseBlocks := []pages.Block{
@@ -96,9 +96,9 @@ func TestThemeRenderCorporateShowcaseAndBlocks(t *testing.T) {
 func TestThemeRenderPreservesRTLLocaleAndLongUnicodeTitle(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Join(filepath.Dir(filename), "..", "..", "..")
-	bundle, err := themev1.LoadTheme(filepath.Join(repoRoot, "themes"), "corporate")
+	bundle, err := themev1.LoadTheme(filepath.Join(repoRoot, "themes"), "newsroom")
 	if err != nil {
-		t.Fatalf("load corporate theme: %v", err)
+		t.Fatalf("load newsroom theme: %v", err)
 	}
 	longTitle := strings.Repeat("مرحبا بالعالم — HydroGo ", 32)
 	rec := httptest.NewRecorder()

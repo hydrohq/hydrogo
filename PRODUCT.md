@@ -35,7 +35,7 @@ Preserve the HydroGo name, layered cube mark, Turkish-first copy, and direct pro
 
 ## Evidence on Hand
 
-Real templates and styles live under `themes/corporate/`; demo content is seeded by the development server and rendered through the public page/news routes. No external brand asset pack is present.
+Real templates and styles live under `themes/newsroom/`; demo content is seeded by the development server and rendered through the public page/news routes. No external brand asset pack is present.
 
 ## Product Principles
 

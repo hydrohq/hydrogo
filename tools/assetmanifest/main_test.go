@@ -18,7 +18,7 @@ func TestBuildIsDeterministicAndFingerprintsDeclaredAssets(t *testing.T) {
 	if !reflect.DeepEqual(first, second) {
 		t.Fatal("asset manifest changed between identical builds")
 	}
-	if first["corporate"].Assets["theme.css"].SHA256 == "" {
+	if first["newsroom"].Assets["theme.css"].SHA256 == "" {
 		t.Fatal("theme.css fingerprint is empty")
 	}
 	if _, err := json.Marshal(first); err != nil {

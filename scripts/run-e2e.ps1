@@ -29,7 +29,7 @@ try {
 	Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
 	# Public demo HTML links to the selected theme's assets. Keep the seeded
 	# browser fixture styled even when the developer has no local theme config.
-	$env:HYDRO_THEME = "corporate"
+	$env:HYDRO_THEME = "newsroom"
 	$env:HYDRO_THEME_DIR = Join-Path $repo "themes"
     go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=e2e -X main.buildTime=e2e" -o $bin (Join-Path $repo "cmd\hydro")
     $env:HYDRO_MEDIA_DIR = $media
