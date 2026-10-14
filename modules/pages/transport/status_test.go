@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -50,7 +51,7 @@ func TestParseBlockFormAcceptsTypedJSONWidgets(t *testing.T) {
 }
 
 func TestBlockEditorOffersAddMoveAndAllTypedBlocks(t *testing.T) {
-	html := renderBlockEditor(nil, "csrf")
+	html := renderBlockEditorHTML(t, nil)
 	for _, marker := range []string{"data-block-add", "data-block-up", "data-block-down", "before_after", "stats", "contact_cta", "video", "masonry", "hotspots", "block_bg_color_0", "block_padding_y_0", "data-block-field=\"payload\""} {
 		if !strings.Contains(html, marker) {
 			t.Errorf("editor is missing %q", marker)
@@ -59,7 +60,7 @@ func TestBlockEditorOffersAddMoveAndAllTypedBlocks(t *testing.T) {
 }
 
 func TestBlockEditorRestoresStylePresetSelections(t *testing.T) {
-	html := renderBlockEditor([]pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Title","bg_color":"dark","padding_y":"compact"}`)}}, "csrf")
+	html := renderBlockEditorHTML(t, []pages.Block{{Type: "hero", Payload: json.RawMessage(`{"title":"Title","bg_color":"dark","padding_y":"compact"}`)}})
 	for _, marker := range []string{`<option value="dark" selected>`, `<option value="compact" selected>`, `name="block_bg_color_0"`, `name="block_padding_y_0"`} {
 		if !strings.Contains(html, marker) {
 			t.Errorf("style preset editor missing %q", marker)
@@ -111,4 +112,13 @@ func TestSortPagesByViewsHonorsDirectionAndStableTies(t *testing.T) {
 			t.Fatalf("unsupported sort changed list: %#v", items)
 		}
 	}
+}
+
+func renderBlockEditorHTML(t *testing.T, blocks []pages.Block) string {
+	t.Helper()
+	html, err := renderString(context.Background(), pageBlockEditor(newBlockEditorView(blocks, "csrf")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return html
 }
