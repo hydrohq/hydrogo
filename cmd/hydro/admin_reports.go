@@ -93,6 +93,7 @@ func (a *serveApp) adminDashboard(w http.ResponseWriter, r *http.Request) {
 			contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
 		}
 		if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
+			Request:     r,
 			User:        user,
 			Email:       user.Email,
 			Collections: a.activeStudioCollections(),
@@ -126,7 +127,7 @@ func (a *serveApp) adminDashboard(w http.ResponseWriter, r *http.Request) {
 	if securityNotice.PreviousLoginAt != nil {
 		previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
 	}
-	if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{User: user, Email: user.Email, Collections: a.activeStudioCollections(), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: a.smtpSender != nil, CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
+	if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Request: r, User: user, Email: user.Email, Collections: a.activeStudioCollections(), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: a.smtpSender != nil, CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
 		http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
 	}
 }

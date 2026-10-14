@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -35,7 +36,7 @@ func TestRenderAdminDashboardUsesSessionPermissions(t *testing.T) {
 			if end < 0 {
 				t.Fatal("dashboard permission list was not closed")
 			}
-			hasWrite := shellHasPermission(markup[start:start+end], auth.PermissionContentWrite)
+			hasWrite := slices.Contains(strings.Fields(markup[start:start+end]), auth.PermissionContentWrite)
 			if hasWrite != tc.write {
 				t.Errorf("dashboard content write permission = %v, want %v", hasWrite, tc.write)
 			}
@@ -51,7 +52,7 @@ func TestRenderAdminDashboardHidesCommerceActionsWithoutPermission(t *testing.T)
 	if err := RenderAdminDashboard(&out, AdminDashboardData{User: user, Active: "dashboard", CommerceModuleEnabled: true}); err != nil {
 		t.Fatal(err)
 	}
-	visibleMarkup := adminShellInlineAsset.ReplaceAllString(out.String(), "")
+	visibleMarkup := inlineAssets.ReplaceAllString(out.String(), "")
 	for _, href := range []string{`href="/admin/commerce/products"`, `href="/admin/commerce/orders"`, `href="/admin/commerce/products/new"`} {
 		if strings.Contains(visibleMarkup, href) {
 			t.Errorf("dashboard still renders denied commerce action %s", href)

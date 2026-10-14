@@ -18,7 +18,7 @@ func TestEditorStatsPanelUsesAccessibleTypedMarkup(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"titleLength>=30&&titleLength<=60", "descriptionLength>=120&&descriptionLength<=160", "hasH1&&!skipped", "missingAlt===0", "average<=25"} {
-		if !strings.Contains(AdminEditorStatsJS, want) {
+		if !strings.Contains(adminAsset(t, "js/editor-stats.js"), want) {
 			t.Errorf("SEO audit behavior missing %q", want)
 		}
 	}
@@ -35,7 +35,7 @@ func TestPageWeightInspectorUsesBoundedLocalAssetMeasurements(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{"AbortController", "bounded(assets,4,size)", "content-length", "3*1048576", "/admin/media?asset="} {
-		if !strings.Contains(AdminPageWeightJS, marker) {
+		if !strings.Contains(adminAsset(t, "js/page-weight.js"), marker) {
 			t.Errorf("page weight calculator missing %q", marker)
 		}
 	}

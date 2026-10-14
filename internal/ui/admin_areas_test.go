@@ -3,7 +3,6 @@ package ui
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -81,23 +80,17 @@ func TestAdminShellPageCreateActionFollowsContentWritePermission(t *testing.T) {
 	}
 }
 
-func TestAdminShellCommerceCommandsFollowModuleActivation(t *testing.T) {
-	for _, enabled := range []bool{false, true} {
-		t.Run(fmt.Sprintf("enabled=%t", enabled), func(t *testing.T) {
-			request := httptest.NewRequest("GET", "/admin", nil)
-			request = request.WithContext(adminstudio.WithSupportConfig(request.Context(), adminstudio.SupportConfig{CommerceModuleEnabled: enabled}))
-			var out bytes.Buffer
-			if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
-				t.Fatal(err)
+func TestAdminShellHasNoCommerceRemnants(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Dashboard", "", "dashboard"); err != nil {
+		t.Fatal(err)
+	}
+	for name, source := range map[string]string{"shell": out.String(), "studio.js": adminAsset(t, "js/studio.js")} {
+		for _, removed := range []string{"/admin/commerce", "data-commerce-enabled", "commerceEnabled"} {
+			if strings.Contains(source, removed) {
+				t.Errorf("%s still mentions the removed commerce module: %q", name, removed)
 			}
-			marker := `data-commerce-enabled="false"`
-			if enabled {
-				marker = `data-commerce-enabled="true"`
-			}
-			if !strings.Contains(out.String(), marker) {
-				t.Fatalf("Admin shell missing module state %q", marker)
-			}
-		})
+		}
 	}
 }
 
@@ -173,7 +166,7 @@ func TestAdminShellNavigationFollowsEffectivePermissions(t *testing.T) {
 			if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 				t.Fatal(err)
 			}
-			html := adminShellInlineAsset.ReplaceAllString(out.String(), "")
+			html := inlineAssets.ReplaceAllString(out.String(), "")
 			for _, marker := range tc.want {
 				if !strings.Contains(html, marker) {
 					t.Errorf("navigation missing %q", marker)
@@ -231,10 +224,13 @@ func TestAdminShellShowsDismissibleStaffNoticeAsEscapedTypedContent(t *testing.T
 	if err := AdminStartForRequest(&out, request, "Dashboard", "", "dashboard"); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{"&lt;urgent&gt; update", `data-staff-notice="notice-key"`, `data-staff-notice-dismiss`, "hydro-staff-notice-dismissed"} {
+	for _, marker := range []string{"&lt;urgent&gt; update", `data-staff-notice="notice-key"`, `data-staff-notice-dismiss`, `/admin-assets/js/staff-notice.js`} {
 		if !strings.Contains(out.String(), marker) {
 			t.Errorf("staff notice shell missing %q", marker)
 		}
+	}
+	if !strings.Contains(adminAsset(t, "js/staff-notice.js"), "hydro-staff-notice-dismissed") {
+		t.Error("staff notice dismissal is not remembered")
 	}
 }
 
@@ -325,7 +321,7 @@ func TestRenderAdminAreaUsesRequestRoleAndPermissions(t *testing.T) {
 	if err := RenderAdminArea(&out, AdminAreaData{Request: request, Area: "site", Locale: "tr"}); err != nil {
 		t.Fatal(err)
 	}
-	markup := adminShellInlineAsset.ReplaceAllString(out.String(), "")
+	markup := inlineAssets.ReplaceAllString(out.String(), "")
 	for _, marker := range []string{`data-studio-role="editor"`, `href="/admin/site"`, "Site ayarları"} {
 		if !strings.Contains(markup, marker) {
 			t.Errorf("permission-aware site page missing %q", marker)
@@ -354,7 +350,7 @@ func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
 		t.Fatalf("RenderAdminArea(account) error = %v", err)
 	}
 	markup := out.String()
-	for _, want := range []string{`lang="en"`, "The operation could not be completed.", "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`, `data-password-strength`, `data-password-meter`, `data-password-feedback`, `data-sound-alert-preference`, "Play a sound for new inquiries", `data-mfa-settings`, "Set up authenticator"} {
+	for _, want := range []string{`lang="en"`, `src="/admin-assets/js/english-ui.js"`, "Administrator profile", "Secure session", `action="/admin/account/locale"`, `name="locale"`, "English (EN)", `name="_csrf"`, `data-password-strength`, `data-password-meter`, `data-password-feedback`, `data-sound-alert-preference`, "Play a sound for new inquiries", `data-mfa-settings`, "Set up authenticator"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("English account markup missing %q", want)
 		}
@@ -362,8 +358,9 @@ func TestRenderAdminAccountEnglishLocaleSelector(t *testing.T) {
 }
 
 func TestAdminTourReadsRoleAfterDOMIsReady(t *testing.T) {
-	roleRead := strings.Index(AdminTourJS, "const role = document.body?.dataset.studioRole")
-	initializer := strings.Index(AdminTourJS, "function initTour()")
+	tour := adminAsset(t, "js/tour.js")
+	roleRead := strings.Index(tour, "const role = document.body?.dataset.studioRole")
+	initializer := strings.Index(tour, "function initTour()")
 	if roleRead < 0 || initializer < 0 || roleRead < initializer {
 		t.Fatal("admin onboarding tour must read the body role from its DOM-ready initializer")
 	}
@@ -371,7 +368,7 @@ func TestAdminTourReadsRoleAfterDOMIsReady(t *testing.T) {
 
 func TestAdminRealtimeChimeUsesOptInSettingAndFormEvent(t *testing.T) {
 	for _, want := range []string{"hydro-inquiry-sound-v1", "forms%3Asubmission_created", `source.addEventListener('forms:submission_created',play)`, `window.AudioContext||window.webkitAudioContext`, `preference.checked=enabled()`} {
-		if !strings.Contains(AdminRealtimeChimeJS, want) {
+		if !strings.Contains(adminAsset(t, "js/realtime-chime.js"), want) {
 			t.Fatalf("realtime chime script missing %q", want)
 		}
 	}
@@ -379,7 +376,7 @@ func TestAdminRealtimeChimeUsesOptInSettingAndFormEvent(t *testing.T) {
 
 func TestAdminShellIncludesDevicePreviewBehavior(t *testing.T) {
 	for _, want := range []string{"data-device-preview-dialog", "data-device-preview-open", "data-device-preview-size", "data-device-preview-frame", "X-CSRF-Token", "credentials:'same-origin'"} {
-		if !strings.Contains(AdminDevicePreviewJS, want) {
+		if !strings.Contains(adminAsset(t, "js/device-preview.js"), want) {
 			t.Fatalf("device preview script missing %q", want)
 		}
 	}
@@ -387,23 +384,23 @@ func TestAdminShellIncludesDevicePreviewBehavior(t *testing.T) {
 	if err := AdminStart(&out, "Preview", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "data-device-preview-dialog") {
+	if !strings.Contains(out.String(), `src="/admin-assets/js/device-preview.js"`) {
 		t.Fatal("admin shell did not include device preview script")
 	}
 }
 
 func TestAdminShellSPARouterAdoptsFragmentAssetsWithDocumentNonce(t *testing.T) {
 	for _, want := range []string{"currentDocumentNonce", "adoptFragmentStyles", "Normalize while the fragment is still inert", "oldStyle.setAttribute('nonce', nonce)", "replaceChildren(...Array.from(newMain.childNodes))", "adoptFragmentStyles(newMain)", "searchGlobalBound"} {
-		if !strings.Contains(AdminSPARouterJS, want) {
-			t.Fatalf("AdminSPARouterJS missing fragment asset handling %q", want)
+		if !strings.Contains(adminAsset(t, "js/studio.js"), want) {
+			t.Fatalf("studio.js missing fragment asset handling %q", want)
 		}
 	}
 }
 
 func TestAdminShellSpotlightFetchesProtectedCategorizedResults(t *testing.T) {
 	for _, want := range []string{"/admin/api/search?q=", "new AbortController()", "İçerik ve kayıtlar", "item.badge", "item.href", "ArrowDown", "ArrowUp", "searchGlobalBound"} {
-		if !strings.Contains(AdminSPARouterJS, want) {
-			t.Fatalf("AdminSPARouterJS missing Spotlight behavior %q", want)
+		if !strings.Contains(adminAsset(t, "js/studio.js"), want) {
+			t.Fatalf("studio.js missing Spotlight behavior %q", want)
 		}
 	}
 }
@@ -447,44 +444,40 @@ func TestAdminShellIncludesSessionExpiryWarning(t *testing.T) {
 	if err := AdminStart(&out, "Session", "", ""); err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(out.String(), `<script defer src="/admin-assets/js/session-warning.js"></script>`) {
+		t.Fatal("admin shell does not load the session expiry warning")
+	}
 	for _, want := range []string{"/auth/me/session/extend", "Oturumunuz yakında sona erecek", "setAttribute('role','alertdialog')"} {
-		if !strings.Contains(out.String(), want) {
-			t.Fatalf("admin shell session warning missing %q", want)
+		if !strings.Contains(adminAsset(t, "js/session-warning.js"), want) {
+			t.Fatalf("admin session warning missing %q", want)
 		}
 	}
 }
 
 func TestAdminSessionWarningUsesAdminLocale(t *testing.T) {
-	for _, tc := range []struct {
-		locale string
-		want   []string
-	}{
-		{locale: "en", want: []string{"Your session will expire soon", "Extend your session to keep working.", "Extend session", "Try again"}},
-		{locale: "tr", want: []string{"Oturumunuz yakında sona erecek", "Çalışmanızı sürdürmek için oturumunuzu uzatabilirsiniz.", "Oturumu uzat", "Tekrar dene"}},
+	script := adminAsset(t, "js/session-warning.js")
+	if !strings.Contains(script, "document.documentElement.lang==='en'") {
+		t.Fatal("session warning does not follow the document language")
+	}
+	if !strings.Contains(script, "document.addEventListener('DOMContentLoaded',install,{once:true})") {
+		t.Fatal("session warning does not defer its body-dependent startup until DOMContentLoaded")
+	}
+	for _, want := range []string{
+		"Your session will expire soon", "Extend your session to keep working.", "Extend session", "Try again",
+		"Oturumunuz yakında sona erecek", "Çalışmanızı sürdürmek için oturumunuzu uzatabilirsiniz.", "Oturumu uzat", "Tekrar dene",
 	} {
-		t.Run(tc.locale, func(t *testing.T) {
-			var out bytes.Buffer
-			if err := AdminStartLocale(&out, "Session", "", "", tc.locale); err != nil {
-				t.Fatal(err)
-			}
-			if err := AdminEnd(&out); err != nil {
-				t.Fatal(err)
-			}
-			markup := out.String()
-			bodyAt := strings.Index(markup, "<body")
-			warningAt := strings.Index(markup, "session_expires_at")
-			if bodyAt < 0 || warningAt < 0 || warningAt > bodyAt {
-				t.Fatal("session warning bootstrap is expected in the head before body initialization")
-			}
-			if !strings.Contains(markup, "document.addEventListener('DOMContentLoaded',install,{once:true})") {
-				t.Fatal("session warning does not defer its body-dependent startup until DOMContentLoaded")
-			}
-			for _, want := range tc.want {
-				if !strings.Contains(markup, want) {
-					t.Errorf("%s session warning missing %q", tc.locale, want)
-				}
-			}
-		})
+		if !strings.Contains(script, want) {
+			t.Errorf("session warning missing %q", want)
+		}
+	}
+	for _, locale := range []string{"en", "tr"} {
+		var out bytes.Buffer
+		if err := AdminStartLocale(&out, "Session", "", "", locale); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out.String(), `<html lang="`+locale+`"`) {
+			t.Errorf("admin shell does not declare document language %q", locale)
+		}
 	}
 }
 
@@ -493,15 +486,24 @@ func TestAdminShellIncludesMobileNavigationContract(t *testing.T) {
 	if err := AdminStart(&out, "Mobil navigasyon", "", ""); err != nil {
 		t.Fatal(err)
 	}
+	if err := AdminEnd(&out); err != nil {
+		t.Fatal(err)
+	}
 	markup := out.String()
 	for _, want := range []string{
-		`class="studio-mobile-menu-toggle"`,
-		`aria-expanded="false"`,
-		`studio-mobile-nav-open`,
-		`pointerdown`,
+		`class="studio-mobile-menu-toggle" aria-label="Menüyü aç" aria-expanded="false" x-data="navToggle"`,
+		`x-bind:aria-expanded="expanded"`,
+		`class="studio-mobile-backdrop" aria-label="Menüyü kapat" x-data="navBackdrop"`,
+		`class="studio-sidebar" x-data="studioSidebar"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("admin shell missing mobile navigation contract %q", want)
+		}
+	}
+	shellJS := adminAsset(t, "shell.js")
+	for _, want := range []string{`"studio-mobile-nav-open"`, `event.key !== "Escape"`, "MOBILE_BREAKPOINT"} {
+		if !strings.Contains(shellJS, want) {
+			t.Fatalf("shell.js missing mobile navigation behaviour %q", want)
 		}
 	}
 }
@@ -514,10 +516,16 @@ func TestAdminShellIncludesAccessibleUXDialogsAndQuickActions(t *testing.T) {
 	if err := AdminEnd(&out); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`data-shortcuts-open`, `data-notifications-open`, `data-notification-count`, `/admin/notifications/unread`, `admin-shortcuts-dialog`, `admin-onboarding-dialog`} {
+	for _, marker := range []string{`data-notifications-open`, `data-notification-count`, `x-data="notifications"`, `admin-shortcuts-dialog`, `admin-onboarding-dialog`} {
 		if !strings.Contains(out.String(), marker) {
 			t.Errorf("Admin Studio shell is missing %q", marker)
 		}
+	}
+	if !strings.Contains(adminAsset(t, "shell.js"), "/admin/notifications/unread") {
+		t.Error("notification panel does not load the unread count")
+	}
+	if !strings.Contains(adminAsset(t, "js/ux.js"), "[data-shortcuts-open]") {
+		t.Error("shortcut dialog trigger is not wired")
 	}
 }
 
@@ -526,7 +534,7 @@ func TestAdminQuillImageURLFallbackUsesAdminLanguage(t *testing.T) {
 	if err := AdminStartLocale(&out, "Studio", "", "", "en"); err != nil {
 		t.Fatal(err)
 	}
-	html := out.String()
+	html := out.String() + adminAsset(t, "js/studio.js")
 	for _, want := range []string{`<html lang="en"`, `document.documentElement.lang === 'en' ? 'Enter an image URL:' : 'Görsel URL adresini girin:'`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("English Admin shell is missing locale-aware Quill prompt %q", want)
@@ -540,7 +548,7 @@ func TestAdminUndoToastLabelUsesDocumentLanguage(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{`document.documentElement.lang === 'en' ? 'Undo' : 'Geri Al'`, `studio-toast-undo`} {
-		if !strings.Contains(out.String(), want) {
+		if !strings.Contains(adminAsset(t, "js/studio.js"), want) {
 			t.Errorf("English Admin shell is missing localized undo toast contract %q", want)
 		}
 	}
@@ -551,18 +559,18 @@ func TestAdminVisualControlsFollowAdminLanguage(t *testing.T) {
 	if err := AdminStartLocale(&out, "Studio", "", "", "en"); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{
-		`english?label+'; click to change':label+'; değiştirmek için tıklayın'`,
-		`english ? variantName + ' theme applied.' : variantName + ' tema uygulandı.'`,
-	} {
-		if !strings.Contains(out.String(), want) {
+	if !strings.Contains(out.String(), `aria-label="Change theme"`) || !strings.Contains(out.String(), `x-bind:aria-label="label"`) {
+		t.Error("English theme toggle is missing its label binding")
+	}
+	for _, want := range []string{"; click to change", "; değiştirmek için tıklayın", " theme applied.", " tema uygulandı."} {
+		if !strings.Contains(adminAsset(t, "shell.js"), want) {
 			t.Errorf("Admin visual controls are missing locale behavior %q", want)
 		}
 	}
 }
 
 func TestBulkToolbarBuildsContextualActionSelector(t *testing.T) {
-	script := adminUXScript()
+	script := adminAsset(t, "js/ux.js")
 	for _, marker := range []string{`data-bulk-choice`, `new Option(action.textContent,action.dataset.bulkAction)`, `actions[choice?.selectedIndex||0]`} {
 		if !strings.Contains(script, marker) {
 			t.Errorf("bulk toolbar script missing %q", marker)
@@ -581,39 +589,8 @@ func TestListViewSwitcherIsAccessibleAndUsesPersistedTarget(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{`localStorage.setItem(toggle.dataset.storageKey||'hydro-view-default',value)`, `target.dataset.viewMode=mode`, `DOMContentLoaded`, `aria-pressed`} {
-		if !strings.Contains(AdminListViewJS, marker) {
+		if !strings.Contains(adminAsset(t, "js/list-view.js"), marker) {
 			t.Errorf("list view behavior missing %q", marker)
-		}
-	}
-}
-
-func TestAdminShellWriterPreservesInputLengthAfterRewrite(t *testing.T) {
-	var out bytes.Buffer
-	writer := adminShellWriter{Writer: &out}
-	payload := []byte(`/public/news/tr/html`)
-	n, err := writer.Write(payload)
-	if err != nil || n != len(payload) {
-		t.Fatalf("writer contract violated: n=%d len=%d err=%v", n, len(payload), err)
-	}
-	if out.String() != "/" {
-		t.Fatalf("unexpected rewritten output: %q", out.String())
-	}
-}
-
-func TestAdminShellWriterRewritesMarkupWithoutChangingInlineAssets(t *testing.T) {
-	var out bytes.Buffer
-	writer := adminShellWriter{Writer: &out}
-	payload := []byte(`<a href="/public/news/tr/html">News</a><script>const route = "/public/news/tr/html";</script><style>.news{content:"/public/news/tr/html"}</style>`)
-	if _, err := writer.Write(payload); err != nil {
-		t.Fatal(err)
-	}
-	got := out.String()
-	if !strings.Contains(got, `<a href="/">News</a>`) {
-		t.Fatalf("HTML navigation URL was not rewritten: %s", got)
-	}
-	for _, asset := range []string{`<script>const route = "/public/news/tr/html";</script>`, `<style>.news{content:"/public/news/tr/html"}</style>`} {
-		if !strings.Contains(got, asset) {
-			t.Fatalf("inline asset changed during shell rewrite: %s", got)
 		}
 	}
 }
@@ -646,13 +623,14 @@ func TestAdminShellShowsAuthenticatedUserInitials(t *testing.T) {
 }
 
 func TestAdminShellLightDarkToggleContract(t *testing.T) {
+	shellJS := adminAsset(t, "shell.js")
 	for _, want := range []string{
-		`updateVisualModeLabel`,
+		`Alpine.data("themeToggle"`,
 		`değiştirmek için tıklayın`,
-		`localStorage.setItem('hydro-theme', nextVariant)`,
-		`setAttribute('data-theme', nextVariant)`,
+		`localStorage.setItem("hydro-theme", variant)`,
+		`setAttribute("data-theme", variant)`,
 	} {
-		if !strings.Contains(AdminSPARouterJS, want) {
+		if !strings.Contains(shellJS, want) {
 			t.Fatalf("admin shell missing light/dark toggle contract %q", want)
 		}
 	}
@@ -663,7 +641,7 @@ func TestAdminShellLightDarkToggleContract(t *testing.T) {
 	if err := AdminStart(&out, "Tema", "", ""); err != nil {
 		t.Fatalf("render admin shell: %v", err)
 	}
-	if !strings.Contains(out.String(), `id="theme-toggle-btn"`) {
+	if !strings.Contains(out.String(), `id="theme-toggle-btn"`) || !strings.Contains(out.String(), `x-data="themeToggle"`) {
 		t.Fatal("rendered admin shell missing the light/dark toggle button")
 	}
 }
@@ -695,22 +673,26 @@ func TestRemovedVisualFamiliesStayRemoved(t *testing.T) {
 // always pins the hydrogo family and resolves light/dark from the saved
 // preference or the OS setting.
 func TestAdminShellIncludesHydroGoThemeMode(t *testing.T) {
+	var out bytes.Buffer
+	if err := AdminStart(&out, "Tema", "", ""); err != nil {
+		t.Fatalf("render admin shell: %v", err)
+	}
+	markup := out.String()
+	head := markup[:strings.Index(markup, "</head>")]
 	for _, want := range []string{
+		`<html lang="tr" data-ui-theme="hydrogo">`,
+		`<script>(()=>{const root=document.documentElement;`,
 		`setAttribute('data-ui-theme','hydrogo')`,
 		`localStorage.getItem('hydro-theme')`,
 		`prefers-color-scheme: dark`,
 		`setAttribute('data-theme',variant)`,
 	} {
-		if !strings.Contains(AdminThemeBootJS, want) {
-			t.Fatalf("theme bootstrap missing contract %q", want)
+		if !strings.Contains(head, want) {
+			t.Fatalf("pre-paint theme bootstrap missing contract %q", want)
 		}
 	}
-	var out bytes.Buffer
-	if err := AdminStart(&out, "Tema", "", ""); err != nil {
-		t.Fatalf("render admin shell: %v", err)
-	}
-	if !strings.Contains(out.String(), "<script>"+AdminThemeBootJS+"</script>") {
-		t.Fatal("rendered admin shell missing pre-paint theme bootstrap")
+	if strings.Index(head, "data-theme',variant") > strings.Index(head, "<link rel=\"stylesheet\"") {
+		t.Fatal("theme bootstrap must run before the stylesheets load")
 	}
 }
 

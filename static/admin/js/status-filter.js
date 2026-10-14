@@ -1,6 +1,4 @@
-package ui
-
-const AdminStatusFilterJS = `(()=>{
+(()=>{
   const table = () => document.querySelector('table[data-admin-list-state]');
   const labels = {
     published: 'Yayında',
@@ -52,30 +50,4 @@ const AdminStatusFilterJS = `(()=>{
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, {once:true}); else initialize();
   document.addEventListener('hydro:admin-navigated', initialize);
-})();`
-
-const AdminListStateJS = `(()=>{
-  const list = () => document.querySelector('table[data-admin-list-state]');
-  const key = path => 'hydro-admin-list-state:' + path;
-  const save = table => { try { sessionStorage.setItem(key(location.pathname), location.search); } catch {} };
-  const restore = () => {
-    const table = list(); if (!table) return;
-    let saved = ''; try { saved = sessionStorage.getItem(key(location.pathname)) || ''; } catch {}
-    if (location.search) { save(table); return; }
-    if (!saved) return;
-    try { if (new URL(document.referrer).origin !== location.origin) return; } catch { return; }
-    location.replace(location.pathname + saved + location.hash);
-  };
-  document.addEventListener('click', event => {
-    if (!list()) return;
-    const link = event.target.closest('a[href]'); if (!link) return;
-    const next = new URL(link.href, location.href);
-    if (next.origin === location.origin && next.pathname !== location.pathname) save(list());
-  });
-  window.addEventListener('pagehide', () => { if (list()) save(list()); });
-  const ready = () => restore();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, {once:true}); else ready();
-  document.addEventListener('hydro:admin-navigated', restore);
-})();`
-
-const AdminCopyTextJS = `(()=>{document.addEventListener('click',async event=>{const button=event.target.closest('[data-copy-text]');if(!button)return;const status=button.parentElement.querySelector('[data-copy-status]');try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(button.dataset.copyText)}else{const field=document.createElement('textarea');field.value=button.dataset.copyText;field.setAttribute('readonly','');field.style.position='fixed';field.style.opacity='0';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();if(!copied)throw new Error('copy unavailable')}if(status)status.textContent='Copied'}catch{if(status)status.textContent='Could not copy'}})})();`
+})();

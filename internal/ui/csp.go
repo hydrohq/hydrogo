@@ -2,28 +2,20 @@ package ui
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/base64"
+	"context"
 	"fmt"
 
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/ui/shell"
 )
 
-func hash(data string) string {
-	sum := sha256.Sum256([]byte(data))
-	return base64.StdEncoding.EncodeToString(sum[:])
-}
-
+// AdminScriptHashes lists the CSP hashes of the inline scripts the admin may
+// render. The frame's own behaviour is loaded from /admin-assets/js/ and needs
+// no hash; only its pre-paint theme bootstrap is inline.
 func AdminScriptHashes() ([]string, error) {
-	hashes := []string{
-		hash(AdminThemeBootJS),
-		hash(AdminBlockEditorJS),
-		hash(AdminIconJS),
-		hash(AdminSPARouterJS + ";\n" + AdminSidebarUsersJS + ";\n" + AdminResponsiveJS + ";\n" + adminUXScript() + ";\n" + AdminResetLinkJS + ";\n" + AdminDraftAutosaveJS + ";\n" + AdminPasswordStrengthJS + ";\n" + AdminPasswordSubmitJS + ";\n" + AdminEditorStatsJS + ";\n" + AdminPageWeightJS + ";\n" + AdminStatusFilterJS + ";\n" + AdminListStateJS + ";\n" + AdminListViewJS + ";\n" + AdminCopyTextJS + ";\n" + AdminUXHotkeysJS + ";\n" + AdminNotificationJS + ";\n" + AdminStaffNoticeJS + ";\n" + AdminRealtimeChimeJS + ";\n" + AdminDevicePreviewJS + ";\n" + AdminTourJS + ";\n" + AdminGuideJS + ";\n" + AdminSessionWarningJS + ";\n"),
-		hash(AdminEnglishUIJS),
-		hash(`document.querySelectorAll('a[target="_blank"]').forEach(function(link){link.setAttribute('rel','noopener noreferrer')});`),
-	}
+	var hashes []string
 	for _, render := range []func(*bytes.Buffer) error{
+		func(out *bytes.Buffer) error { return shell.Head(shell.View{}).Render(context.Background(), out) },
 		func(out *bytes.Buffer) error { return adminControlTemplate.Execute(out, AdminControlData{}) },
 		func(out *bytes.Buffer) error { return adminReportsPathTemplate.Execute(out, AdminDashboardData{}) },
 		func(out *bytes.Buffer) error {

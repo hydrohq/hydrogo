@@ -15,8 +15,12 @@ func TestAdminShellLoadsAccessibleStatusFilter(t *testing.T) {
 	if !strings.Contains(mustAdminCSS("ux.css"), ".status-pill--published") || !strings.Contains(markup, `href="/admin-assets/css/ux.css"`) {
 		t.Error("admin shell omitted status filtering styles")
 	}
+	if !strings.Contains(markup, `src="/admin-assets/js/status-filter.js"`) || !strings.Contains(markup, `src="/admin-assets/js/copy-text.js"`) {
+		t.Error("admin shell does not load the status filter and copy scripts")
+	}
+	scripts := adminAsset(t, "js/status-filter.js") + adminAsset(t, "js/copy-text.js")
 	for _, want := range []string{"data-status-filter", "data-status-row", "aria-live", "data-status-filter-clear", "data-copy-text", "clipboard.writeText"} {
-		if !strings.Contains(markup, want) {
+		if !strings.Contains(scripts, want) {
 			t.Errorf("admin shell omitted status filtering support %q", want)
 		}
 	}
