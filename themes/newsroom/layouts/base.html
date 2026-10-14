@@ -7,25 +7,25 @@
     <link rel="stylesheet" href="/theme/static/theme.css?v=00013d55">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700;8..60,900&display=swap" rel="stylesheet">
     {{slot "head"}}
   </head>
-  <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
-    <a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 bg-red-600 text-white px-4 py-2 rounded z-50 font-bold" href="#main-content">İçeriğe geç</a>
+  <body class="bg-white text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+    <a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 bg-slate-900 text-white px-4 py-2 z-50 font-bold" href="#main-content">İçeriğe geç</a>
 
-    <div class="bg-slate-900 text-slate-300 text-xs border-b border-slate-800">
-      <div class="max-w-7xl mx-auto px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
+    <div class="border-b border-slate-200 text-[11px] text-slate-500">
+      <div class="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-3">
         </div>
         <div class="flex items-center gap-3">
-          <a href="/member/login" class="hover:text-white transition inline-flex items-center gap-1 font-medium text-xs">
+          <a href="/member/login" class="hover:text-slate-900 transition inline-flex items-center gap-1 font-medium">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             Okur Girişi
           </a>
-          <span class="text-slate-700">|</span>
-          <a href="/member/register" class="hover:text-white transition text-xs font-medium">Kayıt Ol</a>
-          <span class="text-slate-700">|</span>
-          <a href="/admin" class="text-amber-400 hover:text-amber-300 font-bold transition inline-flex items-center gap-1 text-xs">
+          <span class="text-slate-300">|</span>
+          <a href="/member/register" class="hover:text-slate-900 transition font-medium">Kayıt Ol</a>
+          <span class="text-slate-300">|</span>
+          <a href="/admin" class="text-slate-400 hover:text-slate-700 font-semibold transition inline-flex items-center gap-1">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             Studio Paneli ↗
           </a>
@@ -33,36 +33,34 @@
       </div>
     </div>
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <a href="/" class="flex items-center gap-2 group text-decoration-none shrink-0">
-          <span class="bg-red-600 text-white font-black text-xl px-2.5 py-0.5 rounded tracking-tighter shadow-xs group-hover:bg-red-700 transition">HYDRO</span>
-          <span class="text-slate-900 font-black text-xl tracking-tighter">HABER</span>
-          <span class="hidden lg:inline-block border-l-2 border-slate-200 pl-3 ml-1 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Doğru · Hızlı · Bağımsız</span>
+    <header class="bg-white sticky top-0 z-40 border-b-2 border-slate-900">
+      <div class="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between gap-4">
+        <div class="flex-1 hidden md:flex"></div>
+        <a href="/" class="flex items-center justify-center gap-1 text-decoration-none shrink-0">
+          <span class="font-serif text-slate-900 font-black text-3xl md:text-4xl tracking-tight">HYDRO</span>
+          <span class="font-serif font-black text-3xl md:text-4xl tracking-tight" style="color:var(--red)">HABER</span>
         </a>
-
-        <nav class="hidden md:flex items-center gap-1 font-bold text-xs">
-          {{if .Navigation}}
-          {{slot "navigation"}}
-          {{else}}
-          <a href="/" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Ana Sayfa</a>
-          <a href="/public/news/tr/html?category=gundem" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Gündem</a>
-          <a href="/public/news/tr/html?category=ekonomi" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Ekonomi</a>
-          <a href="/public/news/tr/html?category=teknoloji" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Teknoloji</a>
-          <a href="/public/news/tr/html?category=dunya" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Dünya</a>
-          <a href="/public/news/tr/html?category=spor" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Spor</a>
-          <a href="/public/news/tr/html?category=yasam" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Yaşam</a>
-          <a href="/public/pages/tr/about/html" class="px-3 py-1.5 rounded-lg text-slate-700 hover:text-red-600 hover:bg-slate-100 transition">Hakkında</a>
-          {{end}}
-        </nav>
-
-        <div class="flex items-center gap-2">
-          <a href="/public/news/tr/html#news-grid" class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3.5 py-1.5 rounded-full shadow-xs transition">
-            <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-            CANLI AKIŞ
+        <div class="flex-1 flex items-center justify-end gap-3">
+          <a href="/public/news/tr/html#news-grid" class="inline-flex items-center gap-1.5 text-slate-900 hover:opacity-70 text-xs font-bold transition">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--red)"></span>
+            CANLI
           </a>
         </div>
       </div>
+
+      <nav class="hidden md:flex items-center justify-center gap-1 font-bold text-xs border-t border-slate-200 py-2.5">
+          {{if .Navigation}}
+          {{slot "navigation"}}
+          {{else}}
+          <a href="/" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Ana Sayfa</a>
+          <a href="/public/news/tr/html?category=gundem" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Gündem</a>
+          <a href="/public/news/tr/html?category=ekonomi" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Ekonomi</a>
+          <a href="/public/news/tr/html?category=teknoloji" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Teknoloji</a>
+          <a href="/public/news/tr/html?category=dunya" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Dünya</a>
+          <a href="/public/news/tr/html?category=spor" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Spor</a>
+          <a href="/public/pages/tr/about/html" class="px-3 py-1.5 text-slate-700 hover:text-[color:var(--red)] transition uppercase tracking-wide text-[11px] font-bold">Hakkında</a>
+          {{end}}
+      </nav>
     </header>
 
     {{slot "header"}}
@@ -71,28 +69,15 @@
     </main>
     {{slot "footer"}}
 
-    <footer class="bg-slate-900 text-slate-400 py-12 px-4 mt-auto border-t border-slate-800">
+    <footer class="bg-slate-900 text-slate-400 py-14 px-4 mt-auto border-t border-slate-800">
       <div class="max-w-7xl mx-auto">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800">
           <div>
-            <div class="flex items-center gap-2 mb-3">
-              <span class="bg-red-600 text-white font-black text-xl px-2.5 py-0.5 rounded tracking-tighter">HYDRO</span>
-              <span class="text-white font-black text-xl tracking-tighter">HABER</span>
-            </div>
+            <div class="font-serif font-black text-2xl mb-3"><span class="text-white">HYDRO</span> <span style="color:var(--red)">HABER</span></div>
             <p class="text-xs text-slate-400 leading-relaxed mb-4">Türkiye'nin ve dünyanın en önemli gelişmelerini tarafsız, doğru ve hızlı bir şekilde sunan bağımsız dijital haber portalı.</p>
-            <div class="flex gap-2">
-              <span class="bg-slate-800 text-slate-300 text-[11px] font-medium px-2.5 py-1 rounded inline-flex items-center gap-1">
-                <svg class="w-3 h-3 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                Go Altyapısı
-              </span>
-              <span class="bg-slate-800 text-slate-300 text-[11px] font-medium px-2.5 py-1 rounded inline-flex items-center gap-1">
-                <svg class="w-3 h-3 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                Tip Güvenli
-              </span>
-            </div>
           </div>
           <div>
-            <h4 class="text-white font-bold text-sm mb-3 uppercase tracking-wider">Kategoriler</h4>
+            <h4 class="text-white font-bold text-[11px] mb-3 uppercase tracking-wider">Kategoriler</h4>
             <ul class="space-y-2 text-xs">
               <li><a href="/public/news/tr/html?category=gundem" class="hover:text-white transition">Gündem Haberleri</a></li>
               <li><a href="/public/news/tr/html?category=ekonomi" class="hover:text-white transition">Ekonomi & Finans</a></li>
@@ -102,22 +87,22 @@
             </ul>
           </div>
           <div>
-            <h4 class="text-white font-bold text-sm mb-3 uppercase tracking-wider">Kurumsal</h4>
+            <h4 class="text-white font-bold text-[11px] mb-3 uppercase tracking-wider">Kurumsal</h4>
             <ul class="space-y-2 text-xs">
               <li><a href="/public/pages/tr/about/html" class="hover:text-white transition">Hakkımızda & İlkeler</a></li>
               <li><a href="/member/login" class="hover:text-white transition">Okur Girişi</a></li>
               <li><a href="/member/register" class="hover:text-white transition">Üye Ol</a></li>
               <li><a href="/admin" class="hover:text-white transition">Studio Yönetim Paneli</a></li>
-              <li><a href="/api/news?locale=tr" class="text-amber-400 hover:text-amber-300 font-mono">📡 REST API / RSS</a></li>
+              <li><a href="/api/news?locale=tr" class="text-slate-300 hover:text-white font-mono">REST API / RSS</a></li>
             </ul>
           </div>
           <div>
-            <h4 class="text-white font-bold text-sm mb-3 uppercase tracking-wider">İletişim & Künye</h4>
+            <h4 class="text-white font-bold text-[11px] mb-3 uppercase tracking-wider">İletişim & Künye</h4>
             <p class="text-xs leading-relaxed text-slate-400 mb-3">HydroGo Medya & Yayıncılık A.Ş.<br>Maslak, İstanbul / Türkiye<br>haber@haber.test</p>
             <p class="text-[11px] text-slate-500">Basın ahlak ilkelerine uymayı taahhüt ederiz.</p>
           </div>
         </div>
-        <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
           <p>© 2026 HYDRO HABER. Tüm hakları saklıdır. İçerikler kaynak gösterilmeden iktibas edilemez.</p>
           <div class="flex gap-4">
             <a href="/public/pages/tr/about/html" class="hover:text-slate-400">Gizlilik Politikası</a>

@@ -4,10 +4,10 @@
 (function () {
   'use strict';
 
-  var SLIDE_ACTIVE = 'w-9 h-8 flex items-center justify-center font-black text-xs rounded bg-[#ed1c24] text-white scale-110 shadow cursor-pointer';
-  var SLIDE_IDLE = 'w-9 h-8 flex items-center justify-center font-bold text-xs rounded bg-slate-900/80 text-white hover:bg-slate-700 transition cursor-pointer';
-  var PILL_ACTIVE = 'filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#ed1c24] text-white shadow-sm transition';
-  var PILL_IDLE = 'filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-300 transition';
+  var SLIDE_ACTIVE = 'slide-btn slide-btn-active w-8 h-8 flex items-center justify-center font-bold text-xs cursor-pointer transition';
+  var SLIDE_IDLE = 'slide-btn slide-btn-idle w-8 h-8 flex items-center justify-center font-bold text-xs cursor-pointer transition';
+  var PILL_ACTIVE = 'filter-pill filter-pill-active px-3 py-1.5 text-xs font-bold transition';
+  var PILL_IDLE = 'filter-pill filter-pill-idle px-3 py-1.5 text-xs font-bold transition';
 
   // Cover images fall back to the original upload when a CDN variant fails.
   document.addEventListener('error', function (event) {
@@ -84,10 +84,7 @@
       pill.className = norm(pill.dataset.filterPill) === key ? PILL_ACTIVE : PILL_IDLE;
     });
     document.querySelectorAll('#main-nav-links [data-news-category]').forEach(function (link) {
-      var active = norm(link.dataset.newsCategory) === key;
-      link.classList.toggle('bg-red-800', active);
-      link.classList.toggle('text-white', active);
-      link.classList.toggle('hover:bg-red-700', !active);
+      link.classList.toggle('nav-cat-active', norm(link.dataset.newsCategory) === key);
     });
     var visible = 0;
     cards().forEach(function (card) {
