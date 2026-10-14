@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
@@ -138,13 +138,40 @@ func TestWorkflowActionMarkupFollowsConfiguredPolicy(t *testing.T) {
 		Transitions: map[v1.EditorialState][]v1.EditorialState{v1.EditorialDraft: {}},
 	}}
 	item := news.Item{ID: "article-1", Status: news.StatusDraft}
-	markup := string(workflowActionMarkup(service, item))
-	forms := string(workflowFormsMarkup(service, item, "csrf"))
+	workflow := newsWorkflow(service, item, "csrf")
+	var actions, formsHTML strings.Builder
+	if err := newsWorkflowActions(workflow).Render(context.Background(), &actions); err != nil {
+		t.Fatal(err)
+	}
+	if err := newsWorkflowForms(workflow).Render(context.Background(), &formsHTML); err != nil {
+		t.Fatal(err)
+	}
+	markup, forms := actions.String(), formsHTML.String()
 	if strings.Contains(markup+forms, "/publish") || strings.Contains(markup+forms, "/schedule") || strings.Contains(markup+forms, "/retract") {
 		t.Fatalf("disallowed workflow action rendered: controls=%s forms=%s", markup, forms)
 	}
 	if !strings.Contains(markup, "kullanılabilir yayın aksiyonu yok") {
 		t.Fatalf("missing empty workflow action state: %s", markup)
+	}
+}
+
+func TestWorkflowFormsCarryCSRFAndVersionForAllowedTransitions(t *testing.T) {
+	item := news.Item{ID: "article 1", Status: news.StatusDraft, Version: 7}
+	workflow := newsWorkflow(news.Service{}, item, "csrf-<token>")
+	var actions, forms strings.Builder
+	if err := newsWorkflowActions(workflow).Render(context.Background(), &actions); err != nil {
+		t.Fatal(err)
+	}
+	if err := newsWorkflowForms(workflow).Render(context.Background(), &forms); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`id="news-publish-form" method="post" action="/admin/news/article%201/publish"`, `name="_csrf" value="csrf-&lt;token&gt;"`, `name="version" value="7"`} {
+		if !strings.Contains(forms.String(), want) {
+			t.Errorf("workflow forms missing %q: %s", want, forms.String())
+		}
+	}
+	if !strings.Contains(actions.String(), `form="news-publish-form"`) || strings.Contains(actions.String(), "kullanılabilir yayın aksiyonu yok") {
+		t.Errorf("draft workflow controls = %s", actions.String())
 	}
 }
 
