@@ -236,14 +236,16 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "page render failed", http.StatusInternalServerError)
 		return
 	}
-	designHead += `<link rel="stylesheet" href="/designsystem/static/article-reading.css"><script src="/designsystem/static/article-reading.js" defer></script>`
+	readingHead, err := renderString(r.Context(), publicReadingHead())
+	if err != nil {
+		http.Error(w, "page render failed", http.StatusInternalServerError)
+		return
+	}
+	designHead += readingHead
 	var readingTools bytes.Buffer
 	if err := ui.PublicArticleTools().Render(r.Context(), &readingTools); err != nil {
 		http.Error(w, "page render failed", http.StatusInternalServerError)
 		return
-	}
-	if editorAllowed(r) {
-		designHead += `<style>.hydro-inline-edit{position:fixed;right:18px;bottom:18px;z-index:9999;display:inline-flex;gap:7px;align-items:center;padding:10px 14px;border-radius:999px;background:#0284c7;color:#fff;text-decoration:none;font:600 14px/1.2 system-ui;box-shadow:0 4px 16px #0003}.hydro-inline-edit:hover{background:#0369a1}</style>`
 	}
 	consentMarkup := ""
 	if showConsentNotice {
@@ -285,10 +287,16 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 			relatedMarkup = template.HTML(relatedHTML.String())
 		}
 	}
+	allowHeadStyles(w.Header(), designHead)
 	if h.Theme != nil {
+		article, err := renderString(r.Context(), publicPageArticle(page.Title, readingTools.String(), tocHTML, articleHTML))
+		if err != nil {
+			http.Error(w, "page render failed", http.StatusInternalServerError)
+			return
+		}
 		var content strings.Builder
 		content.WriteString(searchMarkup)
-		fmt.Fprintf(&content, `<div data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div></div>`, template.HTMLEscapeString(page.Title), readingTools.String(), template.HTML(tocHTML), template.HTML(articleHTML))
+		content.WriteString(article)
 		if editorAllowed(r) {
 			content.WriteString(renderInPlaceEditLink(r, page.ID))
 		}
@@ -338,7 +346,11 @@ func (h Handler) getPublishedHTML(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="%s" dir="%s"><head><meta charset="utf-8"><title>%s</title>%s</head><body>%s<main data-testid="public-page"><h1>%s</h1>%s%s<div class="content-body article-reading-body">%s</div>%s%s</main>%s%s</body></html>`, template.HTMLEscapeString(page.Locale), canonical.Direction(page.Locale), template.HTMLEscapeString(page.Title), designHead, template.HTML(searchMarkup), template.HTMLEscapeString(page.Title), renderInPlaceEditLink(r, page.ID), readingTools.String(), template.HTML(articleHTML), blocks, relatedMarkup, template.HTML(consentMarkup), template.HTML(supportMarkup))
+	_ = publicPageDocument(publicPageView{
+		Locale: page.Locale, Direction: canonical.Direction(page.Locale), Title: page.Title,
+		Head: designHead, Search: searchMarkup, EditLink: renderInPlaceEditLink(r, page.ID), Tools: readingTools.String(),
+		Article: articleHTML, Blocks: blocks, Related: string(relatedMarkup), Consent: consentMarkup, Support: supportMarkup,
+	}).Render(r.Context(), w)
 }
 
 func (h Handler) recordNotFound(r *http.Request) {
@@ -417,24 +429,21 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 	if h.PublicSEOSettings != nil {
 		settings = h.PublicSEOSettings(ctx)
 	}
-	var head strings.Builder
-	if settings.AppearanceCSS != "" {
-		fmt.Fprintf(&head, `<style>%s</style>`, settings.AppearanceCSS)
-	}
+	head := seoHeadView{AppearanceCSS: settings.AppearanceCSS}
 	if validLocalFontCSS(settings.FontCSS) {
-		fmt.Fprintf(&head, `<link rel="stylesheet" href="%s">`, template.HTMLEscapeString(settings.FontCSS))
+		head.FontCSS = settings.FontCSS
 	}
-	if site.ValidAppearanceAssetURL(settings.FaviconURL) && settings.FaviconURL != "" {
-		fmt.Fprintf(&head, `<link rel="icon" href="%s">`, template.HTMLEscapeString(settings.FaviconURL))
+	if site.ValidAppearanceAssetURL(settings.FaviconURL) {
+		head.FaviconURL = settings.FaviconURL
 	}
 	if settings.BusinessProfile != nil {
 		if jsonLD, err := site.BusinessJSONLD(*settings.BusinessProfile); err == nil {
-			fmt.Fprintf(&head, `<script type="application/ld+json">%s</script>`, jsonLD)
+			head.BusinessJSONLD = json.RawMessage(jsonLD)
 		}
 	}
 	origin := strings.TrimSpace(h.SEOOrigin)
 	if origin == "" {
-		return head.String(), nil
+		return renderString(ctx, seoHead(head))
 	}
 	ogInput := h.pageOGInput(page, settings)
 	imagePath := "/og/" + url.PathEscape(page.Locale) + "/" + url.PathEscape(page.Slug) + ".png?v=" + seo.OGVersion(ogInput)
@@ -455,15 +464,17 @@ func (h Handler) pageSEOMeta(ctx context.Context, page pages.Page) (string, erro
 				continue
 			}
 			href := strings.TrimRight(origin, "/") + "/public/pages/" + url.PathEscape(locale) + "/" + url.PathEscape(variant.Slug) + "/html"
-			fmt.Fprintf(&head, `<link rel="alternate" hreflang="%s" href="%s">`, template.HTMLEscapeString(locale), template.HTMLEscapeString(href))
+			head.Alternates = append(head.Alternates, seoAlternate{Locale: locale, Href: href})
 		}
 	}
-	ogImage := view.OGImage
+	head.OGImage = view.OGImage
 	if site.ValidAppearanceAssetURL(settings.SocialImageURL) && settings.SocialImageURL != "" {
-		ogImage = strings.TrimRight(origin, "/") + settings.SocialImageURL
+		head.OGImage = strings.TrimRight(origin, "/") + settings.SocialImageURL
 	}
-	fmt.Fprintf(&head, `<link rel="canonical" href="%s"><meta name="description" content="%s"><meta property="og:type" content="website"><meta property="og:title" content="%s"><meta property="og:description" content="%s"><meta property="og:url" content="%s"><meta property="og:image" content="%s"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="%s">`, template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(view.Description), template.HTMLEscapeString(view.OGTitle), template.HTMLEscapeString(view.OGDescription), template.HTMLEscapeString(view.CanonicalURL), template.HTMLEscapeString(ogImage), template.HTMLEscapeString(ogImage))
-	return head.String(), nil
+	head.Social = true
+	head.Canonical, head.Description = view.CanonicalURL, view.Description
+	head.OGTitle, head.OGDescription = view.OGTitle, view.OGDescription
+	return renderString(ctx, seoHead(head))
 }
 
 func (h Handler) publicSEOSettings(ctx context.Context) PublicSEOSettings {
@@ -625,7 +636,11 @@ func (h Handler) publicDraftPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "draft preview unavailable", http.StatusInternalServerError)
 		return
 	}
-	body := `<main><h1>` + template.HTMLEscapeString(page.Title) + `</h1><div class="content-body article-reading-body">` + article + `</div>` + blocks + `</main>`
+	body, err := renderString(r.Context(), draftPreviewBody(page.Title, article, blocks))
+	if err != nil {
+		http.Error(w, "draft preview unavailable", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 	w.Header().Set("Referrer-Policy", "no-referrer")
@@ -636,7 +651,7 @@ func (h Handler) publicDraftPreview(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	_, _ = fmt.Fprintf(w, "<!doctype html><html lang=\"%s\"><head><meta charset=\"utf-8\"><meta name=\"robots\" content=\"noindex,nofollow\"><title>%s</title></head><body>%s</body></html>", template.HTMLEscapeString(page.Locale), template.HTMLEscapeString(page.Title), body)
+	_ = draftPreviewDocument(page.Locale, page.Title, body).Render(r.Context(), w)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
