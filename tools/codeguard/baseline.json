@@ -7,7 +7,7 @@
   },
   "cmd/hydro/main.go": {
     "html_strings": 2,
-    "lines": 2840
+    "lines": 2823
   },
   "extension/v1/theme_navigation.go": {
     "html_strings": 2
@@ -48,13 +48,6 @@
   },
   "internal/config/config.go": {
     "lines": 896
-  },
-  "internal/generator/admin_templates.go": {
-    "html_strings": 1
-  },
-  "internal/generator/generator.go": {
-    "html_strings": 7,
-    "lines": 2983
   },
   "internal/mailer/branding.go": {
     "html_strings": 6
@@ -143,9 +136,6 @@
   },
   "modules/site/transport/navigation_editor.go": {
     "html_strings": 11
-  },
-  "tests/external-edition/cmd/testserver/main.go": {
-    "html_strings": 1
   },
   "tools/devserver/main.go": {
     "html_strings": 10,

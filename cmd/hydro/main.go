@@ -208,22 +208,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return cleanDemoCommand(args[1:], stdout, stderr)
 	case "sdk":
 		return sdkCommand(args[1:], stdout, stderr)
-	case "generate":
-		return generateCommand(args[1:], stdout, stderr)
-	case "module":
-		return moduleCommand(args[1:], stdout, stderr)
-	case "resource":
-		return resourceCommand(args[1:], stdout, stderr)
-	case "collections":
-		return collectionsCommand(args[1:], stdout, stderr)
-	case "api":
-		return apiCommand(args[1:], stdout, stderr)
 	case "schema":
 		return schemaCommand(args[1:], stdout, stderr)
 	case "db":
 		return dbCommand(args[1:], stdout, stderr)
-	case "permissions":
-		return permissionsCommand(args[1:], stdout, stderr)
 	case "doctor":
 		return doctor(args[1:], stdout, stderr)
 	case "validate":
@@ -240,11 +228,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return releaseCommand(args[1:], stdout, stderr)
 	case "runtime":
 		return runtimeCommand(args[1:], stdout, stderr)
-	case "new":
-		if len(args) > 1 && args[1] == "resource" {
-			return interactiveResourceCommand(args[2:], stdin, stdout, stderr)
-		}
-		return errors.New("new supports only the resource subcommand: hydro new resource")
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
 	case "tenant":
