@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -138,7 +137,7 @@ func (a *serveApp) homeRoutes() []router.Route {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled()))
+		writeTrustedHTML(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled()))
 	})}, {Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.siteRootPage)}, {Pattern: "GET /docs", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lang := r.URL.Query().Get("lang")
 		if lang != "tr" {
@@ -146,7 +145,7 @@ func (a *serveApp) homeRoutes() []router.Route {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Language", lang)
-		_, _ = io.WriteString(w, docsPortalHTML(lang))
+		writeTrustedHTML(w, docsPortalHTML(lang))
 	})}}
 }
 
@@ -182,7 +181,7 @@ func (a *serveApp) siteRootPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled()))
+		writeTrustedHTML(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled()))
 		return
 	}
 	http.NotFound(w, r)
