@@ -1,0 +1,7 @@
+{
+  "name": "newsroom",
+  "version": "1.0.0",
+  "tokens": {"primary": "#ed1c24", "surface": "#ffffff"},
+  "slots": ["header", "content", "footer", "navigation"],
+  "assets": ["static/theme.css", "static/theme.js"]
+}

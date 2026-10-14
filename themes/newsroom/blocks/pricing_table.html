@@ -1,0 +1,30 @@
+<section class="theme-corporate-pricing" data-block="pricing_table">
+  <div class="section-head-wrap">
+    <h2 class="section-title">İhtiyacınıza Uygun Dağıtım Profilleri</h2>
+    <p class="section-desc">Gömülü SQLite tek ikili dosyadan yüksek erişilebilirlikli PostgreSQL kümesine.</p>
+  </div>
+  <div class="pricing-card-grid">
+    {{range .Payload.items}}
+    <div class="pricing-card">
+      <div class="pricing-card-header">
+        <h3 class="pricing-plan-name">{{if .name}}{{.name}}{{else if .Name}}{{.Name}}{{end}}</h3>
+        <div class="pricing-price-wrap">
+          <span class="price-value">{{if .price_cents}}{{.price_cents}}{{else if .PriceCents}}{{.PriceCents}}{{else}}0{{end}}</span>
+          <span class="price-currency">{{if .currency}}{{.currency}}{{else if .Currency}}{{.Currency}}{{end}}</span>
+        </div>
+      </div>
+      <ul class="pricing-feature-list">
+        {{range .features}}
+        <li class="pricing-feature-item">
+          <svg class="feature-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>{{.}}</span>
+        </li>
+        {{end}}
+      </ul>
+      <div class="pricing-action-wrap">
+        <a class="btn-secondary pricing-btn" href="/shop">Paketi İncele</a>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</section>
