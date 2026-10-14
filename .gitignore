@@ -82,3 +82,7 @@ scratch*.py
 /.cache/
 /.agent-go-cache/
 
+
+# Local scratch scripts and separately-versioned client projects
+/scratch/
+/news-portal/

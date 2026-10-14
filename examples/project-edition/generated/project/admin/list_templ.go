@@ -45,11 +45,27 @@ func ProjectList(view ProjectListView) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"admin-resource\" data-resource=\"/admin/project\"><h1>Project</h1><div id=\"Project-list\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"admin-resource\" data-resource=\"/admin/project\"><h1>Projects</h1><div class=\"admin-list-toolbar\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = ui.Table(ui.TableProps{Caption: "Project", Columns: ProjectListColumns(), Rows: ProjectListRows(view.Rows), EmptyMessage: "Kayıt bulunamadı."}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ui.Input(ui.InputProps{ID: "project_code-search", Name: "search", Label: "Ara", Value: view.Search, HTMX: ui.HTMX{Get: "/admin/project", Target: "#Project-list", Swap: "innerHTML", Trigger: "keyup changed delay:300ms"}}).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><div class=\"admin-list-filters\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ui.Select(ui.SelectProps{ID: "status-filter", Name: "status", Label: "Status", Options: []string{"draft", "active", "completed"}, HTMX: ui.HTMX{Get: "/admin/project", Target: "#Project-list", Swap: "innerHTML"}}).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div id=\"Project-list\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ui.Table(ui.TableProps{Caption: "Projects", Columns: ProjectListColumns(), Rows: ProjectListRows(view.Rows), EmptyMessage: "Kayıt bulunamadı."}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -57,7 +73,7 @@ func ProjectList(view ProjectListView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -66,13 +82,13 @@ func ProjectList(view ProjectListView) templ.Component {
 }
 
 func ProjectListColumns() []string {
-	return []string{}
+	return []string{"Status", "Title"}
 }
 
 func ProjectListRows(rows []ProjectListRow) [][]string {
 	result := make([][]string, 0, len(rows))
-	for range rows {
-		result = append(result, []string{})
+	for _, row := range rows {
+		result = append(result, []string{row.Values["status"], row.Values["title"]})
 	}
 	return result
 }

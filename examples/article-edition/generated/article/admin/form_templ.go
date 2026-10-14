@@ -69,7 +69,7 @@ func ArticleFormFields(view ArticleFormView) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = ui.Input(ui.InputProps{ID: "slug", Name: "slug", Label: "Slug", Type: "text", Value: view.Values["slug"], Required: true}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ui.Input(ui.InputProps{ID: "slug", Name: "slug", Label: "Slug", Type: "text", Value: view.Values["slug"], Required: true, MinLength: 0, MaxLength: 0, HasMinLength: false, HasMaxLength: false}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -77,7 +77,7 @@ func ArticleFormFields(view ArticleFormView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = ui.Input(ui.InputProps{ID: "title", Name: "title", Label: "Title", Type: "text", Value: view.Values["title"], Required: true}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ui.Input(ui.InputProps{ID: "title", Name: "title", Label: "Title", Type: "text", Value: view.Values["title"], Required: true, MinLength: 0, MaxLength: 0, HasMinLength: false, HasMaxLength: false}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
