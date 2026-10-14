@@ -19,7 +19,6 @@
 {{end}}{{end}}
 
 {{define "nr-masthead"}}<body class="bg-white text-stone-900 antialiased min-h-screen flex flex-col font-sans">
-<div class="hidden sm:block bg-stone-900 text-stone-400"><div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-8">{{if .Today}}<span class="text-xs text-stone-400 capitalize">{{.Today}}</span>{{else}}<span></span>{{end}}</div></div>
 <header class="bg-white sticky top-0 z-40 shadow-sm">
 <div class="border-b border-stone-100"><div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14 gap-4">
 <a href="/" class="flex items-center gap-1 text-decoration-none shrink-0">
@@ -33,11 +32,11 @@
 </div>
 <div class="flex items-center gap-3 sm:gap-4 shrink-0">
 <a href="{{.NewsURL}}#news-grid" class="inline-flex items-center gap-1.5 text-stone-900 hover:opacity-70 text-xs font-bold transition"><span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--red)"></span><span class="hidden sm:inline">CANLI</span></a>
-<a href="/member/login" class="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-stone-600 hover:text-stone-900 transition">{{template "nr-user-icon"}}Giriş</a>
+<a href="/member/login" class="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-stone-600 hover:text-stone-900 transition">Giriş</a>
 <a href="/member/register" class="inline-flex items-center rounded bg-stone-900 px-3 h-8 text-xs font-semibold text-white hover:opacity-85 transition">Üye ol</a>
 </div>
 </div></div>
-<div class="border-t-2 bg-white" style="border-color:var(--red)"><div class="max-w-7xl mx-auto px-4 sm:px-6">
+<div class="bg-white"><div class="max-w-7xl mx-auto px-4 sm:px-6">
 <nav class="flex items-center overflow-x-auto whitespace-nowrap scrollbar-none" aria-label="Bölümler"><div class="flex items-center" id="main-nav-links">{{if .Navigation}}{{.Navigation}}{{else}}{{template "nr-section-links" .}}{{end}}</div></nav>
 </div></div>
 </header>
