@@ -3,8 +3,6 @@ package adminstudio
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2465,53 +2463,6 @@ func generatedAdminValidationErrors(collection Collection, response []byte, loca
 	return result, true
 }
 
-func parseAdminField(field Field, values []string) (any, error) {
-	if field.Kind == FieldRelation && field.Relation != nil && field.Relation.Cardinality == "many" {
-		limit := field.Relation.MaxItems
-		if limit == 0 {
-			limit = 100
-		}
-		if len(values) > limit {
-			return nil, errors.New("too many related records")
-		}
-		seen := make(map[string]struct{}, len(values))
-		for _, value := range values {
-			if strings.TrimSpace(value) == "" {
-				return nil, errors.New("empty related record")
-			}
-			if _, exists := seen[value]; exists {
-				return nil, errors.New("duplicate related record")
-			}
-			seen[value] = struct{}{}
-		}
-		return append([]string(nil), values...), nil
-	}
-	if len(values) != 1 {
-		return nil, errors.New("multiple field values")
-	}
-	value := values[0]
-	switch field.Kind {
-	case FieldNumber:
-		return strconv.ParseFloat(value, 64)
-	case FieldBoolean:
-		return value == "true" || value == "on" || value == "1", nil
-	case FieldArray:
-		if value == "" {
-			return []string{}, nil
-		}
-		items := strings.Split(value, "\n")
-		result := make([]string, 0, len(items))
-		for _, item := range items {
-			if item = strings.TrimSpace(item); item != "" {
-				result = append(result, item)
-			}
-		}
-		return result, nil
-	default:
-		return value, nil
-	}
-}
-
 func (h GeneratedAdminHandler) callAPI(r *http.Request, method, target string, body []byte) ([]byte, int, error) {
 	req := r.Clone(r.Context())
 	parsed, err := url.Parse(target)
@@ -2673,42 +2624,4 @@ func (h GeneratedAdminHandler) apiError(w http.ResponseWriter, r *http.Request) 
 		}).Render(ctx, out)
 	})
 	h.renderPageStatus(w, r, i18n.T(locale, "admin.generated.error.load_title"), body, http.StatusBadGateway)
-}
-
-func displayValue(value any) string {
-	if value == nil {
-		return ""
-	}
-	switch value := value.(type) {
-	case []string:
-		return strings.Join(value, ",")
-	case []any:
-		items := make([]string, 0, len(value))
-		for _, item := range value {
-			items = append(items, fmt.Sprint(item))
-		}
-		return strings.Join(items, ",")
-	}
-	return fmt.Sprint(value)
-}
-
-func displayFormValue(field Field, value any) string {
-	if field.Kind == FieldArray {
-		switch items := value.(type) {
-		case []string, []any:
-			encoded, err := json.Marshal(items)
-			if err == nil {
-				return string(encoded)
-			}
-		}
-	}
-	return displayValue(value)
-}
-
-func randomAdminID() string {
-	var value [16]byte
-	if _, err := rand.Read(value[:]); err != nil {
-		return ""
-	}
-	return hex.EncodeToString(value[:])
 }
