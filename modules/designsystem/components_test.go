@@ -63,12 +63,14 @@ func TestContentViewSortOffersAccessibleSortLinks(t *testing.T) {
 
 func TestDeviceViewportPreviewIsAccessibleAndSandboxed(t *testing.T) {
 	got := render(t, DeviceViewportPreview(DeviceViewportPreviewProps{Endpoint: "/admin/pages/one%2Ftwo/preview-link", CSRF: "token<&"}))
-	for _, want := range []string{`data-device-preview-open`, `data-device-preview-dialog`, `aria-labelledby=`, `data-device-size="mobile"`, `aria-pressed="true"`, `375 px`, `Masaüstü`, `sandbox=""`, `referrerpolicy="no-referrer"`, `data-device-preview-frame`} {
+	for _, want := range []string{`data-device-preview-open`, `data-device-preview-dialog`, `aria-labelledby=`, `data-device-size="mobile"`, `aria-pressed="true"`, `375 px`, `Masaüstü`, `sandbox="allow-same-origin"`, `referrerpolicy="no-referrer"`, `data-device-preview-frame`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("device preview missing %q: %s", want, got)
 		}
 	}
-	if strings.Contains(got, "allow-same-origin") || strings.Contains(got, `csrf="token<&"`) {
+	// allow-same-origin lets the theme stylesheet and images load past
+	// Cross-Origin-Resource-Policy: same-origin; scripts must stay disabled.
+	if strings.Contains(got, "allow-scripts") || strings.Contains(got, `csrf="token<&"`) {
 		t.Fatalf("device preview must keep the iframe sandboxed and escape attributes: %s", got)
 	}
 }

@@ -196,11 +196,16 @@ func (h Handler) adminPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	publicPath := "/public/news/" + url.PathEscape(item.Locale) + "/" + url.PathEscape(item.Slug) + "/html"
-	if item.Status != news.StatusPublished {
-		if h.PreviewSigner == nil || (item.Status != news.StatusDraft && item.Status != news.StatusScheduled && item.Status != news.StatusRetracted) {
-			http.Error(w, "news preview unavailable", http.StatusServiceUnavailable)
-			return
-		}
+	// Every previewable status gets a revision-bound token: the admin embeds
+	// this URL in a same-origin iframe, and only token-carrying responses may
+	// be framed (see publicGetHTML). Published items without a signer fall
+	// back to the plain public URL.
+	previewable := item.Status == news.StatusPublished || item.Status == news.StatusDraft || item.Status == news.StatusScheduled || item.Status == news.StatusRetracted
+	if !previewable || (h.PreviewSigner == nil && item.Status != news.StatusPublished) {
+		http.Error(w, "news preview unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if h.PreviewSigner != nil {
 		claims := preview.Claims{ResourceType: "news", ResourceID: item.ID, Revision: item.Revision}
 		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
 			claims.TenantID = scope.TenantID

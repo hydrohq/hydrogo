@@ -347,7 +347,7 @@ func (h Handler) publicHTMLItem(r *http.Request, locale, slug string) (news.Item
 		}
 	}
 	item, err := h.Service.Repository.Get(r.Context(), h.DB, claims.ResourceID)
-	if err != nil || item.Status == news.StatusPublished || item.Revision != claims.Revision || item.Locale != locale || item.Slug != slug {
+	if err != nil || item.Revision != claims.Revision || item.Locale != locale || item.Slug != slug {
 		return news.Item{}, false, errors.New("preview unavailable")
 	}
 	return item, true, nil
