@@ -7,7 +7,7 @@ change does not serve that, don't make it. Background:
 
 ## Before you finish any task
 
-Run `make check` (build, vet, gofmt, guards, tests). If you changed UI, also
+Run `go run ./tools/check` (or `make check`; build, vet, gofmt, guards, tests). If you changed UI, also
 open the page and look at it (see "UI work" below). Don't report a task as
 done if either step failed.
 
@@ -56,8 +56,12 @@ type. Content types get admin screens at `/admin/resources/<id>` and, with
 - Admin UI: Go + Templ + HTMX. Build screens from the components in
   `internal/ui/components`; if one is missing, add it there rather than
   writing one-off markup.
-- Every interactive element needs hover, focus-visible and disabled states,
-  and HTMX swaps should use a short transition. Respect `prefers-reduced-motion`.
+- New admin CSS goes in `static/admin/admin.css` (served at
+  `/admin-assets/admin.css`), never in Go strings. It already provides hover,
+  press, focus-visible, invalid-field and htmx swap transitions on the shell's
+  `--motion-*` tokens; reuse them and respect `prefers-reduced-motion`.
+- htmx is loaded on every admin page. To show a toast after a request, send
+  `HX-Trigger: {"hydro:toast": {"message": "Saved"}}`.
 - Look at the result. Start the dev server (`go run ./tools/devserver`), then
   screenshot the pages you changed at desktop and phone width and open the PNGs:
 
@@ -72,6 +76,6 @@ type. Content types get admin screens at `/admin/resources/<id>` and, with
 
 ```bash
 go run ./tools/devserver   # dev server with rebuilds + demo data, http://127.0.0.1:8090
-make check                 # everything CI checks that runs fast locally
+go run ./tools/check       # everything CI checks that runs fast locally (or: make check)
 go test ./modules/news/... # one package
 ```
