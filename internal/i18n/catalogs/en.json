@@ -85,6 +85,7 @@
   "admin.generated.revisions.version": "Version %d",
   "admin.generated.revisions.detail_title": "Version %d · Historical and current record",
   "admin.generated.revisions.restore": "Restore this version",
+  "admin.generated.workflow.title": "Publishing",
   "admin.generated.workflow.draft": "Move to draft",
   "admin.generated.workflow.schedule": "Schedule publication",
   "admin.generated.workflow.publish": "Publish",

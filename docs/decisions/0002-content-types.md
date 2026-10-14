@@ -38,8 +38,8 @@ not have yet.
 - New simple content needs no Go code. The 11 sectoral modules removed in
   0001 come back as YAML files when needed (FAQ, team and testimonials ship
   as examples).
-- Not yet supported for content types: drafts, revisions, localisation,
-  workflow, array and block fields. They will be added to collection storage
+- Not yet supported for content types: revisions, localisation, separate
+  draft copies of published records, scheduling, array and block fields. They will be added to collection storage
   behind the callbacks `GeneratedAdminHandler` already defines.
 - Lists support search (`searchable: true` fields), filters
   (`filterable: true`) and sorting by list columns. Collection storage runs
@@ -47,6 +47,15 @@ not have yet.
   `->>`, MySQL `JSON_EXTRACT`) with field paths as bound parameters, after
   checking every field ID against the schema. The public API accepts
   `?search=`, `?filter[field]=` and `?sort=[-]field`.
+- `drafts: true` gives records a `status` field (`draft` or `published`)
+  driven by `GeneratedAdminHandler`'s workflow mode (`CanTransition` /
+  `Transition`): new records are drafts, Publish and Move to draft change the
+  status with version checks, saves keep it, and the public API filters on
+  it so drafts are never served. Editing a published record changes the live
+  record; the handler's separate draft-copy mode (`Drafts`, with draft
+  storage, publish and discard) was not used because it needs a second
+  storage model for working copies. A workflow therefore no longer requires
+  `Revisions` in `adminstudio`, only versioned records.
 - The blueprint generator and the browser-based schema builder at
   `/admin/collections` (with its `/api/v1/collections` API) overlapped with
   this and have been removed.

@@ -187,7 +187,9 @@ func validateCollection(collection Collection) error {
 	}
 	if collection.Workflow != nil {
 		workflow := collection.Workflow
-		if !collection.Versioned || !collection.Revisions || workflow.StateField == "" || workflow.Validate() != nil {
+		// A workflow needs versioned records for its compare-and-set
+		// transitions; revision history is optional.
+		if !collection.Versioned || workflow.StateField == "" || workflow.Validate() != nil {
 			return ErrInvalidCollection
 		}
 		stateField, found := func() (Field, bool) {

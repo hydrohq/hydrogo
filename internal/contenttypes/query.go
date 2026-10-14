@@ -122,7 +122,8 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 			return collections.Query{}, fmt.Errorf("%w: unsupported parameter %q", collections.ErrInvalidQuery, key)
 		}
 	}
-	if len(query.Where)+len(query.AnyOf) > collections.MaxQueryConditions {
+	// One condition is kept free for the published-only filter of drafts types.
+	if len(query.Where)+len(query.AnyOf) > collections.MaxQueryConditions-1 {
 		return collections.Query{}, fmt.Errorf("%w: too many conditions", collections.ErrInvalidQuery)
 	}
 	return query, nil

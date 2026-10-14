@@ -8,11 +8,19 @@
 //	label: FAQ
 //	title_field: question
 //	public: true
+//	drafts: true
 //	fields:
 //	  - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
 //	  - {id: answer, label: Answer, kind: richtext, required: true, searchable: true}
 //	  - {id: category, label: Category, kind: select, options: [general, billing], list: true, filterable: true}
 //	  - {id: owner, label: Owner, kind: relation, to: team}
+//
+// Type keys: id, label, description, group, icon, title_field, fields, and:
+//
+//   - public: serve published records at /api/v1/content/{id}.
+//   - drafts: give records a draft/published status (a "status" field the
+//     admin changes with Publish and Move to draft). New records are drafts;
+//     the public API never returns drafts.
 //
 // Field keys: id, label, kind, required, unique, options (select), to and
 // many (relation), min and max (number), and:
@@ -56,14 +64,18 @@ var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
 // Definition is one content type as written in YAML.
 type Definition struct {
-	ID          string  `yaml:"id"`
-	Label       string  `yaml:"label"`
-	Description string  `yaml:"description"`
-	Group       string  `yaml:"group"`
-	Icon        string  `yaml:"icon"`
-	TitleField  string  `yaml:"title_field"`
-	Public      bool    `yaml:"public"`
-	Fields      []Field `yaml:"fields"`
+	ID          string `yaml:"id"`
+	Label       string `yaml:"label"`
+	Description string `yaml:"description"`
+	Group       string `yaml:"group"`
+	Icon        string `yaml:"icon"`
+	TitleField  string `yaml:"title_field"`
+	Public      bool   `yaml:"public"`
+	// Drafts adds a draft/published status to every record. New records
+	// start as drafts, the admin publishes and unpublishes them, and the
+	// public API only returns published records.
+	Drafts bool    `yaml:"drafts"`
+	Fields []Field `yaml:"fields"`
 }
 
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
@@ -133,6 +145,9 @@ func (d Definition) Validate() error {
 		if reserved[field.ID] {
 			return fmt.Errorf("%w: field id %q is reserved", ErrInvalidDefinition, field.ID)
 		}
+		if d.Drafts && field.ID == StatusField {
+			return fmt.Errorf("%w: field id %q is reserved for drafts", ErrInvalidDefinition, field.ID)
+		}
 		if field.Kind == "relation" && strings.TrimSpace(field.To) == "" {
 			return fmt.Errorf("%w: relation field %q needs to:", ErrInvalidDefinition, field.ID)
 		}
@@ -171,6 +186,11 @@ func (d Definition) Schema() (collections.Schema, error) {
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
 		})
+	}
+	if d.Drafts {
+		// Not required: records written before drafts were enabled have no
+		// status and count as drafts (see recordStatus).
+		schema.Fields = append(schema.Fields, collections.Field{ID: StatusField, Label: "Status", Kind: collections.Select, Options: []string{StatusDraft, StatusPublished}})
 	}
 	return schema, nil
 }
@@ -255,6 +275,20 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 			admin.Kind = adminstudio.FieldKind(field.Kind)
 		}
 		collection.Fields = append(collection.Fields, admin)
+	}
+	if d.Drafts {
+		collection.Fields = append(collection.Fields, adminstudio.Field{
+			ID: StatusField, Label: "Status", Kind: adminstudio.FieldSelect, VisibleInList: true, Filterable: true,
+			Options: []string{StatusDraft, StatusPublished},
+		})
+		collection.Workflow = &adminstudio.Workflow{
+			StateField: StatusField,
+			States:     []adminstudio.PublicationState{adminstudio.StateDraft, adminstudio.StatePublished},
+			Transitions: map[adminstudio.PublicationState][]adminstudio.PublicationState{
+				adminstudio.StateDraft:     {adminstudio.StatePublished},
+				adminstudio.StatePublished: {adminstudio.StateDraft},
+			},
+		}
 	}
 	return collection
 }

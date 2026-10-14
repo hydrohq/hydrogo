@@ -100,6 +100,10 @@ func (a AdminAPI) save(w http.ResponseWriter, r *http.Request, schema collection
 		expectedVersion = int(version)
 	}
 	data := toStorage(schema, payload)
+	if err := a.keepStatus(r, schema.ID, id, data); err != nil {
+		writeServiceError(w, err, schema, nil)
+		return
+	}
 	var record collections.Record
 	if id == "" {
 		record, err = a.Service.CreateRecord(r.Context(), schema.ID, data)
@@ -137,6 +141,9 @@ func (a AdminAPI) formatForForm(typeID string, record map[string]any) map[string
 	for _, definition := range a.Types {
 		if definition.ID != typeID {
 			continue
+		}
+		if definition.Drafts {
+			record[StatusField] = recordStatus(record)
 		}
 		for _, field := range definition.Fields {
 			layout := ""

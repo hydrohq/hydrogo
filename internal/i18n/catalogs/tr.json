@@ -85,6 +85,7 @@
   "admin.generated.revisions.version": "Sürüm %d",
   "admin.generated.revisions.detail_title": "Sürüm %d · Geçmiş ve geçerli belge",
   "admin.generated.revisions.restore": "Bu sürüme geri yükle",
+  "admin.generated.workflow.title": "Yayın akışı",
   "admin.generated.workflow.draft": "Taslağa al",
   "admin.generated.workflow.schedule": "Yayını planla",
   "admin.generated.workflow.publish": "Yayımla",
