@@ -142,6 +142,10 @@ test.describe("Admin Studio MFA self-service", () => {
     const loginMFA = page.locator("#login-mfa-code");
     await expect(loginMFA).toBeEnabled();
     const assertLoginAccessibility = async (state: string, mode: string) => {
+      // Let hover/colour transitions from the last click settle so axe sees
+      // the resting state, not a mid-transition frame.
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(400);
       const themeTokens = await page.evaluate(() => ({
         mode: document.documentElement.dataset.theme,
         accent: getComputedStyle(document.documentElement).getPropertyValue("--brand-accent").trim(),

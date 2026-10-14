@@ -451,7 +451,7 @@ img{@apply tw:max-w-[100%] tw:h-auto tw:block;}
 .footer-summary{@apply tw:text-[0.85rem] tw:text-[var(--iron)] tw:leading-[1.55] tw:m-[0];}
 .footer-badge-list{@apply tw:flex tw:gap-[6px] tw:flex-wrap;}
 .f-badge{@apply tw:text-[0.72rem] tw:font-[500] tw:bg-[rgba(255,_255,_255,_0.04)] tw:text-[var(--smoke)] tw:rounded-[var(--radius-full)];border:1px solid var(--edge);padding:3px 10px;}
-.footer-nav-col h4{@apply tw:text-[0.8rem] tw:font-[600] tw:uppercase tw:tracking-[0.05em] tw:text-[var(--snow-pure)];margin:0 0 14px;}
+.footer-nav-col h2{@apply tw:text-[0.8rem] tw:font-[600] tw:uppercase tw:tracking-[0.05em] tw:text-[var(--snow-pure)];margin:0 0 14px;}
 .footer-nav-col nav{@apply tw:flex tw:flex-col tw:gap-[8px];}
 .footer-nav-col nav a{@apply tw:text-[0.85rem] tw:text-[var(--iron)];}
 .footer-nav-col nav a:hover{@apply tw:text-[var(--snow-pure)];}

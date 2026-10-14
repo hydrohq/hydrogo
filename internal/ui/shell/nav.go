@@ -169,3 +169,15 @@ func containsRole(roles []auth.Role, role string) bool {
 	}
 	return false
 }
+
+// HomeHref is where the brand link goes: the first sidebar link the user may
+// open (the dashboard for admins and editors, e.g. news for viewers), so the
+// logo never leads to a page that answers 403.
+func (v View) HomeHref() string {
+	for _, section := range v.Sidebar() {
+		for _, item := range section.Items {
+			return item.Href
+		}
+	}
+	return "/admin"
+}

@@ -84,7 +84,7 @@ templ banners(v View) {
 templ Sidebar(v View) {
 	<aside class="studio-sidebar" x-data="studioSidebar" x-on:click="follow">
 		<div class="sidebar-header">
-			<a class="studio-brand" href="/admin"><div class="brand-logo-mark">@brandMark()</div><div class="brand-text"><span>HYDRO<b>GO</b></span><small>Studio</small></div></a>
+			<a class="studio-brand" href={ templ.SafeURL(v.HomeHref()) }><div class="brand-logo-mark">@brandMark()</div><div class="brand-text"><span>HYDRO<b>GO</b></span><small>Studio</small></div></a>
 		</div>
 		<div class="sidebar-scroll">
 			<nav aria-label={ v.T(Text{"Yönetim menüsü", "Admin navigation"}) }>
