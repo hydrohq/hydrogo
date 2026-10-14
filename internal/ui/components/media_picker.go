@@ -1,8 +1,6 @@
 package components
 
 import (
-	"context"
-	"io"
 	"net/url"
 	"strings"
 
@@ -21,46 +19,44 @@ type MediaPickerProps struct {
 // chooser link. The link is intentionally just a UI affordance; the mutation
 // handler must validate ownership and permissions again.
 func MediaPicker(p MediaPickerProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		id := p.ID
-		if id == "" {
-			id = "media"
+	defaults := []struct {
+		target   *string
+		fallback string
+	}{
+		{&p.ID, "media"},
+		{&p.SelectedImageAlt, "Seçilen görsel"},
+		{&p.EmptySelection, "Görsel seçilmedi"},
+		{&p.ChooseFromLibrary, "Kütüphaneden seç"},
+		{&p.ClearSelection, "Kaldır"},
+		{&p.OpenLibrary, "Medya kütüphanesini aç"},
+	}
+	for _, d := range defaults {
+		if *d.target == "" {
+			*d.target = d.fallback
 		}
-		name := p.Name
-		if name == "" {
-			name = id
-		}
-		selected := strings.TrimSpace(p.Value) != ""
-		selectedImageAlt := p.SelectedImageAlt
-		if selectedImageAlt == "" {
-			selectedImageAlt = "Seçilen görsel"
-		}
-		emptySelection := p.EmptySelection
-		if emptySelection == "" {
-			emptySelection = "Görsel seçilmedi"
-		}
-		chooseFromLibrary := p.ChooseFromLibrary
-		if chooseFromLibrary == "" {
-			chooseFromLibrary = "Kütüphaneden seç"
-		}
-		clearSelection := p.ClearSelection
-		if clearSelection == "" {
-			clearSelection = "Kaldır"
-		}
-		openLibrary := p.OpenLibrary
-		if openLibrary == "" {
-			openLibrary = "Medya kütüphanesini aç"
-		}
-		selectedClass, imageClass, imageURL, valueLabel, clearClass := "", "is-hidden", "", emptySelection, " is-hidden"
-		if selected {
-			selectedClass, imageClass, imageURL, valueLabel, clearClass = " has-selected", "", "/media/"+url.PathEscape(p.Value), p.Value, ""
-		}
-		markup := `<div id="` + esc(id) + `-field" class="media-select-field` + selectedClass + `"><label class="studio-form-label" for="` + esc(id) + `">` + esc(p.Label) + `</label><div class="media-select-card` + selectedClass + `"><div class="media-select-preview"><img class="` + imageClass + `" src="` + esc(imageURL) + `" alt="` + esc(selectedImageAlt) + `"><div class="media-select-empty"><span>` + esc(emptySelection) + `</span></div></div><div class="media-select-body"><div class="media-select-info"><span class="media-select-name">` + esc(valueLabel) + `</span></div><div class="media-select-actions"><button class="button button-quiet media-picker-open" type="button" data-media-target="` + esc(id) + `">` + esc(chooseFromLibrary) + `</button><button class="button button-quiet button-danger media-select-clear` + clearClass + `" type="button">` + esc(clearSelection) + `</button><a class="text-link" href="/admin/media?select=` + url.QueryEscape(id) + `">` + esc(openLibrary) + `</a></div></div></div><input type="hidden" id="` + esc(id) + `" name="` + esc(name) + `" value="` + esc(p.Value) + `"></div>`
-		return writeString(w, markup)
-	})
+	}
+	if p.Name == "" {
+		p.Name = p.ID
+	}
+	return mediaPickerTemplate(p, strings.TrimSpace(p.Value) != "")
 }
 
-func writeString(w io.Writer, value string) error {
-	_, err := io.WriteString(w, value)
-	return err
+// mediaPickerImageURL is the preview source for the selected asset.
+func mediaPickerImageURL(p MediaPickerProps, selected bool) string {
+	if !selected {
+		return ""
+	}
+	return "/media/" + url.PathEscape(p.Value)
+}
+
+// mediaPickerLabel names the selection, or says nothing is selected.
+func mediaPickerLabel(p MediaPickerProps, selected bool) string {
+	if !selected {
+		return p.EmptySelection
+	}
+	return p.Value
+}
+
+func mediaLibraryHref(id string) string {
+	return "/admin/media?select=" + url.QueryEscape(id)
 }

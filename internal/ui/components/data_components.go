@@ -1,10 +1,7 @@
 package components
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -53,39 +50,28 @@ type ItemListEditorProps struct {
 }
 
 func ItemListEditor(p ItemListEditorProps) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		id := p.ID
-		if strings.TrimSpace(id) == "" {
-			return errors.New("item list id is required")
+	if strings.TrimSpace(p.ID) == "" {
+		return failing(errors.New("item list id is required"))
+	}
+	if strings.TrimSpace(p.Name) == "" {
+		p.Name = p.ID
+	}
+	defaults := []struct {
+		target   *string
+		fallback string
+	}{
+		{&p.AddLabel, "Madde ekle"},
+		{&p.AddAriaLabel, p.Label + ": madde ekle"},
+		{&p.ItemPlaceholder, "Önemli bir madde girin…"},
+		{&p.ItemAriaLabelPattern, "{field} {index}"},
+		{&p.RemoveAriaLabelPattern, "Maddeyi sil"},
+	}
+	for _, d := range defaults {
+		if *d.target == "" {
+			*d.target = d.fallback
 		}
-		name := p.Name
-		if strings.TrimSpace(name) == "" {
-			name = id
-		}
-		addLabel := p.AddLabel
-		if addLabel == "" {
-			addLabel = "Madde ekle"
-		}
-		addAriaLabel := p.AddAriaLabel
-		if addAriaLabel == "" {
-			addAriaLabel = p.Label + ": madde ekle"
-		}
-		itemPlaceholder := p.ItemPlaceholder
-		if itemPlaceholder == "" {
-			itemPlaceholder = "Önemli bir madde girin…"
-		}
-		itemAriaLabelPattern := p.ItemAriaLabelPattern
-		if itemAriaLabelPattern == "" {
-			itemAriaLabelPattern = "{field} {index}"
-		}
-		removeAriaLabelPattern := p.RemoveAriaLabelPattern
-		if removeAriaLabelPattern == "" {
-			removeAriaLabelPattern = "Maddeyi sil"
-		}
-		markup := `<div id="` + esc(id) + `" class="studio-form-field item-list-widget" data-item-list data-field-name="` + esc(id) + `" data-item-list-label="` + esc(p.Label) + `" data-item-list-input-placeholder="` + esc(itemPlaceholder) + `" data-item-list-item-aria="` + esc(itemAriaLabelPattern) + `" data-item-list-remove-aria="` + esc(removeAriaLabelPattern) + `"><span class="studio-form-label">` + esc(p.Label) + `</span><div class="item-list-container"><div class="item-list-rows"></div><button type="button" class="button button-quiet item-list-add-btn" aria-label="` + esc(addAriaLabel) + `">+ ` + esc(addLabel) + `</button></div><textarea class="item-list-hidden-input" name="` + esc(name) + `" hidden>` + esc(p.Value) + `</textarea></div>`
-		_, err := io.WriteString(w, markup)
-		return err
-	})
+	}
+	return itemListEditorTemplate(p)
 }
 
 // TableProps is the safe data boundary used by generated list views.
@@ -103,83 +89,56 @@ type TableAction struct {
 	Variant             Variant
 }
 
+// Table renders an escaped data table. Row actions must post to local paths;
+// anything else fails the render.
 func Table(p TableProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		empty := p.EmptyMessage
-		if strings.TrimSpace(empty) == "" {
-			empty = "Kayıt bulunamadı."
+	if strings.TrimSpace(p.EmptyMessage) == "" {
+		p.EmptyMessage = "Kayıt bulunamadı."
+	}
+	for index, actions := range p.RowActions {
+		if index >= len(p.Rows) {
+			break
 		}
-		if _, err := io.WriteString(w, `<table><caption class="visually-hidden">`+esc(p.Caption)+`</caption><thead><tr>`); err != nil {
-			return err
-		}
-		for _, column := range p.Columns {
-			if _, err := io.WriteString(w, `<th scope="col">`+esc(column)+`</th>`); err != nil {
-				return err
+		for _, action := range actions {
+			if !validTableAction(action.Action) {
+				return failing(errors.New("table action must be a local POST path"))
 			}
 		}
-		hasActions := len(p.RowActions) > 0
-		if hasActions {
-			if _, err := io.WriteString(w, `<th scope="col">İşlem</th>`); err != nil {
-				return err
-			}
-		}
-		if _, err := io.WriteString(w, `</tr></thead><tbody>`); err != nil {
-			return err
-		}
-		if len(p.Rows) == 0 {
-			columns := len(p.Columns)
-			if hasActions {
-				columns++
-			}
-			_, err := io.WriteString(w, `<tr><td colspan="`+strconv.Itoa(max(1, columns))+`" role="status">`+esc(empty)+`</td></tr>`)
-			if err != nil {
-				return err
-			}
-		} else {
-			for index, row := range p.Rows {
-				if _, err := io.WriteString(w, `<tr>`); err != nil {
-					return err
-				}
-				for i := range p.Columns {
-					value := ""
-					if i < len(row) {
-						value = row[i]
-					}
-					if _, err := io.WriteString(w, `<td>`+esc(value)+`</td>`); err != nil {
-						return err
-					}
-				}
-				if hasActions {
-					if _, err := io.WriteString(w, `<td>`); err != nil {
-						return err
-					}
-					if index < len(p.RowActions) {
-						for _, action := range p.RowActions[index] {
-							if !validTableAction(action.Action) {
-								return errors.New("table action must be a local POST path")
-							}
-							form := Form(FormProps{Action: action.Action, Method: "post", CSRF: action.CSRF, Body: Button(ButtonProps{Label: action.Label, Type: "submit", Variant: action.Variant})})
-							if err := form.Render(ctx, w); err != nil {
-								return err
-							}
-						}
-					}
-					if _, err := io.WriteString(w, `</td>`); err != nil {
-						return err
-					}
-				}
-				if _, err := io.WriteString(w, `</tr>`); err != nil {
-					return err
-				}
-			}
-		}
-		_, err := io.WriteString(w, `</tbody></table>`)
-		return err
-	})
+	}
+	return tableTemplate(p)
 }
 
 func validTableAction(action string) bool {
 	return validLocalPath(action)
+}
+
+// tableCell returns the row value for column i, or "" for short rows.
+func tableCell(row []string, i int) string {
+	if i < len(row) {
+		return row[i]
+	}
+	return ""
+}
+
+// tableRowActions returns the actions for row index, or nil.
+func tableRowActions(p TableProps, index int) []TableAction {
+	if index < len(p.RowActions) {
+		return p.RowActions[index]
+	}
+	return nil
+}
+
+// tableEmptyColspan spans every column, the action column included.
+func tableEmptyColspan(p TableProps) string {
+	columns := len(p.Columns)
+	if len(p.RowActions) > 0 {
+		columns++
+	}
+	return strconv.Itoa(max(1, columns))
+}
+
+func tableActionForm(action TableAction) templ.Component {
+	return Form(FormProps{Action: action.Action, Method: "post", CSRF: action.CSRF, Body: Button(ButtonProps{Label: action.Label, Type: "submit", Variant: action.Variant})})
 }
 
 // PaginationProps keeps page navigation bounded and exposes only the HTMX
@@ -192,41 +151,30 @@ type PaginationProps struct {
 	Swap    string
 }
 
+// Pagination renders one link per page; a single page renders nothing.
 func Pagination(p PaginationProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		if p.Pages <= 1 {
-			return nil
-		}
-		page := p.Page
-		if page < 1 {
-			page = 1
-		}
-		if page > p.Pages {
-			page = p.Pages
-		}
-		if _, err := io.WriteString(w, `<nav aria-label="Sayfalama" class="pagination">`); err != nil {
-			return err
-		}
-		for current := 1; current <= p.Pages; current++ {
-			attrs := fmt.Sprintf(` href="%s?page=%d"`, esc(p.BaseURL), current)
-			attrs += htmxAttrs(HTMX{Get: fmt.Sprintf("%s?page=%d", p.BaseURL, current), Target: p.Target, Swap: p.Swap})
-			if current == page {
-				attrs += ` aria-current="page"`
-			}
-			if _, err := io.WriteString(w, `<a`+attrs+`>`+strconv.Itoa(current)+`</a>`); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</nav>`)
-		return err
-	})
+	if p.Pages <= 1 {
+		return templ.NopComponent
+	}
+	p.Page = min(max(p.Page, 1), p.Pages)
+	return paginationTemplate(p)
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
+// paginationPages lists the one-based page numbers.
+func paginationPages(pages int) []int {
+	numbers := make([]int, pages)
+	for i := range numbers {
+		numbers[i] = i + 1
 	}
-	return b
+	return numbers
+}
+
+func paginationHref(p PaginationProps, page int) string {
+	return p.BaseURL + "?page=" + strconv.Itoa(page)
+}
+
+func paginationHTMX(p PaginationProps, page int) templ.Attributes {
+	return HTMX{Get: paginationHref(p, page), Target: p.Target, Swap: p.Swap}.Attributes()
 }
 
 func selectItems(p SelectProps) []SelectOption {
