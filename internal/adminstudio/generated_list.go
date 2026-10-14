@@ -364,8 +364,10 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 		}
 	}
 	locale := generatedAdminLocale(r)
+	// The title links to the draft like the record list's title column; the
+	// "Open draft" action stays as the explicit row action.
 	listCollection := Collection{
-		ID: collection.ID, Label: collection.Label,
+		ID: collection.ID, Label: collection.Label, TitleField: "title",
 		Fields: []Field{
 			{ID: "title", Label: i18n.T(locale, "admin.generated.drafts.title_column"), Kind: FieldText, VisibleInList: true},
 			{ID: "status", Label: i18n.T(locale, "admin.generated.drafts.state_column"), Kind: FieldStatus, VisibleInList: true},
@@ -394,7 +396,7 @@ func (h GeneratedAdminHandler) draftList(w http.ResponseWriter, r *http.Request,
 			detailURL = localePath(detailURL, localeState(r).Current)
 		}
 		rows = append(rows, Row{
-			ID: draft.ID, Values: map[string]string{
+			ID: draft.ID, DetailURL: detailURL, Values: map[string]string{
 				"title": title, "status": stateLabel, "version": strconv.FormatInt(draft.Version, 10), "updated_at": updated,
 			},
 			Status:  StatusInfo{Value: string(draft.State), Label: stateLabel},
