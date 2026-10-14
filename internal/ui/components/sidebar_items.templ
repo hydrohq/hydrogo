@@ -17,6 +17,14 @@ func sidebarGroupLabels(items []SidebarItem) []string {
 	return labels
 }
 
+// Sidebar renders the module navigation. Labels, routes and icon names are
+// escaped; icons are identifiers resolved by admin CSS.
+templ Sidebar(items []SidebarItem) {
+	<nav aria-label="Modüller">
+		@SidebarItems(items)
+	</nav>
+}
+
 // SidebarItems renders Sidebar's entries without the surrounding <nav>, for
 // callers that append module entries to an existing navigation.
 templ SidebarItems(items []SidebarItem) {

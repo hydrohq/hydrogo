@@ -1,8 +1,6 @@
 package components
 
 import (
-	"context"
-	"io"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -24,41 +22,44 @@ type BlockEditorProps struct {
 // BlockEditor renders a JSON-backed Editor.js mount point and a server-side
 // HTMX preview target. The hidden textarea remains the canonical form value.
 func BlockEditor(p BlockEditorProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		id := strings.TrimSpace(p.ID)
-		if id == "" {
-			id = "hydro-block-editor"
-		}
-		name := strings.TrimSpace(p.Name)
-		if name == "" {
-			name = id
-		}
-		label := p.Label
-		if strings.TrimSpace(label) == "" {
-			label = "İçerik"
-		}
-		previewPending := p.PreviewPending
-		if previewPending == "" {
-			previewPending = "Önizleme bekleniyor."
-		}
-		script := strings.TrimSpace(p.EditorScript)
-		if script == "" {
-			script = "/vendor/editorjs/editorjs.umd.js"
-		}
-		previewURL := strings.TrimSpace(p.PreviewURL)
-		previewAttrs := ""
-		previewMarker := ""
-		if previewURL != "" {
-			previewTarget := strings.TrimSpace(p.PreviewTarget)
-			if previewTarget == "" {
-				previewTarget = "#" + id + "-preview"
-			}
-			previewAttrs = ` hx-post="` + esc(previewURL) + `" hx-target="` + esc(previewTarget) + `" hx-swap="innerHTML" hx-trigger="keyup delay:300ms" hx-include="closest form" hx-params="body,_csrf"`
-			previewMarker = ` data-editorjs-preview="true"`
-		}
-		if _, err := io.WriteString(w, `<fieldset class="block-editor" data-hydro-block-editor="`+esc(id)+`"><legend>`+esc(label)+`</legend><div class="block-editor-layout"><div class="block-editor-canvas"><div id="`+esc(id)+`-mount" data-editorjs-mount="`+esc(id)+`" data-editorjs-label="`+esc(label)+`" data-editorjs-script="`+esc(script)+`"`+previewMarker+`></div><textarea id="`+esc(id)+`" name="`+esc(name)+`" hidden`+previewAttrs+`>`+esc(p.Value)+`</textarea></div><aside id="`+esc(id)+`-preview" class="block-editor-preview" aria-live="polite"><span>`+esc(previewPending)+`</span></aside></div></fieldset>`); err != nil {
-			return err
-		}
-		return nil
-	})
+	p.ID = strings.TrimSpace(p.ID)
+	if p.ID == "" {
+		p.ID = "hydro-block-editor"
+	}
+	p.Name = strings.TrimSpace(p.Name)
+	if p.Name == "" {
+		p.Name = p.ID
+	}
+	if strings.TrimSpace(p.Label) == "" {
+		p.Label = "İçerik"
+	}
+	if p.PreviewPending == "" {
+		p.PreviewPending = "Önizleme bekleniyor."
+	}
+	p.EditorScript = strings.TrimSpace(p.EditorScript)
+	if p.EditorScript == "" {
+		p.EditorScript = "/vendor/editorjs/editorjs.umd.js"
+	}
+	p.PreviewURL = strings.TrimSpace(p.PreviewURL)
+	p.PreviewTarget = strings.TrimSpace(p.PreviewTarget)
+	if p.PreviewTarget == "" {
+		p.PreviewTarget = "#" + p.ID + "-preview"
+	}
+	return blockEditorTemplate(p)
+}
+
+// blockEditorPreviewAttrs wires the live preview only when the Edition gave
+// a preview route; the component never invents one.
+func blockEditorPreviewAttrs(p BlockEditorProps) templ.Attributes {
+	if p.PreviewURL == "" {
+		return templ.Attributes{}
+	}
+	return templ.Attributes{
+		"hx-post":    p.PreviewURL,
+		"hx-target":  p.PreviewTarget,
+		"hx-swap":    "innerHTML",
+		"hx-trigger": "keyup delay:300ms",
+		"hx-include": "closest form",
+		"hx-params":  "body,_csrf",
+	}
 }

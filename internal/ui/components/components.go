@@ -1,13 +1,12 @@
 // Package components contains the small, typed server-rendered UI contract
 // shared by generated Client Editions. It deliberately has no browser runtime
 // dependency and can be consumed from Templ or another templ.Component host.
+// Markup lives in the .templ files next to this one.
 package components
 
 import (
 	"context"
 	"errors"
-	"fmt"
-	"html/template"
 	"io"
 	"strings"
 
@@ -36,18 +35,13 @@ type ButtonProps struct {
 
 type LinkProps struct{ Href, Label, Class string }
 
+// Link renders a same-origin link. Hrefs with a query, fragment, scheme or
+// host are rejected at render time; use ButtonLink for query strings.
 func Link(p LinkProps) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		if !validLocalPath(p.Href) {
-			return errors.New("link must use a local path")
-		}
-		class := ""
-		if strings.TrimSpace(p.Class) != "" {
-			class = ` class="` + esc(p.Class) + `"`
-		}
-		_, err := io.WriteString(w, `<a href="`+esc(p.Href)+`"`+class+`>`+esc(p.Label)+`</a>`)
-		return err
-	})
+	if !validLocalPath(p.Href) {
+		return failing(errors.New("link must use a local path"))
+	}
+	return linkTemplate(p)
 }
 
 func validLocalPath(value string) bool {
@@ -74,14 +68,12 @@ type InputProps struct {
 
 type HiddenInputProps struct{ Name, Value string }
 
+// HiddenInput renders a hidden form value; a name is required.
 func HiddenInput(p HiddenInputProps) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		if strings.TrimSpace(p.Name) == "" {
-			return errors.New("hidden input name is required")
-		}
-		_, err := io.WriteString(w, `<input type="hidden" name="`+esc(p.Name)+`" value="`+esc(p.Value)+`">`)
-		return err
-	})
+	if strings.TrimSpace(p.Name) == "" {
+		return failing(errors.New("hidden input name is required"))
+	}
+	return hiddenInputTemplate(p)
 }
 
 // CardProps wraps generated content in a stable design-system surface.
@@ -115,32 +107,15 @@ type ValidationSummaryProps struct {
 
 // ValidationSummary renders safe, keyboard-navigable links to invalid fields.
 func ValidationSummary(p ValidationSummaryProps) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
-		if p.Title == "" || p.Message == "" {
-			return errors.New("validation summary title and message are required")
+	if p.Title == "" || p.Message == "" {
+		return failing(errors.New("validation summary title and message are required"))
+	}
+	for _, field := range p.Fields {
+		if strings.TrimSpace(field.FieldID) == "" || strings.TrimSpace(field.Label) == "" || strings.TrimSpace(field.Message) == "" {
+			return failing(errors.New("validation summary field id, label, and message are required"))
 		}
-		if _, err := io.WriteString(w, `<section class="studio-alert" role="alert" aria-labelledby="generated-validation-title"><h2 id="generated-validation-title">`+esc(p.Title)+`</h2><p>`+esc(p.Message)+`</p>`); err != nil {
-			return err
-		}
-		if len(p.Fields) > 0 {
-			if _, err := io.WriteString(w, `<ul>`); err != nil {
-				return err
-			}
-			for _, field := range p.Fields {
-				if strings.TrimSpace(field.FieldID) == "" || strings.TrimSpace(field.Label) == "" || strings.TrimSpace(field.Message) == "" {
-					return errors.New("validation summary field id, label, and message are required")
-				}
-				if _, err := io.WriteString(w, `<li><a href="#`+esc(field.FieldID)+`">`+esc(field.Label)+`: `+esc(field.Message)+`</a></li>`); err != nil {
-					return err
-				}
-			}
-			if _, err := io.WriteString(w, `</ul>`); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</section>`)
-		return err
-	})
+	}
+	return validationSummaryTemplate(p)
 }
 
 // HTMX is the allowlisted server interaction contract. Empty fields emit no
@@ -154,94 +129,41 @@ type HTMX struct {
 	Confirm string
 }
 
-func Button(p ButtonProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		typ := p.Type
-		if typ == "" {
-			typ = "button"
-		}
-		variant := p.Variant
-		if variant == "" {
-			variant = Primary
-		}
-		className := "button button-" + string(variant)
-		if strings.TrimSpace(p.Class) != "" {
-			className += " " + strings.TrimSpace(p.Class)
-		}
-		attrs := htmxAttrs(p.HTMX)
-		if p.Disabled {
-			attrs += ` disabled="disabled"`
-		}
-		_, err := io.WriteString(w, `<button type="`+esc(typ)+`" class="`+esc(className)+`"`+attrs+`>`+esc(p.Label)+`</button>`)
-		return err
-	})
-}
-
-func Card(p CardProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		className := "card"
-		if strings.TrimSpace(p.Class) != "" {
-			className += " " + strings.TrimSpace(p.Class)
-		}
-		if _, err := io.WriteString(w, `<section class="`+esc(className)+`"><h2>`+esc(p.Title)+`</h2>`); err != nil {
-			return err
-		}
-		if p.Body != nil {
-			if err := p.Body.Render(ctx, w); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</section>`)
-		return err
-	})
-}
-
-func Form(p FormProps) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		method := p.Method
-		if method == "" {
-			method = "post"
-		}
-		classAttr := ""
-		if strings.TrimSpace(p.Class) != "" {
-			classAttr = ` class="` + esc(strings.TrimSpace(p.Class)) + `"`
-		}
-		confirmAttr := ""
-		if strings.TrimSpace(p.ConfirmAction) != "" {
-			confirmAttr = ` data-confirm-action="` + esc(p.ConfirmAction) + `"`
-		}
-		if _, err := io.WriteString(w, `<form action="`+esc(p.Action)+`" method="`+esc(method)+`"`+classAttr+confirmAttr+`>`); err != nil {
-			return err
-		}
-		if p.CSRF != "" {
-			if _, err := io.WriteString(w, `<input type="hidden" name="_csrf" value="`+esc(p.CSRF)+`">`); err != nil {
-				return err
-			}
-		}
-		if p.Body != nil {
-			if err := p.Body.Render(ctx, w); err != nil {
-				return err
-			}
-		}
-		_, err := io.WriteString(w, `</form>`)
-		return err
-	})
-}
-
-func htmxAttrs(h HTMX) string {
-	var b strings.Builder
-	write := func(name, value string) {
-		if strings.TrimSpace(value) != "" {
-			fmt.Fprintf(&b, ` %s="%s"`, name, esc(value))
-		}
+func buttonType(typ string) string {
+	if typ == "" {
+		return "button"
 	}
-	write("hx-get", h.Get)
-	write("hx-post", h.Post)
-	write("hx-target", h.Target)
-	write("hx-swap", h.Swap)
-	write("hx-trigger", h.Trigger)
-	write("hx-confirm", h.Confirm)
-	return b.String()
+	return typ
 }
 
-func esc(value string) string { return template.HTMLEscapeString(value) }
+func buttonClass(p ButtonProps) string {
+	variant := p.Variant
+	if variant == "" {
+		variant = Primary
+	}
+	className := "button button-" + string(variant)
+	if extra := strings.TrimSpace(p.Class); extra != "" {
+		className += " " + extra
+	}
+	return className
+}
+
+func cardClass(class string) string {
+	if extra := strings.TrimSpace(class); extra != "" {
+		return "card " + extra
+	}
+	return "card"
+}
+
+func formMethod(method string) string {
+	if method == "" {
+		return "post"
+	}
+	return method
+}
+
+// failing is a component that renders nothing and reports err, so invalid
+// props surface as a render error exactly where the component is used.
+func failing(err error) templ.Component {
+	return templ.ComponentFunc(func(context.Context, io.Writer) error { return err })
+}
