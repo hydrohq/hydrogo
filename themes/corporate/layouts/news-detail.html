@@ -1,0 +1,29 @@
+{{template "co-head" .Site}}</head>
+{{template "co-header" .Site}}
+<main id="main-content" class="news-portal" tabindex="-1">
+  {{with .Article}}<nav class="news-breadcrumb" aria-label="Breadcrumb"><a href="/">Ana Sayfa</a><span class="sep">/</span><a href="{{$.Site.NewsURL}}">Haberler</a>{{if .Category}}<span class="sep">/</span><a href="{{.CategoryURL}}">{{.Category}}</a>{{end}}</nav>{{end}}
+  <div class="news-detail-layout">
+    {{with .Article}}<article class="news-article-card">
+      {{if .Category}}<div class="news-article-kicker">{{.Category}}</div>{{end}}
+      <h1 class="news-article-title">{{.Title}}</h1>
+      <div class="news-meta-bar">{{if .Author}}<span class="meta-pill-text">{{.Author}}</span>{{end}}{{if .Date}}<span>{{.Date}}</span>{{end}}<span>{{.ReadingMinutes}} dk okuma</span></div>
+      {{if .Excerpt}}<p class="news-article-lead">{{.Excerpt}}</p>{{end}}
+      {{if .CoverURL}}<img class="news-cover-image" src="{{.CoverURL}}" alt="{{.Title}}" data-fallback-src="{{.CoverFallbackURL}}">{{end}}
+      {{if .KeyTakeaways}}<div class="news-key-takeaways"><div class="takeaways-header"><h3>Öne çıkanlar</h3></div><ul class="takeaways-list">{{range .KeyTakeaways}}<li><span class="takeaway-bullet">✓</span><span>{{.}}</span></li>{{end}}</ul></div>{{end}}
+      {{.ReadingTools}}
+      {{.TableOfContents}}
+      <div class="rich-article-content content-body article-reading-body">{{.Body}}</div>
+      {{if .Tags}}<div class="news-tags-wrapper"><span class="tags-label">Etiketler</span><div class="tags-list">{{range .Tags}}<span class="news-tag-pill">#{{.}}</span>{{end}}</div></div>{{end}}
+      <div class="news-share-box"><span class="share-label">Paylaş</span><div class="share-actions"><a class="btn-secondary share-btn" href="{{.ShareX}}" target="_blank" rel="noopener">X</a><a class="btn-secondary share-btn" href="{{.ShareWhatsApp}}" target="_blank" rel="noopener">WhatsApp</a><button class="btn-secondary share-btn" type="button" data-copy-link data-copied-label="Kopyalandı"><span data-copy-link-label>Bağlantıyı kopyala</span></button></div></div>
+      {{.Feedback}}
+    </article>{{end}}
+    <aside class="news-sidebar-sticky">
+      <div class="sidebar-widget"><h3>İlgili haberler</h3>
+        {{if .Trending}}<div class="trending-news-list">{{range $i, $t := .Trending}}<a class="trending-item" href="{{$t.URL}}"><span class="trending-number">{{printf "%02d" (add $i 1)}}</span><span class="trending-content"><span class="trending-kicker">{{or $t.Category "Haber"}}</span><span class="trending-title">{{$t.Title}}</span></span></a>{{end}}</div>{{else}}<p class="news-sidebar-empty">Henüz benzer içerik bulunmuyor.</p>{{end}}
+      </div>
+      <div class="sidebar-widget widget-card-promo"><h3>Bültene katılın</h3><p>Yeni yazılar ve ürün güncellemeleri e-posta kutunuza gelsin.</p><a class="btn-primary" href="/member/register">Üye ol</a></div>
+    </aside>
+  </div>
+  {{if .Related}}<section class="news-related"><h2 class="section-title">Bunlar da ilginizi çekebilir</h2><div class="news-cards-grid">{{range .Related}}{{template "co-card" .}}{{end}}</div></section>{{end}}
+</main>
+{{template "co-footer" .Site}}

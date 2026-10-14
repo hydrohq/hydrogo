@@ -1,0 +1,89 @@
+{{/* Corporate chrome shared by the news and member page views. Each define
+     takes the view's .Site (extension/v1 ThemeSiteView). "co-head" leaves
+     <head> open so a page can add its own tags before </head>. */}}
+
+{{define "co-head"}}<!doctype html>
+<html lang="{{.Locale}}" dir="{{.Direction}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{if .Title}}{{.Title}}{{else}}Haberler{{end}} · HydroGo Platform</title>
+{{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
+<link rel="stylesheet" href="/theme/static/theme.css?v=00013d55">
+<link rel="stylesheet" href="/theme/static/news.css">
+{{range .Stylesheets}}<link rel="stylesheet" href="{{.}}">
+{{end}}<script src="/theme/static/news.js" defer></script>
+{{range .Scripts}}<script src="{{.}}" defer></script>
+{{end}}{{end}}
+
+{{define "co-header"}}<body class="theme-corporate-body">
+<a class="skip-link" href="#main-content">İçeriğe geç</a>
+<header class="news-header">
+  <div class="header-container">
+    <a class="news-logo" href="/" aria-label="HydroGo Ana Sayfa">
+      <div class="logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div>
+      <div class="logo-text"><span>HYDROGO</span></div>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav" aria-label="Menüyü aç"><span class="hamburger-bar"></span><span class="hamburger-bar"></span><span class="hamburger-bar"></span></button>
+    <nav id="primary-nav" class="news-nav" aria-label="Ana navigasyon">
+      {{if .Navigation}}{{.Navigation}}{{else}}
+      <a href="/" class="nav-item">Ana Sayfa</a>
+      <a href="{{.PagesURL}}about/html" class="nav-item">Hakkında</a>
+      <a href="{{.NewsURL}}" class="nav-item">Haberler</a>
+      {{end}}
+      <a href="/member/login" class="nav-item nav-login-link">Giriş</a>
+      <button class="nav-search-trigger" type="button" data-open-search aria-label="Hızlı Ara (Ctrl+K)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><span class="search-hint-kbd">⌘K</span></button>
+    </nav>
+  </div>
+</header>
+{{end}}
+
+{{define "co-footer"}}<footer class="news-footer">
+  <div class="footer-container">
+    <div class="footer-brand-col">
+      <div class="footer-logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg></div><strong>HYDROGO <span>PLATFORM</span></strong></div>
+      <p class="footer-summary">Yüksek performanslı Go altyapısı, katı mimari sınırlar ve sözleşme testli çift veritabanı desteği ile kurumsal içerik ve e-ticaret platformu.</p>
+    </div>
+    <div class="footer-nav-col">
+      <h3>Platform</h3>
+      <nav><a href="/">Ana Sayfa</a><a href="{{.PagesURL}}about/html">Hakkında</a><a href="{{.NewsURL}}">Haberler & Blog</a></nav>
+    </div>
+    <div class="footer-nav-col">
+      <h3>Keşfet</h3>
+      <nav>{{range .Categories}}<a href="{{.URL}}">{{.Label}}</a>{{end}}<a href="/member/login">Hesabım</a></nav>
+    </div>
+  </div>
+  <div class="footer-bottom-bar"><p>© 2026 HydroGo Platform. Tüm hakları saklıdır.</p><div class="footer-sub-links"><a href="{{.PagesURL}}about/html">Hakkında</a></div></div>
+</footer>
+<div id="hydro-quick-search" class="hydro-quick-search-modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="quick-search-dialog">
+    <div class="quick-search-header">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="quick-search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="search" class="quick-search-input" placeholder="Sayfa veya haber arayın..." aria-label="Arama">
+      <span class="quick-search-kbd">ESC</span>
+      <button type="button" class="quick-search-close" data-close-search aria-label="Aramayı kapat">Kapat</button>
+    </div>
+    <div class="quick-search-list">
+      <a href="/" class="quick-search-item"><div class="quick-search-item-info"><span>Ana Sayfa</span></div><span class="quick-search-category">Giriş</span></a>
+      <a href="{{.NewsURL}}" class="quick-search-item"><div class="quick-search-item-info"><span>Haberler & Bültenler</span></div><span class="quick-search-category">Medya</span></a>
+      <a href="{{.PagesURL}}about/html" class="quick-search-item"><div class="quick-search-item-info"><span>Hakkında</span></div><span class="quick-search-category">Kurumsal</span></a>
+    </div>
+  </div>
+</div>
+<button id="hydro-back-to-top" class="back-to-top-btn" type="button" aria-label="Yukarı çık"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+<script src="/theme/static/theme.js?v=60d7340a"></script>
+{{.Widgets}}
+</body>
+</html>
+{{end}}
+
+{{/* Takes a NewsCardView. */}}
+{{define "co-card"}}<article class="news-card" data-news-card data-cat="{{.CategoryKey}}">
+  <a href="{{.URL}}" class="news-card-media" tabindex="-1" aria-hidden="true">{{if .CoverURL}}<img class="news-cover-image" src="{{.CoverURL}}" alt="" loading="lazy" data-fallback-src="{{.CoverFallbackURL}}">{{else}}<div class="news-cover-image news-cover-placeholder"></div>{{end}}</a>
+  <div class="news-card-body">
+    <div class="card-header"><span class="card-kicker">{{or .Category "Haber"}}</span><span class="card-author">{{.Author}}</span></div>
+    <h2><a href="{{.URL}}">{{.Title}}</a></h2>
+    <p class="news-card-excerpt">{{.Excerpt}}</p>
+    <div class="card-footer"><span class="card-category">{{.ReadingMinutes}} dk okuma</span><a href="{{.URL}}" class="card-link">Oku →</a></div>
+  </div>
+</article>{{end}}

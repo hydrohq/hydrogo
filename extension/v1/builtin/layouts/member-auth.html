@@ -1,0 +1,15 @@
+{{template "builtin-head" .Site}}
+<main data-testid="member-auth">
+<h1>{{if .Register}}Create an account{{else}}Sign in{{end}}</h1>
+<form method="post" data-member-form action="{{.Action}}">
+<input type="hidden" name="_csrf" value="{{.CSRF}}">
+<input type="hidden" name="return_to" value="{{.ReturnTo}}">
+<label>Email <input name="email" type="email" autocomplete="email" required></label>
+<label>Password <input name="password" type="password" autocomplete="{{.PasswordAutocomplete}}" minlength="8" required{{if .Register}} data-password-strength{{end}}></label>
+{{.PasswordStrength}}
+<button type="submit">{{if .Register}}Register{{else}}Sign in{{end}}</button>
+<div data-member-status role="alert"></div>
+</form>
+<p><a href="{{.SwitchURL}}">{{if .Register}}Sign in{{else}}Create an account{{end}}</a></p>
+</main>
+{{template "builtin-foot" .Site}}

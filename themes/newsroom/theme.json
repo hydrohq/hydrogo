@@ -1,7 +1,8 @@
 {
   "name": "newsroom",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "tokens": {"primary": "#ed1c24", "surface": "#ffffff"},
   "slots": ["header", "content", "footer", "navigation"],
-  "assets": ["static/theme.css", "static/theme.js"]
+  "assets": ["static/theme.css", "static/theme.js", "static/news.js", "static/member.css"],
+  "views": ["news-list", "news-detail", "member-auth", "member-account"]
 }

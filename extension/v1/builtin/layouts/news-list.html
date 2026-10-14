@@ -1,0 +1,6 @@
+{{template "builtin-head" .Site}}
+<main data-testid="public-news">
+<h1>{{.Site.Title}}</h1>
+{{if .Items}}{{range .Items}}{{template "builtin-card" .}}{{end}}{{else}}<p>No published news yet.</p>{{end}}
+</main>
+{{template "builtin-foot" .Site}}
