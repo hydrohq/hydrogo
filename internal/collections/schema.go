@@ -54,6 +54,10 @@ type Field struct {
 	Max      *float64  `json:"max,omitempty"`
 	Options  []string  `json:"options,omitempty"`
 	Relation string    `json:"relation,omitempty"`
+	// Localized fields keep one value per locale: the default locale's value
+	// in the record, the others as translations (see Service.SaveTranslation).
+	// Only text, rich text, media and select fields can be localized.
+	Localized bool `json:"localized,omitempty"`
 }
 
 type Schema struct {
@@ -91,6 +95,9 @@ func (s Schema) Validate() error {
 				return ErrInvalidSchema
 			}
 		default:
+			return ErrInvalidSchema
+		}
+		if field.Localized && (field.Unique || !localizable(field.Kind)) {
 			return ErrInvalidSchema
 		}
 		if field.Min != nil && math.IsNaN(*field.Min) || field.Max != nil && math.IsNaN(*field.Max) || field.Min != nil && field.Max != nil && *field.Min > *field.Max {

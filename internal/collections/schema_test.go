@@ -48,3 +48,31 @@ func TestMultiRelationAndDatetimeTypes(t *testing.T) {
 		t.Fatalf("valid typed fields rejected: %v", err)
 	}
 }
+
+func TestLocalizedFieldsAreLimitedToTranslatableKinds(t *testing.T) {
+	for _, field := range []Field{
+		{ID: "flag", Label: "Flag", Kind: Boolean, Localized: true},
+		{ID: "owner", Label: "Owner", Kind: Relation, Relation: "team", Localized: true},
+		{ID: "slug", Label: "Slug", Kind: Text, Unique: true, Localized: true},
+	} {
+		if err := (Schema{ID: "items", Label: "Items", Fields: []Field{field}}).Validate(); err == nil {
+			t.Fatalf("localized %s field was accepted", field.Kind)
+		}
+	}
+	schema := Schema{ID: "items", Label: "Items", Fields: []Field{{ID: "title", Label: "Title", Kind: Text, Required: true, Localized: true}, {ID: "rank", Label: "Rank", Kind: Number}}}
+	if err := schema.Validate(); err != nil || !schema.Localized() {
+		t.Fatalf("localized text field rejected: %v", err)
+	}
+	clean, err := schema.ValidateTranslation(map[string]any{"title": ""})
+	if err != nil || len(clean) != 0 {
+		t.Fatalf("empty translation should be valid and dropped: %v %v", clean, err)
+	}
+	if _, err := schema.ValidateTranslation(map[string]any{"rank": 1}); err == nil {
+		t.Fatal("translation of an unlocalized field was accepted")
+	}
+	for locale, want := range map[string]bool{"en": true, "pt-br": true, "EN": false, "": false, "e": false, "en_US": false} {
+		if ValidLocale(locale) != want {
+			t.Fatalf("ValidLocale(%q) != %v", locale, want)
+		}
+	}
+}

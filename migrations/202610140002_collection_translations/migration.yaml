@@ -1,0 +1,28 @@
+id: "202610140002_collection_translations"
+module: "collections"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "b47ee703e22c3e2da1486dbc9eaa203ca973e9d8b51fe6a7513533d9fdfaf1d3"
+  postgres: "b47ee703e22c3e2da1486dbc9eaa203ca973e9d8b51fe6a7513533d9fdfaf1d3"
+  mysql: "e8915cfc0e2e46ca0460dbe5308108e75a223203dc22eee5f0c7086e38401d25"
+dependencies:
+  - "202610140001_collection_revisions"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The dynamic collections tables are installed"
+lock_timeout: "bounded by the migration runner deadline"
+disk_estimate: "One static translation table; at most one row per record and non-default locale of a content type with localized fields, each bounded by the record JSON limit"
+compatibility: "Adds an empty table; default-locale values stay in hydro_collection_records, so existing reads, search and revisions are unchanged"
+smoke:
+  - "Saving a translation stores a tenant-scoped row per record and locale with its own version, and deleting the record deletes its translations"
+restart: "Safe to rerun; the migration ledger verifies checksums before no-op"
+rollback: "No production down migration; the table can be dropped after removing localized fields, or restore/forward migrate"
