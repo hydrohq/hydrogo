@@ -1,0 +1,94 @@
+/* HydroGo admin micro-interactions.
+   One place for hover, focus, press and swap feedback across every
+   admin screen (focus rings and the submit spinner come from the base CSS).
+   Uses the shell's design tokens (--brand, --line, --motion-*,
+   --ease-*). Reduced-motion users get state changes without movement. */
+
+:root {
+  --mi-ring: 0 0 0 3px color-mix(in srgb, var(--brand, #2f5bff) 22%, transparent);
+  --mi-lift: 0 6px 18px -8px color-mix(in srgb, var(--ink, #0f172a) 28%, transparent);
+  --mi-duration: var(--motion-normal, .14s);
+  --mi-ease: var(--ease-standard, cubic-bezier(.16, 1, .3, 1));
+}
+
+/* Buttons and button-like links: smooth colour changes, a small press. */
+:where(.studio-main, .studio-topbar, .studio-sidebar, dialog) :is(button, .button, [role="button"], input[type="submit"]) {
+  transition: background-color var(--mi-duration) var(--mi-ease), border-color var(--mi-duration) var(--mi-ease),
+    color var(--mi-duration) var(--mi-ease), box-shadow var(--mi-duration) var(--mi-ease),
+    transform var(--motion-fast, .1s) var(--mi-ease), opacity var(--mi-duration) var(--mi-ease);
+}
+:where(.studio-main, .studio-topbar, .studio-sidebar, dialog) :is(button, .button, [role="button"], input[type="submit"]):not(:disabled):active {
+  transform: translateY(1px) scale(.985);
+}
+:is(button, .button, input[type="submit"]):disabled,
+:is(button, .button)[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+/* Keyboard focus: one visible ring everywhere, never on mouse click. */
+:where(.studio-app, dialog) :is(a, button, .button, summary, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--mi-ring);
+  border-radius: var(--radius-sm, 8px);
+}
+
+/* Form controls: the browser's invalid state is shown (focus styles come from the base CSS). */
+:where(.studio-main, dialog) :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--danger, #dc2626);
+}
+:where(.studio-main, dialog) :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--brand, #2f5bff);
+}
+
+/* Sidebar: the hovered item nudges right, the active one keeps its marker. */
+.nav-item {
+  transition: background-color var(--mi-duration) var(--mi-ease), color var(--mi-duration) var(--mi-ease),
+    translate var(--motion-slow, .2s) var(--mi-ease);
+}
+.nav-item:not(.is-active):hover {
+  translate: 3px 0;
+}
+
+/* Cards that link somewhere lift slightly; static cards stay put. */
+:is(.studio-card, .dashboard-card, .kpi-card, .resource-card):has(> a:only-child, a.card-link),
+a:is(.studio-card, .dashboard-card, .kpi-card, .resource-card, .collection-card) {
+  transition: transform var(--motion-slow, .2s) var(--mi-ease), box-shadow var(--motion-slow, .2s) var(--mi-ease),
+    border-color var(--mi-duration) var(--mi-ease);
+}
+:is(.studio-card, .dashboard-card, .kpi-card, .resource-card):has(> a:only-child, a.card-link):hover,
+a:is(.studio-card, .dashboard-card, .kpi-card, .resource-card, .collection-card):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--mi-lift);
+}
+
+/* Tables: rows highlight under the pointer so long lists stay scannable. */
+.studio-main table tbody tr {
+  transition: background-color var(--motion-fast, .1s) var(--mi-ease);
+}
+.studio-main table tbody tr:hover {
+  background-color: var(--surface-hover, var(--bg-subtle, #f1f4fb));
+}
+
+/* htmx swaps: new content fades in, outgoing content dims. */
+.htmx-added { opacity: 0; }
+.htmx-settling .htmx-added, .htmx-added.htmx-settling { opacity: 1; transition: opacity var(--motion-slow, .2s) var(--mi-ease); }
+.htmx-swapping { opacity: .4; transition: opacity var(--motion-fast, .1s) linear; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+.htmx-indicator { opacity: 0; transition: opacity var(--mi-duration) var(--mi-ease); }
+
+/* Disclosure widgets open smoothly where supported. */
+details > summary { cursor: pointer; }
+details[open] > :not(summary) { animation: mi-reveal var(--motion-slow, .2s) var(--mi-ease); }
+@keyframes mi-reveal { from { opacity: 0; transform: translateY(-4px); } }
+
+/* Copy confirmation flash used by motion.js. */
+[data-mi-flash] { animation: mi-flash .6s var(--mi-ease); }
+@keyframes mi-flash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success, #16a34a) 45%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, .button):not(:disabled):active { transform: none; }
+  .nav-item:not(.is-active):hover { translate: none; }
+  a:is(.studio-card, .dashboard-card, .kpi-card, .resource-card, .collection-card):hover { transform: none; }
+  details[open] > :not(summary), [data-mi-flash] { animation: none; }
+}

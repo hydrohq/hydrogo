@@ -2204,7 +2204,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if err != nil {
 		return fmt.Errorf("prepare embedded vendor assets: %w", err)
 	}
-	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))})
+	routes = append(routes, router.Route{Pattern: "GET /vendor/{path...}", Access: router.Public, Handler: http.StripPrefix("/vendor/", http.FileServer(http.FS(vendorFS)))}, adminAssetsRoute())
 
 	metrics := observability.NewMetrics()
 	runtimeMetrics = metrics
