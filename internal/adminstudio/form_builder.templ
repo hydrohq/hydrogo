@@ -1,0 +1,86 @@
+package adminstudio
+
+import (
+	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/forms"
+	uicomponents "github.com/ardaozyildirim/hydrogo/internal/ui/components"
+)
+
+type formBuilderFieldType struct {
+	Value forms.FieldType
+	Label string
+}
+
+var formBuilderFieldTypes = []formBuilderFieldType{
+	{forms.Text, "Metin"},
+	{forms.Email, "E-posta"},
+	{forms.Textarea, "Uzun metin"},
+	{forms.Number, "Sayı"},
+	{forms.Checkbox, "Onay kutusu"},
+	{forms.Select, "Seçim"},
+}
+
+templ formBuilder(data FormBuilderData, schema string) {
+	<section class="studio-card form-builder" data-form-schema={ schema } data-form-id={ data.Form.ID } aria-labelledby="form-builder-title">
+		<div class="card-title-group">
+			<div>
+				<p class="eyebrow">SCHEMA EDİTÖRÜ</p>
+				<h2 id="form-builder-title">Form alanları</h2>
+				<p class="muted">Alanları ve seçenekleri yönetin; sınırlar kaydetmeden önce doğrulanır.</p>
+			</div>
+			<span class="studio-badge">{ data.Form.ID }</span>
+		</div>
+		<form method="post" action={ templ.SafeURL(data.Action) } class="studio-form" data-form-builder>
+			<input type="hidden" name="_csrf" value={ data.CSRFToken }/>
+			<input type="hidden" name="schema" data-form-schema-input/>
+			@uicomponents.Input(uicomponents.InputProps{ID: "form-builder-title-input", Name: "title", Label: "Başlık", Value: data.Form.Title, Required: true, HasMaxLength: true, MaxLength: 256})
+			<div class="studio-form-field">
+				<label class="studio-form-label" for="form-builder-recipients">Bildirim alıcıları</label>
+				<textarea id="form-builder-recipients" name="notification_recipients" placeholder="E-posta adreslerini satır satır yazın">{ strings.Join(data.Form.NotificationRecipients, "\n") }</textarea>
+			</div>
+			@uicomponents.Checkbox(uicomponents.CheckboxProps{Name: "autoresponder", Label: "Başvuru yapan kişiye alındı e-postası gönder", Checked: data.Form.Autoresponder})
+			@uicomponents.Input(uicomponents.InputProps{ID: "form-builder-autoresponder-subject", Name: "autoresponder_subject", Label: "E-posta konusu", Value: data.Form.AutoresponderSubject, HasMaxLength: true, MaxLength: 256})
+			@uicomponents.Textarea(uicomponents.TextareaProps{ID: "form-builder-autoresponder-body", Name: "autoresponder_body", Label: "E-posta metni", Value: data.Form.AutoresponderBody, Rows: 4, HasMaxLength: true, MaxLength: 16384})
+			@uicomponents.Checkbox(uicomponents.CheckboxProps{Name: "turnstile_enabled", Label: "Spam doğrulamasını aç (önce site anahtarlarını yapılandırın)", Checked: data.Form.TurnstileEnabled})
+			<fieldset class="form-builder-tracking">
+				<legend>Reklam dönüşüm takibi (isteğe bağlı)</legend>
+				@uicomponents.Checkbox(uicomponents.CheckboxProps{Name: "conversion_tracking", Label: "Başarılı gönderimde mevcut etiketlere olay gönder", Checked: data.Form.ConversionTracking})
+				@uicomponents.Input(uicomponents.InputProps{ID: "form-builder-ads-id", Name: "google_ads_conversion_id", Label: "Google Ads dönüşüm kimliği", Value: data.Form.GoogleAdsConversionID, Placeholder: "AW-123456789", HasMaxLength: true, MaxLength: 32})
+				@uicomponents.Input(uicomponents.InputProps{ID: "form-builder-ads-label", Name: "google_ads_conversion_label", Label: "Google Ads dönüşüm etiketi", Value: data.Form.GoogleAdsConversionLabel, HasMaxLength: true, MaxLength: 128})
+				@uicomponents.Input(uicomponents.InputProps{ID: "form-builder-pixel-event", Name: "meta_pixel_event_name", Label: "Meta Pixel olay adı", Value: data.Form.MetaPixelEventName, Placeholder: "Lead", HasMaxLength: true, MaxLength: 64})
+				<p class="muted">Bu ayar üçüncü taraf betiği yüklemez. Yalnız sitede zaten kurulu etiketler kullanılır.</p>
+			</fieldset>
+			<div class="form-builder-fields" data-form-fields>
+				for _, field := range data.Form.Fields {
+					@formBuilderRow(field)
+				}
+			</div>
+			<div class="studio-actions">
+				<button type="button" class="button button-quiet" data-form-add-field>+ Alan ekle</button>
+				@uicomponents.Button(uicomponents.ButtonProps{Label: data.Submit, Type: "submit", Variant: uicomponents.Primary})
+			</div>
+		</form>
+		<template data-form-field-template>
+			@formBuilderRow(forms.Field{Type: forms.Text})
+		</template>
+	</section>
+	@uicomponents.Script("/admin-assets/js/form-builder.js")
+}
+
+// formBuilderRow is one editable field. The template row (empty ID) shows
+// placeholders; saved rows show their values.
+templ formBuilderRow(field forms.Field) {
+	<div class="form-builder-row" data-form-field>
+		<input name="field_id" value={ field.ID } placeholder="alan_id" aria-label="Alan kimliği" maxlength="64" required/>
+		<input name="field_label" value={ field.Label } placeholder="Alan etiketi" aria-label="Alan etiketi" maxlength="256" required/>
+		<select name="field_type" aria-label="Alan türü">
+			for _, kind := range formBuilderFieldTypes {
+				<option value={ string(kind.Value) } selected?={ field.Type == kind.Value }>{ kind.Label }</option>
+			}
+		</select>
+		<label class="checkbox-label"><input type="checkbox" name="field_required" checked?={ field.Required }/> Zorunlu</label>
+		<input name="field_options" value={ strings.Join(field.Options, ",") } placeholder="Seçenekler: a,b,c" aria-label="Seçenekler (virgülle ayırın)" maxlength="256"/>
+		<button type="button" class="button button-quiet button-danger" data-form-remove-field>Sil</button>
+	</div>
+}
