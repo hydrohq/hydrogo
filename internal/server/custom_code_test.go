@@ -48,3 +48,27 @@ func TestCustomCodeMiddlewareSkipsAdminAndNonHTML(t *testing.T) {
 		t.Fatalf("provider called %d times", calls)
 	}
 }
+
+// A handler that merges inline hashes into the policy (as the login pages do)
+// must see the full security policy even when custom code is configured;
+// otherwise the merged result drops default-src and style-src entirely.
+func TestCustomCodeMiddlewareKeepsBasePolicyForMergingHandlers(t *testing.T) {
+	provider := func(*http.Request) (string, string) {
+		return `<script src="https://www.googletagmanager.com/gtm.js"></script>`, ""
+	}
+	handler := security.HeadersMiddleware(security.HeaderConfig{})(CustomCodeMiddleware(provider)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), "script-src 'sha256-abc'"))
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<html><head></head><body>login</body></html>"))
+	})))
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	policy := rec.Header().Get("Content-Security-Policy")
+	for _, want := range []string{"default-src 'self'", "style-src 'self'", "'sha256-abc'", "object-src 'none'"} {
+		if !strings.Contains(policy, want) {
+			t.Fatalf("policy %q is missing %q", policy, want)
+		}
+	}
+}

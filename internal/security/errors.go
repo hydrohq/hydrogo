@@ -36,8 +36,12 @@ type errorCapture struct {
 	passthrough bool
 }
 
+// newErrorCapture starts from a copy of the outer headers: handlers must see
+// what outer middleware already set (notably the Content-Security-Policy they
+// merge inline hashes into); with an empty map a merged policy replaced the
+// full one and lost default-src/style-src.
 func newErrorCapture(destination http.ResponseWriter) *errorCapture {
-	return &errorCapture{destination: destination, header: make(http.Header)}
+	return &errorCapture{destination: destination, header: destination.Header().Clone()}
 }
 
 func (c *errorCapture) Header() http.Header { return c.header }
@@ -137,7 +141,14 @@ func (c *errorCapture) commit(r *http.Request) {
 	_, _ = c.destination.Write(c.body.Bytes())
 }
 
+// copyHeaders makes destination equal to source, so headers the handler
+// deleted from its copy are removed from the real response too.
 func copyHeaders(destination, source http.Header) {
+	for key := range destination {
+		if _, ok := source[key]; !ok {
+			delete(destination, key)
+		}
+	}
 	for key, values := range source {
 		destination[key] = append([]string(nil), values...)
 	}
