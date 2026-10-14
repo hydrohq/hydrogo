@@ -360,7 +360,7 @@ func publicHTMLResponseAllowed(status int, header http.Header, body []byte) bool
 		len(header.Values("Set-Cookie")) == 0 && !strings.Contains(cacheControl, "private") &&
 		!strings.Contains(cacheControl, "no-store") && !strings.Contains(cacheControl, "no-cache") &&
 		(vary == "" || vary == "accept-encoding") &&
-true
+		true
 }
 
 func writeCachedHTML(w http.ResponseWriter, r *http.Request, entry publicHTMLCacheEntry) bool {
@@ -389,8 +389,6 @@ func writeCachedHTML(w http.ResponseWriter, r *http.Request, entry publicHTMLCac
 	_, _ = w.Write(body)
 	return true
 }
-
-
 
 func cacheTag(path string) string {
 	if strings.HasPrefix(path, "/public/pages/") {

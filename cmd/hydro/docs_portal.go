@@ -27,7 +27,7 @@ func docsPortalHTML(lang string) string {
 	}
 	var output bytes.Buffer
 	data := struct {
-		CSS   template.CSS
+		CSS template.CSS
 	}{CSS: template.CSS(docsPortalCSS)} // CSS is a build-time, embedded asset.
 	if err := tmpl.Execute(&output, data); err != nil {
 		return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Documentation</title></head><body><h1>Documentation is temporarily unavailable</h1></body></html>"
