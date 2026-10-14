@@ -20,9 +20,6 @@
   "internal/adminstudio/form.go": {
     "html_strings": 5
   },
-  "internal/adminstudio/form_builder.go": {
-    "html_strings": 24
-  },
   "internal/adminstudio/generated_http.go": {
     "html_strings": 20,
     "lines": 2552
@@ -53,9 +50,6 @@
   },
   "internal/mailer/branding.go": {
     "html_strings": 6
-  },
-  "internal/media/admin.go": {
-    "html_strings": 12
   },
   "internal/sdkdist/openapi.go": {
     "lines": 1149
@@ -129,11 +123,7 @@
     "lines": 878
   },
   "modules/site/transport/http.go": {
-    "html_strings": 18,
-    "lines": 2343
-  },
-  "modules/site/transport/navigation_editor.go": {
-    "html_strings": 11
+    "lines": 2301
   },
   "tools/devserver/main.go": {
     "html_strings": 10,
