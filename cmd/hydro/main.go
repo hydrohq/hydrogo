@@ -44,7 +44,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
-	collectiontransport "github.com/ardaozyildirim/hydrogo/internal/collections/transport"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	formsruntime "github.com/ardaozyildirim/hydrogo/internal/forms"
@@ -1299,7 +1298,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if modules["collections"] {
 		collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		collectionService := collections.Service{Repository: collectionDB}
-		routes = append(routes, (collectiontransport.Handler{Service: collectionService}).Routes()...)
 		contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, tenantScopes)
 		if err != nil {
 			return err

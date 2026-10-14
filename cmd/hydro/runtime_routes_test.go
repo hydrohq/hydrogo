@@ -110,7 +110,7 @@ func testRuntimeStandaloneShutdown(t *testing.T, optional []string) {
 		if !ready {
 			t.Fatalf("standalone runtime did not become ready within 15s\nstdout:\n%s\nstderr:\n%s", &stdout, &stderr)
 		}
-		response, requestErr := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/admin/collections")
+		response, requestErr := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/admin/resources")
 		if requestErr != nil {
 			_ = cmd.Process.Kill()
 			<-exited
@@ -172,7 +172,11 @@ func runtimeRouteChild(t *testing.T, mode string, optional []string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, executable, "-test.run=^"+childTest+"$", "-test.count=1")
 	cmd.Dir = t.TempDir()
 	modules := append([]string{"core", "auth", "members", "pages", "media", "site", "news"}, optional...)
-	configuration, err := json.Marshal(map[string]any{"modules": modules})
+	contentTypes, err := filepath.Abs(filepath.Join("..", "..", "content-types"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration, err := json.Marshal(map[string]any{"modules": modules, "content_types_dir": contentTypes})
 	if err != nil {
 		t.Fatal(err)
 	}
