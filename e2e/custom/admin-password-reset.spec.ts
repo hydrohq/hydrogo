@@ -18,7 +18,7 @@ test.describe("administrator-issued password reset", () => {
   test.beforeAll(async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "hydro-admin-password-reset-"));
     const database = path.join(tempDir, "edition.sqlite");
-    const binary = path.join(tempDir, "hydro");
+    const binary = path.join(tempDir, process.platform === "win32" ? "hydro.exe" : "hydro");
     runCommand("go", ["run", "./cmd/hydro", "migrate", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
     runCommand("go", ["run", "./cmd/hydro", "create-admin", "--email", "admin@example.test", "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", database], { cwd: repoRoot, input: `${adminPassword}\n`, stdio: ["pipe", "ignore", "pipe"] });
     runCommand("go", ["run", "./tests/e2e/support/seedroles", "--database-dsn", database], { cwd: repoRoot, stdio: "pipe" });
