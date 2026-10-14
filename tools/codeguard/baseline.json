@@ -42,13 +42,6 @@
   "internal/ui/admin_login.go": {
     "html_strings": 5
   },
-  "internal/ui/admin_shell.go": {
-    "html_strings": 45,
-    "lines": 2312
-  },
-  "internal/ui/admin_ux.go": {
-    "html_strings": 9
-  },
   "internal/ui/article_reading.go": {
     "html_strings": 5
   },
