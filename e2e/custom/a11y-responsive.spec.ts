@@ -111,6 +111,9 @@ test.describe("P2 Accessibility & Semantic Standards", () => {
           const html = element as HTMLElement;
           if (html.hidden || getComputedStyle(html).display === "none" || getComputedStyle(html).visibility === "hidden") return false;
           if (element instanceof HTMLInputElement && element.type === "hidden") return false;
+          // aria-hidden duplicates (e.g. a card's decorative cover link with
+          // tabindex=-1) are out of the accessibility tree and need no name.
+          if (element.closest('[aria-hidden="true"]')) return false;
           const label = element.id ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.textContent : element.closest("label")?.textContent;
           return ![element.getAttribute("aria-label"), element.getAttribute("title"), element.getAttribute("placeholder"), element.textContent, label].some((val) => val?.trim());
         }).length
