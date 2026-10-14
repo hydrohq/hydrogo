@@ -1,6 +1,0 @@
-/* Entry stylesheet for the standalone Tailwind build (ADR-0338).
-   Scope is intentionally limited to this directory via @source — it must
-   never scan internal/ui or any existing admin visual family markup. */
-@import "tailwindcss";
-
-@source "./example";

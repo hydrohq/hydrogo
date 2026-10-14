@@ -31,7 +31,7 @@ func main() {
 	steps := []step{
 		{name: "build", args: []string{"go", "build", "./..."}},
 		{name: "vet", args: []string{"go", "vet", "./..."}},
-		{name: "gofmt", args: []string{"gofmt", "-l", "cmd", "internal", "modules", "extension", "tools", "tests", "migrations", "static", "custom"}, check: func(output string) error {
+		{name: "gofmt", args: []string{"gofmt", "-l", "cmd", "internal", "modules", "extension", "tools", "tests", "migrations", "static"}, check: func(output string) error {
 			if strings.TrimSpace(output) != "" {
 				return fmt.Errorf("run gofmt -w on:\n%s", output)
 			}
