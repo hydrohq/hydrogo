@@ -39,7 +39,7 @@ geoip:
 observability:
   sentry_dsn: ""
 theme_dir: "themes"
-theme: "corporate"
+theme: "newsroom"
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,
 # and HYDRO_WEBHOOK_TOPICS in the deployment environment.
 security:
