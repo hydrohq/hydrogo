@@ -49,7 +49,11 @@ search/filters, drafts and revisions (see `definition.go`).
    Put the explanation in the commit message. Add a decision record in
    `docs/decisions/` only when you change a module boundary or a public
    contract (routes, API, config, migrations).
-8. **Regenerate, don't hand-edit**, generated files (`*_templ.go`, compiled
+8. **Never hide a failing test** by renaming it (`skip_TestX`) or adding a
+   bare `t.Skip`. Fix the code, update the test to the new intended
+   behaviour, or delete it with an explanation in the commit. `codeguard`
+   rejects renamed tests.
+9. **Regenerate, don't hand-edit**, generated files (`*_templ.go`, compiled
    CSS): `go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate`.
 
 ## UI work

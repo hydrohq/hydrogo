@@ -47,3 +47,16 @@ func TestCompareRatchets(t *testing.T) {
 		})
 	}
 }
+
+func TestDisabledTestPattern(t *testing.T) {
+	for _, hidden := range []string{"func skip_TestX(t *testing.T) {", "func xTestY(t *testing.T) {", "func _TestZ(t *testing.T) {", "func disabled_BenchmarkB(b *testing.B) {"} {
+		if !disabledTest.MatchString(hidden) {
+			t.Errorf("%q was not detected", hidden)
+		}
+	}
+	for _, fine := range []string{"func TestX(t *testing.T) {", "func helperTest() {", "func FuzzParse(f *testing.F) {"} {
+		if disabledTest.MatchString(fine) {
+			t.Errorf("%q was flagged", fine)
+		}
+	}
+}
