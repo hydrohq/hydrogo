@@ -71,7 +71,7 @@
     <!-- Quick Action CTAs -->
     <div class="relative flex flex-wrap items-center justify-center gap-3 pt-2">
       <a
-        href="http://127.0.0.1:8090/admin"
+        href="/admin"
         target="_blank"
         rel="noreferrer"
         class="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-sky-500 text-slate-950 font-semibold text-xs hover:bg-sky-400 transition-colors shadow-md hover:shadow-sky-500/20"
@@ -85,7 +85,7 @@
       </a>
 
       <a
-        href="http://127.0.0.1:8090/api/v1/pages"
+        href="/api/v1/pages?locale=en"
         target="_blank"
         rel="noreferrer"
         class="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-800 bg-slate-900/60 text-slate-300 font-medium text-xs hover:bg-slate-800 hover:text-white transition-colors"
@@ -100,7 +100,7 @@
   <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
     <!-- Card 1: Docs & API -->
     <a
-      href="http://127.0.0.1:8090/api/v1/pages"
+      href="/api/v1/pages?locale=en"
       target="_blank"
       rel="noreferrer"
       class="group p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/90 hover:border-slate-700 transition-all duration-200 flex flex-col justify-between"
@@ -118,13 +118,13 @@
         </p>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-800/60 text-[11px] font-mono text-slate-500">
-        GET /api/v1/content
+        GET /api/v1/pages
       </div>
     </a>
 
     <!-- Card 2: Admin Studio -->
     <a
-      href="http://127.0.0.1:8090/admin"
+      href="/admin"
       target="_blank"
       rel="noreferrer"
       class="group p-5 rounded-2xl border border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/90 hover:border-slate-700 transition-all duration-200 flex flex-col justify-between"

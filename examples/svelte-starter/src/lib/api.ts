@@ -28,10 +28,11 @@ export interface MemberProfile {
 }
 
 const API_BASE = '/api/v1';
+const DEFAULT_LOCALE = 'en';
 
-export async function fetchPublishedPages(): Promise<Page[]> {
+export async function fetchPublishedPages(locale: string = DEFAULT_LOCALE): Promise<Page[]> {
   try {
-    const res = await fetch(`${API_BASE}/pages`);
+    const res = await fetch(`${API_BASE}/pages?locale=${encodeURIComponent(locale)}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.data || [];
@@ -41,9 +42,9 @@ export async function fetchPublishedPages(): Promise<Page[]> {
   }
 }
 
-export async function fetchPageBySlug(slug: string): Promise<Page | null> {
+export async function fetchPageBySlug(slug: string, locale: string = DEFAULT_LOCALE): Promise<Page | null> {
   try {
-    const res = await fetch(`${API_BASE}/pages/${slug}`);
+    const res = await fetch(`${API_BASE}/pages/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.data || null;
@@ -53,9 +54,9 @@ export async function fetchPageBySlug(slug: string): Promise<Page | null> {
   }
 }
 
-export async function fetchPublishedNews(): Promise<NewsArticle[]> {
+export async function fetchPublishedNews(locale: string = DEFAULT_LOCALE): Promise<NewsArticle[]> {
   try {
-    const res = await fetch(`${API_BASE}/news`);
+    const res = await fetch(`${API_BASE}/news?locale=${encodeURIComponent(locale)}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.data || [];
@@ -65,9 +66,9 @@ export async function fetchPublishedNews(): Promise<NewsArticle[]> {
   }
 }
 
-export async function fetchNewsBySlug(slug: string): Promise<NewsArticle | null> {
+export async function fetchNewsBySlug(slug: string, locale: string = DEFAULT_LOCALE): Promise<NewsArticle | null> {
   try {
-    const res = await fetch(`${API_BASE}/news/${slug}`);
+    const res = await fetch(`${API_BASE}/news/by-slug?locale=${encodeURIComponent(locale)}&slug=${encodeURIComponent(slug)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.data || null;
