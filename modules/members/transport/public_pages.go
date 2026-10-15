@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"html/template"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 // Member sign-in, registration and account pages hand the active theme a
@@ -36,15 +38,33 @@ func serveMemberAuthScript(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "member-auth.js", time.Time{}, bytes.NewReader(data))
 }
 
-func (h Handler) memberSiteView(locale, title string) v1.ThemeSiteView {
+func (h Handler) memberSiteView(ctx context.Context, locale, title string) v1.ThemeSiteView {
 	return v1.ThemeSiteView{
-		Locale:    locale,
-		Direction: canonical.Direction(locale),
-		Title:     title,
-		Scripts:   []string{memberAuthScript},
-		NewsURL:   "/public/news/" + url.PathEscape(locale) + "/html",
-		PagesURL:  "/public/pages/" + url.PathEscape(locale) + "/",
+		Locale:        locale,
+		Direction:     canonical.Direction(locale),
+		Title:         title,
+		Scripts:       []string{memberAuthScript},
+		AppearanceCSS: h.appearanceCSS(ctx),
+		NewsURL:       "/public/news/" + url.PathEscape(locale) + "/html",
+		PagesURL:      "/public/pages/" + url.PathEscape(locale) + "/",
 	}
+}
+
+// appearanceCSS returns the admin's validated brand tokens (modules/site
+// Appearance) as a `:root{--brand:...}` rule, or empty when unconfigured.
+func (h Handler) appearanceCSS(ctx context.Context) template.CSS {
+	if h.PublicContactSettings == nil {
+		return ""
+	}
+	settings, err := h.PublicContactSettings(ctx)
+	if err != nil {
+		return ""
+	}
+	css, err := site.AppearanceFromSettings(settings).CSS()
+	if err != nil {
+		return ""
+	}
+	return template.CSS(css)
 }
 
 func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, register bool) {
@@ -76,8 +96,9 @@ func (h Handler) writeMemberAuthPage(w http.ResponseWriter, r *http.Request, reg
 		}
 		view.OAuthProviders = append(view.OAuthProviders, v1.MemberOAuthProviderView{Name: name, Label: memberOAuthProviderLabel(name), URL: startURL})
 	}
-	view.Site = h.memberSiteView(locale, "")
+	view.Site = h.memberSiteView(r.Context(), locale, "")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	allowAppearanceStyle(w.Header(), view.Site.AppearanceCSS)
 	if err := v1.RenderThemeView(h.Theme, w, v1.ViewMemberAuth, view); err != nil {
 		http.Error(w, "member page unavailable", http.StatusInternalServerError)
 	}
@@ -136,9 +157,10 @@ func (h Handler) accountPage(w http.ResponseWriter, r *http.Request) {
 			Current:   currentSession != nil && s.ID == currentSession.ID,
 		})
 	}
-	view.Site = h.memberSiteView(locale, member.Email)
+	view.Site = h.memberSiteView(r.Context(), locale, member.Email)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "private, no-store")
+	allowAppearanceStyle(w.Header(), view.Site.AppearanceCSS)
 	if err := v1.RenderThemeView(h.Theme, w, v1.ViewMemberAccount, view); err != nil {
 		http.Error(w, "member page unavailable", http.StatusInternalServerError)
 	}

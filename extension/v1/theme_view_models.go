@@ -30,6 +30,13 @@ type ThemeSiteView struct {
 	// Widgets is trailing body markup: consent notice, social links and the
 	// floating contact button. Themes print it just before </body>.
 	Widgets template.HTML
+	// AppearanceCSS is the admin's brand tokens (modules/site Appearance),
+	// already validated and compiled to a `:root{--brand:...}` rule. Empty
+	// when the site module is disabled or no Appearance has been saved.
+	// Themes print it as <style>{{.AppearanceCSS}}</style> in <head>; it is
+	// typed template.CSS (not template.HTML) so html/template's contextual
+	// escaper trusts it inside a <style> element instead of replacing it.
+	AppearanceCSS template.CSS
 	// NewsURL is the localized news index; PagesURL is the localized prefix
 	// for CMS pages (append "<slug>/html").
 	NewsURL  string
