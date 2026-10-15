@@ -3,6 +3,10 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function copyToAdminUi() {
   return {
@@ -24,8 +28,8 @@ function copyToAdminUi() {
 export default defineConfig({
   base: '/admin/',
   plugins: [
-    tailwindcss(),
     svelte(),
+    tailwindcss(),
     copyToAdminUi(),
   ],
   resolve: {
@@ -34,6 +38,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
       '/api': {
