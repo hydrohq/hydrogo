@@ -15,6 +15,9 @@
   import PageEditorView from './routes/pages/PageEditorView.svelte';
   import MembersView from './routes/members/MembersView.svelte';
   import UsersView from './routes/users/UsersView.svelte';
+  import SiteView from './routes/site/SiteView.svelte';
+  import AuditView from './routes/audit/AuditView.svelte';
+  import SystemView from './routes/system/SystemView.svelte';
 
   let initializing = $state(true);
 
@@ -117,6 +120,12 @@
       <MembersView />
     {:else if routeInfo.module === 'users'}
       <UsersView />
+    {:else if routeInfo.module === 'site'}
+      <SiteView />
+    {:else if routeInfo.module === 'audit'}
+      <AuditView />
+    {:else if routeInfo.module === 'system'}
+      <SystemView />
     {:else}
       <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
       {#if schema.getCollection(routeInfo.module || '')}
