@@ -1,26 +1,27 @@
 # HydroGo
 
-**A single-binary content management system written in Go.**
+**A single-binary headless content management system written in Go.**
 
-HydroGo manages pages, news, media and members, renders themed public sites
-with server-side HTML, and exposes the same content over a REST API. It runs
+HydroGo manages pages, news, media, members, and custom content types, exposing
+everything over a unified REST API with an embedded modern admin panel. It runs
 as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 
-> Status: pre-1.0. HydroGo is being refocused from a broad "product factory"
-> into a CMS. See [docs/decisions/0001-cms-focus.md](docs/decisions/0001-cms-focus.md).
+> Status: v2 Headless. HydroGo serves pure JSON APIs and embeds a Svelte 5 SPA
+> admin panel. See [docs/decisions/0001-cms-focus.md](docs/decisions/0001-cms-focus.md) and
+> [docs/decisions/0005-admin-svelte-spa.md](docs/decisions/0005-admin-svelte-spa.md).
 
 ## What it does
 
+- **Headless Core:** pure JSON REST APIs with OpenAPI schema for pages, news,
+  members, media, settings, and custom YAML content types.
+- **Admin Panel:** embedded single-page application built with Svelte 5,
+  TypeScript, Tailwind CSS, and shadcn-svelte (`admin/` embedded in Go binary).
+- **Custom Content Types:** declarative YAML definitions (`content-types/*.yaml`)
+  instantly provide admin screens and `/api/v1/content/<id>` endpoints with zero code.
 - **Content:** pages with blocks, news with categories and tags, media
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
-  scheduled news publishing, trash and audit log.
-- **Sites:** headless — build any frontend on the API (see `examples/`), navigation,
-  redirects, SEO metadata, sitemaps, Open Graph images, `llms.txt`.
-- **Members:** registration, login, MFA for admins, privacy-friendly
-  analytics, forms with a submission inbox, weekly digest emails over SMTP.
-- **Admin:** a server-rendered admin panel (Go + Templ + HTMX).
-- **Headless:** a public content REST API described by OpenAPI in
-  `docs/api/`, with `hydro sdk generate` for TypeScript and Dart clients.
+  scheduled news publishing, and audit log.
+- **Frontends:** build any client on the API (see `examples/svelte-starter`).
 - **Operations:** migrations with rollback snapshots, backups and restore,
   health/readiness probes, Prometheus metrics, optional Redis and S3.
 
@@ -51,12 +52,14 @@ commands.
 | Path | What lives there |
 |---|---|
 | `cmd/hydro` | The CLI and HTTP server entrypoint |
-| `internal/` | Core packages: auth, database, media, admin UI (`ui`, `adminstudio`), collections, search, security, … |
-| `modules/` | Content modules: `pages`, `news`, `members`, `site`, `seo`, `designsystem` |
+| `admin/` | Modern Svelte 5 + TypeScript + Tailwind embedded admin panel SPA |
+| `internal/` | Core packages: auth, database, media, admin UI embedding (`adminui`), collections, search, security, … |
+| `modules/` | Content modules: `pages`, `news`, `members`, `site`, `seo` |
+| `content-types/` | Declarative YAML schemas for custom content types |
 | `migrations/` | SQL migrations for SQLite, PostgreSQL and MySQL |
-| `extension/v1` | Theme and extension contracts |
-| `tools/` | Dev server and CI guards |
-| `docs/` | Current docs; `docs/archive/` holds historical plans and ADRs |
+| `examples/` | Headless client starter implementations (`examples/svelte-starter`) |
+| `tools/` | Dev server, guards, and check script |
+| `docs/` | Current docs and architecture decision records (ADRs) |
 
 ## Development
 
