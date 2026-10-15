@@ -1,37 +1,20 @@
 package transport
 
 import (
-	"context"
+	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
-
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/preview"
+	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 )
 
-type pageInput struct {
-	Locale string        `json:"locale"`
-	Slug   string        `json:"slug"`
-	Title  string        `json:"title"`
-	Body   string        `json:"body"`
-	Blocks []pages.Block `json:"blocks"`
-	Tags   []string      `json:"tags,omitempty"`
-}
-
-type updateInput struct {
-	pageInput
-	Version int `json:"version"`
-}
-
 // pageSummary is the intentionally small public discovery projection. Detail
-// content remains behind the by-slug endpoint so list clients do not mistake
+// content remains behind the detail endpoints so list clients do not mistake
 // empty draft fields for published content.
 type pageSummary struct {
 	ID                    string    `json:"id"`
@@ -43,19 +26,20 @@ type pageSummary struct {
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
+// GET /api/v1/pages?locale=&limit= lists published pages as summaries.
 func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
 	limit := 20
 	if value := r.URL.Query().Get("limit"); value != "" {
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed < 1 || parsed > 100 {
-			http.Error(w, "limit must be between 1 and 100", http.StatusBadRequest)
+			api.WriteError(w, r, http.StatusBadRequest, "limit must be between 1 and 100", nil)
 			return
 		}
 		limit = parsed
 	}
 	items, err := h.Content.ListPublished(r.Context(), h.DB, r.URL.Query().Get("locale"), limit)
 	if err != nil {
-		http.Error(w, "page lookup failed", pageReadStatus(err))
+		writePageReadError(w, r, err)
 		return
 	}
 	visible := items[:0]
@@ -64,7 +48,7 @@ func (h Handler) listPublished(w http.ResponseWriter, r *http.Request) {
 			visible = append(visible, item)
 		}
 	}
-	api.WriteJSON(w, http.StatusOK, summarizePages(visible))
+	api.WriteList(w, summarizePages(visible), api.PaginationMeta{Limit: limit, HasMore: len(items) == limit})
 }
 
 func summarizePages(items []pages.Page) []pageSummary {
@@ -75,171 +59,66 @@ func summarizePages(items []pages.Page) []pageSummary {
 	return summaries
 }
 
+// GET /api/v1/pages/{locale}/{slug} returns one published page.
 func (h Handler) getPublished(w http.ResponseWriter, r *http.Request) {
-	page, err := h.Content.GetPublished(r.Context(), h.DB, r.PathValue("locale"), r.PathValue("slug"))
+	h.getPublishedWithRoute(w, r, r.PathValue("locale"), r.PathValue("slug"), true)
+}
+
+// GET /api/v1/pages/by-slug?locale=&slug= is the query-string form of the
+// detail endpoint for clients that cannot build path segments safely.
+func (h Handler) getPublishedByQuery(w http.ResponseWriter, r *http.Request) {
+	h.getPublishedWithRoute(w, r, r.URL.Query().Get("locale"), r.URL.Query().Get("slug"), false)
+}
+
+func (h Handler) getPublishedWithRoute(w http.ResponseWriter, r *http.Request, locale, slug string, recordMiss bool) {
+	page, err := h.Content.GetPublished(r.Context(), h.DB, locale, slug)
 	if err != nil {
-		if pageStatus(err) == http.StatusNotFound {
+		if recordMiss && pageReadStatus(err) == http.StatusNotFound {
 			h.recordNotFound(r)
 		}
-		http.Error(w, "page lookup failed", pageReadStatus(err))
+		writePageReadError(w, r, err)
 		return
 	}
 	if !h.publicPageAllowed(page) {
-		http.NotFound(w, r)
+		api.WriteError(w, r, http.StatusNotFound, "page not found", nil)
 		return
 	}
-	api.WriteJSON(w, http.StatusOK, page)
+	api.WriteData(w, http.StatusOK, page, nil)
 }
 
-func (h Handler) create(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
+func pageReadStatus(err error) int {
+	if errors.Is(err, service.ErrDependencyRequired) || errors.Is(err, database.ErrDatabaseRequired) {
+		return http.StatusServiceUnavailable
 	}
-	var input pageInput
-	if err := decodeJSON(w, r, &input); err != nil {
-		return
-	}
-	id, err := newID()
-	if err != nil {
-		http.Error(w, "page service unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	page := pages.Page{ID: id, Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks, Tags: input.Tags}
-	if err := h.validatePageMedia(r.Context(), page); err != nil {
-		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := h.Content.CreateDraft(r.Context(), page); err != nil {
-		http.Error(w, pageError(err), pageStatus(err))
-		return
-	}
-	h.writePage(w, r, page.ID)
+	return http.StatusNotFound
 }
 
-func (h Handler) get(w http.ResponseWriter, r *http.Request) {
-	if !auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead) {
-		http.Error(w, "forbidden", http.StatusForbidden)
+// GET /api/v1/pages/{id}/preview?token= returns the draft a preview link was
+// issued for. The token binds the page, its revision and the tenant, so a
+// shared link stops working as soon as the draft changes.
+func (h Handler) publicPreview(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+	if h.PreviewSigner == nil {
+		api.WriteError(w, r, http.StatusNotFound, "preview not found", nil)
 		return
 	}
-	h.writePage(w, r, r.PathValue("id"))
-}
-
-func (h Handler) preview(w http.ResponseWriter, r *http.Request) {
-	if !auth.Can(auth.UserFromContext(r.Context()), auth.PermissionContentRead) {
-		http.Error(w, "forbidden", http.StatusForbidden)
+	claims, err := h.PreviewSigner.Verify(r.URL.Query().Get("token"), time.Now().UTC())
+	if err != nil || claims.PageID != r.PathValue("id") {
+		api.WriteError(w, r, http.StatusNotFound, "preview not found", nil)
 		return
 	}
-	w.Header().Set("Cache-Control", "no-store")
-	h.writePage(w, r, r.PathValue("id"))
-}
-
-func (h Handler) createPreviewLink(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) || h.PreviewSigner == nil {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
-	if err != nil || (page.Status != pages.StatusDraft && page.Status != pages.StatusPublished) {
-		http.Error(w, "draft unavailable", http.StatusNotFound)
-		return
-	}
-	tenantID := ""
 	if h.RequireTenantScope {
 		scope, e := tenant.Require(r.Context())
-		if e != nil {
-			http.Error(w, "preview unavailable", http.StatusForbidden)
+		if e != nil || scope.TenantID != claims.TenantID {
+			api.WriteError(w, r, http.StatusNotFound, "preview not found", nil)
 			return
 		}
-		tenantID = scope.TenantID
 	}
-	now := time.Now().UTC()
-	token, err := h.PreviewSigner.Issue(preview.Claims{PageID: page.ID, TenantID: tenantID, Revision: page.Revision}, now, 24*time.Hour)
-	if err != nil {
-		http.Error(w, "preview unavailable", http.StatusServiceUnavailable)
+	page, err := h.Content.Get(r.Context(), h.DB, claims.PageID)
+	if err != nil || (page.Status != pages.StatusDraft && page.Status != pages.StatusPublished) || page.Revision != claims.Revision {
+		api.WriteError(w, r, http.StatusNotFound, "preview not found", nil)
 		return
 	}
-	target := "/preview/pages/" + url.PathEscape(page.ID) + "?token=" + url.QueryEscape(token)
-	if h.PreviewOrigin != "" {
-		target = strings.TrimRight(h.PreviewOrigin, "/") + target
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	api.WriteJSON(w, http.StatusCreated, map[string]any{"url": target, "expires_at": now.Add(24 * time.Hour)})
-}
-
-func (h Handler) writePage(w http.ResponseWriter, r *http.Request, id string) {
-	page, err := h.Content.Get(r.Context(), h.DB, id)
-	if err != nil {
-		http.Error(w, "page lookup failed", pageReadStatus(err))
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, page)
-}
-
-func (h Handler) update(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	var input updateInput
-	if err := decodeJSON(w, r, &input); err != nil {
-		return
-	}
-	page := pages.Page{ID: r.PathValue("id"), Locale: input.Locale, Slug: input.Slug, Title: input.Title, Body: input.Body, Blocks: input.Blocks, Tags: input.Tags}
-	if err := h.validatePageMedia(r.Context(), page); err != nil {
-		http.Error(w, errUnavailableMediaReference.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := h.Content.UpdateDraft(r.Context(), page, input.Version); err != nil {
-		http.Error(w, pageError(err), pageStatus(err))
-		return
-	}
-	h.writePage(w, r, page.ID)
-}
-
-func (h Handler) recordPublishedSlugChange(ctx context.Context, previous pages.Page, locale, slug string) error {
-	if h.RecordSlugRedirect == nil || previous.Status != pages.StatusPublished || previous.Slug == slug {
-		return nil
-	}
-	if locale != previous.Locale {
-		return nil
-	}
-	if h.DefaultLocale != "" && previous.Locale != h.DefaultLocale {
-		return nil
-	}
-	return h.RecordSlugRedirect(ctx, previous.Locale, previous.Slug, slug)
-}
-
-func (h Handler) recordPreviousPublishedSlug(ctx context.Context, oldLocale, oldSlug string, page pages.Page) error {
-	return h.recordPublishedSlugChange(ctx, pages.Page{Locale: oldLocale, Slug: oldSlug, Status: pages.StatusPublished}, page.Locale, page.Slug)
-}
-
-func (h Handler) publish(w http.ResponseWriter, r *http.Request) {
-	if !editorAllowed(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	expectedVersion, err := strconv.Atoi(r.URL.Query().Get("version"))
-	if err != nil || expectedVersion <= 0 {
-		http.Error(w, "version query parameter is required", http.StatusBadRequest)
-		return
-	}
-	oldLocale, oldSlug, err := h.Content.PublishedSlug(r.Context(), h.DB, r.PathValue("id"))
-	if err != nil {
-		http.Error(w, "page publication unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	if err := h.Content.Publish(r.Context(), r.PathValue("id"), expectedVersion); err != nil {
-		http.Error(w, pageError(err), pageStatus(err))
-		return
-	}
-	if oldSlug != "" {
-		if page, getErr := h.Content.Get(r.Context(), h.DB, r.PathValue("id")); getErr == nil {
-			if err := h.recordPreviousPublishedSlug(r.Context(), oldLocale, oldSlug, page); err != nil {
-				http.Error(w, "page published, but its old link could not be redirected", http.StatusServiceUnavailable)
-				return
-			}
-		}
-	}
-	h.writePage(w, r, r.PathValue("id"))
+	api.WriteData(w, http.StatusOK, page, nil)
 }

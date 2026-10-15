@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	analyticsstore "github.com/ardaozyildirim/hydrogo/internal/analytics/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -28,34 +28,41 @@ type contentViewReportRow struct {
 	Views                                 int64
 }
 
-// adminReportsExport downloads request telemetry and analytics as CSV or JSON.
-func (a *serveApp) adminReportsExport(w http.ResponseWriter, r *http.Request) {
+// adminReportsHandler serves request telemetry and analytics as JSON
+// (default) or a CSV download. ?from=&to= (YYYY-MM-DD, at most a year apart)
+// or ?range=7d|30d bound the content-view rows.
+func (a *serveApp) adminReportsHandler(w http.ResponseWriter, r *http.Request) {
 	cfg, modules := a.cfg, a.modules
 	analyticsStore, memberService, runtimeMetrics := a.analyticsStore, a.memberService, a.metrics
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active || user.Role != auth.RoleAdmin {
-		http.Error(w, "forbidden", http.StatusForbidden)
+	if !activePlatformAdmin(auth.UserFromContext(r.Context())) {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
 		return
 	}
-	if r.URL.Query().Get("range") == "custom" {
-		if _, _, valid := customAnalyticsDateRange(r.URL.Query().Get("from"), r.URL.Query().Get("to")); !valid {
-			http.Error(w, "Choose a valid date range within the past year.", http.StatusBadRequest)
+	query := r.URL.Query()
+	if query.Get("from") != "" || query.Get("to") != "" {
+		query.Set("range", "custom")
+		r.URL.RawQuery = query.Encode()
+	}
+	if query.Get("range") == "custom" {
+		if _, _, valid := customAnalyticsDateRange(query.Get("from"), query.Get("to")); !valid {
+			api.WriteValidation(w, r, map[string]string{"from": "invalid", "to": "invalid"})
 			return
 		}
 	}
-	format := r.URL.Query().Get("format")
+	format := query.Get("format")
 	if format == "" {
-		format = "csv"
+		format = "json"
+	}
+	if format != "json" && format != "csv" {
+		api.WriteValidation(w, r, map[string]string{"format": "invalid"})
+		return
 	}
 	var paths []observability.PathStatsSnapshot
 	if runtimeMetrics != nil {
 		paths = runtimeMetrics.PathStats()
 	}
 	if format == "json" {
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"hydro-report-%s.json\"", time.Now().Format("20060102-150405")))
+		w.Header().Set("Cache-Control", "private, no-store")
 		var stats members.MemberStats
 		if modules["members"] {
 			stats, _ = memberService.Stats(r.Context())
@@ -111,7 +118,7 @@ func (a *serveApp) adminReportsExport(w http.ResponseWriter, r *http.Request) {
 			}(),
 			"analytics_daily": noCookieStats,
 		}
-		_ = json.NewEncoder(w).Encode(out)
+		api.WriteData(w, http.StatusOK, out, nil)
 		return
 	}
 

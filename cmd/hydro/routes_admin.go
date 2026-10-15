@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
@@ -16,15 +17,41 @@ func (a *serveApp) adminStudioRoutes() []router.Route {
 	cfg, db, modules := a.cfg, a.db, a.modules
 	var routes []router.Route
 	if modules["pages"] || modules["news"] || modules["members"] || modules["media"] || modules["site"] {
-		routes = append(routes, router.Route{Pattern: "GET /admin/api/search", Access: router.Protected, Handler: adminsearch.AdminSearchHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, Modules: modules}})
+		routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/search", Access: router.Protected, Handler: adminsearch.AdminSearchHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, Modules: modules}})
 	}
 	routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/schema", Access: router.Protected, Handler: http.HandlerFunc(a.adminSchema)})
 	return routes
 }
 
-// adminRoutes registers the report export.
+// adminRoutes registers the cross-cutting admin API: dashboard, reports,
+// audit explorer, backups, IP bans, users and permissions, account
+// preferences, system information and the admin i18n catalog.
 func (a *serveApp) adminRoutes() []router.Route {
-	return []router.Route{{Pattern: "GET /admin/reports/export", Access: router.Protected, Handler: http.HandlerFunc(a.adminReportsExport)}}
+	protected := func(pattern string, handler http.HandlerFunc) router.Route {
+		return router.Route{Pattern: pattern, Access: router.Protected, Handler: handler}
+	}
+	routes := []router.Route{
+		protected("GET /api/v1/admin/dashboard", a.adminDashboardHandler),
+		protected("GET /api/v1/admin/reports", a.adminReportsHandler),
+		protected("GET /api/v1/admin/backups", a.adminBackupStatusHandler),
+		protected("POST /api/v1/admin/backups", a.adminBackupDownloadHandler(a.newRateLimiter(3, time.Minute))),
+		protected("GET /api/v1/admin/security/ip-bans", a.adminIPBanListHandler),
+		protected("POST /api/v1/admin/security/ip-bans", a.adminIPBanMutationHandler(false)),
+		protected("DELETE /api/v1/admin/security/ip-bans", a.adminIPBanMutationHandler(true)),
+		protected("GET /api/v1/admin/users", a.adminUsersListHandler),
+		protected("GET /api/v1/admin/users/{id}", a.adminUserGetHandler),
+		protected("GET /api/v1/admin/permissions", a.adminPermissionsHandler),
+		protected("PUT /api/v1/admin/account/locale", a.adminAccountLocaleHandler),
+		protected("GET /api/v1/admin/i18n/{locale}", a.adminI18nHandler),
+		protected("GET /api/v1/admin/system/info", a.adminSystemInfoHandler),
+		protected("GET /api/v1/admin/system/metrics", a.adminSystemMetricsHandler),
+		protected("GET /api/v1/admin/system/health", a.adminSystemHealthHandler(a.readiness)),
+		protected("POST /api/v1/admin/client-errors", a.adminClientErrorHandler(a.newRateLimiter(10, time.Minute))),
+	}
+	if a.modules["pages"] {
+		routes = append(routes, protected("GET /api/v1/admin/audit", a.adminAuditHandler))
+	}
+	return routes
 }
 
 func activePlatformAdmin(user *auth.User) bool {

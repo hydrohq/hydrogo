@@ -256,7 +256,7 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 	}
 }
 
-func TestAdminSetActiveRevokesBrowserSessions(t *testing.T) {
+func TestAdminDeactivateRevokesBrowserSessions(t *testing.T) {
 	memberStore := newMemoryMemberStore()
 	memberStore.members["member-1"] = &members.Member{ID: "member-1", Email: "member@example.com", Active: true}
 	sessions := newMemorySessionStore()
@@ -266,8 +266,8 @@ func TestAdminSetActiveRevokesBrowserSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	handler := transport.Handler{Service: svc}
-	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-1/active", strings.NewReader("active=false"))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request := httptest.NewRequest(http.MethodPatch, transport.AdminBasePath+"/member-1", strings.NewReader(`{"active":false}`))
+	request.Header.Set("Content-Type", "application/json")
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
 	response := httptest.NewRecorder()
 	mux := http.NewServeMux()
@@ -275,11 +275,57 @@ func TestAdminSetActiveRevokesBrowserSessions(t *testing.T) {
 		mux.Handle(route.Pattern, route.Handler)
 	}
 	mux.ServeHTTP(response, request)
-	if response.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusSeeOther)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"active":false`) {
+		t.Fatalf("status = %d body = %s", response.Code, response.Body.String())
 	}
 	if _, _, err := svc.ValidateSession(context.Background(), token); !errors.Is(err, members.ErrInvalidCredentials) {
 		t.Fatalf("deactivated member session still valid: session=%v err=%v", session.ID, err)
+	}
+}
+
+func TestAdminListDetailAndStatsAnswerEnvelopes(t *testing.T) {
+	now := time.Now().UTC()
+	rows := []members.Member{{ID: "m-1", Email: "a@example.test", Active: true, CreatedAt: now}, {ID: "m-2", Email: "b@example.test", Active: false, CreatedAt: now}, {ID: "m-3", Email: "c@example.test", Active: true, CreatedAt: now}}
+	store := fixedMemberStore{memoryMemberStore: newMemoryMemberStore(), rows: rows}
+	for i := range rows {
+		store.members[rows[i].ID] = &rows[i]
+	}
+	svc := members.Service{Members: store, Sessions: newMemorySessionStore()}
+	mux := http.NewServeMux()
+	for _, route := range (transport.Handler{Service: svc}).Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
+	get := func(path string, user *auth.User) *httptest.ResponseRecorder {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		request = request.WithContext(auth.WithUser(request.Context(), user))
+		response := httptest.NewRecorder()
+		mux.ServeHTTP(response, request)
+		return response
+	}
+	list := get(transport.AdminBasePath+"?limit=2&offset=0", admin)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"total":3`) || !strings.Contains(list.Body.String(), `"has_more":true`) || strings.Contains(list.Body.String(), "c@example.test") {
+		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
+	}
+	if bad := get(transport.AdminBasePath+"?status=banned", admin); bad.Code != http.StatusBadRequest || !strings.Contains(bad.Body.String(), `"status":"invalid"`) {
+		t.Fatalf("invalid status filter: %d %s", bad.Code, bad.Body.String())
+	}
+	detail := get(transport.AdminBasePath+"/m-2", admin)
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), `"member":{"id":"m-2"`) || !strings.Contains(detail.Body.String(), `"sessions":[]`) {
+		t.Fatalf("detail status=%d body=%s", detail.Code, detail.Body.String())
+	}
+	if missing := get(transport.AdminBasePath+"/nope", admin); missing.Code != http.StatusNotFound || !strings.Contains(missing.Body.String(), `"code":"not_found"`) {
+		t.Fatalf("missing member: %d %s", missing.Code, missing.Body.String())
+	}
+	if stats := get(transport.AdminBasePath+"/stats", admin); stats.Code != http.StatusOK || !strings.Contains(stats.Body.String(), `"total_members"`) {
+		t.Fatalf("stats: %d %s", stats.Code, stats.Body.String())
+	}
+	export := get(transport.AdminBasePath+"/export?format=csv", admin)
+	if export.Code != http.StatusOK || !strings.HasPrefix(export.Header().Get("Content-Type"), "text/csv") || !strings.Contains(export.Body.String(), "a@example.test,true") {
+		t.Fatalf("export: %d %q %s", export.Code, export.Header().Get("Content-Type"), export.Body.String())
+	}
+	if viewer := get(transport.AdminBasePath, &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}); viewer.Code != http.StatusForbidden {
+		t.Fatalf("viewer list status=%d", viewer.Code)
 	}
 }
 
@@ -300,11 +346,11 @@ func TestAdminRevokeSessionBindsSessionToMember(t *testing.T) {
 	handler := transport.Handler{Service: svc}
 	var revoke http.Handler
 	for _, route := range handler.Routes() {
-		if route.Pattern == "POST /admin/members/{id}/sessions/{session_id}/revoke" {
+		if route.Pattern == "POST "+transport.AdminBasePath+"/{id}/sessions/{session_id}/revoke" {
 			revoke = route.Handler
 		}
 	}
-	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-a/sessions/"+sessionB.ID+"/revoke", nil)
+	request := httptest.NewRequest(http.MethodPost, transport.AdminBasePath+"/member-a/sessions/"+sessionB.ID+"/revoke", nil)
 	request.SetPathValue("id", "member-a")
 	request.SetPathValue("session_id", sessionB.ID)
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
@@ -316,7 +362,7 @@ func TestAdminRevokeSessionBindsSessionToMember(t *testing.T) {
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("cross-member revoke status = %d, want %d", response.Code, http.StatusNotFound)
 	}
-	request = httptest.NewRequest(http.MethodPost, "/admin/members/member-a/sessions/"+sessionA.ID+"/revoke", nil)
+	request = httptest.NewRequest(http.MethodPost, transport.AdminBasePath+"/member-a/sessions/"+sessionA.ID+"/revoke", nil)
 	request.SetPathValue("id", "member-a")
 	request.SetPathValue("session_id", sessionA.ID)
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
@@ -325,29 +371,8 @@ func TestAdminRevokeSessionBindsSessionToMember(t *testing.T) {
 	if _, _, err := svc.ValidateSession(context.Background(), tokenA); !errors.Is(err, members.ErrInvalidCredentials) {
 		t.Fatalf("member A session survived own revoke: %v", err)
 	}
-	if response.Code != http.StatusSeeOther {
-		t.Fatalf("own revoke status = %d, want %d", response.Code, http.StatusSeeOther)
-	}
-}
-
-func TestAdminSetActiveRejectsExternalRefererRedirect(t *testing.T) {
-	svc := members.Service{Members: newMemoryMemberStore(), Sessions: newMemorySessionStore()}
-	handler := transport.Handler{Service: svc}
-	mux := http.NewServeMux()
-	for _, route := range handler.Routes() {
-		mux.Handle(route.Pattern, route.Handler)
-	}
-	req := httptest.NewRequest("POST", "/admin/members/member-1/active", strings.NewReader("active=true"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", "https://evil.example/phish")
-	req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
-	rr := httptest.NewRecorder()
-	mux.ServeHTTP(rr, req)
-	if rr.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want %d", rr.Code, http.StatusSeeOther)
-	}
-	if got := rr.Header().Get("Location"); got != "/admin/members/member-1" {
-		t.Fatalf("Location = %q, want local fallback", got)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("own revoke status = %d, want %d", response.Code, http.StatusNoContent)
 	}
 }
 
@@ -378,19 +403,19 @@ CREATE TABLE member_email_verification_tokens (id TEXT PRIMARY KEY,member_id TEX
 	var resend http.Handler
 	var verify http.Handler
 	for _, route := range handler.Routes() {
-		if route.Pattern == "POST /admin/members/{id}/resend-verification" {
+		if route.Pattern == "POST "+transport.AdminBasePath+"/{id}/resend-verification" {
 			resend = route.Handler
 		}
 		if route.Pattern == "GET /member/email/verify" {
 			verify = route.Handler
 		}
 	}
-	request := httptest.NewRequest(http.MethodPost, "/admin/members/member-1/resend-verification", nil)
+	request := httptest.NewRequest(http.MethodPost, transport.AdminBasePath+"/member-1/resend-verification", nil)
 	request.SetPathValue("id", "member-1")
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
 	response := httptest.NewRecorder()
 	resend.ServeHTTP(response, request)
-	if response.Code != http.StatusSeeOther || notifier.email != "member@example.test" || !strings.HasPrefix(notifier.link, "https://hydro.example.test/member/email/verify?token=") {
+	if response.Code != http.StatusAccepted || notifier.email != "member@example.test" || !strings.HasPrefix(notifier.link, "https://hydro.example.test/member/email/verify?token=") {
 		t.Fatalf("resend status=%d notification=%+v body=%s", response.Code, notifier, response.Body.String())
 	}
 	parsed, err := url.Parse(notifier.link)
@@ -500,16 +525,17 @@ func TestAdminMemberMutationRoutesRequirePermissionAndCSRF(t *testing.T) {
 		mux.Handle(route.Pattern, route.Handler)
 	}
 	protected := security.CSRFMiddleware(false, nil)(mux)
+	base := transport.AdminBasePath
 	mutationRoutes := []struct {
 		pattern string
+		method  string
 		path    string
 	}{
-		{pattern: "POST /admin/members/{id}", path: "/admin/members/member-1"},
-		{pattern: "POST /admin/members/{id}/active", path: "/admin/members/member-1/active"},
-		{pattern: "POST /admin/members/{id}/verify-email", path: "/admin/members/member-1/verify-email"},
-		{pattern: "POST /admin/members/{id}/resend-verification", path: "/admin/members/member-1/resend-verification"},
-		{pattern: "POST /admin/members/{id}/sessions/{session_id}/revoke", path: "/admin/members/member-1/sessions/" + sessionA.ID + "/revoke"},
-		{pattern: "POST /admin/members/{id}/sessions/revoke-all", path: "/admin/members/member-1/sessions/revoke-all"},
+		{pattern: "PATCH " + base + "/{id}", method: http.MethodPatch, path: base + "/member-1"},
+		{pattern: "POST " + base + "/{id}/verify-email", method: http.MethodPost, path: base + "/member-1/verify-email"},
+		{pattern: "POST " + base + "/{id}/resend-verification", method: http.MethodPost, path: base + "/member-1/resend-verification"},
+		{pattern: "POST " + base + "/{id}/sessions/{session_id}/revoke", method: http.MethodPost, path: base + "/member-1/sessions/" + sessionA.ID + "/revoke"},
+		{pattern: "POST " + base + "/{id}/sessions/revoke-all", method: http.MethodPost, path: base + "/member-1/sessions/revoke-all"},
 	}
 	deniedUsers := []struct {
 		name string
@@ -527,9 +553,8 @@ func TestAdminMemberMutationRoutesRequirePermissionAndCSRF(t *testing.T) {
 		t.Run(route.pattern, func(t *testing.T) {
 			for _, tc := range deniedUsers {
 				t.Run(tc.name, func(t *testing.T) {
-					form := url.Values{"_csrf": {"csrf-token"}, "active": {"false"}, "verified": {"true"}}
-					request := httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(form.Encode()))
-					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					request := httptest.NewRequest(route.method, route.path, strings.NewReader(`{"active":false,"email_verified":true}`))
+					request.Header.Set("Content-Type", "application/json")
 					request.Header.Set(security.CSRFHeaderName, "csrf-token")
 					request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
 					request = request.WithContext(auth.WithUser(request.Context(), tc.user))
@@ -548,11 +573,11 @@ func TestAdminMemberMutationRoutesRequirePermissionAndCSRF(t *testing.T) {
 				cookie string
 			}{
 				{name: "missing"},
-				{name: "mismatched", body: "_csrf=wrong-token&active=false&verified=true", header: "wrong-token", cookie: "csrf-token"},
+				{name: "mismatched", body: `{"active":false,"email_verified":true}`, header: "wrong-token", cookie: "csrf-token"},
 			} {
 				t.Run("csrf "+csrfCase.name, func(t *testing.T) {
-					request := httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(csrfCase.body))
-					request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+					request := httptest.NewRequest(route.method, route.path, strings.NewReader(csrfCase.body))
+					request.Header.Set("Content-Type", "application/json")
 					if csrfCase.header != "" {
 						request.Header.Set(security.CSRFHeaderName, csrfCase.header)
 					}

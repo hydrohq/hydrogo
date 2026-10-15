@@ -87,6 +87,37 @@ func (s Store) ListPublicSettings(ctx context.Context, db database.Executor) ([]
 	return result, rows.Err()
 }
 
+// ListSettings reads every setting, private ones included, within the current
+// tenant scope. Callers must not expose private values publicly.
+func (s Store) ListSettings(ctx context.Context, db database.Executor) ([]site.Setting, error) {
+	_, scopeID, err := s.tenantFilter(ctx, 1)
+	if err != nil {
+		return nil, err
+	}
+	keyColumn := "key"
+	if s.Dialect == database.MySQL {
+		keyColumn = "`key`"
+	}
+	query := `SELECT ` + keyColumn + `,value,is_public,updated_at FROM site_settings WHERE tenant_id = ` + s.p(1) + ` ORDER BY ` + keyColumn + ` LIMIT 1000`
+	rows, err := queryContext(ctx, db, query, scopeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]site.Setting, 0)
+	for rows.Next() {
+		var value site.Setting
+		var public, updated any
+		if err := rows.Scan(&value.Key, &value.Value, &public, &updated); err != nil {
+			return nil, err
+		}
+		value.Public = parseBool(public)
+		value.UpdatedAt = parseTime(updated)
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
 // GetSetting reads a single setting, including private settings, within the
 // current tenant scope. Callers must not expose private values publicly.
 func (s Store) GetSetting(ctx context.Context, db database.Executor, key string) (site.Setting, bool, error) {

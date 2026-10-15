@@ -48,7 +48,7 @@ func TestAdminSearchReturnsCategorizedContentWithoutSettingsValues(t *testing.T)
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	var response struct {
-		Items []adminSearchItem `json:"items"`
+		Items []adminSearchItem `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestAdminSearchHonorsRoleAndPermissionOverridesPerSource(t *testing.T) {
 			t.Fatalf("%s status=%d body=%s", name, response.Code, response.Body.String())
 		}
 		var body struct {
-			Items []adminSearchItem `json:"items"`
+			Items []adminSearchItem `json:"data"`
 		}
 		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 			t.Fatal(err)

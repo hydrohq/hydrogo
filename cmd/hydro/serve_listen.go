@@ -114,6 +114,14 @@ func (a *serveApp) mailerRoutes() []router.Route {
 
 // serverConfig assembles server.Config: security headers, panic reporting,
 // maintenance mode and readiness checks.
+// readiness is the check behind /readyz and the admin health endpoint.
+func (a *serveApp) readiness(checkCtx context.Context) error {
+	if err := a.db.PingContext(checkCtx); err != nil {
+		return err
+	}
+	return database.CheckCompatibilityForModules(checkCtx, a.db, a.cfg.Database.Dialect, migrations.FS, enabledModuleSet(a.cfg.Modules))
+}
+
 func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 	cfg, db, modules := a.cfg, a.db, a.modules
 	siteStore, authHTTP, budget := a.siteStore, a.authHTTP, a.budget
@@ -150,7 +158,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
-		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], Modules: modules, ContentTypes: a.contentTypeLinks},
+		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], Modules: modules},
 		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {
 			if !modules["site"] {
 				return adminstudio.SupportConfig{}
@@ -208,11 +216,6 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		},
 		TenantResolver: a.tenantResolver,
 		Routes:         routes,
-		Ready: func(checkCtx context.Context) error {
-			if err := db.PingContext(checkCtx); err != nil {
-				return err
-			}
-			return database.CheckCompatibilityForModules(checkCtx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules))
-		},
+		Ready:          a.readiness,
 	}, nil
 }

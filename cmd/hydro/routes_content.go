@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
@@ -37,10 +36,6 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 		return nil, err
 	}
 	a.contentTypes = definitions
-	a.contentTypeLinks = make([]adminstudio.ContentTypeLink, 0, len(definitions))
-	for _, definition := range definitions {
-		a.contentTypeLinks = append(a.contentTypeLinks, adminstudio.ContentTypeLink{ID: definition.ID, Label: definition.Label})
-	}
 	return contentRoutes, nil
 }
 
@@ -99,7 +94,7 @@ func (a *serveApp) pageRoutes() []router.Route {
 	}
 	pageRoutes := pageRouterRoutes(a.pageHTTP.Routes())
 	for i := range pageRoutes {
-		if strings.HasPrefix(pageRoutes[i].Pattern, "GET /public/pages/") {
+		if pageRoutes[i].Pattern == "GET /api/v1/pages/{locale}/{slug}" {
 			if modules["analytics"] {
 				pageRoutes[i].Handler = analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(pageRoutes[i].Handler, contentViewQueue, "page"), noCookieQueue, noCookieHasher)
 			}
@@ -171,17 +166,9 @@ func (a *serveApp) newsRoutes() []router.Route {
 	}
 	newsRoutes := newsRouterRoutes(a.newsHTTP.Routes())
 	for i := range newsRoutes {
-		if strings.HasPrefix(newsRoutes[i].Pattern, "GET /public/news/") {
+		if newsRoutes[i].Pattern == "GET /api/v1/news/{locale}/{slug}" {
 			if modules["analytics"] {
-				original := newsRoutes[i].Handler
-				tracked := analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(original, contentViewQueue, "news"), noCookieQueue, noCookieHasher)
-				newsRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.URL.Query().Get("preview_token") != "" {
-						original.ServeHTTP(w, r)
-						return
-					}
-					tracked.ServeHTTP(w, r)
-				})
+				newsRoutes[i].Handler = analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(newsRoutes[i].Handler, contentViewQueue, "news"), noCookieQueue, noCookieHasher)
 			}
 		} else if !strings.HasPrefix(newsRoutes[i].Pattern, "GET ") {
 			original := newsRoutes[i].Handler

@@ -1,24 +1,26 @@
 package transport
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestRoutesIncludePublicPublishedNewsList(t *testing.T) {
-	foundList, foundBySlug := false, false
+func TestRoutesSplitPublicAndAdminSurfaces(t *testing.T) {
+	want := map[string]bool{"GET /api/v1/news": false, "GET /api/v1/news/by-slug": false, "GET /api/v1/news/{locale}/{slug}": false}
 	for _, route := range (Handler{}).Routes() {
-		if route.Pattern == "GET /api/news" {
+		if _, ok := want[route.Pattern]; ok {
 			if route.Protected {
-				t.Fatal("published news list must be public")
+				t.Fatalf("%s must be public", route.Pattern)
 			}
-			foundList = true
+			want[route.Pattern] = true
 		}
-		if route.Pattern == "GET /api/news/by-slug" {
-			if route.Protected {
-				t.Fatal("published news lookup must be public")
-			}
-			foundBySlug = true
+		if strings.Contains(route.Pattern, adminBase) && !route.Protected {
+			t.Fatalf("%s must be protected", route.Pattern)
 		}
 	}
-	if !foundList || !foundBySlug {
-		t.Fatalf("missing public news routes list=%t by_slug=%t", foundList, foundBySlug)
+	for pattern, found := range want {
+		if !found {
+			t.Fatalf("missing public news route %s", pattern)
+		}
 	}
 }

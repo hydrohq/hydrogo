@@ -204,7 +204,7 @@ func NewHandler(config Config) http.Handler {
 	// General requests use the selected capacity profile budget. Media uploads
 	// enforce their larger, uploader-specific limit in the media handler.
 	handler = security.RequestBodyLimitMiddleware(config.HTTPBodyLimit, func(r *http.Request) bool {
-		return r.URL.Path == "/api/media" || r.URL.Path == "/api/v1/media"
+		return r.URL.Path == "/api/v1/admin/media"
 	})(handler)
 	handler = security.AnomalyMiddleware(security.AnomalyConfig{
 		Enabled: config.AnomalyFilterEnabled, MaxBodyBytes: config.HTTPBodyLimit,

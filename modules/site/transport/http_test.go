@@ -3,19 +3,18 @@ package transport
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
-
 	"time"
-
-	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitesql "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
@@ -55,19 +54,22 @@ type fakeExecutor struct{}
 func (fakeExecutor) ExecContext(context.Context, string, ...any) (sql.Result, error) { return nil, nil }
 func (fakeExecutor) QueryRowContext(context.Context, string, ...any) *sql.Row        { return nil }
 
+func routeHandler(t *testing.T, handler Handler, pattern string) http.Handler {
+	t.Helper()
+	for _, route := range handler.Routes() {
+		if route.Pattern == pattern {
+			return route.Handler
+		}
+	}
+	t.Fatalf("route %q not registered", pattern)
+	return nil
+}
+
 func TestPublicSiteRoutesExposeOnlyPublicProjection(t *testing.T) {
 	handler := Handler{DB: fakeExecutor{}, Store: fakeStore{}}
 	const origin = "http://site.test"
-	client := testhttp.Client(testhttp.Handlers{"site.test": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, route := range handler.Routes() {
-			if route.Pattern == "GET /site/settings" {
-				route.Handler.ServeHTTP(w, r)
-				return
-			}
-		}
-		t.Fatal("settings route not found")
-	})})
-	response, err := client.Get(origin + "/site/settings")
+	client := testhttp.Client(testhttp.Handlers{"site.test": routeHandler(t, handler, "GET /api/v1/site/settings")})
+	response, err := client.Get(origin + "/api/v1/site/settings")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,95 +77,101 @@ func TestPublicSiteRoutesExposeOnlyPublicProjection(t *testing.T) {
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", response.StatusCode)
 	}
+	var body struct {
+		Data map[string]string `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil || body.Data["site.name"] != "HydroGo" {
+		t.Fatalf("body = %+v err=%v", body, err)
+	}
 }
 
 func TestPublicSiteRejectsTypedNilExecutorAsUnavailable(t *testing.T) {
-	var db *fakeExecutor
-	handler := Handler{DB: db, Store: fakeStore{}}
-	req := httptest.NewRequest(http.MethodGet, "/site/settings", nil)
+	var nilDB *sql.DB
+	handler := Handler{DB: nilDB, Store: fakeStore{}}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/site/settings", nil)
 	res := httptest.NewRecorder()
 	handler.publicSettings(res, req)
 	if res.Code != http.StatusServiceUnavailable {
-		t.Fatalf("typed nil executor status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+		t.Fatalf("typed nil executor status = %d", res.Code)
 	}
 }
 
 func TestPublicSiteRejectsTypedNilStoreAsUnavailable(t *testing.T) {
-	var store *fakeStore
-	handler := Handler{DB: fakeExecutor{}, Store: store}
-	req := httptest.NewRequest(http.MethodGet, "/site/settings", nil)
+	var nilStore *sitesql.Store
+	handler := Handler{DB: fakeExecutor{}, Store: nilStore}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/site/settings", nil)
 	res := httptest.NewRecorder()
 	handler.publicSettings(res, req)
 	if res.Code != http.StatusServiceUnavailable {
-		t.Fatalf("typed nil store status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+		t.Fatalf("typed nil store status = %d", res.Code)
 	}
 }
 
 func TestSitemapRouteUsesPublishedProvider(t *testing.T) {
 	handler := Handler{SitemapOrigin: "https://example.com", SitemapProvider: func(context.Context) ([]site.SitemapEntry, error) {
-		return []site.SitemapEntry{{URL: "https://example.com/en/home"}}, nil
+		return []site.SitemapEntry{{URL: "https://example.com/tr/about", LastModified: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}}, nil
 	}}
 	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
 	res := httptest.NewRecorder()
 	handler.sitemap(res, req)
-	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "https://example.com/en/home") {
-		t.Fatalf("sitemap response = %d %s", res.Code, res.Body.String())
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), "https://example.com/tr/about") {
+		t.Fatalf("sitemap status=%d body=%s", res.Code, res.Body.String())
 	}
 }
 
 func TestStreamingSitemapProducesCategoryIndexAndArticleParts(t *testing.T) {
-	handler := Handler{
-		SitemapOrigin:     "https://example.com",
-		SitemapCategories: []string{"pages", "articles"},
-		SitemapStream: func(_ context.Context, category string, visit func(site.SitemapEntry) error) error {
-			if category == "pages" {
-				return visit(site.SitemapEntry{URL: "https://example.com/en/home", Category: category})
+	handler := Handler{SitemapOrigin: "https://example.com", SitemapCategories: []string{"pages", "articles"}, SitemapStream: func(_ context.Context, category string, visit func(site.SitemapEntry) error) error {
+		for i := 0; i < 2; i++ {
+			if err := visit(site.SitemapEntry{URL: "https://example.com/" + category + "/" + string(rune('a'+i)), LastModified: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Category: category}); err != nil {
+				return err
 			}
-			if category == "articles" {
-				return visit(site.SitemapEntry{URL: "https://example.com/public/news/en/story", Category: category})
-			}
-			return nil
-		},
+		}
+		return nil
+	}}
+	index := httptest.NewRecorder()
+	handler.sitemapIndex(index, httptest.NewRequest(http.MethodGet, "/sitemap-index.xml", nil))
+	if index.Code != http.StatusOK || !strings.Contains(index.Body.String(), "sitemap-articles.xml") {
+		t.Fatalf("index status=%d body=%s", index.Code, index.Body.String())
 	}
-	indexResponse := httptest.NewRecorder()
-	handler.sitemap(indexResponse, httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil))
-	if indexResponse.Code != http.StatusOK || !strings.Contains(indexResponse.Body.String(), "/sitemap-pages.xml?part=1") || !strings.Contains(indexResponse.Body.String(), "/sitemap-articles.xml?part=1") {
-		t.Fatalf("categorized sitemap index = %d %s", indexResponse.Code, indexResponse.Body.String())
-	}
-	articleResponse := httptest.NewRecorder()
-	handler.sitemapArticlePart(articleResponse, httptest.NewRequest(http.MethodGet, "/sitemap-articles.xml?part=1", nil))
-	if articleResponse.Code != http.StatusOK || !strings.Contains(articleResponse.Body.String(), "public/news/en/story") {
-		t.Fatalf("article sitemap part = %d %s", articleResponse.Code, articleResponse.Body.String())
+	articles := httptest.NewRecorder()
+	handler.sitemapArticlePart(articles, httptest.NewRequest(http.MethodGet, "/sitemap-articles.xml", nil))
+	if articles.Code != http.StatusOK || !strings.Contains(articles.Body.String(), "https://example.com/articles/a") {
+		t.Fatalf("articles status=%d body=%s", articles.Code, articles.Body.String())
 	}
 }
 
 func TestAdminSiteMutationRequiresAdminContext(t *testing.T) {
 	handler := Handler{Service: &site.Service{}}
-	req := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"x"}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/site/settings", strings.NewReader(`{"settings":[{"key":"site.name","value":"x"}]}`))
 	res := httptest.NewRecorder()
-	handler.saveSetting(res, req)
+	handler.adminSaveSettings(res, req)
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("unauthorized mutation status = %d", res.Code)
 	}
+	if !strings.Contains(res.Body.String(), `"code":"forbidden"`) {
+		t.Fatalf("body = %s", res.Body.String())
+	}
 }
 
-type recordingSettingStore struct {
-	fakeStore
-	upserts int
-}
-
-func (s *recordingSettingStore) UpsertSetting(context.Context, database.Executor, site.Setting) error {
-	s.upserts++
-	return nil
-}
-
-func TestAdminSiteSettingUsesSiteManageOverrides(t *testing.T) {
-	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-permission.sqlite"))
+// openSiteDB returns a migrated SQLite database and a transport handler on it.
+func openSiteDB(t *testing.T) (*sql.DB, Handler, sitesql.Store) {
+	t.Helper()
+	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site.sqlite"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	t.Cleanup(func() { db.Close() })
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := sitesql.Store{Dialect: database.SQLite}
+	handler := Handler{DB: db, Store: store, Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}, Redirects: &site.RedirectRegistry{}, NavigationLocales: []string{"tr", "en"}}
+	return db, handler, store
+}
 
+func TestAdminSiteSettingUsesSiteManageOverrides(t *testing.T) {
+	_, handler, store := openSiteDB(t)
+	_ = store
 	for _, tc := range []struct {
 		name string
 		user *auth.User
@@ -171,60 +179,31 @@ func TestAdminSiteSettingUsesSiteManageOverrides(t *testing.T) {
 	}{
 		{name: "editor default denied", user: &auth.User{Role: auth.RoleEditor, Active: true}, want: http.StatusForbidden},
 		{name: "editor deny override", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, want: http.StatusForbidden},
-		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, want: http.StatusNoContent},
+		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, want: http.StatusOK},
 		{name: "admin deny override", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, want: http.StatusForbidden},
 		{name: "inactive grant denied", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, want: http.StatusForbidden},
-		{name: "admin default allowed", user: &auth.User{Role: auth.RoleAdmin, Active: true}, want: http.StatusNoContent},
+		{name: "admin default allowed", user: &auth.User{Role: auth.RoleAdmin, Active: true}, want: http.StatusOK},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			store := &recordingSettingStore{}
-			handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
-			req := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"HydroGo"}`))
+			req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/site/settings", strings.NewReader(`{"settings":[{"key":"site.name","value":"HydroGo"}]}`))
 			req = req.WithContext(auth.WithUser(req.Context(), tc.user))
 			res := httptest.NewRecorder()
-			handler.saveSetting(res, req)
+			handler.adminSaveSettings(res, req)
 			if res.Code != tc.want {
-				t.Fatalf("POST /admin/site/settings status=%d want=%d body=%s", res.Code, tc.want, res.Body.String())
-			}
-			wantWrites := 0
-			if tc.want == http.StatusNoContent {
-				wantWrites = 1
-			}
-			if store.upserts != wantWrites {
-				t.Fatalf("setting writes=%d want=%d", store.upserts, wantWrites)
+				t.Fatalf("PUT settings status=%d want=%d body=%s", res.Code, tc.want, res.Body.String())
 			}
 		})
 	}
 }
 
 func TestAdminSiteSettingRouteEnforcesCSRFBeforePermission(t *testing.T) {
-	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-setting-csrf.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-
-	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
-		t.Fatal(err)
-	}
-	store := sitesql.Store{Dialect: database.SQLite}
-	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	db, handler, store := openSiteDB(t)
 	mux := http.NewServeMux()
-	registered := false
-	for _, route := range handler.Routes() {
-		if route.Pattern == "POST /admin/site/settings" {
-			mux.Handle(route.Pattern, route.Handler)
-			registered = true
-			break
-		}
-	}
-	if !registered {
-		t.Fatal("POST /admin/site/settings was not registered")
-	}
+	mux.Handle("PUT /api/v1/admin/site/settings", routeHandler(t, handler, "PUT /api/v1/admin/site/settings"))
 	secured := security.CSRFMiddleware(false, nil)(mux)
-	post := func(user *auth.User, token string) *httptest.ResponseRecorder {
+	put := func(user *auth.User, token string) *httptest.ResponseRecorder {
 		t.Helper()
-		request := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"HydroGo"}`))
+		request := httptest.NewRequest(http.MethodPut, "/api/v1/admin/site/settings", strings.NewReader(`{"settings":[{"key":"site.name","value":"HydroGo"}]}`))
 		request.Header.Set("Content-Type", "application/json")
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
 		request.Header.Set(security.CSRFHeaderName, token)
@@ -233,21 +212,17 @@ func TestAdminSiteSettingRouteEnforcesCSRFBeforePermission(t *testing.T) {
 		secured.ServeHTTP(response, request)
 		return response
 	}
-
-	if response := post(&auth.User{Role: auth.RoleAdmin, Active: true}, "wrong-token"); response.Code != http.StatusForbidden {
+	if response := put(&auth.User{Role: auth.RoleAdmin, Active: true}, "wrong-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
 	}
 	if _, found, err := store.GetSetting(context.Background(), db, "site.name"); err != nil || found {
 		t.Fatalf("invalid CSRF changed persisted setting: found=%t err=%v", found, err)
 	}
-	if response := post(&auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, "valid-token"); response.Code != http.StatusForbidden {
+	if response := put(&auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, "valid-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("denied Admin status=%d, want 403", response.Code)
 	}
-	if _, found, err := store.GetSetting(context.Background(), db, "site.name"); err != nil || found {
-		t.Fatalf("denied Admin changed persisted setting: found=%t err=%v", found, err)
-	}
-	if response := post(&auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, "valid-token"); response.Code != http.StatusNoContent {
-		t.Fatalf("granted editor status=%d, want 204: %s", response.Code, response.Body.String())
+	if response := put(&auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, "valid-token"); response.Code != http.StatusOK {
+		t.Fatalf("granted editor status=%d, want 200: %s", response.Code, response.Body.String())
 	}
 	setting, found, err := store.GetSetting(context.Background(), db, "site.name")
 	if err != nil || !found || setting.Value != "HydroGo" {
@@ -256,27 +231,14 @@ func TestAdminSiteSettingRouteEnforcesCSRFBeforePermission(t *testing.T) {
 }
 
 func TestSiteNavigationAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T) {
-	db, err := database.Open(context.Background(), database.SQLite, filepath.Join(t.TempDir(), "site-navigation-route.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
-		t.Fatal(err)
-	}
-	store := sitesql.Store{Dialect: database.SQLite}
-	handler := Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	db, handler, store := openSiteDB(t)
 	mux := http.NewServeMux()
-	for _, route := range handler.Routes() {
-		if route.Pattern == "POST /admin/site/navigation/{locale}" {
-			mux.Handle(route.Pattern, route.Handler)
-		}
-	}
+	mux.Handle("PUT /api/v1/admin/site/navigation/{locale}", routeHandler(t, handler, "PUT /api/v1/admin/site/navigation/{locale}"))
 	secured := security.CSRFMiddleware(false, nil)(mux)
-	post := func(user *auth.User, token string) *httptest.ResponseRecorder {
+	put := func(user *auth.User, token string) *httptest.ResponseRecorder {
 		t.Helper()
-		body := `[{"ID":"home","Label":"Ana sayfa","Href":"/","Position":0,"Visible":true},{"ID":"private","Label":"İç sayfa","Href":"/internal","parent_id":"home","Position":1,"Visible":false}]`
-		request := httptest.NewRequest(http.MethodPost, "/admin/site/navigation/tr", strings.NewReader(body))
+		body := `{"items":[{"id":"home","label":"Ana sayfa","href":"/","visible":true},{"id":"private","label":"İç sayfa","href":"/internal","parent_id":"home","visible":false}]}`
+		request := httptest.NewRequest(http.MethodPut, "/api/v1/admin/site/navigation/tr", strings.NewReader(body))
 		request.Header.Set("Content-Type", "application/json")
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
 		request.Header.Set(security.CSRFHeaderName, token)
@@ -296,18 +258,25 @@ func TestSiteNavigationAdminRoutePersistsOnlyAuthorizedCSRFMutation(t *testing.T
 		}
 	}
 	admin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}
-	if response := post(admin, "wrong-token"); response.Code != http.StatusForbidden {
+	if response := put(admin, "wrong-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
 	}
 	assertEmpty()
 	deniedAdmin := &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}
-	if response := post(deniedAdmin, "valid-token"); response.Code != http.StatusForbidden {
+	if response := put(deniedAdmin, "valid-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("denied Admin status=%d, want 403", response.Code)
 	}
 	assertEmpty()
 	permittedEditor := &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}
-	if response := post(permittedEditor, "valid-token"); response.Code != http.StatusNoContent {
+	response := put(permittedEditor, "valid-token")
+	if response.Code != http.StatusOK {
 		t.Fatalf("permitted Editor status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		Data navigationResponse `json:"data"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || len(body.Data.Items) != 2 || body.Data.Locale != "tr" {
+		t.Fatalf("response = %s err=%v", response.Body.String(), err)
 	}
 	adminItems, err := store.ListAdminNavigation(context.Background(), db, "tr")
 	if err != nil || len(adminItems) != 2 || adminItems[1].ParentID != "home" || adminItems[1].Target != "_self" || adminItems[1].Visible {

@@ -3,13 +3,13 @@ package search
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -37,21 +37,21 @@ type adminSearchItem struct {
 
 func (h AdminSearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeAdminSearchError(w, r, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 	if err := database.RequireExecutor(h.DB); err != nil || (h.Dialect != database.SQLite && h.Dialect != database.Postgres) {
-		http.Error(w, "search unavailable", http.StatusServiceUnavailable)
+		writeAdminSearchError(w, r, http.StatusServiceUnavailable, "search unavailable")
 		return
 	}
 	text := strings.TrimSpace(r.URL.Query().Get("q"))
 	if len(text) < 2 || len(text) > MaxQueryLength {
-		writeAdminSearchError(w, http.StatusBadRequest, "search query must contain between 2 and 256 characters")
+		writeAdminSearchError(w, r, http.StatusBadRequest, "search query must contain between 2 and 256 characters")
 		return
 	}
 	query := Query{Text: text, Locale: r.URL.Query().Get("locale"), Limit: adminSearchResultLimit}
 	if err := query.Validate(); err != nil {
-		writeAdminSearchError(w, http.StatusBadRequest, "invalid search query")
+		writeAdminSearchError(w, r, http.StatusBadRequest, "invalid search query")
 		return
 	}
 	query.Locale = canonical.Locale(query.Locale)
@@ -59,27 +59,23 @@ func (h AdminSearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.RequireTenantScope {
 		scope, err := tenant.Require(r.Context())
 		if err != nil {
-			writeAdminSearchError(w, http.StatusForbidden, "search unavailable")
+			writeAdminSearchError(w, r, http.StatusForbidden, "search unavailable")
 			return
 		}
 		tenantID = scope.TenantID
 	}
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active {
-		writeAdminSearchError(w, http.StatusForbidden, "search unavailable")
+		writeAdminSearchError(w, r, http.StatusForbidden, "search unavailable")
 		return
 	}
 	items, err := h.search(r.Context(), query, tenantID, user)
 	if err != nil {
-		writeAdminSearchError(w, http.StatusServiceUnavailable, "search unavailable")
+		writeAdminSearchError(w, r, http.StatusServiceUnavailable, "search unavailable")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "private, no-store")
-	_ = json.NewEncoder(w).Encode(struct {
-		Items []adminSearchItem `json:"items"`
-		Total int               `json:"total"`
-	}{Items: items, Total: len(items)})
+	api.WriteData(w, http.StatusOK, items, map[string]int{"total": len(items)})
 }
 
 func (h AdminSearchHandler) search(ctx context.Context, query Query, tenantID string, user *auth.User) ([]adminSearchItem, error) {
@@ -284,9 +280,7 @@ func adminSearchHref(table, id string) string {
 	return path + url.PathEscape(id)
 }
 
-func writeAdminSearchError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+func writeAdminSearchError(w http.ResponseWriter, r *http.Request, status int, message string) {
 	w.Header().Set("Cache-Control", "private, no-store")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+	api.WriteError(w, r, status, message, nil)
 }

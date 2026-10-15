@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -37,16 +36,16 @@ func TestAdminBroadcastHonorsAudienceAndValidatesMessage(t *testing.T) {
 	mobile := &fakeSender{}
 	audited := ""
 	handler := Handler{Dispatcher: Dispatcher{Repository: repo, Mobile: mobile}, Audit: auth.AuditRecorderFunc(func(_ context.Context, action, target string) error { audited = action + ":" + target; return nil })}
-	request := httptest.NewRequest("POST", "/admin/push/broadcast", strings.NewReader(url.Values{"title": {"Campaign"}, "body": {"A notice"}, "audience": {"mobile"}}.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request := httptest.NewRequest("POST", AdminBroadcastPath, strings.NewReader(`{"title":"Campaign","body":"A notice","audience":"mobile"}`))
+	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set(security.CSRFHeaderName, "csrf-token")
 	request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
 	request = request.WithContext(auth.WithUser(context.Background(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
 	routeHandler := protectedPushRoutes(t, handler)
 	recorder := httptest.NewRecorder()
 	routeHandler.ServeHTTP(recorder, request)
-	if recorder.Code != 303 || mobile.sent != 2 || !strings.Contains(recorder.Header().Get("Location"), "sent=2%2C2%2C0") {
-		t.Fatalf("status=%d sent=%d location=%q", recorder.Code, mobile.sent, recorder.Header().Get("Location"))
+	if recorder.Code != 200 || mobile.sent != 2 || !strings.Contains(recorder.Body.String(), `"sent":2`) || !strings.Contains(recorder.Body.String(), `"delivered":2`) {
+		t.Fatalf("status=%d sent=%d body=%q", recorder.Code, mobile.sent, recorder.Body.String())
 	}
 	if audited != "push.broadcast:mobile:2:2:0" {
 		t.Fatalf("audit record=%q", audited)
@@ -76,10 +75,8 @@ func TestAdminBroadcastRouteRequiresCSRFAndAdminRole(t *testing.T) {
 		{name: "viewer with valid token", role: auth.RoleViewer, token: "csrf-token", active: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, "/admin/push/broadcast", strings.NewReader(url.Values{
-				"title": {"Campaign"}, "body": {"A notice"}, "audience": {"mobile"},
-			}.Encode()))
-			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request := httptest.NewRequest(http.MethodPost, AdminBroadcastPath, strings.NewReader(`{"title":"Campaign","body":"A notice","audience":"mobile"}`))
+			request.Header.Set("Content-Type", "application/json")
 			if tc.token != "" {
 				request.Header.Set(security.CSRFHeaderName, tc.token)
 			}
@@ -111,6 +108,26 @@ func protectedPushRoutes(t *testing.T, handler Handler) http.Handler {
 		t.Fatal(err)
 	}
 	return security.CSRFMiddleware(false, nil)(mux)
+}
+
+func TestAdminBroadcastRejectsInvalidMessageWithFieldCodes(t *testing.T) {
+	handler := Handler{Dispatcher: Dispatcher{Repository: &memorySubscriptions{}}}
+	request := httptest.NewRequest(http.MethodPost, AdminBroadcastPath, strings.NewReader(`{"title":"","body":"","audience":"everyone"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	recorder := httptest.NewRecorder()
+	handler.broadcast(recorder, request)
+	var body struct {
+		Code      string            `json:"code"`
+		Fields    map[string]string `json:"fields"`
+		RequestID string            `json:"request_id"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if recorder.Code != http.StatusUnprocessableEntity || body.Code != "unprocessable_entity" || body.Fields["title"] != "required" || body.Fields["body"] != "required" || body.Fields["audience"] != "invalid" {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
 }
 
 func TestPushUIAndWorkerAreModuleRouteResources(t *testing.T) {

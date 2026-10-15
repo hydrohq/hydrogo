@@ -45,6 +45,18 @@ type AdminNavigationStore interface {
 	ListAdminNavigation(context.Context, database.Executor, string) ([]NavigationItem, error)
 }
 
+// SettingsReader exposes private settings to the admin API.
+type SettingsReader interface {
+	ListSettings(context.Context, database.Executor) ([]Setting, error)
+	GetSetting(context.Context, database.Executor, string) (Setting, bool, error)
+}
+
+// SubmissionQueryStore is the inbox read surface of durable stores.
+type SubmissionQueryStore interface {
+	QuerySubmissions(context.Context, database.Executor, SubmissionFilter) ([]Submission, error)
+	GetSubmission(context.Context, database.Executor, string) (Submission, bool, error)
+}
+
 // IdempotentSubmissionStore is an optional extension implemented by durable stores.
 // Keeping it separate preserves compatibility for lightweight module fakes.
 type IdempotentSubmissionStore interface {
@@ -201,6 +213,86 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 		}
 		return s.audit(ctx, tx, "site.navigation.updated", locale)
 	})
+}
+
+// ListSettings returns every stored setting, private ones included.
+func (s Service) ListSettings(ctx context.Context) ([]Setting, error) {
+	if err := s.requireStore(); err != nil {
+		return nil, err
+	}
+	reader, ok := s.Store.(SettingsReader)
+	if !ok {
+		return nil, ErrStoreRequired
+	}
+	var items []Setting
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var queryErr error
+		items, queryErr = reader.ListSettings(ctx, tx)
+		return queryErr
+	})
+	return items, err
+}
+
+// GetSetting reads one setting, private ones included.
+func (s Service) GetSetting(ctx context.Context, key string) (Setting, bool, error) {
+	if err := s.requireStore(); err != nil {
+		return Setting{}, false, err
+	}
+	reader, ok := s.Store.(SettingsReader)
+	if !ok {
+		return Setting{}, false, ErrStoreRequired
+	}
+	var value Setting
+	var found bool
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var queryErr error
+		value, found, queryErr = reader.GetSetting(ctx, tx, key)
+		return queryErr
+	})
+	return value, found, err
+}
+
+// ListInbox pages the form inbox.
+func (s Service) ListInbox(ctx context.Context, filter SubmissionFilter) ([]Submission, error) {
+	if err := s.requireStore(); err != nil {
+		return nil, err
+	}
+	store, ok := s.Store.(SubmissionQueryStore)
+	if !ok {
+		return nil, ErrStoreRequired
+	}
+	if filter.Status != "" && ValidateInboxStatus(filter.Status) != nil {
+		return nil, ErrInvalidInboxState
+	}
+	var items []Submission
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var queryErr error
+		items, queryErr = store.QuerySubmissions(ctx, tx, filter)
+		return queryErr
+	})
+	return items, err
+}
+
+// GetSubmission reads one inbox entry; found is false for unknown ids.
+func (s Service) GetSubmission(ctx context.Context, id string) (Submission, bool, error) {
+	if strings.TrimSpace(id) == "" {
+		return Submission{}, false, ErrInvalidInboxState
+	}
+	if err := s.requireStore(); err != nil {
+		return Submission{}, false, err
+	}
+	store, ok := s.Store.(SubmissionQueryStore)
+	if !ok {
+		return Submission{}, false, ErrStoreRequired
+	}
+	var value Submission
+	var found bool
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var queryErr error
+		value, found, queryErr = store.GetSubmission(ctx, tx, id)
+		return queryErr
+	})
+	return value, found, err
 }
 
 func (s Service) ListAdminNavigation(ctx context.Context, locale string) ([]NavigationItem, error) {

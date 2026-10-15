@@ -110,6 +110,89 @@ func (s Store) ListSubmissions(ctx context.Context, db database.Executor, formKe
 	return result, rows.Err()
 }
 
+const submissionColumns = `id,form_key,email,payload,source_ip_hash,status,created_at,idempotency_key,request_hash,lead_status,assigned_to,location_country_code,location_city,location_local`
+
+func scanSubmission(rows *sql.Rows) (site.Submission, error) {
+	var value site.Submission
+	var created any
+	if err := rows.Scan(&value.ID, &value.FormKey, &value.Email, &value.Payload, &value.SourceIPHash, &value.Status, &created, &value.IdempotencyKey, &value.RequestHash, &value.LeadStage, &value.AssignedTo, &value.LocationCountryCode, &value.LocationCity, &value.LocationLocal); err != nil {
+		return site.Submission{}, err
+	}
+	value.CreatedAt = parseTime(created)
+	return value, nil
+}
+
+// QuerySubmissions lists inbox rows newest first, optionally narrowed to one
+// form and one status, skipping Offset rows.
+func (s Store) QuerySubmissions(ctx context.Context, db database.Executor, filter site.SubmissionFilter) ([]site.Submission, error) {
+	if filter.Limit < 1 || filter.Limit > 1000 {
+		filter.Limit = 100
+	}
+	if filter.Offset < 0 {
+		filter.Offset = 0
+	}
+	tenantID := ""
+	if s.RequireTenantScope {
+		scope, err := tenant.Require(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tenantID = scope.TenantID
+	}
+	args := []any{tenantID}
+	query := `SELECT ` + submissionColumns + ` FROM form_inbox WHERE deleted_at IS NULL AND tenant_id = ` + s.p(1)
+	if filter.FormKey != "" {
+		args = append(args, filter.FormKey)
+		query += ` AND form_key = ` + s.p(len(args))
+	}
+	if filter.Status != "" {
+		args = append(args, filter.Status)
+		query += ` AND status = ` + s.p(len(args))
+	}
+	args = append(args, filter.Limit, filter.Offset)
+	query += ` ORDER BY created_at DESC, id LIMIT ` + s.p(len(args)-1) + ` OFFSET ` + s.p(len(args))
+	rows, err := queryContext(ctx, db, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]site.Submission, 0)
+	for rows.Next() {
+		value, err := scanSubmission(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+	return result, rows.Err()
+}
+
+// GetSubmission reads one inbox row; found is false for unknown or trashed ids.
+func (s Store) GetSubmission(ctx context.Context, db database.Executor, id string) (site.Submission, bool, error) {
+	tenantID := ""
+	if s.RequireTenantScope {
+		scope, err := tenant.Require(ctx)
+		if err != nil {
+			return site.Submission{}, false, err
+		}
+		tenantID = scope.TenantID
+	}
+	query := `SELECT ` + submissionColumns + ` FROM form_inbox WHERE id = ` + s.p(1) + ` AND tenant_id = ` + s.p(2) + ` AND deleted_at IS NULL`
+	rows, err := queryContext(ctx, db, query, id, tenantID)
+	if err != nil {
+		return site.Submission{}, false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return site.Submission{}, false, rows.Err()
+	}
+	value, err := scanSubmission(rows)
+	if err != nil {
+		return site.Submission{}, false, err
+	}
+	return value, true, nil
+}
+
 func (s Store) UpdateLead(ctx context.Context, tx database.Executor, id, stage, assignedTo string) error {
 	if err := database.RequireExecutor(tx); err != nil {
 		return err

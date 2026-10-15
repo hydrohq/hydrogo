@@ -3,13 +3,14 @@ package push
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -36,7 +37,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "DELETE /api/v1/push/web/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.unsubscribeWeb)},
 		{Pattern: "POST /api/v1/push/mobile/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.subscribeMobile)},
 		{Pattern: "DELETE /api/v1/push/mobile/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.unsubscribeMobile)},
-		{Pattern: "POST /admin/push/broadcast", Access: router.Protected, Handler: http.HandlerFunc(h.broadcast)},
+		{Pattern: "POST " + AdminBroadcastPath, Access: router.Protected, Handler: http.HandlerFunc(h.broadcast)},
 	}
 }
 func (h Handler) serviceWorker(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +134,18 @@ func (h Handler) unsubscribeMobile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// AdminBroadcastPath sends a notification to every web and/or mobile
+// subscriber; it is restricted to administrators and rate limited per user.
+const AdminBroadcastPath = "/api/v1/admin/push/broadcast"
+
+type broadcastRequest struct {
+	Title    string `json:"title"`
+	Body     string `json:"body"`
+	URL      string `json:"url"`
+	Audience string `json:"audience"`
+}
+
 func (h Handler) broadcast(w http.ResponseWriter, r *http.Request) {
 	if !isAdmin(w, r) {
 		return
@@ -144,26 +157,45 @@ func (h Handler) broadcast(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 8192)
-	if r.ParseForm() != nil {
-		http.Error(w, "invalid notification", http.StatusBadRequest)
+	var input broadcastRequest
+	if !api.DecodeJSON(w, r, &input, 8192) {
 		return
 	}
-	message := Message{Title: strings.TrimSpace(r.FormValue("title")), Body: strings.TrimSpace(r.FormValue("body")), URL: strings.TrimSpace(r.FormValue("url"))}
-	result, err := h.Dispatcher.Broadcast(r.Context(), r.FormValue("audience"), message)
+	if input.Audience == "" {
+		input.Audience = "all"
+	}
+	message := Message{Title: strings.TrimSpace(input.Title), Body: strings.TrimSpace(input.Body), URL: strings.TrimSpace(input.URL)}
+	result, err := h.Dispatcher.Broadcast(r.Context(), input.Audience, message)
 	if err != nil {
-		http.Error(w, "notification could not be sent", http.StatusBadRequest)
+		if errors.Is(err, ErrInvalidMessage) {
+			fields := map[string]string{}
+			if message.Title == "" {
+				fields["title"] = "required"
+			}
+			if message.Body == "" {
+				fields["body"] = "required"
+			}
+			if input.Audience != "all" && input.Audience != "web" && input.Audience != "mobile" {
+				fields["audience"] = "invalid"
+			}
+			if len(fields) == 0 {
+				fields["title"] = "invalid"
+			}
+			api.WriteValidation(w, r, fields)
+			return
+		}
+		api.WriteError(w, r, http.StatusServiceUnavailable, "notification could not be sent", nil)
 		return
 	}
 	if h.Audit != nil {
-		_ = h.Audit.Record(r.Context(), "push.broadcast", strings.Join([]string{r.FormValue("audience"), itoa(result.Sent), itoa(result.Delivered), itoa(result.Failed)}, ":"))
+		_ = h.Audit.Record(r.Context(), "push.broadcast", strings.Join([]string{input.Audience, itoa(result.Sent), itoa(result.Delivered), itoa(result.Failed)}, ":"))
 	}
-	http.Redirect(w, r, "/admin/push?sent="+url.QueryEscape(strings.TrimSpace(strings.Join([]string{itoa(result.Sent), itoa(result.Delivered), itoa(result.Failed)}, ","))), http.StatusSeeOther)
+	api.WriteData(w, http.StatusOK, result, nil)
 }
 func activeUser(w http.ResponseWriter, r *http.Request) *auth.User {
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		api.WriteError(w, r, http.StatusUnauthorized, "unauthorized", nil)
 		return nil
 	}
 	return user
@@ -174,7 +206,7 @@ func isAdmin(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	if user.Role != auth.RoleAdmin {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		api.WriteError(w, r, http.StatusForbidden, "administrator role required", nil)
 		return false
 	}
 	return true

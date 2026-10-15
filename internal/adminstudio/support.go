@@ -28,14 +28,6 @@ type SupportConfig struct {
 	// Modules is the set of enabled modules; the admin shell hides navigation
 	// for inactive ones. Nil means unknown, which hides nothing.
 	Modules map[string]bool
-	// ContentTypes lists the YAML content types for the admin sidebar.
-	ContentTypes []ContentTypeLink
-}
-
-// ContentTypeLink is one content type in the admin sidebar.
-type ContentTypeLink struct {
-	ID    string
-	Label string
 }
 
 func SupportConfigResolverMiddleware(config SupportConfig, resolve func(*http.Request) SupportConfig) func(http.Handler) http.Handler {
