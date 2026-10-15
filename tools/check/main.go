@@ -12,12 +12,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
 
 type step struct {
 	name string
+	dir  string
 	args []string
 	// check inspects command output for steps that signal failure by
 	// printing instead of exiting non-zero (gofmt -l).
@@ -43,12 +45,27 @@ func main() {
 	}
 	if !*short {
 		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}})
+
+		npm := "npm"
+		if runtime.GOOS == "windows" {
+			npm = "npm.cmd"
+		}
+		if _, err := exec.LookPath(npm); err == nil {
+			steps = append(steps,
+				step{name: "admin svelte-check", dir: "admin", args: []string{npm, "run", "check"}},
+				step{name: "admin unit tests", dir: "admin", args: []string{npm, "test"}},
+				step{name: "admin build", dir: "admin", args: []string{npm, "run", "build"}},
+			)
+		}
 	}
 
 	started := time.Now()
 	for _, s := range steps {
 		fmt.Printf("==> %s\n", s.name)
 		cmd := exec.Command(s.args[0], s.args[1:]...)
+		if s.dir != "" {
+			cmd.Dir = s.dir
+		}
 		output, err := cmd.CombinedOutput()
 		if err == nil && s.check != nil {
 			err = s.check(string(output))

@@ -117,7 +117,35 @@ func main() {
 		return nil
 	}
 
+	viteTarget, _ := url.Parse("http://127.0.0.1:5173")
+	viteProxy := httputil.NewSingleHostReverseProxy(viteTarget)
+	viteProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, _ error) {
+		proxy.ServeHTTP(w, r)
+	}
+
+	checkVite := func() bool {
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:5173", 50*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return true
+		}
+		return false
+	}
+
+	isVitePath := func(path string) bool {
+		return strings.HasPrefix(path, "/@vite") ||
+			strings.HasPrefix(path, "/@fs") ||
+			strings.HasPrefix(path, "/@id") ||
+			strings.HasPrefix(path, "/src/") ||
+			strings.HasPrefix(path, "/node_modules/")
+	}
+
 	holdWhileRebuilding := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isVitePath(r.URL.Path) || (strings.HasPrefix(r.URL.Path, "/admin") && checkVite()) {
+			viteProxy.ServeHTTP(w, r)
+			return
+		}
+
 		// If server is currently building, migrating or restarting, hold the request up to 12s so the browser seamlessly gets the freshly compiled page
 		deadline := time.Now().Add(12 * time.Second)
 		for time.Now().Before(deadline) {

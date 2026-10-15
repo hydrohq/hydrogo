@@ -53,7 +53,8 @@ interface RequestOptions extends RequestInit {
 }
 
 export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const url = new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, window.location.origin);
+  const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const url = new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
 
   if (options.params) {
     Object.entries(options.params).forEach(([key, value]) => {
@@ -67,6 +68,12 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
 
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
+  }
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+  if (!headers.has('X-Requested-With')) {
+    headers.set('X-Requested-With', 'XMLHttpRequest');
   }
 
   // Double-submit CSRF protection for mutating methods
@@ -86,7 +93,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     credentials: 'include',
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && typeof window !== 'undefined') {
     // If we're unauthorized and not already on the login page, redirect
     if (!window.location.pathname.includes('/login') && !window.location.hash.includes('/login')) {
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
