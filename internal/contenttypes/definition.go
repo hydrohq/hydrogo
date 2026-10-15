@@ -64,9 +64,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 )
 
-// AdminBasePath is where the generic admin renders content types.
-const AdminBasePath = "/admin/resources"
-
 var ErrInvalidDefinition = errors.New("invalid content type definition")
 
 // reserved field IDs are added by the storage layer to every record.
@@ -269,12 +266,13 @@ func storageKind(field Field) (collections.FieldKind, error) {
 	}
 }
 
-// AdminCollection returns the metadata the generic admin renders from.
+// AdminCollection returns the metadata the admin renders its generic
+// screens from.
 func (d Definition) AdminCollection() adminstudio.Collection {
 	collection := adminstudio.Collection{
 		ID: d.ID, Label: d.Label, Description: d.Description, Group: d.Group, Icon: d.Icon,
 		TitleField: d.TitleField, Versioned: true, Revisions: d.Revisions, Localization: d.Localized(),
-		Actions: []adminstudio.Action{{Label: "New " + d.Label, Href: AdminBasePath + "/" + d.ID + "/new"}},
+		Source: adminstudio.SourceContentType, APIPath: AdminAPIPath + "/" + d.ID,
 	}
 	if collection.Group == "" {
 		collection.Group = "Content"

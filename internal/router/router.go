@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 )
 
@@ -82,11 +82,8 @@ func legacyAPIHandler(next http.Handler) http.Handler {
 func requireAuthorization(authorize Authorizer, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !authorize(r) {
-			if strings.HasPrefix(r.URL.Path, "/admin") && strings.Contains(r.Header.Get("Accept"), "text/html") {
-				http.Redirect(w, r, "/login?return_to="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
-				return
-			}
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			w.Header().Set("Cache-Control", "no-store")
+			api.WriteError(w, r, http.StatusUnauthorized, "authentication required", nil)
 			return
 		}
 		next.ServeHTTP(w, r)

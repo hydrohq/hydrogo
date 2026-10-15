@@ -72,16 +72,27 @@ type Action struct {
 	CopyText string `json:"copy_text,omitempty"`
 }
 
+// Collection sources: a YAML content type served by the generic content API,
+// or a module with its own JSON surface and admin screens.
+const (
+	SourceContentType = "content_type"
+	SourceModule      = "module"
+)
+
 // Collection is presentation metadata only. Mutations must still go through
 // the module application service and its authorization policy.
 type Collection struct {
-	ID           string    `json:"id"`
-	Type         string    `json:"type,omitempty"`
-	Label        string    `json:"label"`
-	Description  string    `json:"description"`
-	Group        string    `json:"group,omitempty"`
-	Icon         string    `json:"icon,omitempty"`
-	Hidden       bool      `json:"hidden,omitempty"`
+	ID          string `json:"id"`
+	Type        string `json:"type,omitempty"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	Group       string `json:"group,omitempty"`
+	Icon        string `json:"icon,omitempty"`
+	Hidden      bool   `json:"hidden,omitempty"`
+	// Source says who serves the collection (SourceContentType or
+	// SourceModule) and APIPath where its admin JSON API is mounted.
+	Source       string    `json:"source,omitempty"`
+	APIPath      string    `json:"api_path,omitempty"`
 	TitleField   string    `json:"title_field,omitempty"`
 	Versioned    bool      `json:"versioned,omitempty"`
 	Revisions    bool      `json:"revisions,omitempty"`
@@ -89,7 +100,7 @@ type Collection struct {
 	Localization bool      `json:"localization,omitempty"`
 	Workflow     *Workflow `json:"workflow,omitempty"`
 	Fields       []Field   `json:"fields"`
-	Actions      []Action  `json:"actions"`
+	Actions      []Action  `json:"actions,omitempty"`
 	BulkActions  []Action  `json:"bulk_actions,omitempty"`
 	Kits         []Kit     `json:"kits,omitempty"`
 }
@@ -138,7 +149,13 @@ func (r Registry) Collection(id string) (Collection, bool) {
 }
 
 func validateCollection(collection Collection) error {
-	if strings.TrimSpace(collection.ID) == "" || (collection.Type != "" && collection.Type != "collection" && collection.Type != "global") || strings.TrimSpace(collection.Label) == "" || len(collection.Fields) == 0 || len(collection.Actions) == 0 {
+	if strings.TrimSpace(collection.ID) == "" || (collection.Type != "" && collection.Type != "collection" && collection.Type != "global") || strings.TrimSpace(collection.Label) == "" || len(collection.Fields) == 0 {
+		return ErrInvalidCollection
+	}
+	if collection.Source != "" && collection.Source != SourceContentType && collection.Source != SourceModule {
+		return ErrInvalidCollection
+	}
+	if collection.APIPath != "" && (!strings.HasPrefix(collection.APIPath, "/") || strings.HasPrefix(collection.APIPath, "//")) {
 		return ErrInvalidCollection
 	}
 	seenFields := make(map[string]struct{}, len(collection.Fields))

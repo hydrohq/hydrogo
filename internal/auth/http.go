@@ -108,6 +108,13 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		{Pattern: "POST /auth/password-reset/confirm", Public: true, Handler: http.HandlerFunc(h.confirmPasswordReset)},
 		{Pattern: "POST /auth/users/{id}/password-reset-link", Handler: http.HandlerFunc(h.adminPasswordResetLink)},
 		{Pattern: "POST /admin/auth/invites", Handler: http.HandlerFunc(h.issueInvite)},
+		{Pattern: "GET /api/v1/admin/me", Handler: http.HandlerFunc(h.adminMe)},
+		{Pattern: "GET /api/v1/admin/account/tokens", Handler: http.HandlerFunc(h.listPersonalTokens)},
+		{Pattern: "POST /api/v1/admin/account/tokens", Handler: http.HandlerFunc(h.issuePersonalToken)},
+		{Pattern: "DELETE /api/v1/admin/account/tokens/{id}", Handler: http.HandlerFunc(h.revokePersonalToken)},
+		{Pattern: "GET /api/v1/admin/api-keys", Handler: http.HandlerFunc(h.listAPIKeys)},
+		{Pattern: "POST /api/v1/admin/api-keys", Handler: http.HandlerFunc(h.issueAPIKey)},
+		{Pattern: "DELETE /api/v1/admin/api-keys/{id}", Handler: http.HandlerFunc(h.revokeAPIKey)},
 		{Pattern: "POST /auth/invites/accept", Public: true, Handler: http.HandlerFunc(h.acceptInvite)},
 	}
 	if h.SocialOAuth != nil {

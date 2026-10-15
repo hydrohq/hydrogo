@@ -62,7 +62,7 @@ func (a AdminAPI) GetRevision(r *http.Request, collection adminstudio.Collection
 	for key, value := range revision.Data {
 		record[key] = value
 	}
-	record = a.formatForForm(collection.ID, record)
+	record = a.present(collection.ID, record)
 	fields := make(map[string]string, len(collection.Fields))
 	for _, field := range collection.Fields {
 		if !field.ReadOnly {

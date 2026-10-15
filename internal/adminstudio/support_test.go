@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestSupportConfigResolverOnlyReadsNoticeForAdminHTML(t *testing.T) {
+func TestSupportConfigResolverOnlyReadsNoticeForAdminRequests(t *testing.T) {
 	calls := 0
 	middleware := SupportConfigResolverMiddleware(SupportConfig{SafeModeActive: true}, func(*http.Request) SupportConfig {
 		calls++
@@ -17,16 +17,13 @@ func TestSupportConfigResolverOnlyReadsNoticeForAdminHTML(t *testing.T) {
 		if !config.SafeModeActive {
 			t.Error("static support configuration was lost")
 		}
-		if r.URL.Path == "/admin" && !config.StaffNoticeActive {
+		if r.URL.Path == "/api/v1/admin/schema" && !config.StaffNoticeActive {
 			t.Error("dynamic staff notice missing")
 		}
 	}))
-	request := httptest.NewRequest(http.MethodGet, "/admin", nil)
-	request.Header.Set("Accept", "text/html")
-	handler.ServeHTTP(httptest.NewRecorder(), request)
-	request = httptest.NewRequest(http.MethodGet, "/admin/api/status", nil)
-	request.Header.Set("Accept", "application/json")
-	handler.ServeHTTP(httptest.NewRecorder(), request)
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/admin/schema", nil))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/content/faq", nil))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/v1/admin/content/faq", nil))
 	if calls != 1 {
 		t.Fatalf("resolver calls=%d, want 1", calls)
 	}

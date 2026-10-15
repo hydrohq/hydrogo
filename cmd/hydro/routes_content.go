@@ -21,8 +21,9 @@ import (
 	trashtransport "github.com/ardaozyildirim/hydrogo/internal/trash/transport"
 )
 
-// collectionRoutes registers the YAML content types under /admin/resources
-// and /api/v1/content.
+// collectionRoutes registers the YAML content types under /api/v1/content
+// (public reads) and /api/v1/admin/content (admin JSON API) and keeps the
+// loaded definitions for the admin schema.
 func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	ctx, cfg, db := a.ctx, a.cfg, a.db
 	if !a.modules["collections"] {
@@ -30,16 +31,12 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	}
 	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
 	collectionService := collections.Service{Repository: collectionDB}
-	contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes,
-		contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales))
+	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
+	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales)
 	if err != nil {
 		return nil, err
 	}
-	// contentTypeRoutes has validated the directory; list it for the sidebar.
-	definitions, err := contenttypes.LoadDir(cfg.ContentTypesDir)
-	if err != nil {
-		return nil, err
-	}
+	a.contentTypes = definitions
 	a.contentTypeLinks = make([]adminstudio.ContentTypeLink, 0, len(definitions))
 	for _, definition := range definitions {
 		a.contentTypeLinks = append(a.contentTypeLinks, adminstudio.ContentTypeLink{ID: definition.ID, Label: definition.Label})

@@ -1,8 +1,10 @@
 package router
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -53,13 +55,25 @@ func TestProtectedRouteRequiresAuthorization(t *testing.T) {
 	if unauthorized.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthorized status = %d", unauthorized.Code)
 	}
+	var envelope struct {
+		Code      string `json:"code"`
+		Message   string `json:"message"`
+		RequestID string `json:"request_id"`
+	}
+	if err := json.Unmarshal(unauthorized.Body.Bytes(), &envelope); err != nil || envelope.Code != "unauthorized" || envelope.Message == "" {
+		t.Fatalf("unauthorized body = %q err=%v", unauthorized.Body.String(), err)
+	}
+	if got := unauthorized.Header().Get("Content-Type"); !strings.HasPrefix(got, "application/json") {
+		t.Fatalf("unauthorized content type = %q", got)
+	}
 
+	// Browser navigations get the same JSON 401: the SPA handles redirects.
 	browserRequest := httptest.NewRequest(http.MethodGet, "/admin?tab=drafts", nil)
 	browserRequest.Header.Set("Accept", "text/html")
-	browserRedirect := httptest.NewRecorder()
-	handler.ServeHTTP(browserRedirect, browserRequest)
-	if browserRedirect.Code != http.StatusSeeOther || browserRedirect.Header().Get("Location") != "/login?return_to=%2Fadmin%3Ftab%3Ddrafts" {
-		t.Fatalf("browser redirect = %d %q", browserRedirect.Code, browserRedirect.Header().Get("Location"))
+	browser := httptest.NewRecorder()
+	handler.ServeHTTP(browser, browserRequest)
+	if browser.Code != http.StatusUnauthorized || browser.Header().Get("Location") != "" {
+		t.Fatalf("browser response = %d %q", browser.Code, browser.Header().Get("Location"))
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/admin", nil)

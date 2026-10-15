@@ -3,11 +3,8 @@ package contenttypes
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -20,16 +17,6 @@ fields:
   - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
   - {id: category, label: Category, kind: select, options: [general, billing], list: true, filterable: true}
 `
-
-func adminPost(t *testing.T, handler http.Handler, target string, form url.Values) *httptest.ResponseRecorder {
-	t.Helper()
-	form.Set("_csrf", "token")
-	request := httptest.NewRequest(http.MethodPost, target, strings.NewReader(form.Encode()))
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-	return recorder
-}
 
 func publicMux(service PublicAPI) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -44,7 +31,7 @@ func publicCount(t *testing.T, mux http.Handler, target string) int {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("%s: %d %s", target, recorder.Code, recorder.Body)
 	}
-	return len(body["items"].([]any))
+	return len(body["data"].([]any))
 }
 
 func TestDraftsRejectAStatusField(t *testing.T) {
@@ -68,7 +55,8 @@ func TestRecordsWithoutStatusAreDrafts(t *testing.T) {
 	if count := publicCount(t, public, "/api/v1/content/faq"); count != 0 {
 		t.Fatalf("record without status is public: %d", count)
 	}
-	if recorder, body := call(t, AdminAPI{Service: service, Types: types}, http.MethodGet, "/api/v1/faq/"+record.ID, ""); recorder.Code != http.StatusOK || body[StatusField] != StatusDraft {
+	admin := adminMux(AdminAPI{Service: service, Types: types, Authorize: allowAll})
+	if recorder, body := call(t, admin, http.MethodGet, AdminAPIPath+"/faq/"+record.ID, ""); recorder.Code != http.StatusOK || body["data"].(map[string]any)[StatusField] != StatusDraft {
 		t.Fatalf("admin view: %d %v", recorder.Code, body)
 	}
 }

@@ -1,0 +1,30 @@
+id: "202610150002_api_tokens"
+module: "auth"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+dependencies:
+  - "202609060002_auth_security"
+  - "202609200001_auth_identity_tenant_scope"
+checksum_sha256:
+  sqlite: "de24286d95043477c3690b6ab9846297850bc0a2d713d1261fca45517972e6eb"
+  postgres: "c48a4d1b881d699edb11abee6ee31bd0f87c120faa46352318d46183f8d5cec1"
+  mysql: "299139ba04834eed5a4d773cb6b1e903bbad66f5d53e450e333c12f42dad0359"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The users table exists and carries tenant_id"
+lock_timeout: "Bounded by the migration runner lock timeout"
+disk_estimate: "One row per issued staff token or API key"
+compatibility: "Adds hashed bearer credentials (personal access tokens and API keys) for the admin API; sessions, users and passwords are unchanged."
+smoke:
+  - "A personal token authenticates /api/v1/admin/me without a session cookie"
+  - "A read-scoped API key is rejected on a mutating request"
+restart: "Safe to rerun through the migration ledger"
+rollback: "Drop the api_tokens table; browser sessions are unaffected."
