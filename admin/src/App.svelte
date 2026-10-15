@@ -8,6 +8,7 @@
   import DashboardView from './routes/dashboard/DashboardView.svelte';
   import GenericListView from '$lib/schema/GenericListView.svelte';
   import GenericFormView from '$lib/schema/GenericFormView.svelte';
+  import MediaView from './routes/media/MediaView.svelte';
 
   let initializing = $state(true);
 
@@ -74,6 +75,8 @@
       <GenericListView type={routeInfo.type!} />
     {:else if routeInfo.view === 'form'}
       <GenericFormView type={routeInfo.type!} id={routeInfo.id} />
+    {:else if routeInfo.module === 'media'}
+      <MediaView />
     {:else}
       <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
       {#if schema.getCollection(routeInfo.module || '')}
