@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
@@ -26,9 +25,9 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
@@ -163,9 +162,9 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 		Audit:        auditstore.Store{Dialect: dialect},
 		Outbox:       outboxstore.Store{Dialect: dialect},
 		PublicCache:  cache.New[pages.Page](10, time.Minute),
-		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
+		Sanitize:     richtext.NewSanitizer().Sanitize,
 	}
-	pagesHandler := pagestransport.Handler{DB: sqlDB, Content: contentSvc, AllowDemoFrontend: true, AnalyticsEnabled: true}
+	pagesHandler := pagestransport.Handler{DB: sqlDB, Content: contentSvc, AllowDemoFrontend: true}
 
 	// 1. Create Draft
 	draftPage := pages.Page{
@@ -206,50 +205,13 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 		t.Fatalf("publish: %v", err)
 	}
 
-	// 4. Public API and HTML Verification
+	// 4. Public API Verification
 	pub, err := contentSvc.GetPublished(ctx, sqlDB, "tr", "journey-launch")
 	if err != nil {
 		t.Fatalf("get published: %v", err)
 	}
 	if pub.Title != "Journey Launch Title" || pub.Status != pages.StatusPublished {
 		t.Fatalf("unexpected published state: %+v", pub)
-	}
-
-	// Public HTML Endpoint Verification
-	htmlReq := httptest.NewRequest(http.MethodGet, "/public/pages/tr/journey-launch/html", nil)
-	htmlReq.SetPathValue("locale", "tr")
-	htmlReq.SetPathValue("slug", "journey-launch")
-	htmlRec := httptest.NewRecorder()
-	for _, r := range pagesHandler.Routes() {
-		if strings.Contains(r.Pattern, "/public/pages/{locale}/{slug}/html") {
-			security.CSRFMiddleware(false, nil)(r.Handler).ServeHTTP(htmlRec, htmlReq)
-			break
-		}
-	}
-	if htmlRec.Code != http.StatusOK || !strings.Contains(htmlRec.Body.String(), "Journey Launch Title") {
-		t.Fatalf("public html route failed: code=%d, body=%s", htmlRec.Code, htmlRec.Body.String())
-	}
-	if htmlRec.Header().Get("Vary") != "Cookie" {
-		t.Fatalf("consent-dependent page response vary=%q, want Cookie", htmlRec.Header().Get("Vary"))
-	}
-	for _, marker := range []string{`action="/analytics/consent"`, `name="decision" value="granted"`, `name="decision" value="rejected"`, `name="_csrf" value="`} {
-		if !strings.Contains(htmlRec.Body.String(), marker) {
-			t.Errorf("public consent notice missing %q", marker)
-		}
-	}
-	consentedReq := httptest.NewRequest(http.MethodGet, "/public/pages/tr/journey-launch/html", nil)
-	consentedReq.SetPathValue("locale", "tr")
-	consentedReq.SetPathValue("slug", "journey-launch")
-	consentedReq.AddCookie(&http.Cookie{Name: analytics.ConsentCookie, Value: "opaque-consent"})
-	consentedRec := httptest.NewRecorder()
-	for _, r := range pagesHandler.Routes() {
-		if strings.Contains(r.Pattern, "/public/pages/{locale}/{slug}/html") {
-			r.Handler.ServeHTTP(consentedRec, consentedReq)
-			break
-		}
-	}
-	if strings.Contains(consentedRec.Body.String(), `data-cookie-notice`) {
-		t.Fatal("consented visitor still sees the analytics choice notice")
 	}
 
 	_ = rawToken
@@ -530,7 +492,7 @@ func runContentResilienceTest(t *testing.T, ctx context.Context, sqlDB *sql.DB, 
 		Audit:        auditstore.Store{Dialect: dialect},
 		Outbox:       outboxstore.Store{Dialect: dialect},
 		PublicCache:  cache.New[pages.Page](10, time.Minute),
-		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
+		Sanitize:     richtext.NewSanitizer().Sanitize,
 	}
 
 	// A. Optimistic Lock Conflict on Concurrent Edits

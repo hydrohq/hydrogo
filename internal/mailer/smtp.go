@@ -454,9 +454,5 @@ func (n NotificationSender) SendEmailVerification(ctx context.Context, email, li
 	if guards.IsNil(n.Sender) {
 		return ErrSenderRequired
 	}
-	var html bytes.Buffer
-	if err := EmailVerificationEmail(link).Render(ctx, &html); err != nil {
-		return err
-	}
-	return n.Sender.Send(ctx, Message{To: email, Subject: "Confirm your HydroGo email address", Body: "Confirm your email address using this one-time link:\n" + link, HTMLBody: html.String()})
+	return n.Sender.Send(ctx, Message{To: email, Subject: "Confirm your HydroGo email address", Body: "Confirm your email address using this one-time link:\n" + link, HTMLBody: renderEmailTemplate("verification", link)})
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 type Handler struct {
@@ -33,12 +32,10 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "GET /push/service-worker.js", Access: router.Public, Handler: http.HandlerFunc(h.serviceWorker)},
 		{Pattern: "GET /push/push-client.js", Access: router.Public, Handler: http.HandlerFunc(h.clientScript)},
 		{Pattern: "GET /api/v1/push/config", Access: router.Public, Handler: http.HandlerFunc(h.config)},
-		{Pattern: "GET /auth/me/push", Access: router.Protected, Handler: http.HandlerFunc(h.settings)},
 		{Pattern: "POST /api/v1/push/web/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.subscribeWeb)},
 		{Pattern: "DELETE /api/v1/push/web/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.unsubscribeWeb)},
 		{Pattern: "POST /api/v1/push/mobile/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.subscribeMobile)},
 		{Pattern: "DELETE /api/v1/push/mobile/subscription", Access: router.Protected, Handler: http.HandlerFunc(h.unsubscribeMobile)},
-		{Pattern: "GET /admin/push", Access: router.Protected, Handler: http.HandlerFunc(h.adminPage)},
 		{Pattern: "POST /admin/push/broadcast", Access: router.Protected, Handler: http.HandlerFunc(h.broadcast)},
 	}
 }
@@ -57,23 +54,6 @@ func (h Handler) config(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]string{"public_key": h.Dispatcher.PublicKey()})
-}
-func (h Handler) settings(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-	w.Header().Set("Cache-Control", "private, no-store")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Notifications", "Push settings", "settings") != nil {
-		return
-	}
-	if err := ui.PushSettings(security.CSRFTokenFromContext(r.Context())).Render(r.Context(), w); err != nil {
-		http.Error(w, "push settings unavailable", http.StatusInternalServerError)
-		return
-	}
-	_ = ui.AdminEnd(w)
 }
 func (h Handler) subscribeWeb(w http.ResponseWriter, r *http.Request) {
 	user := activeUser(w, r)
@@ -152,26 +132,6 @@ func (h Handler) unsubscribeMobile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-func (h Handler) adminPage(w http.ResponseWriter, r *http.Request) {
-	if !isAdmin(w, r) {
-		return
-	}
-	w.Header().Set("Cache-Control", "private, no-store")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if ui.AdminStartForRequest(w, r, "Push announcements", "Broadcast", "settings") != nil {
-		return
-	}
-	sent, delivered, failed := 0, 0, 0
-	result := false
-	if values := strings.SplitN(r.URL.Query().Get("sent"), ",", 3); len(values) == 3 {
-		sent, _ = strconv.Atoi(values[0])
-		delivered, _ = strconv.Atoi(values[1])
-		failed, _ = strconv.Atoi(values[2])
-		result = true
-	}
-	_ = ui.PushBroadcast(security.CSRFTokenFromContext(r.Context()), sent, delivered, failed, result).Render(r.Context(), w)
-	_ = ui.AdminEnd(w)
 }
 func (h Handler) broadcast(w http.ResponseWriter, r *http.Request) {
 	if !isAdmin(w, r) {

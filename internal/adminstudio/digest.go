@@ -161,7 +161,7 @@ func BuildDigestHTML(stats DigestStats, start, end time.Time, frequency DigestFr
 	}
 	var out strings.Builder
 	from, to := start.Format("02.01.2006"), end.AddDate(0, 0, -1).Format("02.01.2006")
-	if err := digestEmail(stats, label, from, to, frequency == DigestMonthly).Render(context.Background(), &out); err != nil {
+	if err := digestEmail.Execute(&out, digestEmailData{Stats: stats, Title: label, From: from, To: to, Monthly: frequency == DigestMonthly}); err != nil {
 		return ""
 	}
 	return out.String()

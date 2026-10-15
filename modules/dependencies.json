@@ -1,6 +1,6 @@
 {
-  "modules/members": ["modules/designsystem", "modules/site"],
-  "modules/news": ["modules/designsystem", "modules/site"],
-  "modules/pages": ["modules/designsystem", "modules/seo", "modules/site"],
-  "modules/site": ["modules/designsystem"]
+  "modules/members": [],
+  "modules/news": [],
+  "modules/pages": ["modules/seo", "modules/site"],
+  "modules/site": []
 }

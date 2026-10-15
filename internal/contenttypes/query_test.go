@@ -3,18 +3,13 @@ package contenttypes
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/a-h/templ"
-
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -118,85 +113,6 @@ func newServiceFor(t *testing.T, yamlFiles ...string) (collections.Service, []De
 		t.Fatal(err)
 	}
 	return service, types
-}
-
-// generatedAdmin wires the real GeneratedAdminHandler to AdminAPI, so the
-// tests exercise the exact query strings the admin sends.
-func generatedAdmin(t *testing.T, api AdminAPI, options func(*adminstudio.GeneratedAdminOptions)) http.Handler {
-	t.Helper()
-	registry, err := adminstudio.NewRegistry(AdminCollections(api.Types, api.Locales.Enabled()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	handler := adminstudio.GeneratedAdminHandler{Registry: registry, Options: adminstudio.GeneratedAdminOptions{
-		API:             api,
-		Authorize:       func(*http.Request) bool { return true },
-		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		CSRFToken:       func(*http.Request) string { return "token" },
-		ValidateCSRF:    func(r *http.Request) bool { return r.ParseForm() == nil && r.FormValue("_csrf") == "token" },
-		RenderPage: func(w http.ResponseWriter, r *http.Request, _ string, body templ.Component) error {
-			return body.Render(r.Context(), w)
-		},
-	}}
-	if options != nil {
-		options(&handler.Options)
-	}
-	if err := handler.Register(http.NewServeMux()); err != nil {
-		t.Fatal(err)
-	}
-	return handler
-}
-
-func adminGet(t *testing.T, handler http.Handler, target string) (int, string) {
-	t.Helper()
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, target, nil))
-	body, _ := io.ReadAll(recorder.Body)
-	return recorder.Code, string(body)
-}
-
-func TestGeneratedAdminListSearchFilterAndSort(t *testing.T) {
-	service, types := newServiceFor(t, searchableFAQ)
-	ctx := context.Background()
-	for _, data := range []map[string]any{
-		{"question": "How long does shipping take?", "category": "general", "sort_order": 2.0},
-		{"question": "Can I pay by invoice?", "answer": "<p>Yes, shipping is free.</p>", "category": "billing", "sort_order": 1.0},
-		{"question": "Where are you based?", "category": "general", "sort_order": 3.0},
-	} {
-		if _, err := service.CreateRecord(ctx, "faq", data); err != nil {
-			t.Fatal(err)
-		}
-	}
-	admin := generatedAdmin(t, AdminAPI{Service: service, Types: types}, nil)
-
-	status, body := adminGet(t, admin, "/admin/resources/faq?search=SHIPPING")
-	if status != http.StatusOK || !strings.Contains(body, "How long does shipping take?") || !strings.Contains(body, "Can I pay by invoice?") || strings.Contains(body, "Where are you based?") {
-		t.Fatalf("search: %d\n%s", status, body)
-	}
-	if !strings.Contains(body, `name="search"`) || !strings.Contains(body, `name="filter[category]"`) {
-		t.Fatal("list controls are missing")
-	}
-	status, body = adminGet(t, admin, "/admin/resources/faq?search=shipping&filter%5Bcategory%5D=general")
-	if status != http.StatusOK || !strings.Contains(body, "How long does shipping take?") || strings.Contains(body, "Can I pay by invoice?") {
-		t.Fatalf("search+filter: %d\n%s", status, body)
-	}
-	status, body = adminGet(t, admin, "/admin/resources/faq?filter%5Bsort_order%5D=3")
-	if status != http.StatusOK || !strings.Contains(body, "Where are you based?") || strings.Contains(body, "Can I pay by invoice?") {
-		t.Fatalf("number filter: %d\n%s", status, body)
-	}
-	status, body = adminGet(t, admin, "/admin/resources/faq?sort=-sort_order")
-	first, second := strings.Index(body, "Where are you based?"), strings.Index(body, "Can I pay by invoice?")
-	if status != http.StatusOK || first < 0 || second < 0 || first > second {
-		t.Fatalf("sort: %d\n%s", status, body)
-	}
-	status, body = adminGet(t, admin, "/admin/resources/faq?sort=sort_order")
-	first, second = strings.Index(body, "Where are you based?"), strings.Index(body, "Can I pay by invoice?")
-	if status != http.StatusOK || first < second {
-		t.Fatalf("sort ascending: %d\n%s", status, body)
-	}
-	if status, _ := adminGet(t, admin, "/admin/resources/faq?filter%5Bquestion%5D=x"); status != http.StatusBadRequest {
-		t.Fatalf("filter on a field that is not filterable: %d", status)
-	}
 }
 
 func TestPublicAPISortsAndFilters(t *testing.T) {

@@ -291,7 +291,7 @@ func NewHandler(config Config) http.Handler {
 // the cookie to already exist on this response — the widgets fetch a token
 // client-side from /csrf-token when needed instead of relying on a
 // server-baked value embedded in shared/cached HTML. See
-// modules/designsystem/assets/feedback.js and internal/security/csrf_token_handler.go.
+// a browser client and internal/security/csrf_token_handler.go.
 func publicContentCacheEligible(r *http.Request) bool {
 	return staticCacheURLPath(r.URL.Path)
 }

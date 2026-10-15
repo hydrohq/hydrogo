@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"net"
 	"net/http"
 	"strings"
@@ -76,12 +75,12 @@ func MaintenanceMiddleware(config MaintenanceConfig) func(http.Handler) http.Han
 			if config.Render != nil {
 				body, _ = config.Render(r)
 			}
+			contentType := "text/html; charset=utf-8"
 			if len(body) == 0 {
-				var fallback bytes.Buffer
-				_ = maintenanceFallbackPage().Render(r.Context(), &fallback)
-				body = fallback.Bytes()
+				body = []byte("Service temporarily unavailable for maintenance.")
+				contentType = "text/plain; charset=utf-8"
 			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Content-Type", contentType)
 			w.Header().Set("Cache-Control", "no-store")
 			w.Header().Set("Retry-After", "300")
 			w.WriteHeader(http.StatusServiceUnavailable)

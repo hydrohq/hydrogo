@@ -73,7 +73,7 @@ func TestMetricsSkipStaticAssetPaths(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusNotFound)
 	}))
-	for _, path := range []string{"/vendor/quill/quill.js", "/vendor/quill/quill.snow.css", "/theme/static/theme.css", "/public/news/tr/html"} {
+	for _, path := range []string{"/media/asset-1", "/media/asset-2", "/favicon.ico", "/public/news/tr/html"} {
 		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
 	}
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/public/news/tr/html", nil))

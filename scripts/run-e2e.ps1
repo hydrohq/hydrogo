@@ -14,8 +14,6 @@ $stdout = Join-Path $root "serve.stdout.log"
 $stderr = Join-Path $root "serve.stderr.log"
 $process = $null
 $previousRedisURL = $env:HYDRO_REDIS_URL
-$previousTheme = $env:HYDRO_THEME
-$previousThemeDir = $env:HYDRO_THEME_DIR
 $portProbe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
 $portProbe.Start()
 $port = ([System.Net.IPEndPoint]$portProbe.LocalEndpoint).Port
@@ -27,10 +25,6 @@ try {
 	# The browser suite proves the Compact SQLite path. Do not let a developer's
 	# optional Redis/Valkey setting alter this isolated fixture.
 	Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue
-	# Public demo HTML links to the selected theme's assets. Keep the seeded
-	# browser fixture styled even when the developer has no local theme config.
-	$env:HYDRO_THEME = "newsroom"
-	$env:HYDRO_THEME_DIR = Join-Path $repo "themes"
     go build -trimpath -buildvcs=false -ldflags "-X main.buildCommit=e2e -X main.buildTime=e2e" -o $bin (Join-Path $repo "cmd\hydro")
     $env:HYDRO_MEDIA_DIR = $media
     # Demo pages/products are an explicit local E2E fixture, never a production
@@ -76,8 +70,6 @@ try {
     Write-Host "PASS: generated Admin Studio and frontend E2E completed"
 } finally {
 	if ($null -eq $previousRedisURL) { Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue } else { $env:HYDRO_REDIS_URL = $previousRedisURL }
-	if ($null -eq $previousTheme) { Remove-Item Env:HYDRO_THEME -ErrorAction SilentlyContinue } else { $env:HYDRO_THEME = $previousTheme }
-	if ($null -eq $previousThemeDir) { Remove-Item Env:HYDRO_THEME_DIR -ErrorAction SilentlyContinue } else { $env:HYDRO_THEME_DIR = $previousThemeDir }
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
     if (Test-Path -LiteralPath $stderr) {
         $errors = Get-Content -LiteralPath $stderr -Raw

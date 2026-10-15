@@ -1,0 +1,27 @@
+{{define "autoresponder"}}<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{.Title}}</title></head>
+<body style="margin:0;background:#f4f6f8;color:#17212b;font-family:Arial,sans-serif">
+<main style="max-width:600px;margin:24px auto;padding:24px;background:#fff;border-radius:12px">
+<h1 style="font-size:22px;line-height:1.3">{{.Title}}</h1>
+{{range .Paragraphs}}<p style="font-size:16px;line-height:1.6">{{.}}</p>
+{{end}}</main>
+</body>
+</html>{{end}}
+
+{{define "verification"}}<html><body>
+<h1>Confirm your HydroGo email address</h1>
+<p>Use this one-time link to confirm that this mailbox belongs to your account.</p>
+<p><a href="{{.}}">Confirm email address</a></p>
+<p>If you did not request this message, you can ignore it.</p>
+</body></html>{{end}}
+
+{{define "plain"}}<!doctype html>
+<html><body><p>{{.}}</p></body></html>{{end}}
+
+{{define "header"}}<header style="border-bottom:3px solid {{.Color}};padding:0 0 16px;margin:0 0 20px">{{if .LogoURL}}<img src="{{.LogoURL}}" alt="{{.LogoAlt}}" style="display:block;max-width:180px;max-height:64px;margin:0 0 18px">{{end}}<strong style="font:600 18px Arial,sans-serif">{{.Name}}</strong></header>{{end}}
+
+{{define "footer"}}<footer style="border-top:1px solid #d6dbe1;padding-top:16px;margin-top:24px;color:#536170;font:12px/1.5 Arial,sans-serif">
+{{range .Lines}}<p style="margin:4px 0">{{.}}</p>
+{{end}}{{if .PrivacyPolicyURL}}<p style="margin:4px 0"><a href="{{.PrivacyPolicyURL}}">Privacy policy</a></p>
+{{end}}</footer>{{end}}

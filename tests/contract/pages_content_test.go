@@ -14,7 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
@@ -53,7 +53,7 @@ func runPagesContentContract(t *testing.T, dialect database.Dialect, dsn string)
 		Audit:        auditstore.Store{Dialect: dialect},
 		Outbox:       outboxstore.Store{Dialect: dialect},
 		PublicCache:  cache.New[pages.Page](4, time.Minute),
-		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
+		Sanitize:     richtext.NewSanitizer().Sanitize,
 	}
 	rollbackContent := content
 	rollbackContent.Outbox = failingOutbox{err: errors.New("injected publish pipeline failure")}

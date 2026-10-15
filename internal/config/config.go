@@ -17,9 +17,7 @@ type Config struct {
 	HTTP            HTTP             `yaml:"http"`
 	Database        Database         `yaml:"database"`
 	Media           Media            `yaml:"media"`
-	ThemeDir        string           `yaml:"theme_dir"`
 	ContentTypesDir string           `yaml:"content_types_dir"`
-	Theme           string           `yaml:"theme"`
 	AdminExtensions AdminExtensions  `yaml:"admin_extensions"`
 	AdminSupport    AdminSupport     `yaml:"admin_support"`
 	Tenancy         Tenancy          `yaml:"tenancy"`

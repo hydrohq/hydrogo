@@ -1,0 +1,18 @@
+<h1>{{.Title}}</h1>
+<p>{{.From}} – {{.To}}</p>
+<ul>
+<li>Yeni müşteri talepleri: {{.Stats.NewLeads}}</li>
+<li>Yanıt bekleyen talepler: {{.Stats.UnresolvedLeads}}</li>
+{{if .Monthly}}<li>Toplam ziyaret: {{.Stats.TotalVisits}}</li>
+<li>Tekil ziyaretçi: {{.Stats.UniqueVisitors}}</li>
+<li>Yeni üye: {{.Stats.NewMembers}}</li>
+{{end}}</ul>
+{{if and .Monthly .Stats.TopPages}}<h2>En çok görüntülenen sayfalar</h2>
+<ol>
+{{range .Stats.TopPages}}<li>{{.Path}}: {{.Count}}</li>
+{{end}}</ol>
+{{end}}{{if .Stats.TopReferrers}}<h2>En çok ziyaretçi getiren kaynaklar</h2>
+<ul>
+{{range .Stats.TopReferrers}}<li>{{.Host}}: {{.Count}}</li>
+{{end}}</ul>
+{{end}}

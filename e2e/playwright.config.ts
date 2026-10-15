@@ -17,9 +17,5 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", testIgnore: /visual\.spec\.ts|locale\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
-    { name: "locale", testMatch: /locale\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
-    { name: "visual-desktop", testMatch: /visual\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
-    { name: "visual-tablet", testMatch: /visual\.spec\.ts/, use: { ...devices["iPad (gen 7)"] } },
-    { name: "visual-mobile", testMatch: /visual\.spec\.ts/, use: { ...devices["iPhone 13"] } },
   ],
 });

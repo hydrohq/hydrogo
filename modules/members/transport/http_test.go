@@ -1,12 +1,9 @@
 package transport_test
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -217,21 +214,7 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 		mux.Handle(r.Pattern, r.Handler)
 	}
 
-	// 1. GET /member/register renders 200 and includes CSRF field
-	req := httptest.NewRequest("GET", "/member/register", nil)
-	rr := httptest.NewRecorder()
-	mux.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("GET /member/register status = %d", rr.Code)
-	}
-	if !strings.Contains(rr.Body.String(), `name="_csrf"`) {
-		t.Fatalf("missing _csrf in register page body")
-	}
-	if !strings.Contains(rr.Body.String(), `data-password-strength`) || !strings.Contains(rr.Body.String(), `data-password-meter`) || !strings.Contains(rr.Body.String(), `data-password-feedback`) {
-		t.Fatalf("registration page is missing accessible password guidance")
-	}
-
-	// 2. POST /member/register creates account and sets cookie
+	// 1. POST /member/register creates account and sets cookie
 	form := url.Values{"email": {"newuser@example.com"}, "password": {"Amber-River7!Cedar"}}
 	postReq := httptest.NewRequest("POST", "/member/register", strings.NewReader(form.Encode()))
 	postReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -252,19 +235,7 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 		t.Fatal("session cookie not set on registration")
 	}
 
-	// 3. GET /member/account with session cookie
-	accReq := httptest.NewRequest("GET", "/member/account", nil)
-	accReq.AddCookie(sessionCookie)
-	accRR := httptest.NewRecorder()
-	mux.ServeHTTP(accRR, accReq)
-	if accRR.Code != http.StatusOK {
-		t.Fatalf("GET /member/account status = %d", accRR.Code)
-	}
-	if !strings.Contains(accRR.Body.String(), "newuser@example.com") {
-		t.Fatalf("account page did not display member email")
-	}
-
-	// 4. GET /member/me with session cookie returns 200 OK and email in JSON
+	// 2. GET /member/me with session cookie returns 200 OK and email in JSON
 	meReq := httptest.NewRequest("GET", "/member/me", nil)
 	meReq.AddCookie(sessionCookie)
 	meRR := httptest.NewRecorder()
@@ -276,73 +247,12 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 		t.Fatalf("GET /member/me JSON missing email: %s", meRR.Body.String())
 	}
 
-	// 5. GET /member/me without session cookie returns 401 Unauthorized
+	// 3. GET /member/me without session cookie returns 401 Unauthorized
 	unauthReq := httptest.NewRequest("GET", "/member/me", nil)
 	unauthRR := httptest.NewRecorder()
 	mux.ServeHTTP(unauthRR, unauthReq)
 	if unauthRR.Code != http.StatusUnauthorized {
 		t.Fatalf("GET /member/me unauthenticated status = %d, expected 401", unauthRR.Code)
-	}
-}
-
-func TestAdminMemberXLSXExportIsProtectedAndValid(t *testing.T) {
-	store := fixedMemberStore{memoryMemberStore: newMemoryMemberStore(), rows: []members.Member{{ID: "m1", Email: "İstanbul@example.test", Active: true, CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)}, {ID: "m2", Email: "=SUM(A1:A2)", CreatedAt: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)}}}
-	svc := members.Service{Members: store, Sessions: newMemorySessionStore()}
-	handler := transport.Handler{Service: svc}
-	routes := map[string]http.Handler{}
-	for _, route := range handler.Routes() {
-		if strings.HasPrefix(route.Pattern, "GET /admin/members/export.") {
-			routes[route.Pattern] = route.Handler
-		}
-	}
-	export := routes["GET /admin/members/export.xlsx"]
-	if export == nil || routes["GET /admin/members/export.csv"] == nil {
-		t.Fatal("member spreadsheet export routes missing")
-	}
-	request := httptest.NewRequest(http.MethodGet, "/admin/members/export.xlsx", nil)
-	response := httptest.NewRecorder()
-	export.ServeHTTP(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("unauthenticated export status = %d", response.Code)
-	}
-	request = httptest.NewRequest(http.MethodGet, "/admin/members/export.xlsx", nil)
-	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
-	response = httptest.NewRecorder()
-	export.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || !strings.Contains(response.Header().Get("Content-Type"), "spreadsheetml") {
-		t.Fatalf("export status=%d content-type=%q body=%q", response.Code, response.Header().Get("Content-Type"), response.Body.String())
-	}
-	archive, err := zip.NewReader(bytes.NewReader(response.Body.Bytes()), int64(response.Body.Len()))
-	if err != nil {
-		t.Fatalf("invalid xlsx archive: %v", err)
-	}
-	if len(archive.File) < 5 {
-		t.Fatalf("workbook has only %d parts", len(archive.File))
-	}
-	var sheet string
-	for _, file := range archive.File {
-		if file.Name == "xl/worksheets/sheet1.xml" {
-			reader, err := file.Open()
-			if err != nil {
-				t.Fatal(err)
-			}
-			body, err := io.ReadAll(reader)
-			_ = reader.Close()
-			if err != nil {
-				t.Fatal(err)
-			}
-			sheet = string(body)
-		}
-	}
-	if !strings.Contains(sheet, "İstanbul@example.test") {
-		t.Fatalf("workbook lost UTF-8 member email: %s", sheet)
-	}
-	csvRequest := httptest.NewRequest(http.MethodGet, "/admin/members/export.csv", nil)
-	csvRequest = csvRequest.WithContext(auth.WithUser(csvRequest.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
-	csvResponse := httptest.NewRecorder()
-	routes["GET /admin/members/export.csv"].ServeHTTP(csvResponse, csvRequest)
-	if csvResponse.Code != http.StatusOK || !strings.Contains(csvResponse.Body.String(), "İstanbul@example.test") || !strings.Contains(csvResponse.Body.String(), "'=SUM(A1:A2)") {
-		t.Fatalf("CSV export status=%d body=%q", csvResponse.Code, csvResponse.Body.String())
 	}
 }
 
@@ -438,51 +348,6 @@ func TestAdminSetActiveRejectsExternalRefererRedirect(t *testing.T) {
 	}
 	if got := rr.Header().Get("Location"); got != "/admin/members/member-1" {
 		t.Fatalf("Location = %q, want local fallback", got)
-	}
-}
-
-func TestAdminMemberDetailEnforcesAccessAndHandlesMissingSessionStore(t *testing.T) {
-	store := newMemoryMemberStore()
-	store.members["m1"] = &members.Member{ID: "m1", Email: "member@example.com", Active: true}
-	handler := transport.Handler{Service: members.Service{Members: store}}
-	mux := http.NewServeMux()
-	for _, route := range handler.Routes() {
-		mux.Handle(route.Pattern, route.Handler)
-	}
-	unauthorized := httptest.NewRecorder()
-	mux.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/admin/members/m1", nil))
-	if unauthorized.Code != http.StatusForbidden {
-		t.Fatalf("unauthorized admin detail status = %d, want 403", unauthorized.Code)
-	}
-
-	request := httptest.NewRequest(http.MethodGet, "/admin/members/m1", nil)
-	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin}))
-	response := httptest.NewRecorder()
-	mux.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("admin detail with missing session store status = %d, body = %s", response.Code, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), "member@example.com") {
-		t.Fatal("authorized admin detail did not render member identity")
-	}
-}
-
-func TestMemberListOffersVerificationResendOnlyForUnverifiedAccounts(t *testing.T) {
-	rows := []members.Member{{ID: "pending", Email: "pending@example.test", Active: true}, {ID: "verified", Email: "verified@example.test", Active: true, EmailVerifiedAt: func() *time.Time { now := time.Now(); return &now }()}}
-	store := fixedMemberStore{memoryMemberStore: newMemoryMemberStore(), rows: rows}
-	handler := transport.Handler{Service: members.Service{Members: store}, VerificationEnabled: true}
-	request := httptest.NewRequest(http.MethodGet, "/admin/members", nil)
-	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin}))
-	response := httptest.NewRecorder()
-	for _, route := range handler.Routes() {
-		if route.Pattern == "GET /admin/members" {
-			route.Handler.ServeHTTP(response, request)
-			break
-		}
-	}
-	body := response.Body.String()
-	if response.Code != http.StatusOK || !strings.Contains(body, "/admin/members/pending/resend-verification") || strings.Contains(body, "/admin/members/verified/resend-verification") {
-		t.Fatalf("member list status=%d, unexpected resend controls in body", response.Code)
 	}
 }
 
@@ -610,51 +475,6 @@ func TestMemberLoginRejectsOversizedForm(t *testing.T) {
 	}
 	if rr.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("POST /member/login status=%d, want 413", rr.Code)
-	}
-}
-
-func TestAdminMemberReadRoutesUseMemberManageOverrides(t *testing.T) {
-	store := newMemoryMemberStore()
-	store.members["member-1"] = &members.Member{ID: "member-1", Email: "member@example.test", Active: true}
-	handler := transport.Handler{Service: members.Service{Members: store}}
-	mux := http.NewServeMux()
-	registered := make(map[string]bool)
-	for _, route := range handler.Routes() {
-		registered[route.Pattern] = true
-		mux.Handle(route.Pattern, route.Handler)
-	}
-	routes := []struct{ pattern, path string }{
-		{pattern: "GET /admin/members", path: "/admin/members"},
-		{pattern: "GET /admin/members/export.xlsx", path: "/admin/members/export.xlsx"},
-		{pattern: "GET /admin/members/export.csv", path: "/admin/members/export.csv"},
-		{pattern: "GET /admin/members/{id}", path: "/admin/members/member-1"},
-	}
-	for _, tc := range []struct {
-		name string
-		user *auth.User
-		want int
-	}{
-		{name: "editor default denied", user: &auth.User{Role: auth.RoleEditor, Active: true}, want: http.StatusForbidden},
-		{name: "editor allow override", user: &auth.User{Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusOK},
-		{name: "viewer allow override", user: &auth.User{Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusOK},
-		{name: "admin deny override", user: &auth.User{Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: false}}, want: http.StatusForbidden},
-		{name: "inactive grant denied", user: &auth.User{Role: auth.RoleAdmin, Active: false, PermissionOverrides: map[string]bool{auth.PermissionMembersManage: true}}, want: http.StatusForbidden},
-		{name: "admin default", user: &auth.User{Role: auth.RoleAdmin, Active: true}, want: http.StatusOK},
-	} {
-		for _, route := range routes {
-			if !registered[route.pattern] {
-				t.Fatalf("read route %q is not registered", route.pattern)
-			}
-			t.Run(route.pattern+"/"+tc.name, func(t *testing.T) {
-				req := httptest.NewRequest(http.MethodGet, route.path, nil)
-				req = req.WithContext(auth.WithUser(req.Context(), tc.user))
-				res := httptest.NewRecorder()
-				mux.ServeHTTP(res, req)
-				if res.Code != tc.want {
-					t.Fatalf("GET %s status=%d want=%d body=%s", route.path, res.Code, tc.want, res.Body.String())
-				}
-			})
-		}
 	}
 }
 

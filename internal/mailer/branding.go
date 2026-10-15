@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"html/template"
 	"net/url"
 	"regexp"
 	"strings"
 
-	"github.com/a-h/templ"
 	xhtml "golang.org/x/net/html"
 )
 
@@ -102,13 +102,13 @@ func applyEmailBranding(message Message, branding EmailBranding, origin string) 
 	}
 	content := message.HTMLBody
 	if strings.TrimSpace(content) == "" {
-		content = renderEmailMarkup(emailPlainDocument(baseText))
+		content = renderEmailTemplate("plain", baseText)
 	}
 	message.HTMLBody = brandedHTML(content, branding, origin)
 	return message
 }
 
-// brandedHTML adds the branding header and footer (branding.templ) inside
+// brandedHTML adds the branding header and footer (templates.go) inside
 // the body of an HTML message, leaving the message itself untouched.
 func brandedHTML(content string, branding EmailBranding, origin string) string {
 	logoURL := ""
@@ -119,14 +119,14 @@ func brandedHTML(content string, branding EmailBranding, origin string) string {
 	if name == "" {
 		name = "HydroGo"
 	}
-	header := renderEmailMarkup(emailBrandingHeader(logoURL, branding.LegalName, name, branding.PrimaryColor))
+	header := renderEmailTemplate("header", emailHeaderData{LogoURL: logoURL, LogoAlt: branding.LegalName, Name: name, Color: template.CSS(branding.PrimaryColor)})
 	lines := make([]string, 0, 4)
 	for _, value := range []string{branding.LegalName, branding.PhysicalAddress, branding.FooterText, branding.FooterNotice} {
 		if value = strings.TrimSpace(value); value != "" {
 			lines = append(lines, value)
 		}
 	}
-	footer := renderEmailMarkup(emailBrandingFooter(lines, branding.PrivacyPolicyURL))
+	footer := renderEmailTemplate("footer", emailFooterData{Lines: lines, PrivacyPolicyURL: branding.PrivacyPolicyURL})
 	doc, err := xhtml.Parse(strings.NewReader(content))
 	if err != nil {
 		return content
@@ -140,16 +140,6 @@ func brandedHTML(content string, branding EmailBranding, origin string) string {
 	var output bytes.Buffer
 	if err := xhtml.Render(&output, doc); err != nil {
 		return content
-	}
-	return output.String()
-}
-
-// renderEmailMarkup renders a branding component. They only write to a
-// buffer, so an error leaves the fragment empty rather than failing a send.
-func renderEmailMarkup(component templ.Component) string {
-	var output bytes.Buffer
-	if err := component.Render(context.Background(), &output); err != nil {
-		return ""
 	}
 	return output.String()
 }

@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,7 +30,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/release"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 func doctor(args []string, stdout, stderr io.Writer) error {
@@ -478,34 +476,6 @@ func parseIPBanPrefix(value string) (netip.Prefix, error) {
 		bits = 32
 	}
 	return netip.PrefixFrom(address, bits), nil
-}
-
-func fontsCommand(args []string, stdout io.Writer) error {
-	if len(args) < 2 || args[0] != "add" {
-		return errors.New("fonts requires: hydro fonts add FAMILY [--out DIR]")
-	}
-	family := args[1]
-	destination := "public/fonts"
-	for i := 2; i < len(args); i++ {
-		if strings.HasPrefix(args[i], "--out=") {
-			destination = strings.TrimPrefix(args[i], "--out=")
-			continue
-		}
-		if args[i] == "--out" && i+1 < len(args) {
-			i++
-			destination = args[i]
-			continue
-		}
-		return fmt.Errorf("unknown fonts option %q", args[i])
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cssPath, err := designsystem.LocalizeGoogleFont(ctx, family, destination, nil)
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintf(stdout, "Font files saved. Include /fonts/%s in the edition stylesheet.\n", filepath.Base(cssPath))
-	return err
 }
 
 func runIconPack(args []string, stdout, stderr io.Writer) error {

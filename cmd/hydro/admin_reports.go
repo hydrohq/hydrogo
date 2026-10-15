@@ -11,125 +11,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	analyticsstore "github.com/ardaozyildirim/hydrogo/internal/analytics/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
-// adminDashboard serves /admin (business-owner or admin dashboard) and
-// /admin/reports.
-func (a *serveApp) adminDashboard(w http.ResponseWriter, r *http.Request) {
-	cfg, modules, userStore, linkScanManager := a.cfg, a.modules, a.userStore, a.linkScanManager
-	analyticsStore, memberService, runtimeMetrics := a.analyticsStore, a.memberService, a.metrics
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
-		http.Error(w, "Bu alana erişmek için giriş yapın.", http.StatusUnauthorized)
-		return
-	}
-	if linkScanManager != nil {
-		tenantKey := "default"
-		if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
-			tenantKey = scope.TenantID
-		}
-		if job, ok := linkScanManager.Latest(tenantKey); ok && len(job.Findings) > 0 {
-			support := adminstudio.SupportConfigFromContext(r.Context())
-			support.BrokenLinksActive, support.BrokenLinksJobID = true, job.ID
-			r = r.WithContext(adminstudio.WithSupportConfig(r.Context(), support))
-		}
-	}
-	if user.Role == auth.RoleEditor && r.URL.Path == "/admin" {
-		securityNotice, noticeErr := userStore.LoginSecuritySummary(r.Context(), user.ID)
-		if noticeErr != nil {
-			http.Error(w, "Yönetim özeti şu anda açılamıyor.", http.StatusInternalServerError)
-			return
-		}
-		previousLogin := ""
-		if securityNotice.PreviousLoginAt != nil {
-			previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
-		}
-		if err := ui.RenderBusinessOwnerDashboardWithSecurityNotice(w, r, modules, previousLogin, securityNotice.PreviousLoginIP, securityNotice.FailedAttempts); err != nil {
-			http.Error(w, "Bu sayfa şu anda açılamıyor.", http.StatusInternalServerError)
-		}
-		return
-	}
-	if user.Role != auth.RoleAdmin {
-		http.Error(w, "Bu alana erişim yetkiniz yok.", http.StatusForbidden)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if r.URL.Path == "/admin/reports" {
-		var stats members.MemberStats
-		if modules["members"] {
-			stats, _ = memberService.Stats(r.Context())
-		}
-		dataTime := time.Now().Format("02.01.2006 15:04:05")
-		dateRange := r.URL.Query().Get("range")
-		dateFrom, dateTo := "", ""
-		if dateRange == "custom" {
-			var valid bool
-			dateFrom, dateTo, valid = customAnalyticsDateRange(r.URL.Query().Get("from"), r.URL.Query().Get("to"))
-			if !valid {
-				http.Error(w, "Choose a valid date range within the past year.", http.StatusBadRequest)
-				return
-			}
-		}
-		contentViews := []analyticsstore.ContentViewAggregate(nil)
-		var noCookieStats []ui.NoCookieAnalyticsRow
-		var uniqueVisitors int64
-		if modules["analytics"] {
-			contentViews, _ = analyticsStore.ListContentViews(r.Context(), contentViewFilterFromRequest(r, 100))
-			tenantID := ""
-			if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
-				tenantID = scope.TenantID
-			}
-			noCookieStats, uniqueVisitors, _ = dailyNoCookieAnalytics(r.Context(), analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02"))
-		}
-		contentViewRows := make([]ui.ContentViewReportRow, 0, len(contentViews))
-		for _, row := range contentViews {
-			contentViewRows = append(contentViewRows, ui.ContentViewReportRow{Day: row.Day, TenantID: row.TenantID, ContentType: row.ContentType, ContentID: row.ContentID, Locale: row.Locale, ViewCount: row.ViewCount})
-		}
-		if err := ui.RenderAdminReports(w, ui.AdminDashboardData{
-			Request:     r,
-			User:        user,
-			Email:       user.Email,
-			Collections: a.activeStudioCollections(),
+type noCookieAnalyticsRow struct {
+	Day, Metric, Dimension string
+	EventCount             int64
+}
 
-			Active:                   "reports",
-			Metrics:                  runtimeMetrics,
-			MemberStats:              stats,
-			DataTime:                 dataTime,
-			DataSource:               "Proses İçi Bellek Telemetrisi",
-			DateFilter:               dateRange,
-			DateFrom:                 dateFrom,
-			DateTo:                   dateTo,
-			Locale:                   adminLocaleFromRequest(r),
-			ContentViews:             contentViewRows,
-			AnalyticsEnabled:         modules["analytics"] && cfg.Analytics.NoCookieEnabled,
-			SearchInsightsEnabled:    modules["search"] && modules["analytics"],
-			CollectionsModuleEnabled: modules["collections"],
-			NoCookieStats:            noCookieStats,
-			UniqueVisitors:           uniqueVisitors,
-		}); err != nil {
-			http.Error(w, "admin reports unavailable", http.StatusInternalServerError)
-		}
-		return
-	}
-	securityNotice, noticeErr := userStore.LoginSecuritySummary(r.Context(), user.ID)
-	if noticeErr != nil {
-		http.Error(w, "Yönetim özeti şu anda açılamıyor.", http.StatusInternalServerError)
-		return
-	}
-	previousLogin := ""
-	if securityNotice.PreviousLoginAt != nil {
-		previousLogin = securityNotice.PreviousLoginAt.Local().Format("02 Jan 2006 15:04 MST")
-	}
-	if err := ui.RenderAdminDashboard(w, ui.AdminDashboardData{Request: r, User: user, Email: user.Email, Collections: a.activeStudioCollections(), Active: "dashboard", Locale: adminLocaleFromRequest(r), PushEnabled: modules["push"], EmailPreviewEnabled: a.smtpSender != nil, CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], PreviousLogin: previousLogin, PreviousLoginIP: securityNotice.PreviousLoginIP, FailedLoginAttempts: securityNotice.FailedAttempts}); err != nil {
-		http.Error(w, "admin dashboard unavailable", http.StatusInternalServerError)
-	}
+type contentViewReportRow struct {
+	Day, TenantID, ContentType, ContentID string
+	Views                                 int64
 }
 
 // adminReportsExport downloads request telemetry and analytics as CSV or JSON.
@@ -169,7 +65,7 @@ func (a *serveApp) adminReportsExport(w http.ResponseWriter, r *http.Request) {
 		totalErrors := uint64(0)
 		avgLatency := uint64(0)
 		uniqueVisitors := int64(0)
-		var noCookieStats []ui.NoCookieAnalyticsRow
+		var noCookieStats []noCookieAnalyticsRow
 		var startedAt time.Time
 		if runtimeMetrics != nil {
 			totalReq = runtimeMetrics.TotalRequests()
@@ -294,7 +190,7 @@ func customAnalyticsDateRange(from, to string) (string, string, bool) {
 	return start.Format("2006-01-02"), end.Format("2006-01-02"), true
 }
 
-func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, tenantID, day string) ([]ui.NoCookieAnalyticsRow, int64, error) {
+func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, tenantID, day string) ([]noCookieAnalyticsRow, int64, error) {
 	end, err := time.Parse("2006-01-02", day)
 	if err != nil {
 		return nil, 0, err
@@ -325,15 +221,15 @@ func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, ten
 			aggregates[row.Metric+"\x00"+row.Dimension] += row.EventCount
 		}
 	}
-	result := make([]ui.NoCookieAnalyticsRow, 0, len(aggregates)+len(dailyViews))
+	result := make([]noCookieAnalyticsRow, 0, len(aggregates)+len(dailyViews))
 	for date, count := range dailyViews {
-		result = append(result, ui.NoCookieAnalyticsRow{Day: date, Metric: "daily_views", EventCount: count})
+		result = append(result, noCookieAnalyticsRow{Day: date, Metric: "daily_views", EventCount: count})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Day < result[j].Day })
-	var dimensions []ui.NoCookieAnalyticsRow
+	var dimensions []noCookieAnalyticsRow
 	for key, count := range aggregates {
 		parts := strings.SplitN(key, "\x00", 2)
-		dimensions = append(dimensions, ui.NoCookieAnalyticsRow{Metric: parts[0], Dimension: parts[1], EventCount: count})
+		dimensions = append(dimensions, noCookieAnalyticsRow{Metric: parts[0], Dimension: parts[1], EventCount: count})
 	}
 	sort.Slice(dimensions, func(i, j int) bool {
 		if dimensions[i].Metric != dimensions[j].Metric {

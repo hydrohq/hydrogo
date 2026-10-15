@@ -588,7 +588,7 @@ func percentile(samples []uint64, p int) uint64 {
 }
 
 func trackablePath(path string) bool {
-	for _, prefix := range []string{"/vendor/", "/theme/", "/media/", "/favicon"} {
+	for _, prefix := range []string{"/media/", "/favicon"} {
 		if strings.HasPrefix(path, prefix) {
 			return false
 		}

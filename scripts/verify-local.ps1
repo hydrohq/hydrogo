@@ -21,8 +21,6 @@ Invoke-Required "module integrity" { go mod verify }
 Invoke-Required "dependency vulnerability scan" { go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... }
 New-Item -ItemType Directory -Force .tmp\local | Out-Null
 Invoke-Required "deterministic SPDX SBOM" { go run ./tools/sbom -output .tmp\local\hydro-sbom.spdx.json }
-Invoke-Required "deterministic theme asset manifest" { go run ./tools/assetmanifest -root themes -output .tmp\local\asset-manifest.json }
-Invoke-Required "embedded vendor asset references" { go run ./tools/assetguard -root . }
 Invoke-Required "container image hardening" { & (Join-Path $PSScriptRoot "container-lint.ps1") }
 Invoke-Required "Compose service binding security" { & (Join-Path $PSScriptRoot "compose-security-lint.ps1") }
 Invoke-Required "tracked secret lint" { & (Join-Path $PSScriptRoot "secret-lint.ps1") }
@@ -65,8 +63,6 @@ if ($skipContractTests) {
 } else {
     Write-Warning "npm bulunamadı; headless starter contract smoke atlandı (CI/browser-e2e job'ında zorunludur)."
 }
-Invoke-Required "theme token lint" { & (Join-Path $PSScriptRoot "theme-token-lint.ps1") }
-Invoke-Required "HTML comment lint" { & (Join-Path $PSScriptRoot "html-comment-lint.ps1") }
 Invoke-Required "ADR index drift check" { & (Join-Path $PSScriptRoot "adr-drift-check.ps1") }
 if (-not $skipContractTests) {
     Invoke-Required "binary health/readiness smoke" { & (Join-Path $PSScriptRoot "smoke-local.ps1") }

@@ -1,6 +1,0 @@
-{{/* Intentionally minimal: hand-authored visual design removed before the next design attempt. */}}
-<section data-block="hero">
-  <h2>{{.Payload.title}}</h2>
-  {{with .Payload.subtitle}}<p>{{.}}</p>{{end}}
-  {{with .Payload.button_url}}<a href="{{.}}">{{with $.Payload.button_text}}{{.}}{{else}}Learn more{{end}}</a>{{end}}
-</section>

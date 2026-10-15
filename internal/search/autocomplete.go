@@ -3,16 +3,15 @@ package search
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 type AutocompleteHandler struct {
@@ -22,6 +21,15 @@ type AutocompleteHandler struct {
 	Modules            map[string]bool
 }
 type publicSuggestion struct{ id, locale, title, slug, kind string }
+
+// Suggestion is one public autocomplete hit. Kind is "pages" or "news"; the
+// frontend builds its own URL from locale and slug.
+type Suggestion struct {
+	Title  string `json:"title"`
+	Kind   string `json:"kind"`
+	Locale string `json:"locale"`
+	Slug   string `json:"slug"`
+}
 
 func (h AutocompleteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -51,22 +59,16 @@ func (h AutocompleteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "search unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	suggestions := make([]ui.SearchSuggestion, 0, len(items))
+	suggestions := make([]Suggestion, 0, len(items))
 	for _, item := range items {
-		base := "/public/pages/"
-		if item.kind == "news" {
-			base = "/public/news/"
-		}
-		suggestions = append(suggestions, ui.SearchSuggestion{Title: item.title, Category: map[string]string{"pages": "Page", "news": "News"}[item.kind], URL: base + url.PathEscape(item.locale) + "/" + url.PathEscape(item.slug) + "/html"})
+		suggestions = append(suggestions, Suggestion{Title: item.title, Kind: item.kind, Locale: item.locale, Slug: item.slug})
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=30")
 	if h.RequireTenantScope {
 		w.Header().Set("Cache-Control", "private, no-store")
 	}
-	if err := ui.SearchSuggestions(suggestions).Render(r.Context(), w); err != nil {
-		return
-	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"items": suggestions})
 }
 
 func (h AutocompleteHandler) suggest(ctx context.Context, term, locale, tenantID string) ([]publicSuggestion, error) {

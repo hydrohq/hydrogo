@@ -56,7 +56,6 @@ Usage:
   hydro scan-links --url https://example.test [--max-pages 500] [--concurrency 4] [--delay 100ms]
   hydro test [--package ./...] [--timeout 5m] [--race] [--count N]
   hydro events catalog
-  hydro fonts add FAMILY [--out public/fonts]
   hydro icons --source LOGO --output DIRECTORY
   hydro help
 

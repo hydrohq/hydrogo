@@ -22,15 +22,12 @@ func (a *serveApp) routes() ([]router.Route, error) {
 	routes = append(routes, collectionRoutes...)
 	routes = append(routes, a.pushRoutes()...)
 	routes = append(routes, a.trashRoutes()...)
-	routes = append(routes, a.sessionRoutes()...)
 	routes = append(routes, a.searchRoutes()...)
 	routes = append(routes, a.mobileAuthHTTP.RouterRoutes()...)
 	routes = append(routes, a.pageRoutes()...)
 	routes = append(routes, a.memberRoutes()...)
-	routes = append(routes, a.homeRoutes()...)
 	routes = append(routes, a.analyticsRoutes()...)
 	routes = append(routes, a.adminStudioRoutes()...)
-	routes = append(routes, a.publicAccountRoutes()...)
 	routes = append(routes, a.adminRoutes()...)
 	routes = append(routes, a.mediaRoutes()...)
 	routes = append(routes, a.siteRoutes()...)
@@ -44,8 +41,8 @@ func (a *serveApp) routes() ([]router.Route, error) {
 	return routes, nil
 }
 
-// webhookRoutes registers the webhook test endpoints when webhooks are
-// configured (and not suppressed by safe mode).
+// webhookRoutes collects the configured webhook endpoints (none in safe
+// mode) for the outbox worker; it registers no routes.
 func (a *serveApp) webhookRoutes() []router.Route {
 	cfg := a.cfg
 	webhookEndpoints := make([]webhooks.Endpoint, 0, len(cfg.Webhooks))
@@ -59,9 +56,6 @@ func (a *serveApp) webhookRoutes() []router.Route {
 		}
 	}
 	a.webhookEndpoints = webhookEndpoints
-	if len(webhookEndpoints) > 0 {
-		return []router.Route{{Pattern: "GET /admin/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}}, {Pattern: "POST /admin/api/webhooks/test", Access: router.Protected, Handler: webhooks.TestHandler{Dispatcher: webhooks.Dispatcher{}, Endpoints: webhookEndpoints}}}
-	}
 	return nil
 }
 

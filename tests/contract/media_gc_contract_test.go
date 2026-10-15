@@ -4,20 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
@@ -118,51 +112,17 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 	if _, err := db.ExecContext(ctx, pageDelete, pageID); err != nil {
 		t.Fatal(err)
 	}
-	mux := http.NewServeMux()
-	for _, route := range (media.HTTPHandler{Garbage: &collector}).AdminRoutes() {
-		if route.Pattern == "GET /admin/media/cleanup" || route.Pattern == "POST /admin/media/cleanup/delete" {
-			mux.Handle(route.Pattern, route.Handler)
-		}
-	}
-	handler := security.CSRFMiddleware(false, nil)(mux)
-	admin := &auth.User{ID: "gc-admin", Role: auth.RoleAdmin, Active: true}
-	getCleanup := httptest.NewRequest(http.MethodGet, "/admin/media/cleanup", nil)
-	getCleanup = getCleanup.WithContext(auth.WithUser(getCleanup.Context(), admin))
-	getCleanup = getCleanup.WithContext(tenant.WithScope(getCleanup.Context(), scope))
-	cleanupPage := httptest.NewRecorder()
-	handler.ServeHTTP(cleanupPage, getCleanup)
-	if cleanupPage.Code != http.StatusOK || !strings.Contains(cleanupPage.Body.String(), marker+".png") {
-		t.Fatalf("cleanup page status=%d body=%q", cleanupPage.Code, cleanupPage.Body.String())
-	}
-	postCleanup := func(token string) *httptest.ResponseRecorder {
-		form := url.Values{"_csrf": {token}, "asset_id": {asset.ID}, "confirm": {"yes"}}
-		request := httptest.NewRequest(http.MethodPost, "/admin/media/cleanup/delete", strings.NewReader(form.Encode()))
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request = request.WithContext(auth.WithUser(request.Context(), admin))
-		request = request.WithContext(tenant.WithScope(request.Context(), scope))
-		response := httptest.NewRecorder()
-		handler.ServeHTTP(response, request)
-		return response
-	}
-	invalid := postCleanup("wrong-token")
-	if invalid.Code != http.StatusForbidden || len(blobs.deleted) != 0 {
-		t.Fatalf("invalid CSRF status=%d blobs=%v", invalid.Code, blobs.deleted)
-	}
-	if _, err := store.Get(ctx, db, asset.ID); err != nil {
-		t.Fatalf("invalid CSRF removed media metadata: %v", err)
-	}
-	failed := postCleanup("valid-token")
-	if failed.Code != http.StatusServiceUnavailable || len(blobs.deleted) != 1 || blobs.deleted[0] != asset.StorageKey {
-		t.Fatalf("first cleanup status=%d blobs=%v body=%q", failed.Code, blobs.deleted, failed.Body.String())
+	// The first delete loses the blob but keeps the metadata in a retryable
+	// "deleting" state; the retry finishes the job (variants included).
+	if _, err := collector.Delete(ctx, []string{asset.ID}); len(blobs.deleted) != 1 || blobs.deleted[0] != asset.StorageKey {
+		t.Fatalf("first cleanup blobs=%v err=%v", blobs.deleted, err)
 	}
 	claimed, err := store.Get(ctx, db, asset.ID)
 	if err != nil || claimed.Status != "deleting" {
 		t.Fatalf("failed cleanup asset=%+v err=%v, want retryable deleting state", claimed, err)
 	}
-	retried := postCleanup("valid-token")
-	if retried.Code != http.StatusSeeOther || len(blobs.deleted) != 3 || blobs.deleted[1] != asset.StorageKey || blobs.deleted[2] != variantKey {
-		t.Fatalf("retry cleanup status=%d blobs=%v body=%q", retried.Code, blobs.deleted, retried.Body.String())
+	if _, err := collector.Delete(ctx, []string{asset.ID}); err != nil || len(blobs.deleted) != 3 || blobs.deleted[1] != asset.StorageKey || blobs.deleted[2] != variantKey {
+		t.Fatalf("retry cleanup blobs=%v err=%v", blobs.deleted, err)
 	}
 	if _, err := store.Get(ctx, db, asset.ID); err == nil {
 		t.Fatal("retried cleanup left a media metadata record")

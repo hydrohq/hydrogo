@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"time"
 
-	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
@@ -59,7 +58,6 @@ type serveApp struct {
 	devMode bool
 	closers []func() error
 
-	extensionRegistry  adminstudio.ExtensionRegistry
 	tenantResolver     *tenant.HostResolver
 	tenantScopes       []tenant.Scope
 	requireTenantScope bool
@@ -105,7 +103,6 @@ type serveApp struct {
 	publicHTMLCache  *server.PublicHTMLCache
 	staticCacheDir   string
 	contentService   pageservice.ContentService
-	selectedTheme    *themev1.ThemeBundle
 	mediaService     media.Service
 	mediaHTTP        media.HTTPHandler
 	pageStore        pagesstore.Store

@@ -5,18 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
 	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
 	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
@@ -24,8 +21,8 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
-// initAdminStudio builds the admin studio registry and the pages and news
-// HTTP handlers that render its collections.
+// initAdminStudio builds the admin studio registry (served as the studio
+// manifest) and the pages and news HTTP handlers.
 func (a *serveApp) initAdminStudio() error {
 	studioRegistry, err := adminstudio.NewRegistry([]adminstudio.Collection{
 		{ID: "pages", Label: "Sayfalar", Description: "Taslak, bloklar ve yayınlanmış içerik.", Fields: []adminstudio.Field{{ID: "locale", Label: "Dil", Kind: adminstudio.FieldText, Required: true}, {ID: "slug", Label: "Slug", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "title", Label: "Başlık", Kind: adminstudio.FieldText, Required: true, VisibleInList: true}, {ID: "body", Label: "İçerik", Kind: adminstudio.FieldText, Widget: "textarea", Required: true}, {ID: "status", Label: "Durum", Kind: adminstudio.FieldStatus, ReadOnly: true, VisibleInList: true}, {ID: "blocks", Label: "Bloklar", Kind: adminstudio.FieldRelation}}, Actions: []adminstudio.Action{{Label: "Tüm sayfalar", Href: "/admin/pages"}, {Label: "Ana sayfayı düzenle", Href: "/admin/pages/demo-home"}, {Label: "Showcase'i düzenle", Href: "/admin/pages/demo-showcase"}, {Label: "Hakkında sayfasını düzenle", Href: "/admin/pages/demo-about"}}},
@@ -84,19 +81,11 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 	requireTenantScope := a.requireTenantScope
 	pageStore, siteStore, newsRouteStore := a.pageStore, a.siteStore, a.newsRouteStore
 	redirectRegistry, siteService := a.redirectRegistry, &a.siteService
-	analyticsStore := a.analyticsStore
 	if !moduleEnabled(cfg.Modules, "pages") {
 		return nil
 	}
-	pageCollection, ok := a.studioRegistry.Collection("pages")
-	if !ok {
-		return errors.New("admin studio pages collection missing")
-	}
-	a.localizeStudioCollection(&pageCollection)
-	pageCollection.BulkActions = []adminstudio.Action{{Label: "CSV dışa aktar", Href: "/admin/pages/bulk"}}
 	pageLLMSCache := &seo.DiscoveryCache{}
 	a.pageLLMSCache = pageLLMSCache
-	notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
 	var recordSlugRedirect func(context.Context, string, string, string) error
 	var recordNotFound func(context.Context, string) error
 	if modules["site"] {
@@ -130,12 +119,7 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 			return siteService.RecordNotFound(missCtx, path, time.Now().UTC())
 		}
 	}
-	pageHTTP := pagetransport.Handler{DB: db, Content: a.contentService, Theme: a.selectedTheme, Media: a.mediaService, AdminCollection: pageCollection, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, Assistant: a.contentAssistant, AIAudit: a.contentAIAudit, AllowDemoFrontend: demoFrontendEnabled() || a.devMode, SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, SearchEnabled: modules["search"], ContentViews: analyticsStore, Feedback: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: a.editPresence, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && a.smtpSender != nil, NavigationProvider: func(navCtx context.Context, locale string) ([]site.NavigationItem, error) {
-		if !modules["site"] {
-			return nil, nil
-		}
-		return siteStore.ListNavigation(navCtx, db, locale)
-	}, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
+	pageHTTP := pagetransport.Handler{DB: db, Content: a.contentService, Media: a.mediaService, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, AllowDemoFrontend: demoFrontendEnabled() || a.devMode, SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
 		var result pagetransport.PublicSEOSettings
 		if !modules["site"] {
 			return result
@@ -150,26 +134,17 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 				if result.Brand == "" {
 					result.Brand = setting.Value
 				}
-			case "design.font_css":
-				result.FontCSS = setting.Value
+			case "appearance.favicon_url":
+				result.FaviconURL = setting.Value
+			case "appearance.social_image_url":
+				result.SocialImageURL = setting.Value
 			}
 		}
-		appearance := site.AppearanceFromSettings(settings)
-		if css, err := appearance.CSS(); err == nil {
-			result.AppearanceCSS = css
-		}
-		result.FaviconURL = appearance.FaviconURL
-		result.SocialImageURL = appearance.SocialImageURL
 		if profile, ok := site.BusinessProfileFromSettings(settings); ok {
 			result.BusinessProfile = &profile
 		}
 		return result
 	}}
-	if modules["site"] {
-		pageHTTP.PublicContactSettings = func(contactCtx context.Context) ([]site.Setting, error) {
-			return siteStore.ListPublicSettings(contactCtx, db)
-		}
-	}
 	pageHTTP.DiscoveryProvider = func(providerCtx context.Context) (seo.Discovery, error) {
 		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 		if err != nil {
@@ -191,7 +166,7 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 			}
 		}
 		for _, page := range published {
-			discovery.Pages = append(discovery.Pages, seo.DiscoveryPage{Title: page.Title, Path: "/" + page.Locale + "/" + page.Slug, Text: string(ui.RichTextHTML(page.Body))})
+			discovery.Pages = append(discovery.Pages, seo.DiscoveryPage{Title: page.Title, Path: "/" + page.Locale + "/" + page.Slug, Text: richtext.PlainText(page.Body)})
 		}
 		if modules["news"] {
 			if err := newsRouteStore.StreamPublishedRoutes(providerCtx, db, func(item newsservice.Item) error {
@@ -203,7 +178,7 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 				if strings.TrimSpace(text) == "" {
 					text = item.Excerpt
 				}
-				discovery.Pages = append(discovery.Pages, seo.DiscoveryPage{Title: title, Path: "/public/news/" + item.Locale + "/" + item.Slug, Description: item.SEODescription, Text: string(ui.RichTextHTML(text))})
+				discovery.Pages = append(discovery.Pages, seo.DiscoveryPage{Title: title, Path: "/public/news/" + item.Locale + "/" + item.Slug, Description: item.SEODescription, Text: richtext.PlainText(text)})
 				return nil
 			}); err != nil {
 				return seo.Discovery{}, err
@@ -219,39 +194,11 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 }
 
 func (a *serveApp) initNewsHTTP(previewSigner *preview.Signer) error {
-	cfg, db, modules := a.cfg, a.db, a.modules
-	siteStore, analyticsStore, mediaService := a.siteStore, a.analyticsStore, a.mediaService
+	cfg, db, mediaService := a.cfg, a.db, a.mediaService
 	if !moduleEnabled(cfg.Modules, "news") {
 		return nil
 	}
-	newsCollection, ok := a.studioRegistry.Collection("news")
-	if !ok {
-		return errors.New("admin studio news collection missing")
-	}
-	a.localizeStudioCollection(&newsCollection)
-	newsHTTP := newstransport.Handler{Service: a.newsService, DB: db, Media: mediaService, MediaLookup: mediaService, AdminCollection: newsCollection, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, ContentViews: analyticsStore, AnalyticsEnabled: modules["analytics"], Presence: a.editPresence, RequireTenantScope: a.requireTenantScope, PreviewSigner: previewSigner, PublicSupport: adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL}, NavigationProvider: func(navCtx context.Context, locale string) ([]themev1.ThemeNavigationItem, error) {
-		if !modules["site"] {
-			return nil, nil
-		}
-		items, err := siteStore.ListNavigation(navCtx, db, locale)
-		if err != nil {
-			return nil, err
-		}
-		navigation := make([]themev1.ThemeNavigationItem, 0, len(items))
-		for _, item := range items {
-			navigation = append(navigation, themev1.ThemeNavigationItem{ID: item.ID, ParentID: item.ParentID, Label: item.Label, Href: item.Href, Target: item.Target, Position: item.Position})
-		}
-		return navigation, nil
-	}}
-	if modules["analytics"] {
-		newsHTTP.Feedback = analyticsStore
-	}
-	if modules["site"] {
-		newsHTTP.PublicContactSettings = func(contactCtx context.Context) ([]site.Setting, error) {
-			return siteStore.ListPublicSettings(contactCtx, db)
-		}
-	}
-	newsHTTP.Theme = a.selectedTheme
+	newsHTTP := newstransport.Handler{Service: a.newsService, DB: db, Media: mediaService, MediaLookup: mediaService, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, Presence: a.editPresence, RequireTenantScope: a.requireTenantScope}
 	a.newsHTTP = newsHTTP
 	return nil
 }
