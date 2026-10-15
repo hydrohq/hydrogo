@@ -13,8 +13,8 @@
   "dependencies": {
     "@lucide/svelte": "^1.57.0",
     "@tanstack/svelte-query": "^5.66.0",
-    "@tiptap/core": "^2.11.5",
-    "@tiptap/starter-kit": "^2.11.5",
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.475.0",
     "tailwind-merge": "^3.0.1"
