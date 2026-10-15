@@ -11,6 +11,9 @@ function copyToAdminUi() {
       const srcDir = path.resolve(__dirname, 'dist');
       const destDir = path.resolve(__dirname, '../internal/adminui/dist');
       if (fs.existsSync(srcDir)) {
+        if (fs.existsSync(destDir)) {
+          fs.rmSync(destDir, { recursive: true, force: true });
+        }
         fs.mkdirSync(destDir, { recursive: true });
         fs.cpSync(srcDir, destDir, { recursive: true, force: true });
       }
