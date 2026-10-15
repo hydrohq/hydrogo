@@ -5,12 +5,14 @@
   import type { ContentItem, ApiResponse, Field } from '$lib/api/types';
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import GenericItemModal from './GenericItemModal.svelte';
 
   interface Props {
     type: string;
+    initialItemId?: string | null;
   }
 
-  let { type }: Props = $props();
+  let { type, initialItemId = null }: Props = $props();
 
   const collection = $derived(schema.getCollection(type));
   let items = $state<ContentItem[]>([]);
@@ -19,6 +21,14 @@
   let page = $state(1);
   let total = $state(0);
   let statusFilter = $state('');
+
+  // Item Modal State (Create / Edit)
+  let modalOpen = $state(false);
+  let activeItemId = $state<string | null>(null);
+
+  // Delete Dialog State
+  let deleteTargetId = $state<string | null>(null);
+  let deleteLoading = $state(false);
 
   const listFields = $derived.by(() => {
     if (!collection?.fields) return [];
@@ -67,8 +77,24 @@
     }
   }
 
-  let deleteTargetId = $state<string | null>(null);
-  let deleteLoading = $state(false);
+  function openCreate() {
+    activeItemId = 'new';
+    modalOpen = true;
+  }
+
+  function openEdit(id: string, e?: MouseEvent) {
+    if (e) e.stopPropagation();
+    activeItemId = id;
+    modalOpen = true;
+  }
+
+  function closeModal() {
+    modalOpen = false;
+    activeItemId = null;
+    if (router.path !== `/content/${type}`) {
+      router.navigate(`/content/${type}`);
+    }
+  }
 
   function handleDelete(id: string, e: MouseEvent) {
     e.stopPropagation();
@@ -97,7 +123,33 @@
       loadItems();
     }
   });
+
+  $effect(() => {
+    if (initialItemId) {
+      activeItemId = initialItemId;
+      modalOpen = true;
+    }
+  });
 </script>
+
+<!-- Create / Edit Modal -->
+<GenericItemModal
+  open={modalOpen}
+  {type}
+  itemId={activeItemId}
+  onclose={closeModal}
+  onsaved={loadItems}
+/>
+
+<!-- Delete Confirm Dialog -->
+<ConfirmDialog
+  open={deleteTargetId !== null}
+  title={`Delete ${collection?.singular || collection?.label || 'Item'}`}
+  description="Are you sure you want to permanently delete this item? This action cannot be undone."
+  loading={deleteLoading}
+  onconfirm={confirmDelete}
+  oncancel={() => { deleteTargetId = null; }}
+/>
 
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
@@ -170,7 +222,7 @@
             <button
               type="button"
               class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs cursor-pointer shrink-0 transition-colors"
-              onclick={() => router.navigate(`/content/${type}/new`)}
+              onclick={openCreate}
             >
               <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -194,7 +246,7 @@
                 <button
                   type="button"
                   class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
-                  onclick={() => router.navigate(`/content/${type}/new`)}
+                  onclick={openCreate}
                 >
                   Create First {collection.singular || collection.label || 'Item'}
                 </button>
@@ -217,7 +269,7 @@
                     {#each filteredItems as item (item.id)}
                       <tr
                         class="hover:bg-muted/50 transition-colors cursor-pointer"
-                        onclick={() => router.navigate(`/content/${type}/${item.id}`)}
+                        onclick={() => openEdit(item.id)}
                       >
                         {#each listFields as field}
                           {@const key = getFieldKey(field)}
@@ -227,9 +279,18 @@
                                 {item[key] ? 'Yes' : 'No'}
                               </Badge>
                             {:else if field.kind === 'media'}
-                              <span class="font-mono text-muted-foreground truncate">
-                                {String(item[key] || '—')}
-                              </span>
+                              {#if item[key]}
+                                <div class="size-7 rounded border border-border bg-muted overflow-hidden inline-flex items-center justify-center">
+                                  <img
+                                    src={String(item[key])}
+                                    alt="thumb"
+                                    class="size-full object-cover"
+                                    onerror={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                  />
+                                </div>
+                              {:else}
+                                <span class="font-mono text-muted-foreground">—</span>
+                              {/if}
                             {:else}
                               <span class="font-medium text-foreground">
                                 {String(item[key] ?? '—')}
@@ -253,15 +314,15 @@
                           <div class="inline-flex items-center gap-1">
                             <button
                               type="button"
-                              class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                              onclick={(e) => { e.stopPropagation(); router.navigate(`/content/${type}/${item.id}`); }}
+                              class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                              onclick={(e) => openEdit(item.id, e)}
                               title="Edit"
                             >
                               <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                             </button>
                             <button
                               type="button"
-                              class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
                               onclick={(e) => handleDelete(item.id, e)}
                               title="Delete"
                             >
@@ -283,7 +344,7 @@
                     type="button"
                     disabled={page <= 1}
                     onclick={() => { page--; loadItems(); }}
-                    class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
+                    class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                   >
                     Previous
                   </button>
@@ -291,7 +352,7 @@
                     type="button"
                     disabled={items.length < 50}
                     onclick={() => { page++; loadItems(); }}
-                    class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
+                    class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                   >
                     Next
                   </button>
@@ -304,12 +365,3 @@
     </div>
   </div>
 {/if}
-
-<ConfirmDialog
-  open={deleteTargetId !== null}
-  title={`Delete ${collection?.singular || collection?.label || 'Item'}`}
-  description="Are you sure you want to permanently delete this item? This action cannot be undone."
-  loading={deleteLoading}
-  onconfirm={confirmDelete}
-  oncancel={() => { deleteTargetId = null; }}
-/>
