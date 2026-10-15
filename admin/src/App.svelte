@@ -13,6 +13,8 @@
   import NewsEditorView from './routes/news/NewsEditorView.svelte';
   import PagesListView from './routes/pages/PagesListView.svelte';
   import PageEditorView from './routes/pages/PageEditorView.svelte';
+  import MembersView from './routes/members/MembersView.svelte';
+  import UsersView from './routes/users/UsersView.svelte';
 
   let initializing = $state(true);
 
@@ -111,6 +113,10 @@
       <PageEditorView id={routeInfo.id!} />
     {:else if routeInfo.module === 'media'}
       <MediaView />
+    {:else if routeInfo.module === 'members'}
+      <MembersView />
+    {:else if routeInfo.module === 'users'}
+      <UsersView />
     {:else}
       <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
       {#if schema.getCollection(routeInfo.module || '')}
