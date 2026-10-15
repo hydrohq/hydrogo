@@ -6,6 +6,7 @@
     open: boolean;
     title: string;
     description?: string;
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
     onclose?: () => void;
     onClose?: () => void;
     children?: Snippet;
@@ -16,6 +17,7 @@
     open = $bindable(false),
     title,
     description,
+    size = 'lg',
     onclose,
     onClose,
     children,
@@ -32,6 +34,18 @@
       close();
     }
   }
+
+  const maxWidthClass = $derived.by(() => {
+    switch (size) {
+      case 'sm': return 'max-w-sm';
+      case 'md': return 'max-w-md';
+      case 'lg': return 'max-w-lg';
+      case 'xl': return 'max-w-xl';
+      case '2xl': return 'max-w-2xl';
+      case '3xl': return 'max-w-3xl';
+      default: return 'max-w-lg';
+    }
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -46,7 +60,7 @@
       tabindex="-1"
     ></button>
     <div
-      class="relative w-full max-w-lg bg-card border border-border text-card-foreground rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10 animate-in fade-in zoom-in-95 duration-150"
+      class="relative w-full {maxWidthClass} bg-card border border-border text-card-foreground rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10 animate-in fade-in zoom-in-95 duration-150"
       role="dialog"
       aria-modal="true"
     >

@@ -7,7 +7,6 @@
   import LoginView from './routes/login/LoginView.svelte';
   import DashboardView from './routes/dashboard/DashboardView.svelte';
   import GenericListView from '$lib/schema/GenericListView.svelte';
-  import GenericFormView from '$lib/schema/GenericFormView.svelte';
   import MediaView from './routes/media/MediaView.svelte';
   import NewsListView from './routes/news/NewsListView.svelte';
   import NewsEditorView from './routes/news/NewsEditorView.svelte';
@@ -58,10 +57,10 @@
       const type = parts[2];
       const actionOrId = parts[3];
       if (actionOrId === 'new') {
-        return { view: 'form', type, id: 'new' };
+        return { view: 'list', type, modalId: 'new' };
       }
       if (actionOrId) {
-        return { view: 'form', type, id: actionOrId };
+        return { view: 'list', type, modalId: actionOrId };
       }
       return { view: 'list', type };
     }
@@ -108,9 +107,9 @@
     {#if routeInfo.view === 'dashboard'}
       <DashboardView />
     {:else if routeInfo.view === 'list'}
-      <GenericListView type={routeInfo.type!} />
+      <GenericListView type={routeInfo.type!} initialItemId={routeInfo.modalId} />
     {:else if routeInfo.view === 'form'}
-      <GenericFormView type={routeInfo.type!} id={routeInfo.id} />
+      <GenericListView type={routeInfo.type!} initialItemId={routeInfo.id} />
     {:else if routeInfo.view === 'news-list'}
       <NewsListView />
     {:else if routeInfo.view === 'news-editor'}
