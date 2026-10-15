@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/adminui"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
@@ -32,6 +33,7 @@ func (a *serveApp) routes() ([]router.Route, error) {
 	routes = append(routes, a.mediaRoutes()...)
 	routes = append(routes, a.siteRoutes()...)
 	routes = append(routes, a.newsRoutes()...)
+	routes = append(routes, adminui.Routes()...)
 	assetRoutes, err := a.assetRoutes()
 	if err != nil {
 		return nil, err
