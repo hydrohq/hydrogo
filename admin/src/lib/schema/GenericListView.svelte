@@ -4,6 +4,7 @@
   import { router } from '$lib/router.svelte';
   import type { ContentItem, ApiResponse, Field } from '$lib/api/types';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   interface Props {
     type: string;
@@ -66,14 +67,25 @@
     }
   }
 
-  async function handleDelete(id: string, e: MouseEvent) {
+  let deleteTargetId = $state<string | null>(null);
+  let deleteLoading = $state(false);
+
+  function handleDelete(id: string, e: MouseEvent) {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this item?')) return;
+    deleteTargetId = id;
+  }
+
+  async function confirmDelete() {
+    if (!deleteTargetId) return;
+    deleteLoading = true;
     try {
-      await api.delete(`${collection?.api_path || `/api/v1/admin/content/${type}`}/${id}`);
+      await api.delete(`${collection?.api_path || `/api/v1/admin/content/${type}`}/${deleteTargetId}`);
+      deleteTargetId = null;
       await loadItems();
     } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      console.error('Delete failed:', err);
+    } finally {
+      deleteLoading = false;
     }
   }
 
@@ -292,3 +304,12 @@
     </div>
   </div>
 {/if}
+
+<ConfirmDialog
+  open={deleteTargetId !== null}
+  title={`Delete ${collection?.singular || collection?.label || 'Item'}`}
+  description="Are you sure you want to permanently delete this item? This action cannot be undone."
+  loading={deleteLoading}
+  onconfirm={confirmDelete}
+  oncancel={() => { deleteTargetId = null; }}
+/>

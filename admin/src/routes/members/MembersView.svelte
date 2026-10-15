@@ -5,6 +5,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   interface Member {
     id: string;
@@ -22,6 +23,8 @@
   let selectedMember = $state<Member | null>(null);
   let detailOpen = $state(false);
   let actionLoading = $state(false);
+  let revokeConfirmOpen = $state(false);
+  let feedbackMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const filteredMembers = $derived.by(() => {
     let list = members;
@@ -66,32 +69,36 @@
       await api.post(`/api/v1/admin/members/${member.id}`, { active: !member.active }, { method: 'PATCH' });
       member.active = !member.active;
     } catch (err: any) {
-      alert(`Update status failed: ${err.message}`);
+      console.error('Update status failed:', err);
     }
   }
 
   async function verifyEmail() {
     if (!selectedMember) return;
     actionLoading = true;
+    feedbackMessage = null;
     try {
       await api.post(`/api/v1/admin/members/${selectedMember.id}/verify-email`);
       selectedMember.email_verified_at = new Date().toISOString();
       await loadMembers();
+      feedbackMessage = { type: 'success', text: 'Email verified successfully.' };
     } catch (err: any) {
-      alert(`Verify email failed: ${err.message}`);
+      feedbackMessage = { type: 'error', text: err?.message || 'Verification failed.' };
     } finally {
       actionLoading = false;
     }
   }
 
-  async function revokeAllSessions() {
-    if (!selectedMember || !confirm('Revoke all active sessions for this member?')) return;
+  async function confirmRevokeSessions() {
+    if (!selectedMember) return;
     actionLoading = true;
+    feedbackMessage = null;
     try {
       await api.post(`/api/v1/admin/members/${selectedMember.id}/sessions/revoke-all`);
-      alert('All sessions revoked.');
+      revokeConfirmOpen = false;
+      feedbackMessage = { type: 'success', text: 'All active sessions for this member were revoked.' };
     } catch (err: any) {
-      alert(`Revoke failed: ${err.message}`);
+      feedbackMessage = { type: 'error', text: err?.message || 'Revoking sessions failed.' };
     } finally {
       actionLoading = false;
     }
@@ -102,6 +109,17 @@
   });
 </script>
 
+<ConfirmDialog
+  open={revokeConfirmOpen}
+  title="Revoke Member Sessions"
+  description={`Revoke all active sessions for "${selectedMember?.email}"? The member will be required to log in again on all devices.`}
+  confirmLabel="Revoke Sessions"
+  variant="destructive"
+  loading={actionLoading}
+  onconfirm={confirmRevokeSessions}
+  oncancel={() => { if (!actionLoading) revokeConfirmOpen = false; }}
+/>
+
 <!-- Member Detail Modal -->
 <Modal
   open={detailOpen}
@@ -111,6 +129,13 @@
 >
   {#if selectedMember}
     <div class="space-y-4">
+      {#if feedbackMessage}
+        <div class="p-3 rounded-lg text-xs {feedbackMessage.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' : 'bg-destructive/10 border border-destructive/20 text-destructive'} flex items-center justify-between">
+          <span>{feedbackMessage.text}</span>
+          <button type="button" class="hover:underline cursor-pointer" onclick={() => { feedbackMessage = null; }}>Dismiss</button>
+        </div>
+      {/if}
+
       <div class="p-4 rounded-lg bg-muted/50 border border-border space-y-2.5 text-xs">
         <div class="flex justify-between items-center">
           <span class="text-muted-foreground font-medium">Status:</span>
@@ -149,7 +174,7 @@
           size="sm"
           class="w-full"
           loading={actionLoading}
-          onclick={revokeAllSessions}
+          onclick={() => { revokeConfirmOpen = true; }}
         >
           Revoke All Active Sessions
         </Button>

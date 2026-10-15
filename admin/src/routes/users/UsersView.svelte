@@ -6,6 +6,7 @@
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   interface StaffUser {
     id: string;
@@ -37,13 +38,21 @@
   let inviteEmail = $state('');
   let inviteRole = $state('editor');
   let inviting = $state(false);
+  let inviteError = $state<string | null>(null);
+  let inviteSuccess = $state<string | null>(null);
 
   // New Token Modal
   let tokenModalOpen = $state(false);
   let tokenName = $state('');
   let tokenDays = $state(30);
   let creatingToken = $state(false);
+  let tokenError = $state<string | null>(null);
   let newlyIssuedToken = $state<string | null>(null);
+  let copiedToken = $state(false);
+
+  // Revoke Dialog
+  let revokeTarget = $state<APIToken | null>(null);
+  let revokingToken = $state(false);
 
   async function loadUsers() {
     loadingUsers = true;
@@ -79,14 +88,15 @@
     e.preventDefault();
     if (!inviteEmail) return;
     inviting = true;
+    inviteError = null;
+    inviteSuccess = null;
     try {
       await api.post('/api/v1/admin/users/invites', { email: inviteEmail, role: inviteRole });
-      alert(`Invitation sent to ${inviteEmail}.`);
+      inviteSuccess = `Invitation sent to ${inviteEmail}.`;
       inviteEmail = '';
-      inviteOpen = false;
       await loadUsers();
     } catch (err: any) {
-      alert(`Invite failed: ${err.message}`);
+      inviteError = err?.message || 'Failed to send invitation';
     } finally {
       inviting = false;
     }
@@ -94,11 +104,12 @@
 
   async function handleCreateToken(e: SubmitEvent) {
     e.preventDefault();
-    if (!tokenName) return;
+    if (!tokenName.trim()) return;
     creatingToken = true;
+    tokenError = null;
     try {
       const res = await api.post<ApiResponse<{ token: string }>>('/api/v1/admin/account/tokens', {
-        name: tokenName,
+        name: tokenName.trim(),
         expires_in_days: Number(tokenDays) || 30,
       });
       if (res && res.data && res.data.token) {
@@ -107,20 +118,31 @@
       tokenName = '';
       await loadTokens();
     } catch (err: any) {
-      alert(`Create token failed: ${err.message}`);
+      tokenError = err?.message || 'Failed to generate token';
     } finally {
       creatingToken = false;
     }
   }
 
-  async function handleRevokeToken(id: string) {
-    if (!confirm('Revoke this personal access token immediately?')) return;
+  async function confirmRevokeToken() {
+    if (!revokeTarget) return;
+    revokingToken = true;
     try {
-      await api.delete(`/api/v1/admin/account/tokens/${id}`);
+      await api.delete(`/api/v1/admin/account/tokens/${revokeTarget.id}`);
+      revokeTarget = null;
       await loadTokens();
     } catch (err: any) {
-      alert(`Revoke failed: ${err.message}`);
+      console.error('Revoke failed:', err);
+    } finally {
+      revokingToken = false;
     }
+  }
+
+  function copyIssuedToken() {
+    if (!newlyIssuedToken) return;
+    navigator.clipboard.writeText(newlyIssuedToken);
+    copiedToken = true;
+    setTimeout(() => { copiedToken = false; }, 2000);
   }
 
   onMount(() => {
@@ -128,14 +150,36 @@
   });
 </script>
 
+<ConfirmDialog
+  open={!!revokeTarget}
+  title="Revoke Personal Access Token"
+  description={`Revoke "${revokeTarget?.name}"? Any external scripts, tools, or integrations using this token will immediately lose access.`}
+  confirmLabel="Revoke Token"
+  variant="destructive"
+  loading={revokingToken}
+  onconfirm={confirmRevokeToken}
+  oncancel={() => { if (!revokingToken) revokeTarget = null; }}
+/>
+
 <!-- Invite User Modal -->
 <Modal
   open={inviteOpen}
   title="Invite Staff Member"
-  description="Send an invitation email to add an admin or editor to HydroGo."
-  onclose={() => { inviteOpen = false; }}
+  description="Send an invitation to grant administrative or editorial access to HydroGo."
+  onclose={() => { inviteOpen = false; inviteError = null; inviteSuccess = null; }}
 >
   <form onsubmit={handleInvite} class="space-y-4">
+    {#if inviteError}
+      <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+        {inviteError}
+      </div>
+    {/if}
+    {#if inviteSuccess}
+      <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-500">
+        {inviteSuccess}
+      </div>
+    {/if}
+
     <Input
       label="Email Address"
       type="email"
@@ -144,21 +188,27 @@
       required
       autofocus
     />
+
     <div>
-      <label for="invite-role-select" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Role</label>
+      <label for="invite-role-select" class="text-xs font-semibold text-foreground block mb-1">Role & Permissions</label>
       <select
         id="invite-role-select"
         bind:value={inviteRole}
-        class="w-full mt-1 rounded-md bg-background border border-input px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+        class="w-full rounded-md bg-background border border-input px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
       >
-        <option value="editor">Editor (Content manager)</option>
-        <option value="author">Author (Create/edit own posts)</option>
-        <option value="admin">Admin (Full administrative control)</option>
+        <option value="editor">Editor — Manage and publish pages, articles, and media</option>
+        <option value="author">Author — Create and edit own content drafts</option>
+        <option value="admin">Admin — Full system configuration and user management</option>
       </select>
     </div>
-    <div class="flex justify-end gap-2 pt-2">
-      <Button variant="ghost" size="sm" onclick={() => { inviteOpen = false; }}>Cancel</Button>
-      <Button type="submit" variant="primary" size="sm" loading={inviting}>Send Invitation</Button>
+
+    <div class="flex justify-end gap-2 pt-2 border-t border-border">
+      <Button variant="ghost" size="sm" onclick={() => { inviteOpen = false; }}>
+        {inviteSuccess ? 'Done' : 'Cancel'}
+      </Button>
+      <Button type="submit" variant="primary" size="sm" loading={inviting}>
+        Send Invitation
+      </Button>
     </div>
   </form>
 </Modal>
@@ -167,36 +217,52 @@
 <Modal
   open={tokenModalOpen}
   title={newlyIssuedToken ? "Personal Access Token Generated" : "Generate Personal Access Token"}
-  description={newlyIssuedToken ? "Copy this token now. It will not be shown again." : "Issue a personal Bearer token for CLI, scripts, or API integrations."}
-  onclose={() => { tokenModalOpen = false; newlyIssuedToken = null; }}
+  description={newlyIssuedToken ? "Copy this token now. For security reasons, it will never be displayed again." : "Issue a personal Bearer token for CLI, scripts, or API integrations."}
+  onclose={() => { tokenModalOpen = false; newlyIssuedToken = null; tokenError = null; }}
 >
   {#if newlyIssuedToken}
     <div class="space-y-4">
       <div class="p-3.5 rounded-lg bg-muted border border-border text-foreground text-xs font-mono break-all select-all">
         {newlyIssuedToken}
       </div>
-      <Button
-        variant="primary"
-        size="sm"
-        class="w-full"
-        onclick={() => {
-          if (newlyIssuedToken) navigator.clipboard.writeText(newlyIssuedToken);
-          tokenModalOpen = false;
-          newlyIssuedToken = null;
-        }}
-      >
-        Copy to Clipboard & Close
-      </Button>
+      <div class="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          class="flex-1"
+          onclick={copyIssuedToken}
+        >
+          {copiedToken ? '✓ Copied to Clipboard' : 'Copy Token'}
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          class="flex-1"
+          onclick={() => {
+            tokenModalOpen = false;
+            newlyIssuedToken = null;
+          }}
+        >
+          Done
+        </Button>
+      </div>
     </div>
   {:else}
     <form onsubmit={handleCreateToken} class="space-y-4">
+      {#if tokenError}
+        <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+          {tokenError}
+        </div>
+      {/if}
+
       <Input
         label="Token Name"
-        placeholder="e.g. CI Deployment, Backup Script"
+        placeholder="e.g. CI Deployment, GitHub Action, Backup Script"
         bind:value={tokenName}
         required
         autofocus
       />
+
       <Input
         label="Expires in (Days)"
         type="number"
@@ -205,7 +271,8 @@
         bind:value={tokenDays}
         required
       />
-      <div class="flex justify-end gap-2 pt-2">
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-border">
         <Button variant="ghost" size="sm" onclick={() => { tokenModalOpen = false; }}>Cancel</Button>
         <Button type="submit" variant="primary" size="sm" loading={creatingToken}>Generate Token</Button>
       </div>
@@ -373,7 +440,7 @@
                           <button
                             type="button"
                             class="px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
-                            onclick={() => handleRevokeToken(t.id)}
+                            onclick={() => { revokeTarget = t; }}
                           >
                             Revoke
                           </button>

@@ -4,6 +4,7 @@
   import type { ApiResponse } from '$lib/api/types';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   interface SettingItem {
     key: string;
@@ -34,6 +35,12 @@
   let newSource = $state('');
   let newTarget = $state('');
   let newCode = $state(301);
+  let redirectError = $state<string | null>(null);
+  let addingRedirect = $state(false);
+
+  // Delete Redirect Dialog
+  let deleteTargetRule = $state<RedirectRule | null>(null);
+  let deleteLoading = $state(false);
 
   async function loadSettings() {
     loading = true;
@@ -74,7 +81,7 @@
       successMsg = 'Settings saved successfully.';
       setTimeout(() => { successMsg = null; }, 3000);
     } catch (err: any) {
-      alert(`Save failed: ${err.message}`);
+      console.error('Save failed:', err);
     } finally {
       saving = false;
     }
@@ -82,7 +89,9 @@
 
   async function handleAddRedirect(e: SubmitEvent) {
     e.preventDefault();
-    if (!newSource || !newTarget) return;
+    if (!newSource.trim() || !newTarget.trim()) return;
+    addingRedirect = true;
+    redirectError = null;
     try {
       await api.post('/api/v1/admin/site/redirects', {
         source: newSource.trim(),
@@ -93,17 +102,23 @@
       newTarget = '';
       await loadRedirects();
     } catch (err: any) {
-      alert(`Add redirect failed: ${err.message}`);
+      redirectError = err?.message || 'Failed to add redirect rule';
+    } finally {
+      addingRedirect = false;
     }
   }
 
-  async function handleDeleteRedirect(id: string) {
-    if (!confirm('Delete this redirect rule?')) return;
+  async function confirmDeleteRedirect() {
+    if (!deleteTargetRule) return;
+    deleteLoading = true;
     try {
-      await api.delete(`/api/v1/admin/site/redirects/${id}`);
+      await api.delete(`/api/v1/admin/site/redirects/${deleteTargetRule.id}`);
+      deleteTargetRule = null;
       await loadRedirects();
     } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      console.error('Delete failed:', err);
+    } finally {
+      deleteLoading = false;
     }
   }
 
@@ -112,6 +127,17 @@
     loadRedirects();
   });
 </script>
+
+<ConfirmDialog
+  open={!!deleteTargetRule}
+  title="Delete Redirect Rule"
+  description={`Permanently remove redirect from "${deleteTargetRule?.source}" to "${deleteTargetRule?.target}"? Incoming visitors will no longer be redirected.`}
+  confirmLabel="Delete Rule"
+  variant="destructive"
+  loading={deleteLoading}
+  onconfirm={confirmDeleteRedirect}
+  oncancel={() => { if (!deleteLoading) deleteTargetRule = null; }}
+/>
 
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
@@ -199,6 +225,14 @@
             <!-- Add redirect form -->
             <form onsubmit={handleAddRedirect} class="p-4 rounded-xl border border-border bg-card shadow-xs space-y-3">
               <span class="text-xs font-medium text-foreground">Add Redirect Rule</span>
+
+              {#if redirectError}
+                <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex items-center justify-between">
+                  <span>{redirectError}</span>
+                  <button type="button" class="hover:underline cursor-pointer" onclick={() => { redirectError = null; }}>Dismiss</button>
+                </div>
+              {/if}
+
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <input
                   type="text"
@@ -225,9 +259,13 @@
               <div class="flex justify-end">
                 <button
                   type="submit"
-                  class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+                  disabled={addingRedirect}
+                  class="h-8 px-3.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
-                  Add Rule
+                  {#if addingRedirect}
+                    <div class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  {/if}
+                  <span>Add Rule</span>
                 </button>
               </div>
             </form>
@@ -261,7 +299,7 @@
                             <button
                               type="button"
                               class="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors cursor-pointer"
-                              onclick={() => handleDeleteRedirect(r.id)}
+                              onclick={() => { deleteTargetRule = r; }}
                             >
                               Delete
                             </button>

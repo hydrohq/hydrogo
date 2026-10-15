@@ -88,7 +88,7 @@
       }
       await loadAssets();
     } catch (e: any) {
-      alert(`Upload failed: ${e.message}`);
+      console.error('Upload failed:', e);
     } finally {
       uploading = false;
     }
@@ -103,7 +103,7 @@
       newFolderOpen = false;
       await loadFolders();
     } catch (e: any) {
-      alert(`Create folder failed: ${e.message}`);
+      console.error('Create folder failed:', e);
     } finally {
       creatingFolder = false;
     }

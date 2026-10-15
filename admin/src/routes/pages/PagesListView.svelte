@@ -4,6 +4,7 @@
   import { router } from '$lib/router.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   interface PageRow {
     id: string;
@@ -50,14 +51,25 @@
     }
   }
 
-  async function handleDelete(id: string, title: string, e: MouseEvent) {
+  let deletePageTarget = $state<{ id: string; title: string } | null>(null);
+  let deleteLoading = $state(false);
+
+  function handleDelete(id: string, title: string, e: MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete page "${title}"?`)) return;
+    deletePageTarget = { id, title };
+  }
+
+  async function confirmDeletePage() {
+    if (!deletePageTarget) return;
+    deleteLoading = true;
     try {
-      await api.delete(`/api/v1/admin/pages/${id}`);
+      await api.delete(`/api/v1/admin/pages/${deletePageTarget.id}`);
+      deletePageTarget = null;
       await loadPages();
     } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      console.error('Delete failed:', err);
+    } finally {
+      deleteLoading = false;
     }
   }
 
@@ -231,3 +243,12 @@
     </div>
   </div>
 </div>
+
+<ConfirmDialog
+  open={deletePageTarget !== null}
+  title={`Delete Page "${deletePageTarget?.title || ''}"`}
+  description="Are you sure you want to permanently delete this page? This action cannot be undone."
+  loading={deleteLoading}
+  onconfirm={confirmDeletePage}
+  oncancel={() => { deletePageTarget = null; }}
+/>
