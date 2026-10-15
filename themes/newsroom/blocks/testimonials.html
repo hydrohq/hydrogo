@@ -1,25 +1,9 @@
-<section class="theme-corporate-testimonials" data-block="testimonials">
-  <div class="section-head-wrap">
-    <h2 class="section-title">Teknoloji Liderleri ve Ekipler İçin Geliştirildi</h2>
-    <p class="section-desc">Gerçek üretim senaryolarında sözleşme disiplini ve tavizsiz performans.</p>
-  </div>
-  <div class="testimonials-grid">
-    {{range .Payload.items}}
-    <div class="testimonial-card">
-      <div class="testimonial-stars">★★★★★</div>
-      <blockquote class="testimonial-quote">
-        {{if .quote}}{{.quote}}{{else if .Quote}}{{.Quote}}{{end}}
-      </blockquote>
-      <div class="testimonial-author">
-        <div class="author-avatar-badge">
-          <span>⚡</span>
-        </div>
-        <div class="author-info">
-          <cite class="author-name">{{if .name}}{{.name}}{{else if .Name}}{{.Name}}{{end}}</cite>
-          <span class="author-role">Doğrulanmış Üretim Kurulumu</span>
-        </div>
-      </div>
-    </div>
-    {{end}}
-  </div>
+{{/* Intentionally minimal: hand-authored visual design removed before the next design attempt. */}}
+<section data-block="testimonials">
+  {{range .Payload.items}}
+  <blockquote>
+    <p>{{if .quote}}{{.quote}}{{else if .Quote}}{{.Quote}}{{end}}</p>
+    <cite>{{if .name}}{{.name}}{{else if .Name}}{{.Name}}{{end}}</cite>
+  </blockquote>
+  {{end}}
 </section>

@@ -145,6 +145,11 @@ func (a *serveApp) initSite() error {
 	if !modules["site"] {
 		return nil
 	}
+	if modules["members"] {
+		a.memberHTTP.PublicContactSettings = func(settingsCtx context.Context) ([]site.Setting, error) {
+			return siteStore.ListPublicSettings(settingsCtx, db)
+		}
+	}
 	var formViewLimiter security.RateLimiter
 	a.siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, RequireTenantScope: requireTenantScope}
 	siteService := &a.siteService

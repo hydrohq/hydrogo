@@ -8,9 +8,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{if .Title}}{{.Title}}{{else}}Son Dakika ve Güncel Haberler{{end}} · HYDRO HABER</title>
 {{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
-<link rel="stylesheet" href="/theme/static/theme.css?v=00013d55">
+<link rel="stylesheet" href="/theme/static/theme.css?v=ec4d0e0a">
 {{range .Stylesheets}}<link rel="stylesheet" href="{{.}}">
-{{end}}<script src="/theme/static/news.js" defer></script>
+{{end}}{{if .AppearanceCSS}}<style>{{.AppearanceCSS}}</style>{{end}}<script src="/theme/static/news.js" defer></script>
 {{range .Scripts}}<script src="{{.}}" defer></script>
 {{end}}</head>
 {{end}}

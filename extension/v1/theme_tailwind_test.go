@@ -13,7 +13,7 @@ import (
 // empty, must not include Tailwind's preflight
 // reset (which would silently change element defaults across the whole
 // public site), and must contain real, matching rules for a representative
-// sample of classes the theme's own block templates render.
+// sample of classes the theme's own markup renders.
 func TestNewsroomThemeCSSIsTailwindCompiled(t *testing.T) {
 	data, err := os.ReadFile("../../themes/newsroom/static/theme.css")
 	if err != nil {
@@ -33,22 +33,17 @@ func TestNewsroomThemeCSSIsTailwindCompiled(t *testing.T) {
 	// matching compiled CSS) and, separately, against the Tailwind
 	// `bg-`/`font-` arbitrary-value ambiguity bugs found and fixed while
 	// converting this file (ADR-0340): spot-check that selectors actually
-	// used by the block templates compiled to the right PROPERTY, not a
-	// plausible-looking wrong one.
+	// used by the theme's own markup (modules/pages renders .content-body /
+	// [data-testid=public-page] around rich content; the block templates in
+	// themes/newsroom/blocks are intentionally unstyled, see AGENTS.md) compiled
+	// to the right PROPERTY, not a plausible-looking wrong one.
 	for _, want := range []string{
-		// .cta-inner-card (themes/newsroom/blocks/cta.html)
-		`.cta-inner-card{`,
-		// .faq-item (themes/newsroom/blocks/faq.html)
-		`.faq-item{`,
-		// .pricing-card (themes/newsroom/blocks/pricing_table.html)
-		`.pricing-card{`,
-		// .testimonial-card (themes/newsroom/blocks/testimonials.html)
-		`.testimonial-card{`,
-		// .theme-corporate-hero (themes/newsroom/blocks/hero.html)
-		`.theme-corporate-hero{`,
+		`[data-testid=public-page]{display:none}`,
+		`.content-body{`,
+		`.content-body a{color:var(--red)`,
 	} {
 		if !strings.Contains(css, want) {
-			t.Errorf("theme.css is missing selector %q used by a block template - class is dead/unmatched", want)
+			t.Errorf("theme.css is missing selector %q used by modules/pages rendering - class is dead/unmatched", want)
 		}
 	}
 

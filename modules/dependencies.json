@@ -1,5 +1,5 @@
 {
-  "modules/members": ["modules/designsystem"],
+  "modules/members": ["modules/designsystem", "modules/site"],
   "modules/news": ["modules/designsystem", "modules/site"],
   "modules/pages": ["modules/designsystem", "modules/seo", "modules/site"],
   "modules/site": ["modules/designsystem"]

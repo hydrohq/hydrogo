@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{if .Register}}Üye ol{{else}}Giriş yap{{end}} · HYDRO HABER</title>
 <link rel="stylesheet" href="/theme/static/member.css">
+{{if .Site.AppearanceCSS}}<style>{{.Site.AppearanceCSS}}</style>{{end}}
 {{range .Site.Stylesheets}}<link rel="stylesheet" href="{{.}}">
 {{end}}{{range .Site.Scripts}}<script src="{{.}}" defer></script>
 {{end}}</head>

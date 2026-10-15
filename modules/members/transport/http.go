@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 type Handler struct {
@@ -43,6 +45,10 @@ type Handler struct {
 	// sign-in ("google", "github", "apple"), in display order. Empty hides
 	// the social sign-in section entirely.
 	OAuthProviderNames []string
+	// PublicContactSettings, when set, supplies the site's public settings
+	// (modules/site) so member pages can carry the admin's Appearance brand
+	// tokens, same as modules/pages and modules/news.
+	PublicContactSettings func(context.Context) ([]site.Setting, error)
 }
 
 // memberResponseWriter removes legacy client-side member state persistence

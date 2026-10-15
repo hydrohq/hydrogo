@@ -86,6 +86,7 @@ func (h Handler) publicListHTML(w http.ResponseWriter, r *http.Request) {
 		view.Popular = view.Slides[:min(5, len(view.Slides))]
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	allowAppearanceStyle(w.Header(), view.Site.AppearanceCSS)
 	if err := v1.RenderThemeView(h.Theme, w, v1.ViewNewsList, view); err != nil {
 		http.Error(w, "news unavailable", http.StatusInternalServerError)
 	}
@@ -184,6 +185,7 @@ func (h Handler) publicGetHTML(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	allowAppearanceStyle(w.Header(), view.Site.AppearanceCSS)
 	if err := v1.RenderThemeView(h.Theme, w, v1.ViewNewsDetail, view); err != nil {
 		http.Error(w, "news unavailable", http.StatusInternalServerError)
 	}
@@ -212,14 +214,32 @@ func (h Handler) helpfulFeedback(r *http.Request, contentID string, previewed bo
 
 func (h Handler) siteView(ctx context.Context, locale, title string) v1.ThemeSiteView {
 	return v1.ThemeSiteView{
-		Locale:     locale,
-		Direction:  canonical.Direction(locale),
-		Title:      title,
-		Today:      turkishDate(time.Now(), true),
-		Navigation: h.themeNavigation(ctx, locale),
-		NewsURL:    "/public/news/" + url.PathEscape(locale) + "/html",
-		PagesURL:   "/public/pages/" + url.PathEscape(locale) + "/",
+		Locale:        locale,
+		Direction:     canonical.Direction(locale),
+		Title:         title,
+		Today:         turkishDate(time.Now(), true),
+		Navigation:    h.themeNavigation(ctx, locale),
+		AppearanceCSS: h.appearanceCSS(ctx),
+		NewsURL:       "/public/news/" + url.PathEscape(locale) + "/html",
+		PagesURL:      "/public/pages/" + url.PathEscape(locale) + "/",
 	}
+}
+
+// appearanceCSS returns the admin's validated brand tokens (modules/site
+// Appearance) as a `:root{--brand:...}` rule, or empty when unconfigured.
+func (h Handler) appearanceCSS(ctx context.Context) template.CSS {
+	if h.PublicContactSettings == nil {
+		return ""
+	}
+	settings, err := h.PublicContactSettings(ctx)
+	if err != nil {
+		return ""
+	}
+	css, err := site.AppearanceFromSettings(settings).CSS()
+	if err != nil {
+		return ""
+	}
+	return template.CSS(css)
 }
 
 func (h Handler) newsCard(locale string, item news.Item) v1.NewsCardView {

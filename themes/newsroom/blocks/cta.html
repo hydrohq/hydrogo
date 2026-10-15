@@ -1,16 +1,5 @@
-<section class="theme-corporate-cta" data-block="cta">
-  <div class="cta-inner-card">
-    <div class="cta-content">
-      <h2 class="cta-title">{{.Payload.title}}</h2>
-      <p class="cta-desc">HydroGo mimarisini yerel ortamınızda çalıştırın veya Studio panelini deneyimleyin.</p>
-      {{with .Payload.button_url}}
-      <div class="cta-actions">
-        <a class="btn-primary cta-btn" href="{{.}}">
-          <span>{{with $.Payload.button_text}}{{.}}{{else}}Studio'ya Git{{end}}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-        </a>
-      </div>
-      {{end}}
-    </div>
-  </div>
+{{/* Intentionally minimal: hand-authored visual design removed before the next design attempt. */}}
+<section data-block="cta">
+  <h2>{{.Payload.title}}</h2>
+  {{with .Payload.button_url}}<a href="{{.}}">{{with $.Payload.button_text}}{{.}}{{else}}Learn more{{end}}</a>{{end}}
 </section>

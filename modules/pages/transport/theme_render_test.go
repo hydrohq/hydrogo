@@ -85,8 +85,8 @@ func TestThemeRenderNewsroomShowcaseAndBlocks(t *testing.T) {
 	if !bytes.Contains([]byte(body), []byte("HydroGo Showcase")) {
 		t.Fatalf("page output missing title: %s", body)
 	}
-	if !bytes.Contains([]byte(body), []byte("pricing-card")) {
-		t.Fatalf("page output missing pricing-card: %s", body)
+	if !bytes.Contains([]byte(body), []byte(`data-block="pricing_table"`)) {
+		t.Fatalf("page output missing pricing_table block: %s", body)
 	}
 	if !strings.Contains(body, `class="site-navigation-child-list"`) || !strings.Contains(body, `rel="noopener noreferrer"`) || !strings.Contains(body, "Danışmanlık") {
 		t.Fatalf("page output missing nested localized navigation: %s", body)
