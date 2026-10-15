@@ -9,6 +9,8 @@
   import GenericListView from '$lib/schema/GenericListView.svelte';
   import GenericFormView from '$lib/schema/GenericFormView.svelte';
   import MediaView from './routes/media/MediaView.svelte';
+  import NewsListView from './routes/news/NewsListView.svelte';
+  import NewsEditorView from './routes/news/NewsEditorView.svelte';
 
   let initializing = $state(true);
 
@@ -50,6 +52,17 @@
       }
       return { view: 'list', type };
     }
+    if (p.startsWith('/news')) {
+      const parts = p.split('/');
+      const actionOrId = parts[2];
+      if (actionOrId === 'new') {
+        return { view: 'news-editor', id: 'new' };
+      }
+      if (actionOrId) {
+        return { view: 'news-editor', id: actionOrId };
+      }
+      return { view: 'news-list' };
+    }
     return { view: 'custom', module: p.replace(/^\//, '') };
   });
 </script>
@@ -75,6 +88,10 @@
       <GenericListView type={routeInfo.type!} />
     {:else if routeInfo.view === 'form'}
       <GenericFormView type={routeInfo.type!} id={routeInfo.id} />
+    {:else if routeInfo.view === 'news-list'}
+      <NewsListView />
+    {:else if routeInfo.view === 'news-editor'}
+      <NewsEditorView id={routeInfo.id!} />
     {:else if routeInfo.module === 'media'}
       <MediaView />
     {:else}
