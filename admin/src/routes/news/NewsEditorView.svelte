@@ -141,7 +141,7 @@
         successMsg = 'Article retracted to draft state.';
       } else if (action === 'schedule') {
         if (!scheduledAt) {
-          alert('Please specify a scheduled publication date and time.');
+          errorMsg = 'Please specify a scheduled publication date and time.';
           return;
         }
         await api.post(`/api/v1/admin/news/${id}/schedule`, { scheduled_at: new Date(scheduledAt).toISOString() });

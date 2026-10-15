@@ -1,51 +1,158 @@
 <script lang="ts">
-  import rawTableData from './data.json';
+  import { onMount } from 'svelte';
+  import { api } from '$lib/api/client';
+  import { router } from '$lib/router.svelte';
+  import type { ApiResponse } from '$lib/api/types';
+  import Badge from '$lib/components/ui/Badge.svelte';
 
-  interface TableRowItem {
-    id: number;
-    header: string;
-    type: string;
+  interface DashboardTableItem {
+    id: string;
+    title: string;
+    slug?: string;
+    type: 'page' | 'news' | 'audit';
     status: string;
-    target: string;
-    limit: string;
-    reviewer: string;
+    author: string;
+    date: string;
+    targetPath?: string;
   }
 
-  let items = $state<TableRowItem[]>(rawTableData as TableRowItem[]);
-  let activeTab = $state<'outline' | 'past-performance' | 'key-personnel' | 'focus-documents'>('outline');
-  let selectedIds = $state<number[]>([]);
+  let items = $state<DashboardTableItem[]>([]);
+  let loading = $state(true);
+  let activeTab = $state<'all' | 'pages' | 'news' | 'audit'>('all');
+  let selectedIds = $state<string[]>([]);
   let searchQuery = $state('');
+  let statusFilter = $state('all');
   let pageIndex = $state(0);
   let pageSize = $state(10);
   let showColumnsMenu = $state(false);
 
   // Column visibility
   let visibleColumns = $state({
-    header: true,
+    title: true,
     type: true,
     status: true,
-    target: true,
-    limit: true,
-    reviewer: true,
+    author: true,
+    date: true,
+    actions: true,
+  });
+
+  async function loadAllContent() {
+    loading = true;
+    const combined: DashboardTableItem[] = [];
+
+    try {
+      // 1. Fetch Pages
+      const pagesRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/pages', {
+        params: { limit: 50 },
+      });
+      if (pagesRes && pagesRes.data && Array.isArray(pagesRes.data)) {
+        for (const p of pagesRes.data) {
+          combined.push({
+            id: `page-${p.id}`,
+            title: p.title || p.slug || 'Untitled Page',
+            slug: p.slug,
+            type: 'page',
+            status: p.status || 'published',
+            author: p.author_name || 'Admin',
+            date: p.updated_at || p.created_at || new Date().toISOString(),
+            targetPath: `/pages/${p.id}`,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load pages for dashboard:', e);
+    }
+
+    try {
+      // 2. Fetch News
+      const newsRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/news', {
+        params: { limit: 50 },
+      });
+      if (newsRes && newsRes.data && Array.isArray(newsRes.data)) {
+        for (const n of newsRes.data) {
+          combined.push({
+            id: `news-${n.id}`,
+            title: n.title || n.slug || 'Untitled Story',
+            slug: n.slug,
+            type: 'news',
+            status: n.status || 'published',
+            author: n.author_name || 'Editorial Team',
+            date: n.published_at || n.updated_at || n.created_at || new Date().toISOString(),
+            targetPath: `/news/${n.id}`,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load news for dashboard:', e);
+    }
+
+    try {
+      // 3. Fetch Audit Logs
+      const auditRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/audit', {
+        params: { limit: 20 },
+      });
+      if (auditRes && auditRes.data && Array.isArray(auditRes.data)) {
+        for (const a of auditRes.data) {
+          combined.push({
+            id: `audit-${a.id}`,
+            title: `${a.action?.toUpperCase()} on ${a.resource || 'resource'}`,
+            slug: a.target,
+            type: 'audit',
+            status: 'recorded',
+            author: a.actor || 'system',
+            date: a.at || new Date().toISOString(),
+            targetPath: '/site',
+          });
+        }
+      }
+    } catch (e) {
+      // Audit may require admin role
+      console.warn('Audit fetch skipped for dashboard:', e);
+    }
+
+    // Sort by most recent first
+    combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    items = combined;
+    loading = false;
+  }
+
+  const tabCounts = $derived.by(() => {
+    return {
+      all: items.length,
+      pages: items.filter((i) => i.type === 'page').length,
+      news: items.filter((i) => i.type === 'news').length,
+      audit: items.filter((i) => i.type === 'audit').length,
+    };
   });
 
   const filteredItems = $derived.by(() => {
     let list = items;
-    if (activeTab === 'past-performance') {
-      list = list.filter(i => i.id % 4 === 0);
-    } else if (activeTab === 'key-personnel') {
-      list = list.filter(i => i.reviewer !== 'Assign reviewer');
-    } else if (activeTab === 'focus-documents') {
-      list = list.filter(i => i.status === 'In Process');
+
+    // Filter by tab
+    if (activeTab === 'pages') {
+      list = list.filter((i) => i.type === 'page');
+    } else if (activeTab === 'news') {
+      list = list.filter((i) => i.type === 'news');
+    } else if (activeTab === 'audit') {
+      list = list.filter((i) => i.type === 'audit');
     }
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      list = list.filter((i) => i.status.toLowerCase() === statusFilter.toLowerCase());
+    }
+
+    // Filter by search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(i =>
-        i.header.toLowerCase().includes(q) ||
-        i.type.toLowerCase().includes(q) ||
-        i.reviewer.toLowerCase().includes(q)
+      list = list.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          (i.slug && i.slug.toLowerCase().includes(q)) ||
+          i.author.toLowerCase().includes(q)
       );
     }
+
     return list;
   });
 
@@ -55,25 +162,35 @@
   );
 
   const allSelected = $derived(
-    paginatedItems.length > 0 && paginatedItems.every(i => selectedIds.includes(i.id))
+    paginatedItems.length > 0 && paginatedItems.every((i) => selectedIds.includes(i.id))
   );
 
   function toggleSelectAll() {
     if (allSelected) {
-      selectedIds = selectedIds.filter(id => !paginatedItems.some(i => i.id === id));
+      selectedIds = selectedIds.filter((id) => !paginatedItems.some((i) => i.id === id));
     } else {
-      const newIds = new Set([...selectedIds, ...paginatedItems.map(i => i.id)]);
+      const newIds = new Set([...selectedIds, ...paginatedItems.map((i) => i.id)]);
       selectedIds = Array.from(newIds);
     }
   }
 
-  function toggleSelectRow(id: number) {
+  function toggleSelectRow(id: string) {
     if (selectedIds.includes(id)) {
-      selectedIds = selectedIds.filter(i => i !== id);
+      selectedIds = selectedIds.filter((i) => i !== id);
     } else {
       selectedIds = [...selectedIds, id];
     }
   }
+
+  function handleRowClick(item: DashboardTableItem) {
+    if (item.targetPath) {
+      router.navigate(item.targetPath);
+    }
+  }
+
+  onMount(() => {
+    loadAllContent();
+  });
 </script>
 
 <div class="flex flex-col gap-4 px-4 lg:px-6">
@@ -83,394 +200,303 @@
     <div class="flex items-center rounded-lg bg-muted p-1 text-xs border border-border overflow-x-auto">
       <button
         type="button"
-        class="px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap {activeTab === 'outline' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
-        onclick={() => { activeTab = 'outline'; pageIndex = 0; }}
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'all' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
+        onclick={() => { activeTab = 'all'; pageIndex = 0; }}
       >
-        Outline
-      </button>
-
-      <button
-        type="button"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap {activeTab === 'past-performance' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
-        onclick={() => { activeTab = 'past-performance'; pageIndex = 0; }}
-      >
-        <span>Past Performance</span>
-        <span class="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
-          3
+        <span>All Content</span>
+        <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
+          {tabCounts.all}
         </span>
       </button>
 
       <button
         type="button"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap {activeTab === 'key-personnel' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
-        onclick={() => { activeTab = 'key-personnel'; pageIndex = 0; }}
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'pages' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
+        onclick={() => { activeTab = 'pages'; pageIndex = 0; }}
       >
-        <span>Key Personnel</span>
-        <span class="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
-          2
+        <span>Pages</span>
+        <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
+          {tabCounts.pages}
         </span>
       </button>
 
       <button
         type="button"
-        class="px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap {activeTab === 'focus-documents' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
-        onclick={() => { activeTab = 'focus-documents'; pageIndex = 0; }}
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'news' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
+        onclick={() => { activeTab = 'news'; pageIndex = 0; }}
       >
-        Focus Documents
+        <span>News Articles</span>
+        <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
+          {tabCounts.news}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'audit' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
+        onclick={() => { activeTab = 'audit'; pageIndex = 0; }}
+      >
+        <span>Audit Logs</span>
+        <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
+          {tabCounts.audit}
+        </span>
       </button>
     </div>
 
-    <!-- Actions & Filter Toolbar -->
+    <!-- Right Controls: Status Filter, Search, Columns Menu -->
     <div class="flex items-center gap-2">
-      <!-- Search -->
-      <div class="relative">
+      <!-- Search Input -->
+      <div class="relative w-full sm:w-56">
+        <svg class="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
         <input
-          type="search"
-          placeholder="Filter sections..."
+          type="text"
+          placeholder="Filter content…"
           bind:value={searchQuery}
-          class="h-8 w-36 sm:w-56 rounded-md border border-input bg-background px-3 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          class="h-8 w-full pl-8 pr-3 text-xs rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
         />
       </div>
+
+      <!-- Status Filter -->
+      <select
+        bind:value={statusFilter}
+        class="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs cursor-pointer"
+      >
+        <option value="all">All Status</option>
+        <option value="published">Published</option>
+        <option value="draft">Draft</option>
+        <option value="recorded">Recorded</option>
+      </select>
 
       <!-- Customize Columns Dropdown -->
       <div class="relative">
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium shadow-xs text-foreground cursor-pointer"
+          class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
           onclick={() => { showColumnsMenu = !showColumnsMenu; }}
         >
           <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"></path>
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>
-          <span class="hidden sm:inline">Customize Columns</span>
-          <span class="sm:hidden">Columns</span>
-          <svg class="size-3 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
+          <span>Columns</span>
         </button>
 
         {#if showColumnsMenu}
-          <div class="absolute right-0 top-10 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-30 text-xs">
-            {#each Object.keys(visibleColumns) as col}
-              <label class="flex items-center gap-2 px-2.5 py-1.5 rounded-sm hover:bg-accent cursor-pointer capitalize">
+          <div
+            class="absolute right-0 top-full mt-1.5 w-44 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-30 animate-in fade-in zoom-in-95 duration-100"
+          >
+            {#each [
+              { key: 'type', label: 'Item Type' },
+              { key: 'status', label: 'Status' },
+              { key: 'author', label: 'Author / Actor' },
+              { key: 'date', label: 'Date' },
+              { key: 'actions', label: 'Actions' }
+            ] as col}
+              <label class="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent cursor-pointer">
                 <input
                   type="checkbox"
-                  bind:checked={(visibleColumns as any)[col]}
-                  class="rounded border-input text-primary focus:ring-ring size-3.5"
+                  class="rounded border-input text-primary focus:ring-ring size-3.5 cursor-pointer"
+                  bind:checked={visibleColumns[col.key as keyof typeof visibleColumns]}
                 />
-                <span>{col}</span>
+                <span>{col.label}</span>
               </label>
             {/each}
           </div>
         {/if}
       </div>
-
-      <!-- Add Section Button -->
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs cursor-pointer"
-        onclick={() => {
-          items = [
-            {
-              id: Date.now(),
-              header: "New Proposal Section",
-              type: "Narrative",
-              status: "In Process",
-              target: "10",
-              limit: "15",
-              reviewer: "Assign reviewer"
-            },
-            ...items
-          ];
-        }}
-      >
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>Add Section</span>
-      </button>
     </div>
   </div>
 
-  <!-- The DataTable Container -->
-  <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-sm text-foreground caption-bottom">
-        <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
-          <tr>
-            <!-- Drag Handle Column -->
-            <th class="h-10 w-10 px-2 text-center font-medium"></th>
-
-            <!-- Select Checkbox Column -->
-            <th class="h-10 w-10 px-2 text-center font-medium">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onchange={toggleSelectAll}
-                class="rounded border-input text-primary focus:ring-ring size-4 cursor-pointer"
-                aria-label="Select all rows"
-              />
-            </th>
-
-            {#if visibleColumns.header}
-              <th class="h-10 px-4 font-medium">Header</th>
-            {/if}
-
-            {#if visibleColumns.type}
-              <th class="h-10 px-4 font-medium">Section Type</th>
-            {/if}
-
-            {#if visibleColumns.status}
-              <th class="h-10 px-4 font-medium">Status</th>
-            {/if}
-
-            {#if visibleColumns.target}
-              <th class="h-10 px-4 font-medium text-right">Target</th>
-            {/if}
-
-            {#if visibleColumns.limit}
-              <th class="h-10 px-4 font-medium text-right">Limit</th>
-            {/if}
-
-            {#if visibleColumns.reviewer}
-              <th class="h-10 px-4 font-medium">Reviewer</th>
-            {/if}
-
-            <th class="h-10 w-12 px-2 text-center font-medium"></th>
-          </tr>
-        </thead>
-
-        <tbody class="divide-y divide-border">
-          {#if paginatedItems.length === 0}
+  <!-- Table Container (Exact shadcn rounded border table) -->
+  <div class="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    {#if loading}
+      <div class="py-20 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
+        <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+        <span>Loading CMS content & records…</span>
+      </div>
+    {:else if paginatedItems.length === 0}
+      <div class="py-16 text-center text-xs text-muted-foreground">
+        {#if searchQuery}
+          <p>No content matched your search query "{searchQuery}".</p>
+        {:else}
+          <p>No records found in this section.</p>
+        {/if}
+      </div>
+    {:else}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-foreground caption-bottom">
+          <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
             <tr>
-              <td colspan="9" class="p-8 text-center text-sm text-muted-foreground">
-                No results found.
-              </td>
+              <th class="h-10 w-10 px-4 text-center align-middle">
+                <input
+                  type="checkbox"
+                  class="rounded border-input text-primary focus:ring-ring size-3.5 cursor-pointer align-middle"
+                  checked={allSelected}
+                  onchange={toggleSelectAll}
+                  aria-label="Select all rows"
+                />
+              </th>
+              {#if visibleColumns.title}
+                <th class="h-10 px-4 font-medium align-middle">Item Title / Action</th>
+              {/if}
+              {#if visibleColumns.type}
+                <th class="h-10 px-4 font-medium align-middle">Type</th>
+              {/if}
+              {#if visibleColumns.status}
+                <th class="h-10 px-4 font-medium align-middle">Status</th>
+              {/if}
+              {#if visibleColumns.author}
+                <th class="h-10 px-4 font-medium align-middle">Author / Actor</th>
+              {/if}
+              {#if visibleColumns.date}
+                <th class="h-10 px-4 font-medium align-middle">Date</th>
+              {/if}
+              {#if visibleColumns.actions}
+                <th class="h-10 w-24 px-4 font-medium text-right align-middle">Action</th>
+              {/if}
             </tr>
-          {:else}
-            {#each paginatedItems as row (row.id)}
-              {@const isSelected = selectedIds.includes(row.id)}
+          </thead>
+          <tbody class="divide-y divide-border">
+            {#each paginatedItems as item (item.id)}
               <tr
-                class="hover:bg-muted/40 transition-colors {isSelected ? 'bg-muted/60' : ''}"
+                class="hover:bg-muted/50 transition-colors cursor-pointer {selectedIds.includes(item.id) ? 'bg-muted/40' : ''}"
+                onclick={() => handleRowClick(item)}
               >
-                <!-- Drag Handle -->
-                <td class="p-2 text-center text-muted-foreground/60 cursor-grab">
-                  <svg class="size-3.5 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="9" cy="5" r="1"></circle>
-                    <circle cx="9" cy="12" r="1"></circle>
-                    <circle cx="9" cy="19" r="1"></circle>
-                    <circle cx="15" cy="5" r="1"></circle>
-                    <circle cx="15" cy="12" r="1"></circle>
-                    <circle cx="15" cy="19" r="1"></circle>
-                  </svg>
-                </td>
-
-                <!-- Row Select Checkbox -->
-                <td class="p-2 text-center">
+                <td
+                  class="px-4 py-3 text-center align-middle"
+                  onclick={(e) => { e.stopPropagation(); toggleSelectRow(item.id); }}
+                >
                   <input
                     type="checkbox"
-                    checked={isSelected}
-                    onchange={() => toggleSelectRow(row.id)}
-                    class="rounded border-input text-primary focus:ring-ring size-4 cursor-pointer"
-                    aria-label={`Select row ${row.header}`}
+                    class="rounded border-input text-primary focus:ring-ring size-3.5 cursor-pointer align-middle"
+                    checked={selectedIds.includes(item.id)}
+                    onchange={() => toggleSelectRow(item.id)}
+                    aria-label={`Select row ${item.title}`}
                   />
                 </td>
 
-                <!-- Header Title -->
-                {#if visibleColumns.header}
-                  <td class="p-4 font-medium text-foreground max-w-xs truncate">
-                    <span>{row.header}</span>
+                {#if visibleColumns.title}
+                  <td class="px-4 py-3 align-middle font-medium text-xs text-foreground">
+                    <div class="flex flex-col">
+                      <span class="truncate max-w-xs sm:max-w-md">{item.title}</span>
+                      {#if item.slug}
+                        <span class="text-[11px] text-muted-foreground font-mono truncate max-w-xs">{item.slug}</span>
+                      {/if}
+                    </div>
                   </td>
                 {/if}
 
-                <!-- Section Type Badge -->
                 {#if visibleColumns.type}
-                  <td class="p-4">
-                    <span class="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground font-normal bg-background">
-                      {row.type}
-                    </span>
+                  <td class="px-4 py-3 align-middle">
+                    {#if item.type === 'page'}
+                      <Badge variant="outline" size="sm" class="capitalize">Page</Badge>
+                    {:else if item.type === 'news'}
+                      <Badge variant="default" size="sm" class="capitalize">News</Badge>
+                    {:else}
+                      <Badge variant="secondary" size="sm" class="capitalize font-mono text-[10px]">Audit</Badge>
+                    {/if}
                   </td>
                 {/if}
 
-                <!-- Status Badge -->
                 {#if visibleColumns.status}
-                  <td class="p-4">
-                    {#if row.status === 'Done'}
-                      <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-normal text-emerald-700 dark:text-emerald-400">
-                        <svg class="size-3 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                        Done
-                      </span>
-                    {:else}
-                      <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-normal text-muted-foreground">
-                        <svg class="size-3 animate-spin text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                          <line x1="12" y1="2" x2="12" y2="6"></line>
-                          <line x1="12" y1="18" x2="12" y2="22"></line>
-                          <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                          <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                          <line x1="2" y1="12" x2="6" y2="12"></line>
-                          <line x1="18" y1="12" x2="22" y2="12"></line>
-                        </svg>
-                        In Process
-                      </span>
-                    {/if}
+                  <td class="px-4 py-3 align-middle">
+                    <Badge
+                      variant={item.status === 'published' ? 'success' : item.status === 'draft' ? 'warning' : 'outline'}
+                      size="sm"
+                      class="capitalize"
+                    >
+                      {item.status}
+                    </Badge>
                   </td>
                 {/if}
 
-                <!-- Target -->
-                {#if visibleColumns.target}
-                  <td class="p-4 text-right">
-                    <input
-                      type="text"
-                      bind:value={row.target}
-                      class="h-7 w-14 rounded border border-transparent bg-transparent px-1.5 text-right text-xs font-mono hover:border-input focus:border-input focus:bg-background focus:outline-none"
-                    />
+                {#if visibleColumns.author}
+                  <td class="px-4 py-3 align-middle text-xs text-muted-foreground">
+                    {item.author}
                   </td>
                 {/if}
 
-                <!-- Limit -->
-                {#if visibleColumns.limit}
-                  <td class="p-4 text-right">
-                    <input
-                      type="text"
-                      bind:value={row.limit}
-                      class="h-7 w-14 rounded border border-transparent bg-transparent px-1.5 text-right text-xs font-mono hover:border-input focus:border-input focus:bg-background focus:outline-none"
-                    />
+                {#if visibleColumns.date}
+                  <td class="px-4 py-3 align-middle text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(item.date).toLocaleDateString()}
                   </td>
                 {/if}
 
-                <!-- Reviewer -->
-                {#if visibleColumns.reviewer}
-                  <td class="p-4 text-sm">
-                    {#if row.reviewer === 'Assign reviewer'}
-                      <select
-                        bind:value={row.reviewer}
-                        class="h-7 rounded border border-input bg-background px-2 text-xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                {#if visibleColumns.actions}
+                  <td class="px-4 py-3 text-right align-middle whitespace-nowrap">
+                    {#if item.targetPath}
+                      <button
+                        type="button"
+                        class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+                        onclick={(e) => { e.stopPropagation(); handleRowClick(item); }}
                       >
-                        <option value="Assign reviewer">Assign reviewer</option>
-                        <option value="Eddie Lake">Eddie Lake</option>
-                        <option value="Jamik Tashpulatov">Jamik Tashpulatov</option>
-                        <option value="Sarah Chen">Sarah Chen</option>
-                      </select>
-                    {:else}
-                      <div class="flex items-center gap-2">
-                        <div class="size-6 rounded-full bg-muted border border-border flex items-center justify-center text-[10px] font-medium text-foreground uppercase">
-                          {row.reviewer[0]}
-                        </div>
-                        <span class="text-xs font-medium text-foreground">{row.reviewer}</span>
-                      </div>
+                        {item.type === 'audit' ? 'Inspect' : 'Edit'}
+                      </button>
                     {/if}
                   </td>
                 {/if}
-
-                <!-- Actions Menu -->
-                <td class="p-2 text-center">
-                  <button
-                    type="button"
-                    class="size-7 inline-flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="Row options"
-                    aria-label="Row options"
-                  >
-                    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="1"></circle>
-                      <circle cx="12" cy="5" r="1"></circle>
-                      <circle cx="12" cy="19" r="1"></circle>
-                    </svg>
-                  </button>
-                </td>
               </tr>
             {/each}
-          {/if}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- DataTable Pagination Footer (Exact shadcn specification) -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-t border-border bg-card">
-      <div class="text-xs text-muted-foreground">
-        {selectedIds.length} of {filteredItems.length} row(s) selected.
+          </tbody>
+        </table>
       </div>
 
-      <div class="flex items-center gap-6 text-xs text-foreground">
-        <!-- Rows per page selector -->
-        <div class="flex items-center gap-2">
-          <span class="text-muted-foreground">Rows per page</span>
-          <select
-            bind:value={pageSize}
-            onchange={() => { pageIndex = 0; }}
-            class="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
+      <!-- Pagination & Row Count Footer (Exact shadcn specification) -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-border text-xs text-muted-foreground">
+        <div>
+          <span>{selectedIds.length} of {filteredItems.length} row(s) selected.</span>
         </div>
 
-        <!-- Page counter -->
-        <div class="font-medium">
-          Page {pageIndex + 1} of {totalPages}
-        </div>
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-2">
+            <span>Rows per page:</span>
+            <select
+              bind:value={pageSize}
+              onchange={() => { pageIndex = 0; }}
+              class="h-7 rounded border border-input bg-background px-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
 
-        <!-- Pagination Arrow Buttons -->
-        <div class="flex items-center gap-1">
-          <!-- First Page -->
-          <button
-            type="button"
-            class="size-8 inline-flex items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            disabled={pageIndex === 0}
-            onclick={() => { pageIndex = 0; }}
-            aria-label="First page"
-          >
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="11 17 6 12 11 7"></polyline>
-              <polyline points="18 17 13 12 18 7"></polyline>
-            </svg>
-          </button>
+          <span class="font-medium">
+            Page {pageIndex + 1} of {totalPages}
+          </span>
 
-          <!-- Prev Page -->
-          <button
-            type="button"
-            class="size-8 inline-flex items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            disabled={pageIndex === 0}
-            onclick={() => { pageIndex--; }}
-            aria-label="Previous page"
-          >
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-
-          <!-- Next Page -->
-          <button
-            type="button"
-            class="size-8 inline-flex items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            disabled={pageIndex >= totalPages - 1}
-            onclick={() => { pageIndex++; }}
-            aria-label="Next page"
-          >
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-
-          <!-- Last Page -->
-          <button
-            type="button"
-            class="size-8 inline-flex items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            disabled={pageIndex >= totalPages - 1}
-            onclick={() => { pageIndex = totalPages - 1; }}
-            aria-label="Last page"
-          >
-            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="13 17 18 12 13 7"></polyline>
-              <polyline points="6 17 11 12 6 7"></polyline>
-            </svg>
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={pageIndex === 0}
+              class="size-7 inline-flex items-center justify-center rounded border border-input bg-background hover:bg-accent text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
+              onclick={() => { if (pageIndex > 0) pageIndex--; }}
+              aria-label="Previous Page"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              disabled={pageIndex >= totalPages - 1}
+              class="size-7 inline-flex items-center justify-center rounded border border-input bg-background hover:bg-accent text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
+              onclick={() => { if (pageIndex < totalPages - 1) pageIndex++; }}
+              aria-label="Next Page"
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    {/if}
   </div>
 </div>

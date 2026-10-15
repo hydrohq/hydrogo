@@ -22,6 +22,9 @@
       errors: number;
       avg_latency_ms: number;
     };
+    analytics?: {
+      unique_visitors_today: number;
+    };
   }
 
   let data = $state<DashboardData | null>(null);
@@ -40,10 +43,15 @@
   const liveMetrics = $derived.by(() => {
     if (!data) return undefined;
     return {
-      revenue: `$${((data.content?.pages_published ?? 3) * 450).toLocaleString()}.00`,
-      customers: `${((data.members?.total_members ?? 2) * 580).toLocaleString()}`,
-      accounts: `${((data.content?.news_published ?? 20) * 2280).toLocaleString()}`,
-      growth: `${data.runtime?.avg_latency_ms ? (data.runtime.avg_latency_ms / 2).toFixed(1) : '4.5'}%`,
+      pagesPublished: data.content?.pages_published ?? 0,
+      newsPublished: data.content?.news_published ?? 0,
+      totalMembers: data.members?.total_members ?? 0,
+      activeMembers: data.members?.active_members ?? 0,
+      verifiedMembers: data.members?.verified_members ?? 0,
+      totalRequests: Number(data.runtime?.requests ?? 0),
+      avgLatencyMs: Number(data.runtime?.avg_latency_ms ?? 0),
+      uptimeSeconds: Number(data.runtime?.uptime_seconds ?? 0),
+      uniqueVisitorsToday: Number(data.analytics?.unique_visitors_today ?? 0),
     };
   });
 </script>

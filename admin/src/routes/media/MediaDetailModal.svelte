@@ -3,6 +3,7 @@
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   interface MediaItem {
     id: string;
@@ -36,13 +37,17 @@
   let visibility = $state<'public' | 'private'>('public');
   let tagsStr = $state('');
   let saving = $state(false);
+  let deleteLoading = $state(false);
+  let showDeleteConfirm = $state(false);
   let copied = $state(false);
+  let errorMessage = $state<string | null>(null);
 
   $effect(() => {
     if (asset) {
       folderId = asset.folder_id || '';
       visibility = asset.visibility || 'public';
       tagsStr = (asset.tags || []).join(', ');
+      errorMessage = null;
     }
   });
 
@@ -65,6 +70,7 @@
   async function handleSave() {
     if (!asset) return;
     saving = true;
+    errorMessage = null;
     try {
       const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
       await api.post(`/api/v1/admin/media/${asset.id}`, {
@@ -75,23 +81,39 @@
       onupdated();
       onclose();
     } catch (e: any) {
-      alert(`Save failed: ${e.message}`);
+      errorMessage = e?.message || 'Failed to save changes';
     } finally {
       saving = false;
     }
   }
 
-  async function handleDelete() {
-    if (!asset || !confirm(`Delete "${asset.original_filename || asset.id}" permanently?`)) return;
+  async function confirmDelete() {
+    if (!asset) return;
+    deleteLoading = true;
+    errorMessage = null;
     try {
       await api.delete(`/api/v1/admin/media/${asset.id}`);
+      showDeleteConfirm = false;
       onupdated();
       onclose();
     } catch (e: any) {
-      alert(`Delete failed: ${e.message}`);
+      errorMessage = e?.message || 'Failed to delete asset';
+    } finally {
+      deleteLoading = false;
     }
   }
 </script>
+
+<ConfirmDialog
+  open={showDeleteConfirm}
+  title="Delete Media Asset"
+  description={`Permanently delete "${asset?.original_filename || asset?.id}"? This file will be removed from storage and any pages referencing its URL will show broken links.`}
+  confirmLabel="Delete Asset"
+  variant="destructive"
+  loading={deleteLoading}
+  onconfirm={confirmDelete}
+  oncancel={() => { if (!deleteLoading) showDeleteConfirm = false; }}
+/>
 
 <Modal
   {open}
@@ -101,73 +123,121 @@
 >
   {#if asset}
     <div class="space-y-4">
-      <!-- Preview -->
-      <div class="w-full aspect-video rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center relative">
+      {#if errorMessage}
+        <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-center justify-between">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            class="text-xs hover:underline cursor-pointer"
+            onclick={() => { errorMessage = null; }}
+          >
+            Dismiss
+          </button>
+        </div>
+      {/if}
+
+      <!-- Media Preview Frame -->
+      <div class="w-full aspect-video rounded-xl bg-muted/60 border border-border overflow-hidden flex items-center justify-center relative group">
         {#if asset.mime_type?.startsWith('image/')}
           <img
             src={asset.url || `/media/${asset.id}`}
             alt={asset.original_filename}
             class="max-w-full max-h-full object-contain"
           />
+        {:else if asset.mime_type?.startsWith('video/')}
+          <video
+            src={asset.url || `/media/${asset.id}`}
+            controls
+            class="max-w-full max-h-full"
+          >
+            <track kind="captions" />
+          </video>
         {:else}
-          <div class="flex flex-col items-center gap-2 text-muted-foreground">
-            <span class="text-4xl">📄</span>
-            <span class="text-xs font-mono">{asset.mime_type}</span>
+          <div class="flex flex-col items-center gap-2 text-muted-foreground p-6">
+            <svg class="size-12 text-muted-foreground/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span class="text-xs font-mono font-medium">{asset.mime_type || 'Unknown Type'}</span>
           </div>
         {/if}
+
+        <a
+          href={asset.url || `/media/${asset.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="absolute top-2 right-2 size-8 rounded-lg bg-background/80 backdrop-blur-xs border border-border inline-flex items-center justify-center text-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+          title="Open original"
+        >
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
       </div>
 
       <!-- Quick info & Link Copy -->
       <div class="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border text-xs">
         <div class="space-x-2 text-muted-foreground">
-          <span>{formatBytes(asset.size_bytes)}</span>
+          <span class="font-medium text-foreground">{formatBytes(asset.size_bytes)}</span>
           <span>•</span>
-          <span>{asset.mime_type}</span>
+          <span class="font-mono text-[11px]">{asset.mime_type}</span>
+          {#if asset.created_at}
+            <span>•</span>
+            <span>{new Date(asset.created_at).toLocaleDateString()}</span>
+          {/if}
         </div>
         <button
           type="button"
-          class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+          class="h-7 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
           onclick={copyUrl}
         >
-          {copied ? '✓ Copied' : 'Copy URL'}
+          {#if copied}
+            <span class="text-emerald-500 font-semibold">✓ Copied URL</span>
+          {:else}
+            <span>Copy Direct URL</span>
+          {/if}
         </button>
       </div>
 
-      <!-- Settings / Metadata -->
-      <div class="space-y-3">
-        <div>
-          <label for="asset-folder-select" class="text-xs font-medium text-foreground">
-            Folder
-          </label>
-          <select
-            id="asset-folder-select"
-            bind:value={folderId}
-            class="w-full mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-          >
-            <option value="">No folder (Root)</option>
-            {#each folders as f (f.id)}
-              <option value={f.id}>{f.name}</option>
-            {/each}
-          </select>
-        </div>
+      <!-- Settings / Metadata Form -->
+      <div class="space-y-3 pt-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="asset-folder-select" class="text-xs font-medium text-foreground block mb-1">
+              Folder
+            </label>
+            <select
+              id="asset-folder-select"
+              bind:value={folderId}
+              class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+            >
+              <option value="">No folder (Root)</option>
+              {#each folders as f (f.id)}
+                <option value={f.id}>{f.name}</option>
+              {/each}
+            </select>
+          </div>
 
-        <div>
-          <label for="asset-visibility-select" class="text-xs font-medium text-foreground">
-            Visibility
-          </label>
-          <select
-            id="asset-visibility-select"
-            bind:value={visibility}
-            class="w-full mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-          >
-            <option value="public">Public (Direct URL accessible)</option>
-            <option value="private">Private (Restricted)</option>
-          </select>
+          <div>
+            <label for="asset-visibility-select" class="text-xs font-medium text-foreground block mb-1">
+              Visibility
+            </label>
+            <select
+              id="asset-visibility-select"
+              bind:value={visibility}
+              class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+            >
+              <option value="public">Public (Direct URL accessible)</option>
+              <option value="private">Private (Restricted token needed)</option>
+            </select>
+          </div>
         </div>
 
         <Input
           label="Tags (comma-separated)"
-          placeholder="e.g. hero, marketing, logo"
+          placeholder="e.g. hero, marketing, logo, avatar"
           bind:value={tagsStr}
         />
       </div>
@@ -175,7 +245,11 @@
   {/if}
 
   {#snippet footer()}
-    <Button variant="danger" size="sm" onclick={handleDelete}>
+    <Button
+      variant="danger"
+      size="sm"
+      onclick={() => { showDeleteConfirm = true; }}
+    >
       Delete Asset
     </Button>
     <div class="flex-1"></div>

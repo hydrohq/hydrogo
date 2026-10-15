@@ -4,6 +4,7 @@
   import { router } from '$lib/router.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import NewsTaxonomyModal from './NewsTaxonomyModal.svelte';
 
   interface NewsRow {
@@ -24,6 +25,8 @@
   let statusFilter = $state('');
   let search = $state('');
   let taxonomyOpen = $state(false);
+  let deleteTarget = $state<{ id: string; title: string } | null>(null);
+  let deleteLoading = $state(false);
 
   const filteredNews = $derived.by(() => {
     let list = items;
@@ -54,14 +57,22 @@
     }
   }
 
-  async function handleDelete(id: string, title: string, e: MouseEvent) {
+  function promptDelete(id: string, title: string, e: MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete article "${title}"?`)) return;
+    deleteTarget = { id, title };
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    deleteLoading = true;
     try {
-      await api.delete(`/api/v1/admin/news/${id}`);
+      await api.delete(`/api/v1/admin/news/${deleteTarget.id}`);
+      deleteTarget = null;
       await loadNews();
     } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      console.error('Delete failed:', err);
+    } finally {
+      deleteLoading = false;
     }
   }
 
@@ -69,6 +80,17 @@
     loadNews();
   });
 </script>
+
+<ConfirmDialog
+  open={!!deleteTarget}
+  title="Delete News Article"
+  description={`Are you sure you want to delete "${deleteTarget?.title}"? This will permanently remove the article and cannot be undone.`}
+  confirmLabel="Delete Article"
+  variant="destructive"
+  loading={deleteLoading}
+  onconfirm={confirmDelete}
+  oncancel={() => { if (!deleteLoading) deleteTarget = null; }}
+/>
 
 <NewsTaxonomyModal
   open={taxonomyOpen}
@@ -235,8 +257,8 @@
                           </button>
                           <button
                             type="button"
-                            class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                            onclick={(e) => handleDelete(item.id, item.title, e)}
+                            class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
+                            onclick={(e) => promptDelete(item.id, item.title, e)}
                             title="Delete"
                           >
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>

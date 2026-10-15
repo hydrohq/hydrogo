@@ -5,6 +5,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   export interface Block {
     id?: string;
@@ -30,6 +31,7 @@
   let catalog = $state<BlockCatalogType[]>([]);
   let addModalOpen = $state(false);
   let editingBlockIndex = $state<number | null>(null);
+  let deleteBlockIndex = $state<number | null>(null);
 
   async function loadCatalog() {
     try {
@@ -58,13 +60,17 @@
     editingBlockIndex = updated.length - 1;
   }
 
-  function removeBlock(index: number) {
-    if (!confirm('Remove this block?')) return;
-    const updated = blocks.filter((_, i) => i !== index);
+  function confirmRemoveBlock() {
+    if (deleteBlockIndex === null) return;
+    const idx = deleteBlockIndex;
+    const updated = blocks.filter((_, i) => i !== idx);
     onchange(updated);
-    if (editingBlockIndex === index) {
+    if (editingBlockIndex === idx) {
       editingBlockIndex = null;
+    } else if (editingBlockIndex !== null && editingBlockIndex > idx) {
+      editingBlockIndex -= 1;
     }
+    deleteBlockIndex = null;
   }
 
   function moveBlock(index: number, direction: 'up' | 'down') {
@@ -94,6 +100,16 @@
     loadCatalog();
   });
 </script>
+
+<ConfirmDialog
+  open={deleteBlockIndex !== null}
+  title="Remove Content Block"
+  description={`Are you sure you want to remove block #${(deleteBlockIndex ?? 0) + 1}? Content configured in this block will be removed from the draft.`}
+  confirmLabel="Remove Block"
+  variant="destructive"
+  onconfirm={confirmRemoveBlock}
+  oncancel={() => { deleteBlockIndex = null; }}
+/>
 
 <!-- Add Block Modal -->
 <Modal
@@ -186,8 +202,8 @@
               </button>
               <button
                 type="button"
-                class="ml-1.5 size-6 inline-flex items-center justify-center rounded text-destructive hover:bg-destructive/10 transition-colors"
-                onclick={() => removeBlock(index)}
+                class="ml-1.5 size-6 inline-flex items-center justify-center rounded text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                onclick={() => { deleteBlockIndex = index; }}
                 title="Remove Block"
               >
                 ✕
