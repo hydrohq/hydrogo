@@ -166,12 +166,12 @@
   />
 
   <!-- Controls: Folders, Filter, Search -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-800">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-border">
     <!-- Folder pills -->
     <div class="flex flex-wrap items-center gap-1.5">
       <button
         type="button"
-        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {selectedFolder === '' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30 font-semibold' : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800'}"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {selectedFolder === '' ? 'bg-primary/15 text-primary border border-primary/30 font-semibold' : 'text-muted-foreground hover:text-foreground bg-muted/60 border border-border'}"
         onclick={() => { selectedFolder = ''; loadAssets(); }}
       >
         All Files
@@ -179,7 +179,7 @@
       {#each folders as f (f.id)}
         <button
           type="button"
-          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {selectedFolder === f.id ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30 font-semibold' : 'text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800'}"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {selectedFolder === f.id ? 'bg-primary/15 text-primary border border-primary/30 font-semibold' : 'text-muted-foreground hover:text-foreground bg-muted/60 border border-border'}"
           onclick={() => { selectedFolder = f.id; loadAssets(); }}
         >
           📁 {f.name}
@@ -187,7 +187,7 @@
       {/each}
       <button
         type="button"
-        class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-300 border border-dashed border-slate-800 hover:border-slate-700 transition-colors"
+        class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-muted-foreground transition-colors"
         onclick={() => { newFolderOpen = true; }}
       >
         + Folder
@@ -196,24 +196,24 @@
 
     <!-- Kind & Search -->
     <div class="flex items-center gap-2.5 w-full sm:w-auto">
-      <div class="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5 text-xs">
+      <div class="flex items-center rounded-lg bg-muted border border-border p-0.5 text-xs">
         <button
           type="button"
-          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'all' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}"
+          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'all' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}"
           onclick={() => { selectedKind = 'all'; loadAssets(); }}
         >
           All
         </button>
         <button
           type="button"
-          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'image' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}"
+          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'image' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}"
           onclick={() => { selectedKind = 'image'; loadAssets(); }}
         >
           Images
         </button>
         <button
           type="button"
-          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'document' ? 'bg-slate-800 text-white font-medium' : 'text-slate-400 hover:text-slate-200'}"
+          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'document' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}"
           onclick={() => { selectedKind = 'document'; loadAssets(); }}
         >
           Docs
@@ -225,7 +225,7 @@
         placeholder="Filter assets…"
         bind:value={search}
         oninput={() => loadAssets()}
-        class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 w-36 sm:w-44"
+        class="bg-background border border-input rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36 sm:w-44 shadow-sm"
       />
     </div>
   </div>
