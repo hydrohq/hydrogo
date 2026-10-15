@@ -3,8 +3,8 @@
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
   interface Props extends HTMLButtonAttributes {
-    variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
-    size?: 'sm' | 'md' | 'lg';
+    variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'link';
+    size?: 'sm' | 'md' | 'lg' | 'icon';
     loading?: boolean;
     children?: Snippet;
   }
@@ -19,23 +19,25 @@
     ...restProps
   }: Props = $props();
 
-  const variantClasses = {
-    primary: 'bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-950/50 focus-visible:ring-sky-500',
-    secondary: 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/80 focus-visible:ring-slate-500',
-    outline: 'bg-transparent hover:bg-slate-800/80 text-slate-200 border border-slate-700 focus-visible:ring-slate-500',
-    danger: 'bg-rose-600 hover:bg-rose-500 text-white shadow-sm shadow-rose-950/50 focus-visible:ring-rose-500',
-    ghost: 'bg-transparent hover:bg-slate-800/50 text-slate-300 hover:text-white',
+  const variantClasses: Record<string, string> = {
+    primary: 'bg-primary text-primary-foreground hover:bg-blue-600 active:bg-blue-700 shadow-sm shadow-blue-900/30 focus-visible:ring-ring',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring',
+    outline: 'border border-input bg-transparent hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
+    danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm focus-visible:ring-destructive',
+    ghost: 'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
+    link: 'text-primary underline-offset-4 hover:underline focus-visible:ring-ring',
   };
 
-  const sizeClasses = {
-    sm: 'text-xs px-2.5 py-1.5 rounded-md gap-1.5',
-    md: 'text-sm px-3.5 py-2 rounded-lg gap-2',
-    lg: 'text-base px-5 py-2.5 rounded-xl gap-2.5',
+  const sizeClasses: Record<string, string> = {
+    sm: 'h-8 px-3 text-xs rounded-md gap-1.5',
+    md: 'h-9 px-4 py-2 text-sm rounded-lg gap-2',
+    lg: 'h-10 px-6 py-2.5 text-base rounded-lg gap-2.5',
+    icon: 'h-9 w-9 rounded-lg p-0 justify-center',
   };
 </script>
 
 <button
-  class="inline-flex items-center justify-center font-medium transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 {variantClasses[variant]} {sizeClasses[size]} {className}"
+  class="inline-flex items-center justify-center font-medium transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-background {variantClasses[variant]} {sizeClasses[size]} {className}"
   disabled={disabled || loading}
   {...restProps}
 >

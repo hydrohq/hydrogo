@@ -40,24 +40,29 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <button
       type="button"
-      class="fixed inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 cursor-default"
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-150 cursor-default"
       onclick={close}
       aria-label="Close modal backdrop"
       tabindex="-1"
     ></button>
     <div
-      class="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
+      class="relative w-full max-w-lg bg-card border border-border text-card-foreground rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10 animate-in fade-in zoom-in-95 duration-150"
       role="dialog"
       aria-modal="true"
     >
-      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="px-6 py-4 border-b border-border flex items-center justify-between">
         <div>
-          <h2 class="text-base font-semibold text-slate-100">{title}</h2>
+          <h2 class="text-base font-semibold tracking-tight text-foreground">{title}</h2>
           {#if description}
-            <p class="text-xs text-slate-400 mt-0.5">{description}</p>
+            <p class="text-xs text-muted-foreground mt-0.5">{description}</p>
           {/if}
         </div>
-        <Button variant="ghost" size="sm" onclick={close}>✕</Button>
+        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" onclick={close} aria-label="Close modal">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </Button>
       </div>
 
       <div class="p-6 overflow-y-auto">
@@ -67,7 +72,7 @@
       </div>
 
       {#if footer}
-        <div class="px-6 py-3.5 bg-slate-950/60 border-t border-slate-800/80 flex items-center justify-end gap-2.5">
+        <div class="px-6 py-3.5 bg-muted/40 border-t border-border flex items-center justify-end gap-2.5">
           {@render footer()}
         </div>
       {/if}
