@@ -43,7 +43,7 @@
         News
       </button>
       <a
-        href="http://127.0.0.1:8090/admin"
+        href="/admin"
         target="_blank"
         rel="noreferrer"
         class="ml-3 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
