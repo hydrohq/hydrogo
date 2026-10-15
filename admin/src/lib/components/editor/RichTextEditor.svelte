@@ -119,7 +119,7 @@
       </div>
     {/if}
 
-    <div bind:this={element}></div>
+    <div bind:this={element} data-placeholder={placeholder}></div>
   </div>
 
   {#if error}

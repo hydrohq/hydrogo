@@ -1,10 +1,8 @@
 <script lang="ts">
   import { api } from '$lib/api/client';
-  import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
-  import Badge from '$lib/components/ui/Badge.svelte';
 
   interface MediaItem {
     id: string;

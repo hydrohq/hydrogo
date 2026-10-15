@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
-  import type { Collection, ContentItem, ApiResponse } from '$lib/api/types';
+  import type { ContentItem, ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
 

@@ -6,7 +6,8 @@
     open: boolean;
     title: string;
     description?: string;
-    onclose: () => void;
+    onclose?: () => void;
+    onClose?: () => void;
     children?: Snippet;
     footer?: Snippet;
   }
@@ -16,19 +17,19 @@
     title,
     description,
     onclose,
+    onClose,
     children,
     footer,
   }: Props = $props();
 
-  function handleBackdrop(e: MouseEvent) {
-    if (e.target === e.currentTarget) {
-      onclose();
-    }
+  function close() {
+    if (onclose) onclose();
+    else if (onClose) onClose();
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && open) {
-      onclose();
+      close();
     }
   }
 </script>
@@ -40,7 +41,7 @@
     <button
       type="button"
       class="fixed inset-0 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150 cursor-default"
-      onclick={onclose}
+      onclick={close}
       aria-label="Close modal backdrop"
       tabindex="-1"
     ></button>
@@ -56,7 +57,7 @@
             <p class="text-xs text-slate-400 mt-0.5">{description}</p>
           {/if}
         </div>
-        <Button variant="ghost" size="sm" onclick={onclose}>✕</Button>
+        <Button variant="ghost" size="sm" onclick={close}>✕</Button>
       </div>
 
       <div class="p-6 overflow-y-auto">

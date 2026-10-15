@@ -1,4 +1,4 @@
-import type { ApiResponse, ApiError } from './types';
+import type { ApiError } from './types';
 
 class ApiClientError extends Error {
   code: string;

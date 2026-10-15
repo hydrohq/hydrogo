@@ -122,8 +122,11 @@
         <span>⚙️</span>
         <span>Site Configuration</span>
       </h2>
-      <p class="text-xs text-slate-400 mt-1">
-        Configure public site identity, metadata, and HTTP redirects.
+      <p class="text-xs text-slate-400 mt-1 flex items-center gap-2">
+        <span>Configure public site identity, metadata, and HTTP redirects.</span>
+        {#if loading}
+          <span class="text-xs text-sky-400">Loading…</span>
+        {/if}
       </p>
     </div>
   </div>
