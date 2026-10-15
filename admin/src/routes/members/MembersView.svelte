@@ -23,13 +23,29 @@
   let detailOpen = $state(false);
   let actionLoading = $state(false);
 
+  const filteredMembers = $derived.by(() => {
+    let list = members;
+    if (statusFilter === 'active') {
+      list = list.filter((m) => m.active);
+    } else if (statusFilter === 'inactive') {
+      list = list.filter((m) => !m.active);
+    } else if (statusFilter === 'verified') {
+      list = list.filter((m) => !!m.email_verified_at);
+    } else if (statusFilter === 'unverified') {
+      list = list.filter((m) => !m.email_verified_at);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((m) => m.email.toLowerCase().includes(q));
+    }
+    return list;
+  });
+
   async function loadMembers() {
     loading = true;
     try {
       const res = await api.get<ApiResponse<Member[]>>('/api/v1/admin/members', {
         params: {
-          q: search || undefined,
-          status: statusFilter === 'all' ? undefined : statusFilter,
           limit: 100,
         },
       });
@@ -95,28 +111,28 @@
 >
   {#if selectedMember}
     <div class="space-y-4">
-      <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-        <div class="flex justify-between">
-          <span class="text-slate-400">Status:</span>
-          <Badge variant={selectedMember.active ? 'success' : 'danger'} size="sm">
+      <div class="p-4 rounded-lg bg-muted/50 border border-border space-y-2.5 text-xs">
+        <div class="flex justify-between items-center">
+          <span class="text-muted-foreground font-medium">Status:</span>
+          <Badge variant={selectedMember.active ? 'success' : 'destructive'} size="sm">
             {selectedMember.active ? 'Active' : 'Disabled'}
           </Badge>
         </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">Email Verification:</span>
+        <div class="flex justify-between items-center">
+          <span class="text-muted-foreground font-medium">Email Verification:</span>
           {#if selectedMember.email_verified_at}
-            <span class="text-emerald-400 font-medium">Verified ({new Date(selectedMember.email_verified_at).toLocaleDateString()})</span>
+            <span class="text-emerald-500 font-medium">Verified ({new Date(selectedMember.email_verified_at).toLocaleDateString()})</span>
           {:else}
-            <span class="text-amber-400 font-medium">Unverified</span>
+            <span class="text-amber-500 font-medium">Unverified</span>
           {/if}
         </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">Member Since:</span>
-          <span class="text-slate-200">{new Date(selectedMember.created_at).toLocaleDateString()}</span>
+        <div class="flex justify-between items-center">
+          <span class="text-muted-foreground font-medium">Member Since:</span>
+          <span class="text-foreground">{new Date(selectedMember.created_at).toLocaleDateString()}</span>
         </div>
       </div>
 
-      <div class="space-y-2 pt-2 border-t border-slate-800">
+      <div class="space-y-2 pt-2 border-t border-border">
         {#if !selectedMember.email_verified_at}
           <Button
             variant="outline"
@@ -145,112 +161,123 @@
   {/snippet}
 </Modal>
 
-<div class="space-y-6 max-w-6xl mx-auto">
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-    <div>
-      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-        <span>👥</span>
-        <span>Members</span>
-      </h2>
-      <p class="text-xs text-slate-400 mt-1">
-        Manage customer accounts, membership status, and authentication sessions.
-      </p>
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Toolbar (exact shadcn Tabs + Search + CTA layout) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+        <!-- Segmented Status Tabs -->
+        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground overflow-x-auto max-w-full">
+          {#each ['all', 'active', 'inactive', 'verified', 'unverified'] as filter}
+            <button
+              type="button"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer capitalize {statusFilter === filter ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+              onclick={() => { statusFilter = filter; }}
+            >
+              {filter}
+            </button>
+          {/each}
+        </div>
+
+        <!-- Search & Export CTA -->
+        <div class="flex items-center gap-2">
+          <div class="relative w-48 sm:w-64">
+            <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="search"
+              placeholder="Search members…"
+              bind:value={search}
+              class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+            />
+          </div>
+
+          <a
+            href="/api/v1/admin/members/export?format=csv"
+            download="members.csv"
+            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shrink-0 shadow-xs"
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export CSV</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div class="px-4 lg:px-6">
+        <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+          {#if loading}
+            <div class="p-12 text-center text-xs text-muted-foreground">
+              Loading members…
+            </div>
+          {:else if filteredMembers.length === 0}
+            <div class="p-12 text-center text-xs text-muted-foreground">
+              No registered members found.
+            </div>
+          {:else}
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-foreground caption-bottom">
+                <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
+                  <tr>
+                    <th class="h-10 px-4 font-medium">Email</th>
+                    <th class="h-10 px-4 font-medium">Status</th>
+                    <th class="h-10 px-4 font-medium">Verification</th>
+                    <th class="h-10 px-4 font-medium">Joined Date</th>
+                    <th class="h-10 w-24 px-4 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  {#each filteredMembers as m (m.id)}
+                    <tr
+                      class="hover:bg-muted/50 transition-colors cursor-pointer"
+                      onclick={() => { selectedMember = m; detailOpen = true; }}
+                    >
+                      <td class="px-4 py-3 font-medium text-foreground">
+                        {m.email}
+                      </td>
+                      <td class="px-4 py-3">
+                        <Badge variant={m.active ? 'success' : 'destructive'} size="sm">
+                          {m.active ? 'Active' : 'Disabled'}
+                        </Badge>
+                      </td>
+                      <td class="px-4 py-3">
+                        {#if m.email_verified_at}
+                          <span class="text-xs text-emerald-500 font-medium">✓ Verified</span>
+                        {:else}
+                          <span class="text-xs text-amber-500 font-medium">Unverified</span>
+                        {/if}
+                      </td>
+                      <td class="px-4 py-3 text-xs text-muted-foreground">
+                        {new Date(m.created_at).toLocaleDateString()}
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          class="px-2.5 py-1 text-xs rounded-md border border-input bg-background hover:bg-accent text-foreground transition-colors cursor-pointer shadow-xs"
+                          onclick={(e) => toggleActive(m, e)}
+                        >
+                          {m.active ? 'Disable' : 'Enable'}
+                        </button>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Footer Pagination / Stats -->
+            <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
+              <span>Showing {filteredMembers.length} of {members.length} members</span>
+            </div>
+          {/if}
+        </div>
+      </div>
     </div>
-
-    <a
-      href="/api/v1/admin/members/export?format=csv"
-      class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-colors"
-      download="members.csv"
-    >
-      <span>📥</span>
-      <span>Export CSV</span>
-    </a>
-  </div>
-
-  <!-- Filters -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-    <div class="flex items-center rounded-xl bg-slate-900 border border-slate-800 p-1 text-xs">
-      {#each ['all', 'active', 'inactive', 'verified', 'unverified'] as filter}
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-lg capitalize transition-colors {statusFilter === filter ? 'bg-slate-800 text-white font-semibold' : 'text-slate-400 hover:text-slate-200'}"
-          onclick={() => { statusFilter = filter; loadMembers(); }}
-        >
-          {filter}
-        </button>
-      {/each}
-    </div>
-
-    <input
-      type="search"
-      placeholder="Search by email…"
-      bind:value={search}
-      oninput={() => loadMembers()}
-      class="bg-slate-900 border border-slate-800 rounded-lg px-3.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500 w-full sm:w-64"
-    />
-  </div>
-
-  <!-- Table -->
-  <div class="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-sm">
-    {#if loading}
-      <div class="py-16 text-center text-slate-500 text-sm">
-        <span class="animate-spin inline-block mr-2">⏳</span> Loading members…
-      </div>
-    {:else if members.length === 0}
-      <div class="py-16 text-center text-slate-400 text-sm">
-        No registered members found.
-      </div>
-    {:else}
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
-            <tr>
-              <th class="px-5 py-3 font-semibold">Email</th>
-              <th class="px-5 py-3 font-semibold">Status</th>
-              <th class="px-5 py-3 font-semibold">Verification</th>
-              <th class="px-5 py-3 font-semibold">Joined Date</th>
-              <th class="px-5 py-3 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800/60">
-            {#each members as m (m.id)}
-              <tr
-                class="hover:bg-slate-800/40 transition-colors cursor-pointer"
-                onclick={() => { selectedMember = m; detailOpen = true; }}
-              >
-                <td class="px-5 py-3.5 font-medium text-slate-200">
-                  {m.email}
-                </td>
-                <td class="px-5 py-3.5">
-                  <Badge variant={m.active ? 'success' : 'danger'} size="sm">
-                    {m.active ? 'Active' : 'Disabled'}
-                  </Badge>
-                </td>
-                <td class="px-5 py-3.5">
-                  {#if m.email_verified_at}
-                    <span class="text-xs text-emerald-400 font-medium">✓ Verified</span>
-                  {:else}
-                    <span class="text-xs text-amber-400 font-medium">Unverified</span>
-                  {/if}
-                </td>
-                <td class="px-5 py-3.5 text-xs text-slate-500">
-                  {new Date(m.created_at).toLocaleDateString()}
-                </td>
-                <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    class="px-2.5 py-1 text-xs text-slate-300 hover:text-white rounded hover:bg-slate-800 transition-colors"
-                    onclick={(e) => toggleActive(m, e)}
-                  >
-                    {m.active ? 'Disable' : 'Enable'}
-                  </button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    {/if}
   </div>
 </div>

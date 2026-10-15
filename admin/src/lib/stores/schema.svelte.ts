@@ -10,6 +10,10 @@ class SchemaState {
     return this.schema?.resources || [];
   }
 
+  get collections(): Collection[] {
+    return this.resources.filter(r => r.source === 'content_type' || !r.source);
+  }
+
   get modules(): Record<string, boolean> {
     return this.schema?.modules || {};
   }
@@ -26,8 +30,8 @@ class SchemaState {
     return this.resources.find(r => r.id === id);
   }
 
-  async loadSchema(): Promise<void> {
-    if (this.schema && !this.error) return;
+  async loadSchema(force = false): Promise<void> {
+    if (this.schema && !this.error && !force) return;
     this.isLoading = true;
     this.error = null;
     try {

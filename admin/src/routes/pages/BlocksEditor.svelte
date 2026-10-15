@@ -106,16 +106,16 @@
     {#each catalog as item (item.type)}
       <button
         type="button"
-        class="p-3.5 rounded-xl border border-slate-800 bg-slate-950/80 hover:bg-slate-900 hover:border-sky-500/50 transition-all text-left flex flex-col justify-between cursor-pointer group"
+        class="p-3.5 rounded-lg border border-border bg-card hover:bg-accent hover:border-foreground/20 transition-all text-left flex flex-col justify-between cursor-pointer group shadow-xs"
         onclick={() => addBlock(item.type)}
       >
         <div>
-          <span class="text-xs font-semibold text-slate-100 group-hover:text-sky-400 transition-colors">
+          <span class="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
             {item.label}
           </span>
-          <p class="text-[10px] text-slate-500 mt-0.5 uppercase font-mono">{item.badge}</p>
+          <p class="text-[10px] text-muted-foreground mt-0.5 uppercase font-mono">{item.badge}</p>
         </div>
-        <span class="text-xs text-sky-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">+ Add</span>
+        <span class="text-xs text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">+ Add</span>
       </button>
     {/each}
   </div>
@@ -125,34 +125,42 @@
 </Modal>
 
 <div class="space-y-4">
-  <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+  <div class="flex items-center justify-between pb-3 border-b border-border">
     <div class="flex items-center gap-2">
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Page Blocks</h3>
-      <span class="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Page Blocks</h3>
+      <span class="text-xs bg-muted border border-border text-foreground px-2 py-0.5 rounded-md font-mono">
         {blocks.length}
       </span>
     </div>
-    <Button variant="primary" size="sm" onclick={() => { addModalOpen = true; }}>
+    <button
+      type="button"
+      class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+      onclick={() => { addModalOpen = true; }}
+    >
       + Add Block
-    </Button>
+    </button>
   </div>
 
   {#if blocks.length === 0}
-    <div class="py-12 text-center text-slate-400 text-sm border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center gap-2">
+    <div class="py-12 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2">
       <p>No content blocks added yet.</p>
-      <Button variant="secondary" size="sm" onclick={() => { addModalOpen = true; }}>
+      <button
+        type="button"
+        class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+        onclick={() => { addModalOpen = true; }}
+      >
         Insert First Block
-      </Button>
+      </button>
     </div>
   {:else}
     <div class="space-y-3">
       {#each blocks as block, index (index)}
-        <div class="rounded-xl border border-slate-800 bg-slate-900/80 overflow-hidden shadow-sm">
+        <div class="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
           <!-- Block Card Header -->
-          <div class="px-4 py-3 bg-slate-950/60 border-b border-slate-800/60 flex items-center justify-between">
+          <div class="px-4 py-2.5 bg-muted/40 border-b border-border flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-              <span class="text-xs font-mono text-slate-500">#{index + 1}</span>
-              <span class="text-xs font-semibold text-slate-200 capitalize">
+              <span class="text-xs font-mono text-muted-foreground">#{index + 1}</span>
+              <span class="text-xs font-medium text-foreground capitalize">
                 {block.type.replace(/_/g, ' ')}
               </span>
             </div>
@@ -161,7 +169,7 @@
               <button
                 type="button"
                 disabled={index === 0}
-                class="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                class="size-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent transition-colors"
                 onclick={() => moveBlock(index, 'up')}
                 title="Move Up"
               >
@@ -170,7 +178,7 @@
               <button
                 type="button"
                 disabled={index === blocks.length - 1}
-                class="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                class="size-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent transition-colors"
                 onclick={() => moveBlock(index, 'down')}
                 title="Move Down"
               >
@@ -178,7 +186,7 @@
               </button>
               <button
                 type="button"
-                class="ml-2 p-1 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded transition-colors"
+                class="ml-1.5 size-6 inline-flex items-center justify-center rounded text-destructive hover:bg-destructive/10 transition-colors"
                 onclick={() => removeBlock(index)}
                 title="Remove Block"
               >
@@ -188,7 +196,7 @@
           </div>
 
           <!-- Block Fields -->
-          <div class="p-4 space-y-3 bg-slate-900/40">
+          <div class="p-4 space-y-3">
             <Input
               label="Block Title"
               placeholder="Headline for this section…"
@@ -204,7 +212,7 @@
             />
 
             <div class="flex flex-col gap-1.5">
-              <label for={`block-content-${index}`} class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label for={`block-content-${index}`} class="text-xs font-medium text-foreground">
                 Content / Body
               </label>
               <textarea
@@ -213,7 +221,7 @@
                 placeholder="Block body text…"
                 value={block.props?.content || ''}
                 oninput={(e) => updateBlockProps(index, 'content', (e.target as HTMLTextAreaElement).value)}
-                class="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               ></textarea>
             </div>
           </div>

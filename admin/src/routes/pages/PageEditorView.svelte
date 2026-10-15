@@ -3,7 +3,6 @@
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import type { ApiResponse } from '$lib/api/types';
-  import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import BlocksEditor, { type Block } from './BlocksEditor.svelte';
@@ -78,15 +77,23 @@
     errorMsg = null;
     successMsg = null;
     try {
+      const payload = {
+        title: formData.title,
+        slug: formData.slug,
+        locale: formData.locale,
+        body: formData.body,
+        blocks: formData.blocks,
+        layout_template: formData.layout_template,
+        status: 'draft',
+      };
       if (isNew) {
-        const res = await api.post<ApiResponse<any>>('/api/v1/admin/pages', formData);
-        const newId = res?.data?.id;
-        if (newId) {
-          router.navigate(`/pages/${newId}`);
+        const res = await api.post<ApiResponse<PageData>>('/api/v1/admin/pages', payload);
+        if (res && res.data && res.data.id) {
+          router.navigate(`/pages/${res.data.id}`);
         }
       } else {
-        await api.put(`/api/v1/admin/pages/${id}`, formData);
-        successMsg = 'Page draft saved.';
+        await api.put(`/api/v1/admin/pages/${id}`, payload);
+        successMsg = 'Draft saved.';
         setTimeout(() => { successMsg = null; }, 3000);
       }
     } catch (e: any) {
@@ -103,13 +110,13 @@
     saving = true;
     try {
       if (action === 'publish') {
-        await api.post(`/api/v1/admin/pages/${id}/publish`, { version: formData.version });
+        await api.post(`/api/v1/admin/pages/${id}/publish`);
         formData.status = 'published';
-        successMsg = 'Page published live!';
+        successMsg = 'Page published successfully!';
       } else {
-        await api.post(`/api/v1/admin/pages/${id}/retract`, { version: formData.version });
+        await api.post(`/api/v1/admin/pages/${id}/retract`);
         formData.status = 'draft';
-        successMsg = 'Page reverted to draft.';
+        successMsg = 'Page retracted to draft.';
       }
       setTimeout(() => { successMsg = null; }, 3000);
     } catch (e: any) {
@@ -131,129 +138,132 @@
   onrestored={() => { loadPage(); }}
 />
 
-<div class="space-y-6 max-w-6xl mx-auto">
-  <!-- Header Bar -->
-  <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        onclick={() => router.navigate('/pages')}
-        class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-      >
-        ← Back
-      </button>
-      <div>
-        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-          <span>{isNew ? 'New Page' : 'Edit Page'}</span>
-          <Badge variant={formData.status === 'published' ? 'success' : 'warning'} size="sm">
-            {formData.status}
-          </Badge>
-        </h2>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="flex items-center gap-2.5">
-      {#if !isNew}
-        <Button
-          variant="outline"
-          size="md"
-          onclick={() => { revisionsOpen = true; }}
-        >
-          <span>🕒</span>
-          <span>History</span>
-        </Button>
-      {/if}
-
-      <Button
-        variant="secondary"
-        size="md"
-        loading={saving}
-        onclick={handleSaveDraft}
-      >
-        Save Draft
-      </Button>
-
-      {#if !isNew && formData.status === 'published'}
-        <Button
-          variant="danger"
-          size="md"
-          loading={saving}
-          onclick={() => handleWorkflowAction('retract')}
-        >
-          Retract
-        </Button>
-      {:else if !isNew}
-        <Button
-          variant="primary"
-          size="md"
-          loading={saving}
-          onclick={() => handleWorkflowAction('publish')}
-        >
-          Publish
-        </Button>
-      {/if}
-    </div>
-  </div>
-
-  {#if errorMsg}
-    <div class="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs">
-      ⚠️ {errorMsg}
-    </div>
-  {/if}
-  {#if successMsg}
-    <div class="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 text-xs">
-      ✓ {successMsg}
-    </div>
-  {/if}
-
-  <!-- Page Settings & Blocks Split -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Blocks Editor (Left 2 cols) -->
-    <div class="lg:col-span-2 space-y-6">
-      <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
-        <BlocksEditor
-          blocks={formData.blocks}
-          onchange={(newBlocks) => { formData.blocks = newBlocks; }}
-        />
-      </div>
-    </div>
-
-    <!-- Metadata Sidebar (Right col) -->
-    <div class="space-y-5">
-      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Page Attributes
-        </h3>
-
-        <Input
-          label="Page Title"
-          placeholder="e.g. About Us"
-          bind:value={formData.title}
-          oninput={autoSlug}
-          required
-        />
-
-        <Input
-          label="URL Slug"
-          placeholder="e.g. about-us"
-          bind:value={formData.slug}
-          required
-        />
-
-        <div>
-          <label for="layout-template-select" class="text-xs font-semibold uppercase tracking-wider text-slate-300">
-            Layout Template
-          </label>
-          <select
-            id="layout-template-select"
-            bind:value={formData.layout_template}
-            class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Top Action Bar -->
+      <div class="flex items-center justify-between px-4 lg:px-6">
+        <div class="flex items-center gap-2.5">
+          <button
+            type="button"
+            onclick={() => router.navigate('/pages')}
+            class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            <option value="default">Default Page</option>
-            <option value="landing">Full-width Landing</option>
-            <option value="contained">Contained / Centered</option>
-          </select>
+            ← Back
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-foreground">
+              {isNew ? 'New Page' : 'Edit Page'}
+            </span>
+            <Badge variant={formData.status === 'published' ? 'success' : 'outline'} size="sm">
+              {formData.status}
+            </Badge>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          {#if !isNew}
+            <button
+              type="button"
+              onclick={() => { revisionsOpen = true; }}
+              class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+            >
+              History
+            </button>
+          {/if}
+
+          <button
+            type="button"
+            disabled={saving}
+            onclick={handleSaveDraft}
+            class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+          >
+            Save Draft
+          </button>
+
+          {#if !isNew && formData.status === 'published'}
+            <button
+              type="button"
+              disabled={saving}
+              onclick={() => handleWorkflowAction('retract')}
+              class="h-8 px-3 rounded-md border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-medium transition-colors cursor-pointer shadow-xs"
+            >
+              Retract
+            </button>
+          {:else if !isNew}
+            <button
+              type="button"
+              disabled={saving}
+              onclick={() => handleWorkflowAction('publish')}
+              class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer shadow-xs"
+            >
+              Publish
+            </button>
+          {/if}
+        </div>
+      </div>
+
+      {#if errorMsg}
+        <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+          {errorMsg}
+        </div>
+      {/if}
+      {#if successMsg}
+        <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+          {successMsg}
+        </div>
+      {/if}
+
+      <!-- Page Settings & Blocks Split -->
+      <div class="px-4 lg:px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Blocks Editor (Left 2 cols) -->
+        <div class="lg:col-span-2 space-y-4">
+          <div class="p-6 rounded-xl border border-border bg-card shadow-xs space-y-4">
+            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Layout Blocks</span>
+            <BlocksEditor
+              blocks={formData.blocks}
+              onchange={(newBlocks) => { formData.blocks = newBlocks; }}
+            />
+          </div>
+        </div>
+
+        <!-- Metadata Sidebar (Right col) -->
+        <div class="space-y-4">
+          <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Page Attributes
+            </h3>
+
+            <Input
+              label="Page Title"
+              placeholder="e.g. About Us"
+              bind:value={formData.title}
+              oninput={autoSlug}
+              required
+            />
+
+            <Input
+              label="URL Slug"
+              placeholder="e.g. about-us"
+              bind:value={formData.slug}
+              required
+            />
+
+            <div class="flex flex-col gap-1.5">
+              <label for="layout-template-select" class="text-xs font-medium text-foreground">
+                Layout Template
+              </label>
+              <select
+                id="layout-template-select"
+                bind:value={formData.layout_template}
+                class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+              >
+                <option value="default">Default Page</option>
+                <option value="landing">Full-width Landing</option>
+                <option value="contained">Contained / Centered</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </div>

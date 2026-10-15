@@ -85,10 +85,10 @@
   description="Manage taxonomy terms used to organize news articles."
   {onclose}
 >
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Add Term Form -->
-    <form onsubmit={handleAddTerm} class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-      <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Add New Term</h4>
+    <form onsubmit={handleAddTerm} class="p-4 rounded-xl border border-border bg-muted/30 space-y-3">
+      <h4 class="text-xs font-semibold text-foreground">Add New Term</h4>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <Input
           placeholder="Term label (e.g. Technology)"
@@ -101,41 +101,46 @@
         />
         <select
           bind:value={newKind}
-          class="rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+          class="h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
         >
           <option value="category">Category</option>
           <option value="tag">Tag</option>
         </select>
       </div>
       <div class="flex justify-end">
-        <Button type="submit" variant="primary" size="sm" loading={saving}>
+        <button
+          type="submit"
+          disabled={saving}
+          class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+        >
           Add Term
-        </Button>
+        </button>
       </div>
     </form>
 
     <!-- Terms List -->
     <div>
-      <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Existing Terms</h4>
+      <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Existing Terms</h4>
       {#if loading}
-        <p class="text-xs text-slate-500 py-4 text-center">Loading terms…</p>
+        <p class="text-xs text-muted-foreground py-4 text-center">Loading terms…</p>
       {:else if terms.length === 0}
-        <p class="text-xs text-slate-500 py-4 text-center">No categories or tags created yet.</p>
+        <p class="text-xs text-muted-foreground py-4 text-center">No categories or tags created yet.</p>
       {:else}
-        <div class="divide-y divide-slate-800/80 rounded-xl border border-slate-800 bg-slate-950/40 max-h-60 overflow-y-auto">
+        <div class="divide-y divide-border rounded-xl border border-border bg-card max-h-60 overflow-y-auto">
           {#each terms as term (term.id)}
-            <div class="p-3 flex items-center justify-between text-xs">
+            <div class="p-3 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors">
               <div class="flex items-center gap-2">
-                <Badge variant={term.kind === 'category' ? 'info' : 'default'} size="sm">
+                <Badge variant={term.kind === 'category' ? 'default' : 'outline'} size="sm">
                   {term.kind || 'term'}
                 </Badge>
-                <span class="font-medium text-slate-200">{term.label}</span>
-                <span class="text-slate-500 font-mono">({term.slug})</span>
+                <span class="font-medium text-foreground">{term.label}</span>
+                <span class="text-muted-foreground font-mono">({term.slug})</span>
               </div>
               <button
                 type="button"
-                class="text-slate-500 hover:text-rose-400 p-1 rounded"
+                class="size-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                 onclick={() => handleDeleteTerm(term.id)}
+                title="Delete"
               >
                 ✕
               </button>

@@ -78,7 +78,7 @@
   {onclose}
 >
   <div class="flex flex-col gap-4">
-    <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+    <div class="flex items-center justify-between pb-3 border-b border-border">
       <input
         type="file"
         class="hidden"
@@ -86,24 +86,22 @@
         onchange={handleFileUpload}
         accept="image/*,video/*,application/pdf"
       />
-      <Button
-        variant="primary"
-        size="sm"
-        loading={uploading}
+      <button
+        type="button"
+        class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
         onclick={() => fileInput?.click()}
       >
-        Upload File
-      </Button>
-      <span class="text-xs text-slate-400">{mediaItems.length} assets</span>
+        {uploading ? 'Uploading…' : 'Upload File'}
+      </button>
+      <span class="text-xs text-muted-foreground">{mediaItems.length} assets</span>
     </div>
 
     {#if loading}
-      <div class="py-12 flex flex-col items-center justify-center text-slate-500 text-sm gap-2">
-        <span class="animate-spin text-sky-500 text-xl">⏳</span>
+      <div class="py-12 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         Loading assets…
       </div>
     {:else if mediaItems.length === 0}
-      <div class="py-12 text-center text-slate-400 text-sm border-2 border-dashed border-slate-800 rounded-xl">
+      <div class="py-12 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl">
         No media assets found. Upload one to get started.
       </div>
     {:else}
@@ -111,21 +109,21 @@
         {#each mediaItems as item (item.id)}
           <button
             type="button"
-            class="group relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-150 bg-slate-950 flex flex-col items-center justify-center text-center p-2 cursor-pointer {selectedId === item.id ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-slate-800 hover:border-slate-700'}"
+            class="group relative aspect-square rounded-lg overflow-hidden border transition-all bg-muted/40 flex flex-col items-center justify-center text-center p-1.5 cursor-pointer shadow-xs {selectedId === item.id ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-foreground/40'}"
             onclick={() => selectedId = item.id}
           >
             {#if item.content_type?.startsWith('image/')}
               <img
                 src={item.path}
                 alt={item.name}
-                class="w-full h-full object-cover rounded-lg"
+                class="w-full h-full object-cover rounded-md"
               />
             {:else}
-              <div class="text-2xl mb-1">📄</div>
-              <span class="text-[10px] text-slate-300 truncate w-full px-1">{item.name}</span>
+              <div class="text-xl mb-1">📄</div>
+              <span class="text-[10px] text-muted-foreground truncate w-full px-1">{item.name}</span>
             {/if}
             <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <p class="text-[10px] text-slate-200 truncate">{item.name}</p>
+              <p class="text-[10px] text-white truncate">{item.name}</p>
             </div>
           </button>
         {/each}

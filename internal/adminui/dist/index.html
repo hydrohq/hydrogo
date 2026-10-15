@@ -1,14 +1,23 @@
 <!doctype html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/admin/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('hydrogo-theme') || 'system';
+          var d = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (d) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <title>HydroGo Admin</title>
-    <script type="module" crossorigin src="/admin/assets/index-DPT-LgRx.js"></script>
-    <link rel="stylesheet" crossorigin href="/admin/assets/index-yA7LFkxo.css">
+    <script type="module" crossorigin src="/admin/assets/index-C9933_ls.js"></script>
+    <link rel="stylesheet" crossorigin href="/admin/assets/index-D76IJen7.css">
   </head>
-  <body class="h-full bg-slate-950 font-sans antialiased text-slate-100">
+  <body class="h-full bg-background font-sans antialiased text-foreground">
     <div id="app" class="h-full"></div>
   </body>
 </html>

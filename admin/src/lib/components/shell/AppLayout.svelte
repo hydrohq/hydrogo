@@ -10,11 +10,11 @@
   let { children }: Props = $props();
 </script>
 
-<div class="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans">
+<div class="flex h-screen w-full bg-sidebar text-sidebar-foreground overflow-hidden font-sans">
   <Sidebar />
-  <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+  <div class="relative flex w-full flex-1 flex-col bg-background md:m-2 md:ml-0 md:rounded-xl md:border md:border-border md:shadow-xs overflow-hidden">
     <Header />
-    <main class="flex-1 overflow-y-auto bg-muted/20 p-6 lg:p-8">
+    <main class="flex-1 overflow-y-auto bg-background">
       {#if children}
         {@render children()}
       {/if}

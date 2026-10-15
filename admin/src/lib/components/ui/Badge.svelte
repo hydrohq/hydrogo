@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte';
 
   interface Props {
-    variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'outline';
+    variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'destructive' | 'info' | 'outline';
     size?: 'sm' | 'md';
     class?: string;
     children?: Snippet;
@@ -16,13 +16,14 @@
   }: Props = $props();
 
   const variantStyles: Record<string, string> = {
-    default: 'bg-secondary text-secondary-foreground border-border/80',
-    primary: 'bg-primary/15 text-blue-400 border-primary/30',
+    default: 'bg-primary text-primary-foreground border-transparent shadow-xs',
+    primary: 'bg-primary text-primary-foreground border-transparent shadow-xs',
     secondary: 'bg-secondary text-secondary-foreground border-transparent',
-    success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    warning: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    danger: 'bg-destructive/15 text-rose-400 border-destructive/30',
-    info: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+    success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+    warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+    danger: 'bg-destructive/10 text-destructive border-destructive/20',
+    destructive: 'bg-destructive/10 text-destructive border-destructive/20',
+    info: 'bg-muted text-muted-foreground border-border',
     outline: 'border-border text-foreground bg-transparent',
   };
 
@@ -32,7 +33,7 @@
   };
 </script>
 
-<span class="inline-flex items-center gap-1.5 font-medium rounded-full border transition-colors {variantStyles[variant]} {sizeStyles[size]} {className}">
+<span class="inline-flex items-center gap-1.5 font-medium rounded-md border transition-colors {variantStyles[variant] || variantStyles.default} {sizeStyles[size]} {className}">
   {#if children}
     {@render children()}
   {/if}

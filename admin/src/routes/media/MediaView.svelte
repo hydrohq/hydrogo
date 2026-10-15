@@ -158,123 +158,139 @@
   {/snippet}
 </Modal>
 
-<div class="space-y-6 max-w-6xl mx-auto">
-  <!-- Upload Dropzone -->
-  <MediaUploadDropzone
-    {uploading}
-    onupload={handleUploadFiles}
-  />
-
-  <!-- Controls: Folders, Filter, Search -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-border">
-    <!-- Folder pills -->
-    <div class="flex flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {selectedFolder === '' ? 'bg-primary/15 text-primary border border-primary/30 font-semibold' : 'text-muted-foreground hover:text-foreground bg-muted/60 border border-border'}"
-        onclick={() => { selectedFolder = ''; loadAssets(); }}
-      >
-        All Files
-      </button>
-      {#each folders as f (f.id)}
-        <button
-          type="button"
-          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors {selectedFolder === f.id ? 'bg-primary/15 text-primary border border-primary/30 font-semibold' : 'text-muted-foreground hover:text-foreground bg-muted/60 border border-border'}"
-          onclick={() => { selectedFolder = f.id; loadAssets(); }}
-        >
-          📁 {f.name}
-        </button>
-      {/each}
-      <button
-        type="button"
-        class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-muted-foreground transition-colors"
-        onclick={() => { newFolderOpen = true; }}
-      >
-        + Folder
-      </button>
-    </div>
-
-    <!-- Kind & Search -->
-    <div class="flex items-center gap-2.5 w-full sm:w-auto">
-      <div class="flex items-center rounded-lg bg-muted border border-border p-0.5 text-xs">
-        <button
-          type="button"
-          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'all' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}"
-          onclick={() => { selectedKind = 'all'; loadAssets(); }}
-        >
-          All
-        </button>
-        <button
-          type="button"
-          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'image' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}"
-          onclick={() => { selectedKind = 'image'; loadAssets(); }}
-        >
-          Images
-        </button>
-        <button
-          type="button"
-          class="px-2.5 py-1 rounded-md transition-colors {selectedKind === 'document' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}"
-          onclick={() => { selectedKind = 'document'; loadAssets(); }}
-        >
-          Docs
-        </button>
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Upload Dropzone Container -->
+      <div class="px-4 lg:px-6">
+        <MediaUploadDropzone
+          {uploading}
+          onupload={handleUploadFiles}
+        />
       </div>
 
-      <input
-        type="search"
-        placeholder="Filter assets…"
-        bind:value={search}
-        oninput={() => loadAssets()}
-        class="bg-background border border-input rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36 sm:w-44 shadow-sm"
-      />
+      <!-- Toolbar: Folders / Kind tabs + Search & New Folder -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+        <!-- Kind Tabs -->
+        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {selectedKind === 'all' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { selectedKind = 'all'; loadAssets(); }}
+          >
+            All Media
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {selectedKind === 'image' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { selectedKind = 'image'; loadAssets(); }}
+          >
+            Images
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {selectedKind === 'document' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { selectedKind = 'document'; loadAssets(); }}
+          >
+            Documents
+          </button>
+        </div>
+
+        <!-- Search & Folder Actions -->
+        <div class="flex items-center gap-2">
+          <div class="relative w-44 sm:w-56">
+            <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="search"
+              placeholder="Search files…"
+              bind:value={search}
+              oninput={() => loadAssets()}
+              class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+            />
+          </div>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shrink-0 shadow-xs"
+            onclick={() => { newFolderOpen = true; }}
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
+              <line x1="12" y1="10" x2="12" y2="16"></line>
+              <line x1="9" y1="13" x2="15" y2="13"></line>
+            </svg>
+            <span>+ Folder</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Assets Grid Container -->
+      <div class="px-4 lg:px-6">
+        <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
+          {#if loading}
+            <div class="py-16 text-center text-xs text-muted-foreground">
+              Loading media library…
+            </div>
+          {:else if assets.length === 0}
+            <div class="py-16 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
+              <svg class="size-8 text-muted-foreground/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                <circle cx="9" cy="9" r="2"></circle>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+              </svg>
+              <p>No media assets found in this view.</p>
+            </div>
+          {:else}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {#each assets as asset (asset.id)}
+                <button
+                  type="button"
+                  class="group relative aspect-square rounded-lg bg-background border border-border hover:border-foreground/40 overflow-hidden flex flex-col justify-between p-2 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm"
+                  onclick={() => openDetail(asset)}
+                >
+                  <!-- Asset Preview -->
+                  <div class="w-full flex-1 flex items-center justify-center overflow-hidden rounded-md bg-muted/40">
+                    {#if asset.mime_type?.startsWith('image/')}
+                      <img
+                        src={asset.url || `/media/${asset.id}`}
+                        alt={asset.original_filename}
+                        class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    {:else}
+                      <div class="flex flex-col items-center gap-1 text-muted-foreground">
+                        <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span class="text-[9px] uppercase font-mono tracking-wider">{asset.mime_type?.split('/')[1] || 'DOC'}</span>
+                      </div>
+                    {/if}
+                  </div>
+
+                  <!-- Filename & Size -->
+                  <div class="pt-1.5 min-w-0">
+                    <p class="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                      {asset.original_filename || asset.filename || asset.id}
+                    </p>
+                    <p class="text-[10px] text-muted-foreground">
+                      {formatBytes(asset.size_bytes)}
+                    </p>
+                  </div>
+                </button>
+              {/each}
+            </div>
+
+            <!-- Footer Stats -->
+            <div class="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <span>{assets.length} assets total</span>
+            </div>
+          {/if}
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- Assets Grid -->
-  {#if loading}
-    <div class="py-16 text-center text-slate-500 text-sm">
-      <span class="animate-spin inline-block mr-2">⏳</span> Loading media assets…
-    </div>
-  {:else if assets.length === 0}
-    <div class="py-16 text-center text-slate-400 text-sm border-2 border-dashed border-slate-800 rounded-2xl">
-      No assets found in this view.
-    </div>
-  {:else}
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      {#each assets as asset (asset.id)}
-        <button
-          type="button"
-          class="group relative aspect-square rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/60 overflow-hidden flex flex-col justify-between p-2.5 transition-all duration-150 cursor-pointer text-left hover:shadow-lg hover:shadow-sky-950/20"
-          onclick={() => openDetail(asset)}
-        >
-          <!-- Asset Preview -->
-          <div class="w-full flex-1 flex items-center justify-center overflow-hidden rounded-lg bg-slate-950">
-            {#if asset.mime_type?.startsWith('image/')}
-              <img
-                src={asset.url || `/media/${asset.id}`}
-                alt={asset.original_filename}
-                class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                loading="lazy"
-              />
-            {:else}
-              <div class="flex flex-col items-center gap-1 text-slate-500">
-                <span class="text-3xl">📄</span>
-                <span class="text-[9px] uppercase font-mono tracking-wider">{asset.mime_type?.split('/')[1] || 'DOC'}</span>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Filename & Size -->
-          <div class="pt-2">
-            <p class="text-xs font-medium text-slate-200 truncate group-hover:text-sky-400 transition-colors">
-              {asset.original_filename || asset.filename || asset.id}
-            </p>
-            <p class="text-[10px] text-slate-500 mt-0.5">
-              {formatBytes(asset.size_bytes)}
-            </p>
-          </div>
-        </button>
-      {/each}
-    </div>
-  {/if}
 </div>

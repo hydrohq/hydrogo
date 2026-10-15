@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
-  import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -69,11 +68,11 @@
     }
   }
 
-  function actionBadgeVariant(action: string): 'default' | 'success' | 'warning' | 'danger' | 'info' {
-    if (action.includes('delete') || action.includes('revoke')) return 'danger';
+  function actionBadgeVariant(action: string): 'default' | 'success' | 'warning' | 'destructive' | 'outline' {
+    if (action.includes('delete') || action.includes('revoke')) return 'destructive';
     if (action.includes('create') || action.includes('publish')) return 'success';
     if (action.includes('update') || action.includes('edit')) return 'warning';
-    return 'default';
+    return 'outline';
   }
 
   onMount(() => {
@@ -81,147 +80,145 @@
   });
 </script>
 
-<div class="space-y-6">
-  <!-- Header -->
-  <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-    <div>
-      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-        <span>📋</span>
-        <span>Audit Trail</span>
-      </h2>
-      <p class="text-xs text-slate-400 mt-1">
-        Immutable record of operational changes and administrative actions.
-      </p>
-    </div>
-    <div class="text-xs text-slate-500 font-mono">
-      Total events: {total}
-    </div>
-  </div>
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Filters row -->
+      <div class="px-4 lg:px-6">
+        <form onsubmit={handleFilter} class="p-3 rounded-xl border border-border bg-card shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <Input label="Actor" placeholder="Filter by email…" bind:value={filterActor} />
+          <Input label="Action" placeholder="e.g. create, update…" bind:value={filterAction} />
+          <Input label="Resource" placeholder="e.g. page, user…" bind:value={filterResource} />
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+            >
+              Filter
+            </button>
+            <button
+              type="button"
+              class="h-9 px-4 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
+              onclick={() => {
+                filterActor = '';
+                filterAction = '';
+                filterResource = '';
+                offset = 0;
+                loadLogs();
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+      </div>
 
-  <!-- Filters -->
-  <form onsubmit={handleFilter} class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-    <Input label="Actor" placeholder="Filter by email…" bind:value={filterActor} />
-    <Input label="Action" placeholder="e.g. create, update…" bind:value={filterAction} />
-    <Input label="Resource" placeholder="e.g. page, user…" bind:value={filterResource} />
-    <div class="flex gap-2">
-      <Button type="submit" variant="primary" size="md">Filter</Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="md"
-        onclick={() => {
-          filterActor = '';
-          filterAction = '';
-          filterResource = '';
-          offset = 0;
-          loadLogs();
-        }}
-      >
-        Reset
-      </Button>
-    </div>
-  </form>
+      <!-- Table Container -->
+      <div class="px-4 lg:px-6">
+        <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+          {#if loading}
+            <div class="p-12 text-center text-xs text-muted-foreground">Loading audit log events…</div>
+          {:else if entries.length === 0}
+            <div class="p-12 text-center text-xs text-muted-foreground">No audit events found.</div>
+          {:else}
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-foreground caption-bottom">
+                <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
+                  <tr>
+                    <th class="h-10 px-4 font-medium">Timestamp</th>
+                    <th class="h-10 px-4 font-medium">Actor</th>
+                    <th class="h-10 px-4 font-medium">Action</th>
+                    <th class="h-10 px-4 font-medium">Resource</th>
+                    <th class="h-10 px-4 font-medium">Target</th>
+                    <th class="h-10 w-24 px-4 font-medium text-right">Details</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  {#each entries as entry (entry.id)}
+                    <tr class="hover:bg-muted/50 transition-colors">
+                      <td class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{formatDate(entry.at)}</td>
+                      <td class="px-4 py-3 font-medium text-xs text-foreground">{entry.actor}</td>
+                      <td class="px-4 py-3">
+                        <Badge variant={actionBadgeVariant(entry.action)} size="sm">{entry.action}</Badge>
+                      </td>
+                      <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{entry.resource}</td>
+                      <td class="px-4 py-3 font-mono text-xs text-muted-foreground truncate max-w-[140px]">{entry.target}</td>
+                      <td class="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          class="text-xs text-primary hover:underline font-medium cursor-pointer"
+                          onclick={() => { selectedEntry = entry; }}
+                        >
+                          View JSON
+                        </button>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
 
-  <!-- Table -->
-  <div class="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-sm">
-    {#if loading}
-      <div class="py-12 text-center text-xs text-slate-500">Loading audit log events…</div>
-    {:else if entries.length === 0}
-      <div class="py-12 text-center text-xs text-slate-500">No audit events found.</div>
-    {:else}
-      <table class="w-full text-left text-sm text-slate-300">
-        <thead class="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
-          <tr>
-            <th class="px-4 py-3 font-semibold">Timestamp</th>
-            <th class="px-4 py-3 font-semibold">Actor</th>
-            <th class="px-4 py-3 font-semibold">Action</th>
-            <th class="px-4 py-3 font-semibold">Resource</th>
-            <th class="px-4 py-3 font-semibold">Target</th>
-            <th class="px-4 py-3 font-semibold text-right">Details</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-800/60">
-          {#each entries as entry (entry.id)}
-            <tr class="hover:bg-slate-800/40 transition-colors">
-              <td class="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{formatDate(entry.at)}</td>
-              <td class="px-4 py-3 font-medium text-xs text-slate-200">{entry.actor}</td>
-              <td class="px-4 py-3">
-                <Badge variant={actionBadgeVariant(entry.action)} size="sm">{entry.action}</Badge>
-              </td>
-              <td class="px-4 py-3 font-mono text-xs text-sky-400">{entry.resource}</td>
-              <td class="px-4 py-3 font-mono text-xs text-slate-400 truncate max-w-[140px]">{entry.target}</td>
-              <td class="px-4 py-3 text-right">
+            <!-- Pagination -->
+            <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
+              <div>
+                Showing {offset + 1}–{Math.min(offset + entries.length, total)} of {total}
+              </div>
+              <div class="flex gap-2">
                 <button
                   type="button"
-                  class="text-xs text-sky-400 hover:text-sky-300 font-medium"
-                  onclick={() => { selectedEntry = entry; }}
+                  disabled={offset === 0}
+                  onclick={() => { offset = Math.max(0, offset - limit); loadLogs(); }}
+                  class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
                 >
-                  View JSON
+                  Previous
                 </button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-
-      <!-- Pagination -->
-      <div class="flex items-center justify-between px-4 py-3 border-t border-slate-800 bg-slate-950/60 text-xs text-slate-400">
-        <div>
-          Showing {offset + 1}–{Math.min(offset + entries.length, total)} of {total}
-        </div>
-        <div class="flex gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={offset === 0}
-            onclick={() => { offset = Math.max(0, offset - limit); loadLogs(); }}
-          >
-            Previous
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={offset + entries.length >= total}
-            onclick={() => { offset += limit; loadLogs(); }}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
-    {/if}
-  </div>
-
-  <!-- Detail Modal -->
-  {#if selectedEntry}
-    <Modal
-      open={true}
-      title="Audit Event Details"
-      onClose={() => { selectedEntry = null; }}
-    >
-      <div class="space-y-4 text-xs font-mono max-h-[70vh] overflow-y-auto">
-        <div class="p-3 bg-slate-950 rounded-lg space-y-1">
-          <div><span class="text-slate-500">ID:</span> <span class="text-slate-300">{selectedEntry.id}</span></div>
-          <div><span class="text-slate-500">Action:</span> <span class="text-sky-400">{selectedEntry.action}</span></div>
-          <div><span class="text-slate-500">Resource:</span> <span class="text-amber-400">{selectedEntry.resource}</span></div>
-          {#if selectedEntry.request_id}
-            <div><span class="text-slate-500">Request ID:</span> <span class="text-slate-300">{selectedEntry.request_id}</span></div>
+                <button
+                  type="button"
+                  disabled={offset + entries.length >= total}
+                  onclick={() => { offset += limit; loadLogs(); }}
+                  class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           {/if}
         </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        {#if selectedEntry.before_json}
-          <div>
-            <div class="text-xs font-semibold text-rose-400 uppercase font-sans mb-1">State Before</div>
-            <pre class="p-3 bg-slate-950 rounded-lg text-slate-300 overflow-x-auto whitespace-pre-wrap">{selectedEntry.before_json}</pre>
-          </div>
-        {/if}
-
-        {#if selectedEntry.after_json}
-          <div>
-            <div class="text-xs font-semibold text-emerald-400 uppercase font-sans mb-1">State After</div>
-            <pre class="p-3 bg-slate-950 rounded-lg text-slate-300 overflow-x-auto whitespace-pre-wrap">{selectedEntry.after_json}</pre>
-          </div>
+<!-- Detail Modal -->
+{#if selectedEntry}
+  <Modal
+    open={true}
+    title="Audit Event Details"
+    onclose={() => { selectedEntry = null; }}
+  >
+    <div class="space-y-4 text-xs font-mono max-h-[70vh] overflow-y-auto">
+      <div class="p-3 bg-muted rounded-lg space-y-1">
+        <div><span class="text-muted-foreground">ID:</span> <span class="text-foreground">{selectedEntry.id}</span></div>
+        <div><span class="text-muted-foreground">Action:</span> <span class="text-foreground font-semibold">{selectedEntry.action}</span></div>
+        <div><span class="text-muted-foreground">Resource:</span> <span class="text-foreground">{selectedEntry.resource}</span></div>
+        {#if selectedEntry.request_id}
+          <div><span class="text-muted-foreground">Request ID:</span> <span class="text-foreground">{selectedEntry.request_id}</span></div>
         {/if}
       </div>
-    </Modal>
-  {/if}
-</div>
+
+      {#if selectedEntry.before_json}
+        <div>
+          <div class="text-xs font-semibold text-destructive uppercase font-sans mb-1">State Before</div>
+          <pre class="p-3 bg-muted rounded-lg text-foreground overflow-x-auto whitespace-pre-wrap">{selectedEntry.before_json}</pre>
+        </div>
+      {/if}
+
+      {#if selectedEntry.after_json}
+        <div>
+          <div class="text-xs font-semibold text-emerald-500 uppercase font-sans mb-1">State After</div>
+          <pre class="p-3 bg-muted rounded-lg text-foreground overflow-x-auto whitespace-pre-wrap">{selectedEntry.after_json}</pre>
+        </div>
+      {/if}
+    </div>
+  </Modal>
+{/if}

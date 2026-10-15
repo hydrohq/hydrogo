@@ -145,11 +145,11 @@
       autofocus
     />
     <div>
-      <label for="invite-role-select" class="text-xs font-semibold uppercase tracking-wider text-slate-300">Role</label>
+      <label for="invite-role-select" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Role</label>
       <select
         id="invite-role-select"
         bind:value={inviteRole}
-        class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+        class="w-full mt-1 rounded-md bg-background border border-input px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
       >
         <option value="editor">Editor (Content manager)</option>
         <option value="author">Author (Create/edit own posts)</option>
@@ -172,7 +172,7 @@
 >
   {#if newlyIssuedToken}
     <div class="space-y-4">
-      <div class="p-3.5 rounded-xl bg-amber-950/40 border border-amber-800/80 text-amber-300 text-xs font-mono break-all select-all">
+      <div class="p-3.5 rounded-lg bg-muted border border-border text-foreground text-xs font-mono break-all select-all">
         {newlyIssuedToken}
       </div>
       <Button
@@ -213,159 +213,185 @@
   {/if}
 </Modal>
 
-<div class="space-y-6 max-w-6xl mx-auto">
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-    <div>
-      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-        <span>🔐</span>
-        <span>Users & Access Control</span>
-      </h2>
-      <p class="text-xs text-slate-400 mt-1">
-        Manage staff accounts, assign roles, and issue personal API access tokens.
-      </p>
-    </div>
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Toolbar (exact shadcn Tabs + Action CTA) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+        <!-- Segmented Navigation Tabs -->
+        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'users' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { activeTab = 'users'; loadUsers(); }}
+          >
+            Staff Directory ({users.length})
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'tokens' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { activeTab = 'tokens'; loadTokens(); }}
+          >
+            Personal Access Tokens
+          </button>
+        </div>
 
-    <div class="flex items-center gap-2">
-      {#if activeTab === 'users'}
-        <Button variant="primary" size="md" onclick={() => { inviteOpen = true; }}>
-          + Invite User
-        </Button>
-      {:else}
-        <Button variant="primary" size="md" onclick={() => { tokenModalOpen = true; }}>
-          + New Access Token
-        </Button>
-      {/if}
+        <!-- Action CTAs -->
+        <div class="flex items-center gap-2">
+          {#if activeTab === 'users'}
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs cursor-pointer shrink-0 transition-colors"
+              onclick={() => { inviteOpen = true; }}
+            >
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Invite Staff</span>
+            </button>
+          {:else}
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs cursor-pointer shrink-0 transition-colors"
+              onclick={() => { tokenModalOpen = true; }}
+            >
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Generate Token</span>
+            </button>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div class="px-4 lg:px-6">
+        {#if activeTab === 'users'}
+          <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            {#if loadingUsers}
+              <div class="p-12 text-center text-xs text-muted-foreground">
+                Loading staff directory…
+              </div>
+            {:else}
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-foreground caption-bottom">
+                  <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
+                    <tr>
+                      <th class="h-10 px-4 font-medium">User</th>
+                      <th class="h-10 px-4 font-medium">Role</th>
+                      <th class="h-10 px-4 font-medium">Status</th>
+                      <th class="h-10 px-4 font-medium">Permissions</th>
+                      <th class="h-10 px-4 font-medium">Last Login</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    {#each users as u (u.id)}
+                      <tr class="hover:bg-muted/50 transition-colors">
+                        <td class="px-4 py-3">
+                          <p class="font-medium text-foreground">{u.email}</p>
+                          <span class="text-[11px] text-muted-foreground font-mono">ID: {u.id}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <Badge variant={u.role === 'admin' ? 'default' : 'outline'} size="sm">
+                            {u.role}
+                          </Badge>
+                        </td>
+                        <td class="px-4 py-3">
+                          <Badge variant={u.active ? 'success' : 'destructive'} size="sm">
+                            {u.active ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-muted-foreground">
+                          {u.permissions?.length || 0} granted
+                        </td>
+                        <td class="px-4 py-3 text-xs text-muted-foreground">
+                          {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never'}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Footer Stats -->
+              <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
+                <span>{users.length} staff members total</span>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+            {#if loadingTokens}
+              <div class="p-12 text-center text-xs text-muted-foreground">
+                Loading access tokens…
+              </div>
+            {:else if tokens.length === 0}
+              <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">
+                <p>No active personal access tokens.</p>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
+                  onclick={() => { tokenModalOpen = true; }}
+                >
+                  Generate First Token
+                </button>
+              </div>
+            {:else}
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-foreground caption-bottom">
+                  <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
+                    <tr>
+                      <th class="h-10 px-4 font-medium">Name</th>
+                      <th class="h-10 px-4 font-medium">Prefix</th>
+                      <th class="h-10 px-4 font-medium">Scope</th>
+                      <th class="h-10 px-4 font-medium">Created</th>
+                      <th class="h-10 px-4 font-medium">Expires</th>
+                      <th class="h-10 w-24 px-4 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    {#each tokens as t (t.id)}
+                      <tr class="hover:bg-muted/50 transition-colors">
+                        <td class="px-4 py-3 font-medium text-foreground">
+                          {t.name}
+                        </td>
+                        <td class="px-4 py-3 font-mono text-xs text-muted-foreground">
+                          {t.prefix || 'hyd_'}…
+                        </td>
+                        <td class="px-4 py-3">
+                          <Badge variant="outline" size="sm">{t.scope || 'admin'}</Badge>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-muted-foreground">
+                          {new Date(t.created_at).toLocaleDateString()}
+                        </td>
+                        <td class="px-4 py-3 text-xs text-muted-foreground">
+                          {t.expires_at ? new Date(t.expires_at).toLocaleDateString() : 'Never'}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            class="px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                            onclick={() => handleRevokeToken(t.id)}
+                          >
+                            Revoke
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Footer Stats -->
+              <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
+                <span>{tokens.length} active tokens</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
-
-  <!-- Tabs Navigation -->
-  <div class="flex items-center gap-2 border-b border-slate-800 pb-px">
-    <button
-      type="button"
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'users' ? 'border-sky-500 text-sky-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'}"
-      onclick={() => { activeTab = 'users'; loadUsers(); }}
-    >
-      Staff Users ({users.length})
-    </button>
-    <button
-      type="button"
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'tokens' ? 'border-sky-500 text-sky-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'}"
-      onclick={() => { activeTab = 'tokens'; loadTokens(); }}
-    >
-      Personal Access Tokens
-    </button>
-  </div>
-
-  <!-- Tab Content: Users -->
-  {#if activeTab === 'users'}
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-sm">
-      {#if loadingUsers}
-        <div class="py-16 text-center text-slate-500 text-sm">
-          <span class="animate-spin inline-block mr-2">⏳</span> Loading staff directory…
-        </div>
-      {:else}
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
-              <tr>
-                <th class="px-5 py-3 font-semibold">User</th>
-                <th class="px-5 py-3 font-semibold">Role</th>
-                <th class="px-5 py-3 font-semibold">Status</th>
-                <th class="px-5 py-3 font-semibold">Permissions</th>
-                <th class="px-5 py-3 font-semibold">Last Login</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800/60">
-              {#each users as u (u.id)}
-                <tr class="hover:bg-slate-800/40 transition-colors">
-                  <td class="px-5 py-3.5">
-                    <p class="font-medium text-slate-100">{u.email}</p>
-                    <span class="text-[10px] text-slate-500 font-mono">ID: {u.id}</span>
-                  </td>
-                  <td class="px-5 py-3.5">
-                    <Badge variant={u.role === 'admin' ? 'info' : 'default'} size="sm">
-                      {u.role}
-                    </Badge>
-                  </td>
-                  <td class="px-5 py-3.5">
-                    <Badge variant={u.active ? 'success' : 'danger'} size="sm">
-                      {u.active ? 'Active' : 'Disabled'}
-                    </Badge>
-                  </td>
-                  <td class="px-5 py-3.5 text-xs text-slate-400">
-                    {u.permissions?.length || 0} granted
-                  </td>
-                  <td class="px-5 py-3.5 text-xs text-slate-500">
-                    {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never'}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {/if}
-    </div>
-  {:else}
-    <!-- Tab Content: API Tokens -->
-    <div class="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-sm">
-      {#if loadingTokens}
-        <div class="py-16 text-center text-slate-500 text-sm">
-          <span class="animate-spin inline-block mr-2">⏳</span> Loading access tokens…
-        </div>
-      {:else if tokens.length === 0}
-        <div class="py-16 text-center text-slate-400 text-sm flex flex-col items-center justify-center gap-3">
-          <p>No active personal access tokens.</p>
-          <Button variant="secondary" size="sm" onclick={() => { tokenModalOpen = true; }}>
-            Generate First Token
-          </Button>
-        </div>
-      {:else}
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
-              <tr>
-                <th class="px-5 py-3 font-semibold">Name</th>
-                <th class="px-5 py-3 font-semibold">Prefix</th>
-                <th class="px-5 py-3 font-semibold">Scope</th>
-                <th class="px-5 py-3 font-semibold">Created</th>
-                <th class="px-5 py-3 font-semibold">Expires</th>
-                <th class="px-5 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800/60">
-              {#each tokens as t (t.id)}
-                <tr class="hover:bg-slate-800/40 transition-colors">
-                  <td class="px-5 py-3.5 font-medium text-slate-100">
-                    {t.name}
-                  </td>
-                  <td class="px-5 py-3.5 font-mono text-xs text-sky-400">
-                    {t.prefix || 'hyd_'}…
-                  </td>
-                  <td class="px-5 py-3.5">
-                    <Badge variant="default" size="sm">{t.scope || 'admin'}</Badge>
-                  </td>
-                  <td class="px-5 py-3.5 text-xs text-slate-500">
-                    {new Date(t.created_at).toLocaleDateString()}
-                  </td>
-                  <td class="px-5 py-3.5 text-xs text-slate-500">
-                    {t.expires_at ? new Date(t.expires_at).toLocaleDateString() : 'Never'}
-                  </td>
-                  <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      class="px-2.5 py-1 text-xs text-rose-400 hover:text-rose-300 rounded hover:bg-rose-950/40 transition-colors cursor-pointer"
-                      onclick={() => handleRevokeToken(t.id)}
-                    >
-                      Revoke
-                    </button>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {/if}
-    </div>
-  {/if}
 </div>
