@@ -1,6 +1,6 @@
 # 0004: Theme contract carries the admin's Appearance CSS
 
-- Status: Accepted
+- Status: Superseded by 0005 (the theme layer is removed; core is headless)
 - Date: 2026-10-15
 
 ## Context
