@@ -1,5 +1,10 @@
 {{/* Minimal, unstyled chrome. All hand-authored visual design was removed
-     per request before the next design attempt. */}}
+     per request before the next design attempt.
+
+     nr-head deliberately does not close <head>: it ends right after the
+     shared scripts/stylesheets so a caller can append its own view-specific
+     head markup (see member-account.html's member.css link) before closing
+     <head> itself. Every caller must emit </head> exactly once. */}}
 
 {{define "nr-head"}}<!doctype html>
 <html lang="{{.Locale}}" dir="{{.Direction}}">
@@ -12,8 +17,7 @@
 {{range .Stylesheets}}<link rel="stylesheet" href="{{.}}">
 {{end}}{{if .AppearanceCSS}}<style>{{.AppearanceCSS}}</style>{{end}}<script src="/theme/static/news.js" defer></script>
 {{range .Scripts}}<script src="{{.}}" defer></script>
-{{end}}</head>
-{{end}}
+{{end}}{{end}}
 
 {{define "nr-masthead"}}<body>
 <header><a href="/">HYDRO HABER</a> <nav id="main-nav-links">{{if .Navigation}}{{.Navigation}}{{else}}{{template "nr-section-links" .}}{{end}}</nav></header>
