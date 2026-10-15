@@ -2,226 +2,447 @@
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
+  import { sidebar } from '$lib/stores/sidebar.svelte';
+  import { theme } from '$lib/stores/theme.svelte';
 
   const currentPath = $derived(router.path);
+  let showQuickCreate = $state(false);
+  let showUserMenu = $state(false);
+  let activeDocDropdown = $state<string | null>(null);
 
   function isActive(target: string): boolean {
     if (target === '/' || target === '/dashboard') {
-      return currentPath === '/' || currentPath === '/dashboard';
+      return (
+        currentPath === '/' ||
+        currentPath === '/dashboard' ||
+        currentPath === '/admin' ||
+        currentPath === '/admin/' ||
+        currentPath === ''
+      );
     }
     return currentPath.startsWith(target);
   }
+
+  function handleNavigate(path: string) {
+    showQuickCreate = false;
+    showUserMenu = false;
+    activeDocDropdown = null;
+    sidebar.closeMobile();
+    router.navigate(path);
+  }
 </script>
 
-<aside class="w-64 flex-shrink-0 bg-card border-r border-border flex flex-col h-full select-none">
-  <!-- Brand Header -->
-  <div class="h-16 px-5 flex items-center justify-between border-b border-border/80">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-sm shadow-blue-500/10">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+<svelte:window onclick={(e) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest('[data-dropdown]')) {
+    showQuickCreate = false;
+    showUserMenu = false;
+    activeDocDropdown = null;
+  }
+}} />
+
+<!-- Mobile Overlay Backdrop -->
+{#if sidebar.mobileOpen}
+  <button
+    type="button"
+    class="fixed inset-0 z-40 bg-black/80 backdrop-blur-xs md:hidden"
+    onclick={() => sidebar.closeMobile()}
+    aria-label="Close sidebar overlay"
+  ></button>
+{/if}
+
+<aside
+  class="fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-sidebar text-sidebar-foreground transition-all duration-200 ease-in-out md:static md:z-0 {sidebar.open ? 'w-64' : 'w-16'} {sidebar.mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}"
+>
+  <!-- SidebarHeader: Brand (Matches official shadcn AppSidebar SidebarHeader) -->
+  <div class="flex h-12 shrink-0 items-center border-b border-sidebar-border px-3">
+    <a
+      href="#/dashboard"
+      onclick={() => handleNavigate('/dashboard')}
+      class="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left text-sm font-semibold transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    >
+      <div class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-semibold shadow-xs">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
       </div>
-      <div class="flex flex-col">
-        <span class="text-sm font-bold tracking-tight text-foreground flex items-center gap-1">
-          Hydro<span class="text-primary font-black">Go</span>
-        </span>
-        <span class="text-[10px] text-muted-foreground font-mono tracking-wider">CMS STUDIO</span>
-      </div>
-    </div>
-    <span class="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded font-mono border border-border/60">
-      v2.0
-    </span>
+      {#if sidebar.open}
+        <div class="grid flex-1 text-left text-sm leading-tight">
+          <span class="truncate font-semibold text-sidebar-foreground">HydroGo</span>
+        </div>
+      {/if}
+    </a>
   </div>
 
-  <!-- Navigation Links -->
-  <div class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-    <!-- Overview -->
-    <div>
-      <div class="px-3 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        Overview
-      </div>
-      <nav class="space-y-1">
-        <a
-          href="#/dashboard"
-          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/dashboard') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
+  <!-- SidebarContent (Matches official NavMain, NavDocuments, NavSecondary) -->
+  <div class="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
+    <!-- Quick Create Button & Inbox (official nav-main.tsx layout) -->
+    <div class="flex items-center gap-2 pt-1 pb-1 relative" data-dropdown="quick-create">
+      <button
+        type="button"
+        onclick={() => { showQuickCreate = !showQuickCreate; }}
+        class="flex flex-1 items-center justify-center gap-2 h-9 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors shadow-xs cursor-pointer px-3 {sidebar.open ? '' : 'justify-center !px-0'}"
+        title="Quick Create"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Quick Create</span>
+        {/if}
+      </button>
+
+      {#if sidebar.open}
+        <button
+          type="button"
+          onclick={() => handleNavigate('/audit')}
+          class="size-9 shrink-0 flex items-center justify-center rounded-md border border-sidebar-border bg-background hover:bg-sidebar-accent text-sidebar-foreground transition-colors cursor-pointer shadow-xs"
+          title="Audit Log"
         >
-          <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="7" height="9" x="3" y="3" rx="1"></rect>
-            <rect width="7" height="5" x="14" y="3" rx="1"></rect>
-            <rect width="7" height="9" x="14" y="12" rx="1"></rect>
-            <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+          <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
           </svg>
-          <span>Dashboard</span>
-        </a>
-      </nav>
+          <span class="sr-only">Audit</span>
+        </button>
+      {/if}
+
+      <!-- Quick Create Dropdown Menu -->
+      {#if showQuickCreate}
+        <div class="absolute left-0 top-11 w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md z-50 text-xs">
+          <div class="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Create New
+          </div>
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+            onclick={() => handleNavigate('/pages/new')}
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            <span>New Page</span>
+          </button>
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+            onclick={() => handleNavigate('/news/new')}
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path></svg>
+            <span>New Article</span>
+          </button>
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+            onclick={() => handleNavigate('/media')}
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
+            <span>Upload Media</span>
+          </button>
+          {#each schema.collections as col}
+            <button
+              type="button"
+              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+              onclick={() => handleNavigate(`/content/${col.id}/new`)}
+            >
+              <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+              <span>New {col.label}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
 
-    <!-- Schema Collections -->
-    {#if schema.resources.length > 0}
-      <div>
-        <div class="px-3 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
-          <span>Content</span>
-          <span class="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full font-mono border border-border/60">
-            {schema.resources.length}
-          </span>
-        </div>
-        <nav class="space-y-1">
-          {#each schema.resources as res (res.id)}
-            <a
-              href={`#/content/${res.id}`}
-              class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive(`/content/${res.id}`) ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-            >
-              <span class="text-sm">{res.icon || '📦'}</span>
-              <span class="truncate">{res.label || res.plural}</span>
-            </a>
+    <!-- NavMain (Matches official nav-main.tsx) -->
+    <div class="flex flex-col gap-0.5">
+      <!-- Dashboard -->
+      <a
+        href="#/dashboard"
+        onclick={() => handleNavigate('/dashboard')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/dashboard') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Dashboard"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+          <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+          <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+          <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Dashboard</span>
+        {/if}
+      </a>
+
+      <!-- Pages -->
+      <a
+        href="#/pages"
+        onclick={() => handleNavigate('/pages')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/pages') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Pages"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Pages</span>
+        {/if}
+      </a>
+
+      <!-- News -->
+      <a
+        href="#/news"
+        onclick={() => handleNavigate('/news')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/news') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="News"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <line x1="10" y1="9" x2="8" y2="9"></line>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">News</span>
+        {/if}
+      </a>
+
+      <!-- Media -->
+      <a
+        href="#/media"
+        onclick={() => handleNavigate('/media')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/media') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Media Library"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+          <circle cx="9" cy="9" r="2"></circle>
+          <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Media Library</span>
+        {/if}
+      </a>
+
+      <!-- Members -->
+      <a
+        href="#/members"
+        onclick={() => handleNavigate('/members')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/members') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Members"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Members</span>
+        {/if}
+      </a>
+    </div>
+
+    <!-- NavDocuments (Matches official nav-documents.tsx) -->
+    {#if schema.collections.length > 0}
+      <div class="mt-3 flex flex-col gap-1">
+        {#if sidebar.open}
+          <div class="px-2 py-1 text-xs font-medium text-sidebar-foreground/60 tracking-wider">
+            Documents
+          </div>
+        {/if}
+        <div class="flex flex-col gap-0.5">
+          {#each schema.collections as collection}
+            <div class="relative group flex items-center" data-dropdown="doc-{collection.id}">
+              <a
+                href="#/content/{collection.id}"
+                onclick={() => handleNavigate(`/content/${collection.id}`)}
+                class="flex flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive(`/content/${collection.id}`) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+                title={collection.plural || collection.label}
+              >
+                <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+                </svg>
+                {#if sidebar.open}
+                  <span class="truncate">{collection.plural || collection.label}</span>
+                {/if}
+              </a>
+
+              {#if sidebar.open}
+                <button
+                  type="button"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    activeDocDropdown = activeDocDropdown === collection.id ? null : collection.id;
+                  }}
+                  class="absolute right-1 size-6 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground transition-opacity"
+                  title="Options"
+                >
+                  <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="19" cy="12" r="1"></circle>
+                    <circle cx="5" cy="12" r="1"></circle>
+                  </svg>
+                </button>
+
+                {#if activeDocDropdown === collection.id}
+                  <div class="absolute right-0 top-7 w-28 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-50 text-xs">
+                    <button
+                      type="button"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent text-left"
+                      onclick={() => handleNavigate(`/content/${collection.id}`)}
+                    >
+                      <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
+                      <span>Open</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent text-left"
+                      onclick={() => handleNavigate(`/content/${collection.id}/new`)}
+                    >
+                      <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                      <span>Create</span>
+                    </button>
+                  </div>
+                {/if}
+              {/if}
+            </div>
           {/each}
-        </nav>
+        </div>
       </div>
     {/if}
 
-    <!-- Core CMS Modules -->
-    <div>
-      <div class="px-3 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-        Modules
+    <!-- NavSecondary (Matches official nav-secondary.tsx - pinned to mt-auto) -->
+    <div class="mt-auto flex flex-col gap-0.5 pt-4">
+      <a
+        href="#/site"
+        onclick={() => handleNavigate('/site')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/site') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Settings"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Settings</span>
+        {/if}
+      </a>
+
+      <a
+        href="#/users"
+        onclick={() => handleNavigate('/users')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Users & Roles"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Users & Roles</span>
+        {/if}
+      </a>
+
+      <a
+        href="#/system"
+        onclick={() => handleNavigate('/system')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/system') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="Telemetry"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Telemetry</span>
+        {/if}
+      </a>
+    </div>
+  </div>
+
+  <!-- SidebarFooter: NavUser (Matches official nav-user.tsx) -->
+  <div class="border-t border-sidebar-border p-2 relative" data-dropdown="user-menu">
+    <button
+      type="button"
+      onclick={() => { showUserMenu = !showUserMenu; }}
+      class="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer"
+    >
+      <div class="size-8 rounded-lg bg-muted border border-border flex items-center justify-center font-medium text-xs text-foreground uppercase shrink-0">
+        {auth.user?.email?.[0] || 'A'}
       </div>
-      <nav class="space-y-1">
-        {#if schema.modules['pages'] !== false}
-          <a
-            href="#/pages"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/pages') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-          >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-              <line x1="10" y1="9" x2="8" y2="9"></line>
-            </svg>
-            <span>Pages</span>
-          </a>
-        {/if}
-        {#if schema.modules['news'] !== false}
-          <a
-            href="#/news"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/news') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-          >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path>
-              <path d="M18 14h-8"></path>
-              <path d="M15 18h-5"></path>
-              <path d="M10 6h8v4h-8V6Z"></path>
-            </svg>
-            <span>News & Articles</span>
-          </a>
-        {/if}
-        {#if schema.modules['media'] !== false}
-          <a
-            href="#/media"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/media') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-          >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
-              <circle cx="9" cy="9" r="2"></circle>
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-            </svg>
-            <span>Media Library</span>
-          </a>
-        {/if}
-        {#if schema.modules['members'] !== false}
-          <a
-            href="#/members"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/members') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-          >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <span>Members</span>
-          </a>
-        {/if}
-        {#if schema.modules['site'] !== false}
+      {#if sidebar.open}
+        <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
+          <span class="truncate font-medium text-foreground">{auth.user?.email || 'admin'}</span>
+          <span class="truncate text-muted-foreground capitalize">{auth.user?.role || 'admin'}</span>
+        </div>
+        <svg class="size-4 text-muted-foreground ml-auto shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="1"></circle>
+          <circle cx="12" cy="5" r="1"></circle>
+          <circle cx="12" cy="19" r="1"></circle>
+        </svg>
+      {/if}
+    </button>
+
+    <!-- User Popover Menu -->
+    {#if showUserMenu}
+      <div class="absolute bottom-12 left-2 right-2 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg z-50 text-xs">
+        <div class="flex items-center gap-2 p-2 border-b border-border/80">
+          <div class="size-7 rounded-lg bg-muted flex items-center justify-center font-medium text-xs text-foreground uppercase shrink-0">
+            {auth.user?.email?.[0] || 'A'}
+          </div>
+          <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
+            <span class="truncate font-medium text-foreground">{auth.user?.email || 'admin'}</span>
+            <span class="truncate text-muted-foreground capitalize">{auth.user?.role || 'admin'}</span>
+          </div>
+        </div>
+        <div class="py-1">
           <a
             href="#/site"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/site') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
+            onclick={() => handleNavigate('/site')}
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span>Site Settings</span>
-          </a>
-        {/if}
-      </nav>
-    </div>
-
-    <!-- Management & System -->
-    {#if auth.user?.role === 'admin'}
-      <div>
-        <div class="px-3 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Administration
-        </div>
-        <nav class="space-y-1">
-          <a
-            href="#/users"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/users') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-          >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
-            </svg>
-            <span>Users & Access</span>
-          </a>
-          <a
-            href="#/audit"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/audit') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
-          >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 8v4l3 3"></path>
-              <circle cx="12" cy="12" r="10"></circle>
-            </svg>
-            <span>Audit Trail</span>
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Account</span>
           </a>
           <a
             href="#/system"
-            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all {isActive('/system') ? 'bg-primary/10 text-primary font-semibold border-l-2 border-primary pl-2.5' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'}"
+            onclick={() => handleNavigate('/system')}
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
-            <svg class="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-            </svg>
-            <span>System Telemetry</span>
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            <span>Telemetry</span>
           </a>
-        </nav>
+          <button
+            type="button"
+            onclick={() => theme.toggle()}
+            class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+          >
+            <div class="flex items-center gap-2">
+              {#if theme.isDark}
+                <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+              {:else}
+                <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+              {/if}
+              <span>Theme</span>
+            </div>
+            <span class="text-[11px] text-muted-foreground capitalize">{theme.isDark ? 'Dark' : 'Light'}</span>
+          </button>
+        </div>
+        <div class="border-t border-border/80 pt-1">
+          <button
+            type="button"
+            onclick={() => auth.logout()}
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-destructive hover:bg-destructive/10 text-left transition-colors cursor-pointer"
+          >
+            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Log out</span>
+          </button>
+        </div>
       </div>
     {/if}
-  </div>
-
-  <!-- User Profile Footer -->
-  <div class="p-3 border-t border-border/80 bg-card/60">
-    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-colors">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <div class="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center font-bold text-xs text-primary flex-shrink-0">
-          {auth.user?.email?.[0]?.toUpperCase() || 'A'}
-        </div>
-        <div class="min-w-0">
-          <p class="text-xs font-semibold text-foreground truncate">{auth.user?.email || 'User'}</p>
-          <span class="text-[10px] text-muted-foreground capitalize tracking-wider font-mono">{auth.user?.role || 'editor'}</span>
-        </div>
-      </div>
-      <button
-        type="button"
-        onclick={() => auth.logout()}
-        class="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
-        title="Log out"
-        aria-label="Log out"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-      </button>
-    </div>
   </div>
 </aside>

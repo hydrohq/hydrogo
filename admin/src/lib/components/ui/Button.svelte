@@ -20,19 +20,19 @@
   }: Props = $props();
 
   const variantClasses: Record<string, string> = {
-    primary: 'bg-primary text-primary-foreground hover:bg-blue-600 active:bg-blue-700 shadow-sm shadow-blue-900/30 focus-visible:ring-ring',
-    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring',
-    outline: 'border border-input bg-transparent hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
-    danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm focus-visible:ring-destructive',
+    primary: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 focus-visible:ring-ring',
+    secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 focus-visible:ring-ring',
+    outline: 'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
+    danger: 'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive',
     ghost: 'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
     link: 'text-primary underline-offset-4 hover:underline focus-visible:ring-ring',
   };
 
   const sizeClasses: Record<string, string> = {
     sm: 'h-8 px-3 text-xs rounded-md gap-1.5',
-    md: 'h-9 px-4 py-2 text-sm rounded-lg gap-2',
-    lg: 'h-10 px-6 py-2.5 text-base rounded-lg gap-2.5',
-    icon: 'h-9 w-9 rounded-lg p-0 justify-center',
+    md: 'h-9 px-4 py-2 text-sm rounded-md gap-2',
+    lg: 'h-10 px-6 py-2.5 text-base rounded-md gap-2.5',
+    icon: 'h-9 w-9 rounded-md p-0 justify-center',
   };
 </script>
 

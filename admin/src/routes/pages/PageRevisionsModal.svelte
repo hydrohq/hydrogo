@@ -70,30 +70,30 @@
 >
   <div class="space-y-3">
     {#if loading}
-      <p class="py-8 text-center text-xs text-slate-500">Loading revision history…</p>
+      <p class="py-8 text-center text-xs text-muted-foreground">Loading revision history…</p>
     {:else if revisions.length === 0}
-      <p class="py-8 text-center text-xs text-slate-500">No previous revisions recorded yet.</p>
+      <p class="py-8 text-center text-xs text-muted-foreground">No previous revisions recorded yet.</p>
     {:else}
-      <div class="divide-y divide-slate-800/80 rounded-xl border border-slate-800 bg-slate-950/60 max-h-80 overflow-y-auto">
+      <div class="divide-y divide-border rounded-xl border border-border bg-card max-h-80 overflow-y-auto">
         {#each revisions as rev (rev.id)}
-          <div class="p-3.5 flex items-center justify-between">
+          <div class="p-3.5 flex items-center justify-between hover:bg-muted/30 transition-colors">
             <div>
               <div class="flex items-center gap-2">
-                <Badge variant="info" size="sm">rev #{rev.revision}</Badge>
-                <span class="text-xs font-semibold text-slate-200">{rev.title}</span>
+                <Badge variant="outline" size="sm">rev #{rev.revision}</Badge>
+                <span class="text-xs font-semibold text-foreground">{rev.title}</span>
               </div>
-              <p class="text-[11px] text-slate-500 mt-1">
+              <p class="text-[11px] text-muted-foreground mt-1">
                 {new Date(rev.created_at).toLocaleString()} • {rev.author_name || 'Author'}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              loading={restoring === rev.id}
+            <button
+              type="button"
+              class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+              disabled={restoring === rev.id}
               onclick={() => handleRestore(rev.id, rev.revision)}
             >
-              Restore
-            </Button>
+              {restoring === rev.id ? 'Restoring…' : 'Restore'}
+            </button>
           </div>
         {/each}
       </div>

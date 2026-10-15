@@ -100,9 +100,9 @@
   {onclose}
 >
   {#if asset}
-    <div class="space-y-5">
+    <div class="space-y-4">
       <!-- Preview -->
-      <div class="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center relative">
+      <div class="w-full aspect-video rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center relative">
         {#if asset.mime_type?.startsWith('image/')}
           <img
             src={asset.url || `/media/${asset.id}`}
@@ -110,7 +110,7 @@
             class="max-w-full max-h-full object-contain"
           />
         {:else}
-          <div class="flex flex-col items-center gap-2 text-slate-500">
+          <div class="flex flex-col items-center gap-2 text-muted-foreground">
             <span class="text-4xl">📄</span>
             <span class="text-xs font-mono">{asset.mime_type}</span>
           </div>
@@ -118,27 +118,31 @@
       </div>
 
       <!-- Quick info & Link Copy -->
-      <div class="flex items-center justify-between p-3 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
-        <div class="space-x-3 text-slate-400">
+      <div class="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border text-xs">
+        <div class="space-x-2 text-muted-foreground">
           <span>{formatBytes(asset.size_bytes)}</span>
           <span>•</span>
           <span>{asset.mime_type}</span>
         </div>
-        <Button variant="outline" size="sm" onclick={copyUrl}>
-          {copied ? '✓ Copied Link' : 'Copy Public URL'}
-        </Button>
+        <button
+          type="button"
+          class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+          onclick={copyUrl}
+        >
+          {copied ? '✓ Copied' : 'Copy URL'}
+        </button>
       </div>
 
       <!-- Settings / Metadata -->
       <div class="space-y-3">
         <div>
-          <label for="asset-folder-select" class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <label for="asset-folder-select" class="text-xs font-medium text-foreground">
             Folder
           </label>
           <select
             id="asset-folder-select"
             bind:value={folderId}
-            class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+            class="w-full mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
           >
             <option value="">No folder (Root)</option>
             {#each folders as f (f.id)}
@@ -148,13 +152,13 @@
         </div>
 
         <div>
-          <label for="asset-visibility-select" class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+          <label for="asset-visibility-select" class="text-xs font-medium text-foreground">
             Visibility
           </label>
           <select
             id="asset-visibility-select"
             bind:value={visibility}
-            class="w-full mt-1 rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500"
+            class="w-full mt-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
           >
             <option value="public">Public (Direct URL accessible)</option>
             <option value="private">Private (Restricted)</option>

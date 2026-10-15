@@ -3,7 +3,6 @@
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import type { ApiResponse } from '$lib/api/types';
-  import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
@@ -118,6 +117,7 @@
         await api.put(`/api/v1/admin/news/${id}`, payload);
         successMsg = 'Draft saved successfully.';
       }
+      setTimeout(() => { successMsg = null; }, 3000);
     } catch (e: any) {
       errorMsg = e.message || 'Save failed';
     } finally {
@@ -167,217 +167,218 @@
   onselect={(media) => { formData.cover_media_id = media.id || media.path; }}
 />
 
-<div class="space-y-6 max-w-6xl mx-auto">
-  <!-- Top Bar -->
-  <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-    <div class="flex items-center gap-3">
-      <button
-        type="button"
-        onclick={() => router.navigate('/news')}
-        class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-      >
-        ← Back
-      </button>
-      <div>
-        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-          <span>{isNew ? 'New Article' : 'Edit Article'}</span>
-          {#if !isNew}
-            <Badge variant={status === 'published' ? 'success' : status === 'scheduled' ? 'info' : status === 'retracted' ? 'danger' : 'warning'} size="sm">
-              {status}
-            </Badge>
-          {/if}
-          {#if loading}
-            <span class="text-xs text-sky-400 font-normal">Loading…</span>
-          {/if}
-        </h2>
-      </div>
-    </div>
-
-    <!-- Workflow Actions -->
-    <div class="flex items-center gap-2.5">
-      <Button
-        variant="secondary"
-        size="md"
-        loading={saving}
-        onclick={handleSaveDraft}
-      >
-        Save Draft
-      </Button>
-
-      {#if !isNew && status === 'published'}
-        <Button
-          variant="danger"
-          size="md"
-          loading={saving}
-          onclick={() => handleWorkflowAction('retract')}
-        >
-          Retract
-        </Button>
-      {:else if !isNew}
-        <Button
-          variant="primary"
-          size="md"
-          loading={saving}
-          onclick={() => handleWorkflowAction('publish')}
-        >
-          Publish Now
-        </Button>
-      {/if}
-    </div>
-  </div>
-
-  {#if errorMsg}
-    <div class="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs">
-      ⚠️ {errorMsg}
-    </div>
-  {/if}
-  {#if successMsg}
-    <div class="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 text-xs">
-      ✓ {successMsg}
-    </div>
-  {/if}
-
-  <!-- Main Grid: Editor & Settings -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Left 2 Cols: Main Content -->
-    <div class="lg:col-span-2 space-y-5">
-      <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
-        <Input
-          label="Title"
-          placeholder="Article headline…"
-          bind:value={formData.title}
-          oninput={autoSlug}
-          required
-        />
-
-        <Input
-          label="Slug"
-          placeholder="url-friendly-slug"
-          bind:value={formData.slug}
-          required
-        />
-
-        <div class="flex flex-col gap-1.5">
-          <label for="news-excerpt" class="text-xs font-semibold uppercase tracking-wider text-slate-300">
-            Excerpt / Summary
-          </label>
-          <textarea
-            id="news-excerpt"
-            bind:value={formData.excerpt}
-            rows="3"
-            placeholder="A brief summary for cards and social previews…"
-            class="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
-          ></textarea>
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Top Action Bar -->
+      <div class="flex items-center justify-between px-4 lg:px-6">
+        <div class="flex items-center gap-2.5">
+          <button
+            type="button"
+            onclick={() => router.navigate('/news')}
+            class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            ← Back
+          </button>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-foreground">
+              {isNew ? 'New Article' : 'Edit Article'}
+            </span>
+            {#if !isNew}
+              <Badge variant={status === 'published' ? 'success' : status === 'scheduled' ? 'secondary' : status === 'retracted' ? 'destructive' : 'outline'} size="sm">
+                {status}
+              </Badge>
+            {/if}
+            {#if loading}
+              <span class="text-xs text-muted-foreground animate-pulse">Loading…</span>
+            {/if}
+          </div>
         </div>
 
-        <RichTextEditor
-          label="Body Content"
-          bind:value={formData.body}
-        />
-      </div>
-    </div>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onclick={handleSaveDraft}
+            class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+          >
+            Save Draft
+          </button>
 
-    <!-- Right Col: Sidebar Meta -->
-    <div class="space-y-5">
-      <!-- Publishing Card -->
-      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Editorial & Schedule
-        </h3>
-
-        {#if !isNew && status !== 'published'}
-          <div class="space-y-2">
-            <Input
-              type="datetime-local"
-              label="Schedule Release"
-              bind:value={scheduledAt}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              class="w-full"
-              loading={saving}
-              onclick={() => handleWorkflowAction('schedule')}
+          {#if !isNew && status === 'published'}
+            <button
+              type="button"
+              disabled={saving}
+              onclick={() => handleWorkflowAction('retract')}
+              class="h-8 px-3 rounded-md border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-medium transition-colors cursor-pointer shadow-xs"
             >
-              Set Schedule
-            </Button>
-          </div>
-        {/if}
-
-        <label class="flex items-center gap-3 cursor-pointer select-none pt-2 border-t border-slate-800/80">
-          <input
-            type="checkbox"
-            bind:checked={formData.featured}
-            class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-sky-600 focus:ring-sky-500"
-          />
-          <span class="text-xs font-semibold text-slate-200">Featured Article (Pinned)</span>
-        </label>
+              Retract
+            </button>
+          {:else if !isNew}
+            <button
+              type="button"
+              disabled={saving}
+              onclick={() => handleWorkflowAction('publish')}
+              class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer shadow-xs"
+            >
+              Publish Now
+            </button>
+          {/if}
+        </div>
       </div>
 
-      <!-- Featured Image -->
-      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Cover Image
-        </h3>
-        {#if formData.cover_media_id}
-          <div class="w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative">
-            <img
-              src={`/media/${formData.cover_media_id}`}
-              alt="Cover asset"
-              class="w-full h-full object-cover"
+      {#if errorMsg}
+        <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+          {errorMsg}
+        </div>
+      {/if}
+      {#if successMsg}
+        <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+          {successMsg}
+        </div>
+      {/if}
+
+      <!-- Main Grid: Editor & Settings -->
+      <div class="px-4 lg:px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left 2 Cols: Main Content -->
+        <div class="lg:col-span-2 space-y-4">
+          <div class="p-6 rounded-xl border border-border bg-card shadow-xs space-y-4">
+            <Input
+              label="Title"
+              placeholder="Article headline…"
+              bind:value={formData.title}
+              oninput={autoSlug}
+              required
+            />
+
+            <Input
+              label="Slug"
+              placeholder="url-friendly-slug"
+              bind:value={formData.slug}
+              required
+            />
+
+            <div class="flex flex-col gap-1.5">
+              <label for="news-excerpt" class="text-xs font-medium text-foreground">
+                Excerpt / Summary
+              </label>
+              <textarea
+                id="news-excerpt"
+                bind:value={formData.excerpt}
+                rows="3"
+                placeholder="A brief summary for cards and social previews…"
+                class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+              ></textarea>
+            </div>
+
+            <RichTextEditor
+              label="Body Content"
+              bind:value={formData.body}
             />
           </div>
-        {/if}
-        <Button
-          variant="outline"
-          size="sm"
-          class="w-full"
-          onclick={() => { mediaPickerOpen = true; }}
-        >
-          {formData.cover_media_id ? 'Change Cover Image' : 'Select Cover Image'}
-        </Button>
-      </div>
+        </div>
 
-      <!-- Organization -->
-      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Organization
-        </h3>
+        <!-- Right Col: Sidebar Meta -->
+        <div class="space-y-4">
+          <!-- Publishing Card -->
+          <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Editorial & Schedule
+            </h3>
 
-        <Input
-          label="Category"
-          placeholder="e.g. Engineering, Company"
-          bind:value={formData.category}
-        />
+            {#if !isNew && status !== 'published'}
+              <div class="space-y-2">
+                <Input
+                  type="datetime-local"
+                  label="Schedule Release"
+                  bind:value={scheduledAt}
+                />
+                <button
+                  type="button"
+                  class="w-full h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+                  disabled={saving}
+                  onclick={() => handleWorkflowAction('schedule')}
+                >
+                  Set Schedule
+                </button>
+              </div>
+            {/if}
 
-        <Input
-          label="Author Name"
-          placeholder="e.g. Jane Doe"
-          bind:value={formData.author_name}
-        />
+            <label class="flex items-center gap-2 cursor-pointer select-none pt-2 border-t border-border">
+              <input
+                type="checkbox"
+                bind:checked={formData.featured}
+                class="size-4 rounded border-input text-primary focus:ring-ring"
+              />
+              <span class="text-xs font-medium text-foreground">Featured Article (Pinned)</span>
+            </label>
+          </div>
 
-        <Input
-          label="Tags"
-          placeholder="Comma-separated: tech, release"
-          bind:value={tagsInput}
-        />
-      </div>
+          <!-- Featured Image -->
+          <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Cover Image
+            </h3>
+            {#if formData.cover_media_id}
+              <div class="w-full aspect-video rounded-lg bg-muted border border-border overflow-hidden relative">
+                <img
+                  src={`/media/${formData.cover_media_id}`}
+                  alt="Cover asset"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+            {/if}
+            <button
+              type="button"
+              class="w-full h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
+              onclick={() => { mediaPickerOpen = true; }}
+            >
+              {formData.cover_media_id ? 'Change Cover Image' : 'Select Cover Image'}
+            </button>
+          </div>
 
-      <!-- SEO -->
-      <div class="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          SEO & Meta
-        </h3>
-        <Input
-          label="SEO Title"
-          placeholder="Custom title tag"
-          bind:value={formData.seo_title}
-        />
-        <Input
-          label="SEO Description"
-          placeholder="Meta description"
-          bind:value={formData.seo_description}
-        />
+          <!-- Organization -->
+          <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Organization
+            </h3>
+
+            <Input
+              label="Category"
+              placeholder="e.g. Engineering, Company"
+              bind:value={formData.category}
+            />
+
+            <Input
+              label="Author Name"
+              placeholder="e.g. Jane Doe"
+              bind:value={formData.author_name}
+            />
+
+            <Input
+              label="Tags"
+              placeholder="Comma-separated: tech, release"
+              bind:value={tagsInput}
+            />
+          </div>
+
+          <!-- SEO -->
+          <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              SEO & Meta
+            </h3>
+            <Input
+              label="SEO Title"
+              placeholder="Custom title tag"
+              bind:value={formData.seo_title}
+            />
+            <Input
+              label="SEO Description"
+              placeholder="Meta description"
+              bind:value={formData.seo_description}
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>

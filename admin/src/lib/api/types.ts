@@ -56,16 +56,20 @@ export interface FieldRelation {
 }
 
 export interface Field {
-  name: string;
+  id?: string;
+  name?: string;
   label: string;
   kind: FieldKind;
+  widget?: string;
   required?: boolean;
   unique?: boolean;
   list?: boolean;
+  visible_in_list?: boolean;
   searchable?: boolean;
   filterable?: boolean;
   localized?: boolean;
-  options?: SelectOption[];
+  read_only?: boolean;
+  options?: (SelectOption | string)[];
   relation?: FieldRelation;
   default?: unknown;
 }
@@ -78,24 +82,30 @@ export interface CollectionWorkflow {
 }
 
 export interface CollectionPermissions {
-  view: string;
-  create: string;
-  edit: string;
-  delete: string;
+  view?: string;
+  create?: string;
+  edit?: string;
+  delete?: string;
 }
 
 export interface Collection {
   id: string;
   label: string;
-  singular: string;
-  plural: string;
-  description: string;
-  group: string;
+  singular?: string;
+  plural?: string;
+  description?: string;
+  group?: string;
   icon?: string;
-  api_path: string;
+  source?: 'content_type' | 'module' | string;
+  api_path?: string;
+  title_field?: string;
+  versioned?: boolean;
+  revisions?: boolean;
+  drafts?: boolean;
+  localization?: boolean;
   workflow?: CollectionWorkflow;
   fields: Field[];
-  permissions: CollectionPermissions;
+  permissions?: CollectionPermissions;
 }
 
 export interface AdminSchemaContentType {

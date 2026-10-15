@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
-  import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
 
@@ -27,7 +26,7 @@
 
   let redirects = $state<RedirectRule[]>([]);
   let activeTab = $state<'general' | 'redirects'>('general');
-  let loading = $state(true);
+  let loading = $state(false);
   let saving = $state(false);
   let successMsg = $state<string | null>(null);
 
@@ -114,156 +113,169 @@
   });
 </script>
 
-<div class="space-y-6 max-w-4xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-    <div>
-      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-        <span>⚙️</span>
-        <span>Site Configuration</span>
-      </h2>
-      <p class="text-xs text-slate-400 mt-1 flex items-center gap-2">
-        <span>Configure public site identity, metadata, and HTTP redirects.</span>
-        {#if loading}
-          <span class="text-xs text-sky-400">Loading…</span>
-        {/if}
-      </p>
-    </div>
-  </div>
-
-  <!-- Tabs Navigation -->
-  <div class="flex items-center gap-2 border-b border-slate-800 pb-px">
-    <button
-      type="button"
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'general' ? 'border-sky-500 text-sky-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'}"
-      onclick={() => { activeTab = 'general'; }}
-    >
-      General Settings
-    </button>
-    <button
-      type="button"
-      class="px-4 py-2 text-sm font-medium border-b-2 transition-colors {activeTab === 'redirects' ? 'border-sky-500 text-sky-400 font-semibold' : 'border-transparent text-slate-400 hover:text-slate-200'}"
-      onclick={() => { activeTab = 'redirects'; }}
-    >
-      Redirect Rules ({redirects.length})
-    </button>
-  </div>
-
-  {#if successMsg}
-    <div class="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 text-xs">
-      ✓ {successMsg}
-    </div>
-  {/if}
-
-  {#if activeTab === 'general'}
-    <!-- General Settings Form -->
-    <form onsubmit={handleSaveSettings} class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-5">
-      <Input
-        label="Site Name"
-        placeholder="e.g. Acme Corp"
-        bind:value={settings['site.name']}
-        required
-      />
-
-      <Input
-        label="Site Title (Default Page Title)"
-        placeholder="e.g. Acme - Next Generation Cloud"
-        bind:value={settings['site.title']}
-        required
-      />
-
-      <div class="flex flex-col gap-1.5">
-        <label for="site-desc" class="text-xs font-semibold uppercase tracking-wider text-slate-300">
-          Site Meta Description
-        </label>
-        <textarea
-          id="site-desc"
-          rows="3"
-          placeholder="Brief description for search engines…"
-          bind:value={settings['site.description']}
-          class="w-full rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
-        ></textarea>
-      </div>
-
-      <Input
-        label="Home Path"
-        placeholder="e.g. /"
-        bind:value={settings['site.home_path']}
-      />
-
-      <div class="pt-3 border-t border-slate-800 flex justify-end">
-        <Button type="submit" variant="primary" size="md" loading={saving}>
-          Save Settings
-        </Button>
-      </div>
-    </form>
-  {:else}
-    <!-- Redirects -->
-    <div class="space-y-6">
-      <form onsubmit={handleAddRedirect} class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-        <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Add Redirect Rule</h4>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <Input
-            placeholder="From (e.g. /old-page)"
-            bind:value={newSource}
-            required
-          />
-          <Input
-            placeholder="To (e.g. /new-page or https://...)"
-            bind:value={newTarget}
-            required
-          />
-          <select
-            bind:value={newCode}
-            class="rounded-lg bg-slate-900 border border-slate-800 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-2">
+    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <!-- Toolbar (exact shadcn Tabs layout) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'general' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { activeTab = 'general'; }}
           >
-            <option value={301}>301 Permanent</option>
-            <option value={302}>302 Temporary</option>
-          </select>
+            General Settings
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'redirects' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
+            onclick={() => { activeTab = 'redirects'; }}
+          >
+            Redirect Rules ({redirects.length})
+          </button>
         </div>
-        <div class="flex justify-end">
-          <Button type="submit" variant="primary" size="sm">Add Rule</Button>
-        </div>
-      </form>
 
-      <div class="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-sm">
-        {#if redirects.length === 0}
-          <div class="py-12 text-center text-xs text-slate-500">
-            No redirect rules configured.
-          </div>
+        <div class="flex items-center gap-3">
+          {#if loading}
+            <span class="text-xs text-muted-foreground animate-pulse">Loading…</span>
+          {/if}
+          {#if successMsg}
+            <div class="text-xs text-emerald-600 dark:text-emerald-400 font-medium animate-fade-in">
+              ✓ {successMsg}
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="px-4 lg:px-6">
+        {#if activeTab === 'general'}
+          <form onsubmit={handleSaveSettings} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4 max-w-2xl">
+            <Input
+              label="Site Name"
+              placeholder="e.g. Acme Corp"
+              bind:value={settings['site.name']}
+              required
+            />
+
+            <Input
+              label="Site Title (Default Page Title)"
+              placeholder="e.g. Acme - Next Generation Cloud"
+              bind:value={settings['site.title']}
+              required
+            />
+
+            <div class="flex flex-col gap-1.5">
+              <label for="site-desc" class="text-xs font-medium text-foreground">
+                Site Meta Description
+              </label>
+              <textarea
+                id="site-desc"
+                rows="3"
+                placeholder="Brief description for search engines…"
+                bind:value={settings['site.description']}
+                class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+              ></textarea>
+            </div>
+
+            <Input
+              label="Home Path"
+              placeholder="e.g. /"
+              bind:value={settings['site.home_path']}
+            />
+
+            <div class="pt-3 border-t border-border flex justify-end">
+              <button
+                type="submit"
+                disabled={saving}
+                class="inline-flex items-center gap-1.5 h-8 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+              >
+                {saving ? 'Saving…' : 'Save Settings'}
+              </button>
+            </div>
+          </form>
         {:else}
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
-              <tr>
-                <th class="px-5 py-3 font-semibold">Source</th>
-                <th class="px-5 py-3 font-semibold">Destination</th>
-                <th class="px-5 py-3 font-semibold">Code</th>
-                <th class="px-5 py-3 font-semibold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800/60">
-              {#each redirects as r (r.id)}
-                <tr class="hover:bg-slate-800/40 transition-colors">
-                  <td class="px-5 py-3 font-mono text-xs text-slate-200">{r.source}</td>
-                  <td class="px-5 py-3 font-mono text-xs text-sky-400">{r.target}</td>
-                  <td class="px-5 py-3">
-                    <Badge variant={r.code === 301 ? 'default' : 'info'} size="sm">{r.code}</Badge>
-                  </td>
-                  <td class="px-5 py-3 text-right">
-                    <button
-                      type="button"
-                      class="text-xs text-rose-400 hover:text-rose-300 p-1"
-                      onclick={() => handleDeleteRedirect(r.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+          <div class="space-y-4 max-w-3xl">
+            <!-- Add redirect form -->
+            <form onsubmit={handleAddRedirect} class="p-4 rounded-xl border border-border bg-card shadow-xs space-y-3">
+              <span class="text-xs font-medium text-foreground">Add Redirect Rule</span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <input
+                  type="text"
+                  placeholder="From (e.g. /old-page)"
+                  bind:value={newSource}
+                  required
+                  class="h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                />
+                <input
+                  type="text"
+                  placeholder="To (e.g. /new-page)"
+                  bind:value={newTarget}
+                  required
+                  class="h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                />
+                <select
+                  bind:value={newCode}
+                  class="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                >
+                  <option value={301}>301 Permanent</option>
+                  <option value={302}>302 Temporary</option>
+                </select>
+              </div>
+              <div class="flex justify-end">
+                <button
+                  type="submit"
+                  class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+                >
+                  Add Rule
+                </button>
+              </div>
+            </form>
+
+            <!-- Redirects Table -->
+            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+              {#if redirects.length === 0}
+                <div class="p-8 text-center text-xs text-muted-foreground">
+                  No redirect rules configured.
+                </div>
+              {:else}
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-sm text-foreground caption-bottom">
+                    <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
+                      <tr>
+                        <th class="h-10 px-4 font-medium">Source</th>
+                        <th class="h-10 px-4 font-medium">Destination</th>
+                        <th class="h-10 px-4 font-medium">Code</th>
+                        <th class="h-10 w-24 px-4 font-medium text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                      {#each redirects as r (r.id)}
+                        <tr class="hover:bg-muted/50 transition-colors">
+                          <td class="px-4 py-3 font-mono text-xs text-foreground">{r.source}</td>
+                          <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{r.target}</td>
+                          <td class="px-4 py-3">
+                            <Badge variant="outline" size="sm">{r.code}</Badge>
+                          </td>
+                          <td class="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              class="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors cursor-pointer"
+                              onclick={() => handleDeleteRedirect(r.id)}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                </div>
+              {/if}
+            </div>
+          </div>
         {/if}
       </div>
     </div>
-  {/if}
+  </div>
 </div>

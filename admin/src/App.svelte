@@ -39,9 +39,15 @@
     }
   });
 
+  $effect(() => {
+    if (auth.isAuthenticated && !schema.schema && !schema.isLoading) {
+      schema.loadSchema();
+    }
+  });
+
   const routeInfo = $derived.by(() => {
     const p = router.path;
-    if (p === '/' || p === '/dashboard') {
+    if (p === '/' || p === '/dashboard' || p === '/admin' || p === '/admin/' || p === '') {
       return { view: 'dashboard' };
     }
     if (p === '/login') {
@@ -86,15 +92,14 @@
 </script>
 
 {#if initializing}
-  <div class="h-screen w-full bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-    <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 font-bold animate-pulse">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-        <polyline points="2 17 12 22 22 17"></polyline>
-        <polyline points="2 12 12 17 22 12"></polyline>
+  <div class="h-screen w-full bg-background flex flex-col items-center justify-center text-muted-foreground gap-3">
+    <div class="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs animate-pulse">
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
       </svg>
     </div>
-    <p class="text-xs font-mono tracking-wider text-slate-500 uppercase">Starting HydroGo Admin…</p>
+    <p class="text-xs font-mono tracking-wider text-muted-foreground uppercase">Starting HydroGo Admin…</p>
   </div>
 {:else if !auth.isAuthenticated}
   <LoginView />
@@ -131,9 +136,9 @@
       {#if schema.getCollection(routeInfo.module || '')}
         <GenericListView type={routeInfo.module!} />
       {:else}
-        <div class="p-8 max-w-2xl mx-auto rounded-2xl border border-slate-800 bg-slate-900/60 text-center space-y-3">
-          <h3 class="text-lg font-bold text-slate-100 capitalize">{routeInfo.module}</h3>
-          <p class="text-sm text-slate-400">
+        <div class="p-8 max-w-2xl mx-auto rounded-xl border border-border bg-card text-card-foreground text-center space-y-3 shadow-xs">
+          <h3 class="text-lg font-semibold capitalize">{routeInfo.module}</h3>
+          <p class="text-sm text-muted-foreground">
             Dedicated module interface will be rendered here.
           </p>
         </div>
