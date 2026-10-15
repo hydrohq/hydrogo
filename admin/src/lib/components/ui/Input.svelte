@@ -12,7 +12,7 @@
     label,
     error,
     hint,
-    value = $bindable(''),
+    value = $bindable(),
     id,
     class: className = '',
     ...restProps

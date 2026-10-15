@@ -32,9 +32,33 @@
     return f.id || f.name || '';
   }
 
+  function initFormData(data: Record<string, any> = {}) {
+    const initialized: Record<string, any> = {};
+    if (collection?.fields) {
+      for (const field of collection.fields) {
+        const key = getFieldKey(field);
+        if (data[key] !== undefined && data[key] !== null) {
+          initialized[key] = data[key];
+        } else if (field.kind === 'boolean') {
+          initialized[key] = false;
+        } else if (field.kind === 'number') {
+          initialized[key] = 0;
+        } else {
+          initialized[key] = '';
+        }
+      }
+    }
+    for (const [k, v] of Object.entries(data)) {
+      if (initialized[k] === undefined) {
+        initialized[k] = v;
+      }
+    }
+    return initialized;
+  }
+
   async function loadItem() {
     if (isNew || !collection || !itemId) {
-      formData = {};
+      formData = initFormData({});
       return;
     }
     loading = true;
@@ -43,10 +67,13 @@
       const endpoint = collection.api_path || `/api/v1/admin/content/${type}`;
       const res = await api.get<ApiResponse<Record<string, any>>>(`${endpoint}/${itemId}`);
       if (res && res.data) {
-        formData = { ...res.data };
+        formData = initFormData(res.data);
+      } else {
+        formData = initFormData({});
       }
     } catch (err: any) {
       errorMessage = err?.message || 'Failed to load item';
+      formData = initFormData({});
     } finally {
       loading = false;
     }

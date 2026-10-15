@@ -12,7 +12,7 @@
   }
 
   let {
-    value = $bindable(''),
+    value = $bindable(),
     label,
     error,
     placeholder = 'Start writing your story or content here…',
@@ -64,6 +64,7 @@
           heading: {
             levels: [1, 2, 3],
           },
+          link: false,
         }),
         Link.configure({
           openOnClick: false,
