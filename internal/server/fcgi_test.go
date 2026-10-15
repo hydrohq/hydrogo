@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -76,6 +77,46 @@ func TestServeFCGIResponder(t *testing.T) {
 	}
 	if got := response.String(); !strings.Contains(got, "Content-Type:") || !strings.Contains(got, "fastcgi-ok") {
 		t.Fatalf("FastCGI response = %q", got)
+	}
+}
+
+func TestServeFastCGIListener(t *testing.T) {
+	listener := newMemoryListener()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serveDone := make(chan error, 1)
+	go func() {
+		serveDone <- ServeFastCGIListener(ctx, listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.WriteString(w, "fastcgi-listener-ok")
+		}), 100*time.Millisecond)
+	}()
+
+	conn, err := listener.dial()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	params := fastCGIParams(map[string]string{
+		"REQUEST_METHOD": "GET",
+		"REQUEST_URI":    "/test",
+	})
+	request := append(fastCGIRecord(1, 1, []byte{0, 1, 0, 0, 0, 0, 0, 0}), fastCGIRecord(4, 1, params)...)
+	request = append(request, fastCGIRecord(4, 1, nil)...)
+	request = append(request, fastCGIRecord(5, 1, nil)...)
+	if _, err := conn.Write(request); err != nil {
+		t.Fatal(err)
+	}
+
+	cancel() // trigger graceful shutdown
+	select {
+	case err := <-serveDone:
+		if err != nil {
+			t.Fatalf("unexpected ServeFastCGIListener error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ServeFastCGIListener did not stop within timeout")
 	}
 }
 

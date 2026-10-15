@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -37,10 +38,24 @@ func (a *serveApp) listen(routes []router.Route) error {
 
 		// 2. Comprehensive Lazy Cron runner for CGI request lifecycles
 		handler = server.LazyCron(handler, a.cgiLazyCron)
-		return server.ServeCGI(handler)
+		if os.Getenv("REQUEST_METHOD") != "" {
+			return server.ServeCGI(handler)
+		}
+		// Under Apache mod_fcgid or FastCGI wrapper, REQUEST_METHOD is not present
+		// in process environment but supplied over FastCGI protocol on standard input.
+		return server.ServeFastCGIStdin(a.ctx, handler, serverConfig.ShutdownTimeout)
 	}
 	if a.opts.fastCGI {
-		return server.ServeFastCGI(a.ctx, "tcp", a.opts.fastCGIAddress, serverConfig)
+		if a.opts.fastCGIAddress != "" {
+			return server.ServeFastCGI(a.ctx, "tcp", a.opts.fastCGIAddress, serverConfig)
+		}
+		handler := server.NewHandler(serverConfig)
+		handler = server.StaticDiskCacheMiddleware(server.StaticCacheOptions{
+			BaseDir:       a.staticCacheDir,
+			SessionCookie: auth.SessionCookieName,
+		})(handler)
+		handler = server.LazyCron(handler, a.cgiLazyCron)
+		return server.ServeFastCGIStdin(a.ctx, handler, serverConfig.ShutdownTimeout)
 	}
 	return server.Serve(a.ctx, serverConfig)
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -16,10 +17,16 @@ func ServeFastCGI(ctx context.Context, network, address string, config Config) e
 	if err != nil {
 		return err
 	}
+	return ServeFastCGIListener(ctx, listener, NewHandler(config), config.ShutdownTimeout)
+}
+
+// ServeFastCGIListener serves FastCGI requests on an existing net.Listener and drains active
+// requests when its context is canceled.
+func ServeFastCGIListener(ctx context.Context, listener net.Listener, handler http.Handler, timeout time.Duration) error {
 	tracked := &trackedListener{Listener: listener, conns: make(map[net.Conn]struct{})}
 	gate := &requestGate{}
 	serveErr := make(chan error, 1)
-	go func() { serveErr <- ServeFCGI(tracked, gate.wrap(NewHandler(config))) }()
+	go func() { serveErr <- ServeFCGI(tracked, gate.wrap(handler)) }()
 
 	select {
 	case err := <-serveErr:
@@ -42,7 +49,6 @@ func ServeFastCGI(ctx context.Context, network, address string, config Config) e
 		return errors.New("FastCGI listener did not stop")
 	}
 
-	timeout := config.ShutdownTimeout
 	if timeout <= 0 {
 		timeout = shutdownTimeout
 	}
@@ -55,6 +61,17 @@ func ServeFastCGI(ctx context.Context, network, address string, config Config) e
 	tracked.closeConnections()
 	<-drained
 	return nil
+}
+
+// ServeFastCGIStdin serves FastCGI requests from standard input (such as when spawned
+// by Apache mod_fcgid or mod_fastcgi). If os.Stdin can be converted to a net.Listener,
+// it uses ServeFastCGIListener for graceful shutdown; otherwise it falls back to ServeFCGI(nil, handler).
+func ServeFastCGIStdin(ctx context.Context, handler http.Handler, timeout time.Duration) error {
+	listener, err := net.FileListener(os.Stdin)
+	if err != nil {
+		return ServeFCGI(nil, handler)
+	}
+	return ServeFastCGIListener(ctx, listener, handler, timeout)
 }
 
 type requestGate struct {
