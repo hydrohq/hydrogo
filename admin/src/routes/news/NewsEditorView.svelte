@@ -47,6 +47,7 @@
   });
 
   let tagsInput = $state('');
+  let version = $state(1);
   let status = $state<'draft' | 'scheduled' | 'published' | 'retracted'>('draft');
   let scheduledAt = $state('');
   let loading = $state(false);
@@ -81,12 +82,13 @@
           category: item.category || '',
           author_name: item.author_name || '',
           featured: Boolean(item.featured),
-          tags: item.tags || [],
+          tags: Array.isArray(item.tags) ? item.tags : (item.tags ? [item.tags] : []),
           seo_title: item.seo_title || '',
           seo_description: item.seo_description || '',
         };
+        version = item.version || 1;
         status = item.status || 'draft';
-        tagsInput = (item.tags || []).join(', ');
+        tagsInput = typeof item.tags === 'string' ? item.tags : (item.tags || []).join(', ');
         if (item.scheduled_at) {
           scheduledAt = new Date(item.scheduled_at).toISOString().slice(0, 16);
         }
@@ -103,9 +105,19 @@
     errorMsg = null;
     successMsg = null;
     try {
-      const payload = {
-        ...formData,
-        tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
+      const payload: Record<string, any> = {
+        title: formData.title,
+        slug: formData.slug,
+        locale: formData.locale || 'en',
+        excerpt: formData.excerpt,
+        body: formData.body,
+        cover_media_id: formData.cover_media_id,
+        category: formData.category,
+        author_name: formData.author_name,
+        featured: Boolean(formData.featured),
+        tags: tagsInput.trim(),
+        seo_title: formData.seo_title,
+        seo_description: formData.seo_description,
       };
       if (isNew) {
         const res = await api.post<ApiResponse<any>>('/api/v1/admin/news', payload);
@@ -114,7 +126,14 @@
           router.navigate(`/news/${newId}`);
         }
       } else {
-        await api.put(`/api/v1/admin/news/${id}`, payload);
+        payload.version = version || 1;
+        const res = await api.put<ApiResponse<any>>(`/api/v1/admin/news/${id}`, payload);
+        const updated = res?.data?.Item || res?.data;
+        if (updated?.version) {
+          version = updated.version;
+        } else {
+          version = (version || 1) + 1;
+        }
         successMsg = 'Draft saved successfully.';
       }
       setTimeout(() => { successMsg = null; }, 3000);
@@ -130,13 +149,24 @@
       await handleSaveDraft();
     }
     saving = true;
+    errorMsg = null;
     try {
       if (action === 'publish') {
-        await api.post(`/api/v1/admin/news/${id}/publish`);
+        const res = await api.post<ApiResponse<any>>(`/api/v1/admin/news/${id}/publish`, {
+          version: version || 1,
+        });
+        const updated = res?.data?.Item || res?.data;
+        if (updated?.version) version = updated.version;
+        else version = (version || 1) + 1;
         status = 'published';
         successMsg = 'Article published!';
       } else if (action === 'retract') {
-        await api.post(`/api/v1/admin/news/${id}/retract`);
+        const res = await api.post<ApiResponse<any>>(`/api/v1/admin/news/${id}/retract`, {
+          version: version || 1,
+        });
+        const updated = res?.data?.Item || res?.data;
+        if (updated?.version) version = updated.version;
+        else version = (version || 1) + 1;
         status = 'retracted';
         successMsg = 'Article retracted to draft state.';
       } else if (action === 'schedule') {
@@ -144,7 +174,13 @@
           errorMsg = 'Please specify a scheduled publication date and time.';
           return;
         }
-        await api.post(`/api/v1/admin/news/${id}/schedule`, { scheduled_at: new Date(scheduledAt).toISOString() });
+        const res = await api.post<ApiResponse<any>>(`/api/v1/admin/news/${id}/schedule`, {
+          version: version || 1,
+          scheduled_at: new Date(scheduledAt).toISOString(),
+        });
+        const updated = res?.data?.Item || res?.data;
+        if (updated?.version) version = updated.version;
+        else version = (version || 1) + 1;
         status = 'scheduled';
         successMsg = 'Article scheduled for release.';
       }

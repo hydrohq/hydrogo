@@ -77,14 +77,13 @@
     errorMsg = null;
     successMsg = null;
     try {
-      const payload = {
+      const payload: Record<string, any> = {
         title: formData.title,
         slug: formData.slug,
         locale: formData.locale,
         body: formData.body,
         blocks: formData.blocks,
         layout_template: formData.layout_template,
-        status: 'draft',
       };
       if (isNew) {
         const res = await api.post<ApiResponse<PageData>>('/api/v1/admin/pages', payload);
@@ -92,7 +91,12 @@
           router.navigate(`/pages/${res.data.id}`);
         }
       } else {
-        await api.put(`/api/v1/admin/pages/${id}`, payload);
+        payload.version = formData.version || 1;
+        const res = await api.put<ApiResponse<PageData>>(`/api/v1/admin/pages/${id}`, payload);
+        if (res?.data?.version) {
+          formData.version = res.data.version;
+        }
+        formData.status = 'draft';
         successMsg = 'Draft saved.';
         setTimeout(() => { successMsg = null; }, 3000);
       }
@@ -108,15 +112,23 @@
       await handleSaveDraft();
     }
     saving = true;
+    errorMsg = null;
     try {
       if (action === 'publish') {
-        await api.post(`/api/v1/admin/pages/${id}/publish`);
+        const res = await api.post<ApiResponse<PageData>>(`/api/v1/admin/pages/${id}/publish`, {
+          version: formData.version || 1,
+        });
+        if (res?.data?.version) {
+          formData.version = res.data.version;
+        } else {
+          formData.version = (formData.version || 1) + 1;
+        }
         formData.status = 'published';
         successMsg = 'Page published successfully!';
       } else {
-        await api.post(`/api/v1/admin/pages/${id}/retract`);
-        formData.status = 'draft';
-        successMsg = 'Page retracted to draft.';
+        // Saving a page draft in the backend resets the draft state
+        await handleSaveDraft();
+        successMsg = 'Page set to draft.';
       }
       setTimeout(() => { successMsg = null; }, 3000);
     } catch (e: any) {

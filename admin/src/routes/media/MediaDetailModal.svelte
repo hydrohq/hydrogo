@@ -73,11 +73,11 @@
     errorMessage = null;
     try {
       const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-      await api.post(`/api/v1/admin/media/${asset.id}`, {
+      await api.patch(`/api/v1/admin/media/${asset.id}`, {
         folder_id: folderId || undefined,
         visibility,
         tags,
-      }, { method: 'PATCH' });
+      });
       onupdated();
       onclose();
     } catch (e: any) {
@@ -92,7 +92,7 @@
     deleteLoading = true;
     errorMessage = null;
     try {
-      await api.delete(`/api/v1/admin/media/${asset.id}`);
+      await api.delete(`/api/v1/admin/trash/media/${asset.id}`);
       showDeleteConfirm = false;
       onupdated();
       onclose();

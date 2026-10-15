@@ -63,7 +63,7 @@
     if (!deletePageTarget) return;
     deleteLoading = true;
     try {
-      await api.delete(`/api/v1/admin/pages/${deletePageTarget.id}`);
+      await api.delete(`/api/v1/admin/trash/pages/${deletePageTarget.id}`);
       deletePageTarget = null;
       await loadPages();
     } catch (err: any) {
