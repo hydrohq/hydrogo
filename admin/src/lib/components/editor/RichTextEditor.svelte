@@ -50,7 +50,7 @@
     if (editor && value !== editor.getHTML()) {
       const isSame = editor.getHTML() === value;
       if (!isSame && !editor.isFocused) {
-        editor.commands.setContent(value || '', false);
+        editor.commands.setContent(value || '', { emitUpdate: false });
       }
     }
   });
