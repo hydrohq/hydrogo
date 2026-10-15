@@ -113,10 +113,5 @@
         </Button>
       </form>
     </div>
-
-    <!-- Security Info -->
-    <p class="text-center text-xs text-muted-foreground">
-      Protected with CSRF double-submit token & HttpOnly session credentials.
-    </p>
   </div>
 </div>
