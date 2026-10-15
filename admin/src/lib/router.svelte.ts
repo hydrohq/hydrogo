@@ -1,10 +1,12 @@
 class Router {
-  hash = $state(window.location.hash || '#/');
+  hash = $state(typeof window !== 'undefined' ? (window.location.hash || '#/') : '#/');
 
   constructor() {
-    window.addEventListener('hashchange', () => {
-      this.hash = window.location.hash || '#/';
-    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', () => {
+        this.hash = window.location.hash || '#/';
+      });
+    }
   }
 
   get path(): string {
@@ -22,6 +24,7 @@ class Router {
   }
 
   navigate(to: string) {
+    if (typeof window === 'undefined') return;
     const target = to.startsWith('#') ? to : `#${to.startsWith('/') ? to : `/${to}`}`;
     if (window.location.hash === target) {
       window.dispatchEvent(new HashChangeEvent('hashchange'));

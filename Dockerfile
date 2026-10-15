@@ -3,6 +3,13 @@
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
+FROM node:22-alpine AS admin-build
+WORKDIR /admin
+COPY admin/package.json ./
+RUN npm install
+COPY admin/ ./
+RUN npm run build
+
 FROM golang:1.27-alpine AS build
 WORKDIR /src
 
@@ -10,6 +17,7 @@ RUN apk add --no-cache ca-certificates tzdata
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=admin-build /admin/dist ./internal/adminui/dist
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
