@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -88,6 +89,9 @@ func main() {
 		}
 	}
 	defer supervisor.stop()
+
+	stopFrontend := startAdminFrontend(ctx, root)
+	defer stopFrontend()
 
 	target, err := url.Parse("http://" + *appAddress)
 	if err != nil {
@@ -316,3 +320,48 @@ const devStyles = `body.hydrogo-dev-body{margin:0;min-height:100vh;display:flex;
 .hdev-panel-actions{margin-top:8px;display:flex;justify-content:flex-end}
 .hdev-hide{padding:0;border:0;background:transparent;color:#64748b;font-size:11px;text-decoration:none;cursor:pointer}
 .hdev-hide:hover{color:#cbd5e1}`
+
+func startAdminFrontend(ctx context.Context, root string) func() {
+	adminDir := filepath.Join(root, "admin")
+	if info, err := os.Stat(filepath.Join(adminDir, "package.json")); err != nil || info.IsDir() {
+		return func() {}
+	}
+
+	// Check if port 5173 is already in use
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:5173", 50*time.Millisecond)
+	if err == nil {
+		_ = conn.Close()
+		fmt.Println("hydro dev: existing Vite dev server detected on 127.0.0.1:5173")
+		return func() {}
+	}
+
+	npm := "npm"
+	if runtime.GOOS == "windows" {
+		npm = "npm.cmd"
+	}
+	if _, err := exec.LookPath(npm); err != nil {
+		return func() {}
+	}
+
+	cmd := exec.CommandContext(ctx, npm, "run", "dev")
+	cmd.Dir = adminDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "hydro dev: could not start admin Vite server: %v\n", err)
+		return func() {}
+	}
+	fmt.Println("hydro dev: admin Vite dev server started (port 5173)")
+
+	return func() {
+		if cmd != nil && cmd.Process != nil {
+			if runtime.GOOS == "windows" {
+				_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+			} else {
+				_ = cmd.Process.Kill()
+			}
+			_, _ = cmd.Process.Wait()
+		}
+	}
+}
