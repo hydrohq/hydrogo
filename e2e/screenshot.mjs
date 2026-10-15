@@ -44,9 +44,9 @@ const email = process.env.HYDRO_ADMIN_EMAIL;
 const password = process.env.HYDRO_ADMIN_PASSWORD;
 if (email && password) {
   const page = await context.newPage();
-  await page.goto("/login?return_to=%2Fadmin");
-  await page.locator('input[name="email"]').fill(email);
-  await page.locator('input[name="password"]').fill(password);
+  await page.goto("/admin/#/login");
+  await page.locator('input[type="email"], input[name="email"]').fill(email);
+  await page.locator('input[type="password"], input[name="password"]').fill(password);
   await Promise.all([page.waitForURL(/\/admin/), page.locator('button[type="submit"]').first().click()]);
   // Skip the first-run onboarding tour, like a returning admin.
   await page.evaluate(() => {

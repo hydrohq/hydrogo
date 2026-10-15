@@ -9,11 +9,11 @@ if (!email || !password) throw new Error("HYDRO_E2E_ADMIN_EMAIL and HYDRO_E2E_AD
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ baseURL });
 const page = await context.newPage();
-await page.goto("/login?return_to=%2Fadmin");
-await page.locator('input[name="email"]').fill(email);
-await page.locator('input[name="password"]').fill(password);
+await page.goto("/admin/#/login");
+await page.locator('input[type="email"], input[name="email"]').fill(email);
+await page.locator('input[type="password"], input[name="password"]').fill(password);
 await page.locator('button[type="submit"]').click();
-await page.waitForURL(/\/admin(?:$|\?)/);
+await page.waitForURL(/\/admin/);
 // Persist the onboarding-tour dismissal so admin journeys interact with the
 // editor instead of the first-run dialog — same as a returning admin who
 // clicked "Bu rehberi bir daha gösterme" (plain key + role-scoped key).
