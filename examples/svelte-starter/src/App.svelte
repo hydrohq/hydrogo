@@ -41,6 +41,6 @@
   </main>
 
   <footer class="border-t border-slate-800/80 py-8 text-center text-xs text-slate-500">
-    <p>HydroGo v2 Headless Frontend Example • Pure JSON API</p>
+    <p>HydroGo</p>
   </footer>
 </div>
