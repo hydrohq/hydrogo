@@ -14,7 +14,7 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 - **Content:** pages with blocks, news with categories and tags, media
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
   scheduled news publishing, trash and audit log.
-- **Sites:** themes in `themes/` (HTML layouts, blocks and CSS), navigation,
+- **Sites:** headless — build any frontend on the API (see `examples/`), navigation,
   redirects, SEO metadata, sitemaps, Open Graph images, `llms.txt`.
 - **Members:** registration, login, MFA for admins, privacy-friendly
   analytics, forms with a submission inbox, weekly digest emails over SMTP.
@@ -54,7 +54,6 @@ commands.
 | `internal/` | Core packages: auth, database, media, admin UI (`ui`, `adminstudio`), collections, search, security, … |
 | `modules/` | Content modules: `pages`, `news`, `members`, `site`, `seo`, `designsystem` |
 | `migrations/` | SQL migrations for SQLite, PostgreSQL and MySQL |
-| `themes/` | Public site themes (`corporate`, `newsroom`) |
 | `extension/v1` | Theme and extension contracts |
 | `tools/` | Dev server and CI guards |
 | `docs/` | Current docs; `docs/archive/` holds historical plans and ADRs |

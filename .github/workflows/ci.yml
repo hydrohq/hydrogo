@@ -141,10 +141,6 @@ jobs:
         run: go run ./tools/codeguard
       - name: Enforce internal module boundaries
         run: go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
-      - name: Enforce frontend asset version consistency
-        run: go run ./tools/assetguard -root .
-      - name: Generate deterministic frontend asset manifest
-        run: go run ./tools/assetmanifest -root themes -output .tmp/asset-manifest.json
       - name: Enforce migration metadata consistency
         run: go run ./tools/migrationguard -root migrations
       - name: Run Linux binary health/readiness smoke
@@ -224,8 +220,6 @@ jobs:
           go test -tags hydro_compact,hydro_no_otlp,hydro_no_s3,hydro_no_redis ./cmd/hydro ./internal/config ./internal/database ./internal/tenant ./internal/observability ./internal/media ./internal/cache ./internal/security ./internal/security/bffsession ./internal/server -count=1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Lint theme token references
-        shell: pwsh
-        run: ./scripts/theme-token-lint.ps1
       - name: Check ADR index drift
         shell: pwsh
         run: ./scripts/adr-drift-check.ps1

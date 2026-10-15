@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,14 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 type pageCache interface {
@@ -169,8 +164,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return profileCommand(args[1:], stdout, stderr)
 	case "events":
 		return eventsCommand(args[1:], stdout)
-	case "fonts":
-		return fontsCommand(args[1:], stdout)
 	case "scan-links":
 		return scanLinksCommand(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
@@ -221,38 +214,6 @@ func currentVersionInfo() (versionInfo, error) {
 		return versionInfo{}, errors.New("no embedded migrations found")
 	}
 	return versionInfo{Version: version, Commit: buildCommit, BuildTime: buildTime, GoVersion: runtime.Version(), SchemaMigration: ids[len(ids)-1]}, nil
-}
-
-// adminLoginPage serves GET /login. It stays in main.go because it still
-// splices a status message into the rendered page as an HTML string (legacy,
-// to be moved into the login template).
-func (a *serveApp) adminLoginPage(w http.ResponseWriter, r *http.Request) {
-	db, modules, siteStore := a.db, a.modules, a.siteStore
-	returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/admin")
-	loginLocale := "en"
-	if r.URL.Query().Get("lang") == "tr" {
-		loginLocale = "tr"
-	}
-	if user := auth.UserFromContext(r.Context()); user != nil && user.Active && user.Role == auth.RoleAdmin {
-		http.Redirect(w, r, returnTo, http.StatusSeeOther)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Language", loginLocale)
-	appearance := site.Appearance{LoginOverlayOpacity: .4}
-	if modules["site"] {
-		if settings, settingsErr := siteStore.ListPublicSettings(r.Context(), db); settingsErr == nil {
-			appearance = site.AppearanceFromSettings(settings)
-		}
-	}
-	var page bytes.Buffer
-	if err := ui.RenderAdminLoginWithLocaleAndAppearance(&page, security.CSRFTokenFromContext(r.Context()), returnTo, loginLocale, appearance); err != nil {
-		http.Error(w, "admin login unavailable", http.StatusInternalServerError)
-		return
-	}
-	document := withLoginSuccess(page.Bytes(), loginSuccessMessage(r.URL.Query(), loginLocale))
-	w.Header().Set("Content-Security-Policy", security.MergeCSP(w.Header().Get("Content-Security-Policy"), ui.AdminLoginCSP(document)))
-	_, _ = w.Write(document)
 }
 
 type demoNewsSeed struct {

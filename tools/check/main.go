@@ -31,7 +31,7 @@ func main() {
 	steps := []step{
 		{name: "build", args: []string{"go", "build", "./..."}},
 		{name: "vet", args: []string{"go", "vet", "./..."}},
-		{name: "gofmt", args: []string{"gofmt", "-l", "cmd", "internal", "modules", "extension", "tools", "tests", "migrations", "static"}, check: func(output string) error {
+		{name: "gofmt", args: []string{"gofmt", "-l", "cmd", "internal", "modules", "extension", "tools", "tests", "migrations"}, check: func(output string) error {
 			if strings.TrimSpace(output) != "" {
 				return fmt.Errorf("run gofmt -w on:\n%s", output)
 			}
@@ -40,7 +40,6 @@ func main() {
 		{name: "code shape (HTML in Go strings, file size)", args: []string{"go", "run", "./tools/codeguard"}},
 		{name: "migrations", args: []string{"go", "run", "./tools/migrationguard", "-root", "migrations"}},
 		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json"}},
-		{name: "theme asset versions", args: []string{"go", "run", "./tools/assetguard", "-root", "."}},
 	}
 	if !*short {
 		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}})

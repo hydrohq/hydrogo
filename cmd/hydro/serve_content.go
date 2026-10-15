@@ -2,19 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path/filepath"
 	"time"
 
-	themev1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	formsruntime "github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
@@ -23,7 +17,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/storage"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
@@ -34,35 +27,6 @@ import (
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
 )
-
-// loadTheme loads the configured public theme (newsroom by default). A
-// missing default theme is tolerated; a missing configured one is an error.
-func (a *serveApp) loadTheme() error {
-	cfg, values := a.cfg, a.opts.runtime
-	var selectedTheme *themev1.ThemeBundle
-	themeName := cfg.Theme
-	if themeName == "" {
-		themeName = "newsroom"
-	}
-	if themeName != "" {
-		themeDir := cfg.ThemeDir
-		if !filepath.IsAbs(themeDir) && values.configPath != nil && *values.configPath != "" {
-			candidate := filepath.Join(filepath.Dir(*values.configPath), themeDir)
-			if info, statErr := os.Stat(filepath.Join(candidate, themeName)); statErr == nil && info.IsDir() {
-				themeDir = candidate
-			}
-		}
-		bundle, err := themev1.LoadTheme(themeDir, themeName)
-		if err == nil {
-			selectedTheme = &bundle
-		} else if cfg.Theme != "" {
-			return fmt.Errorf("load theme %q: %w", cfg.Theme, err)
-		}
-	}
-	a.selectedTheme = selectedTheme
-	a.memberHTTP.Theme = selectedTheme
-	return nil
-}
 
 // initMedia wires uploads, the optimizer, object storage and the media HTTP
 // handler.
@@ -125,7 +89,6 @@ func (a *serveApp) initSite() error {
 	ctx, cfg, db, modules, stderr := a.ctx, a.cfg, a.db, a.modules, a.stderr
 	requireTenantScope, tenantScopes, transactioner := a.requireTenantScope, a.tenantScopes, a.transactioner
 	analyticsStore, noCookieHasher, smtpSender := a.analyticsStore, a.noCookieHasher, a.smtpSender
-	newRateLimiter := a.newRateLimiter
 	pageStore := pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	siteStore := sitestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	newsRouteStore := newsstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
@@ -145,17 +108,10 @@ func (a *serveApp) initSite() error {
 	if !modules["site"] {
 		return nil
 	}
-	if modules["members"] {
-		a.memberHTTP.PublicContactSettings = func(settingsCtx context.Context) ([]site.Setting, error) {
-			return siteStore.ListPublicSettings(settingsCtx, db)
-		}
-	}
-	var formViewLimiter security.RateLimiter
 	a.siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, RequireTenantScope: requireTenantScope}
 	siteService := &a.siteService
 	if modules["forms"] && noCookieHasher != nil {
 		siteService.FormMetrics = analyticsStore
-		formViewLimiter = newRateLimiter(120, time.Minute)
 	}
 	redirectRegistry := &site.RedirectRegistry{RequireTenantScope: requireTenantScope}
 	a.redirectRegistry = redirectRegistry
@@ -196,7 +152,7 @@ func (a *serveApp) initSite() error {
 	a.linkScanOrigin = cfg.HTTP.PublicOrigin
 	linkScanManager := linkcheck.NewManager(linkcheck.Options{MaxPages: 500, MaxTargets: 5000, MaxFindings: 1000, Concurrency: 4, RequestDelay: 100 * time.Millisecond, Retention: 35 * 24 * time.Hour})
 	a.linkScanManager = linkScanManager
-	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: siteService, Media: &a.mediaService, Redirects: redirectRegistry, FontsDir: cfg.SEO.FontsDir, FontsEnabled: modules["pages"], SubmissionLimiter: newRateLimiter(3, time.Hour), FormViewLimiter: formViewLimiter, FormMetrics: analyticsStore, VisitorHasher: noCookieHasher, RequireTenantScope: requireTenantScope, FormsEnabled: modules["forms"], Realtime: a.realtimeHub, SitemapOrigin: sitemapOrigin, LinkScanManager: linkScanManager, LinkScanLimiter: newRateLimiter(1, time.Minute), SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
+	siteHTTP := sitetransport.Handler{DB: db, Store: siteStore, Service: siteService, Redirects: redirectRegistry, RequireTenantScope: requireTenantScope, SitemapOrigin: sitemapOrigin, SitemapProvider: func(providerCtx context.Context) ([]site.SitemapEntry, error) {
 		published, err := pageStore.ListPublishedRoutes(providerCtx, db)
 		if err != nil {
 			return nil, err
@@ -211,47 +167,6 @@ func (a *serveApp) initSite() error {
 		}
 		return entries, nil
 	}}
-	if a.contentAssistant.Enabled {
-		siteHTTP.Assistant = a.contentAssistant
-		siteHTTP.AIAudit = a.contentAIAudit
-	}
-	siteHTTP.NavigationLocales = cfg.I18N.Locales
-	if modules["forms"] {
-		proxyRanges, geoErr := geolocation.ParseTrustedProxyRanges(cfg.GeoIP.TrustedProxyCIDRs)
-		if geoErr != nil {
-			return fmt.Errorf("configure form geolocation: %w", geoErr)
-		}
-		resolver := geolocation.Resolver{TrustedProxyRanges: proxyRanges}
-		if cfg.GeoIP.DatabasePath != "" {
-			db, openErr := geolocation.OpenMaxMind(cfg.GeoIP.DatabasePath)
-			if openErr != nil {
-				return fmt.Errorf("open form geolocation database: %w", openErr)
-			}
-			a.onClose(func() error { db.Close(); return nil })
-			resolver.Database = db
-		}
-		siteHTTP.GeoResolver = resolver
-	}
-	if moduleEnabled(cfg.Modules, "pages") {
-		siteHTTP.NavigationSuggestions = func(suggestionCtx context.Context, locale string) ([]site.NavigationSuggestion, error) {
-			suggestions := make([]site.NavigationSuggestion, 0, 200)
-			limitReached := errors.New("navigation suggestion limit reached")
-			err := pageStore.StreamPublishedRoutes(suggestionCtx, db, func(page pages.Page) error {
-				if page.Locale != locale {
-					return nil
-				}
-				suggestions = append(suggestions, site.NavigationSuggestion{Label: page.Title, Href: "/public/pages/" + url.PathEscape(page.Locale) + "/" + url.PathEscape(page.Slug) + "/html"})
-				if len(suggestions) == cap(suggestions) {
-					return limitReached
-				}
-				return nil
-			})
-			if errors.Is(err, limitReached) {
-				return suggestions, nil
-			}
-			return suggestions, err
-		}
-	}
 	siteHTTP.SitemapCategories = []string{}
 	if moduleEnabled(cfg.Modules, "pages") {
 		siteHTTP.SitemapCategories = append(siteHTTP.SitemapCategories, "pages")
@@ -285,13 +200,6 @@ func (a *serveApp) initSite() error {
 			})
 		default:
 			return site.ErrInvalidSEOOrigin
-		}
-	}
-	if modules["forms"] {
-		siteHTTP.AllowedForms = map[string]struct{}{"contact": {}}
-		siteHTTP.MailSpool = spoolStore
-		if cfg.Forms.TurnstileSecretKey != "" {
-			siteHTTP.Turnstile = formsruntime.TurnstileVerifier{Secret: cfg.Forms.TurnstileSecretKey}
 		}
 	}
 	a.siteHTTP = siteHTTP

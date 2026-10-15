@@ -38,7 +38,7 @@ func TestFeedbackHandlerRecordsAggregateAndRendersThanks(t *testing.T) {
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 	FeedbackHandler{Store: store, Now: func() time.Time { return time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC) }}.ServeHTTP(w, r)
-	if w.Code != http.StatusOK || store.tenant != "tenant-a" || store.reaction != "up" || !strings.Contains(w.Body.String(), "Geri bildiriminiz için teşekkürler") {
+	if w.Code != http.StatusOK || store.tenant != "tenant-a" || store.reaction != "up" || !strings.Contains(w.Body.String(), `"up":1`) {
 		t.Fatalf("status=%d store=%+v body=%q", w.Code, store, w.Body.String())
 	}
 }

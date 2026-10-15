@@ -39,8 +39,6 @@ geoip:
 # variable (HYDRO_SENTRY_DSN) in deployed environments.
 observability:
   sentry_dsn: ""
-theme_dir: "themes"
-theme: "corporate"
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,
 # and HYDRO_WEBHOOK_TOPICS in the deployment environment.
 security:

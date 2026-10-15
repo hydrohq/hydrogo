@@ -9,7 +9,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
 type httpAssetRepo struct{ asset Asset }
@@ -88,103 +86,6 @@ func TestPrivateMediaIsNotServedWithoutSession(t *testing.T) {
 	handler.serve(response, httptest.NewRequest(http.MethodGet, "/media/a1", nil))
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("private media status = %d, want 401", response.Code)
-	}
-}
-
-func TestAdminMediaSettingsPersistAndApplyHotlinkProtection(t *testing.T) {
-	repository := &adminSettingsRepoFake{}
-	handler := HTTPHandler{Service: Service{Assets: settingsAssetRepo{}, Optimizer: &Optimizer{}}, SettingsRepository: repository, SettingsCache: NewAdminSettingsCache()}
-	form := url.Values{
-		"hotlink_protection": {"on"}, "allowed_referer_hosts": {"partner.example"},
-		"watermark_enabled": {"on"}, "watermark_text": {"© HydroGo"}, "watermark_position": {"bottom-left"},
-		"watermark_opacity": {"40"}, "watermark_margin": {"16"},
-	}
-	mux := http.NewServeMux()
-	for _, route := range handler.AdminRoutes() {
-		mux.Handle(route.Pattern, route.Handler)
-	}
-	csrf := security.CSRFMiddleware(false, nil)(mux)
-	postSettings := func(token string) *httptest.ResponseRecorder {
-		values := url.Values{}
-		for key, value := range form {
-			values[key] = append([]string(nil), value...)
-		}
-		values.Set("_csrf", token)
-		request := httptest.NewRequest(http.MethodPost, "/admin/media/settings", strings.NewReader(values.Encode()))
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
-		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}))
-		response := httptest.NewRecorder()
-		csrf.ServeHTTP(response, request)
-		return response
-	}
-	invalid := postSettings("wrong-token")
-	if invalid.Code != http.StatusForbidden || repository.found {
-		t.Fatalf("invalid CSRF status=%d saved=%t body=%q", invalid.Code, repository.found, invalid.Body.String())
-	}
-	response := postSettings("valid-token")
-	if response.Code != http.StatusSeeOther {
-		t.Fatalf("save status = %d body=%s", response.Code, response.Body.String())
-	}
-	if !repository.found || !repository.settings.HotlinkProtection || repository.settings.WatermarkOpacity != .4 || repository.settings.WatermarkText != "© HydroGo" {
-		t.Fatalf("saved media settings = %+v", repository.settings)
-	}
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "public.png"), []byte("source-master"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	uploader, err := NewUploader(dir, 1<<20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	handler.Service = Service{Uploader: uploader, Assets: noDerivativeAssetRepo{httpAssetRepo{asset: Asset{ID: "public-asset", StorageKey: "public.png", OriginalFilename: "public.png", MimeType: "image/png", Status: "ready", Visibility: VisibilityPublic}}}}
-	var serve http.Handler
-	for _, route := range handler.Routes() {
-		if route.Pattern == "GET /media/{id}" {
-			serve = route.Handler
-			break
-		}
-	}
-	if serve == nil {
-		t.Fatal("media route missing")
-	}
-	blocked := httptest.NewRecorder()
-	blockedRequest := httptest.NewRequest(http.MethodGet, "/media/public-asset", nil)
-	blockedRequest.Header.Set("Referer", "https://evil.example/article")
-	serve.ServeHTTP(blocked, blockedRequest)
-	if blocked.Code != http.StatusForbidden {
-		t.Fatalf("hotlink response = %d, want 403", blocked.Code)
-	}
-	direct := httptest.NewRecorder()
-	serve.ServeHTTP(direct, httptest.NewRequest(http.MethodGet, "/media/public-asset", nil))
-	if direct.Code != http.StatusServiceUnavailable || strings.Contains(direct.Body.String(), "source-master") {
-		t.Fatalf("watermarked public response = %d body=%q; expected processing response without exposing the master", direct.Code, direct.Body.String())
-	}
-	admin := httptest.NewRecorder()
-	adminRequest := httptest.NewRequest(http.MethodGet, "/media/public-asset", nil)
-	adminRequest = adminRequest.WithContext(auth.WithUser(adminRequest.Context(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
-	serve.ServeHTTP(admin, adminRequest)
-	if admin.Code != http.StatusOK || !strings.Contains(admin.Body.String(), "source-master") {
-		t.Fatalf("authorized master response = %d body=%q", admin.Code, admin.Body.String())
-	}
-	if err := os.WriteFile(filepath.Join(dir, "video.mp4"), []byte("video"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	handler.Service.Assets = httpAssetRepo{asset: Asset{ID: "public-video", StorageKey: "video.mp4", MimeType: "video/mp4", Status: "ready", Visibility: VisibilityPublic}}
-	var mediaRoute http.Handler
-	for _, route := range handler.Routes() {
-		if route.Pattern == "GET /media/{id}" {
-			mediaRoute = route.Handler
-			break
-		}
-	}
-	video := httptest.NewRecorder()
-	videoRequest := httptest.NewRequest(http.MethodGet, "/media/public-video", nil)
-	videoRequest.Header.Set("Referer", "https://evil.example/article")
-	mediaRoute.ServeHTTP(video, videoRequest)
-	if video.Code != http.StatusOK {
-		t.Fatalf("video response under image hotlink protection = %d, want 200", video.Code)
 	}
 }
 
@@ -504,32 +405,6 @@ func TestMediaReadyRejectsOversizedFormBody(t *testing.T) {
 	}
 	assertReadyStatus("visibility=public", http.StatusOK)
 	assertReadyStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
-}
-
-func TestAdminVisibilityRejectsOversizedFormBody(t *testing.T) {
-	uploader, err := NewUploader(t.TempDir(), 1<<20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	db, err := database.Open(context.Background(), database.SQLite, "file:media-visibility-bound?mode=memory&cache=shared")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: visibilityAssetRepo{httpAssetRepo{asset: Asset{ID: "a1", Status: "ready"}}}, Transactions: database.NewTransactor(db)}}
-	assertVisibilityStatus := func(body string, want int) {
-		t.Helper()
-		request := httptest.NewRequest(http.MethodPost, "/admin/media/a1/visibility", strings.NewReader(body))
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "admin", Active: true, Role: auth.RoleAdmin}))
-		response := httptest.NewRecorder()
-		handler.adminVisibility(response, request)
-		if response.Code != want {
-			t.Fatalf("admin visibility status = %d, want %d", response.Code, want)
-		}
-	}
-	assertVisibilityStatus("visibility=public", http.StatusSeeOther)
-	assertVisibilityStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
 }
 
 func TestAssetServingIncludesNosniffHeader(t *testing.T) {

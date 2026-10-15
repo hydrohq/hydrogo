@@ -11,22 +11,18 @@ import (
 	"strings"
 	"time"
 
+	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 type Route struct {
@@ -42,25 +38,10 @@ type Handler struct {
 	MediaLookup interface {
 		Get(context.Context, database.Executor, string) (media.Asset, error)
 	}
-	AdminCollection    adminstudio.Collection
 	DefaultLocale      string
 	PublicOrigin       string
-	NavigationProvider func(context.Context, string) ([]v1.ThemeNavigationItem, error)
-	ContentViews       interface {
-		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
-	}
-	Feedback interface {
-		FeedbackTotals(context.Context, string, string, string) (analytics.FeedbackTotals, error)
-		FeedbackCounts(context.Context, string, string, []string) (map[string]analytics.FeedbackTotals, error)
-	}
-	RequireTenantScope    bool
-	AnalyticsEnabled      bool
-	PreviewSigner         *preview.Signer
-	PublicSupport         adminstudio.SupportConfig
-	Presence              *realtime.Presence
-	PublicContactSettings func(context.Context) ([]site.Setting, error)
-	// Theme renders the public news pages; nil uses the built-in views.
-	Theme *v1.ThemeBundle
+	RequireTenantScope bool
+	Presence           *realtime.Presence
 }
 
 type publicMediaURLProvider interface {
@@ -136,27 +117,12 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.retract)},
 		{Pattern: "GET /api/news", Handler: http.HandlerFunc(h.publicList)},
 		{Pattern: "GET /api/news/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
-		{Pattern: "GET /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminList)},
-		{Pattern: "GET /admin/news/new", Protected: true, Handler: http.HandlerFunc(h.adminNewPage)},
-		{Pattern: "GET /admin/news/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomyCatalog)},
-		{Pattern: "POST /admin/news", Protected: true, Handler: http.HandlerFunc(h.adminCreate)},
-		{Pattern: "POST /admin/news/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomyTerm)},
-		{Pattern: "POST /admin/news/taxonomy/{id}/delete", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomyTermDelete)},
-		{Pattern: "GET /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminPage)},
-		{Pattern: "POST /admin/news/{id}", Protected: true, Handler: http.HandlerFunc(h.adminUpdate)},
-		{Pattern: "POST /admin/news/{id}/taxonomy", Protected: true, Handler: http.HandlerFunc(h.adminTaxonomy)},
-		{Pattern: "POST /admin/news/{id}/schedule", Protected: true, Handler: http.HandlerFunc(h.adminSchedule)},
-		{Pattern: "POST /admin/news/{id}/publish", Protected: true, Handler: http.HandlerFunc(h.adminPublish)},
-		{Pattern: "POST /admin/news/{id}/retract", Protected: true, Handler: http.HandlerFunc(h.adminRetract)},
-		{Pattern: "GET /public/news/{locale}/{slug}/html", Handler: http.HandlerFunc(h.publicGetHTML)},
-		{Pattern: "GET /public/news/{locale}/html", Handler: http.HandlerFunc(h.publicListHTML)},
 		{Pattern: "GET /public/news/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
-		{Pattern: "POST /admin/news/{id}/preview", Protected: true, Handler: http.HandlerFunc(h.adminPreview)},
 	}
 	if h.Presence != nil {
 		routes = append(routes,
-			Route{Pattern: "POST /admin/news/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceHeartbeat)},
-			Route{Pattern: "GET /admin/news/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceList)},
+			Route{Pattern: "POST /api/news/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceHeartbeat)},
+			Route{Pattern: "GET /api/news/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceList)},
 		)
 	}
 	return routes
@@ -308,12 +274,6 @@ func (h Handler) retract(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) publicGet(w http.ResponseWriter, r *http.Request) {
-	// Browser links may use the short public URL. Keep the JSON contract for
-	// API clients while serving the editorial page when HTML is requested.
-	if strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html") {
-		h.publicGetHTML(w, r)
-		return
-	}
 	h.publicGetWithRoute(w, r, r.PathValue("locale"), r.PathValue("slug"))
 }
 

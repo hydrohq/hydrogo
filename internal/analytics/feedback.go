@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
 )
 
 type FeedbackStore interface {
@@ -67,11 +67,8 @@ func (h FeedbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	props := designsystem.HelpfulFeedbackProps{ElementID: elementID, CSRF: security.CSRFTokenFromContext(r.Context()), Up: totals.Up, Down: totals.Down}
-	if err := designsystem.HelpfulFeedbackThanks(props).Render(r.Context(), w); err != nil {
-		http.Error(w, "Feedback is temporarily unavailable", http.StatusServiceUnavailable)
-	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"element_id": elementID, "up": totals.Up, "down": totals.Down})
 }
 
 func validFeedbackElementID(value string) bool {

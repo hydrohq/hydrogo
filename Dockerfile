@@ -21,13 +21,12 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -S hydro \
     && adduser -S -G hydro -h /app hydro \
-    && mkdir -p /app/data /app/themes /app/migrations \
+    && mkdir -p /app/data /app/migrations \
     && chown -R hydro:hydro /app
 
 WORKDIR /app
 COPY --from=build /out/hydro /app/hydro
 COPY --from=build /src/hydrogo.lock /app/hydrogo.lock
-COPY --from=build /src/themes /app/themes
 COPY --from=build /src/config.example.yaml /app/config.example.yaml
 
 USER hydro

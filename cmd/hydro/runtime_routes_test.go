@@ -110,7 +110,9 @@ func testRuntimeStandaloneShutdown(t *testing.T, optional []string) {
 		if !ready {
 			t.Fatalf("standalone runtime did not become ready within 15s\nstdout:\n%s\nstderr:\n%s", &stdout, &stderr)
 		}
-		response, requestErr := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/admin/resources")
+		// faq is a public content type: the collections module registers its
+		// read API only when it is enabled.
+		response, requestErr := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/api/v1/content/faq")
 		if requestErr != nil {
 			_ = cmd.Process.Kill()
 			<-exited
@@ -118,10 +120,10 @@ func testRuntimeStandaloneShutdown(t *testing.T, optional []string) {
 		}
 		_ = response.Body.Close()
 		collectionsEnabled := slices.Contains(optional, "collections")
-		if collectionsEnabled && response.StatusCode != http.StatusUnauthorized && response.StatusCode != http.StatusSeeOther {
+		if collectionsEnabled && response.StatusCode != http.StatusOK {
 			_ = cmd.Process.Kill()
 			<-exited
-			t.Fatalf("enabled collections route status = %d, want protected route response", response.StatusCode)
+			t.Fatalf("enabled collections route status = %d, want 200", response.StatusCode)
 		}
 		if !collectionsEnabled && response.StatusCode != http.StatusNotFound {
 			_ = cmd.Process.Kill()
@@ -155,10 +157,6 @@ func testRuntimeStandaloneShutdown(t *testing.T, optional []string) {
 // "http") and therefore which parent test the -test.run regex re-enters.
 func runtimeRouteChild(t *testing.T, mode string, optional []string) *exec.Cmd {
 	t.Helper()
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
 	executable, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +192,6 @@ func runtimeRouteChild(t *testing.T, mode string, optional []string) *exec.Cmd {
 	}
 	cmd.Env = append(cmd.Env,
 		"HYDRO_ROUTE_TABLE_TEST_CHILD="+mode,
-		"HYDRO_THEME_DIR="+filepath.Join(root, "themes"),
 	)
 	if mode == "cgi" {
 		cmd.Env = append(cmd.Env,

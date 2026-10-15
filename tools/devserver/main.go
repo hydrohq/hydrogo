@@ -32,7 +32,6 @@ const (
 	statusPath = "/__hydrogo/dev/status"
 	clientPath = "/__hydrogo/dev/client.js"
 	stylePath  = "/__hydrogo/dev/client.css"
-	templCLI   = "github.com/a-h/templ/cmd/templ@v0.3.1020"
 )
 
 func main() {
@@ -73,18 +72,6 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if hasTemplSources(root) {
-		templBinary, err := resolveTemplBinary(ctx, root)
-		if err != nil {
-			fatal(fmt.Errorf("prepare Templ generator: %w", err))
-		}
-		if err := runTemplGenerate(ctx, root, templBinary, os.Stdout, os.Stderr); err != nil {
-			fatal(fmt.Errorf("generate Templ views: %w", err))
-		}
-		if err := startTemplWatcher(ctx, root, templBinary); err != nil {
-			fatal(fmt.Errorf("start Templ watcher: %w", err))
-		}
-	}
 	status := &state{Phase: "starting", Progress: 5, Message: "Preparing development server…"}
 	supervisor := &supervisor{root: root, binary: binary, appAddress: *appAddress, databaseDSN: *databaseDSN, redisURL: *redisURL, state: status}
 	supervisor.rebuild(ctx, "initial build complete", true)

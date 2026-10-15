@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/trash"
 	trashstore "github.com/ardaozyildirim/hydrogo/internal/trash/sqlstore"
 	trashtransport "github.com/ardaozyildirim/hydrogo/internal/trash/transport"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 // collectionRoutes registers the YAML content types under /admin/resources
@@ -91,11 +89,6 @@ func (a *serveApp) searchRoutes() []router.Route {
 	}
 	var routes []router.Route
 	routes = append(routes, router.Route{Pattern: "GET /api/v1/search/autocomplete", Access: router.Public, Handler: adminsearch.AutocompleteHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}})
-	autocomplete := adminsearch.AutocompleteHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope, Modules: modules}
-	routes = append(routes, router.Route{Pattern: "GET /search", Access: router.Public, Handler: adminsearch.PublicSearchHandler{Autocomplete: autocomplete, Recorder: a.searchQueryQueue}})
-	if modules["analytics"] {
-		routes = append(routes, router.Route{Pattern: "GET /admin/search-insights", Access: router.Protected, Handler: adminsearch.SearchInsightsHandler(a.analyticsStore, requireTenantScope)})
-	}
 	return routes
 }
 
@@ -126,67 +119,6 @@ func (a *serveApp) pageRoutes() []router.Route {
 	return pageRoutes
 }
 
-// homeRoutes registers the locale landing pages, the site root and /docs.
-func (a *serveApp) homeRoutes() []router.Route {
-	cfg := a.cfg
-	localeEnabled := cfg.I18N.Enabled && len(cfg.I18N.Locales) > 0
-	return []router.Route{{Pattern: "GET /{locale}/", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		locale := configuredLocale(r.PathValue("locale"), cfg.I18N.Locales)
-		if !localeEnabled || locale == "" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		writeTrustedHTML(w, technicalHomeWithLocales(locale, cfg.I18N.Locales, publicHomePath(locale), demoFrontendEnabled()))
-	})}, {Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.siteRootPage)}, {Pattern: "GET /docs", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lang := r.URL.Query().Get("lang")
-		if lang != "tr" {
-			lang = "en"
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Language", lang)
-		writeTrustedHTML(w, docsPortalHTML(lang))
-	})}}
-}
-
-// siteRootPage serves "/": locale negotiation, then the configured public
-// home page, the news index, or the technical home page.
-func (a *serveApp) siteRootPage(w http.ResponseWriter, r *http.Request) {
-	cfg, db, modules, siteStore := a.cfg, a.db, a.modules, a.siteStore
-	localeEnabled := cfg.I18N.Enabled && len(cfg.I18N.Locales) > 0
-	if r.URL.Path == "/" {
-		if localeEnabled {
-			selected, manual := requestedLocale(r, cfg.I18N.Locales, cfg.I18N.DefaultLocale)
-			if manual {
-				http.SetCookie(w, &http.Cookie{Name: "hydro_locale", Value: selected, Path: "/", MaxAge: 31536000, HttpOnly: true, Secure: cfg.Security.SecureCookies, SameSite: http.SameSiteLaxMode})
-				localeRedirect(w, r, selected)
-				return
-			}
-			if selected != "" && !strings.EqualFold(selected, cfg.I18N.DefaultLocale) {
-				localeRedirect(w, r, selected)
-				return
-			}
-		}
-		homePath := ""
-		if modules["site"] {
-			if settings, err := siteStore.ListPublicSettings(r.Context(), db); err == nil {
-				homePath = site.ResolvePublicHomePath(settings, "")
-			}
-		}
-		if homePath == "" && modules["news"] {
-			homePath = "/public/news/" + url.PathEscape(cfg.I18N.DefaultLocale) + "/html"
-		}
-		if homePath != "" && homePath != "/" {
-			http.Redirect(w, r, homePath, http.StatusFound)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		writeTrustedHTML(w, technicalHomeWithLocales(cfg.I18N.DefaultLocale, cfg.I18N.Locales, publicHomePath(cfg.I18N.DefaultLocale), demoFrontendEnabled()))
-		return
-	}
-	http.NotFound(w, r)
-}
-
 func (a *serveApp) analyticsRoutes() []router.Route {
 	if !a.modules["analytics"] {
 		return nil
@@ -203,8 +135,7 @@ func (a *serveApp) mediaRoutes() []router.Route {
 	if !a.modules["media"] {
 		return nil
 	}
-	routes := mediaRouterRoutes(a.mediaHTTP.AdminRoutes())
-	return append(routes, mediaRouterRoutes(a.mediaHTTP.Routes())...)
+	return mediaRouterRoutes(a.mediaHTTP.Routes())
 }
 
 // siteRoutes registers the site module; mutations purge cached public HTML.

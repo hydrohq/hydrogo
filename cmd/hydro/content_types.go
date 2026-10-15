@@ -2,28 +2,22 @@ package main
 
 import (
 	"context"
-	"crypto/subtle"
 	"fmt"
 	"net/http"
-
-	"github.com/a-h/templ"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 )
 
 // contentTypeRoutes loads the YAML content types in dir, syncs their schemas
 // into collection storage (once per tenant scope when tenancy is on) and
-// returns the admin and public routes for them. A missing or empty directory
-// yields no routes. Localized fields get locale tabs in the admin only when
-// locales has more than one locale (site i18n enabled); otherwise they are
-// plain fields.
+// returns the public read routes for them. A missing or empty directory
+// yields no routes. Rich text is returned as stored; rendering it is the
+// frontend's job.
 func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales) ([]router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
@@ -48,49 +42,11 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 			return nil, fmt.Errorf("content types: sync schemas: %w", err)
 		}
 	}
-	registry, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled()))
-	if err != nil {
+	if _, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled())); err != nil {
 		return nil, fmt.Errorf("content types: admin registry: %w", err)
 	}
-	api := contenttypes.AdminAPI{Service: service, Types: types, Actor: contentTypeActor, Locales: locales}
-	options := adminstudio.GeneratedAdminOptions{
-		API:             api,
-		Authorize:       isActiveAdmin,
-		CanTransition:   api.CanTransition,
-		Transition:      api.Transition,
-		ListRevisions:   api.ListRevisions,
-		GetRevision:     api.GetRevision,
-		CanRestore:      api.CanRestore,
-		RestoreRevision: api.RestoreRevision,
-		CanReadResource: func(*http.Request, adminstudio.Collection) bool { return true },
-		CSRFToken:       func(r *http.Request) string { return security.CSRFTokenFromContext(r.Context()) },
-		ValidateCSRF: func(r *http.Request) bool {
-			expected := security.CSRFTokenFromContext(r.Context())
-			return expected != "" && r.ParseForm() == nil && subtle.ConstantTimeCompare([]byte(r.FormValue("_csrf")), []byte(expected)) == 1
-		},
-		RenderPage: renderContentTypePage,
-	}
-	if locales.Enabled() {
-		options.Locales = api.LocaleOptions
-		options.GetLocalized = api.GetLocalized
-		options.SaveLocalized = api.SaveLocalized
-		options.ListLocalized = api.ListLocalized
-		options.CanCopyLocale = api.CanCopyLocale
-		options.CopyLocale = api.CopyLocale
-	}
-	admin := adminstudio.GeneratedAdminHandler{Registry: registry, Options: options}
-	// Register validates the options; the routes themselves go through the
-	// application router so they get the standard protection and logging.
-	if err := admin.Register(http.NewServeMux()); err != nil {
-		return nil, fmt.Errorf("content types: admin: %w", err)
-	}
-	public := contenttypes.PublicAPI{Service: service, Types: types, RenderRichText: ui.RichTextHTML, Locales: locales}
-	// Patterns carry methods: a method-less prefix would conflict with the
-	// public "GET /{locale}/" route in net/http's mux.
+	public := contenttypes.PublicAPI{Service: service, Types: types, Locales: locales}
 	return []router.Route{
-		{Pattern: "GET " + contenttypes.AdminBasePath, Access: router.Protected, Handler: admin},
-		{Pattern: "GET " + contenttypes.AdminBasePath + "/", Access: router.Protected, Handler: admin},
-		{Pattern: "POST " + contenttypes.AdminBasePath + "/", Access: router.Protected, Handler: admin},
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.List)},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Get)},
 	}, nil
@@ -107,14 +63,4 @@ func contentTypeActor(r *http.Request) string {
 		return user.Email
 	}
 	return ""
-}
-
-func renderContentTypePage(w http.ResponseWriter, r *http.Request, title string, body templ.Component) error {
-	if err := ui.AdminStartForRequest(w, r, title, "", "content-types"); err != nil {
-		return err
-	}
-	if err := body.Render(r.Context(), w); err != nil {
-		return err
-	}
-	return ui.AdminEnd(w)
 }

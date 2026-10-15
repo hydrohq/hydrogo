@@ -13,7 +13,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -165,11 +164,6 @@ func (h Handler) createPreviewLink(w http.ResponseWriter, r *http.Request) {
 		target = strings.TrimRight(h.PreviewOrigin, "/") + target
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = ui.DraftPreviewLinkResult(target, now.Add(24*time.Hour).Format(time.RFC3339)).Render(r.Context(), w)
-		return
-	}
 	api.WriteJSON(w, http.StatusCreated, map[string]any{"url": target, "expires_at": now.Add(24 * time.Hour)})
 }
 

@@ -8,8 +8,6 @@ database:
   dsn: ""
 media:
   dir: data/media
-theme_dir: themes
-theme: corporate
 security:
   secure_cookies: false
   enable_hsts: false

@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
@@ -20,7 +18,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
 type Handler struct {
@@ -39,44 +36,6 @@ type Handler struct {
 	VerificationLimiter  security.RateLimiter
 	PublicOrigin         string
 	VerificationEnabled  bool
-	// Theme renders the public member pages; nil uses the built-in views.
-	Theme *v1.ThemeBundle
-	// OAuthProviderNames lists the social providers configured for member
-	// sign-in ("google", "github", "apple"), in display order. Empty hides
-	// the social sign-in section entirely.
-	OAuthProviderNames []string
-	// PublicContactSettings, when set, supplies the site's public settings
-	// (modules/site) so member pages can carry the admin's Appearance brand
-	// tokens, same as modules/pages and modules/news.
-	PublicContactSettings func(context.Context) ([]site.Setting, error)
-}
-
-// memberResponseWriter removes legacy client-side member state persistence
-// from rendered auth pages. Session cookies and /member/me remain the only
-// source of truth; member identity must not survive in browser storage.
-// Document language and site links are not rewritten here: the member views
-// receive the locale in their view model (memberSiteView) and render it.
-type memberResponseWriter struct {
-	http.ResponseWriter
-}
-
-func (w memberResponseWriter) Write(payload []byte) (int, error) {
-	output := string(payload)
-	output = strings.ReplaceAll(output, "if(data&&data.member){try{localStorage.setItem('hydro_member_state',JSON.stringify(data.member));if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGIN',member:data.member});}}catch(e){}}", "")
-	output = strings.ReplaceAll(output, "try{localStorage.removeItem('hydro_member_state');if(typeof BroadcastChannel!=='undefined'){new BroadcastChannel('hydro_member_auth').postMessage({type:'LOGOUT'});}}catch(e){}", "")
-	output = strings.ReplaceAll(output, "Bağlantı hatası: Sunucuya ulaşılamadı ('+err.message+').", "Bağlantı hatası: Sunucuya ulaşılamadı.")
-	// Only extend a policy that is already set. Behind a capturing middleware
-	// (custom code injection) the header map starts empty, and writing a
-	// hash-only policy there replaced the site-wide CSP and blocked every
-	// same-origin stylesheet and script on the page.
-	if policy := w.Header().Get("Content-Security-Policy"); policy != "" {
-		w.Header().Set("Content-Security-Policy", security.MergeCSP(policy, security.InlineCSPDirectives([]byte(output))))
-	}
-	return w.ResponseWriter.Write([]byte(output))
-}
-
-func sanitizeMemberResponse(w http.ResponseWriter) http.ResponseWriter {
-	return memberResponseWriter{ResponseWriter: w}
 }
 
 func (h Handler) defaultLocale() string {
@@ -100,10 +59,6 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "GET /api/v1/mobile/member/me", Access: router.Public, Handler: http.HandlerFunc(h.mobileMe)},
 		{Pattern: "GET /api/v1/mobile/member/orders", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrders)},
 		{Pattern: "GET /api/v1/mobile/member/orders/{orderID}", Access: router.Public, Handler: http.HandlerFunc(h.mobileOrder)},
-		{Pattern: "GET /member/assets/member-auth.js", Access: router.Public, Handler: http.HandlerFunc(serveMemberAuthScript)},
-		{Pattern: "GET /member/login", Access: router.Public, Handler: http.HandlerFunc(h.loginPage)},
-		{Pattern: "GET /member/register", Access: router.Public, Handler: http.HandlerFunc(h.registerPage)},
-		{Pattern: "GET /member/account", Access: router.Public, Handler: http.HandlerFunc(h.accountPage)},
 		{Pattern: "POST /member/register", Access: router.Public, Handler: http.HandlerFunc(h.register)},
 		{Pattern: "POST /member/login", Access: router.Public, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /member/logout", Access: router.Public, Handler: http.HandlerFunc(h.logout)},
@@ -111,10 +66,6 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "GET /member/orders", Access: router.Public, Handler: http.HandlerFunc(h.memberOrders)},
 
 		// Admin routes (Protected, RoleAdmin checked)
-		{Pattern: "GET /admin/members", Access: router.Protected, Handler: http.HandlerFunc(h.adminList)},
-		{Pattern: "GET /admin/members/export.xlsx", Access: router.Protected, Handler: http.HandlerFunc(h.adminExportXLSX)},
-		{Pattern: "GET /admin/members/export.csv", Access: router.Protected, Handler: http.HandlerFunc(h.adminExportCSV)},
-		{Pattern: "GET /admin/members/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminDetail)},
 		{Pattern: "POST /admin/members/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
 		{Pattern: "POST /admin/members/{id}/active", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
 		{Pattern: "POST /admin/members/{id}/verify-email", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetEmailVerified)},
@@ -200,28 +151,6 @@ func (h Handler) mobileOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteJSON(w, http.StatusOK, order)
-}
-
-func (h Handler) loginPage(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
-		if _, _, err := h.Service.ValidateSession(r.Context(), cookie.Value); err == nil {
-			returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
-			http.Redirect(w, r, returnTo, http.StatusSeeOther)
-			return
-		}
-	}
-	h.writeMemberAuthPage(w, r, false)
-}
-
-func (h Handler) registerPage(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
-		if _, _, err := h.Service.ValidateSession(r.Context(), cookie.Value); err == nil {
-			returnTo := security.SafeReturnPath(r.URL.Query().Get("return_to"), "/member/account")
-			http.Redirect(w, r, returnTo, http.StatusSeeOther)
-			return
-		}
-	}
-	h.writeMemberAuthPage(w, r, true)
 }
 
 const maxMemberFormBytes = 16 << 10

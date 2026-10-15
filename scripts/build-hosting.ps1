@@ -22,4 +22,4 @@ go build -trimpath -buildvcs=false -ldflags="-s -w -buildid=" -o $Out ./cmd/hydr
 if ($LASTEXITCODE -ne 0) { throw "hosting build failed" }
 
 Write-Host "PASS: built $Out for $Goos/$Goarch (CGI/FastCGI shared hosting)."
-Write-Host "Upload alongside config.yaml, themes/, and deploy/hosting/.htaccess per deploy/hosting/README.md."
+Write-Host "Upload alongside config.yaml and deploy/hosting/.htaccess per deploy/hosting/README.md."

@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -29,10 +28,10 @@ import (
 	pushservice "github.com/ardaozyildirim/hydrogo/internal/push"
 	pushstore "github.com/ardaozyildirim/hydrogo/internal/push/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -224,12 +223,6 @@ func (a *serveApp) initOptionalModules() error {
 				return fmt.Errorf("configure member social sign-in: %w", err)
 			}
 			a.memberOAuthHTTP = memberOAuth
-			if memberOAuth != nil {
-				for name := range memberOAuth.Providers {
-					a.memberHTTP.OAuthProviderNames = append(a.memberHTTP.OAuthProviderNames, name)
-				}
-				sort.Strings(a.memberHTTP.OAuthProviderNames)
-			}
 		}
 	}
 	return nil
@@ -313,7 +306,7 @@ func (a *serveApp) initPublicCaches() error {
 		Outbox:       outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
 		PublicCache:  publicPageCache,
 		Realtime:     a.realtimeHub,
-		Sanitize:     ui.NewHTMLSanitizer().Sanitize,
+		Sanitize:     richtext.NewSanitizer().Sanitize,
 	}
 	if staticCacheDir != "" || publicHTMLCache != nil {
 		contentService.PublicRoutePurge = func(locale, slug string) {

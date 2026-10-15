@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
@@ -24,10 +23,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	opts, cfg, err := parseServeArgs(args, stderr)
 	if err != nil {
 		return err
-	}
-	extensionRegistry, err := adminstudio.LoadSignedAdminExtensions(cfg.AdminExtensions.ManifestDir, cfg.AdminExtensions.TrustedKeysFile)
-	if err != nil {
-		return fmt.Errorf("admin extensions: %w", err)
 	}
 	tenantResolver, tenantScopes, err := configureTenancy(cfg)
 	if err != nil {
@@ -62,7 +57,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		opts:               opts,
 		cfg:                cfg,
 		devMode:            devMode,
-		extensionRegistry:  extensionRegistry,
 		tenantResolver:     tenantResolver,
 		tenantScopes:       tenantScopes,
 		requireTenantScope: cfg.Tenancy.Enabled,
@@ -80,7 +74,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		app.initMail,
 		app.initPublicCaches,
 		app.startScheduledBackup,
-		app.loadTheme,
 		app.initMedia,
 		app.initSite,
 		app.initNews,

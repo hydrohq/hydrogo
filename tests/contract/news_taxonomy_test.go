@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"

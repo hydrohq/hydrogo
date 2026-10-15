@@ -9,7 +9,7 @@ import (
 
 // TestTokenHandlerIssuesCookieAndMatchingJSONToken proves the lazy client-side
 // token-fetch path public pages/articles rely on (see
-// modules/designsystem/assets/feedback.js) when CSRFMiddleware's
+// a browser client) when CSRFMiddleware's
 // skipCookieFor omitted a cookie from the page itself: GET /csrf-token
 // (wired behind the normal, non-skipping CSRFMiddleware path) sets the
 // cookie and returns the same value as JSON.

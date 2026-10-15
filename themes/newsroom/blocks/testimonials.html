@@ -1,9 +1,0 @@
-{{/* Intentionally minimal: hand-authored visual design removed before the next design attempt. */}}
-<section data-block="testimonials">
-  {{range .Payload.items}}
-  <blockquote>
-    <p>{{if .quote}}{{.quote}}{{else if .Quote}}{{.Quote}}{{end}}</p>
-    <cite>{{if .name}}{{.name}}{{else if .Name}}{{.Name}}{{end}}</cite>
-  </blockquote>
-  {{end}}
-</section>

@@ -120,11 +120,4 @@ func TestPushUIAndWorkerAreModuleRouteResources(t *testing.T) {
 	if worker.Code != 200 || worker.Header().Get("Service-Worker-Allowed") != "/" || !strings.Contains(worker.Body.String(), "notificationclick") {
 		t.Fatalf("worker status=%d headers=%v", worker.Code, worker.Header())
 	}
-	page := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/admin/push", nil)
-	req = req.WithContext(auth.WithUser(req.Context(), &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}))
-	handler.adminPage(page, req)
-	if page.Code != 403 {
-		t.Fatalf("non-admin push access status=%d", page.Code)
-	}
 }

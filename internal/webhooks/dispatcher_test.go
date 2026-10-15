@@ -97,3 +97,9 @@ func TestDispatcherRejectsInvalidRedirectTarget(t *testing.T) {
 		t.Fatal("invalid redirect target received a request")
 	}
 }
+
+type webhookRoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f webhookRoundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}

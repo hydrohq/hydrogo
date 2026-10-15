@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -14,17 +12,12 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
-	mailstore "github.com/ardaozyildirim/hydrogo/internal/mailer/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
-	"github.com/ardaozyildirim/hydrogo/internal/ui"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
 	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/designsystem"
-	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 )
 
@@ -102,31 +95,25 @@ func (a *serveApp) cgiLazyCron(cronCtx context.Context) {
 	}
 }
 
-// mailerRoutes are the email test, branding, verification and DNS
-// diagnostics routes (admin-only; each handler checks the admin role).
+// mailerRoutes are the e-mail verification routes (admin-only; the handler
+// checks the admin role).
 func (a *serveApp) mailerRoutes() []router.Route {
-	cfg, db, modules, smtpSender := a.cfg, a.db, a.modules, a.smtpSender
+	cfg, modules, smtpSender := a.cfg, a.modules, a.smtpSender
 	userStore, auditRecorder := a.userStore, a.auditRecorder
 	newRateLimiter := a.newRateLimiter
 	var routes []router.Route
 	if smtpSender != nil && modules["auth"] {
-		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}}, router.Route{Pattern: "POST /admin/api/mailer/test-preview", Access: router.Protected, Handler: mailer.TestPreviewHandler{Sender: smtpSender}})
-		brandingHandler := mailer.EmailBrandingHandler{Settings: mailstore.EmailBrandingStore{DB: db, Dialect: cfg.Database.Dialect}, Audit: auditRecorder}
-		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/branding", Access: router.Protected, Handler: brandingHandler}, router.Route{Pattern: "POST /admin/mailer/branding", Access: router.Protected, Handler: brandingHandler})
 		verifyNotifier := auth.EmailVerificationNotifierFunc(func(notifyCtx context.Context, email, link string) error {
 			return (mailer.NotificationSender{Sender: smtpSender}).SendEmailVerification(notifyCtx, email, link)
 		})
 		verificationHandler := auth.EmailVerificationHandler{Service: auth.EmailVerificationService{Users: userStore, Tokens: userStore}, Transactions: a.transactioner, Notifier: verifyNotifier, PublicOrigin: cfg.HTTP.PublicOrigin, Limiter: newRateLimiter(3, time.Hour), AdminUsers: userStore, Audit: auditRecorder}
 		routes = append(routes, verificationHandler.Routes()...)
 	}
-	if modules["auth"] && strings.TrimSpace(cfg.Mail.From) != "" {
-		routes = append(routes, router.Route{Pattern: "GET /admin/mailer/dns-diagnostics", Access: router.Protected, Handler: mailer.DNSDiagnosticsHandler{From: cfg.Mail.From, Selector: cfg.Mail.DKIMSelector}})
-	}
 	return routes
 }
 
-// serverConfig assembles server.Config: security headers and CSP hashes,
-// panic reporting, maintenance mode, error pages and readiness checks.
+// serverConfig assembles server.Config: security headers, panic reporting,
+// maintenance mode and readiness checks.
 func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 	cfg, db, modules := a.cfg, a.db, a.modules
 	siteStore, authHTTP, budget := a.siteStore, a.authHTTP, a.budget
@@ -139,28 +126,9 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		}
 		a.onClose(func() error { panicReporter.Close(); return nil })
 	}
-	adminScriptHashes, err := ui.AdminScriptHashes()
-	if err != nil {
-		return server.Config{}, fmt.Errorf("Admin script CSP catalog: %w", err)
-	}
-	adminScriptHashes = append(adminScriptHashes, media.AdminScriptHashes()...)
-	if modules["news"] {
-		adminScriptHashes = append(adminScriptHashes, newstransport.AdminScriptHashes()...)
-	}
 	return server.Config{
-		Address:  cfg.HTTP.Address,
-		SafeMode: cfg.SafeMode,
-		CustomCodeProvider: func(r *http.Request) (string, string) {
-			if !modules["site"] || cfg.SafeMode {
-				return "", ""
-			}
-			setting, found, settingErr := siteStore.GetSetting(r.Context(), db, site.CustomCodeSettingKey)
-			if settingErr != nil || !found {
-				return "", ""
-			}
-			code := site.CustomCodeFromSetting(setting)
-			return code.Head, code.Body
-		},
+		Address:         cfg.HTTP.Address,
+		SafeMode:        cfg.SafeMode,
 		AutoTLS:         cfg.HTTP.AutoTLS,
 		TLSHost:         cfg.HTTP.Domain,
 		TLSCacheDir:     filepath.Join(filepath.Dir(cfg.Media.Dir), "certs"),
@@ -182,7 +150,6 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		},
 		EnableHSTS:            cfg.Security.EnableHSTS,
 		SecurityHeadersPreset: cfg.Security.HeadersPreset,
-		SecurityScriptHashes:  adminScriptHashes,
 		AdminSupport:          adminstudio.SupportConfig{Enabled: cfg.AdminSupport.Enabled, AgencyName: cfg.AdminSupport.AgencyName, Email: cfg.AdminSupport.Email, Phone: cfg.AdminSupport.Phone, WhatsAppURL: cfg.AdminSupport.WhatsAppURL, SLABadge: cfg.AdminSupport.SLABadge, GuideURL: cfg.AdminSupport.GuideURL, SafeModeActive: cfg.SafeMode, SiteModuleEnabled: modules["site"], CommerceModuleEnabled: modules["commerce"], CollectionsModuleEnabled: modules["collections"], Modules: modules, ContentTypes: a.contentTypeLinks},
 		AdminSupportResolver: func(r *http.Request) adminstudio.SupportConfig {
 			if !modules["site"] {
@@ -212,26 +179,6 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		MaxInFlightRequests: budget.MaxInFlightHTTP,
 		PublicOrigin:        cfg.HTTP.PublicOrigin,
 		PublicAPIOrigins:    cfg.Security.PublicAPIOrigins,
-		PublicErrorPage: func(errorCtx context.Context, status int) ([]byte, bool) {
-			if !modules["site"] {
-				return nil, false
-			}
-			settings, settingsErr := siteStore.ListPublicSettings(errorCtx, db)
-			if settingsErr != nil {
-				settings = nil
-			}
-			page := site.ErrorPageFromSettings(settings, status)
-			links := make([]designsystem.PublicErrorLink, 0, len(page.Links))
-			for _, link := range page.Links {
-				links = append(links, designsystem.PublicErrorLink{Label: link.Label, URL: link.URL})
-			}
-			var body bytes.Buffer
-			props := designsystem.PublicErrorPageProps{Status: status, Headline: page.Headline, Message: page.Message, ImageURL: page.ImageURL, ActionLabel: page.ActionLabel, ActionURL: page.ActionURL, Links: links}
-			if err := designsystem.PublicErrorPage(props).Render(errorCtx, &body); err != nil {
-				return nil, false
-			}
-			return body.Bytes(), true
-		},
 		Maintenance: server.MaintenanceConfig{
 			Enabled: func(r *http.Request) bool {
 				if !modules["site"] {
@@ -258,21 +205,6 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 				return err == nil && found && site.MaintenanceFromSetting(setting).AllowsPreviewKey(key)
 			},
 			SecureCookie: cfg.Security.SecureCookies,
-			Render: func(r *http.Request) ([]byte, error) {
-				headline, message := "We’ll be back soon", "We’re making a few improvements. Please try again shortly."
-				if setting, found, err := siteStore.GetSetting(r.Context(), db, site.MaintenanceSettingKey); err == nil && found {
-					settings := site.MaintenanceFromSetting(setting)
-					if settings.Headline != "" {
-						headline = settings.Headline
-					}
-					if settings.Message != "" {
-						message = settings.Message
-					}
-				}
-				var body bytes.Buffer
-				err := designsystem.MaintenancePage(headline, message).Render(r.Context(), &body)
-				return body.Bytes(), err
-			},
 		},
 		TenantResolver: a.tenantResolver,
 		Routes:         routes,

@@ -45,6 +45,12 @@ func ValidateRelationQuery(query RelationQuery) (RelationQuery, error) {
 	return RelationQuery{Collection: collection, Query: term, Cursor: cursor, Limit: limit}, nil
 }
 
+// RelationOption is one selectable related record.
+type RelationOption struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
 func NormalizeRelationOptions(options []RelationOption, limit int) ([]RelationOption, error) {
 	if limit < 1 || limit > MaxRelationLimit || len(options) > limit {
 		return nil, ErrInvalidRelationQuery

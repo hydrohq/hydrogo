@@ -38,7 +38,6 @@ minutes.
 
 ## Generated files
 
-- Templ: edit `.templ`, then `go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate`.
 - Theme and admin CSS: edit the `*.source.css` / `input.css` file, then run the
   matching `scripts/build-*-tailwind.ps1` with the standalone Tailwind CLI.
 

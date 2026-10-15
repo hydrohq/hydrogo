@@ -1,9 +1,0 @@
-{{/* Intentionally minimal: hand-authored visual design removed before the next design attempt. */}}
-<section data-block="faq">
-  {{range .Payload.items}}
-  <details>
-    <summary>{{if .question}}{{.question}}{{else if .Question}}{{.Question}}{{end}}</summary>
-    <p>{{if .answer}}{{.answer}}{{else if .Answer}}{{.Answer}}{{end}}</p>
-  </details>
-  {{end}}
-</section>

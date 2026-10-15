@@ -1,7 +1,7 @@
 // Command codeguard ratchets two code-shape rules for tracked Go sources:
 //
-//   - HTML markup must not live in Go string literals (use .templ files or
-//     theme HTML instead);
+//   - HTML markup must not live in Go string literals (Go serves JSON;
+//     markup belongs in admin/ or the frontend);
 //   - a file must not grow past maxLines;
 //   - tests must not be disabled by renaming them (skip_TestX, xTestX): a
 //     failing test is fixed, rewritten or deleted, never hidden.
@@ -93,7 +93,7 @@ func trackedGoFiles() ([]string, error) {
 	}
 	var files []string
 	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if name == "" || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_templ.go") || strings.HasPrefix(name, "docs/") {
+		if name == "" || strings.HasSuffix(name, "_test.go") || strings.HasPrefix(name, "docs/") {
 			continue
 		}
 		files = append(files, filepath.ToSlash(name))
@@ -146,9 +146,9 @@ func compare(known, current baseline) []string {
 		was, baselined := known[name]
 		if now.HTMLStrings > was.HTMLStrings {
 			if baselined && was.HTMLStrings > 0 {
-				problems = append(problems, fmt.Sprintf("%s: HTML string literals grew from %d to %d; move markup into a .templ file", name, was.HTMLStrings, now.HTMLStrings))
+				problems = append(problems, fmt.Sprintf("%s: HTML string literals grew from %d to %d; move markup out of Go", name, was.HTMLStrings, now.HTMLStrings))
 			} else {
-				problems = append(problems, fmt.Sprintf("%s: %d string literal(s) contain HTML; move markup into a .templ file or theme HTML", name, now.HTMLStrings))
+				problems = append(problems, fmt.Sprintf("%s: %d string literal(s) contain HTML; move markup out of Go", name, now.HTMLStrings))
 			}
 		}
 		if now.Lines > 0 && now.Lines > max(was.Lines, maxLines) {
