@@ -90,8 +90,11 @@ func main() {
 	}
 	defer supervisor.stop()
 
-	stopFrontend := startAdminFrontend(ctx, root)
-	defer stopFrontend()
+	stopAdmin := startAdminFrontend(ctx, root)
+	defer stopAdmin()
+
+	stopStarter := startStarterFrontend(ctx, root)
+	defer stopStarter()
 
 	target, err := url.Parse("http://" + *appAddress)
 	if err != nil {
@@ -127,8 +130,14 @@ func main() {
 		proxy.ServeHTTP(w, r)
 	}
 
-	checkVite := func() bool {
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:5173", 50*time.Millisecond)
+	starterTarget, _ := url.Parse("http://127.0.0.1:3000")
+	starterProxy := httputil.NewSingleHostReverseProxy(starterTarget)
+	starterProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, _ error) {
+		proxy.ServeHTTP(w, r)
+	}
+
+	checkPort := func(port int) bool {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 50*time.Millisecond)
 		if err == nil {
 			_ = conn.Close()
 			return true
@@ -136,17 +145,37 @@ func main() {
 		return false
 	}
 
-	isVitePath := func(path string) bool {
-		return strings.HasPrefix(path, "/@vite") ||
-			strings.HasPrefix(path, "/@fs") ||
-			strings.HasPrefix(path, "/@id") ||
-			strings.HasPrefix(path, "/src/") ||
-			strings.HasPrefix(path, "/node_modules/")
+	isAdminVitePath := func(path string) bool {
+		return strings.HasPrefix(path, "/admin") ||
+			strings.HasPrefix(path, "/admin/") ||
+			strings.HasPrefix(path, "/@fs/") ||
+			strings.HasPrefix(path, "/@id/")
+	}
+
+	isBackendPath := func(path string) bool {
+		return strings.HasPrefix(path, "/api/") ||
+			strings.HasPrefix(path, "/media/") ||
+			strings.HasPrefix(path, "/auth/") ||
+			strings.HasPrefix(path, "/member/") ||
+			strings.HasPrefix(path, "/csrf-token") ||
+			strings.HasPrefix(path, "/healthz") ||
+			strings.HasPrefix(path, "/readyz") ||
+			strings.HasPrefix(path, "/metrics") ||
+			strings.HasPrefix(path, "/sitemap") ||
+			strings.HasPrefix(path, "/llms")
 	}
 
 	holdWhileRebuilding := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isVitePath(r.URL.Path) || (strings.HasPrefix(r.URL.Path, "/admin") && checkVite()) {
+		if r.URL.Path == "/admin" {
+			http.Redirect(w, r, "/admin/", http.StatusFound)
+			return
+		}
+		if isAdminVitePath(r.URL.Path) && checkPort(5173) {
 			viteProxy.ServeHTTP(w, r)
+			return
+		}
+		if !isBackendPath(r.URL.Path) && checkPort(3000) {
+			starterProxy.ServeHTTP(w, r)
 			return
 		}
 
@@ -331,7 +360,7 @@ func startAdminFrontend(ctx context.Context, root string) func() {
 	conn, err := net.DialTimeout("tcp", "127.0.0.1:5173", 50*time.Millisecond)
 	if err == nil {
 		_ = conn.Close()
-		fmt.Println("hydro dev: existing Vite dev server detected on 127.0.0.1:5173")
+		fmt.Println("hydro dev: existing Admin Vite dev server detected on 127.0.0.1:5173")
 		return func() {}
 	}
 
@@ -353,6 +382,51 @@ func startAdminFrontend(ctx context.Context, root string) func() {
 		return func() {}
 	}
 	fmt.Println("hydro dev: admin Vite dev server started (port 5173)")
+
+	return func() {
+		if cmd != nil && cmd.Process != nil {
+			if runtime.GOOS == "windows" {
+				_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+			} else {
+				_ = cmd.Process.Kill()
+			}
+			_, _ = cmd.Process.Wait()
+		}
+	}
+}
+
+func startStarterFrontend(ctx context.Context, root string) func() {
+	starterDir := filepath.Join(root, "examples", "svelte-starter")
+	if info, err := os.Stat(filepath.Join(starterDir, "package.json")); err != nil || info.IsDir() {
+		return func() {}
+	}
+
+	// Check if port 3000 is already in use
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:3000", 50*time.Millisecond)
+	if err == nil {
+		_ = conn.Close()
+		fmt.Println("hydro dev: existing Starter dev server detected on 127.0.0.1:3000")
+		return func() {}
+	}
+
+	npm := "npm"
+	if runtime.GOOS == "windows" {
+		npm = "npm.cmd"
+	}
+	if _, err := exec.LookPath(npm); err != nil {
+		return func() {}
+	}
+
+	cmd := exec.CommandContext(ctx, npm, "run", "dev")
+	cmd.Dir = starterDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "hydro dev: could not start starter Vite server: %v\n", err)
+		return func() {}
+	}
+	fmt.Println("hydro dev: starter Vite dev server started (port 3000)")
 
 	return func() {
 		if cmd != nil && cmd.Process != nil {
