@@ -11,6 +11,8 @@
   import MediaView from './routes/media/MediaView.svelte';
   import NewsListView from './routes/news/NewsListView.svelte';
   import NewsEditorView from './routes/news/NewsEditorView.svelte';
+  import PagesListView from './routes/pages/PagesListView.svelte';
+  import PageEditorView from './routes/pages/PageEditorView.svelte';
 
   let initializing = $state(true);
 
@@ -63,6 +65,17 @@
       }
       return { view: 'news-list' };
     }
+    if (p.startsWith('/pages')) {
+      const parts = p.split('/');
+      const actionOrId = parts[2];
+      if (actionOrId === 'new') {
+        return { view: 'page-editor', id: 'new' };
+      }
+      if (actionOrId) {
+        return { view: 'page-editor', id: actionOrId };
+      }
+      return { view: 'pages-list' };
+    }
     return { view: 'custom', module: p.replace(/^\//, '') };
   });
 </script>
@@ -92,6 +105,10 @@
       <NewsListView />
     {:else if routeInfo.view === 'news-editor'}
       <NewsEditorView id={routeInfo.id!} />
+    {:else if routeInfo.view === 'pages-list'}
+      <PagesListView />
+    {:else if routeInfo.view === 'page-editor'}
+      <PageEditorView id={routeInfo.id!} />
     {:else if routeInfo.module === 'media'}
       <MediaView />
     {:else}
