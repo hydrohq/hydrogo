@@ -55,8 +55,8 @@
         <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Content Types</span>
         <span class="text-xl">📦</span>
       </div>
-      <p class="text-2xl font-bold text-slate-100 mt-2">{schema.resources.length}</p>
-      <p class="text-xs text-slate-500 mt-1">Active registered collections</p>
+      <p class="text-2xl font-bold text-slate-100 mt-2">{data?.stats?.content_types_count ?? schema.resources.length}</p>
+      <p class="text-xs text-slate-500 mt-1">{loading ? 'Loading…' : 'Active registered collections'}</p>
     </Card>
 
     <Card class="p-4">

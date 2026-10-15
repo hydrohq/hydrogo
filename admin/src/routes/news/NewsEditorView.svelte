@@ -186,6 +186,9 @@
               {status}
             </Badge>
           {/if}
+          {#if loading}
+            <span class="text-xs text-sky-400 font-normal">Loading…</span>
+          {/if}
         </h2>
       </div>
     </div>

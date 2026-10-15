@@ -3,7 +3,7 @@
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
-  import type { ApiResponse, Field } from '$lib/api/types';
+  import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
@@ -123,8 +123,12 @@
             <span>{collection.icon || '📄'}</span>
             <span>{isNew ? `New ${collection.singular || collection.label}` : `Edit ${collection.singular || collection.label}`}</span>
           </h2>
-          <p class="text-xs text-slate-400 mt-0.5">
-            {collection.label} collection entry
+          <p class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+            <span>{collection.label} collection entry</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase font-mono">{activeLocale}</span>
+            {#if loading}
+              <span class="text-sky-400 text-xs">Loading…</span>
+            {/if}
           </p>
         </div>
       </div>
