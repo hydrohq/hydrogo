@@ -7,6 +7,7 @@
     class?: string;
     headerAction?: Snippet;
     children?: Snippet;
+    footer?: Snippet;
   }
 
   let {
@@ -15,18 +16,19 @@
     class: className = '',
     headerAction,
     children,
+    footer,
   }: Props = $props();
 </script>
 
-<div class="rounded-xl border border-slate-800/90 bg-slate-900/60 backdrop-blur shadow-sm p-5 flex flex-col gap-4 {className}">
-  {#if title || headerAction}
-    <div class="flex items-center justify-between pb-3 border-b border-slate-800/60">
-      <div>
+<div class="rounded-xl border border-border bg-card text-card-foreground shadow-sm p-5 flex flex-col gap-4 {className}">
+  {#if title || description || headerAction}
+    <div class="flex items-center justify-between pb-3 border-b border-border/60">
+      <div class="space-y-0.5">
         {#if title}
-          <h3 class="text-base font-semibold text-slate-100">{title}</h3>
+          <h3 class="text-base font-semibold tracking-tight text-foreground">{title}</h3>
         {/if}
         {#if description}
-          <p class="text-xs text-slate-400 mt-0.5">{description}</p>
+          <p class="text-xs text-muted-foreground">{description}</p>
         {/if}
       </div>
       {#if headerAction}
@@ -36,9 +38,16 @@
       {/if}
     </div>
   {/if}
+
   {#if children}
-    <div>
+    <div class="flex-1">
       {@render children()}
+    </div>
+  {/if}
+
+  {#if footer}
+    <div class="pt-3 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+      {@render footer()}
     </div>
   {/if}
 </div>
