@@ -82,57 +82,6 @@ func call(t *testing.T, h http.Handler, method, path, body string) (*httptest.Re
 	return recorder, decoded
 }
 
-func TestAdminAPIServesTheGeneratedAdminContract(t *testing.T) {
-	service, types := newService(t)
-	api := AdminAPI{Service: service, Types: types}
-
-	created, record := call(t, api, http.MethodPost, "/api/v1/faq", `{"id":"ignored","question":"How?","asked_on":"2026-10-14","sort_order":null}`)
-	if created.Code != http.StatusCreated || record["question"] != "How?" || record["version"] != float64(1) {
-		t.Fatalf("create: %d %s", created.Code, created.Body)
-	}
-	if record["asked_on"] != "2026-10-14" {
-		t.Fatalf("date was not returned in date-input format: %v", record["asked_on"])
-	}
-	id := record["id"].(string)
-	if id == "ignored" {
-		t.Fatal("client-supplied id was used")
-	}
-
-	list := httptest.NewRecorder()
-	api.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/api/v1/faq?limit=26&offset=0", nil))
-	var items []map[string]any
-	if err := json.Unmarshal(list.Body.Bytes(), &items); err != nil || len(items) != 1 || items[0]["id"] != id {
-		t.Fatalf("list: %d %s", list.Code, list.Body)
-	}
-
-	updated, record := call(t, api, http.MethodPut, "/api/v1/faq/"+id, `{"id":"`+id+`","version":1,"question":"How exactly?"}`)
-	if updated.Code != http.StatusOK || record["version"] != float64(2) {
-		t.Fatalf("update: %d %s", updated.Code, updated.Body)
-	}
-	if stale, _ := call(t, api, http.MethodPut, "/api/v1/faq/"+id, `{"version":1,"question":"Stale"}`); stale.Code != http.StatusConflict {
-		t.Fatalf("stale update: %d %s", stale.Code, stale.Body)
-	}
-
-	invalid, payload := call(t, api, http.MethodPost, "/api/v1/faq", `{"answer":"no question"}`)
-	if invalid.Code != http.StatusUnprocessableEntity || payload["code"] != "validation_failed" {
-		t.Fatalf("missing required: %d %s", invalid.Code, invalid.Body)
-	}
-	if fields := payload["fields"].(map[string]any); fields["question"] != "required" {
-		t.Fatalf("fields=%v", fields)
-	}
-	duplicate, payload := call(t, api, http.MethodPost, "/api/v1/faq", `{"question":"How exactly?"}`)
-	if duplicate.Code != http.StatusUnprocessableEntity || payload["fields"].(map[string]any)["question"] != "taken" {
-		t.Fatalf("duplicate: %d %s", duplicate.Code, duplicate.Body)
-	}
-
-	if missing, _ := call(t, api, http.MethodGet, "/api/v1/nope", ""); missing.Code != http.StatusNotFound {
-		t.Fatalf("unknown type: %d", missing.Code)
-	}
-	if deleted, _ := call(t, api, http.MethodDelete, "/api/v1/faq/"+id, ""); deleted.Code != http.StatusNoContent {
-		t.Fatalf("delete: %d %s", deleted.Code, deleted.Body)
-	}
-}
-
 func TestPublicAPIOnlyExposesPublicTypes(t *testing.T) {
 	service, types := newService(t)
 	if _, err := service.CreateRecord(context.Background(), "faq", map[string]any{"question": "Public?"}); err != nil {
@@ -144,7 +93,7 @@ func TestPublicAPIOnlyExposesPublicTypes(t *testing.T) {
 	mux.HandleFunc("GET /api/v1/content/{type}/{id}", public.Get)
 
 	ok, body := call(t, mux, http.MethodGet, "/api/v1/content/faq", "")
-	if ok.Code != http.StatusOK || len(body["items"].([]any)) != 1 {
+	if ok.Code != http.StatusOK || len(body["data"].([]any)) != 1 {
 		t.Fatalf("public list: %d %s", ok.Code, ok.Body)
 	}
 	types[0].Public = false

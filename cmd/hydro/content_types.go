@@ -15,20 +15,20 @@ import (
 
 // contentTypeRoutes loads the YAML content types in dir, syncs their schemas
 // into collection storage (once per tenant scope when tenancy is on) and
-// returns the public read routes for them. A missing or empty directory
-// yields no routes. Rich text is returned as stored; rendering it is the
-// frontend's job.
-func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales) ([]router.Route, error) {
+// returns the public read routes and the admin JSON API for them. A missing
+// or empty directory yields no routes. Rich text is returned as stored;
+// rendering it is the frontend's job.
+func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales) ([]contenttypes.Definition, []router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("content types: %w", err)
+		return nil, nil, fmt.Errorf("content types: %w", err)
 	}
 	if len(types) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	schemas, err := contenttypes.Schemas(types)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	syncContexts := []context.Context{ctx}
 	if len(scopes) > 0 {
@@ -39,22 +39,29 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 	}
 	for _, syncCtx := range syncContexts {
 		if err := service.SyncSchemas(syncCtx, schemas); err != nil {
-			return nil, fmt.Errorf("content types: sync schemas: %w", err)
+			return nil, nil, fmt.Errorf("content types: sync schemas: %w", err)
 		}
 	}
 	if _, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled())); err != nil {
-		return nil, fmt.Errorf("content types: admin registry: %w", err)
+		return nil, nil, fmt.Errorf("content types: admin registry: %w", err)
 	}
 	public := contenttypes.PublicAPI{Service: service, Types: types, Locales: locales}
-	return []router.Route{
+	admin := contenttypes.AdminAPI{Service: service, Types: types, Locales: locales, Actor: contentTypeActor, Authorize: contentTypeAccess}
+	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.List)},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Get)},
-	}, nil
+	}
+	return types, append(routes, admin.Routes()...), nil
 }
 
-func isActiveAdmin(r *http.Request) bool {
+// contentTypeAccess maps the admin content API onto the content permissions:
+// reads need admin.content.read, changes admin.content.write.
+func contentTypeAccess(r *http.Request, write bool) bool {
 	user := auth.UserFromContext(r.Context())
-	return user != nil && user.Active && user.Role == auth.RoleAdmin
+	if write {
+		return auth.Can(user, auth.PermissionContentWrite)
+	}
+	return auth.Can(user, auth.PermissionContentRead)
 }
 
 // contentTypeActor names the signed-in user in content-type revisions.

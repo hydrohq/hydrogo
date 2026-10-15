@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
@@ -25,12 +26,24 @@ func TestContentTypeRoutesRegisterNextToPublicLocaleRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := collections.Service{Repository: sqlstore.Store{DB: db, Dialect: database.SQLite}}
-	routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}))
+	types, routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) == 0 {
+	if len(types) == 0 || len(routes) == 0 {
 		t.Fatal("shipped content types produced no routes")
+	}
+	adminRoutes := 0
+	for _, route := range routes {
+		if strings.Contains(route.Pattern, contenttypes.AdminAPIPath) {
+			adminRoutes++
+			if route.Access != router.Protected {
+				t.Fatalf("admin content route %q is not protected", route.Pattern)
+			}
+		}
+	}
+	if adminRoutes == 0 {
+		t.Fatal("admin content routes missing")
 	}
 	noop := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 	routes = append(routes, router.Route{Pattern: "GET /{locale}/", Access: router.Public, Handler: noop})

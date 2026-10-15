@@ -42,7 +42,7 @@ func SupportConfigResolverMiddleware(config SupportConfig, resolve func(*http.Re
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			current := config
-			if resolve != nil && r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/admin") && strings.Contains(r.Header.Get("Accept"), "text/html") {
+			if resolve != nil && r.Method == http.MethodGet && (strings.HasPrefix(r.URL.Path, "/admin") || strings.HasPrefix(r.URL.Path, "/api/v1/admin")) {
 				resolved := resolve(r)
 				current.StaffNoticeActive = resolved.StaffNoticeActive
 				current.StaffNoticeMessage = resolved.StaffNoticeMessage

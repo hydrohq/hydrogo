@@ -26,6 +26,17 @@ func GenerateCSRFToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// apiTokenPrefix mirrors auth.APITokenPrefix; security cannot import auth.
+const apiTokenPrefix = "hyd_"
+
+func carriesAPIToken(r *http.Request) bool {
+	if strings.TrimSpace(r.Header.Get("X-API-Key")) != "" {
+		return true
+	}
+	parts := strings.Fields(r.Header.Get("Authorization"))
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && strings.HasPrefix(parts[1], apiTokenPrefix)
+}
+
 func isSafeCSRFMethod(method string) bool {
 	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
 }
@@ -57,6 +68,13 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 			// This dedicated surface authenticates every mutation in its handlers;
 			// applying double-submit CSRF here would make native clients unusable.
 			if strings.HasPrefix(r.URL.Path, "/api/v1/mobile/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			// HydroGo API tokens (Authorization: Bearer hyd_… / X-API-Key) make
+			// the auth middleware ignore cookies, so there is no ambient
+			// credential for CSRF to protect; mint no cookie and skip checks.
+			if carriesAPIToken(r) {
 				next.ServeHTTP(w, r)
 				return
 			}

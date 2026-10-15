@@ -10,58 +10,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 )
 
-// parseAdminQuery translates the list query adminstudio.GeneratedAdminHandler
-// sends to the record API:
-//
-//	where[or][i][field][contains]=q  search; any of these must match
-//	where[field][equals]=v           filter; all of these must match
-//	where[field][contains]=v
-//	sort=field | sort=-field
-//	limit=n&offset=n
-//
-// Field IDs are checked against the schema later by
-// collections.Schema.ValidateQuery; here only the shape is checked.
-func parseAdminQuery(values url.Values) (collections.Query, error) {
-	limit, offset, err := pagingValues(values)
-	if err != nil {
-		return collections.Query{}, err
-	}
-	query := collections.Query{Limit: limit, Offset: offset}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		entries := values[key]
-		if len(entries) != 1 {
-			return collections.Query{}, fmt.Errorf("%w: repeated parameter %q", collections.ErrInvalidQuery, key)
-		}
-		value := entries[0]
-		switch {
-		case key == "limit" || key == "offset":
-		case key == "sort":
-			query.Sort = collections.ParseSort(value)
-		case strings.HasPrefix(key, "where[") && strings.HasSuffix(key, "]"):
-			segments := strings.Split(key[len("where["):len(key)-1], "][")
-			switch {
-			case len(segments) == 2:
-				query.Where = append(query.Where, collections.Condition{Field: segments[0], Op: collections.Operator(segments[1]), Value: value})
-			case len(segments) == 4 && segments[0] == "or" && validIndex(segments[1]):
-				query.AnyOf = append(query.AnyOf, collections.Condition{Field: segments[2], Op: collections.Operator(segments[3]), Value: value})
-			default:
-				return collections.Query{}, fmt.Errorf("%w: unsupported condition %q", collections.ErrInvalidQuery, key)
-			}
-		default:
-			return collections.Query{}, fmt.Errorf("%w: unsupported parameter %q", collections.ErrInvalidQuery, key)
-		}
-	}
-	if len(query.Where)+len(query.AnyOf) > collections.MaxQueryConditions {
-		return collections.Query{}, fmt.Errorf("%w: too many conditions", collections.ErrInvalidQuery)
-	}
-	return query, nil
-}
-
 // parsePublicQuery reads the public API's list parameters:
 //
 //	filter[field]=v  exact match on a field marked filterable
@@ -127,11 +75,6 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 		return collections.Query{}, fmt.Errorf("%w: too many conditions", collections.ErrInvalidQuery)
 	}
 	return query, nil
-}
-
-func validIndex(raw string) bool {
-	index, err := strconv.Atoi(raw)
-	return err == nil && index >= 0 && index < collections.MaxQueryConditions && strconv.Itoa(index) == raw
 }
 
 func pagingValues(values url.Values) (int, int, error) {

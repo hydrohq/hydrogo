@@ -47,6 +47,27 @@ type AuthService struct {
 	idleTTL           time.Duration
 	permissions       PermissionStore
 	permissionCatalog *PermissionCatalog
+	apiTokens         APITokenStore
+}
+
+// attachPermissionOverrides loads the user's stored overrides, keeping only
+// permissions known to the active catalog.
+func (s *AuthService) attachPermissionOverrides(ctx context.Context, u *User) error {
+	if s.permissions == nil || u == nil {
+		return nil
+	}
+	overrides, err := s.permissions.LoadPermissionOverrides(ctx, u.ID)
+	if err != nil {
+		return err
+	}
+	activeOverrides := make(map[string]bool, len(overrides))
+	for permission, allowed := range overrides {
+		if s.permissionKnown(permission) {
+			activeOverrides[permission] = allowed
+		}
+	}
+	u.PermissionOverrides = activeOverrides
+	return nil
 }
 
 func (s *AuthService) SetPermissionStore(store PermissionStore) {
@@ -249,18 +270,8 @@ func (s *AuthService) ValidateSession(ctx context.Context, rawToken string) (*Se
 	if !u.Active {
 		return nil, nil, ErrUserInactive
 	}
-	if s.permissions != nil {
-		overrides, err := s.permissions.LoadPermissionOverrides(ctx, u.ID)
-		if err != nil {
-			return nil, nil, err
-		}
-		activeOverrides := make(map[string]bool, len(overrides))
-		for permission, allowed := range overrides {
-			if s.permissionKnown(permission) {
-				activeOverrides[permission] = allowed
-			}
-		}
-		u.PermissionOverrides = activeOverrides
+	if err := s.attachPermissionOverrides(ctx, u); err != nil {
+		return nil, nil, err
 	}
 	if s.idleTTL > 0 && now.Sub(sess.LastSeenAt) > s.idleTTL {
 		_ = s.sessionRepo.DeleteByTokenHash(ctx, tokenHash)

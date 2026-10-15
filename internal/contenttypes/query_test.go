@@ -16,43 +16,6 @@ import (
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
-func TestParseAdminQueryReadsTheGeneratedAdminFormat(t *testing.T) {
-	values := url.Values{}
-	values.Set("where[or][0][question][contains]", "ship")
-	values.Set("where[or][1][answer][contains]", "ship")
-	values.Set("where[category][equals]", "billing")
-	values.Set("sort", "-question")
-	values.Set("limit", "26")
-	values.Set("offset", "25")
-	query, err := parseAdminQuery(values)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if query.Limit != 26 || query.Offset != 25 || len(query.AnyOf) != 2 || len(query.Where) != 1 || query.Sort == nil || query.Sort.Field != "question" || !query.Sort.Desc {
-		t.Fatalf("query=%+v", query)
-	}
-	if query.Where[0] != (collections.Condition{Field: "category", Op: collections.Equals, Value: "billing"}) {
-		t.Fatalf("where=%+v", query.Where)
-	}
-	for _, raw := range []string{
-		"where[category]=x",
-		"where[a][b][c]=x",
-		"where[or][x][question][contains]=x",
-		"where[or][01][question][contains]=x",
-		"where[or][99][question][contains]=x",
-		"unknown=1",
-		"limit=0",
-		"limit=101",
-		"offset=-1",
-		"sort=a&sort=b",
-	} {
-		values, _ := url.ParseQuery(raw)
-		if _, err := parseAdminQuery(values); !errors.Is(err, collections.ErrInvalidQuery) {
-			t.Errorf("%s: err=%v", raw, err)
-		}
-	}
-}
-
 func TestParsePublicQueryOnlyFiltersFilterableFields(t *testing.T) {
 	definition := Definition{ID: "faq", Fields: []Field{
 		{ID: "question", Kind: "text", Searchable: true},
@@ -137,7 +100,7 @@ func TestPublicAPISortsAndFilters(t *testing.T) {
 			t.Fatalf("%s: %d %s", target, recorder.Code, recorder.Body)
 		}
 		result := []string{}
-		for _, item := range body["items"].([]any) {
+		for _, item := range body["data"].([]any) {
 			result = append(result, item.(map[string]any)["question"].(string))
 		}
 		return result
