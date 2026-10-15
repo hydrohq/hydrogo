@@ -185,19 +185,21 @@ func runAdminPublishJourneyTest(t *testing.T, ctx context.Context, sqlDB *sql.DB
 		t.Fatalf("draft should not be public, got: %v", err)
 	}
 
-	// 2. Preview Draft (requires authentication)
-	previewReq := httptest.NewRequest(http.MethodGet, "/pages/journey-page-1/preview", nil)
+	// 2. Read the draft through the admin API (requires authentication)
+	previewReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/pages/journey-page-1", nil)
 	previewReq.SetPathValue("id", "journey-page-1")
 	previewReq = previewReq.WithContext(auth.WithUser(previewReq.Context(), &auth.User{ID: "journey-editor", Role: auth.RoleEditor, Active: true}))
 	previewRec := httptest.NewRecorder()
+	found := false
 	for _, r := range pagesHandler.Routes() {
-		if strings.Contains(r.Pattern, "/preview") {
+		if r.Pattern == "GET /api/v1/admin/pages/{id}" {
+			found = true
 			r.Handler.ServeHTTP(previewRec, previewReq)
 			break
 		}
 	}
-	if previewRec.Code != http.StatusOK || !strings.Contains(previewRec.Body.String(), "Journey Launch Title") {
-		t.Fatalf("preview failed: %d %s", previewRec.Code, previewRec.Body.String())
+	if !found || previewRec.Code != http.StatusOK || !strings.Contains(previewRec.Body.String(), "Journey Launch Title") {
+		t.Fatalf("admin draft read failed: %d %s", previewRec.Code, previewRec.Body.String())
 	}
 
 	// 3. Publish page (version 1)

@@ -8,13 +8,15 @@ import (
 	"net/http"
 	"strings"
 
+	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
-
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	"github.com/ardaozyildirim/hydrogo/modules/seo"
@@ -29,6 +31,7 @@ type Handler struct {
 	}
 	DefaultLocale      string
 	SupportedLocales   []string
+	LayoutTemplates    []pages.LayoutTemplate
 	AllowDemoFrontend  bool
 	SEOOrigin          string
 	PublicSEOSettings  func(context.Context) PublicSEOSettings
@@ -40,11 +43,89 @@ type Handler struct {
 	RequireTenantScope bool
 	RecordSlugRedirect func(context.Context, string, string, string) error
 	RecordNotFound     func(context.Context, string) error
+	Notifications      *adminstudiosql.Store
+	// WeeklyDigestEnabled exposes the digest preference when mail is configured.
+	WeeklyDigestEnabled bool
+	Presence            *realtime.Presence
+	Assistant           ai.Assistant
+	AIAudit             audit.Writer
+	ContentViews        interface {
+		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
+	}
+	AnalyticsEnabled bool
 }
 
 type PublicSEOSettings struct {
 	Brand, FaviconURL, SocialImageURL string
 	BusinessProfile                   *site.BusinessProfile
+}
+
+type Route struct {
+	Pattern   string
+	Handler   http.Handler
+	Protected bool
+}
+
+const (
+	adminBase  = "/api/v1/admin/pages"
+	publicBase = "/api/v1/pages"
+)
+
+func (h Handler) Routes() []Route {
+	routes := []Route{
+		{Pattern: "GET " + publicBase, Handler: http.HandlerFunc(h.listPublished)},
+		{Pattern: "GET " + publicBase + "/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
+		{Pattern: "GET " + publicBase + "/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
+		{Pattern: "GET /og/{locale}/{slug}", Handler: http.HandlerFunc(h.openGraphImage)},
+
+		{Pattern: "GET " + adminBase, Handler: http.HandlerFunc(h.adminList), Protected: true},
+		{Pattern: "POST " + adminBase, Handler: http.HandlerFunc(h.adminCreate), Protected: true},
+		{Pattern: "GET " + adminBase + "/blocks", Handler: http.HandlerFunc(h.adminBlockCatalog), Protected: true},
+		{Pattern: "GET " + adminBase + "/layouts", Handler: http.HandlerFunc(h.adminLayouts), Protected: true},
+		{Pattern: "POST " + adminBase + "/bulk", Handler: http.HandlerFunc(h.adminBulk), Protected: true},
+		{Pattern: "POST " + adminBase + "/import", Handler: http.HandlerFunc(h.adminImport), Protected: true},
+		{Pattern: "GET " + adminBase + "/{id}", Handler: http.HandlerFunc(h.adminGet), Protected: true},
+		{Pattern: "PUT " + adminBase + "/{id}", Handler: http.HandlerFunc(h.adminUpdate), Protected: true},
+		{Pattern: "POST " + adminBase + "/{id}/publish", Handler: http.HandlerFunc(h.adminPublish), Protected: true},
+		{Pattern: "POST " + adminBase + "/{id}/translate", Handler: http.HandlerFunc(h.adminTranslate), Protected: true},
+		{Pattern: "GET " + adminBase + "/{id}/revisions", Handler: http.HandlerFunc(h.adminRevisions), Protected: true},
+		{Pattern: "GET " + adminBase + "/{id}/revisions/{revision}", Handler: http.HandlerFunc(h.adminRevision), Protected: true},
+		{Pattern: "POST " + adminBase + "/{id}/revisions/{revision}/restore", Handler: http.HandlerFunc(h.adminRestoreRevision), Protected: true},
+	}
+	if h.Notifications != nil {
+		routes = append(routes,
+			Route{Pattern: "GET /api/v1/admin/notifications", Handler: http.HandlerFunc(h.adminNotifications), Protected: true},
+			Route{Pattern: "POST /api/v1/admin/notifications/read-all", Handler: http.HandlerFunc(h.adminNotificationsReadAll), Protected: true},
+			Route{Pattern: "POST /api/v1/admin/notifications/{id}/dismiss", Handler: http.HandlerFunc(h.adminNotificationDismiss), Protected: true},
+			Route{Pattern: "PUT /api/v1/admin/notifications/digest", Handler: http.HandlerFunc(h.adminNotificationDigest), Protected: true},
+		)
+	}
+	if h.Presence != nil {
+		routes = append(routes,
+			Route{Pattern: "POST " + adminBase + "/{id}/presence", Handler: http.HandlerFunc(h.editPresenceHeartbeat), Protected: true},
+			Route{Pattern: "GET " + adminBase + "/{id}/presence", Handler: http.HandlerFunc(h.editPresenceList), Protected: true},
+		)
+	}
+	if h.PreviewSigner != nil {
+		routes = append(routes,
+			Route{Pattern: "POST " + adminBase + "/{id}/preview-link", Handler: http.HandlerFunc(h.createPreviewLink), Protected: true},
+			Route{Pattern: "GET " + publicBase + "/{id}/preview", Handler: http.HandlerFunc(h.publicPreview)},
+		)
+	}
+	if h.assistantEnabled() {
+		routes = append(routes,
+			Route{Pattern: "POST " + adminBase + "/{id}/ai-suggest", Handler: http.HandlerFunc(h.adminAISuggest), Protected: true},
+			Route{Pattern: "POST " + adminBase + "/{id}/ai-applied", Handler: http.HandlerFunc(h.adminAIApplied), Protected: true},
+		)
+	}
+	for _, route := range seo.DiscoveryRoutes(h.DiscoveryProvider, h.DiscoveryCache) {
+		routes = append(routes, Route{Pattern: route.Pattern, Handler: route.Handler})
+	}
+	return routes
+}
+
+func (h Handler) assistantEnabled() bool {
+	return h.Assistant.Enabled && h.Assistant.Provider != nil && h.AIAudit != nil
 }
 
 func (h Handler) defaultLocale() string {
@@ -56,26 +137,6 @@ func (h Handler) defaultLocale() string {
 
 func (h Handler) publicPageAllowed(page pages.Page) bool {
 	return h.AllowDemoFrontend || !strings.HasPrefix(page.ID, "demo-")
-}
-
-func (h Handler) Routes() []Route {
-	routes := []Route{
-		{Pattern: "POST /api/pages", Handler: http.HandlerFunc(h.create), Protected: true},
-		{Pattern: "GET /api/pages", Handler: http.HandlerFunc(h.listPublished)},
-		{Pattern: "GET /api/pages/{id}", Handler: http.HandlerFunc(h.get), Protected: true},
-		{Pattern: "GET /api/pages/{id}/preview", Handler: http.HandlerFunc(h.preview), Protected: true},
-		{Pattern: "PUT /api/pages/{id}", Handler: http.HandlerFunc(h.update), Protected: true},
-		{Pattern: "POST /api/pages/{id}/publish", Handler: http.HandlerFunc(h.publish), Protected: true},
-		{Pattern: "GET /public/pages/{locale}/{slug}", Handler: http.HandlerFunc(h.getPublished)},
-		{Pattern: "GET /api/pages/by-slug", Handler: http.HandlerFunc(h.getPublishedByQuery)},
-		{Pattern: "GET /og/{locale}/{slug}", Handler: http.HandlerFunc(h.openGraphImage)},
-	}
-	if h.PreviewSigner != nil {
-	}
-	for _, route := range seo.DiscoveryRoutes(h.DiscoveryProvider, h.DiscoveryCache) {
-		routes = append(routes, Route{Pattern: route.Pattern, Handler: route.Handler})
-	}
-	return routes
 }
 
 func (h Handler) recordNotFound(r *http.Request) {
@@ -120,71 +181,36 @@ func (h Handler) openGraphImage(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func (h Handler) getPublishedByQuery(w http.ResponseWriter, r *http.Request) {
-	h.getPublishedWithRoute(w, r, r.URL.Query().Get("locale"), r.URL.Query().Get("slug"))
+// writePageError maps service errors onto the API envelope: 422 with field
+// codes for invalid input, 409 for stale versions and route clashes, 503 when
+// a dependency is missing.
+func writePageError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, pages.ErrInvalidBlocks):
+		api.WriteValidation(w, r, map[string]string{"blocks": "invalid"})
+	case errors.Is(err, service.ErrInvalidPage):
+		api.WriteValidation(w, r, map[string]string{"page": "invalid"})
+	case errors.Is(err, pages.ErrRouteConflict):
+		api.WriteError(w, r, http.StatusConflict, "another published page already uses this slug", map[string]string{"slug": "taken"})
+	case errors.Is(err, service.ErrConflict):
+		api.WriteError(w, r, http.StatusConflict, "the page was changed by someone else; reload and try again", nil)
+	case errors.Is(err, service.ErrDependencyRequired), errors.Is(err, database.ErrDatabaseRequired):
+		api.WriteError(w, r, http.StatusServiceUnavailable, "pages are unavailable", nil)
+	default:
+		api.WriteError(w, r, http.StatusInternalServerError, "the page operation could not be completed", nil)
+	}
 }
 
-func (h Handler) getPublishedWithRoute(w http.ResponseWriter, r *http.Request, locale, slug string) {
-	page, err := h.Content.GetPublished(r.Context(), h.DB, locale, slug)
-	if err != nil {
-		http.Error(w, "page lookup failed", pageReadStatus(err))
+func writePageReadError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, service.ErrDependencyRequired) || errors.Is(err, database.ErrDatabaseRequired) {
+		api.WriteError(w, r, http.StatusServiceUnavailable, "pages are unavailable", nil)
 		return
 	}
-	if !h.publicPageAllowed(page) {
-		http.NotFound(w, r)
-		return
-	}
-	api.WriteJSON(w, http.StatusOK, page)
+	api.WriteError(w, r, http.StatusNotFound, "page not found", nil)
 }
 
-type Route struct {
-	Pattern   string
-	Handler   http.Handler
-	Protected bool
-}
-
-func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
-	if err := security.DecodeJSONStrict(w, r, target, 1<<20); err != nil {
-		http.Error(w, "invalid JSON request", http.StatusBadRequest)
-		return err
-	}
-	return nil
-}
-
-func pageError(err error) string {
-	if errors.Is(err, service.ErrInvalidPage) {
-		return "Bilgiler eksik veya geçersiz. Alanları kontrol edip yeniden deneyin."
-	}
-	if errors.Is(err, service.ErrConflict) {
-		return "Bu içerik başka biri tarafından güncellendi. Sayfayı yenileyip tekrar deneyin."
-	}
-	if errors.Is(err, pages.ErrRouteConflict) {
-		return "Bu sayfa bağlantısı kullanımda. Farklı bir bağlantı adı seçin."
-	}
-	return "İşlem tamamlanamadı. Lütfen yeniden deneyin."
-}
-
-func pageStatus(err error) int {
-	if errors.Is(err, service.ErrInvalidPage) {
-		return http.StatusBadRequest
-	}
-	if errors.Is(err, service.ErrConflict) {
-		return http.StatusConflict
-	}
-	if errors.Is(err, pages.ErrRouteConflict) {
-		return http.StatusConflict
-	}
-	if errors.Is(err, service.ErrDependencyRequired) {
-		return http.StatusServiceUnavailable
-	}
-	return http.StatusInternalServerError
-}
-
-func pageReadStatus(err error) int {
-	if errors.Is(err, service.ErrDependencyRequired) {
-		return http.StatusServiceUnavailable
-	}
-	return http.StatusNotFound
+func writeForbidden(w http.ResponseWriter, r *http.Request) {
+	api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
 }
 
 func newID() (string, error) {

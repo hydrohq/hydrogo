@@ -8,7 +8,9 @@ import (
 
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	formsruntime "github.com/ardaozyildirim/hydrogo/internal/forms"
 	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/geolocation"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
@@ -201,6 +203,38 @@ func (a *serveApp) initSite() error {
 		default:
 			return site.ErrInvalidSEOOrigin
 		}
+	}
+	siteHTTP.NavigationLocales = cfg.I18N.Locales
+	if modules["forms"] {
+		siteHTTP.FormsEnabled = true
+		siteHTTP.AllowedForms = map[string]struct{}{"contact": {}}
+		siteHTTP.Media = &a.mediaService
+		siteHTTP.SubmissionLimiter = a.newRateLimiter(3, time.Hour)
+		siteHTTP.FormViewLimiter = a.newRateLimiter(60, time.Minute)
+		if noCookieHasher != nil {
+			siteHTTP.FormMetrics = analyticsStore
+			siteHTTP.VisitorHasher = noCookieHasher
+		}
+		if a.realtimeHub != nil {
+			siteHTTP.Realtime = a.realtimeHub
+		}
+		if cfg.Forms.TurnstileSecretKey != "" {
+			siteHTTP.Turnstile = formsruntime.TurnstileVerifier{Secret: cfg.Forms.TurnstileSecretKey}
+		}
+		proxyRanges, geoErr := geolocation.ParseTrustedProxyRanges(cfg.GeoIP.TrustedProxyCIDRs)
+		if geoErr != nil {
+			return fmt.Errorf("configure form geolocation: %w", geoErr)
+		}
+		resolver := geolocation.Resolver{TrustedProxyRanges: proxyRanges}
+		if cfg.GeoIP.DatabasePath != "" {
+			geoDB, openErr := geolocation.OpenMaxMind(cfg.GeoIP.DatabasePath)
+			if openErr != nil {
+				return fmt.Errorf("open form geolocation database: %w", openErr)
+			}
+			a.onClose(func() error { geoDB.Close(); return nil })
+			resolver.Database = geoDB
+		}
+		siteHTTP.GeoResolver = resolver
 	}
 	a.siteHTTP = siteHTTP
 	return nil

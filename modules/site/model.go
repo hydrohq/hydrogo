@@ -110,6 +110,9 @@ type SocialProfile struct{ Platform, URL string }
 
 var socialPlatforms = []string{"instagram", "linkedin", "youtube", "twitter_x", "tiktok", "facebook", "github"}
 
+// SocialPlatforms lists the supported social profile platforms in display order.
+func SocialPlatforms() []string { return append([]string(nil), socialPlatforms...) }
+
 func NormalizeSocialProfiles(profiles []SocialProfile) ([]SocialProfile, error) {
 	values := make(map[string]string, len(profiles))
 	for _, profile := range profiles {
@@ -261,15 +264,15 @@ func ResolvePublicHomePath(settings []Setting, fallback string) string {
 }
 
 type NavigationItem struct {
-	ID        string
-	Locale    string
-	Label     string
-	Href      string
-	ParentID  string `json:"parent_id,omitempty"`
-	Target    string `json:"target,omitempty"`
-	Position  int
-	Visible   bool
-	UpdatedAt time.Time
+	ID        string    `json:"id"`
+	Locale    string    `json:"locale"`
+	Label     string    `json:"label"`
+	Href      string    `json:"href"`
+	ParentID  string    `json:"parent_id,omitempty"`
+	Target    string    `json:"target,omitempty"`
+	Position  int       `json:"position"`
+	Visible   bool      `json:"visible"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type NavigationSuggestion struct {
@@ -278,45 +281,54 @@ type NavigationSuggestion struct {
 }
 
 type Redirect struct {
-	SourcePath string
-	TargetPath string
-	Status     int
-	CreatedAt  time.Time
+	SourcePath string    `json:"source_path"`
+	TargetPath string    `json:"target_path"`
+	Status     int       `json:"status"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type RedirectRule struct {
-	ID         string
-	TenantID   string
-	Pattern    string
-	Kind       string
-	TargetPath string
-	Status     int
-	Hits       uint64
-	CreatedAt  time.Time
+	ID         string    `json:"id"`
+	TenantID   string    `json:"-"`
+	Pattern    string    `json:"pattern"`
+	Kind       string    `json:"kind"`
+	TargetPath string    `json:"target_path"`
+	Status     int       `json:"status"`
+	Hits       uint64    `json:"hits"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type NotFoundPath struct {
-	Path                string
-	Hits                int64
-	FirstSeen, LastSeen time.Time
+	Path      string    `json:"path"`
+	Hits      int64     `json:"hits"`
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
 }
 
 type Submission struct {
-	ID                  string
-	FormKey             string
-	Email               string
-	Payload             string
-	SourceIPHash        string
-	Status              string
-	CreatedAt           time.Time
-	IdempotencyKey      string
-	RequestHash         string
-	LeadStage           string
-	AssignedTo          string
+	ID                  string              `json:"id"`
+	FormKey             string              `json:"form_key"`
+	Email               string              `json:"email"`
+	Payload             string              `json:"payload"`
+	SourceIPHash        string              `json:"-"`
+	Status              string              `json:"status"`
+	CreatedAt           time.Time           `json:"created_at"`
+	IdempotencyKey      string              `json:"-"`
+	RequestHash         string              `json:"-"`
+	LeadStage           string              `json:"lead_stage"`
+	AssignedTo          string              `json:"assigned_to"`
 	LocationCountryCode string              `json:"location_country_code,omitempty"`
 	LocationCity        string              `json:"location_city,omitempty"`
 	LocationLocal       bool                `json:"location_local,omitempty"`
 	Notifications       []EmailNotification `json:"-"`
+}
+
+// SubmissionFilter selects inbox rows; an empty FormKey or Status matches all.
+type SubmissionFilter struct {
+	FormKey string
+	Status  string
+	Limit   int
+	Offset  int
 }
 
 type EmailNotification struct {
@@ -328,12 +340,12 @@ type EmailNotification struct {
 }
 
 type LeadNote struct {
-	ID           string
-	TenantID     string
-	SubmissionID string
-	AuthorID     string
-	Note         string
-	CreatedAt    time.Time
+	ID           string    `json:"id"`
+	TenantID     string    `json:"-"`
+	SubmissionID string    `json:"submission_id"`
+	AuthorID     string    `json:"author_id"`
+	Note         string    `json:"note"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 func ValidateIdempotencyKey(key string) error {

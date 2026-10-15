@@ -135,6 +135,7 @@ func (a *serveApp) initAuth() error {
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
 	a.memberStore = memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	a.userStore, a.sessionStore, a.authSvc, a.mfaService, a.recoveryService = userStore, sessionStore, authSvc, mfaService, recoveryService
+	a.userAdmin = userStore
 	a.auditRecorder, a.authHTTP, a.mobileAuthHTTP = auditRecorder, authHTTP, mobileAuthHTTP
 	return nil
 }

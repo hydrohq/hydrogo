@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
 type taxonomyQueryExecutor interface {
@@ -17,8 +18,8 @@ type taxonomyQueryExecutor interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
-var ErrTaxonomyTermInUse = errors.New("taxonomy term is in use")
-var ErrTaxonomyTermHasChildren = errors.New("taxonomy term has children")
+var ErrTaxonomyTermInUse = news.ErrTaxonomyTermInUse
+var ErrTaxonomyTermHasChildren = news.ErrTaxonomyTermHasChildren
 
 // UpsertTaxonomyTerm stores one validated module-owned taxonomy term.
 func (s Store) UpsertTaxonomyTerm(ctx context.Context, tx database.Executor, term v1.TaxonomyTerm) error {

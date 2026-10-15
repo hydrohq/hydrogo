@@ -16,11 +16,11 @@ import (
 var ErrGarbageCollectorUnavailable = errors.New("media garbage collector is unavailable")
 
 type GarbageAsset struct {
-	ID        string
-	Filename  string
-	SizeBytes int64
-	CreatedAt time.Time
-	Status    string
+	ID        string    `json:"id"`
+	Filename  string    `json:"filename"`
+	SizeBytes int64     `json:"size_bytes"`
+	CreatedAt time.Time `json:"created_at"`
+	Status    string    `json:"status"`
 }
 
 type GarbageRepository interface {

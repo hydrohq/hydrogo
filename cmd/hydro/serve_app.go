@@ -74,6 +74,7 @@ type serveApp struct {
 
 	// Accounts.
 	userStore       *authstore.UserStore
+	userAdmin       auth.UserAdminRepository
 	sessionStore    *authstore.SessionStore
 	authSvc         *auth.AuthService
 	mfaService      *auth.MFAService
@@ -123,11 +124,9 @@ type serveApp struct {
 	// site locales they are served in; both feed the admin schema.
 	contentTypes   []contenttypes.Definition
 	contentLocales contenttypes.Locales
-	// contentTypeLinks lists the YAML content types for the admin sidebar.
-	contentTypeLinks []adminstudio.ContentTypeLink
-	pageHTTP         pagetransport.Handler
-	pageLLMSCache    *seo.DiscoveryCache
-	newsHTTP         newstransport.Handler
+	pageHTTP       pagetransport.Handler
+	pageLLMSCache  *seo.DiscoveryCache
+	newsHTTP       newstransport.Handler
 
 	// Runtime.
 	metrics          *observability.Metrics

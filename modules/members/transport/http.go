@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -65,14 +64,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "GET /member/me", Access: router.Public, Handler: http.HandlerFunc(h.me)},
 		{Pattern: "GET /member/orders", Access: router.Public, Handler: http.HandlerFunc(h.memberOrders)},
 
-		// Admin routes (Protected, RoleAdmin checked)
-		{Pattern: "POST /admin/members/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
-		{Pattern: "POST /admin/members/{id}/active", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetActive)},
-		{Pattern: "POST /admin/members/{id}/verify-email", Access: router.Protected, Handler: http.HandlerFunc(h.adminSetEmailVerified)},
-		{Pattern: "POST /admin/members/{id}/resend-verification", Access: router.Protected, Handler: http.HandlerFunc(h.adminResendVerification)},
 		{Pattern: "GET /member/email/verify", Access: router.Public, Handler: http.HandlerFunc(h.verifyMemberEmail)},
-		{Pattern: "POST /admin/members/{id}/sessions/{session_id}/revoke", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeSession)},
-		{Pattern: "POST /admin/members/{id}/sessions/revoke-all", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeAllSessions)},
 	}
 	if h.Push != nil {
 		routes = append(routes,
@@ -80,7 +72,7 @@ func (h Handler) Routes() []router.Route {
 			router.Route{Pattern: "DELETE /api/v1/mobile/member/push/subscription", Access: router.Public, Handler: http.HandlerFunc(h.mobilePushUnsubscribe)},
 		)
 	}
-	return routes
+	return append(routes, h.adminRoutes()...)
 }
 
 func (h Handler) memberOrders(w http.ResponseWriter, r *http.Request) {
@@ -304,114 +296,6 @@ func (h Handler) me(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(m)
 }
 
-func (h Handler) requireAdmin(w http.ResponseWriter, r *http.Request) bool {
-	u := auth.UserFromContext(r.Context())
-	if !auth.Can(u, auth.PermissionMembersManage) {
-		http.Error(w, "forbidden", 403)
-		return false
-	}
-	return true
-}
-
-func (h Handler) adminSetActive(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAdmin(w, r) {
-		return
-	}
-	active := strings.EqualFold(r.FormValue("active"), "true") || r.FormValue("active") == "1"
-	id := r.PathValue("id")
-	if err := h.Service.Members.SetActive(r.Context(), id, active); err != nil {
-		http.Error(w, "member update failed", 400)
-		return
-	}
-	if !active {
-		if err := h.Service.RevokeAllSessions(r.Context(), id); err != nil {
-			http.Error(w, "member session update failed", http.StatusServiceUnavailable)
-			return
-		}
-		if h.Mobile != nil {
-			if err := h.Mobile.RevokeAll(r.Context(), id); err != nil {
-				http.Error(w, "member session update failed", http.StatusServiceUnavailable)
-				return
-			}
-		}
-	}
-	ref := r.Header.Get("Referer")
-	if ref != "" {
-		// Referer is attacker-controlled. Restrict redirects to an in-origin
-		// path so a forged header cannot turn this mutation into an open redirect.
-		if safeRef := security.SafeReturnPath(ref, ""); safeRef != "" {
-			http.Redirect(w, r, safeRef, http.StatusSeeOther)
-			return
-		}
-	}
-	if id != "" {
-		http.Redirect(w, r, "/admin/members/"+url.PathEscape(id), http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/admin/members", http.StatusSeeOther)
-}
-
-func (h Handler) adminSetEmailVerified(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAdmin(w, r) {
-		return
-	}
-	verified := strings.EqualFold(r.FormValue("verified"), "true") || r.FormValue("verified") == "1"
-	id := r.PathValue("id")
-	if err := h.Service.Members.SetEmailVerified(r.Context(), id, verified); err != nil {
-		http.Error(w, "member verification update failed", 400)
-		return
-	}
-	http.Redirect(w, r, "/admin/members/"+url.PathEscape(id), http.StatusSeeOther)
-}
-
-func (h Handler) adminResendVerification(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAdmin(w, r) {
-		return
-	}
-	admin := auth.UserFromContext(r.Context())
-	targetID := strings.TrimSpace(r.PathValue("id"))
-	if !h.VerificationEnabled || h.VerificationNotifier == nil || strings.TrimSpace(h.PublicOrigin) == "" || h.DB == nil {
-		http.Error(w, "verification email is unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	if targetID == "" || len(targetID) > 128 {
-		http.Error(w, "member not found", http.StatusNotFound)
-		return
-	}
-	if h.VerificationLimiter != nil && !security.AllowForRequest(h.VerificationLimiter, r.Context(), "member-verification:"+admin.ID+":"+targetID) {
-		security.WriteRateLimitedResponse(w, "verification email temporarily unavailable", time.Hour)
-		return
-	}
-	member, err := h.Service.Members.GetByID(r.Context(), targetID)
-	if err != nil || member == nil {
-		http.Error(w, "member not found", http.StatusNotFound)
-		return
-	}
-	if member.EmailVerifiedAt != nil {
-		http.Redirect(w, r, "/admin/members?email_verified=1", http.StatusSeeOther)
-		return
-	}
-	var token string
-	err = h.VerificationTx.Within(r.Context(), func(tx database.Executor) error {
-		var issueErr error
-		token, issueErr = h.Verification.Issue(r.Context(), tx, member, 24*time.Hour)
-		return issueErr
-	})
-	if err != nil || token == "" {
-		http.Error(w, "verification email could not be sent", http.StatusServiceUnavailable)
-		return
-	}
-	link := strings.TrimRight(h.PublicOrigin, "/") + "/member/email/verify?token=" + url.QueryEscape(token)
-	if err := h.VerificationNotifier.SendEmailVerification(r.Context(), member.Email, link); err != nil {
-		http.Error(w, "verification email could not be sent", http.StatusServiceUnavailable)
-		return
-	}
-	if h.Audit != nil {
-		_ = h.Audit.Record(r.Context(), "member.email_verification.resent", member.ID)
-	}
-	http.Redirect(w, r, "/admin/members?verification_sent=1", http.StatusSeeOther)
-}
-
 func (h Handler) verifyMemberEmail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
@@ -428,33 +312,4 @@ func (h Handler) verifyMemberEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/member/login?email_verified=1", http.StatusSeeOther)
-}
-
-func (h Handler) adminRevokeSession(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAdmin(w, r) {
-		return
-	}
-	memberID := r.PathValue("id")
-	sessionID := r.PathValue("session_id")
-	if err := h.Service.RevokeSessionByID(r.Context(), memberID, sessionID); err != nil {
-		if errors.Is(err, members.ErrMemberNotFound) {
-			http.Error(w, "session not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "session revoke failed", 400)
-		return
-	}
-	http.Redirect(w, r, "/admin/members/"+url.PathEscape(memberID), http.StatusSeeOther)
-}
-
-func (h Handler) adminRevokeAllSessions(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAdmin(w, r) {
-		return
-	}
-	memberID := r.PathValue("id")
-	if err := h.Service.RevokeAllSessions(r.Context(), memberID); err != nil {
-		http.Error(w, "all sessions revoke failed", 400)
-		return
-	}
-	http.Redirect(w, r, "/admin/members/"+url.PathEscape(memberID), http.StatusSeeOther)
 }

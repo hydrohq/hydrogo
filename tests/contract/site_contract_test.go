@@ -107,17 +107,18 @@ func runSiteEditionContract(t *testing.T, dialect database.Dialect, dsn string) 
 func testSiteSettingsAdminRouteContract(t *testing.T, db *sql.DB, store sitestore.Store) {
 	t.Helper()
 	handler := sitetransport.Handler{Service: &site.Service{Transactions: database.NewTransactor(db), Store: store}}
+	const pattern = "PUT /api/v1/admin/site/settings"
 	var routeHandler http.Handler
 	for _, route := range handler.Routes() {
-		if route.Pattern == "POST /admin/site/settings" {
+		if route.Pattern == pattern {
 			routeHandler = route.Handler
 			break
 		}
 	}
 	if routeHandler == nil {
-		t.Fatal("POST /admin/site/settings was not registered")
+		t.Fatalf("%s was not registered", pattern)
 	}
-	authenticated, err := router.New([]router.Route{{Pattern: "POST /admin/site/settings", Access: router.Protected, Handler: routeHandler}}, func(request *http.Request) bool {
+	authenticated, err := router.New([]router.Route{{Pattern: pattern, Access: router.Protected, Handler: routeHandler}}, func(request *http.Request) bool {
 		user := auth.UserFromContext(request.Context())
 		return user != nil && user.Active
 	})
@@ -125,9 +126,9 @@ func testSiteSettingsAdminRouteContract(t *testing.T, db *sql.DB, store sitestor
 		t.Fatal(err)
 	}
 	secured := security.CSRFMiddleware(false, nil)(authenticated)
-	post := func(user *auth.User, csrf string) *httptest.ResponseRecorder {
+	put := func(user *auth.User, csrf string) *httptest.ResponseRecorder {
 		t.Helper()
-		request := httptest.NewRequest(http.MethodPost, "/admin/site/settings", strings.NewReader(`{"key":"site.name","value":"Route contract"}`))
+		request := httptest.NewRequest(http.MethodPut, "/api/v1/admin/site/settings", strings.NewReader(`{"settings":[{"key":"site.name","value":"Route contract"}]}`))
 		request.Header.Set("Content-Type", "application/json")
 		request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "route-token"})
 		if csrf != "" {
@@ -145,20 +146,20 @@ func testSiteSettingsAdminRouteContract(t *testing.T, db *sql.DB, store sitestor
 			t.Fatalf("%s changed site.name: setting=%+v found=%t err=%v", caseName, setting, found, err)
 		}
 	}
-	if response := post(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, ""); response.Code != http.StatusForbidden {
+	if response := put(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, ""); response.Code != http.StatusForbidden {
 		t.Fatalf("missing CSRF status=%d, want 403", response.Code)
 	}
 	assertOriginalSetting("missing CSRF")
-	if response := post(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, "wrong-token"); response.Code != http.StatusForbidden {
+	if response := put(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}, "wrong-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("invalid CSRF status=%d, want 403", response.Code)
 	}
 	assertOriginalSetting("invalid CSRF")
-	if response := post(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, "route-token"); response.Code != http.StatusForbidden {
+	if response := put(&auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: false}}, "route-token"); response.Code != http.StatusForbidden {
 		t.Fatalf("denied Admin status=%d, want 403", response.Code)
 	}
 	assertOriginalSetting("denied Admin")
-	if response := post(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, "route-token"); response.Code != http.StatusNoContent {
-		t.Fatalf("granted Editor status=%d, want 204: %s", response.Code, response.Body.String())
+	if response := put(&auth.User{ID: "editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}, "route-token"); response.Code != http.StatusOK {
+		t.Fatalf("granted Editor status=%d, want 200: %s", response.Code, response.Body.String())
 	}
 	setting, found, err := store.GetSetting(context.Background(), db, "site.name")
 	if err != nil || !found || setting.Value != "Route contract" {

@@ -193,7 +193,7 @@ func TestPublicMediaIsServedWhenReady(t *testing.T) {
 func TestMediaSignedURLRequiresEditorAndReturnsBoundedURL(t *testing.T) {
 	asset := Asset{ID: "a-url", StorageKey: "images/a.png", MimeType: "image/png", Status: "ready", Visibility: VisibilityPrivate}
 	handler := HTTPHandler{Service: Service{BlobStore: httpSignedBlobStore{url: "https://cdn.example.test/images/a.png?sig=x"}, Assets: httpAssetRepo{asset: asset}}}
-	request := httptest.NewRequest(http.MethodGet, "/api/media/a-url/url?expires=60", nil)
+	request := httptest.NewRequest(http.MethodGet, AdminBasePath+"/a-url/url?expires=60", nil)
 	response := httptest.NewRecorder()
 	handler.url(response, request)
 	if response.Code != http.StatusForbidden {
@@ -212,7 +212,7 @@ func TestMediaSignedURLRejectsInvalidExpiryOrMissingProvider(t *testing.T) {
 	user := &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}
 	for _, raw := range []string{"0", "86401", "invalid"} {
 		handler := HTTPHandler{Service: Service{BlobStore: httpSignedBlobStore{url: "https://cdn.example.test/a.png"}, Assets: httpAssetRepo{asset: asset}}}
-		request := httptest.NewRequest(http.MethodGet, "/api/media/a-url/url?expires="+raw, nil).WithContext(auth.WithUser(context.Background(), user))
+		request := httptest.NewRequest(http.MethodGet, AdminBasePath+"/a-url/url?expires="+raw, nil).WithContext(auth.WithUser(context.Background(), user))
 		response := httptest.NewRecorder()
 		handler.url(response, request)
 		if response.Code != http.StatusBadRequest {
@@ -220,7 +220,7 @@ func TestMediaSignedURLRejectsInvalidExpiryOrMissingProvider(t *testing.T) {
 		}
 	}
 	handler := HTTPHandler{Service: Service{Assets: httpAssetRepo{asset: asset}}}
-	request := httptest.NewRequest(http.MethodGet, "/api/media/a-url/url", nil).WithContext(auth.WithUser(context.Background(), user))
+	request := httptest.NewRequest(http.MethodGet, AdminBasePath+"/a-url/url", nil).WithContext(auth.WithUser(context.Background(), user))
 	response := httptest.NewRecorder()
 	handler.url(response, request)
 	if response.Code != http.StatusServiceUnavailable {
@@ -252,7 +252,7 @@ func TestMediaDoesNotServeSymlinkedStorageEntry(t *testing.T) {
 
 func TestMediaHTTPFailsClosedWhenUploaderIsMissing(t *testing.T) {
 	handler := HTTPHandler{}
-	request := httptest.NewRequest(http.MethodPost, "/api/media", bytes.NewReader(nil))
+	request := httptest.NewRequest(http.MethodPost, AdminBasePath, bytes.NewReader(nil))
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
 	response := httptest.NewRecorder()
 	handler.upload(response, request)
@@ -282,7 +282,7 @@ func TestMediaHTTPFailsClosedWhenRepositoryIsMissing(t *testing.T) {
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPost, "/api/media", &body)
+	request := httptest.NewRequest(http.MethodPost, AdminBasePath, &body)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
 	response := httptest.NewRecorder()
@@ -297,7 +297,7 @@ func TestMediaUploadRejectsMalformedMultipart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPost, "/api/media", bytes.NewBufferString("--broken\r\nnot-a-complete-part"))
+	request := httptest.NewRequest(http.MethodPost, AdminBasePath, bytes.NewBufferString("--broken\r\nnot-a-complete-part"))
 	request.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
 	response := httptest.NewRecorder()
@@ -312,7 +312,7 @@ func TestMediaUploadRejectsMultipartBodyBeyondBound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPost, "/api/media", bytes.NewBufferString(strings.Repeat("x", 2<<20)))
+	request := httptest.NewRequest(http.MethodPost, AdminBasePath, bytes.NewBufferString(strings.Repeat("x", 2<<20)))
 	request.Header.Set("Content-Type", "multipart/form-data; boundary=broken")
 	request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
 	response := httptest.NewRecorder()
@@ -381,7 +381,7 @@ func (visibilityAssetRepo) SetVisibility(context.Context, database.Executor, str
 	return nil
 }
 
-func TestMediaReadyRejectsOversizedFormBody(t *testing.T) {
+func TestMediaReadyRejectsOversizedJSONBody(t *testing.T) {
 	uploader, err := NewUploader(t.TempDir(), 1<<20)
 	if err != nil {
 		t.Fatal(err)
@@ -394,17 +394,18 @@ func TestMediaReadyRejectsOversizedFormBody(t *testing.T) {
 	handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: visibilityAssetRepo{httpAssetRepo{asset: Asset{ID: "a1", Status: "pending"}}}, Transactions: database.NewTransactor(db)}}
 	assertReadyStatus := func(body string, want int) {
 		t.Helper()
-		request := httptest.NewRequest(http.MethodPost, "/api/media/a1/ready", strings.NewReader(body))
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request := httptest.NewRequest(http.MethodPost, AdminBasePath+"/a1/ready", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.SetPathValue("id", "a1")
 		request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "editor", Active: true, Role: auth.RoleEditor}))
 		response := httptest.NewRecorder()
 		handler.ready(response, request)
 		if response.Code != want {
-			t.Fatalf("ready status = %d, want %d", response.Code, want)
+			t.Fatalf("ready status = %d, want %d (%s)", response.Code, want, response.Body.String())
 		}
 	}
-	assertReadyStatus("visibility=public", http.StatusOK)
-	assertReadyStatus("visibility=public&pad="+strings.Repeat("x", 16384), http.StatusBadRequest)
+	assertReadyStatus(`{"visibility":"public"}`, http.StatusOK)
+	assertReadyStatus(`{"visibility":"public","pad":"`+strings.Repeat("x", 16384)+`"}`, http.StatusRequestEntityTooLarge)
 }
 
 func TestAssetServingIncludesNosniffHeader(t *testing.T) {

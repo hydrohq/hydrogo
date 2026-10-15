@@ -13,6 +13,10 @@ var (
 	ErrConflict           = errors.New("news item conflict")
 	ErrScheduleStale      = errors.New("news schedule is stale")
 	ErrRepositoryRequired = errors.New("news repository is required")
+	// ErrTaxonomyTermInUse and ErrTaxonomyTermHasChildren refuse to delete a
+	// term that items or child terms still reference.
+	ErrTaxonomyTermInUse       = errors.New("taxonomy term is in use")
+	ErrTaxonomyTermHasChildren = errors.New("taxonomy term has children")
 )
 
 type Status string

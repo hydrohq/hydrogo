@@ -7,7 +7,7 @@ import (
 )
 
 func TestHandlerRejectsMissingNewsRepository(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/public/news/en/hello", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/news/en/hello", nil)
 	res := httptest.NewRecorder()
 	(Handler{}).publicGet(res, req)
 	if res.Code != http.StatusServiceUnavailable {

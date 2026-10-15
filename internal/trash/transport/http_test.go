@@ -56,8 +56,8 @@ func TestTrashSubmissionsRequireSiteManagePermission(t *testing.T) {
 
 	t.Run("content editor can trash pages", func(t *testing.T) {
 		rec, repo := performTrashAction(t, editor, "pages", "p-1", "delete")
-		if rec.Code != http.StatusSeeOther {
-			t.Fatalf("move pages status=%d want 303", rec.Code)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("move pages status=%d want 204", rec.Code)
 		}
 		if len(repo.moved) != 1 || repo.moved[0] != "pages:p-1" {
 			t.Fatalf("page not moved: %v", repo.moved)
@@ -66,8 +66,8 @@ func TestTrashSubmissionsRequireSiteManagePermission(t *testing.T) {
 
 	t.Run("site admin can trash submissions", func(t *testing.T) {
 		rec, repo := performTrashAction(t, admin, "submissions", "f-1", "delete")
-		if rec.Code != http.StatusSeeOther {
-			t.Fatalf("admin move submissions status=%d want 303", rec.Code)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("admin move submissions status=%d want 204", rec.Code)
 		}
 		if len(repo.moved) != 1 || repo.moved[0] != "submissions:f-1" {
 			t.Fatalf("submission not moved by admin: %v", repo.moved)
@@ -89,7 +89,7 @@ func TestTrashSubmissionsRequireSiteManagePermission(t *testing.T) {
 	t.Run("explicit site grant permits submission management", func(t *testing.T) {
 		user := &auth.User{ID: "editor-site-manager", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{auth.PermissionSiteManage: true}}
 		rec, repo := performTrashAction(t, user, "submissions", "f-2", "restore")
-		if rec.Code != http.StatusSeeOther || len(repo.restored) != 1 || repo.restored[0] != "submissions:f-2" {
+		if rec.Code != http.StatusNoContent || len(repo.restored) != 1 || repo.restored[0] != "submissions:f-2" {
 			t.Fatalf("status=%d restored=%v", rec.Code, repo.restored)
 		}
 	})
@@ -142,7 +142,11 @@ func performTrashActionWithCSRF(t *testing.T, user *auth.User, kind, id, action,
 		t.Fatal(err)
 	}
 	protected := security.CSRFMiddleware(false, nil)(mux)
-	req := httptest.NewRequest(http.MethodPost, "/admin/trash/"+kind+"/"+id+"/"+action, nil)
+	method, path := http.MethodDelete, AdminBasePath+"/"+kind+"/"+id
+	if action == "restore" {
+		method, path = http.MethodPost, path+"/restore"
+	}
+	req := httptest.NewRequest(method, path, nil)
 	req.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "valid-token"})
 	if token != "" {
 		req.Header.Set(security.CSRFHeaderName, token)

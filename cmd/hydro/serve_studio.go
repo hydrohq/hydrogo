@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -119,7 +120,8 @@ func (a *serveApp) initPagesHTTP(previewSigner *preview.Signer) error {
 			return siteService.RecordNotFound(missCtx, path, time.Now().UTC())
 		}
 	}
-	pageHTTP := pagetransport.Handler{DB: db, Content: a.contentService, Media: a.mediaService, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, AllowDemoFrontend: demoFrontendEnabled() || a.devMode, SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
+	notificationStore := adminstudiosql.Store{Dialect: cfg.Database.Dialect}
+	pageHTTP := pagetransport.Handler{DB: db, Content: a.contentService, Media: a.mediaService, DefaultLocale: cfg.I18N.DefaultLocale, SupportedLocales: cfg.I18N.Locales, AllowDemoFrontend: demoFrontendEnabled() || a.devMode, SEOOrigin: cfg.HTTP.PublicOrigin, PreviewSigner: previewSigner, PreviewOrigin: cfg.HTTP.PublicOrigin, RequireTenantScope: requireTenantScope, RecordSlugRedirect: recordSlugRedirect, RecordNotFound: recordNotFound, OGRenderer: &seo.OGRenderer{CacheDir: cfg.SEO.OGCacheDir}, DiscoveryCache: pageLLMSCache, Notifications: &notificationStore, WeeklyDigestEnabled: modules["forms"] && a.smtpSender != nil, Presence: a.editPresence, Assistant: a.contentAssistant, AIAudit: a.contentAIAudit, ContentViews: a.analyticsStore, AnalyticsEnabled: modules["analytics"], PublicSEOSettings: func(seoCtx context.Context) pagetransport.PublicSEOSettings {
 		var result pagetransport.PublicSEOSettings
 		if !modules["site"] {
 			return result
@@ -198,7 +200,7 @@ func (a *serveApp) initNewsHTTP(previewSigner *preview.Signer) error {
 	if !moduleEnabled(cfg.Modules, "news") {
 		return nil
 	}
-	newsHTTP := newstransport.Handler{Service: a.newsService, DB: db, Media: mediaService, MediaLookup: mediaService, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, Presence: a.editPresence, RequireTenantScope: a.requireTenantScope}
+	newsHTTP := newstransport.Handler{Service: a.newsService, DB: db, Media: mediaService, MediaLookup: mediaService, DefaultLocale: cfg.I18N.DefaultLocale, PublicOrigin: cfg.HTTP.PublicOrigin, Presence: a.editPresence, PreviewSigner: previewSigner, RequireTenantScope: a.requireTenantScope, ContentViews: a.analyticsStore, AnalyticsEnabled: a.modules["analytics"]}
 	a.newsHTTP = newsHTTP
 	return nil
 }
