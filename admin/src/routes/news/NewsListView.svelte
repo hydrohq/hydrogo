@@ -66,7 +66,7 @@
     if (!deleteTarget) return;
     deleteLoading = true;
     try {
-      await api.delete(`/api/v1/admin/news/${deleteTarget.id}`);
+      await api.delete(`/api/v1/admin/trash/news/${deleteTarget.id}`);
       deleteTarget = null;
       await loadNews();
     } catch (err: any) {

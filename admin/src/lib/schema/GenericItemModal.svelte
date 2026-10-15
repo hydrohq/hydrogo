@@ -92,9 +92,20 @@
     errorMessage = null;
 
     try {
-      const payload = { ...formData };
+      const payload: Record<string, any> = { ...formData };
       if (statusToSet) {
         payload.status = statusToSet;
+      }
+
+      if (collection.fields) {
+        for (const f of collection.fields) {
+          const key = getFieldKey(f);
+          if (f.kind === 'number' && payload[key] !== undefined && payload[key] !== '') {
+            payload[key] = Number(payload[key]);
+          } else if (f.kind === 'boolean') {
+            payload[key] = Boolean(payload[key]);
+          }
+        }
       }
 
       const endpoint = collection.api_path || `/api/v1/admin/content/${type}`;

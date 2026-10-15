@@ -66,7 +66,7 @@
   async function toggleActive(member: Member, e: MouseEvent) {
     e.stopPropagation();
     try {
-      await api.post(`/api/v1/admin/members/${member.id}`, { active: !member.active }, { method: 'PATCH' });
+      await api.patch(`/api/v1/admin/members/${member.id}`, { active: !member.active });
       member.active = !member.active;
     } catch (err: any) {
       console.error('Update status failed:', err);
