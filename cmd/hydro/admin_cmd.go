@@ -64,6 +64,21 @@ func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 
 	u, err := authSvc.CreateUser(ctx, *email, password, auth.RoleAdmin)
 	if err != nil {
+		if errors.Is(err, auth.ErrUserAlreadyExists) {
+			existing, getErr := userStore.GetByEmail(ctx, auth.NormalizeEmail(*email))
+			if getErr != nil {
+				return fmt.Errorf("user lookup failed: %w", getErr)
+			}
+			hash, hashErr := auth.HashPassword(password, auth.DefaultArgon2Params)
+			if hashErr != nil {
+				return fmt.Errorf("failed to hash password: %w", hashErr)
+			}
+			if updateErr := userStore.UpdatePassword(ctx, db, existing.ID, hash); updateErr != nil {
+				return fmt.Errorf("failed to update password: %w", updateErr)
+			}
+			fmt.Fprintf(stdout, "Updated password for admin user: %s (id: %s)\n", existing.Email, existing.ID)
+			return nil
+		}
 		return fmt.Errorf("failed to create admin: %w", err)
 	}
 
