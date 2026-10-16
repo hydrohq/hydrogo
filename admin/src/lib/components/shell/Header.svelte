@@ -119,10 +119,10 @@
         href="/"
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent transition-colors shadow-xs"
+        class="group inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:border-primary/40 transition-all duration-150 shadow-xs active:scale-95"
       >
         <span>Live</span>
-        <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="size-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
           <polyline points="15 3 21 3 21 9"></polyline>
           <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -136,7 +136,7 @@
       <button
         type="button"
         onclick={() => theme.toggle()}
-        class="flex size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer shadow-xs"
+        class="flex size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer shadow-xs active:scale-90 hover:rotate-12"
         title={theme.isDark ? "Switch to light mode" : "Switch to dark mode"}
         aria-label="Toggle theme"
       >
@@ -159,10 +159,10 @@
         {/if}
       </button>
 
-      <div class="flex items-center gap-1.5 pl-2 border-l border-border">
+      <div class="flex items-center gap-1.5 pl-2 border-l border-border select-none">
         <span class="relative flex size-2">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+          <span class="relative inline-flex rounded-full size-2 bg-emerald-500 pulse-dot"></span>
         </span>
         <span class="text-[11px] text-muted-foreground font-medium hidden md:inline">Online</span>
       </div>

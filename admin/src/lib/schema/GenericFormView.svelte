@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -25,9 +25,33 @@
   let successMessage = $state<string | null>(null);
   let mediaPickerOpen = $state(false);
   let activeMediaField = $state<string | null>(null);
+  let initialSnapshot = $state('');
+
+  function captureSnapshot() {
+    initialSnapshot = JSON.stringify(formData);
+  }
+
+  const isDirty = $derived.by(() => {
+    if (loading || saving || !initialSnapshot) return false;
+    return JSON.stringify(formData) !== initialSnapshot;
+  });
+
+  $effect(() => {
+    router.setDirty(
+      isDirty,
+      'İçerikte kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istediğinizden emin misiniz?'
+    );
+  });
+
+  onDestroy(() => {
+    router.setDirty(false);
+  });
 
   async function loadData() {
-    if (isNew || !collection) return;
+    if (isNew || !collection) {
+      captureSnapshot();
+      return;
+    }
     loading = true;
     try {
       const res = await api.get<ApiResponse<Record<string, any>>>(
@@ -35,6 +59,7 @@
       );
       if (res && res.data) {
         formData = res.data;
+        captureSnapshot();
       }
     } catch (err: any) {
       errorMessage = err.message || 'Failed to load entry';
@@ -64,11 +89,13 @@
         res = await api.put(`${endpoint}/${id}`, payload);
       }
 
+      captureSnapshot();
+      router.setDirty(false);
       successMessage = 'Saved successfully!';
       setTimeout(() => { successMessage = null; }, 3000);
 
       if (isNew && res && res.data && res.data.id) {
-        router.navigate(`/content/${type}/${res.data.id}`);
+        router.navigate(`/content/${type}/${res.data.id}`, true);
       }
     } catch (err: any) {
       errorMessage = err.message || 'Save failed';

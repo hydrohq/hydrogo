@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import type { ApiResponse } from '$lib/api/types';
@@ -55,6 +55,34 @@
   let mediaPickerOpen = $state(false);
   let successMsg = $state<string | null>(null);
   let errorMsg = $state<string | null>(null);
+  let initialSnapshot = $state('');
+
+  function captureSnapshot() {
+    initialSnapshot = JSON.stringify({
+      formData,
+      tagsInput,
+    });
+  }
+
+  const isDirty = $derived.by(() => {
+    if (loading || saving || !initialSnapshot) return false;
+    const current = JSON.stringify({
+      formData,
+      tagsInput,
+    });
+    return current !== initialSnapshot;
+  });
+
+  $effect(() => {
+    router.setDirty(
+      isDirty,
+      'Yazıda kaydedilmemiş değişiklikleriniz var. Taslak olarak kaydetmeden veya yayınlamadan çıkmak istediğinizden emin misiniz?'
+    );
+  });
+
+  onDestroy(() => {
+    router.setDirty(false);
+  });
 
   function autoSlug() {
     if (isNew && !formData.slug && formData.title) {
@@ -66,7 +94,10 @@
   }
 
   async function loadItem() {
-    if (isNew) return;
+    if (isNew) {
+      captureSnapshot();
+      return;
+    }
     loading = true;
     try {
       const res = await api.get<ApiResponse<any>>(`/api/v1/admin/news/${id}`);
@@ -92,6 +123,7 @@
         if (item.scheduled_at) {
           scheduledAt = new Date(item.scheduled_at).toISOString().slice(0, 16);
         }
+        captureSnapshot();
       }
     } catch (e: any) {
       errorMsg = e.message || 'Failed to load article';
@@ -123,7 +155,9 @@
         const res = await api.post<ApiResponse<any>>('/api/v1/admin/news', payload);
         const newId = res?.data?.id || (res?.data?.Item && res.data.Item.id);
         if (newId) {
-          router.navigate(`/news/${newId}`);
+          captureSnapshot();
+          router.setDirty(false);
+          router.navigate(`/news/${newId}`, true);
         }
       } else {
         payload.version = version || 1;
@@ -134,6 +168,8 @@
         } else {
           version = (version || 1) + 1;
         }
+        captureSnapshot();
+        router.setDirty(false);
         successMsg = 'Draft saved successfully.';
       }
       setTimeout(() => { successMsg = null; }, 3000);
@@ -159,6 +195,8 @@
         if (updated?.version) version = updated.version;
         else version = (version || 1) + 1;
         status = 'published';
+        captureSnapshot();
+        router.setDirty(false);
         successMsg = 'Article published!';
       } else if (action === 'retract') {
         const res = await api.post<ApiResponse<any>>(`/api/v1/admin/news/${id}/retract`, {
@@ -168,6 +206,8 @@
         if (updated?.version) version = updated.version;
         else version = (version || 1) + 1;
         status = 'retracted';
+        captureSnapshot();
+        router.setDirty(false);
         successMsg = 'Article retracted to draft state.';
       } else if (action === 'schedule') {
         if (!scheduledAt) {
@@ -182,6 +222,8 @@
         if (updated?.version) version = updated.version;
         else version = (version || 1) + 1;
         status = 'scheduled';
+        captureSnapshot();
+        router.setDirty(false);
         successMsg = 'Article scheduled for release.';
       }
       setTimeout(() => { successMsg = null; }, 3000);

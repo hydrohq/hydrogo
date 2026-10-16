@@ -20,6 +20,7 @@
   import AccountView from './routes/account/AccountView.svelte';
   import ContentTypesView from './routes/contenttypes/ContentTypesView.svelte';
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   let initializing = $state(true);
 
@@ -99,48 +100,62 @@
   <LoginView />
 {:else}
   <AppLayout>
-    {#if routeInfo.view === 'dashboard'}
-      <DashboardView />
-    {:else if routeInfo.view === 'list'}
-      <GenericListView type={routeInfo.type!} initialItemId={routeInfo.modalId} />
-    {:else if routeInfo.view === 'form'}
-      <GenericListView type={routeInfo.type!} initialItemId={routeInfo.id} />
-    {:else if routeInfo.view === 'news-list'}
-      <NewsListView />
-    {:else if routeInfo.view === 'news-editor'}
-      <NewsEditorView id={routeInfo.id!} />
-    {:else if routeInfo.view === 'pages-list'}
-      <PagesListView />
-    {:else if routeInfo.view === 'page-editor'}
-      <PageEditorView id={routeInfo.id!} />
-    {:else if routeInfo.module === 'media'}
-      <MediaView />
-    {:else if routeInfo.module === 'members'}
-      <MembersView />
-    {:else if routeInfo.module === 'users'}
-      <UsersView />
-    {:else if routeInfo.module === 'site'}
-      <SiteView />
-    {:else if routeInfo.module === 'audit'}
-      <AuditView />
-    {:else if routeInfo.module === 'system'}
-      <SystemView />
-    {:else if routeInfo.module === 'account'}
-      <AccountView />
-    {:else if routeInfo.module === 'content-types'}
-      <ContentTypesView />
-    {:else}
-      <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
-      {#if schema.getCollection(routeInfo.module || '')}
-        <GenericListView type={routeInfo.module!} />
+    <div class="animate-fade-in w-full">
+      {#if routeInfo.view === 'dashboard'}
+        <DashboardView />
+      {:else if routeInfo.view === 'list'}
+        <GenericListView type={routeInfo.type!} initialItemId={routeInfo.modalId} />
+      {:else if routeInfo.view === 'form'}
+        <GenericListView type={routeInfo.type!} initialItemId={routeInfo.id} />
+      {:else if routeInfo.view === 'news-list'}
+        <NewsListView />
+      {:else if routeInfo.view === 'news-editor'}
+        <NewsEditorView id={routeInfo.id!} />
+      {:else if routeInfo.view === 'pages-list'}
+        <PagesListView />
+      {:else if routeInfo.view === 'page-editor'}
+        <PageEditorView id={routeInfo.id!} />
+      {:else if routeInfo.module === 'media'}
+        <MediaView />
+      {:else if routeInfo.module === 'members'}
+        <MembersView />
+      {:else if routeInfo.module === 'users'}
+        <UsersView />
+      {:else if routeInfo.module === 'site'}
+        <SiteView />
+      {:else if routeInfo.module === 'audit'}
+        <AuditView />
+      {:else if routeInfo.module === 'system'}
+        <SystemView />
+      {:else if routeInfo.module === 'account'}
+        <AccountView />
+      {:else if routeInfo.module === 'content-types'}
+        <ContentTypesView />
       {:else}
-        <div class="p-8 max-w-2xl mx-auto rounded-xl border border-border bg-card text-card-foreground text-center space-y-3 shadow-xs">
-          <h3 class="text-lg font-semibold capitalize">{routeInfo.module}</h3>
-          <p class="text-sm text-muted-foreground">
-            Dedicated module interface will be rendered here.
-          </p>
-        </div>
+        <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
+        {#if schema.getCollection(routeInfo.module || '')}
+          <GenericListView type={routeInfo.module!} />
+        {:else}
+          <div class="p-8 max-w-2xl mx-auto rounded-xl border border-border bg-card text-card-foreground text-center space-y-3 shadow-xs">
+            <h3 class="text-lg font-semibold capitalize">{routeInfo.module}</h3>
+            <p class="text-sm text-muted-foreground">
+              Dedicated module interface will be rendered here.
+            </p>
+          </div>
+        {/if}
       {/if}
-    {/if}
+    </div>
   </AppLayout>
+
+  <!-- Global Navigation Guard Dialog for Unsaved Changes -->
+  <ConfirmDialog
+    open={router.showUnsavedModal}
+    title="Kaydedilmemiş Değişiklikler"
+    description={router.dirtyMessage}
+    confirmLabel="Yine de Ayrıl"
+    cancelLabel="Düzenlemeye Devam Et"
+    variant="destructive"
+    onconfirm={() => router.confirmLeave()}
+    oncancel={() => router.cancelLeave()}
+  />
 {/if}

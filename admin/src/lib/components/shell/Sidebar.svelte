@@ -151,7 +151,7 @@
       <a
         href="/admin/dashboard"
         onclick={() => handleNavigate('/dashboard')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/dashboard') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/dashboard') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Dashboard"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -169,7 +169,7 @@
       <a
         href="/admin/pages"
         onclick={() => handleNavigate('/pages')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/pages') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/pages') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Pages"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -184,7 +184,7 @@
       <a
         href="/admin/news"
         onclick={() => handleNavigate('/news')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/news') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/news') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="News"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -203,7 +203,7 @@
       <a
         href="/admin/media"
         onclick={() => handleNavigate('/media')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/media') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/media') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Media Library"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -220,7 +220,7 @@
       <a
         href="/admin/members"
         onclick={() => handleNavigate('/members')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/members') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/members') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Members"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -243,7 +243,7 @@
           <button
             type="button"
             onclick={() => handleNavigate('/content-types')}
-            class="size-5 rounded hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors cursor-pointer"
+            class="size-5 rounded hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:rotate-90 transition-all duration-200 cursor-pointer"
             title="Content Types & Object Builder"
           >
             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -259,7 +259,7 @@
               <a
                 href="/admin/content/{collection.id}"
                 onclick={() => handleNavigate(`/content/${collection.id}`)}
-                class="flex flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive(`/content/${collection.id}`) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+                class="flex flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive(`/content/${collection.id}`) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
                 title={collection.plural || collection.label}
               >
                 <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -279,7 +279,7 @@
                     e.stopPropagation();
                     activeDocDropdown = activeDocDropdown === collection.id ? null : collection.id;
                   }}
-                  class="absolute right-1 size-6 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground transition-opacity"
+                  class="absolute right-1 size-6 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground transition-all duration-150"
                   title="Options"
                 >
                   <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -290,10 +290,10 @@
                 </button>
 
                 {#if activeDocDropdown === collection.id}
-                  <div class="absolute right-0 top-7 w-28 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-50 text-xs">
+                  <div class="absolute right-0 top-7 w-28 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-50 text-xs animate-modal-in">
                     <button
                       type="button"
-                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent text-left"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent text-left transition-colors"
                       onclick={() => handleNavigate(`/content/${collection.id}`)}
                     >
                       <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
@@ -301,7 +301,7 @@
                     </button>
                     <button
                       type="button"
-                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent text-left"
+                      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent text-left transition-colors"
                       onclick={() => handleNavigate(`/content/${collection.id}/new`)}
                     >
                       <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -320,7 +320,7 @@
       <a
         href="/admin/site"
         onclick={() => handleNavigate('/site')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/site') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/site') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Settings"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -335,7 +335,7 @@
       <a
         href="/admin/users"
         onclick={() => handleNavigate('/users')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Users & Roles"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -349,7 +349,7 @@
       <a
         href="/admin/system"
         onclick={() => handleNavigate('/system')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/system') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/system') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title="Telemetry"
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
