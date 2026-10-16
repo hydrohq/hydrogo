@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -236,13 +236,23 @@
     </div>
 
     <!-- NavDocuments (Matches official nav-documents.tsx) -->
-    {#if schema.collections.length > 0}
-      <div class="mt-3 flex flex-col gap-1">
-        {#if sidebar.open}
-          <div class="px-2 py-1 text-xs font-medium text-sidebar-foreground/60 tracking-wider">
-            Documents
-          </div>
-        {/if}
+    <div class="mt-3 flex flex-col gap-1">
+      {#if sidebar.open}
+        <div class="px-2 py-1 flex items-center justify-between text-xs font-medium text-sidebar-foreground/60 tracking-wider">
+          <span>Documents</span>
+          <button
+            type="button"
+            onclick={() => handleNavigate('/content-types')}
+            class="size-5 rounded hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors cursor-pointer"
+            title="Content Types & Object Builder"
+          >
+            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      {/if}
         <div class="flex flex-col gap-0.5">
           {#each schema.collections as collection}
             <div class="relative group flex items-center" data-dropdown="doc-{collection.id}">
@@ -304,7 +314,6 @@
           {/each}
         </div>
       </div>
-    {/if}
 
     <!-- NavSecondary (Matches official nav-secondary.tsx - pinned to mt-auto) -->
     <div class="mt-auto flex flex-col gap-0.5 pt-4">

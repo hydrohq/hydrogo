@@ -59,7 +59,7 @@ func (l Locales) Has(locale string) bool {
 // translatable reports whether locale holds translations of a localized
 // type: a configured locale other than the default.
 func (a AdminAPI) translatable(typeID, locale string) bool {
-	definition, ok := definitionByID(a.Types, typeID)
+	definition, ok := definitionByID(a.types(), typeID)
 	return ok && definition.Localized() && a.Locales.Enabled() && locale != a.Locales.Default && a.Locales.Has(locale)
 }
 
@@ -90,7 +90,7 @@ func withFallback(base, translated map[string]any) map[string]any {
 
 // LocaleOptions lists the site locales for the admin's locale tabs.
 func (a AdminAPI) LocaleOptions(_ *http.Request, collection adminstudio.Collection) (adminstudio.LocaleOptions, error) {
-	definition, ok := definitionByID(a.Types, collection.ID)
+	definition, ok := definitionByID(a.types(), collection.ID)
 	if !ok || !definition.Localized() || !a.Locales.Enabled() {
 		return adminstudio.LocaleOptions{}, errLocale
 	}
@@ -102,7 +102,7 @@ func (a AdminAPI) LocaleOptions(_ *http.Request, collection adminstudio.Collecti
 // its version; for another locale every localized field is present, empty
 // where it has no translation yet, so the edit form shows what is missing.
 func (a AdminAPI) GetLocalized(r *http.Request, collection adminstudio.Collection, id, locale string) (map[string]any, int64, error) {
-	definition, ok := definitionByID(a.Types, collection.ID)
+	definition, ok := definitionByID(a.types(), collection.ID)
 	if !ok || !definition.Localized() || !a.Locales.Has(locale) {
 		return nil, 0, errLocale
 	}
@@ -174,7 +174,7 @@ func (a AdminAPI) CopyLocale(r *http.Request, collection adminstudio.Collection,
 	if !a.translatable(collection.ID, to) || !a.Locales.Has(from) || from == to {
 		return errLocale
 	}
-	definition, _ := definitionByID(a.Types, collection.ID)
+	definition, _ := definitionByID(a.types(), collection.ID)
 	record, err := a.Service.GetRecord(r.Context(), collection.ID, id)
 	if err != nil {
 		return err

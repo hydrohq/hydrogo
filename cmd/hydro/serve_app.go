@@ -16,6 +16,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
+	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -122,11 +123,12 @@ type serveApp struct {
 	studioRegistry   adminstudio.Registry
 	// contentTypes are the loaded YAML content types and contentLocales the
 	// site locales they are served in; both feed the admin schema.
-	contentTypes   []contenttypes.Definition
-	contentLocales contenttypes.Locales
-	pageHTTP       pagetransport.Handler
-	pageLLMSCache  *seo.DiscoveryCache
-	newsHTTP       newstransport.Handler
+	collectionService collections.Service
+	contentTypes      []contenttypes.Definition
+	contentLocales    contenttypes.Locales
+	pageHTTP          pagetransport.Handler
+	pageLLMSCache     *seo.DiscoveryCache
+	newsHTTP          newstransport.Handler
 
 	// Runtime.
 	metrics          *observability.Metrics

@@ -18,7 +18,7 @@ import (
 // returns the public read routes and the admin JSON API for them. A missing
 // or empty directory yields no routes. Rich text is returned as stored;
 // rendering it is the frontend's job.
-func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales) ([]contenttypes.Definition, []router.Route, error) {
+func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, typesProvider ...func() []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("content types: %w", err)
@@ -45,8 +45,12 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 	if _, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled())); err != nil {
 		return nil, nil, fmt.Errorf("content types: admin registry: %w", err)
 	}
-	public := contenttypes.PublicAPI{Service: service, Types: types, Locales: locales}
-	admin := contenttypes.AdminAPI{Service: service, Types: types, Locales: locales, Actor: contentTypeActor, Authorize: contentTypeAccess}
+	var provider func() []contenttypes.Definition
+	if len(typesProvider) > 0 {
+		provider = typesProvider[0]
+	}
+	public := contenttypes.PublicAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales}
+	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Actor: contentTypeActor, Authorize: contentTypeAccess}
 	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.List)},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Get)},

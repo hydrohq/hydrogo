@@ -74,46 +74,46 @@ var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
 // Definition is one content type as written in YAML.
 type Definition struct {
-	ID          string `yaml:"id"`
-	Label       string `yaml:"label"`
-	Description string `yaml:"description"`
-	Group       string `yaml:"group"`
-	Icon        string `yaml:"icon"`
-	TitleField  string `yaml:"title_field"`
-	Public      bool   `yaml:"public"`
+	ID          string `json:"id" yaml:"id"`
+	Label       string `json:"label" yaml:"label"`
+	Description string `json:"description,omitempty" yaml:"description"`
+	Group       string `json:"group,omitempty" yaml:"group"`
+	Icon        string `json:"icon,omitempty" yaml:"icon"`
+	TitleField  string `json:"title_field,omitempty" yaml:"title_field"`
+	Public      bool   `json:"public" yaml:"public"`
 	// Drafts adds a draft/published status to every record. New records
 	// start as drafts, the admin publishes and unpublishes them, and the
 	// public API only returns published records.
-	Drafts bool `yaml:"drafts"`
+	Drafts bool `json:"drafts" yaml:"drafts"`
 	// Revisions keeps the last collections.MaxRevisionsPerRecord saved
 	// versions of each record; the admin can view and restore them.
-	Revisions bool    `yaml:"revisions"`
-	Fields    []Field `yaml:"fields"`
+	Revisions bool    `json:"revisions" yaml:"revisions"`
+	Fields    []Field `json:"fields" yaml:"fields"`
 }
 
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
 // select, media, relation (with to and optionally many).
 type Field struct {
-	ID       string   `yaml:"id"`
-	Label    string   `yaml:"label"`
-	Kind     string   `yaml:"kind"`
-	Required bool     `yaml:"required"`
-	Unique   bool     `yaml:"unique"`
-	List     bool     `yaml:"list"`
-	Options  []string `yaml:"options"`
-	To       string   `yaml:"to"`
-	Many     bool     `yaml:"many"`
-	Min      *float64 `yaml:"min"`
-	Max      *float64 `yaml:"max"`
+	ID       string   `json:"id" yaml:"id"`
+	Label    string   `json:"label" yaml:"label"`
+	Kind     string   `json:"kind" yaml:"kind"`
+	Required bool     `json:"required" yaml:"required"`
+	Unique   bool     `json:"unique" yaml:"unique"`
+	List     bool     `json:"list" yaml:"list"`
+	Options  []string `json:"options,omitempty" yaml:"options"`
+	To       string   `json:"to,omitempty" yaml:"to"`
+	Many     bool     `json:"many,omitempty" yaml:"many"`
+	Min      *float64 `json:"min,omitempty" yaml:"min"`
+	Max      *float64 `json:"max,omitempty" yaml:"max"`
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
-	Searchable bool `yaml:"searchable"`
+	Searchable bool `json:"searchable" yaml:"searchable"`
 	// Filterable fields (text, textarea, select, number) get a filter in
 	// the admin list and accept filter[field]= on the public API.
-	Filterable bool `yaml:"filterable"`
+	Filterable bool `json:"filterable" yaml:"filterable"`
 	// Localized fields (text, textarea, richtext, media) have a value per
 	// site locale; see the package documentation.
-	Localized bool `yaml:"localized"`
+	Localized bool `json:"localized" yaml:"localized"`
 }
 
 // LoadDir reads every *.yaml file in dir. A missing directory yields no

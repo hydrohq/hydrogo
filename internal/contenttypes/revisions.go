@@ -15,7 +15,7 @@ import (
 var errNoRevisions = errors.New("content type has no revisions")
 
 func (a AdminAPI) revisionType(id string) (Definition, error) {
-	definition, ok := definitionByID(a.Types, id)
+	definition, ok := definitionByID(a.types(), id)
 	if !ok || !definition.Revisions {
 		return Definition{}, errNoRevisions
 	}
