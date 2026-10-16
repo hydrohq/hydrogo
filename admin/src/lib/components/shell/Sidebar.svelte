@@ -1,9 +1,10 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import { sidebar } from '$lib/stores/sidebar.svelte';
   import { theme } from '$lib/stores/theme.svelte';
+  import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
   const currentPath = $derived(router.path);
   let showQuickCreate = $state(false);
@@ -61,17 +62,7 @@
       onclick={() => handleNavigate('/dashboard')}
       class="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left text-sm font-semibold transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     >
-      <div class="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-semibold shadow-xs">
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-      </div>
-      {#if sidebar.open}
-        <div class="grid flex-1 text-left text-sm leading-tight">
-          <span class="truncate font-semibold text-sidebar-foreground">HydroGo</span>
-        </div>
-      {/if}
+      <BrandLogo size="md" showText={sidebar.open} />
     </a>
   </div>
 
@@ -401,8 +392,8 @@
         </div>
         <div class="py-1">
           <a
-            href="/admin/site"
-            onclick={() => handleNavigate('/site')}
+            href="/admin/account"
+            onclick={() => handleNavigate('/account')}
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>

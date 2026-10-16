@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import type { Snippet } from 'svelte';
   import Sidebar from './Sidebar.svelte';
   import Header from './Header.svelte';

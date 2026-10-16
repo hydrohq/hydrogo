@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -161,7 +161,7 @@
             onclick={() => router.navigate('/pages')}
             class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            ← Back
+            â† Back
           </button>
           <div class="flex items-center gap-2">
             <span class="text-sm font-semibold text-foreground">

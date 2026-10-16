@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -189,7 +189,7 @@
                 onclick={() => moveBlock(index, 'up')}
                 title="Move Up"
               >
-                ▲
+                â–²
               </button>
               <button
                 type="button"
@@ -198,7 +198,7 @@
                 onclick={() => moveBlock(index, 'down')}
                 title="Move Down"
               >
-                ▼
+                â–¼
               </button>
               <button
                 type="button"
@@ -206,7 +206,7 @@
                 onclick={() => { deleteBlockIndex = index; }}
                 title="Remove Block"
               >
-                ✕
+                âœ•
               </button>
             </div>
           </div>
@@ -215,14 +215,14 @@
           <div class="p-4 space-y-3">
             <Input
               label="Block Title"
-              placeholder="Headline for this section…"
+              placeholder="Headline for this sectionâ€¦"
               value={block.props?.title || ''}
               oninput={(e) => updateBlockProps(index, 'title', (e.target as HTMLInputElement).value)}
             />
 
             <Input
               label="Subtitle / Eyebrow"
-              placeholder="Optional subtitle…"
+              placeholder="Optional subtitleâ€¦"
               value={block.props?.subtitle || ''}
               oninput={(e) => updateBlockProps(index, 'subtitle', (e.target as HTMLInputElement).value)}
             />
@@ -234,7 +234,7 @@
               <textarea
                 id={`block-content-${index}`}
                 rows="3"
-                placeholder="Block body text…"
+                placeholder="Block body textâ€¦"
                 value={block.props?.content || ''}
                 oninput={(e) => updateBlockProps(index, 'content', (e.target as HTMLTextAreaElement).value)}
                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"

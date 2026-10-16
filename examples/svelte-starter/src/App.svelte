@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import Header from './lib/Header.svelte';
   import HomeView from './lib/HomeView.svelte';

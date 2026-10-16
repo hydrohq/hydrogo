@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -86,9 +86,9 @@
       <!-- Filters row -->
       <div class="px-4 lg:px-6">
         <form onsubmit={handleFilter} class="p-3 rounded-xl border border-border bg-card shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-          <Input label="Actor" placeholder="Filter by email…" bind:value={filterActor} />
-          <Input label="Action" placeholder="e.g. create, update…" bind:value={filterAction} />
-          <Input label="Resource" placeholder="e.g. page, user…" bind:value={filterResource} />
+          <Input label="Actor" placeholder="Filter by emailâ€¦" bind:value={filterActor} />
+          <Input label="Action" placeholder="e.g. create, updateâ€¦" bind:value={filterAction} />
+          <Input label="Resource" placeholder="e.g. page, userâ€¦" bind:value={filterResource} />
           <div class="flex gap-2">
             <button
               type="submit"
@@ -117,7 +117,7 @@
       <div class="px-4 lg:px-6">
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {#if loading}
-            <div class="p-12 text-center text-xs text-muted-foreground">Loading audit log events…</div>
+            <div class="p-12 text-center text-xs text-muted-foreground">Loading audit log eventsâ€¦</div>
           {:else if entries.length === 0}
             <div class="p-12 text-center text-xs text-muted-foreground">No audit events found.</div>
           {:else}
@@ -161,7 +161,7 @@
             <!-- Pagination -->
             <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
               <div>
-                Showing {offset + 1}–{Math.min(offset + entries.length, total)} of {total}
+                Showing {offset + 1}â€“{Math.min(offset + entries.length, total)} of {total}
               </div>
               <div class="flex gap-2">
                 <button

@@ -1,9 +1,10 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
+  import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
   let email = $state('');
   let password = $state('');
@@ -44,15 +45,8 @@
 <div class="min-h-screen w-full flex flex-col items-center justify-center p-6 md:p-10 bg-muted/40 text-foreground">
   <div class="w-full max-w-sm flex flex-col gap-6">
     <!-- Brand -->
-    <div class="flex items-center gap-2.5 self-center">
-      <div class="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold">
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-          <polyline points="2 17 12 22 22 17"></polyline>
-          <polyline points="2 12 12 17 22 12"></polyline>
-        </svg>
-      </div>
-      <span class="text-base font-semibold tracking-tight">HydroGo</span>
+    <div class="self-center">
+      <BrandLogo size="md" />
     </div>
 
     <!-- Login Card -->
@@ -86,7 +80,7 @@
         <Input
           label="Password"
           type="password"
-          placeholder="••••••••"
+          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
           bind:value={password}
           required
         />

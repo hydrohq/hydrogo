@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { fetchPageBySlug, type Page } from './api';
 
@@ -28,11 +28,11 @@
     onclick={onback}
     class="text-xs text-sky-400 hover:text-sky-300 font-medium cursor-pointer flex items-center gap-1"
   >
-    ← Back to Home
+    â† Back to Home
   </button>
 
   {#if loading}
-    <div class="py-12 text-center text-sm text-slate-500 animate-pulse">Loading page…</div>
+    <div class="py-12 text-center text-sm text-slate-500 animate-pulse">Loading pageâ€¦</div>
   {:else if !page}
     <div class="p-8 rounded-xl border border-slate-800 bg-slate-900 text-center space-y-2">
       <h3 class="text-base font-semibold text-slate-100">Page Not Found</h3>

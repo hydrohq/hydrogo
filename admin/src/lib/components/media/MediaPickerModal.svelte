@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -130,7 +130,7 @@
         </svg>
         <input
           type="text"
-          placeholder="Filter assets…"
+          placeholder="Filter assetsâ€¦"
           bind:value={search}
           class="h-8 w-full pl-8 pr-3 text-xs rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
         />
@@ -144,7 +144,7 @@
       >
         {#if uploading}
           <div class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-          <span>Uploading…</span>
+          <span>Uploadingâ€¦</span>
         {:else}
           <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -159,7 +159,7 @@
     {#if loading}
       <div class="py-16 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        <span>Loading library assets…</span>
+        <span>Loading library assetsâ€¦</span>
       </div>
     {:else if filteredItems.length === 0}
       <div class="py-14 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl">

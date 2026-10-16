@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -253,7 +253,7 @@
         </svg>
         <input
           type="text"
-          placeholder="Filter content…"
+          placeholder="Filter contentâ€¦"
           bind:value={searchQuery}
           class="h-8 w-full pl-8 pr-3 text-xs rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
         />
@@ -322,7 +322,7 @@
     {#if loading}
       <div class="py-20 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        <span>Loading CMS content & records…</span>
+        <span>Loading CMS content & recordsâ€¦</span>
       </div>
     {:else if paginatedItems.length === 0}
       <div class="py-16 text-center text-xs text-muted-foreground">
@@ -483,7 +483,7 @@
               onclick={() => { if (pageIndex > 0) pageIndex--; }}
               aria-label="Previous Page"
             >
-              ‹
+              â€¹
             </button>
             <button
               type="button"
@@ -492,7 +492,7 @@
               onclick={() => { if (pageIndex < totalPages - 1) pageIndex++; }}
               aria-label="Next Page"
             >
-              ›
+              â€º
             </button>
           </div>
         </div>

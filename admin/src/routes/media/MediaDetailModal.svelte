@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { api } from '$lib/api/client';
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -181,10 +181,10 @@
       <div class="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border text-xs">
         <div class="space-x-2 text-muted-foreground">
           <span class="font-medium text-foreground">{formatBytes(asset.size_bytes)}</span>
-          <span>•</span>
+          <span>â€¢</span>
           <span class="font-mono text-[11px]">{asset.mime_type}</span>
           {#if asset.created_at}
-            <span>•</span>
+            <span>â€¢</span>
             <span>{new Date(asset.created_at).toLocaleDateString()}</span>
           {/if}
         </div>
@@ -194,7 +194,7 @@
           onclick={copyUrl}
         >
           {#if copied}
-            <span class="text-emerald-500 font-semibold">✓ Copied URL</span>
+            <span class="text-emerald-500 font-semibold">âœ“ Copied URL</span>
           {:else}
             <span>Copy Direct URL</span>
           {/if}
