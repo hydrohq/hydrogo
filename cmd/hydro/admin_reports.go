@@ -86,7 +86,16 @@ func (a *serveApp) adminReportsHandler(w http.ResponseWriter, r *http.Request) {
 			if scope, scopeErr := tenant.FromContext(r.Context()); scopeErr == nil {
 				tenantID = scope.TenantID
 			}
-			noCookieStats, uniqueVisitors, _ = dailyNoCookieAnalytics(r.Context(), analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02"))
+			days := 30
+			switch query.Get("range") {
+			case "7d":
+				days = 7
+			case "30d":
+				days = 30
+			case "90d":
+				days = 90
+			}
+			noCookieStats, uniqueVisitors, _ = dailyNoCookieAnalytics(r.Context(), analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02"), days)
 		}
 		out := map[string]any{
 			"timestamp":       time.Now().UTC().Format(time.RFC3339),
@@ -172,10 +181,12 @@ func contentViewFilterFromRequest(r *http.Request, limit int) analyticsstore.Con
 	q := r.URL.Query()
 	filter.TenantID, filter.ContentType, filter.ContentID, filter.Locale = strings.TrimSpace(q.Get("tenant_id")), strings.TrimSpace(q.Get("content_type")), strings.TrimSpace(q.Get("content_id")), strings.TrimSpace(q.Get("locale"))
 	switch q.Get("range") {
-	case "7d", "30d":
+	case "7d", "30d", "90d":
 		days := 7
 		if q.Get("range") == "30d" {
 			days = 30
+		} else if q.Get("range") == "90d" {
+			days = 90
 		}
 		filter.FromDay = time.Now().UTC().AddDate(0, 0, -days+1).Format("2006-01-02")
 		filter.ToDay = time.Now().UTC().Format("2006-01-02")
@@ -197,18 +208,22 @@ func customAnalyticsDateRange(from, to string) (string, string, bool) {
 	return start.Format("2006-01-02"), end.Format("2006-01-02"), true
 }
 
-func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, tenantID, day string) ([]noCookieAnalyticsRow, int64, error) {
+func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, tenantID, day string, days int) ([]noCookieAnalyticsRow, int64, error) {
+	if days <= 0 {
+		days = 90
+	}
 	end, err := time.Parse("2006-01-02", day)
 	if err != nil {
 		return nil, 0, err
 	}
-	start := end.AddDate(0, 0, -29).Format("2006-01-02")
+	start := end.AddDate(0, 0, -days+1).Format("2006-01-02")
 	rows, err := store.ListDailyStatsBetween(ctx, start, day, tenantID, 5000)
 	if err != nil {
 		return nil, 0, err
 	}
 	aggregates := make(map[string]int64)
 	dailyViews := make(map[string]int64)
+	dailyDevices := make(map[string]int64)
 	var unique int64
 	todayRows, err := store.ListDailyStats(ctx, day, tenantID, 500)
 	if err != nil {
@@ -224,15 +239,30 @@ func dailyNoCookieAnalytics(ctx context.Context, store analyticsstore.Store, ten
 		if row.Metric == "page" {
 			aggregates[row.Metric+"\x00"+row.Dimension] += row.EventCount
 			dailyViews[row.Day] += row.EventCount
+		} else if row.Metric == "device" {
+			aggregates[row.Metric+"\x00"+row.Dimension] += row.EventCount
+			dailyDevices[row.Day+"\x00"+row.Dimension] += row.EventCount
 		} else if row.Metric != "unique_visitors" {
 			aggregates[row.Metric+"\x00"+row.Dimension] += row.EventCount
 		}
 	}
-	result := make([]noCookieAnalyticsRow, 0, len(aggregates)+len(dailyViews))
+	result := make([]noCookieAnalyticsRow, 0, len(aggregates)+len(dailyViews)+len(dailyDevices))
 	for date, count := range dailyViews {
 		result = append(result, noCookieAnalyticsRow{Day: date, Metric: "daily_views", EventCount: count})
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Day < result[j].Day })
+	for key, count := range dailyDevices {
+		parts := strings.SplitN(key, "\x00", 2)
+		result = append(result, noCookieAnalyticsRow{Day: parts[0], Metric: "device", Dimension: parts[1], EventCount: count})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Day != result[j].Day {
+			return result[i].Day < result[j].Day
+		}
+		if result[i].Metric != result[j].Metric {
+			return result[i].Metric < result[j].Metric
+		}
+		return result[i].Dimension < result[j].Dimension
+	})
 	var dimensions []noCookieAnalyticsRow
 	for key, count := range aggregates {
 		parts := strings.SplitN(key, "\x00", 2)
