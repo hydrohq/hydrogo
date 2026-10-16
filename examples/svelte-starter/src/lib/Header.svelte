@@ -33,12 +33,6 @@
         Docs
       </button>
 
-      <a
-        href="/admin/"
-        class="text-slate-400 hover:text-white transition-colors"
-      >
-        Admin Studio
-      </a>
 
       <a
         href="https://ardalabs.dev"
