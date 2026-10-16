@@ -44,7 +44,7 @@ func PlainText(value string) string {
 		Ops      json.RawMessage `json:"ops"`
 	}
 	if json.Unmarshal([]byte(value), &envelope) != nil {
-		return value
+		return strings.TrimSpace(bluemonday.StripTagsPolicy().Sanitize(value))
 	}
 	raw := envelope.Document
 	if len(raw) == 0 {

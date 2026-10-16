@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { fetchNewsBySlug, type NewsArticle } from './api';
 
@@ -74,8 +74,8 @@
       {/if}
 
       {#if article.body}
-        <div class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-          {article.body}
+        <div class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed">
+          {@html article.body}
         </div>
       {/if}
 
