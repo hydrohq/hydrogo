@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { router } from '$lib/router.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { sidebar } from '$lib/stores/sidebar.svelte';
@@ -84,14 +84,14 @@
         type="button"
         onclick={() => (showSearchModal = true)}
         class="hidden sm:flex items-center gap-2 h-8 w-44 lg:w-56 rounded-md bg-muted/40 border border-input px-2.5 text-xs text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
-        title="Quick search (âŒ˜K or Ctrl+K)"
+        title="Quick search (⌘K or Ctrl+K)"
       >
         <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
         <span class="truncate flex-1 text-left">Search...</span>
-        <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-background text-muted-foreground border border-border rounded">âŒ˜K</kbd>
+        <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-background text-muted-foreground border border-border rounded">Ctrl K</kbd>
       </button>
 
       <!-- Search button (mobile) -->

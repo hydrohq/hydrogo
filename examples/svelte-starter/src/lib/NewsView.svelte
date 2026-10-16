@@ -28,11 +28,11 @@
     onclick={onback}
     class="text-xs text-sky-400 hover:text-sky-300 font-medium cursor-pointer flex items-center gap-1"
   >
-    â† Back to Articles
+    ← Back to Articles
   </button>
 
   {#if loading}
-    <div class="py-12 text-center text-sm text-slate-500 animate-pulse">Loading articleâ€¦</div>
+    <div class="py-12 text-center text-sm text-slate-500 animate-pulse">Loading article...</div>
   {:else if !article}
     <div class="p-8 rounded-xl border border-slate-800 bg-slate-900 text-center space-y-2">
       <h3 class="text-base font-semibold text-slate-100">Article Not Found</h3>
@@ -53,7 +53,7 @@
             </span>
           {/if}
           {#if article.author_name}
-            <span class="text-xs text-slate-400">â€¢ by {article.author_name}</span>
+            <span class="text-xs text-slate-400">• by {article.author_name}</span>
           {/if}
         </div>
 

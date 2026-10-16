@@ -383,14 +383,14 @@
         onclick={() => (activeTab = 'maintenance')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'maintenance' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Maintenance {maintenance.enabled ? 'â—' : ''}
+        Maintenance {maintenance.enabled ? '●' : ''}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'notice')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'notice' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Staff Notice {staffNotice.enabled ? 'â—' : ''}
+        Staff Notice {staffNotice.enabled ? '●' : ''}
       </button>
       <button
         type="button"
@@ -638,7 +638,7 @@
                   <div class="grid text-left min-w-0">
                     <div class="flex items-center gap-2">
                       <span class="font-mono text-xs font-semibold text-foreground">{r.pattern || r.source}</span>
-                      <span class="text-muted-foreground text-xs">â†’</span>
+                      <span class="text-muted-foreground text-xs">→</span>
                       <span class="font-mono text-xs text-primary">{r.target_path || r.target}</span>
                       <Badge variant="outline" class="text-[10px]">{r.status || r.code || 301}</Badge>
                     </div>
@@ -683,7 +683,7 @@
               <div class="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
                 <div class="grid text-left min-w-0">
                   <span class="font-mono text-xs font-semibold text-foreground">{item.path}</span>
-                  <span class="text-[11px] text-muted-foreground mt-0.5">{item.hits} hit{item.hits === 1 ? '' : 's'} â€¢ Last seen: {item.last_seen ? new Date(item.last_seen).toLocaleString() : 'Recent'}</span>
+                  <span class="text-[11px] text-muted-foreground mt-0.5">{item.hits} hit{item.hits === 1 ? '' : 's'} • Last seen: {item.last_seen ? new Date(item.last_seen).toLocaleString() : 'Recent'}</span>
                 </div>
                 <Button variant="outline" onclick={() => { convertNotFoundPath = item.path; convertTarget = ''; }}>
                   Create Redirect

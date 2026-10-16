@@ -103,7 +103,7 @@
     {#if loading}
       <div class="py-12 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        <span>Loading revision historyâ€¦</span>
+        <span>Loading revision history...</span>
       </div>
     {:else if revisions.length === 0}
       <div class="py-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
@@ -123,7 +123,7 @@
               </div>
               <p class="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
                 <span>{new Date(rev.created_at).toLocaleString()}</span>
-                <span>â€¢</span>
+                <span>•</span>
                 <span>{rev.author_name || 'System Admin'}</span>
               </p>
             </div>

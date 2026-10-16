@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
@@ -106,7 +106,7 @@
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schemaâ€¦</span>
+    <span>Loading {type} schema...</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -129,15 +129,18 @@
             <button
               type="button"
               onclick={() => router.navigate(`/content/${type}`)}
-              class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center gap-1.5"
             >
-              â† Back
+              <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              <span>Back</span>
             </button>
             <span class="text-sm font-semibold text-foreground">
               {isNew ? `New ${collection.singular || collection.label || type}` : `Edit ${collection.singular || collection.label || type}`}
             </span>
             {#if loading}
-              <span class="text-xs text-muted-foreground animate-pulse">Loadingâ€¦</span>
+              <span class="text-xs text-muted-foreground animate-pulse">Loading...</span>
             {/if}
           </div>
 
@@ -192,7 +195,7 @@
                 {#if field.kind === 'text' && field.widget !== 'textarea'}
                   <Input
                     label={field.label || key}
-                    placeholder={`Enter ${field.label || key}â€¦`}
+                    placeholder={`Enter ${field.label || key}...`}
                     bind:value={formData[key]}
                     required={field.required}
                   />
@@ -211,7 +214,7 @@
                     id={`field-${key}`}
                     bind:value={formData[key]}
                     rows="4"
-                    placeholder={`Enter ${field.label || key}â€¦`}
+                    placeholder={`Enter ${field.label || key}...`}
                     class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                   ></textarea>
                 {:else if field.kind === 'richtext' || field.widget === 'richtext'}
@@ -237,7 +240,7 @@
                     bind:value={formData[key]}
                     class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                   >
-                    <option value="">Select optionâ€¦</option>
+                    <option value="">Select option...</option>
                     {#each (field.options || []) as opt}
                       {@const optVal = typeof opt === 'string' ? opt : opt.value}
                       {@const optLabel = typeof opt === 'string' ? opt : opt.label}
@@ -261,7 +264,7 @@
                       </div>
                     {/if}
                     <Input
-                      placeholder="Asset URL or pathâ€¦"
+                      placeholder="Asset URL or path..."
                       bind:value={formData[key]}
                       class="flex-1 font-mono text-xs"
                     />

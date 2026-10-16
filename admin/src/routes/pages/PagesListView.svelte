@@ -117,7 +117,7 @@
             </svg>
             <input
               type="search"
-              placeholder="Filter pagesâ€¦"
+              placeholder="Filter pages..."
               bind:value={search}
               class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             />
@@ -142,7 +142,7 @@
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {#if loading}
             <div class="p-12 text-center text-xs text-muted-foreground">
-              Loading pagesâ€¦
+              Loading pages...
             </div>
           {:else if filteredPages.length === 0}
             <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">

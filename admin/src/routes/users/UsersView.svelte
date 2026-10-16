@@ -331,7 +331,7 @@
                       {/if}
                     </div>
                     <span class="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      ID: <code class="font-mono">{u.id}</code> {u.last_login_at ? `â€¢ Last login: ${new Date(u.last_login_at).toLocaleDateString()}` : ''}
+                      ID: <code class="font-mono">{u.id}</code> {u.last_login_at ? `• Last login: ${new Date(u.last_login_at).toLocaleDateString()}` : ''}
                     </span>
                   </div>
                 </div>
@@ -395,9 +395,9 @@
                 <div class="grid text-left min-w-0">
                   <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-foreground">{key.name}</span>
-                    <code class="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border font-mono">{key.prefix}â€¦</code>
+                    <code class="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border font-mono">{key.prefix}...</code>
                   </div>
-                  <span class="text-[11px] text-muted-foreground mt-0.5">Created: {new Date(key.created_at).toLocaleDateString()} {key.expires_at ? `â€¢ Expires: ${new Date(key.expires_at).toLocaleDateString()}` : ''}</span>
+                  <span class="text-[11px] text-muted-foreground mt-0.5">Created: {new Date(key.created_at).toLocaleDateString()} {key.expires_at ? `• Expires: ${new Date(key.expires_at).toLocaleDateString()}` : ''}</span>
                 </div>
                 <Button variant="danger" onclick={() => (deleteKeyTarget = key)}>Revoke</Button>
               </div>

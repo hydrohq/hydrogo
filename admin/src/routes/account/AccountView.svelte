@@ -388,7 +388,7 @@
         <form onsubmit={handlePasswordChange} class="space-y-4 pt-2">
           <div>
             <label for="current-pwd" class="block text-xs font-medium text-foreground mb-1">Current Password</label>
-            <Input id="current-pwd" type="password" bind:value={currentPassword} required placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
+            <Input id="current-pwd" type="password" bind:value={currentPassword} required placeholder="••••••••••••" />
           </div>
 
           <div>
@@ -528,7 +528,7 @@
                         <Badge variant="outline" class="text-[10px] bg-primary/10 text-primary border-primary/20">This Device</Badge>
                       {/if}
                     </div>
-                    <span class="text-[11px] text-muted-foreground font-mono mt-0.5">{s.ip_address || '127.0.0.1'} â€¢ Last active: {s.last_active_at ? new Date(s.last_active_at).toLocaleString() : 'Just now'}</span>
+                    <span class="text-[11px] text-muted-foreground font-mono mt-0.5">{s.ip_address || '127.0.0.1'} • Last active: {s.last_active_at ? new Date(s.last_active_at).toLocaleString() : 'Just now'}</span>
                   </div>
                 </div>
               </div>
@@ -561,9 +561,9 @@
                 <div class="grid text-left leading-tight min-w-0">
                   <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-foreground">{tok.name}</span>
-                    <code class="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border font-mono">{tok.prefix}â€¦</code>
+                    <code class="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border font-mono">{tok.prefix}...</code>
                   </div>
-                  <span class="text-[11px] text-muted-foreground mt-0.5">Created: {new Date(tok.created_at).toLocaleDateString()} {tok.expires_at ? `â€¢ Expires: ${new Date(tok.expires_at).toLocaleDateString()}` : ''}</span>
+                  <span class="text-[11px] text-muted-foreground mt-0.5">Created: {new Date(tok.created_at).toLocaleDateString()} {tok.expires_at ? `• Expires: ${new Date(tok.expires_at).toLocaleDateString()}` : ''}</span>
                 </div>
                 <Button variant="danger" onclick={() => (deleteTokenTarget = tok)}>Revoke</Button>
               </div>

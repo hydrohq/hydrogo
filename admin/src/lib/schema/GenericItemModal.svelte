@@ -156,7 +156,7 @@
   {#if loading}
     <div class="py-16 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
       <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-      <span>Loading record detailsâ€¦</span>
+      <span>Loading record details...</span>
     </div>
   {:else if !collection}
     <div class="p-8 text-center text-xs text-muted-foreground">
@@ -177,7 +177,7 @@
           {#if field.kind === 'text' && field.widget !== 'textarea'}
             <Input
               label={field.label || key}
-              placeholder={`Enter ${field.label || key}â€¦`}
+              placeholder={`Enter ${field.label || key}...`}
               bind:value={formData[key]}
               required={field.required}
             />
@@ -204,7 +204,7 @@
               bind:value={formData[key]}
               class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             >
-              <option value="">Select optionâ€¦</option>
+              <option value="">Select option...</option>
               {#if field.options}
                 {#each field.options as opt}
                   <option value={typeof opt === 'string' ? opt : opt.value}>
@@ -230,14 +230,14 @@
               id={`textarea-${key}`}
               bind:value={formData[key]}
               rows="3"
-              placeholder={`Enter ${field.label || key}â€¦`}
+              placeholder={`Enter ${field.label || key}...`}
               class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             ></textarea>
           {:else if field.kind === 'richtext' || field.widget === 'richtext'}
             <RichTextEditor
               label={field.label || key}
               bind:value={formData[key]}
-              placeholder={`Write content for ${field.label || key}â€¦`}
+              placeholder={`Write content for ${field.label || key}...`}
             />
           {:else if field.kind === 'media'}
             <label for={`media-input-${key}`} class="text-xs font-medium text-foreground">
@@ -258,7 +258,7 @@
                 <input
                   id={`media-input-${key}`}
                   type="text"
-                  placeholder="URL or select from libraryâ€¦"
+                  placeholder="URL or select from library..."
                   bind:value={formData[key]}
                   class="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                 />
@@ -274,7 +274,7 @@
           {:else}
             <Input
               label={field.label || key}
-              placeholder={`Enter ${field.label || key}â€¦`}
+              placeholder={`Enter ${field.label || key}...`}
               bind:value={formData[key]}
             />
           {/if}
