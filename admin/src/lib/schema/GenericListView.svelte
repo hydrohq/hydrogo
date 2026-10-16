@@ -154,7 +154,7 @@
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schemaâ€¦</span>
+    <span>Loading {type} schema...</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -213,7 +213,7 @@
               </svg>
               <input
                 type="search"
-                placeholder="Search {(collection.plural || collection.label || type).toLowerCase()}â€¦"
+                placeholder="Search {(collection.plural || collection.label || type).toLowerCase()}..."
                 bind:value={search}
                 class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               />
@@ -238,7 +238,7 @@
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
               <div class="p-12 text-center text-xs text-muted-foreground">
-                Loading {(collection.plural || collection.label || type).toLowerCase()}â€¦
+                Loading {(collection.plural || collection.label || type).toLowerCase()}...
               </div>
             {:else if filteredItems.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">
@@ -289,11 +289,11 @@
                                   />
                                 </div>
                               {:else}
-                                <span class="font-mono text-muted-foreground">â€”</span>
+                                <span class="font-mono text-muted-foreground">—</span>
                               {/if}
                             {:else}
                               <span class="font-medium text-foreground">
-                                {String(item[key] ?? 'â€”')}
+                                {String(item[key] ?? '—')}
                               </span>
                             {/if}
                           </td>

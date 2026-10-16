@@ -205,7 +205,7 @@
             </svg>
             <input
               type="search"
-              placeholder="Search filesâ€¦"
+              placeholder="Search files..."
               bind:value={search}
               oninput={() => loadAssets()}
               class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
@@ -232,7 +232,7 @@
         <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
           {#if loading}
             <div class="py-16 text-center text-xs text-muted-foreground">
-              Loading media libraryâ€¦
+              Loading media library...
             </div>
           {:else if assets.length === 0}
             <div class="py-16 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">

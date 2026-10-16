@@ -80,7 +80,7 @@
         <Input
           label="Password"
           type="password"
-          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+          placeholder="••••••••"
           bind:value={password}
           required
         />

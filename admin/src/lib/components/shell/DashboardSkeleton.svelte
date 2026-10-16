@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 </script>
 
 <div class="flex h-screen w-full bg-sidebar text-sidebar-foreground overflow-hidden font-sans select-none">
@@ -30,7 +30,7 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
         <span>Search modules...</span>
-        <span class="ml-auto text-[10px] font-mono bg-muted/80 px-1 rounded border border-border">âŒ˜K</span>
+        <span class="ml-auto text-[10px] font-mono bg-muted/80 px-1 rounded border border-border">Ctrl K</span>
       </div>
     </div>
 
@@ -110,7 +110,7 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full size-2 bg-sky-500"></span>
         </span>
-        <span class="font-mono text-[11px] tracking-wide uppercase text-muted-foreground">Starting HydroGo Adminâ€¦</span>
+        <span class="font-mono text-[11px] tracking-wide uppercase text-muted-foreground">Starting HydroGo Admin...</span>
       </div>
 
       <!-- Right Action Icons Placeholder -->

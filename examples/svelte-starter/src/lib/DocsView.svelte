@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { docCategories, docTopics, type DocTopic } from './docsData';
 
   interface Props {
@@ -119,7 +119,7 @@
             placeholder="Search documentation, API endpoints, YAML..."
             class="w-full h-9 pl-9 pr-12 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-colors"
           />
-          <kbd class="absolute right-3 top-2 text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">âŒ˜K</kbd>
+          <kbd class="absolute right-3 top-2 text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">⌘K</kbd>
         </div>
       </div>
 
@@ -143,8 +143,11 @@
           rel="noreferrer"
           class="hidden sm:inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
         >
-          Visit Website
-          <span aria-hidden="true">â†—</span>
+          <span>Visit Website</span>
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 17L17 7" />
+            <path d="M7 7h10v10" />
+          </svg>
         </a>
 
         <!-- Exit to Starter Button -->
@@ -193,7 +196,7 @@
           onclick={() => (mobileSidebarOpen = false)}
           class="p-1 rounded text-zinc-400 hover:text-white"
         >
-          âœ•
+          ✕
         </button>
       </div>
 
@@ -291,9 +294,9 @@
                   {#if section.callout.type === 'tip'}
                     ðŸ’¡
                   {:else if section.callout.type === 'warning'}
-                    âš ï¸
+                    ⚠️
                   {:else}
-                    â„¹ï¸
+                    ℹ️
                   {/if}
                 </div>
                 <div>{section.callout.text}</div>
@@ -312,7 +315,7 @@
                     class="hover:text-white transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0 text-zinc-400 text-xs"
                   >
                     {#if copiedCodeId === codeId}
-                      <span class="text-emerald-400">âœ“ Copied</span>
+                      <span class="text-emerald-400">✓ Copied</span>
                     {:else}
                       <span>Copy</span>
                     {/if}
@@ -361,7 +364,7 @@
             onclick={() => selectTopic(prevTopic.id)}
             class="p-4 rounded-xl border border-zinc-800 bg-zinc-950 hover:bg-zinc-900/70 hover:border-zinc-700 transition-colors text-left space-y-1 cursor-pointer"
           >
-            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">â† Previous</span>
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">← Previous</span>
             <div class="text-sm font-semibold text-white">{prevTopic.title}</div>
             <p class="text-xs text-zinc-400 line-clamp-1">{prevTopic.description}</p>
           </button>
@@ -375,7 +378,7 @@
             onclick={() => selectTopic(nextTopic.id)}
             class="p-4 rounded-xl border border-zinc-800 bg-zinc-950 hover:bg-zinc-900/70 hover:border-zinc-700 transition-colors text-right space-y-1 cursor-pointer sm:col-start-2"
           >
-            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Next â†’</span>
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Next →</span>
             <div class="text-sm font-semibold text-white">{nextTopic.title}</div>
             <p class="text-xs text-zinc-400 line-clamp-1">{nextTopic.description}</p>
           </button>

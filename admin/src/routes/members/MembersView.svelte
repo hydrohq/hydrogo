@@ -213,7 +213,7 @@
             </svg>
             <input
               type="search"
-              placeholder="Search membersâ€¦"
+              placeholder="Search members..."
               bind:value={search}
               class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             />
@@ -239,7 +239,7 @@
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {#if loading}
             <div class="p-12 text-center text-xs text-muted-foreground">
-              Loading membersâ€¦
+              Loading members...
             </div>
           {:else if filteredMembers.length === 0}
             <div class="p-12 text-center text-xs text-muted-foreground">
@@ -273,7 +273,7 @@
                       </td>
                       <td class="px-4 py-3">
                         {#if m.email_verified_at}
-                          <span class="text-xs text-emerald-500 font-medium">âœ“ Verified</span>
+                          <span class="text-xs text-emerald-500 font-medium">✓ Verified</span>
                         {:else}
                           <span class="text-xs text-amber-500 font-medium">Unverified</span>
                         {/if}

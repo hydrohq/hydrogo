@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { tick } from 'svelte';
   import { router } from '$lib/router.svelte';
   import { schema } from '$lib/stores/schema.svelte';
@@ -88,7 +88,7 @@
               for (const p of pRes.data) {
                 results.push({
                   title: p.title || p.slug || 'Untitled Page',
-                  subtitle: `Page â€¢ /${p.slug || ''}`,
+                  subtitle: `Page • /${p.slug || ''}`,
                   path: `/pages/${p.id}`,
                   icon: 'pages',
                 });
@@ -103,7 +103,7 @@
               for (const n of nRes.data) {
                 results.push({
                   title: n.title || n.slug || 'Untitled Article',
-                  subtitle: `Article â€¢ ${n.published_at ? 'Published' : 'Draft'}`,
+                  subtitle: `Article • ${n.published_at ? 'Published' : 'Draft'}`,
                   path: `/news/${n.id}`,
                   icon: 'news',
                 });
@@ -270,9 +270,9 @@
       <!-- Footer Guide -->
       <div class="px-4 py-2 border-t border-border bg-card/40 flex items-center justify-between text-[11px] text-muted-foreground">
         <div class="flex items-center gap-3">
-          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1 rounded">â†‘â†“</kbd> navigate</span>
-          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1 rounded">â†µ</kbd> select</span>
-          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1 rounded">esc</kbd> close</span>
+          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↑</kbd><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↓</kbd> navigate</span>
+          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Enter</kbd> select</span>
+          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Esc</kbd> close</span>
         </div>
         <span class="font-mono">{filteredItems.length} results</span>
       </div>

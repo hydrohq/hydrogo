@@ -495,7 +495,7 @@
                 <div class="grid text-left min-w-0">
                   <span class="font-mono text-xs font-semibold text-foreground truncate">{p.Path}</span>
                   <span class="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                    {p.Requests} requests â€¢ Avg: {p.AvgMS}ms â€¢ P95: {p.P95MS}ms
+                    {p.Requests} requests • Avg: {p.AvgMS}ms • P95: {p.P95MS}ms
                   </span>
                 </div>
                 <div class="flex items-center gap-2 font-mono text-xs">
