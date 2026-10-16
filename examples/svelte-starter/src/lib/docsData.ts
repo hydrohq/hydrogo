@@ -73,6 +73,7 @@ export const docCategories: DocCategory[] = [
       { id: 'production-binary', title: 'Single-Binary Deploy' },
       { id: 'reverse-proxy', title: 'Reverse Proxy (Nginx/Caddy)' },
       { id: 'database-setup', title: 'SQLite, Postgres & MySQL' },
+      { id: 'site-and-forms', title: 'Site API & Forms' },
     ],
   },
 ];
@@ -86,22 +87,22 @@ export const docTopics: Record<string, DocTopic> = {
     description: 'Learn the architectural principles behind HydroGo single-binary headless CMS.',
     headings: ['Architecture', 'Core Principles', 'Headless Design'],
     content: {
-      lead: 'HydroGo is a headless, single-binary Content Management System engineered for speed, minimalism, and developer freedom.',
+      lead: 'HydroGo is a single-binary headless Go CMS. It stores and serves content through a JSON API; each project builds its own public frontend against that API.',
       sections: [
         {
           title: 'Architecture',
           id: 'architecture',
-          text: 'HydroGo cleanly decouples the content storage and API layer from your frontend. The Go core serves high-performance JSON REST APIs. No HTML or CSS markup exists in the server core, eliminating templating overhead and keeping the runtime ultra-fast and secure.',
+          text: 'The server owns content models, publishing workflows, media, members, and the REST API. It does not render a public website. The embedded admin is a Svelte single-page app, while your public site can use any framework or native client.',
         },
         {
           title: 'Core Principles',
           id: 'core-principles',
-          text: '1. Single-Binary: No node_modules, Python, or Ruby required in production. One compiled Go binary runs everywhere.\n2. Predictable JSON APIs: Every endpoint follows a consistent {data, meta} envelope.\n3. Declarative Schema: Custom content types are modeled as clean YAML files in content-types/ without requiring custom database migrations or boilerplate Go code.\n4. Database Agnostic: Native first-class support for SQLite (with WAL mode), PostgreSQL, and MySQL.',
+          text: 'HydroGo keeps content changes live in the database, exposes JSON rather than server-rendered pages, and lets simple collections come from YAML schemas. The core supports SQLite, PostgreSQL, and MySQL. API responses use a shared data/meta success envelope and a request_id-bearing error envelope.',
         },
         {
           title: 'Headless Design',
           id: 'headless-design',
-          text: 'Because HydroGo is strictly headless, you build your customer-facing applications in whatever frontend framework you prefer—Svelte, Next.js, Nuxt, Astro, or native mobile apps (iOS/Android)—simply consuming the standardized REST API.',
+          text: 'The included Svelte starter is an example API consumer, not a required frontend. A frontend can fetch published content directly or through its own backend-for-frontend when credentials or server-side caching are needed.',
         },
       ],
     },
@@ -112,7 +113,7 @@ export const docTopics: Record<string, DocTopic> = {
     title: 'Quick Start',
     category: 'Getting Started',
     badge: 'Popular',
-    description: 'Get a HydroGo instance up and running locally in under two minutes.',
+    description: 'Run the CMS and starter locally, then make your first public API requests.',
     headings: ['Prerequisites', 'Starting Local Dev Server', 'Connecting Your Frontend'],
     content: {
       lead: 'Start building your content-driven application in minutes.',
@@ -120,7 +121,7 @@ export const docTopics: Record<string, DocTopic> = {
         {
           title: 'Prerequisites',
           id: 'prerequisites',
-          text: 'You only need Go 1.22+ and Git installed on your system. SQLite is embedded by default, requiring no database installation.',
+          text: 'Use the Go version declared in go.mod (Go 1.27) and Git. The devserver supplies the local development workflow and demo data; production database and media storage still need persistent locations.',
         },
         {
           title: 'Starting Local Dev Server',
@@ -133,7 +134,7 @@ export const docTopics: Record<string, DocTopic> = {
           },
           callout: {
             type: 'tip',
-            text: 'The devserver boots HydroGo with seeded demo data, applies migrations automatically, and starts listening on http://127.0.0.1:8090.',
+          text: 'The repository devserver runs the API and Vite with HMR for the admin and starter development workflow, and listens at http://127.0.0.1:8090.',
           },
         },
         {
@@ -143,7 +144,7 @@ export const docTopics: Record<string, DocTopic> = {
           code: {
             lang: 'bash',
             filename: 'Terminal',
-            code: 'curl http://127.0.0.1:8090/api/v1/pages\ncurl http://127.0.0.1:8090/api/v1/news',
+            code: 'curl "http://127.0.0.1:8090/api/v1/pages?locale=en"\ncurl "http://127.0.0.1:8090/api/v1/news?locale=en"',
           },
         },
       ],
@@ -154,31 +155,35 @@ export const docTopics: Record<string, DocTopic> = {
     id: 'configuration',
     title: 'Configuration Guide',
     category: 'Getting Started',
-    description: 'Configure ports, database drivers, JWT secrets, and CORS origins.',
-    headings: ['Configuration File', 'Environment Variables', 'CORS & Security', 'Local and Production Settings'],
+    description: 'Set the HTTP listener, database, media storage, security, and enabled modules.',
+    headings: ['Configuration File', 'Environment Variables', 'Modules and Profiles', 'Security and Origins', 'Local and Production Settings'],
     content: {
       lead: 'HydroGo reads configuration from config.yaml with full override support via environment variables.',
       sections: [
         {
           title: 'Configuration File',
           id: 'configuration-file',
-          text: 'A clean config.yaml file sets up your server:',
+          text: 'Configuration follows the shipped config.example.yaml structure. Keep deployment secrets out of source control:',
           code: {
             lang: 'yaml',
             filename: 'config.yaml',
-            code: `server:
-  port: 8090
-  bind: "127.0.0.1"
-  public_origin: "https://yourdomain.com"
+            code: `profile: compact
+modules: [core, auth, members, pages, media, site, news, collections]
+http:
+  address: "127.0.0.1:8080"
+  public_origin: "https://cms.example.com"
 
 database:
   dialect: sqlite # sqlite | postgres | mysql
   dsn: "hydrogo.db"
 
+media:
+  dir: "data/media"
 security:
-  cors_allowed_origins:
-    - "https://yourdomain.com"
-    - "http://localhost:3000"`,
+  secure_cookies: true
+  enable_hsts: true
+  headers_preset: strict
+  public_api_origins: []`,
           },
         },
         {
@@ -192,9 +197,14 @@ security:
           },
         },
         {
-          title: 'CORS & Security',
-          id: 'cors-security',
-          text: 'Set allowed origins to the exact origins of browser clients, including scheme and port where needed. Keep database credentials and signing keys in protected deployment secrets. Bind the API to a private interface when a reverse proxy is responsible for public TLS termination.',
+          title: 'Modules and Profiles',
+          id: 'modules-and-profiles',
+          text: 'The modules list controls which capabilities are active. Keep it intentional: inactive modules should not add routes, migrations, workers, assets, or admin navigation. Profiles select a capacity preset; consult the config reference and validate the configuration before deployment.',
+        },
+        {
+          title: 'Security and Origins',
+          id: 'security-and-origins',
+          text: 'For HTTPS deployments, enable secure cookies and HSTS. public_api_origins is an optional explicit allowlist for credential-free published API reads; wildcard origins are not supported. Browser writes should use same-site sessions or a server-side BFF. Do not put admin credentials or private API keys in a browser bundle.',
         },
         {
           title: 'Local and Production Settings',
@@ -209,44 +219,51 @@ security:
     id: 'cli-commands',
     title: 'CLI Reference',
     category: 'Getting Started',
-    description: 'Command line utilities for database migrations, user management, and schema generation.',
-    headings: ['Core Commands', 'Database Migrations', 'User Management', 'OpenAPI Schema Export'],
+    description: 'Commands for running, validating, migrating, backing up, and maintaining HydroGo.',
+    headings: ['Run and Validate', 'Database and Schema', 'Admin and SDK Commands', 'Backup and Restore'],
     content: {
       lead: 'HydroGo ships with built-in subcommands for operations and automation.',
       sections: [
         {
-          title: 'Core Commands',
-          id: 'core-commands',
-          text: 'List of standard CLI subcommands:',
+          title: 'Run and Validate',
+          id: 'run-and-validate',
+          text: 'Common commands for local development and startup checks:',
           table: {
             headers: ['Command', 'Description'],
             rows: [
-              ['hydro serve', 'Starts the HTTP API server'],
-              ['hydro migrate', 'Runs pending database migrations across all tables'],
-              ['hydro user add', 'Creates an administrator or editor user'],
-              ['hydro schema openapi', 'Exports the OpenAPI 3.0 specification JSON'],
+              ['hydro serve', 'Starts the configured HTTP API and embedded admin'],
+              ['hydro run / hydro dev', 'Runs the development workflow with dependency options'],
+              ['hydro validate', 'Validates configuration and runtime prerequisites'],
+              ['hydro doctor', 'Inspects operational health; optional --fix is explicit'],
+              ['hydro healthcheck', 'Runs the process health check'],
             ],
           },
         },
         {
-          title: 'OpenAPI Schema Export',
-          id: 'openapi-schema-export',
-          text: 'Export the complete OpenAPI contract to generate client SDKs or TypeScript types:',
+          title: 'Database and Schema',
+          id: 'database-and-schema',
+          text: 'Migrations apply pending database changes. Schema diff compares release contracts; it is not an OpenAPI export command.',
           code: {
             lang: 'bash',
             filename: 'Terminal',
-            code: 'hydro schema openapi > openapi.json',
+            code: 'hydro migrate --config config.yaml\nhydro schema diff --baseline RELEASE.json --current RELEASE.json --public-key KEY',
           },
         },
         {
-          title: 'Database Migrations',
-          id: 'database-migrations',
-          text: 'Run pending migrations as part of deployment before starting a new server version. The repository keeps a migration for each supported SQL dialect so the same schema change can be applied on SQLite, PostgreSQL, and MySQL.',
+          title: 'Admin and SDK Commands',
+          id: 'admin-and-sdk-commands',
+          text: 'Create the first administrator from a password supplied on stdin. Generate SDKs from the API contract with the dedicated generator:',
           code: {
             lang: 'bash',
             filename: 'Terminal',
-            code: 'hydro migrate --config config.yaml',
+            code: 'hydro create-admin --email admin@example.com --password-stdin\nhydro sdk generate --lang typescript --out ./generated',
           },
+        },
+        {
+          title: 'Backup and Restore',
+          id: 'backup-and-restore',
+          text: 'The CLI includes database backup, pruning, verification, and restore workflows. Read each command help and use a staging destination before recovery; restore commands require explicit safety flags.',
+          code: { lang: 'bash', filename: 'Terminal', code: 'hydro backup sqlite --destination ./backup\nhydro restore verify --snapshot ./backup' },
         },
       ],
     },
@@ -265,66 +282,65 @@ security:
         {
           title: 'Defining Collections',
           id: 'defining-collections',
-          text: 'Drop a YAML file into content-types/. For example, content-types/faq.yaml:',
+          text: 'Add a YAML definition under content-types/. This valid example creates a public FAQ collection with drafts, revisions, searchable text, and list filters:',
           code: {
             lang: 'yaml',
             filename: 'content-types/faq.yaml',
             code: `id: faq
-singular: FAQ
-plural: FAQs
+label: FAQ
+description: Questions and answers shown on the site.
+title_field: question
 public: true
 drafts: true
+revisions: true
 fields:
-  - id: question
-    type: string
-    required: true
-    searchable: true
-  - id: answer
-    type: richtext
-    required: true
-  - id: category
-    type: select
-    options: ["general", "billing", "technical"]
-  - id: sort_order
-    type: integer
-    default: 0`,
+  - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
+  - {id: answer, label: Answer, kind: richtext, required: true, searchable: true}
+  - {id: category, label: Category, kind: select, options: [general, account, billing], list: true, filterable: true}
+  - {id: sort_order, label: Order, kind: number, list: true}`,
           },
         },
         {
           title: 'Field Options',
           id: 'field-options',
-          text: 'Each field has an id and a supported type. Depending on its type, a definition can also include required, default, searchable, localized, options, and validation constraints. Keep IDs stable once content has been entered; they are used in stored records and API responses.',
+          text: 'Fields use kind (not type). Common options are required, unique, options for select values, to/many for relations, min/max for numbers, and list/searchable/filterable for admin and public discovery. Keep IDs stable after records exist because they are part of stored data and API responses.',
           code: {
             lang: 'yaml',
             filename: 'Field options',
             code: `fields:
   - id: title
-    type: string
+    label: Title
+    kind: text
     required: true
     searchable: true
+    list: true
   - id: status
-    type: select
-    options: [draft, published]
-    default: draft
-  - id: published_at
-    type: date
-    localized: true`,
+    label: Status
+    kind: select
+    options: [active, archived]
+    filterable: true
+  - id: related_page
+    label: Related page
+    kind: relation
+    to: pages
+    many: false`,
           },
         },
         {
           title: 'Admin and Public APIs',
           id: 'admin-public-apis',
-          text: 'A definition creates a schema-driven admin collection at /admin/content/{id}. When public is true, published records are also readable from GET /api/v1/content/{id} and GET /api/v1/content/{id}/{record-id}. Drafts and write operations remain behind the admin API and its permissions.',
+          text: 'A definition creates an admin collection at /admin/content/{id}. With public: true, published records are readable at GET /api/v1/content/{id} and GET /api/v1/content/{id}/{record-id}. Drafts and write operations use the protected admin API.',
         },
         {
           title: 'Content Lifecycle',
           id: 'content-lifecycle',
-          text: 'Enable drafts when editors need to review work before publication. Schema flags can also enable revisions, list search and filters, and localized fields. Publishing updates the API data immediately; a frontend can fetch the new content without a rebuild.',
+          text: 'With drafts enabled, new records start as drafts and the public API excludes unpublished records. Revisions retain up to 50 saved versions; restoring one creates a new version. Localized fields require revisions and configured locales, and cannot be unique, searchable, or filterable. Publishing changes database/API output immediately without rebuilding a frontend.',
         },
         {
-          title: 'Automatic API Generation',
-          id: 'automatic-api-generation',
-          text: 'With public: true, HydroGo immediately serves GET /api/v1/content/faq and GET /api/v1/content/faq/{id} with filtering, sorting, and full-text search.',
+          title: 'Querying Public Content',
+          id: 'querying-public-content',
+          text: 'Lists accept limit (default 25, maximum 100), offset, sort (prefix a field with - for descending), search across searchable fields, and exact filter[field] matches for filterable fields. Responses include has_more rather than a universal total count.',
+          code: { lang: 'bash', filename: 'cURL', code: 'curl "http://127.0.0.1:8090/api/v1/content/faq?limit=10&search=account&filter[category]=account"' },
         },
       ],
     },
@@ -334,38 +350,39 @@ fields:
     id: 'field-types',
     title: 'Field Types & Validation',
     category: 'Content & Modeling',
-    description: 'Comprehensive guide to supported field types and validation rules.',
-    headings: ['Supported Field Types', 'Validation and Defaults', 'Localization'],
+    description: 'Available schema field kinds, constraints, relations, and localization rules.',
+    headings: ['Supported Field Kinds', 'Validation and Relations', 'Localization'],
     content: {
       lead: 'HydroGo supports rich field types tailored for modern content applications.',
       sections: [
         {
-          title: 'Supported Field Types',
+          title: 'Supported Field Kinds',
           id: 'supported-field-types',
           text: 'Standard data types available in collection definitions:',
           table: {
             headers: ['Field Type', 'Storage Type', 'Description'],
             rows: [
-              ['string', 'VARCHAR(255)', 'Short single-line text (titles, names, slugs)'],
-              ['text', 'TEXT', 'Multi-line plain text (descriptions, notes)'],
-              ['richtext', 'JSON / HTML', 'Structured formatting with headings, lists, links, images'],
-              ['integer', 'INTEGER', 'Whole numbers (counters, sort orders, ratings)'],
-              ['boolean', 'BOOLEAN', 'True/false flags (featured, active, sponsored)'],
-              ['select', 'VARCHAR(64)', 'Dropdown selection from a predefined options list'],
-              ['media', 'VARCHAR(255)', 'Image or document reference with WebP variants'],
-              ['date', 'DATETIME', 'Date or timestamp values'],
+              ['text', 'Text', 'Single-line text values'],
+              ['textarea', 'Text', 'Multi-line plain text'],
+              ['richtext', 'Rich text', 'Formatted editorial content'],
+              ['number', 'Number', 'Numeric values; supports min/max'],
+              ['boolean', 'Boolean', 'True/false values'],
+              ['date / datetime', 'Date/time', 'Calendar date or date-time value'],
+              ['select', 'Option', 'One value from declared options'],
+              ['media', 'Media reference', 'Reference to a media asset'],
+              ['relation', 'Relation', 'Reference to another collection; to/many configure target and cardinality'],
             ],
           },
         },
         {
-          title: 'Validation and Defaults',
+          title: 'Validation and Relations',
           id: 'validation-and-defaults',
-          text: 'Use required to reject missing values and default to provide an initial value when a record is created. Select fields should declare their allowed options. Validation happens when content is saved, so invalid values are reported to the editor instead of silently entering the collection.',
+          text: 'Use required to reject missing values, unique to prevent duplicate values, min/max on numbers, and options on select fields. Relations use to for their target and many to allow multiple related records. Validation runs when records are written.',
         },
         {
           title: 'Localization',
           id: 'localization',
-          text: 'Mark translatable fields as localized when the project has localization enabled. A localized field stores a value for each configured locale; fields that are not localized remain shared across translations. Set the default locale in the i18n configuration.',
+          text: 'Only text, textarea, richtext, and media fields can be localized. Localized fields need revisions enabled on the content type and cannot also be unique, searchable, or filterable. Configure available and default locales in i18n; public reads can request a locale, with localized values falling back per field to the default locale.',
         },
       ],
     },
@@ -383,7 +400,7 @@ fields:
         {
           title: 'Pages Module',
           id: 'pages-module',
-          text: 'The Pages module manages hierarchical content with slugs, layout templates, and modular block payloads for landing pages and docs.',
+          text: 'Pages store locale-aware, slug-addressable published content and structured blocks. The public list returns summaries; fetch a page by locale and slug to get the page payload. Preview links are private, short-lived, and tied to a draft revision.',
         },
         {
           title: 'Choosing a Content Model',
@@ -393,7 +410,7 @@ fields:
         {
           title: 'News Module',
           id: 'news-module',
-          text: 'The News module handles editorial articles with categories, tags, author metadata, cover media, scheduled publishing dates, and view counts.',
+          text: 'News records include title, body, slug, locale, cover media, excerpt, key takeaways, category, author, featured flag, tags, SEO fields, publication status, and optional schedule/expiry timestamps. Public endpoints expose published articles only. The list endpoint supports locale and limit; it does not provide category/search/offset query filters.',
         },
       ],
     },
@@ -401,22 +418,27 @@ fields:
 
   'media-library': {
     id: 'media-library',
-    title: 'Media Engine & WebP',
+    title: 'Media Library',
     category: 'Content & Modeling',
-    description: 'Automatic image processing, WebP variant generation, and BlurHash placeholders.',
-    headings: ['Image Processing Pipeline', 'Serving Media'],
+    description: 'Upload rules, stored asset metadata, derivative processing, and delivery.',
+    headings: ['Uploads and Asset Metadata', 'Derivatives and Storage', 'Serving Media'],
     content: {
       lead: 'Zero-configuration media optimization designed for optimal Core Web Vitals.',
       sections: [
         {
           title: 'Image Processing Pipeline',
           id: 'image-processing-pipeline',
-          text: 'When images are uploaded, HydroGo automatically creates modern WebP variants (thumbnail, medium, large), calculates focal point coordinates, and produces compact BlurHash placeholder strings for smooth UI loading.',
+          text: 'The media library accepts JPEG, PNG, WebP, and SVG images, plus MP4, WebM, and QuickTime video. Asset metadata can include dimensions, focal point, dominant colors, blur hash, tags, folder, status, and visibility. Validate size and allowed media at upload boundaries in your client workflow.',
+        },
+        {
+          title: 'Derivatives and Storage',
+          id: 'serving-media',
+          text: 'Media is stored under the configured media directory or an optional S3-compatible backend. Image/PDF/video derivative jobs use a bounded background queue; derivative availability is asynchronous. Keep the data directory persistent and back it up with the database.',
         },
         {
           title: 'Serving Media',
           id: 'serving-media',
-          text: 'Uploaded media is served under /media/{id} with aggressive Cache-Control: public, max-age=31536000, immutable headers for maximum CDN and browser caching efficiency.',
+          text: 'Use the asset URL and metadata returned by the media API. Do not assume every source file has a particular WebP size variant; clients should use the original or a derivative that is actually present.',
         },
       ],
     },
@@ -439,25 +461,15 @@ fields:
             lang: 'json',
             filename: 'Response 200 OK',
             code: `{
-  "data": [
-    {
-      "id": "item_123",
-      "title": "Welcome to HydroGo",
-      "slug": "welcome"
-    }
-  ],
-  "meta": {
-    "total": 1,
-    "limit": 20,
-    "offset": 0
-  }
+  "data": [{ "id": "item_123", "title": "Welcome" }],
+  "meta": { "limit": 20, "has_more": false }
 }`,
           },
         },
         {
           title: 'Pagination Metadata',
           id: 'pagination-metadata',
-          text: 'List endpoints accept limit and offset for paging through results. Responses include metadata when the endpoint provides a total or pagination details. Locale-aware endpoints accept locale; use the documented query parameters for each resource rather than assuming every collection supports identical filters.',
+          text: 'Pagination metadata varies by endpoint. Page and news lists expose limit and has_more; public content types additionally accept offset. Do not rely on a total count unless a specific endpoint documents one. Locale and filtering support also vary by resource.',
         },
         {
           title: 'Error Envelope',
@@ -469,7 +481,8 @@ fields:
             code: `{
   "code": "VALIDATION_FAILED",
   "message": "The title field is required",
-  "request_id": "req_8f93a1c2"
+  "request_id": "req_8f93a1c2",
+  "fields": { "title": "required" }
 }`,
           },
         },
@@ -481,7 +494,7 @@ fields:
     id: 'pages-api',
     title: 'Pages Endpoints',
     category: 'REST API Reference',
-    description: 'Fetch published site pages by slug or list all site hierarchy.',
+    description: 'List page summaries, fetch a published page by locale and slug, or preview a draft.',
     headings: ['List Pages', 'Get Page By Slug', 'Locale and Preview'],
     content: {
       lead: 'Endpoints to query static pages and layout structures.',
@@ -489,31 +502,31 @@ fields:
         {
           title: 'List Pages',
           id: 'list-pages',
-          text: 'Fetch all published pages in the current locale:',
+          text: 'List published page summaries. The locale is optional and limit defaults to 20 (maximum 100). The response includes pagination metadata with has_more; it is not the full page body.',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/pages"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/pages?locale=en&limit=20"',
           },
         },
         {
           title: 'Get Page By Slug',
           id: 'get-page-by-slug',
-          text: 'Retrieve a page by its URL slug:',
+          text: 'Fetch the published page payload using the locale and slug query parameters (or the locale/slug path form):',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/pages/about"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/pages/by-slug?locale=en&slug=about"',
           },
         },
         {
           title: 'Locale and Preview',
           id: 'locale-and-preview',
-          text: 'The list endpoint accepts locale to return content for a language. For a public page lookup by slug, use the documented by-slug query route. Draft preview is a separate protected flow that uses a signed preview token; never expose that token in public links or logs.',
+          text: 'A protected admin request creates a preview link. Its token is bound to the current draft revision and expires when that revision changes. Preview responses are private and must not be cached or exposed as public content.',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/pages?locale=en"\ncurl "http://127.0.0.1:8090/api/v1/pages/by-slug?locale=en&slug=about"',
+            code: 'GET /api/v1/pages/{id}/preview?token=<preview-token>\nPOST /api/v1/admin/pages/{id}/preview-link',
           },
         },
       ],
@@ -524,19 +537,19 @@ fields:
     id: 'news-api',
     title: 'News & Articles Endpoints',
     category: 'REST API Reference',
-    description: 'Query published articles with filtering, search, and pagination.',
-    headings: ['List Articles', 'Article Lookup', 'Filtering and Pagination'],
+    description: 'List published articles and look them up by locale and slug.',
+    headings: ['List Articles', 'Article Lookup', 'Draft Preview and Query Limits'],
     content: {
       lead: 'Query published news articles and blog posts.',
       sections: [
         {
           title: 'List Articles',
           id: 'list-articles',
-          text: 'Fetch published articles ordered chronologically:',
+          text: 'Locale is required. The list returns published articles; limit defaults to 20 and is capped at 100:',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/news?limit=10&offset=0"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/news?locale=en&limit=10"',
           },
         },
         {
@@ -550,13 +563,13 @@ fields:
           },
         },
         {
-          title: 'Filtering and Pagination',
-          id: 'filtering-and-pagination',
-          text: 'List requests support locale and pagination with limit. Use only filters documented by the API contract for your HydroGo version; endpoints can expose different query parameters.',
+          title: 'Draft Preview and Query Limits',
+          id: 'draft-preview-and-query-limits',
+          text: 'The public list does not accept offset, search, category, or featured filters. Draft previews use a revision-bound token created through the protected admin endpoint. Keep preview links private.',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/news?search=release&category=product&featured=true"',
+            code: 'POST /api/v1/admin/news/{id}/preview-link\nGET /api/v1/news/{id}/preview?token=<preview-token>',
           },
         },
       ],
@@ -576,11 +589,7 @@ fields:
           title: 'Querying Collections',
           id: 'querying-collections',
           text: 'Filter, search, and paginate through custom content items effortlessly:',
-          code: {
-            lang: 'bash',
-            filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/content/faq?search=billing&limit=10"',
-          },
+          code: { lang: 'bash', filename: 'cURL', code: 'curl "http://127.0.0.1:8090/api/v1/content/faq?search=billing&limit=10&filter[category]=billing"\ncurl "http://127.0.0.1:8090/api/v1/content/faq/RECORD_ID"' },
         },
       ],
     },
@@ -591,24 +600,31 @@ fields:
     title: 'Authentication & Tokens',
     category: 'REST API Reference',
     description: 'Authenticate API requests using Bearer tokens, API keys, or session cookies.',
-    headings: ['Bearer Token Authentication', 'API Keys'],
+    headings: ['Session Authentication', 'Personal Bearer Tokens', 'API Keys and Scope'],
     content: {
       lead: 'HydroGo supports three authentication methods: Bearer tokens, API keys, and session cookies.',
       sections: [
         {
-          title: 'Bearer Token Authentication',
-          id: 'bearer-token-authentication',
-          text: 'Pass an API token in the Authorization header for authenticated operations:',
+          title: 'Session Authentication',
+          id: 'session-authentication',
+          text: 'Admin browser sessions use the HTTP-only hydro_session cookie. Obtain a CSRF token from /csrf-token and send it in X-CSRF-Token for state-changing browser requests. The shared auth middleware also accepts bearer tokens and API keys.',
+          code: { lang: 'bash', filename: 'cURL', code: 'curl -c cookies.txt http://127.0.0.1:8090/csrf-token' },
+        },
+        {
+          title: 'Personal Bearer Tokens',
+          id: 'personal-bearer-tokens',
+          text: 'Personal tokens are created and revoked from the admin token settings/API. They are shown once and stored hashed. Send the token in the Authorization header; these tokens carry admin scope, so never ship them to an untrusted browser.',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl -H "Authorization: Bearer <your-token>" http://127.0.0.1:8090/api/v1/admin/me',
+            code: 'curl -H "Authorization: Bearer hyd_<token>" http://127.0.0.1:8090/api/v1/admin/me',
           },
         },
         {
-          title: 'API Keys',
-          id: 'api-keys',
-          text: 'For machine-to-machine or headless frontend integration, generate API keys scoped to read-only or preview access in the configuration.',
+          title: 'API Keys and Scope',
+          id: 'api-keys-and-scope',
+          text: 'API keys are sent using X-API-Key and can be limited to read or preview scopes. Use them from trusted server-side code and rotate/revoke them through the admin controls. Keep secrets in deployment configuration, not frontend source.',
+          code: { lang: 'bash', filename: 'cURL', code: 'curl -H "X-API-Key: <read-or-preview-key>" http://127.0.0.1:8090/api/v1/pages?locale=en' },
         },
       ],
     },
@@ -621,16 +637,16 @@ fields:
     description: 'Readiness and liveness checks for load balancers and container orchestrators.',
     headings: ['Readiness Probe'],
     content: {
-      lead: 'Health endpoints for Docker, Kubernetes, systemd, or Cloudflare probes.',
+      lead: 'Health and readiness endpoints for process and dependency checks.',
       sections: [
         {
           title: 'Readiness Probe',
           id: 'readiness-probe',
-          text: 'Returns 200 OK ready when the database connection is healthy and all migrations are verified:',
+          text: 'GET /healthz is the liveness check. GET /readyz reports readiness for routing traffic; use the endpoint matching your orchestrator probe. Both are unauthenticated operational endpoints:',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl -i http://127.0.0.1:8090/readyz',
+            code: 'curl -i http://127.0.0.1:8090/healthz\ncurl -i http://127.0.0.1:8090/readyz',
           },
         },
       ],
@@ -641,7 +657,7 @@ fields:
     id: 'production-binary',
     title: 'Single-Binary Deploy',
     category: 'Production & Ops',
-    description: 'Compile and run a production HydroGo server on Linux, macOS, or Windows.',
+    description: 'Build and run the API and embedded admin as a Go binary.',
     headings: ['Compiling', 'Systemd Service'],
     content: {
       lead: 'Deploy HydroGo as a single self-contained binary without external runtimes or node_modules in production.',
@@ -649,11 +665,11 @@ fields:
         {
           title: 'Compiling',
           id: 'compiling',
-          text: 'Cross-compile a standalone static binary with Go:',
+          text: 'Build the CLI from the repository. Use the supported Go version and platform-specific build configuration; do not assume CGO can be disabled for every database driver:',
           code: {
             lang: 'bash',
             filename: 'Terminal',
-            code: 'GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/hydro ./cmd/hydro',
+            code: 'go build -trimpath -o bin/hydro ./cmd/hydro',
           },
         },
         {
@@ -732,20 +748,51 @@ WantedBy=multi-user.target`,
     id: 'database-setup',
     title: 'SQLite, Postgres & MySQL',
     category: 'Production & Ops',
-    description: 'Production tuning for SQLite WAL mode, PostgreSQL connection pooling, and MySQL 8+.',
-    headings: ['SQLite (Zero-Config)', 'PostgreSQL & MySQL'],
+    description: 'Choose one of the supported SQL dialects and configure persistent storage.',
+    headings: ['Supported Dialects', 'Persistent Data and Migrations'],
     content: {
       lead: 'Choose the storage engine that fits your project scale.',
       sections: [
         {
-          title: 'SQLite (Zero-Config)',
-          id: 'sqlite-zero-config',
-          text: 'HydroGo configures SQLite with WAL (Write-Ahead Logging), busy timeouts, and concurrent read connections, capable of handling hundreds of requests per second on a simple VPS.',
+          title: 'Supported Dialects',
+          id: 'supported-dialects',
+          text: 'HydroGo supports SQLite, PostgreSQL, and MySQL. Select the dialect and DSN in configuration. Choose based on your operational needs and validate the exact driver/runtime setup before rollout.',
         },
         {
-          title: 'PostgreSQL & MySQL',
-          id: 'postgresql-mysql',
-          text: 'For multi-instance clustering or high write concurrency, switch database.dialect to postgres or mysql in config.yaml without altering any of your application code.',
+          title: 'Persistent Data and Migrations',
+          id: 'persistent-data-and-migrations',
+          text: 'Keep the database and media directory on persistent storage. Apply migrations as part of a controlled deployment, back up the database and media together, and test restore procedures. Each new migration must include SQLite, PostgreSQL, and MySQL dialect files.',
+        },
+      ],
+    },
+  },
+
+  'site-and-forms': {
+    id: 'site-and-forms',
+    title: 'Site API & Forms',
+    category: 'Production & Ops',
+    description: 'Read public site settings, navigation, redirects, and submit configured forms.',
+    headings: ['Site Settings and Navigation', 'Redirects and Sitemaps', 'Forms'],
+    content: {
+      lead: 'The site module exposes project settings and navigation data for a frontend to render. Forms are available when their module and form definitions are configured.',
+      sections: [
+        {
+          title: 'Site Settings and Navigation',
+          id: 'site-settings-and-navigation',
+          text: 'Fetch public settings and locale-specific navigation from the site API. The site settings payload is the configured public projection, not the full private admin configuration.',
+          code: { lang: 'bash', filename: 'cURL', code: 'curl http://127.0.0.1:8090/api/v1/site/settings\ncurl http://127.0.0.1:8090/api/v1/site/navigation/en' },
+        },
+        {
+          title: 'Redirects and Sitemaps',
+          id: 'redirects-and-sitemaps',
+          text: 'Published redirects are available from the public site API. Sitemap endpoints include an index and separate page/article maps when the corresponding content is enabled.',
+          code: { lang: 'text', filename: 'Routes', code: 'GET /api/v1/site/redirects\nGET /sitemap.xml\nGET /sitemap-index.xml\nGET /sitemap-pages.xml\nGET /sitemap-articles.xml' },
+        },
+        {
+          title: 'Forms',
+          id: 'forms',
+          text: 'Configured forms can be fetched and submitted through the public forms API. Submission payloads are validated against the form definition; the inbox and moderation workflows are managed through protected admin routes. Enable and configure the forms module before relying on these routes.',
+          code: { lang: 'text', filename: 'Routes', code: 'GET /api/v1/forms/{form}\nPOST /api/v1/forms/{form}/submit\nGET /api/v1/forms/{form}/view' },
         },
       ],
     },
