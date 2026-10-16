@@ -89,3 +89,5 @@ scratch*.py
 
 # Claude Code local state (agent worktrees)
 /.claude/
+/.agent/
+/.agents/

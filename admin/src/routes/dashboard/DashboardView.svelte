@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import SectionCards from '$lib/components/dashboard/SectionCards.svelte';
@@ -24,6 +24,12 @@
     };
     analytics?: {
       unique_visitors_today: number;
+      daily?: Array<{
+        Day?: string;
+        Metric: string;
+        Dimension?: string;
+        EventCount: number;
+      }>;
     };
   }
 
@@ -60,7 +66,7 @@
   <div class="@container/main flex flex-1 flex-col gap-2">
     <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
       <SectionCards metrics={liveMetrics} />
-      <ChartAreaInteractive />
+      <ChartAreaInteractive analytics={data?.analytics} runtime={data?.runtime} />
       <DataTable />
     </div>
   </div>

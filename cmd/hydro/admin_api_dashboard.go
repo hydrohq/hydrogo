@@ -110,7 +110,7 @@ func (a *serveApp) adminDashboardHandler(w http.ResponseWriter, r *http.Request)
 		if scope, err := tenant.FromContext(r.Context()); err == nil {
 			tenantID = scope.TenantID
 		}
-		if daily, unique, err := dailyNoCookieAnalytics(r.Context(), a.analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02")); err == nil {
+		if daily, unique, err := dailyNoCookieAnalytics(r.Context(), a.analyticsStore, tenantID, time.Now().UTC().Format("2006-01-02"), 90); err == nil {
 			dashboard.Analytics = &adminDashboardAnalytics{UniqueVisitorsToday: unique, Daily: daily}
 		}
 	}
