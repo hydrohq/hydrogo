@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import Header from './lib/Header.svelte';
   import HomeView from './lib/HomeView.svelte';
@@ -6,20 +6,38 @@
   import NewsView from './lib/NewsView.svelte';
   import DocsView from './lib/DocsView.svelte';
 
+  import { setDefaultSEO, setDocsSEO } from './lib/seo';
+
   let route = $state('/');
   let activeSlug = $state('');
 
-  onMount(() => {
-    const hash = window.location.hash.replace(/^#/, '');
-    if (hash === '/docs' || window.location.pathname === '/docs') {
+  function syncRouteFromHash() {
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    if (hash === 'docs' || window.location.pathname === '/docs') {
       route = '/docs';
+      setDocsSEO();
+    } else if (route === '/') {
+      setDefaultSEO();
     }
+  }
+
+  onMount(() => {
+    syncRouteFromHash();
+    window.addEventListener('hashchange', syncRouteFromHash);
+    return () => {
+      window.removeEventListener('hashchange', syncRouteFromHash);
+    };
   });
 
   function navigateTo(path: string) {
     route = path;
     activeSlug = '';
     window.location.hash = path === '/' ? '' : path;
+    if (path === '/') {
+      setDefaultSEO();
+    } else if (path === '/docs') {
+      setDocsSEO();
+    }
   }
 
   function openPage(slug: string) {

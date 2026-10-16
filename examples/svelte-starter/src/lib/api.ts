@@ -18,6 +18,8 @@ export interface NewsArticle {
   author_name?: string;
   category?: string;
   tags?: string[];
+  seo_title?: string;
+  seo_description?: string;
   published_at?: string;
 }
 
