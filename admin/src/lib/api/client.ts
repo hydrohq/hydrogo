@@ -97,7 +97,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     // If we're unauthorized and not already on the login page, redirect
     if (!window.location.pathname.includes('/login') && !window.location.hash.includes('/login')) {
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
-      const redirectUrl = `/admin/#/login?redirect=${encodeURIComponent(currentPath)}`;
+      const redirectUrl = `/admin/login?redirect=${encodeURIComponent(currentPath)}`;
       window.location.href = redirectUrl;
     }
   }

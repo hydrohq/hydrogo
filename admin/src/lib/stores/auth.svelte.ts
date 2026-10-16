@@ -1,4 +1,5 @@
 import { api, setCsrfToken } from '$lib/api/client';
+import { router } from '$lib/router.svelte';
 import type { User, MeResponse, ApiResponse } from '$lib/api/types';
 
 class AuthState {
@@ -70,7 +71,7 @@ class AuthState {
     } finally {
       this.user = null;
       this.permissions = [];
-      window.location.hash = '#/login';
+      router.navigate('/login');
     }
   }
 }

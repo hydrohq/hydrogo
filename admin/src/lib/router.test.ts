@@ -19,4 +19,22 @@ describe('Router', () => {
     expect(router.query.get('status')).toBe('draft');
     expect(router.query.get('locale')).toBe('en');
   });
+
+  it('navigates with clean paths without hash', () => {
+    router.navigate('/system');
+    expect(router.path).toBe('/system');
+
+    router.navigate('/content/faq');
+    expect(router.path).toBe('/content/faq');
+
+    router.navigate('/admin/dashboard');
+    expect(router.path).toBe('/dashboard');
+  });
+
+  it('handles query parameters in clean path navigation', () => {
+    router.navigate('/news?status=published&page=2');
+    expect(router.path).toBe('/news');
+    expect(router.query.get('status')).toBe('published');
+    expect(router.query.get('page')).toBe('2');
+  });
 });
