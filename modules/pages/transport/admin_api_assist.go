@@ -159,11 +159,12 @@ func (h Handler) editPresenceHeartbeat(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "Editor"
 	}
-	if err := h.Presence.Heartbeat(realtime.PresenceSession{TenantID: tenantID, Resource: "page:" + r.PathValue("id"), UserID: user.ID, Name: name}); err != nil {
+	if err := h.Presence.Heartbeat(realtime.PresenceSession{TenantID: tenantID, Resource: "page:" + r.PathValue("id"), UserID: user.ID, Email: user.Email, Name: name}); err != nil {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "presence is unavailable", nil)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteData(w, http.StatusOK, h.Presence.Active(tenantID, "page:"+r.PathValue("id"), user.ID), nil)
 }
 
 // GET /api/v1/admin/pages/{id}/presence
@@ -179,4 +180,19 @@ func (h Handler) editPresenceList(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	api.WriteData(w, http.StatusOK, h.Presence.Active(tenantID, "page:"+r.PathValue("id"), user.ID), nil)
+}
+
+// DELETE /api/v1/admin/pages/{id}/presence
+func (h Handler) editPresenceLeave(w http.ResponseWriter, r *http.Request) {
+	user := currentUser(r)
+	if h.Presence == nil || !editorAllowed(r) || user == nil {
+		writeForbidden(w, r)
+		return
+	}
+	tenantID, ok := h.presenceTenant(w, r)
+	if !ok {
+		return
+	}
+	h.Presence.Leave(tenantID, "page:"+r.PathValue("id"), user.ID)
+	w.WriteHeader(http.StatusNoContent)
 }

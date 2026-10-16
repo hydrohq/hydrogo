@@ -26,7 +26,7 @@ func TestContentTypeRoutesRegisterNextToPublicLocaleRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := collections.Service{Repository: sqlstore.Store{DB: db, Dialect: database.SQLite}}
-	types, routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}))
+	types, routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

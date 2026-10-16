@@ -7,6 +7,8 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
+  import { createPresence } from '$lib/presence.svelte';
+  import DocumentPresence from '$lib/components/presence/DocumentPresence.svelte';
 
   interface Props {
     id: string;
@@ -56,6 +58,11 @@
   let successMsg = $state<string | null>(null);
   let errorMsg = $state<string | null>(null);
   let initialSnapshot = $state('');
+
+  const presence = createPresence(
+    () => `/api/v1/admin/news/${id}/presence`,
+    () => (isNew ? null : id)
+  );
 
   function captureSnapshot() {
     initialSnapshot = JSON.stringify({
@@ -269,6 +276,7 @@
               <Badge variant={status === 'published' ? 'success' : status === 'scheduled' ? 'secondary' : status === 'retracted' ? 'destructive' : 'outline'} size="sm">
                 {status}
               </Badge>
+              <DocumentPresence {presence} mode="pill" />
             {/if}
             {#if loading}
               <span class="text-xs text-muted-foreground animate-pulse">Loading...</span>
@@ -307,6 +315,10 @@
           {/if}
         </div>
       </div>
+
+      {#if !isNew}
+        <DocumentPresence {presence} mode="banner" />
+      {/if}
 
       {#if errorMsg}
         <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">

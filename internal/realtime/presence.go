@@ -18,11 +18,14 @@ type PresenceSession struct {
 	TenantID string
 	Resource string
 	UserID   string
+	Email    string
 	Name     string
 	Updated  time.Time
 }
 
 type ActiveEditor struct {
+	UserID     string    `json:"user_id,omitempty"`
+	Email      string    `json:"email,omitempty"`
 	Name       string    `json:"name"`
 	UpdatedAt  time.Time `json:"updated_at"`
 	ActiveSecs int       `json:"active_seconds"`
@@ -41,6 +44,9 @@ func (p *Presence) Heartbeat(session PresenceSession) error {
 	if !validPresenceValue(session.TenantID, 128) || !validPresenceValue(session.Resource, 128) || !validPresenceValue(session.UserID, 128) || !validPresenceValue(session.Name, 160) {
 		return ErrInvalidPresence
 	}
+	if session.Email != "" && !validPresenceValue(session.Email, 160) {
+		return ErrInvalidPresence
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	now := p.now()
@@ -57,6 +63,16 @@ func (p *Presence) Heartbeat(session PresenceSession) error {
 	return nil
 }
 
+func (p *Presence) Leave(tenantID, resource, userID string) {
+	if !validPresenceValue(tenantID, 128) || !validPresenceValue(resource, 128) || !validPresenceValue(userID, 128) {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	key := presenceKey(tenantID, resource, userID)
+	delete(p.entries, key)
+}
+
 func (p *Presence) Active(tenantID, resource, excludeUserID string) []ActiveEditor {
 	if !validPresenceValue(tenantID, 128) || !validPresenceValue(resource, 128) {
 		return nil
@@ -70,7 +86,13 @@ func (p *Presence) Active(tenantID, resource, excludeUserID string) []ActiveEdit
 		if session.TenantID != tenantID || session.Resource != resource || session.UserID == excludeUserID {
 			continue
 		}
-		result = append(result, ActiveEditor{Name: session.Name, UpdatedAt: session.Updated, ActiveSecs: int(now.Sub(session.Updated).Seconds())})
+		result = append(result, ActiveEditor{
+			UserID:     session.UserID,
+			Email:      session.Email,
+			Name:       session.Name,
+			UpdatedAt:  session.Updated,
+			ActiveSecs: int(now.Sub(session.Updated).Seconds()),
+		})
 	}
 	return result
 }

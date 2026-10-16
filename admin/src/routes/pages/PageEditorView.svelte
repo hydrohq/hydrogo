@@ -7,6 +7,8 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import BlocksEditor, { type Block } from './BlocksEditor.svelte';
   import PageRevisionsModal from './PageRevisionsModal.svelte';
+  import { createPresence } from '$lib/presence.svelte';
+  import DocumentPresence from '$lib/components/presence/DocumentPresence.svelte';
 
   interface Props {
     id: string;
@@ -42,6 +44,11 @@
   let errorMsg = $state<string | null>(null);
   let successMsg = $state<string | null>(null);
   let initialSnapshot = $state('');
+
+  const presence = createPresence(
+    () => `/api/v1/admin/pages/${id}/presence`,
+    () => (isNew ? null : id)
+  );
 
   function captureSnapshot() {
     initialSnapshot = JSON.stringify(formData);
@@ -204,6 +211,9 @@
             <Badge variant={formData.status === 'published' ? 'success' : 'outline'} size="sm">
               {formData.status}
             </Badge>
+            {#if !isNew}
+              <DocumentPresence {presence} mode="pill" />
+            {/if}
           </div>
         </div>
 
@@ -248,6 +258,10 @@
           {/if}
         </div>
       </div>
+
+      {#if !isNew}
+        <DocumentPresence {presence} mode="banner" />
+      {/if}
 
       {#if errorMsg}
         <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
