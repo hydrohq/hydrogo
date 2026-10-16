@@ -4,11 +4,15 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 // AdminAPIPath is where the content-type admin API is mounted; a type's
@@ -31,6 +35,9 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	GET    .../{id}/locale/{locale}
 //	PUT    .../{id}/locale/{locale}            {fields, version}
 //	POST   .../{id}/locale/{locale}/copy       {from, version}
+//	POST   .../{id}/presence                   heartbeat
+//	GET    .../{id}/presence                   active editors
+//	DELETE .../{id}/presence                   leave
 func (a AdminAPI) Routes() []router.Route {
 	base := AdminAPIPath + "/{type}"
 	record := base + "/{id}"
@@ -52,9 +59,16 @@ func (a AdminAPI) Routes() []router.Route {
 		{"PUT " + record + "/locale/{locale}", a.saveLocale},
 		{"POST " + record + "/locale/{locale}/copy", a.copyLocale},
 	}
-	routes := make([]router.Route, 0, len(handlers))
+	routes := make([]router.Route, 0, len(handlers)+3)
 	for _, entry := range handlers {
 		routes = append(routes, router.Route{Pattern: entry.pattern, Access: router.Protected, Handler: entry.handler})
+	}
+	if a.Presence != nil {
+		routes = append(routes,
+			router.Route{Pattern: "POST " + record + "/presence", Access: router.Protected, Handler: http.HandlerFunc(a.presenceHeartbeat)},
+			router.Route{Pattern: "GET " + record + "/presence", Access: router.Protected, Handler: http.HandlerFunc(a.presenceList)},
+			router.Route{Pattern: "POST " + record + "/presence/leave", Access: router.Protected, Handler: http.HandlerFunc(a.presenceLeave)},
+		)
 	}
 	return routes
 }
@@ -419,4 +433,86 @@ func (a AdminAPI) copyLocale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.writeLocalized(w, r, collection, id, locale)
+}
+
+func (a AdminAPI) presenceHeartbeat(w http.ResponseWriter, r *http.Request) {
+	if a.Presence == nil {
+		api.WriteError(w, r, http.StatusNotFound, "presence disabled", nil)
+		return
+	}
+	_, _, ok := a.resolve(w, r, false)
+	if !ok {
+		return
+	}
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+	id := r.PathValue("id")
+	if len(id) > 128 || strings.ContainsAny(id, "\x00\r\n") {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid resource", nil)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil && scope.TenantID != "" {
+		tenantID = scope.TenantID
+	}
+	name := strings.TrimSpace(strings.SplitN(user.Email, "@", 2)[0])
+	if name == "" {
+		name = "Editor"
+	}
+	resource := "content:" + r.PathValue("type") + ":" + id
+	if err := a.Presence.Heartbeat(realtime.PresenceSession{TenantID: tenantID, Resource: resource, UserID: user.ID, Email: user.Email, Name: name}); err != nil {
+		api.WriteError(w, r, http.StatusServiceUnavailable, "presence is unavailable", nil)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteData(w, http.StatusOK, a.Presence.Active(tenantID, resource, user.ID), nil)
+}
+
+func (a AdminAPI) presenceList(w http.ResponseWriter, r *http.Request) {
+	if a.Presence == nil {
+		api.WriteError(w, r, http.StatusNotFound, "presence disabled", nil)
+		return
+	}
+	_, _, ok := a.resolve(w, r, false)
+	if !ok {
+		return
+	}
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil && scope.TenantID != "" {
+		tenantID = scope.TenantID
+	}
+	resource := "content:" + r.PathValue("type") + ":" + r.PathValue("id")
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteData(w, http.StatusOK, a.Presence.Active(tenantID, resource, user.ID), nil)
+}
+
+func (a AdminAPI) presenceLeave(w http.ResponseWriter, r *http.Request) {
+	if a.Presence == nil {
+		api.WriteError(w, r, http.StatusNotFound, "presence disabled", nil)
+		return
+	}
+	_, _, ok := a.resolve(w, r, false)
+	if !ok {
+		return
+	}
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil && scope.TenantID != "" {
+		tenantID = scope.TenantID
+	}
+	resource := "content:" + r.PathValue("type") + ":" + r.PathValue("id")
+	a.Presence.Leave(tenantID, resource, user.ID)
+	w.WriteHeader(http.StatusNoContent)
 }

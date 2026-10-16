@@ -7,6 +7,8 @@
   import Input from '$lib/components/ui/Input.svelte';
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
+  import { createPresence } from '$lib/presence.svelte';
+  import DocumentPresence from '$lib/components/presence/DocumentPresence.svelte';
 
   interface Props {
     type: string;
@@ -26,6 +28,11 @@
   let mediaPickerOpen = $state(false);
   let activeMediaField = $state<string | null>(null);
   let initialSnapshot = $state('');
+
+  const presence = createPresence(
+    () => `/api/v1/admin/content/${type}/${id}/presence`,
+    () => (isNew ? null : id)
+  );
 
   function captureSnapshot() {
     initialSnapshot = JSON.stringify(formData);
@@ -166,6 +173,9 @@
             <span class="text-sm font-semibold text-foreground">
               {isNew ? `New ${collection.singular || collection.label || type}` : `Edit ${collection.singular || collection.label || type}`}
             </span>
+            {#if !isNew}
+              <DocumentPresence {presence} mode="pill" />
+            {/if}
             {#if loading}
               <span class="text-xs text-muted-foreground animate-pulse">Loading...</span>
             {/if}
@@ -201,6 +211,10 @@
             {/if}
           </div>
         </div>
+
+        {#if !isNew}
+          <DocumentPresence {presence} mode="banner" />
+        {/if}
 
         {#if errorMessage}
           <div class="mx-4 lg:mx-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">

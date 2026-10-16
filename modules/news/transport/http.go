@@ -134,6 +134,7 @@ func (h Handler) Routes() []Route {
 		routes = append(routes,
 			Route{Pattern: "POST " + adminBase + "/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceHeartbeat)},
 			Route{Pattern: "GET " + adminBase + "/{id}/presence", Protected: true, Handler: http.HandlerFunc(h.editPresenceList)},
+			Route{Pattern: "POST " + adminBase + "/{id}/presence/leave", Protected: true, Handler: http.HandlerFunc(h.editPresenceLeave)},
 		)
 	}
 	if h.PreviewSigner != nil {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 )
 
 const maxBodyBytes = collections.MaxRecordBytes + 4096
@@ -27,6 +28,8 @@ type AdminAPI struct {
 	// Authorize reports whether the request may read (write false) or change
 	// (write true) content. Nil denies every request.
 	Authorize func(r *http.Request, write bool) bool
+	// Presence tracks active editors in process memory.
+	Presence *realtime.Presence
 }
 
 func (a AdminAPI) types() []Definition {
