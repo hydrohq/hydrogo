@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
@@ -15,7 +15,7 @@
     value = $bindable(),
     label,
     error,
-    placeholder = 'Start writing your story or content here…',
+    placeholder = 'Start writing your story or content hereâ€¦',
   }: Props = $props();
 
   let element: HTMLDivElement | null = $state(null);
@@ -417,7 +417,7 @@
             class="size-7 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground cursor-pointer"
             onclick={() => { showLinkInput = false; }}
           >
-            ✕
+            âœ•
           </button>
         </div>
       {/if}
@@ -436,7 +436,7 @@
     >
       <div class="flex items-center gap-3">
         <span>{wordCount} words</span>
-        <span>•</span>
+        <span>â€¢</span>
         <span>{charCount} characters</span>
       </div>
 

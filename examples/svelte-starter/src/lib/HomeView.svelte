@@ -1,4 +1,6 @@
-<script lang="ts">
+﻿<script lang="ts">
+  import BrandLogo from './BrandLogo.svelte';
+
   interface Props {
     onopenpage?: (slug: string) => void;
     onopennews?: (slug: string) => void;
@@ -11,9 +13,7 @@
 <div class="flex flex-col items-center justify-center min-h-[78vh] text-center px-4 max-w-xl mx-auto space-y-9 sm:space-y-10">
   <!-- Brand Logo -->
   <div class="select-none flex items-center justify-center">
-    <h1 class="text-5xl sm:text-6xl font-black tracking-tight text-white flex items-center">
-      HYDRO<span class="text-sky-400 font-extrabold">.GO</span>
-    </h1>
+    <BrandLogo size="xl" />
   </div>
 
   <!-- Getting Started Steps (Clean list without card background, exactly like Next.js starter) -->
@@ -94,7 +94,7 @@
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
       </svg>
       Visit Our Website
-      <span aria-hidden="true" class="text-xs">→</span>
+      <span aria-hidden="true" class="text-xs">â†’</span>
     </a>
   </div>
 </div>

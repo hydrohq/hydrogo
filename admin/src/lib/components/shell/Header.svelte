@@ -1,10 +1,12 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { router } from '$lib/router.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { sidebar } from '$lib/stores/sidebar.svelte';
   import { theme } from '$lib/stores/theme.svelte';
+  import SearchCommandModal from '$lib/components/shell/SearchCommandModal.svelte';
 
   const path = $derived(router.path);
+  let showSearchModal = $state(false);
 
   const pageTitle = $derived.by(() => {
     if (path === '/' || path === '/dashboard' || path === '/admin' || path === '/admin/' || path === '') {
@@ -29,6 +31,7 @@
     if (path.startsWith('/members')) return 'Members';
     if (path.startsWith('/site')) return 'Site Settings';
     if (path.startsWith('/users')) return 'Users & Access';
+    if (path.startsWith('/account')) return 'My Account';
     if (path.startsWith('/audit')) return 'Audit Trail';
     if (path.startsWith('/system')) return 'Telemetry';
     return 'Documents';
@@ -42,6 +45,15 @@
     }
   }
 </script>
+
+<svelte:window
+  onkeydown={(e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      showSearchModal = true;
+    }
+  }}
+/>
 
 <header class="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background transition-[width,height] ease-linear">
   <div class="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
@@ -67,14 +79,34 @@
 
     <!-- Right: Search, Live site, Status Indicator -->
     <div class="flex items-center gap-2.5">
-      <div class="hidden sm:flex items-center gap-2 h-8 w-44 lg:w-56 rounded-md bg-muted/40 border border-input px-2.5 text-xs text-muted-foreground">
+      <!-- Search button (desktop) -->
+      <button
+        type="button"
+        onclick={() => (showSearchModal = true)}
+        class="hidden sm:flex items-center gap-2 h-8 w-44 lg:w-56 rounded-md bg-muted/40 border border-input px-2.5 text-xs text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+        title="Quick search (âŒ˜K or Ctrl+K)"
+      >
         <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <span class="truncate flex-1">Search...</span>
-        <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-background text-muted-foreground border border-border rounded">⌘K</kbd>
-      </div>
+        <span class="truncate flex-1 text-left">Search...</span>
+        <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-background text-muted-foreground border border-border rounded">âŒ˜K</kbd>
+      </button>
+
+      <!-- Search button (mobile) -->
+      <button
+        type="button"
+        onclick={() => (showSearchModal = true)}
+        class="flex sm:hidden size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        title="Quick search"
+        aria-label="Quick search"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </button>
 
       {#if schema.locales.length > 1}
         <span class="inline-flex items-center px-2 py-0.5 rounded-md border border-border text-[10px] font-mono uppercase font-medium text-muted-foreground bg-muted/30">
@@ -133,3 +165,5 @@
     </div>
   </div>
 </header>
+
+<SearchCommandModal bind:open={showSearchModal} onclose={() => (showSearchModal = false)} />

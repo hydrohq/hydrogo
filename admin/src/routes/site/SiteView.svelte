@@ -1,7 +1,8 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
+  import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -13,307 +14,695 @@
 
   interface RedirectRule {
     id: string;
-    source: string;
-    target: string;
-    code: number;
+    pattern?: string;
+    source?: string;
+    target_path?: string;
+    target?: string;
+    status?: number;
+    code?: number;
   }
 
+  interface NotFoundEntry {
+    path: string;
+    hits: number;
+    last_seen: string;
+  }
+
+  interface SocialProfile {
+    platform: string;
+    url: string;
+  }
+
+  type TabKey = 'general' | 'maintenance' | 'notice' | 'business' | 'redirects' | 'notfound';
+  let activeTab = $state<TabKey>('general');
+  let loading = $state(false);
+  let saving = $state(false);
+  let saveMsg = $state<string | null>(null);
+  let saveErr = $state<string | null>(null);
+
+  // General settings
   let settings = $state<Record<string, string>>({
     'site.name': 'HydroGo',
     'site.title': 'HydroGo Headless CMS',
     'site.description': '',
     'site.home_path': '/',
+    'appearance.favicon_url': '',
+    'appearance.social_image_url': '',
   });
 
+  // Maintenance settings
+  let maintenance = $state({
+    enabled: false,
+    headline: '',
+    message: '',
+    allowlistStr: '',
+    starts_at: '',
+    ends_at: '',
+  });
+
+  // Staff notice
+  let staffNotice = $state({
+    enabled: false,
+    message: '',
+    severity: 'info',
+  });
+
+  // Business profile
+  let business = $state({
+    company_name: '',
+    legal_name: '',
+    tax_id: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: '',
+    postal_code: '',
+  });
+
+  // Social profiles
+  let socialProfiles = $state<SocialProfile[]>([
+    { platform: 'twitter', url: '' },
+    { platform: 'github', url: '' },
+    { platform: 'linkedin', url: '' },
+    { platform: 'youtube', url: '' },
+  ]);
+
+  // Redirects
   let redirects = $state<RedirectRule[]>([]);
-  let activeTab = $state<'general' | 'redirects'>('general');
-  let loading = $state(false);
-  let saving = $state(false);
-  let successMsg = $state<string | null>(null);
-
-  // New Redirect
-  let newSource = $state('');
+  let notFounds = $state<NotFoundEntry[]>([]);
+  let newPattern = $state('');
   let newTarget = $state('');
-  let newCode = $state(301);
-  let redirectError = $state<string | null>(null);
-  let addingRedirect = $state(false);
+  let newStatus = $state(301);
+  let deleteRedirectTarget = $state<RedirectRule | null>(null);
+  let convertNotFoundPath = $state<string | null>(null);
+  let convertTarget = $state('');
 
-  // Delete Redirect Dialog
-  let deleteTargetRule = $state<RedirectRule | null>(null);
-  let deleteLoading = $state(false);
+  function showNotification(msg: string, isError = false) {
+    if (isError) {
+      saveErr = msg;
+      saveMsg = null;
+    } else {
+      saveMsg = msg;
+      saveErr = null;
+    }
+    setTimeout(() => {
+      saveMsg = null;
+      saveErr = null;
+    }, 3500);
+  }
 
-  async function loadSettings() {
-    loading = true;
+  async function loadGeneralSettings() {
     try {
       const res = await api.get<ApiResponse<SettingItem[]>>('/api/v1/admin/site/settings');
-      if (res && res.data) {
-        const map: Record<string, string> = {};
-        for (const s of res.data) {
-          map[s.key] = s.value;
+      if (res?.data && Array.isArray(res.data)) {
+        for (const item of res.data) {
+          settings[item.key] = item.value;
         }
-        settings = { ...settings, ...map };
       }
     } catch (e) {
-      console.warn('Site settings load error:', e);
-    } finally {
-      loading = false;
+      console.warn('Load settings failed:', e);
+    }
+  }
+
+  async function loadMaintenance() {
+    try {
+      const res = await api.get<ApiResponse<any>>('/api/v1/admin/site/maintenance');
+      if (res?.data) {
+        maintenance.enabled = Boolean(res.data.enabled);
+        maintenance.headline = res.data.headline || '';
+        maintenance.message = res.data.message || '';
+        maintenance.starts_at = res.data.starts_at || '';
+        maintenance.ends_at = res.data.ends_at || '';
+        maintenance.allowlistStr = Array.isArray(res.data.allowlist) ? res.data.allowlist.join(', ') : '';
+      }
+    } catch (e) {
+      console.warn('Load maintenance failed:', e);
+    }
+  }
+
+  async function loadStaffNotice() {
+    try {
+      const res = await api.get<ApiResponse<any>>('/api/v1/admin/site/staff-notice');
+      if (res?.data) {
+        staffNotice.enabled = Boolean(res.data.enabled);
+        staffNotice.message = res.data.message || '';
+        staffNotice.severity = res.data.severity || 'info';
+      }
+    } catch (e) {
+      console.warn('Load staff notice failed:', e);
+    }
+  }
+
+  async function loadBusinessAndSocial() {
+    try {
+      const [bRes, sRes] = await Promise.allSettled([
+        api.get<ApiResponse<any>>('/api/v1/admin/site/business-profile'),
+        api.get<ApiResponse<any>>('/api/v1/admin/site/social-links'),
+      ]);
+      if (bRes.status === 'fulfilled' && bRes.value?.data) {
+        business = { ...business, ...bRes.value.data };
+      }
+      if (sRes.status === 'fulfilled' && sRes.value?.data?.profiles) {
+        socialProfiles = sRes.value.data.profiles;
+      }
+    } catch (e) {
+      console.warn('Load business/social failed:', e);
     }
   }
 
   async function loadRedirects() {
     try {
       const res = await api.get<ApiResponse<RedirectRule[]>>('/api/v1/admin/site/redirects');
-      if (res && res.data) {
-        redirects = Array.isArray(res.data) ? res.data : [];
+      if (res?.data && Array.isArray(res.data)) {
+        redirects = res.data;
       }
     } catch (e) {
-      console.warn('Redirects load error:', e);
+      console.warn('Load redirects failed:', e);
     }
   }
 
-  async function handleSaveSettings(e: SubmitEvent) {
+  async function loadNotFounds() {
+    try {
+      const res = await api.get<ApiResponse<NotFoundEntry[]>>('/api/v1/admin/site/not-found');
+      if (res?.data && Array.isArray(res.data)) {
+        notFounds = res.data;
+      }
+    } catch (e) {
+      console.warn('Load not-found failed:', e);
+    }
+  }
+
+  async function handleSaveGeneral(e: SubmitEvent) {
     e.preventDefault();
     saving = true;
     try {
-      for (const [key, value] of Object.entries(settings)) {
-        await api.post(`/api/v1/admin/site/settings/${key}`, { value }, { method: 'PUT' });
-      }
-      successMsg = 'Settings saved successfully.';
-      setTimeout(() => { successMsg = null; }, 3000);
+      const payload = {
+        settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
+      };
+      await api.post('/api/v1/admin/site/settings', payload, { method: 'PUT' });
+      showNotification('General settings saved successfully.');
     } catch (err: any) {
-      console.error('Save failed:', err);
+      showNotification(err.message || 'Failed to save general settings', true);
     } finally {
       saving = false;
     }
   }
 
-  async function handleAddRedirect(e: SubmitEvent) {
+  async function handleSaveMaintenance(e: SubmitEvent) {
     e.preventDefault();
-    if (!newSource.trim() || !newTarget.trim()) return;
-    addingRedirect = true;
-    redirectError = null;
+    saving = true;
+    try {
+      const allowlist = maintenance.allowlistStr
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await api.post('/api/v1/admin/site/maintenance', {
+        enabled: maintenance.enabled,
+        headline: maintenance.headline,
+        message: maintenance.message,
+        allowlist,
+        starts_at: maintenance.starts_at || undefined,
+        ends_at: maintenance.ends_at || undefined,
+      }, { method: 'PUT' });
+      showNotification('Maintenance mode configuration saved.');
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to save maintenance settings', true);
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleSaveStaffNotice(e: SubmitEvent) {
+    e.preventDefault();
+    saving = true;
+    try {
+      await api.post('/api/v1/admin/site/staff-notice', {
+        enabled: staffNotice.enabled,
+        message: staffNotice.message,
+        severity: staffNotice.severity,
+      }, { method: 'PUT' });
+      showNotification('Staff broadcast notice updated.');
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to save staff notice', true);
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleSaveBusinessAndSocial(e: SubmitEvent) {
+    e.preventDefault();
+    saving = true;
+    try {
+      await Promise.all([
+        api.post('/api/v1/admin/site/business-profile', business, { method: 'PUT' }),
+        api.post('/api/v1/admin/site/social-links', { profiles: socialProfiles }, { method: 'PUT' }),
+      ]);
+      showNotification('Business profile & social links saved.');
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to save profile & links', true);
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function handleCreateRedirect(e: SubmitEvent) {
+    e.preventDefault();
+    if (!newPattern.trim() || !newTarget.trim()) return;
+    saving = true;
     try {
       await api.post('/api/v1/admin/site/redirects', {
-        source: newSource.trim(),
-        target: newTarget.trim(),
-        code: Number(newCode) || 301,
+        pattern: newPattern.trim(),
+        target_path: newTarget.trim(),
+        status: Number(newStatus) || 301,
       });
-      newSource = '';
+      newPattern = '';
       newTarget = '';
+      showNotification('Redirect rule created.');
       await loadRedirects();
     } catch (err: any) {
-      redirectError = err?.message || 'Failed to add redirect rule';
+      showNotification(err.message || 'Failed to create redirect rule', true);
     } finally {
-      addingRedirect = false;
+      saving = false;
     }
   }
 
-  async function confirmDeleteRedirect() {
-    if (!deleteTargetRule) return;
-    deleteLoading = true;
+  async function handleDeleteRedirect() {
+    if (!deleteRedirectTarget) return;
+    saving = true;
     try {
-      await api.delete(`/api/v1/admin/site/redirects/${deleteTargetRule.id}`);
-      deleteTargetRule = null;
+      await api.delete(`/api/v1/admin/site/redirects/${deleteRedirectTarget.id}`);
+      deleteRedirectTarget = null;
+      showNotification('Redirect rule deleted.');
       await loadRedirects();
     } catch (err: any) {
-      console.error('Delete failed:', err);
+      showNotification(err.message || 'Failed to delete redirect rule', true);
     } finally {
-      deleteLoading = false;
+      saving = false;
     }
   }
 
-  onMount(() => {
-    loadSettings();
-    loadRedirects();
+  async function handleConvertNotFound(e: SubmitEvent) {
+    e.preventDefault();
+    if (!convertNotFoundPath || !convertTarget.trim()) return;
+    saving = true;
+    try {
+      await api.post('/api/v1/admin/site/not-found/convert', {
+        path: convertNotFoundPath,
+        target: convertTarget.trim(),
+      });
+      convertNotFoundPath = null;
+      convertTarget = '';
+      showNotification('404 converted to 301 redirect!');
+      await Promise.all([loadNotFounds(), loadRedirects()]);
+    } catch (err: any) {
+      showNotification(err.message || 'Failed to convert 404', true);
+    } finally {
+      saving = false;
+    }
+  }
+
+  onMount(async () => {
+    loading = true;
+    try {
+      await Promise.allSettled([
+        loadGeneralSettings(),
+        loadMaintenance(),
+        loadStaffNotice(),
+        loadBusinessAndSocial(),
+        loadRedirects(),
+        loadNotFounds(),
+      ]);
+    } finally {
+      loading = false;
+    }
   });
 </script>
 
-<ConfirmDialog
-  open={!!deleteTargetRule}
-  title="Delete Redirect Rule"
-  description={`Permanently remove redirect from "${deleteTargetRule?.source}" to "${deleteTargetRule?.target}"? Incoming visitors will no longer be redirected.`}
-  confirmLabel="Delete Rule"
-  variant="destructive"
-  loading={deleteLoading}
-  onconfirm={confirmDeleteRedirect}
-  oncancel={() => { if (!deleteLoading) deleteTargetRule = null; }}
-/>
-
 <div class="flex flex-1 flex-col">
-  <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <!-- Toolbar (exact shadcn Tabs layout) -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
-        <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-          <button
-            type="button"
-            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'general' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
-            onclick={() => { activeTab = 'general'; }}
-          >
-            General Settings
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'redirects' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
-            onclick={() => { activeTab = 'redirects'; }}
-          >
-            Redirect Rules ({redirects.length})
-          </button>
+  <div class="@container/main flex flex-1 flex-col gap-4 p-4 lg:p-6 max-w-5xl mx-auto w-full">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+      <div class="flex items-center gap-3">
+        <div>
+          <h2 class="text-xl font-semibold tracking-tight text-foreground">Site & Engine Settings</h2>
+          <p class="text-xs text-muted-foreground mt-0.5">Global CMS configuration, maintenance mode, staff notice, and URL redirects.</p>
         </div>
-
-        <div class="flex items-center gap-3">
-          {#if loading}
-            <span class="text-xs text-muted-foreground animate-pulse">Loading…</span>
-          {/if}
-          {#if successMsg}
-            <div class="text-xs text-emerald-600 dark:text-emerald-400 font-medium animate-fade-in">
-              ✓ {successMsg}
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Tab Content -->
-      <div class="px-4 lg:px-6">
-        {#if activeTab === 'general'}
-          <form onsubmit={handleSaveSettings} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4 max-w-2xl">
-            <Input
-              label="Site Name"
-              placeholder="e.g. Acme Corp"
-              bind:value={settings['site.name']}
-              required
-            />
-
-            <Input
-              label="Site Title (Default Page Title)"
-              placeholder="e.g. Acme - Next Generation Cloud"
-              bind:value={settings['site.title']}
-              required
-            />
-
-            <div class="flex flex-col gap-1.5">
-              <label for="site-desc" class="text-xs font-medium text-foreground">
-                Site Meta Description
-              </label>
-              <textarea
-                id="site-desc"
-                rows="3"
-                placeholder="Brief description for search engines…"
-                bind:value={settings['site.description']}
-                class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-              ></textarea>
-            </div>
-
-            <Input
-              label="Home Path"
-              placeholder="e.g. /"
-              bind:value={settings['site.home_path']}
-            />
-
-            <div class="pt-3 border-t border-border flex justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                class="inline-flex items-center gap-1.5 h-8 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
-              >
-                {saving ? 'Saving…' : 'Save Settings'}
-              </button>
-            </div>
-          </form>
-        {:else}
-          <div class="space-y-4 max-w-3xl">
-            <!-- Add redirect form -->
-            <form onsubmit={handleAddRedirect} class="p-4 rounded-xl border border-border bg-card shadow-xs space-y-3">
-              <span class="text-xs font-medium text-foreground">Add Redirect Rule</span>
-
-              {#if redirectError}
-                <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex items-center justify-between">
-                  <span>{redirectError}</span>
-                  <button type="button" class="hover:underline cursor-pointer" onclick={() => { redirectError = null; }}>Dismiss</button>
-                </div>
-              {/if}
-
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <input
-                  type="text"
-                  placeholder="From (e.g. /old-page)"
-                  bind:value={newSource}
-                  required
-                  class="h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-                />
-                <input
-                  type="text"
-                  placeholder="To (e.g. /new-page)"
-                  bind:value={newTarget}
-                  required
-                  class="h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-                />
-                <select
-                  bind:value={newCode}
-                  class="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-                >
-                  <option value={301}>301 Permanent</option>
-                  <option value={302}>302 Temporary</option>
-                </select>
-              </div>
-              <div class="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={addingRedirect}
-                  class="h-8 px-3.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                >
-                  {#if addingRedirect}
-                    <div class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                  {/if}
-                  <span>Add Rule</span>
-                </button>
-              </div>
-            </form>
-
-            <!-- Redirects Table -->
-            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-              {#if redirects.length === 0}
-                <div class="p-8 text-center text-xs text-muted-foreground">
-                  No redirect rules configured.
-                </div>
-              {:else}
-                <div class="overflow-x-auto">
-                  <table class="w-full text-left text-sm text-foreground caption-bottom">
-                    <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
-                      <tr>
-                        <th class="h-10 px-4 font-medium">Source</th>
-                        <th class="h-10 px-4 font-medium">Destination</th>
-                        <th class="h-10 px-4 font-medium">Code</th>
-                        <th class="h-10 w-24 px-4 font-medium text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                      {#each redirects as r (r.id)}
-                        <tr class="hover:bg-muted/50 transition-colors">
-                          <td class="px-4 py-3 font-mono text-xs text-foreground">{r.source}</td>
-                          <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{r.target}</td>
-                          <td class="px-4 py-3">
-                            <Badge variant="outline" size="sm">{r.code}</Badge>
-                          </td>
-                          <td class="px-4 py-3 text-right">
-                            <button
-                              type="button"
-                              class="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors cursor-pointer"
-                              onclick={() => { deleteTargetRule = r; }}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              {/if}
-            </div>
-          </div>
+        {#if loading}
+          <svg class="size-4 animate-spin text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+          </svg>
         {/if}
       </div>
+
+      {#if saveMsg}
+        <div class="p-2.5 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5 animate-in fade-in-0">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>{saveMsg}</span>
+        </div>
+      {/if}
+      {#if saveErr}
+        <div class="p-2.5 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-1.5 animate-in fade-in-0">
+          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line></svg>
+          <span>{saveErr}</span>
+        </div>
+      {/if}
     </div>
+
+    <!-- Tabs -->
+    <div class="flex items-center gap-1 border-b border-border overflow-x-auto pb-px">
+      <button
+        type="button"
+        onclick={() => (activeTab = 'general')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'general' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        General & SEO
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'maintenance')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'maintenance' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Maintenance {maintenance.enabled ? 'â—' : ''}
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'notice')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'notice' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Staff Notice {staffNotice.enabled ? 'â—' : ''}
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'business')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'business' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Business & Social
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'redirects')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'redirects' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Redirects ({redirects.length})
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'notfound')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'notfound' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        404 Tracker ({notFounds.length})
+      </button>
+    </div>
+
+    <!-- Content: Tab 1 - General -->
+    {#if activeTab === 'general'}
+      <form onsubmit={handleSaveGeneral} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="site-name" class="block text-xs font-medium text-foreground mb-1">Site Name</label>
+            <Input id="site-name" type="text" bind:value={settings['site.name']} placeholder="e.g. HydroGo" required />
+          </div>
+          <div>
+            <label for="site-title" class="block text-xs font-medium text-foreground mb-1">Default Meta Title</label>
+            <Input id="site-title" type="text" bind:value={settings['site.title']} placeholder="e.g. Modern Headless CMS" required />
+          </div>
+        </div>
+
+        <div>
+          <label for="site-desc" class="block text-xs font-medium text-foreground mb-1">Site Description (Meta Description)</label>
+          <Input id="site-desc" type="text" bind:value={settings['site.description']} placeholder="Brief description for search engines..." />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="home-path" class="block text-xs font-medium text-foreground mb-1">Home Route Path</label>
+            <Input id="home-path" type="text" bind:value={settings['site.home_path']} placeholder="/" required />
+          </div>
+          <div>
+            <label for="favicon-url" class="block text-xs font-medium text-foreground mb-1">Favicon URL</label>
+            <Input id="favicon-url" type="text" bind:value={settings['appearance.favicon_url']} placeholder="/favicon.ico or https://..." />
+          </div>
+        </div>
+
+        <div>
+          <label for="social-img" class="block text-xs font-medium text-foreground mb-1">Open Graph / Social Sharing Image URL</label>
+          <Input id="social-img" type="text" bind:value={settings['appearance.social_image_url']} placeholder="https://..." />
+        </div>
+
+        <div class="pt-3 border-t border-border flex justify-end">
+          <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Settings'}</Button>
+        </div>
+      </form>
+
+    <!-- Content: Tab 2 - Maintenance Mode -->
+    {:else if activeTab === 'maintenance'}
+      <form onsubmit={handleSaveMaintenance} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
+        <div class="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+          <div>
+            <span class="text-sm font-semibold text-foreground block">Maintenance Mode</span>
+            <span class="text-xs text-muted-foreground block mt-0.5">When active, public API calls return 503 Service Unavailable, except for allowlisted IPs.</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" bind:checked={maintenance.enabled} class="sr-only peer" />
+            <div class="w-11 h-6 bg-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="m-headline" class="block text-xs font-medium text-foreground mb-1">Headline</label>
+            <Input id="m-headline" type="text" bind:value={maintenance.headline} placeholder="Scheduled System Upgrade" />
+          </div>
+          <div>
+            <label for="m-allowlist" class="block text-xs font-medium text-foreground mb-1">Allowlisted IP Addresses (comma separated)</label>
+            <Input id="m-allowlist" type="text" bind:value={maintenance.allowlistStr} placeholder="127.0.0.1, 192.168.1.100" />
+          </div>
+        </div>
+
+        <div>
+          <label for="m-msg" class="block text-xs font-medium text-foreground mb-1">Maintenance Message</label>
+          <Input id="m-msg" type="text" bind:value={maintenance.message} placeholder="We are performing essential database optimizations. Service will resume shortly." />
+        </div>
+
+        <div class="pt-3 border-t border-border flex justify-end">
+          <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Update Maintenance Mode'}</Button>
+        </div>
+      </form>
+
+    <!-- Content: Tab 3 - Staff Notice -->
+    {:else if activeTab === 'notice'}
+      <form onsubmit={handleSaveStaffNotice} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
+        <div class="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+          <div>
+            <span class="text-sm font-semibold text-foreground block">Broadcast Notice to Staff</span>
+            <span class="text-xs text-muted-foreground block mt-0.5">Renders an informative alert banner at the top of the Admin Studio for all editors.</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" bind:checked={staffNotice.enabled} class="sr-only peer" />
+            <div class="w-11 h-6 bg-muted peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <label for="sn-msg" class="block text-xs font-medium text-foreground mb-1">Notice Message</label>
+            <Input id="sn-msg" type="text" bind:value={staffNotice.message} placeholder="Content freeze in effect until 16:00 UTC for media CDN re-indexing." />
+          </div>
+          <div>
+            <label for="sn-sev" class="block text-xs font-medium text-foreground mb-1">Severity Level</label>
+            <select
+              id="sn-sev"
+              bind:value={staffNotice.severity}
+              class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+            >
+              <option value="info">Info (Blue)</option>
+              <option value="warning">Warning (Amber)</option>
+              <option value="critical">Critical (Red)</option>
+            </select>
+          </div>
+        </div>
+
+        {#if staffNotice.enabled && staffNotice.message}
+          <div class="p-3 rounded-lg border flex items-center gap-2 text-xs {staffNotice.severity === 'critical' ? 'bg-destructive/10 border-destructive/20 text-destructive' : staffNotice.severity === 'warning' ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-primary/10 border-primary/20 text-primary'}">
+            <span class="font-bold uppercase tracking-wider text-[10px]">Preview:</span>
+            <span>{staffNotice.message}</span>
+          </div>
+        {/if}
+
+        <div class="pt-3 border-t border-border flex justify-end">
+          <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Broadcast Notice'}</Button>
+        </div>
+      </form>
+
+    <!-- Content: Tab 4 - Business & Social -->
+    {:else if activeTab === 'business'}
+      <form onsubmit={handleSaveBusinessAndSocial} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-6">
+        <div>
+          <h3 class="text-sm font-semibold text-foreground">Company & Legal Information</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">Used for schema.org rich snippets and public legal disclosures.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="b-name" class="block text-xs font-medium text-foreground mb-1">Company / Brand Name</label>
+            <Input id="b-name" type="text" bind:value={business.company_name} placeholder="Acme Labs" />
+          </div>
+          <div>
+            <label for="b-legal" class="block text-xs font-medium text-foreground mb-1">Legal Entity Name</label>
+            <Input id="b-legal" type="text" bind:value={business.legal_name} placeholder="Acme Labs LLC" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label for="b-tax" class="block text-xs font-medium text-foreground mb-1">Tax ID / VAT Number</label>
+            <Input id="b-tax" type="text" bind:value={business.tax_id} placeholder="US-12345678" />
+          </div>
+          <div>
+            <label for="b-email" class="block text-xs font-medium text-foreground mb-1">Public Contact Email</label>
+            <Input id="b-email" type="email" bind:value={business.email} placeholder="contact@example.com" />
+          </div>
+          <div>
+            <label for="b-phone" class="block text-xs font-medium text-foreground mb-1">Phone Number</label>
+            <Input id="b-phone" type="tel" bind:value={business.phone} placeholder="+1 555-0199" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="md:col-span-2">
+            <label for="b-addr" class="block text-xs font-medium text-foreground mb-1">Street Address</label>
+            <Input id="b-addr" type="text" bind:value={business.address} placeholder="123 Innovation Way" />
+          </div>
+          <div>
+            <label for="b-city" class="block text-xs font-medium text-foreground mb-1">City</label>
+            <Input id="b-city" type="text" bind:value={business.city} placeholder="San Francisco" />
+          </div>
+          <div>
+            <label for="b-country" class="block text-xs font-medium text-foreground mb-1">Country</label>
+            <Input id="b-country" type="text" bind:value={business.country} placeholder="United States" />
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-border">
+          <h3 class="text-sm font-semibold text-foreground">Social Network Profiles</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">Links to your verified organizational channels.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {#each socialProfiles as profile}
+              <div>
+                <label for={`soc-${profile.platform}`} class="block text-xs font-medium text-foreground capitalize mb-1">{profile.platform}</label>
+                <Input id={`soc-${profile.platform}`} type="url" bind:value={profile.url} placeholder={`https://${profile.platform}.com/...`} />
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-border flex justify-end">
+          <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Business & Social'}</Button>
+        </div>
+      </form>
+
+    <!-- Content: Tab 5 - Redirects -->
+    {:else if activeTab === 'redirects'}
+      <div class="space-y-6">
+        <!-- Add Redirect Form -->
+        <form onsubmit={handleCreateRedirect} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
+          <h3 class="text-sm font-semibold text-foreground">Add URL Redirect Rule</h3>
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-5">
+              <label for="red-from" class="block text-xs font-medium text-foreground mb-1">Source Path (From)</label>
+              <Input id="red-from" type="text" bind:value={newPattern} placeholder="/old-blog-post" required />
+            </div>
+            <div class="md:col-span-5">
+              <label for="red-to" class="block text-xs font-medium text-foreground mb-1">Target Path or URL (To)</label>
+              <Input id="red-to" type="text" bind:value={newTarget} placeholder="/news/new-blog-post" required />
+            </div>
+            <div class="md:col-span-2">
+              <Button type="submit" class="w-full" disabled={saving}>Add Rule</Button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Redirects List -->
+        <div class="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+          <div class="p-4 border-b border-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-foreground">Active Redirect Rules ({redirects.length})</h3>
+          </div>
+          <div class="divide-y divide-border">
+            {#if redirects.length === 0}
+              <div class="p-8 text-center text-xs text-muted-foreground">No custom redirect rules configured yet.</div>
+            {:else}
+              {#each redirects as r}
+                <div class="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
+                  <div class="grid text-left min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono text-xs font-semibold text-foreground">{r.pattern || r.source}</span>
+                      <span class="text-muted-foreground text-xs">â†’</span>
+                      <span class="font-mono text-xs text-primary">{r.target_path || r.target}</span>
+                      <Badge variant="outline" class="text-[10px]">{r.status || r.code || 301}</Badge>
+                    </div>
+                  </div>
+                  <Button variant="danger" onclick={() => (deleteRedirectTarget = r)}>Delete</Button>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+      </div>
+
+    <!-- Content: Tab 6 - 404 Tracker -->
+    {:else if activeTab === 'notfound'}
+      <div class="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+        <div class="p-4 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-foreground">404 Not Found Tracking</h3>
+            <p class="text-xs text-muted-foreground mt-0.5">Live log of URLs visitors tried to access that returned 404. Convert frequent 404s to 301 redirects instantly.</p>
+          </div>
+          <Button variant="outline" onclick={loadNotFounds}>Refresh</Button>
+        </div>
+
+        {#if convertNotFoundPath}
+          <form onsubmit={handleConvertNotFound} class="p-4 bg-muted/40 border-b border-border flex flex-col sm:flex-row items-center gap-3">
+            <div class="text-xs font-mono text-foreground">
+              Redirect <span class="text-destructive font-semibold">{convertNotFoundPath}</span> to:
+            </div>
+            <Input type="text" bind:value={convertTarget} placeholder="/new-destination-path" class="flex-1" required />
+            <div class="flex items-center gap-2">
+              <Button type="submit" disabled={saving}>Save 301</Button>
+              <Button type="button" variant="outline" onclick={() => (convertNotFoundPath = null)}>Cancel</Button>
+            </div>
+          </form>
+        {/if}
+
+        <div class="divide-y divide-border">
+          {#if notFounds.length === 0}
+            <div class="p-8 text-center text-xs text-muted-foreground">No 404 hit records recorded. All traffic is resolving smoothly!</div>
+          {:else}
+            {#each notFounds as item}
+              <div class="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 transition-colors">
+                <div class="grid text-left min-w-0">
+                  <span class="font-mono text-xs font-semibold text-foreground">{item.path}</span>
+                  <span class="text-[11px] text-muted-foreground mt-0.5">{item.hits} hit{item.hits === 1 ? '' : 's'} â€¢ Last seen: {item.last_seen ? new Date(item.last_seen).toLocaleString() : 'Recent'}</span>
+                </div>
+                <Button variant="outline" onclick={() => { convertNotFoundPath = item.path; convertTarget = ''; }}>
+                  Create Redirect
+                </Button>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
+
+<ConfirmDialog
+  open={!!deleteRedirectTarget}
+  title="Delete Redirect Rule"
+  description={`Are you sure you want to delete the redirect rule for '${deleteRedirectTarget?.pattern || deleteRedirectTarget?.source}'?`}
+  confirmLabel="Delete"
+  loading={saving}
+  onconfirm={handleDeleteRedirect}
+  oncancel={() => (deleteRedirectTarget = null)}
+/>

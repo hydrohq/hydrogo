@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   interface Props {
     currentRoute?: string;
     onnavigate?: (route: string) => void;
@@ -47,7 +47,7 @@
         class="px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-colors flex items-center gap-1.5"
       >
         Visit Website
-        <span aria-hidden="true">↗</span>
+        <span aria-hidden="true">â†—</span>
       </a>
     </nav>
   </div>

@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -212,7 +212,7 @@
       {#if loading}
         <div class="py-8 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
           <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-          <span>Loading terms…</span>
+          <span>Loading termsâ€¦</span>
         </div>
       {:else if filteredTerms.length === 0}
         <div class="p-8 text-center rounded-xl border border-dashed border-border bg-card">

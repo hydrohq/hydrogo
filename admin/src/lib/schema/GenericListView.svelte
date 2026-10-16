@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -154,7 +154,7 @@
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schema…</span>
+    <span>Loading {type} schemaâ€¦</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -213,7 +213,7 @@
               </svg>
               <input
                 type="search"
-                placeholder="Search {(collection.plural || collection.label || type).toLowerCase()}…"
+                placeholder="Search {(collection.plural || collection.label || type).toLowerCase()}â€¦"
                 bind:value={search}
                 class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               />
@@ -238,7 +238,7 @@
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
               <div class="p-12 text-center text-xs text-muted-foreground">
-                Loading {(collection.plural || collection.label || type).toLowerCase()}…
+                Loading {(collection.plural || collection.label || type).toLowerCase()}â€¦
               </div>
             {:else if filteredItems.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">
@@ -289,11 +289,11 @@
                                   />
                                 </div>
                               {:else}
-                                <span class="font-mono text-muted-foreground">—</span>
+                                <span class="font-mono text-muted-foreground">â€”</span>
                               {/if}
                             {:else}
                               <span class="font-medium text-foreground">
-                                {String(item[key] ?? '—')}
+                                {String(item[key] ?? 'â€”')}
                               </span>
                             {/if}
                           </td>

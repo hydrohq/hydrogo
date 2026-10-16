@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
@@ -106,7 +106,7 @@
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schema…</span>
+    <span>Loading {type} schemaâ€¦</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -131,13 +131,13 @@
               onclick={() => router.navigate(`/content/${type}`)}
               class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
-              ← Back
+              â† Back
             </button>
             <span class="text-sm font-semibold text-foreground">
               {isNew ? `New ${collection.singular || collection.label || type}` : `Edit ${collection.singular || collection.label || type}`}
             </span>
             {#if loading}
-              <span class="text-xs text-muted-foreground animate-pulse">Loading…</span>
+              <span class="text-xs text-muted-foreground animate-pulse">Loadingâ€¦</span>
             {/if}
           </div>
 
@@ -192,7 +192,7 @@
                 {#if field.kind === 'text' && field.widget !== 'textarea'}
                   <Input
                     label={field.label || key}
-                    placeholder={`Enter ${field.label || key}…`}
+                    placeholder={`Enter ${field.label || key}â€¦`}
                     bind:value={formData[key]}
                     required={field.required}
                   />
@@ -211,7 +211,7 @@
                     id={`field-${key}`}
                     bind:value={formData[key]}
                     rows="4"
-                    placeholder={`Enter ${field.label || key}…`}
+                    placeholder={`Enter ${field.label || key}â€¦`}
                     class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                   ></textarea>
                 {:else if field.kind === 'richtext' || field.widget === 'richtext'}
@@ -237,7 +237,7 @@
                     bind:value={formData[key]}
                     class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                   >
-                    <option value="">Select option…</option>
+                    <option value="">Select optionâ€¦</option>
                     {#each (field.options || []) as opt}
                       {@const optVal = typeof opt === 'string' ? opt : opt.value}
                       {@const optLabel = typeof opt === 'string' ? opt : opt.label}
@@ -261,7 +261,7 @@
                       </div>
                     {/if}
                     <Input
-                      placeholder="Asset URL or path…"
+                      placeholder="Asset URL or pathâ€¦"
                       bind:value={formData[key]}
                       class="flex-1 font-mono text-xs"
                     />

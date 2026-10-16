@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
@@ -17,6 +17,7 @@
   import SiteView from './routes/site/SiteView.svelte';
   import AuditView from './routes/audit/AuditView.svelte';
   import SystemView from './routes/system/SystemView.svelte';
+  import AccountView from './routes/account/AccountView.svelte';
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
 
   let initializing = $state(true);
@@ -123,6 +124,8 @@
       <AuditView />
     {:else if routeInfo.module === 'system'}
       <SystemView />
+    {:else if routeInfo.module === 'account'}
+      <AccountView />
     {:else}
       <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
       {#if schema.getCollection(routeInfo.module || '')}

@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   interface DashboardMetrics {
     pagesPublished?: number;
     newsPublished?: number;

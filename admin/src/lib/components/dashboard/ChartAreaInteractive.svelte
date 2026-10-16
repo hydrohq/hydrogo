@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   let timeRange = $state<'90d' | '30d' | '7d'>('30d');
   let hoveredPoint = $state<{ x: number; y: number; date: string; desktop: number; mobile: number } | null>(null);
 
