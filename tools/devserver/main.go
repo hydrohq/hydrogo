@@ -248,7 +248,23 @@ func main() {
 		defer cancelShutdown()
 		_ = server.Shutdown(shutdownCtx)
 	}()
-	fmt.Printf("HydroGo dev proxy hazır: http://%s (uygulama: %s)\n", *address, *appAddress)
+	go func() {
+		// Wait a moment for child Vite processes to finish initial logs, then display the unified gateway banner
+		time.Sleep(1200 * time.Millisecond)
+		fmt.Printf(`
+┌──────────────────────────────────────────────────────────────────────────┐
+│  🚀 HydroGo Tek Port Geliştirme Gateway'i Hazır!                        │
+│  👉 http://%s                                                  │
+│                                                                          │
+│  • Ana Sayfa (Starter Vitrini):  http://%s/                     │
+│  • Admin Studio (Yönetim):       http://%s/admin                │
+│  • REST API:                     http://%s/api/v1/...           │
+│                                                                          │
+│  ℹ️ Vite :3000 ve :5173 portları iç Hot-Reload (HMR) servisleridir.      │
+│     Doğrudan tek bir port üzerinden (8090) çalışabilirsiniz!             │
+└──────────────────────────────────────────────────────────────────────────┘
+`, *address, *address, *address, *address)
+	}()
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		fatal(err)
 	}
