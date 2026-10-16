@@ -4,6 +4,7 @@
   import { sidebar } from '$lib/stores/sidebar.svelte';
   import { theme } from '$lib/stores/theme.svelte';
   import SearchCommandModal from '$lib/components/shell/SearchCommandModal.svelte';
+  import NotificationPopover from '$lib/components/shell/NotificationPopover.svelte';
 
   const path = $derived(router.path);
   let showSearchModal = $state(false);
@@ -127,6 +128,9 @@
           <line x1="10" y1="14" x2="21" y2="3"></line>
         </svg>
       </a>
+
+      <!-- Notifications Popover -->
+      <NotificationPopover />
 
       <!-- Theme Toggle Button -->
       <button

@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -6,6 +6,10 @@
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import NavigationTab from './tabs/NavigationTab.svelte';
+  import TranslationsTab from './tabs/TranslationsTab.svelte';
+  import FormsTab from './tabs/FormsTab.svelte';
+  import InboxTab from './tabs/InboxTab.svelte';
 
   interface SettingItem {
     key: string;
@@ -33,7 +37,7 @@
     url: string;
   }
 
-  type TabKey = 'general' | 'maintenance' | 'notice' | 'business' | 'redirects' | 'notfound';
+  type TabKey = 'general' | 'navigation' | 'forms' | 'inbox' | 'translations' | 'maintenance' | 'notice' | 'business' | 'redirects' | 'notfound';
   let activeTab = $state<TabKey>('general');
   let loading = $state(false);
   let saving = $state(false);
@@ -380,6 +384,34 @@
       </button>
       <button
         type="button"
+        onclick={() => (activeTab = 'navigation')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'navigation' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Navigation
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'forms')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'forms' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Forms
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'inbox')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'inbox' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Inbox (CRM)
+      </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'translations')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'translations' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Translations
+      </button>
+      <button
+        type="button"
         onclick={() => (activeTab = 'maintenance')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'maintenance' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
@@ -693,6 +725,14 @@
           {/if}
         </div>
       </div>
+    {:else if activeTab === 'navigation'}
+      <NavigationTab />
+    {:else if activeTab === 'forms'}
+      <FormsTab />
+    {:else if activeTab === 'inbox'}
+      <InboxTab />
+    {:else if activeTab === 'translations'}
+      <TranslationsTab />
     {/if}
   </div>
 </div>

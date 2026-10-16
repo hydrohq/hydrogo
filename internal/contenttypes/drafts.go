@@ -46,7 +46,7 @@ func definitionByID(types []Definition, id string) (Definition, bool) {
 // CanTransition allows draft <-> published for drafts types. Who may use the
 // admin at all is decided by GeneratedAdminOptions.Authorize.
 func (a AdminAPI) CanTransition(_ *http.Request, collection adminstudio.Collection, _ map[string]any, target adminstudio.PublicationState) bool {
-	definition, ok := definitionByID(a.Types, collection.ID)
+	definition, ok := definitionByID(a.types(), collection.ID)
 	return ok && definition.Drafts && (target == adminstudio.StateDraft || target == adminstudio.StatePublished)
 }
 
@@ -74,7 +74,7 @@ func (a AdminAPI) Transition(r *http.Request, collection adminstudio.Collection,
 // keepStatus makes the stored status authoritative on save: new records are
 // drafts and updates keep the current status, whatever the payload says.
 func (a AdminAPI) keepStatus(r *http.Request, typeID, id string, data map[string]any) error {
-	definition, ok := definitionByID(a.Types, typeID)
+	definition, ok := definitionByID(a.types(), typeID)
 	if !ok || !definition.Drafts {
 		return nil
 	}

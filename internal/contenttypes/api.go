@@ -18,6 +18,8 @@ const maxBodyBytes = collections.MaxRecordBytes + 4096
 type AdminAPI struct {
 	Service collections.Service
 	Types   []Definition
+	// TypesFunc optionally supplies the definitions dynamically.
+	TypesFunc func() []Definition
 	// Actor names the user making a change (stored with revisions).
 	Actor func(*http.Request) string
 	// Locales are the site's content locales (see localization.go).
@@ -25,6 +27,13 @@ type AdminAPI struct {
 	// Authorize reports whether the request may read (write false) or change
 	// (write true) content. Nil denies every request.
 	Authorize func(r *http.Request, write bool) bool
+}
+
+func (a AdminAPI) types() []Definition {
+	if a.TypesFunc != nil {
+		return a.TypesFunc()
+	}
+	return a.Types
 }
 
 // withActor attaches the acting user to the request context for writes.
@@ -89,7 +98,7 @@ func Flatten(record collections.Record) map[string]any {
 // matching input (date or datetime-local) and adds the status of a drafts
 // type, so a record reads back exactly as a client submits it.
 func (a AdminAPI) present(typeID string, record map[string]any) map[string]any {
-	for _, definition := range a.Types {
+	for _, definition := range a.types() {
 		if definition.ID != typeID {
 			continue
 		}

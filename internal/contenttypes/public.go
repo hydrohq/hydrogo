@@ -31,7 +31,16 @@ type PublicAPI struct {
 	Service        collections.Service
 	RenderRichText func(stored string) string
 	Types          []Definition
-	Locales        Locales
+	// TypesFunc optionally supplies the definitions dynamically.
+	TypesFunc func() []Definition
+	Locales   Locales
+}
+
+func (p PublicAPI) types() []Definition {
+	if p.TypesFunc != nil {
+		return p.TypesFunc()
+	}
+	return p.Types
 }
 
 // publicPage is the list metadata: the page plus the locale served.
@@ -48,7 +57,7 @@ func (p PublicAPI) present(typeID, locale string, record collections.Record) map
 	if p.RenderRichText == nil {
 		return result
 	}
-	for _, definition := range p.Types {
+	for _, definition := range p.types() {
 		if definition.ID != typeID {
 			continue
 		}
@@ -62,7 +71,7 @@ func (p PublicAPI) present(typeID, locale string, record collections.Record) map
 }
 
 func (p PublicAPI) definition(id string) (Definition, bool) {
-	for _, definition := range p.Types {
+	for _, definition := range p.types() {
 		if definition.ID == id && definition.Public {
 			return definition, true
 		}

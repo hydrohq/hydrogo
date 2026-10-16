@@ -1,9 +1,10 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
+  import BackupsSecurityTab from './tabs/BackupsSecurityTab.svelte';
 
   interface SystemInfo {
     version: string;
@@ -105,7 +106,7 @@
   let loading = $state(true);
   let autoRefresh = $state(false);
   let refreshTimer: any = null;
-  let activeTab = $state<'overview' | 'memory' | 'database' | 'jobs' | 'paths'>('overview');
+  let activeTab = $state<'overview' | 'memory' | 'database' | 'jobs' | 'paths' | 'backups'>('overview');
 
   async function loadData() {
     loading = true;
@@ -315,6 +316,13 @@
       >
         Monitored Paths ({metrics?.TopPaths?.length || 0})
       </button>
+      <button
+        type="button"
+        onclick={() => (activeTab = 'backups')}
+        class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'backups' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+      >
+        Backups & Security
+      </button>
     </div>
 
     <!-- Tab 1: Engine Overview -->
@@ -509,6 +517,8 @@
           {/if}
         </div>
       </div>
+    {:else if activeTab === 'backups'}
+      <BackupsSecurityTab />
     {/if}
   </div>
 </div>

@@ -30,6 +30,7 @@ func (a *serveApp) routes() ([]router.Route, error) {
 	routes = append(routes, a.analyticsRoutes()...)
 	routes = append(routes, a.adminStudioRoutes()...)
 	routes = append(routes, a.adminRoutes()...)
+	routes = append(routes, a.contentTypeAdminRoutes()...)
 	routes = append(routes, a.mediaRoutes()...)
 	routes = append(routes, a.siteRoutes()...)
 	routes = append(routes, a.newsRoutes()...)

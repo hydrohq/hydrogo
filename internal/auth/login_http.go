@@ -227,16 +227,29 @@ func (h HTTPHandler) enableMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid MFA request", http.StatusBadRequest)
-		return
+	var code string
+	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		var req struct {
+			Code string `json:"code"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid MFA request", http.StatusBadRequest)
+			return
+		}
+		code = req.Code
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid MFA request", http.StatusBadRequest)
+			return
+		}
+		code = r.FormValue("code")
 	}
 	if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
 		security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
 		return
 	}
 	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
-		return h.MFA.EnableWithCode(r.Context(), tx, user.ID, r.FormValue("code"))
+		return h.MFA.EnableWithCode(r.Context(), tx, user.ID, code)
 	}); err != nil {
 		if errors.Is(err, ErrMFAInvalidCode) {
 			http.Error(w, "invalid MFA code", http.StatusUnauthorized)
@@ -265,9 +278,22 @@ func (h HTTPHandler) disableMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid MFA request", http.StatusBadRequest)
-		return
+	var code string
+	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		var req struct {
+			Code string `json:"code"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid MFA request", http.StatusBadRequest)
+			return
+		}
+		code = req.Code
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid MFA request", http.StatusBadRequest)
+			return
+		}
+		code = r.FormValue("code")
 	}
 	if h.MFALimiter != nil && !security.AllowForRequest(h.MFALimiter, r.Context(), clientIP(r)+":"+user.ID) {
 		security.WriteRateLimitedResponse(w, "too many MFA attempts", time.Minute)
@@ -275,7 +301,6 @@ func (h HTTPHandler) disableMFA(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
-		code := r.FormValue("code")
 		if err := h.MFA.Verify(r.Context(), tx, user.ID, code); err != nil {
 			if !errors.Is(err, ErrMFAInvalidCode) {
 				return err

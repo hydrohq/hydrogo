@@ -66,7 +66,7 @@ func (a AdminAPI) resolve(w http.ResponseWriter, r *http.Request, write bool) (D
 		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
 		return Definition{}, adminstudio.Collection{}, false
 	}
-	definition, ok := definitionByID(a.Types, r.PathValue("type"))
+	definition, ok := definitionByID(a.types(), r.PathValue("type"))
 	if !ok {
 		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
 		return Definition{}, adminstudio.Collection{}, false

@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { api } from '$lib/api/client';
@@ -221,7 +221,7 @@
     try {
       const res = await api.post<ApiResponse<{ token: string; key?: string }>>('/api/v1/admin/account/tokens', {
         name: newTokenName.trim(),
-        days: Number(newTokenDays) || 30,
+        expires_in_days: Number(newTokenDays) || 30,
       });
       issuedTokenValue = res?.data?.token || res?.data?.key || null;
       await loadTokens();
