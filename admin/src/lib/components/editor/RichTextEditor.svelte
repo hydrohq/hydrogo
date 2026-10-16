@@ -7,6 +7,7 @@
   import EditorToolbar from './EditorToolbar.svelte';
   import BubbleMenu from './BubbleMenu.svelte';
   import SlashCommandMenu, { type SlashItem } from './SlashCommandMenu.svelte';
+  import { normalizeRichText } from './deltaToHtml';
 
   interface Props {
     value?: string;
@@ -229,6 +230,11 @@
   onMount(() => {
     if (!element) return;
 
+    const initialContent = normalizeRichText(value);
+    if (value && initialContent && value !== initialContent) {
+      value = initialContent;
+    }
+
     editor = new Editor({
       element: element,
       extensions: [
@@ -259,7 +265,7 @@
           },
         }),
       ],
-      content: value || '',
+      content: initialContent || '',
       editorProps: {
         attributes: {
           class:
@@ -316,10 +322,13 @@
   });
 
   $effect(() => {
-    if (editor && value !== editor.getHTML()) {
-      const isSame = editor.getHTML() === value;
-      if (!isSame && !editor.isFocused) {
-        editor.commands.setContent(value || '', { emitUpdate: false });
+    if (editor && value !== undefined) {
+      const normalized = normalizeRichText(value);
+      if (normalized !== editor.getHTML() && !editor.isFocused) {
+        editor.commands.setContent(normalized, { emitUpdate: false });
+        if (value !== normalized) {
+          value = normalized;
+        }
         updateMetrics(editor);
       }
     }

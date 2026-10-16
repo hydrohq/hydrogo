@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { fetchPageBySlug, type Page } from './api';
 
@@ -46,8 +46,8 @@
       </div>
 
       {#if page.body}
-        <div class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-          {page.body}
+        <div class="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed">
+          {@html page.body}
         </div>
       {/if}
 
