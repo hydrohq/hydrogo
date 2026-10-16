@@ -1,256 +1,442 @@
 <script lang="ts">
+  import { docCategories, docTopics, type DocTopic } from './docsData';
+
   interface Props {
     onback: () => void;
   }
 
   let { onback }: Props = $props();
 
-  let activeTab = $state<'start' | 'api' | 'content-types' | 'admin' | 'deployment'>('start');
+  let activeTopicId = $state<string>('overview');
+  let searchQuery = $state('');
+  let mobileSidebarOpen = $state(false);
+  let copiedCodeId = $state<string | null>(null);
+
+  const currentTopic = $derived<DocTopic>(docTopics[activeTopicId] || docTopics['overview']);
+
+  // Flattened topics list for prev/next pagination
+  const allTopicIds = $derived(
+    docCategories.flatMap((cat) => cat.topics.map((t) => t.id))
+  );
+
+  const currentIndex = $derived(allTopicIds.indexOf(activeTopicId));
+  const prevTopic = $derived(currentIndex > 0 ? docTopics[allTopicIds[currentIndex - 1]] : null);
+  const nextTopic = $derived(
+    currentIndex >= 0 && currentIndex < allTopicIds.length - 1
+      ? docTopics[allTopicIds[currentIndex + 1]]
+      : null
+  );
+
+  // Search filtering
+  const filteredCategories = $derived.by(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return docCategories;
+    return docCategories
+      .map((cat) => ({
+        ...cat,
+        topics: cat.topics.filter(
+          (t) =>
+            t.title.toLowerCase().includes(q) ||
+            (docTopics[t.id]?.description || '').toLowerCase().includes(q) ||
+            (docTopics[t.id]?.headings || []).some((h) => h.toLowerCase().includes(q))
+        ),
+      }))
+      .filter((cat) => cat.topics.length > 0);
+  });
+
+  function selectTopic(id: string) {
+    activeTopicId = id;
+    mobileSidebarOpen = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function copyCode(code: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      copiedCodeId = id;
+      setTimeout(() => {
+        if (copiedCodeId === id) copiedCodeId = null;
+      }, 2000);
+    } catch (e) {
+      console.warn('Copy failed', e);
+    }
+  }
 </script>
 
-<div class="max-w-4xl mx-auto space-y-8 pb-16">
-  <!-- Top Bar -->
-  <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-    <button
-      type="button"
-      onclick={onback}
-      class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors cursor-pointer"
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="19" y1="12" x2="5" y2="12"></line>
-        <polyline points="12 19 5 12 12 5"></polyline>
-      </svg>
-      Back to Starter
-    </button>
+<div class="min-h-screen bg-black text-zinc-100 flex flex-col font-sans antialiased selection:bg-white selection:text-black">
+  <!-- Top Global Documentation Navbar -->
+  <header class="sticky top-0 z-40 border-b border-zinc-800/80 bg-black/85 backdrop-blur-md">
+    <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <!-- Left: Logo & Docs Brand -->
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
+          class="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 lg:hidden cursor-pointer"
+          aria-label="Toggle navigation menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
 
-    <a
-      href="https://ardalabs.dev"
-      target="_blank"
-      rel="noreferrer"
-      class="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1"
-    >
-      Visit ardalabs.dev
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-        <polyline points="15 3 21 3 21 9"></polyline>
-        <line x1="10" y1="14" x2="21" y2="3"></line>
-      </svg>
-    </a>
-  </div>
+        <button
+          type="button"
+          onclick={onback}
+          class="flex items-center gap-2.5 text-white font-bold text-lg hover:opacity-90 transition-opacity cursor-pointer bg-transparent border-0 p-0"
+        >
+          <div class="size-7 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <span>Hydro<span class="text-sky-400">Go</span></span>
+        </button>
 
-  <!-- Header Title -->
-  <div class="space-y-2">
-    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-mono">
-      Documentation
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-mono font-medium">
+          Docs
+        </span>
+
+        <span class="hidden sm:inline-block text-xs font-mono text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
+          v2.0
+        </span>
+      </div>
+
+      <!-- Center: Search Input -->
+      <div class="flex-1 max-w-md hidden md:block">
+        <div class="relative">
+          <svg class="size-4 absolute left-3 top-2.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Search documentation, API endpoints, YAML..."
+            class="w-full h-9 pl-9 pr-12 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-colors"
+          />
+          <kbd class="absolute right-3 top-2 text-[10px] font-mono text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-700">⌘K</kbd>
+        </div>
+      </div>
+
+      <!-- Right: Action Links -->
+      <div class="flex items-center gap-3 text-xs font-medium">
+        <a
+          href="/admin/"
+          class="hidden sm:inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          Admin Studio
+        </a>
+
+        <a
+          href="https://ardalabs.dev"
+          target="_blank"
+          rel="noreferrer"
+          class="hidden sm:inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
+        >
+          Visit Website
+          <span aria-hidden="true">↗</span>
+        </a>
+
+        <!-- Exit to Starter Button -->
+        <button
+          type="button"
+          onclick={onback}
+          class="h-8 px-3.5 rounded-full bg-white text-black hover:bg-zinc-200 font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Exit Docs
+        </button>
+      </div>
     </div>
-    <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">HydroGo Guide & Reference</h1>
-    <p class="text-sm text-slate-400 leading-relaxed">
-      Learn how to develop, customize, and deploy your headless CMS with Go, Svelte 5, and REST APIs.
-    </p>
+  </header>
+
+  <!-- Mobile Search Bar (Only on small screens) -->
+  <div class="p-3 border-b border-zinc-800 bg-zinc-950 md:hidden">
+    <div class="relative">
+      <svg class="size-4 absolute left-3 top-2.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search docs..."
+        class="w-full h-9 pl-9 pr-4 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none"
+      />
+    </div>
   </div>
 
-  <!-- Navigation Tabs -->
-  <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
-    <button
-      type="button"
-      onclick={() => (activeTab = 'start')}
-      class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {activeTab === 'start' ? 'bg-white text-black font-semibold' : 'text-slate-400 hover:text-white hover:bg-slate-900'}"
+  <!-- Main Body: 3-Column Layout -->
+  <div class="w-full max-w-7xl mx-auto flex-1 flex">
+    <!-- Left Navigation Sidebar -->
+    <aside
+      class="fixed inset-y-0 left-0 z-50 w-72 bg-black border-r border-zinc-800/80 p-6 overflow-y-auto transition-transform duration-200 ease-in-out lg:static lg:w-64 lg:p-6 lg:translate-x-0 {mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
     >
-      Quick Start
-    </button>
-    <button
-      type="button"
-      onclick={() => (activeTab = 'api')}
-      class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {activeTab === 'api' ? 'bg-white text-black font-semibold' : 'text-slate-400 hover:text-white hover:bg-slate-900'}"
-    >
-      REST API
-    </button>
-    <button
-      type="button"
-      onclick={() => (activeTab = 'content-types')}
-      class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {activeTab === 'content-types' ? 'bg-white text-black font-semibold' : 'text-slate-400 hover:text-white hover:bg-slate-900'}"
-    >
-      Content Types (YAML)
-    </button>
-    <button
-      type="button"
-      onclick={() => (activeTab = 'admin')}
-      class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {activeTab === 'admin' ? 'bg-white text-black font-semibold' : 'text-slate-400 hover:text-white hover:bg-slate-900'}"
-    >
-      Admin Studio
-    </button>
-    <button
-      type="button"
-      onclick={() => (activeTab = 'deployment')}
-      class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer {activeTab === 'deployment' ? 'bg-white text-black font-semibold' : 'text-slate-400 hover:text-white hover:bg-slate-900'}"
-    >
-      Deployment
-    </button>
-  </div>
+      <!-- Mobile Close Button -->
+      <div class="flex items-center justify-between pb-4 border-b border-zinc-800 lg:hidden mb-4">
+        <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Documentation</span>
+        <button
+          type="button"
+          onclick={() => (mobileSidebarOpen = false)}
+          class="p-1 rounded text-zinc-400 hover:text-white"
+        >
+          ✕
+        </button>
+      </div>
 
-  <!-- Tab Contents -->
-  <div class="space-y-6">
-    {#if activeTab === 'start'}
-      <section class="space-y-4">
-        <h2 class="text-xl font-bold text-white">Getting Started with HydroGo</h2>
-        <p class="text-sm text-slate-300 leading-relaxed">
-          HydroGo is a single-binary headless CMS. It manages your content, assets, and custom data types, exposing them through clean JSON endpoints for modern frontends.
-        </p>
-
-        <div class="space-y-3 pt-2">
-          <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400">1. Run Local Development Server</h3>
-          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-sky-300 overflow-x-auto">
-            go run ./tools/devserver
+      <nav class="space-y-6">
+        {#each filteredCategories as category}
+          <div class="space-y-1.5">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-400 px-2 font-mono">
+              {category.title}
+            </h3>
+            <ul class="space-y-0.5">
+              {#each category.topics as topic}
+                <li>
+                  <button
+                    type="button"
+                    onclick={() => selectTopic(topic.id)}
+                    class="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between cursor-pointer {activeTopicId === topic.id ? 'bg-white/10 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'}"
+                  >
+                    <span class="truncate">{topic.title}</span>
+                    {#if topic.badge}
+                      <span class="ml-2 text-[10px] font-mono px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                        {topic.badge}
+                      </span>
+                    {/if}
+                  </button>
+                </li>
+              {/each}
+            </ul>
           </div>
-          <p class="text-xs text-slate-400">
-            This starts the Go backend, Vite with HMR for the Svelte admin and frontend, and provides live reload on port <code class="text-white">8090</code>.
-          </p>
-        </div>
+        {/each}
+      </nav>
+    </aside>
 
-        <div class="space-y-3 pt-2">
-          <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400">2. Log into Admin Studio</h3>
-          <p class="text-xs text-slate-300">
-            Open <a href="/admin/" class="text-sky-400 hover:underline font-mono">/admin</a> in your browser. Admin Studio lets you manage pages, news articles, media uploads, and custom content types.
-          </p>
-        </div>
-
-        <div class="space-y-3 pt-2">
-          <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400">3. Edit Frontend Views</h3>
-          <p class="text-xs text-slate-300">
-            Edit files in <code class="bg-white/10 text-white px-1.5 py-0.5 rounded font-mono text-xs">examples/svelte-starter/src/</code>. Any changes update instantly in your browser via Vite HMR.
-          </p>
-        </div>
-      </section>
-
-    {:else if activeTab === 'api'}
-      <section class="space-y-4">
-        <h2 class="text-xl font-bold text-white">Public REST API Reference</h2>
-        <p class="text-sm text-slate-300 leading-relaxed">
-          All endpoints return JSON wrapped in standard envelopes: <code class="text-sky-300 font-mono text-xs">&#123; "data": [...], "meta": &#123; ... &#125; &#125;</code>.
-        </p>
-
-        <div class="border border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-800 text-xs">
-          <div class="p-4 bg-slate-900/60 flex items-start justify-between gap-4">
-            <div>
-              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono font-bold mr-2">GET</span>
-              <code class="text-white font-mono">/api/v1/pages?locale=en</code>
-              <p class="text-slate-400 mt-1">Fetches published pages for the requested locale.</p>
-            </div>
-          </div>
-
-          <div class="p-4 bg-slate-900/60 flex items-start justify-between gap-4">
-            <div>
-              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono font-bold mr-2">GET</span>
-              <code class="text-white font-mono">/api/v1/pages/by-slug?locale=en&slug=about</code>
-              <p class="text-slate-400 mt-1">Fetches a single page by slug with structured content blocks.</p>
-            </div>
-          </div>
-
-          <div class="p-4 bg-slate-900/60 flex items-start justify-between gap-4">
-            <div>
-              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono font-bold mr-2">GET</span>
-              <code class="text-white font-mono">/api/v1/news?locale=en&limit=10</code>
-              <p class="text-slate-400 mt-1">Fetches published news articles, sorted by publish date.</p>
-            </div>
-          </div>
-
-          <div class="p-4 bg-slate-900/60 flex items-start justify-between gap-4">
-            <div>
-              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono font-bold mr-2">GET</span>
-              <code class="text-white font-mono">/api/v1/content/:type</code>
-              <p class="text-slate-400 mt-1">Fetches custom content type items (e.g. <code class="text-sky-300">/api/v1/content/faq</code>).</p>
-            </div>
-          </div>
-
-          <div class="p-4 bg-slate-900/60 flex items-start justify-between gap-4">
-            <div>
-              <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono font-bold mr-2">GET</span>
-              <code class="text-white font-mono">/readyz</code>
-              <p class="text-slate-400 mt-1">Health check & readiness probe for load balancers and orchestrators.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    {:else if activeTab === 'content-types'}
-      <section class="space-y-4">
-        <h2 class="text-xl font-bold text-white">Declarative Content Types</h2>
-        <p class="text-sm text-slate-300 leading-relaxed">
-          Create new content collections (like FAQs, Team Members, Portfolios) by adding a single YAML file in <code class="text-sky-300 font-mono">content-types/</code>. No Go code or recompilation required!
-        </p>
-
-        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed">
-          <pre><code>id: faq
-name: FAQ
-singular: Question
-plural: Questions
-public: true
-list:
-  search: [question, answer]
-  default_sort: -created_at
-fields:
-  - id: question
-    name: Question
-    type: text
-    required: true
-    localized: true
-  - id: answer
-    name: Answer
-    type: rich_text
-    required: true
-    localized: true
-  - id: category
-    name: Category
-    type: select
-    options: [General, Billing, Technical]</code></pre>
-        </div>
-        <p class="text-xs text-slate-400">
-          HydroGo instantly creates admin UI at <code class="text-white">/admin/content/faq</code> and a public API endpoint at <code class="text-white">/api/v1/content/faq</code>.
-        </p>
-      </section>
-
-    {:else if activeTab === 'admin'}
-      <section class="space-y-4">
-        <h2 class="text-xl font-bold text-white">Admin Studio</h2>
-        <p class="text-sm text-slate-300 leading-relaxed">
-          Admin Studio is a high-performance Single Page Application built on Svelte 5 and shadcn-svelte.
-        </p>
-        <ul class="list-disc list-inside space-y-2 text-xs text-slate-300">
-          <li><strong>Zero Latency:</strong> Embedded directly inside the Go binary.</li>
-          <li><strong>Media Management:</strong> Automatic image optimization, WebP compression, focal point adjustment, and BlurHash previews.</li>
-          <li><strong>Role-Based Access:</strong> Admin, Editor, and Viewer permissions with granular overrides.</li>
-          <li><strong>Revisions & Drafts:</strong> Edit draft pages safely before publishing to the live website.</li>
-        </ul>
-      </section>
-
-    {:else if activeTab === 'deployment'}
-      <section class="space-y-4">
-        <h2 class="text-xl font-bold text-white">Production Deployment</h2>
-        <p class="text-sm text-slate-300 leading-relaxed">
-          HydroGo compiles into a single, self-contained binary.
-        </p>
-
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400">Build Single Binary</h3>
-          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-sky-300">
-            go build -o bin/hydro ./cmd/hydro
-          </div>
-        </div>
-
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400">Run Database Migrations</h3>
-          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-sky-300">
-            ./bin/hydro migrate --config config.yaml
-          </div>
-        </div>
-
-        <div class="space-y-2">
-          <h3 class="text-xs uppercase font-mono tracking-wider text-slate-400">Start Server</h3>
-          <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-sky-300">
-            ./bin/hydro serve --config config.yaml
-          </div>
-        </div>
-      </section>
+    <!-- Backdrop for mobile sidebar -->
+    {#if mobileSidebarOpen}
+      <button
+        type="button"
+        onclick={() => (mobileSidebarOpen = false)}
+        class="fixed inset-0 z-40 bg-black/70 backdrop-blur-xs lg:hidden"
+        aria-label="Close sidebar"
+      ></button>
     {/if}
+
+    <!-- Central Reading Article Pane -->
+    <main class="flex-1 min-w-0 px-6 sm:px-10 py-10 max-w-4xl mx-auto">
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-xs text-zinc-500 font-mono mb-4">
+        <span>Docs</span>
+        <span>/</span>
+        <span>{currentTopic.category}</span>
+        <span>/</span>
+        <span class="text-zinc-300 font-medium">{currentTopic.title}</span>
+      </div>
+
+      <!-- Article Title Header -->
+      <div class="space-y-3 pb-8 border-b border-zinc-800">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            {currentTopic.title}
+          </h1>
+          {#if currentTopic.badge}
+            <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              {currentTopic.badge}
+            </span>
+          {/if}
+        </div>
+        <p class="text-base text-zinc-400 leading-relaxed">
+          {currentTopic.description}
+        </p>
+      </div>
+
+      <!-- Lead paragraph -->
+      <div class="py-6 text-sm text-zinc-300 leading-relaxed font-normal">
+        {currentTopic.content.lead}
+      </div>
+
+      <!-- Article Subsections -->
+      <div class="space-y-10">
+        {#each currentTopic.content.sections as section, sIdx}
+          <section id={section.id} class="space-y-4 pt-2">
+            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2 group">
+              <a href="#{section.id}" class="text-zinc-600 group-hover:text-sky-400 font-mono text-base transition-colors">#</a>
+              <span>{section.title}</span>
+            </h2>
+
+            <p class="text-sm text-zinc-300 leading-relaxed">
+              {section.text}
+            </p>
+
+            <!-- Callout Alerts -->
+            {#if section.callout}
+              <div
+                class="p-4 rounded-xl border text-xs leading-relaxed flex items-start gap-3 {section.callout.type === 'tip' ? 'bg-sky-500/5 border-sky-500/20 text-sky-200' : section.callout.type === 'warning' ? 'bg-amber-500/5 border-amber-500/20 text-amber-200' : 'bg-zinc-900 border-zinc-800 text-zinc-300'}"
+              >
+                <div class="size-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 {section.callout.type === 'tip' ? 'text-sky-400' : section.callout.type === 'warning' ? 'text-amber-400' : 'text-zinc-400'}">
+                  {#if section.callout.type === 'tip'}
+                    💡
+                  {:else if section.callout.type === 'warning'}
+                    ⚠️
+                  {:else}
+                    ℹ️
+                  {/if}
+                </div>
+                <div>{section.callout.text}</div>
+              </div>
+            {/if}
+
+            <!-- Code Blocks with Filename Tab and Copy Button -->
+            {#if section.code}
+              {@const codeId = `${currentTopic.id}-${sIdx}`}
+              <div class="rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-xs">
+                <div class="flex items-center justify-between px-4 py-2 bg-zinc-900/70 border-b border-zinc-800/80 text-xs text-zinc-400 font-mono">
+                  <span>{section.code.filename || section.code.lang}</span>
+                  <button
+                    type="button"
+                    onclick={() => copyCode(section.code!.code, codeId)}
+                    class="hover:text-white transition-colors flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0 text-zinc-400 text-xs"
+                  >
+                    {#if copiedCodeId === codeId}
+                      <span class="text-emerald-400">✓ Copied</span>
+                    {:else}
+                      <span>Copy</span>
+                    {/if}
+                  </button>
+                </div>
+                <div class="p-4 font-mono text-xs text-zinc-200 overflow-x-auto leading-relaxed">
+                  <pre><code>{section.code.code}</code></pre>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Structured Tables -->
+            {#if section.table}
+              <div class="rounded-xl border border-zinc-800 overflow-hidden text-xs">
+                <table class="w-full text-left divide-y divide-zinc-800">
+                  <thead class="bg-zinc-900/60 font-mono text-zinc-400 uppercase">
+                    <tr>
+                      {#each section.table.headers as head}
+                        <th class="p-3 px-4 font-semibold">{head}</th>
+                      {/each}
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-zinc-800/60 bg-zinc-950/40">
+                    {#each section.table.rows as row}
+                      <tr class="hover:bg-zinc-900/40 transition-colors">
+                        {#each row as cell, cIdx}
+                          <td class="p-3 px-4 {cIdx === 0 ? 'font-mono text-sky-400 font-medium' : 'text-zinc-300'}">
+                            {cell}
+                          </td>
+                        {/each}
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+          </section>
+        {/each}
+      </div>
+
+      <!-- Prev / Next Pagination Cards -->
+      <div class="mt-16 pt-8 border-t border-zinc-800/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {#if prevTopic}
+          <button
+            type="button"
+            onclick={() => selectTopic(prevTopic.id)}
+            class="p-4 rounded-xl border border-zinc-800 bg-zinc-950 hover:bg-zinc-900/70 hover:border-zinc-700 transition-colors text-left space-y-1 cursor-pointer"
+          >
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">← Previous</span>
+            <div class="text-sm font-semibold text-white">{prevTopic.title}</div>
+            <p class="text-xs text-zinc-400 line-clamp-1">{prevTopic.description}</p>
+          </button>
+        {:else}
+          <div></div>
+        {/if}
+
+        {#if nextTopic}
+          <button
+            type="button"
+            onclick={() => selectTopic(nextTopic.id)}
+            class="p-4 rounded-xl border border-zinc-800 bg-zinc-950 hover:bg-zinc-900/70 hover:border-zinc-700 transition-colors text-right space-y-1 cursor-pointer sm:col-start-2"
+          >
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Next →</span>
+            <div class="text-sm font-semibold text-white">{nextTopic.title}</div>
+            <p class="text-xs text-zinc-400 line-clamp-1">{nextTopic.description}</p>
+          </button>
+        {/if}
+      </div>
+    </main>
+
+    <!-- Right Sidebar: On This Page Table of Contents -->
+    <aside class="hidden xl:block w-64 p-8 pl-4 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto shrink-0">
+      <div class="space-y-6 text-xs">
+        <div class="space-y-2.5">
+          <h4 class="font-semibold text-zinc-300 font-mono tracking-wide uppercase text-[11px]">
+            On This Page
+          </h4>
+          <ul class="space-y-1.5 border-l border-zinc-800 pl-3">
+            {#each currentTopic.headings as heading}
+              {@const anchorId = heading.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}
+              <li>
+                <a
+                  href="#{anchorId}"
+                  class="text-zinc-400 hover:text-white transition-colors block leading-relaxed"
+                >
+                  {heading}
+                </a>
+              </li>
+            {/each}
+          </ul>
+        </div>
+
+        <div class="pt-6 border-t border-zinc-800 space-y-3">
+          <h4 class="font-semibold text-zinc-300 font-mono tracking-wide uppercase text-[11px]">
+            Resources
+          </h4>
+          <ul class="space-y-2 text-zinc-400">
+            <li>
+              <a href="/admin/" class="hover:text-white flex items-center gap-1.5 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                </svg>
+                Admin Studio (/admin)
+              </a>
+            </li>
+            <li>
+              <a href="/readyz" target="_blank" class="hover:text-white flex items-center gap-1.5 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                Health Check (/readyz)
+              </a>
+            </li>
+            <li>
+              <a href="https://ardalabs.dev" target="_blank" rel="noreferrer" class="hover:text-white flex items-center gap-1.5 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+                Official Site (ardalabs.dev)
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </aside>
   </div>
 </div>

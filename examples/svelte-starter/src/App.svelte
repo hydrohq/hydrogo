@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import Header from './lib/Header.svelte';
   import HomeView from './lib/HomeView.svelte';
   import PageView from './lib/PageView.svelte';
@@ -8,9 +9,17 @@
   let route = $state('/');
   let activeSlug = $state('');
 
+  onMount(() => {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash === '/docs' || window.location.pathname === '/docs') {
+      route = '/docs';
+    }
+  });
+
   function navigateTo(path: string) {
     route = path;
     activeSlug = '';
+    window.location.hash = path === '/' ? '' : path;
   }
 
   function openPage(slug: string) {
@@ -24,24 +33,26 @@
   }
 </script>
 
-<div class="min-h-screen bg-black flex flex-col text-white font-sans antialiased selection:bg-white selection:text-black">
-  {#if route !== '/'}
-    <Header currentRoute={route} onnavigate={navigateTo} />
-  {/if}
-
-  <main class="flex-1 w-full flex flex-col justify-center px-6 py-12">
-    {#if route === '/'}
-      <HomeView onopenpage={openPage} onopennews={openNews} onopendocs={() => navigateTo('/docs')} />
-    {:else if route === '/docs'}
-      <DocsView onback={() => navigateTo('/')} />
-    {:else if route === '/page'}
-      <PageView slug={activeSlug} onback={() => navigateTo('/')} />
-    {:else if route === '/news' || route === '/news-article'}
-      {#if activeSlug}
-        <NewsView slug={activeSlug} onback={() => { activeSlug = ''; route = '/'; }} />
-      {:else}
-        <HomeView onopenpage={openPage} onopennews={openNews} onopendocs={() => navigateTo('/docs')} />
-      {/if}
+{#if route === '/docs'}
+  <DocsView onback={() => navigateTo('/')} />
+{:else}
+  <div class="min-h-screen bg-black flex flex-col text-white font-sans antialiased selection:bg-white selection:text-black">
+    {#if route !== '/'}
+      <Header currentRoute={route} onnavigate={navigateTo} />
     {/if}
-  </main>
-</div>
+
+    <main class="flex-1 w-full flex flex-col justify-center px-6 py-12">
+      {#if route === '/'}
+        <HomeView onopenpage={openPage} onopennews={openNews} onopendocs={() => navigateTo('/docs')} />
+      {:else if route === '/page'}
+        <PageView slug={activeSlug} onback={() => navigateTo('/')} />
+      {:else if route === '/news' || route === '/news-article'}
+        {#if activeSlug}
+          <NewsView slug={activeSlug} onback={() => { activeSlug = ''; route = '/'; }} />
+        {:else}
+          <HomeView onopenpage={openPage} onopennews={openNews} onopendocs={() => navigateTo('/docs')} />
+        {/if}
+      {/if}
+    </main>
+  </div>
+{/if}
