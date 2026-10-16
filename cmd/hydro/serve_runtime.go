@@ -32,6 +32,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
+	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -74,6 +75,11 @@ func (a *serveApp) openDatabase() error {
 		}
 		if stderr != nil {
 			_, _ = fmt.Fprintln(stderr, `{"event":"sqlite_recovery","integrity":"ok","wal_checkpoint":"restart"}`)
+		}
+	}
+	if a.opts.cgi || a.opts.fastCGI {
+		if err := database.ApplyMigrationsForModules(ctx, db, cfg.Database.Dialect, migrations.FS, a.modules); err != nil {
+			return fmt.Errorf("auto-migration failed: %w", err)
 		}
 	}
 	a.transactioner = database.NewTenantTransactor(db, cfg.Database.Dialect, a.requireTenantScope)
