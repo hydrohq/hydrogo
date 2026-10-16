@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fetchPageBySlug, type Page } from './api';
+  import { setPageSEO, setDefaultSEO } from './seo';
 
   interface Props {
     slug: string;
@@ -16,16 +17,24 @@
     loading = true;
     try {
       page = await fetchPageBySlug(slug);
+      if (page) {
+        setPageSEO(page);
+      }
     } finally {
       loading = false;
     }
   });
+
+  function handleBack() {
+    setDefaultSEO();
+    onback();
+  }
 </script>
 
 <div class="max-w-3xl mx-auto space-y-6">
   <button
     type="button"
-    onclick={onback}
+    onclick={handleBack}
     class="text-xs text-sky-400 hover:text-sky-300 font-medium cursor-pointer flex items-center gap-1"
   >
     ← Back to Home

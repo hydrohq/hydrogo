@@ -1,5 +1,6 @@
 <script lang="ts">
   import { docCategories, docTopics, type DocTopic } from './docsData';
+  import { setDocsSEO } from './seo';
 
   interface Props {
     onback: () => void;
@@ -13,6 +14,12 @@
   let copiedCodeId = $state<string | null>(null);
 
   const currentTopic = $derived<DocTopic>(docTopics[activeTopicId] || docTopics['overview']);
+
+  $effect(() => {
+    if (currentTopic) {
+      setDocsSEO(currentTopic.title);
+    }
+  });
 
   // Flattened topics list for prev/next pagination
   const allTopicIds = $derived(
