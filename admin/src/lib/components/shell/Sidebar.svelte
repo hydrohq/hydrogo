@@ -57,7 +57,7 @@
   <!-- SidebarHeader: Brand (Matches official shadcn AppSidebar SidebarHeader) -->
   <div class="flex h-12 shrink-0 items-center border-b border-sidebar-border px-3">
     <a
-      href="#/dashboard"
+      href="/admin/dashboard"
       onclick={() => handleNavigate('/dashboard')}
       class="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left text-sm font-semibold transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     >
@@ -158,7 +158,7 @@
     <div class="flex flex-col gap-0.5">
       <!-- Dashboard -->
       <a
-        href="#/dashboard"
+        href="/admin/dashboard"
         onclick={() => handleNavigate('/dashboard')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/dashboard') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Dashboard"
@@ -176,7 +176,7 @@
 
       <!-- Pages -->
       <a
-        href="#/pages"
+        href="/admin/pages"
         onclick={() => handleNavigate('/pages')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/pages') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Pages"
@@ -191,7 +191,7 @@
 
       <!-- News -->
       <a
-        href="#/news"
+        href="/admin/news"
         onclick={() => handleNavigate('/news')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/news') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="News"
@@ -210,7 +210,7 @@
 
       <!-- Media -->
       <a
-        href="#/media"
+        href="/admin/media"
         onclick={() => handleNavigate('/media')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/media') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Media Library"
@@ -227,7 +227,7 @@
 
       <!-- Members -->
       <a
-        href="#/members"
+        href="/admin/members"
         onclick={() => handleNavigate('/members')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/members') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Members"
@@ -256,7 +256,7 @@
           {#each schema.collections as collection}
             <div class="relative group flex items-center" data-dropdown="doc-{collection.id}">
               <a
-                href="#/content/{collection.id}"
+                href="/admin/content/{collection.id}"
                 onclick={() => handleNavigate(`/content/${collection.id}`)}
                 class="flex flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive(`/content/${collection.id}`) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
                 title={collection.plural || collection.label}
@@ -318,7 +318,7 @@
     <!-- NavSecondary (Matches official nav-secondary.tsx - pinned to mt-auto) -->
     <div class="mt-auto flex flex-col gap-0.5 pt-4">
       <a
-        href="#/site"
+        href="/admin/site"
         onclick={() => handleNavigate('/site')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/site') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Settings"
@@ -333,7 +333,7 @@
       </a>
 
       <a
-        href="#/users"
+        href="/admin/users"
         onclick={() => handleNavigate('/users')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Users & Roles"
@@ -347,7 +347,7 @@
       </a>
 
       <a
-        href="#/system"
+        href="/admin/system"
         onclick={() => handleNavigate('/system')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors {isActive('/system') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
         title="Telemetry"
@@ -401,7 +401,7 @@
         </div>
         <div class="py-1">
           <a
-            href="#/site"
+            href="/admin/site"
             onclick={() => handleNavigate('/site')}
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
@@ -409,7 +409,7 @@
             <span>Account</span>
           </a>
           <a
-            href="#/system"
+            href="/admin/system"
             onclick={() => handleNavigate('/system')}
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
