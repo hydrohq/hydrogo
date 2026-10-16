@@ -69,6 +69,10 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 11. **Every admin endpoint works with all three credentials** — session
     cookie + CSRF header, `Authorization: Bearer`, or API key — through the
     shared auth middleware. Don't add per-handler auth parsing.
+12. **Zero build on content publish.** Publishing, editing, or retracting a page,
+    news article, or content record must never require a frontend rebuild step,
+    static pre-rendering pipeline, or CI/CD re-deployment. Content changes must be
+    live immediately via the API and database.
 
 ## Admin UI work
 
