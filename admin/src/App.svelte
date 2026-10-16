@@ -17,6 +17,7 @@
   import SiteView from './routes/site/SiteView.svelte';
   import AuditView from './routes/audit/AuditView.svelte';
   import SystemView from './routes/system/SystemView.svelte';
+  import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
 
   let initializing = $state(true);
 
@@ -91,15 +92,7 @@
 </script>
 
 {#if initializing}
-  <div class="h-screen w-full bg-background flex flex-col items-center justify-center text-muted-foreground gap-3">
-    <div class="size-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs animate-pulse">
-      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <polyline points="12 6 12 12 16 14"></polyline>
-      </svg>
-    </div>
-    <p class="text-xs font-mono tracking-wider text-muted-foreground uppercase">Starting HydroGo Admin…</p>
-  </div>
+  <DashboardSkeleton />
 {:else if !auth.isAuthenticated}
   <LoginView />
 {:else}
