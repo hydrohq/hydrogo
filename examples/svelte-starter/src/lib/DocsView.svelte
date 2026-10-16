@@ -125,31 +125,6 @@
 
       <!-- Right: Action Links -->
       <div class="flex items-center gap-3 text-xs font-medium">
-        <a
-          href="/admin/"
-          class="hidden sm:inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="3" y1="9" x2="21" y2="9"></line>
-            <line x1="9" y1="21" x2="9" y2="9"></line>
-          </svg>
-          Admin Studio
-        </a>
-
-        <a
-          href="https://ardalabs.dev"
-          target="_blank"
-          rel="noreferrer"
-          class="hidden sm:inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
-        >
-          <span>Visit Website</span>
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M7 17L17 7" />
-            <path d="M7 7h10v10" />
-          </svg>
-        </a>
-
         <!-- Exit to Starter Button -->
         <button
           type="button"
@@ -385,61 +360,5 @@
         {/if}
       </div>
     </main>
-
-    <!-- Right Sidebar: On This Page Table of Contents -->
-    <aside class="hidden xl:block w-64 p-8 pl-4 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto shrink-0">
-      <div class="space-y-6 text-xs">
-        <div class="space-y-2.5">
-          <h4 class="font-semibold text-zinc-300 font-mono tracking-wide uppercase text-[11px]">
-            On This Page
-          </h4>
-          <ul class="space-y-1.5 border-l border-zinc-800 pl-3">
-            {#each currentTopic.headings as heading}
-              {@const anchorId = heading.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}
-              <li>
-                <a
-                  href="#{anchorId}"
-                  class="text-zinc-400 hover:text-white transition-colors block leading-relaxed"
-                >
-                  {heading}
-                </a>
-              </li>
-            {/each}
-          </ul>
-        </div>
-
-        <div class="pt-6 border-t border-zinc-800 space-y-3">
-          <h4 class="font-semibold text-zinc-300 font-mono tracking-wide uppercase text-[11px]">
-            Resources
-          </h4>
-          <ul class="space-y-2 text-zinc-400">
-            <li>
-              <a href="/admin/" class="hover:text-white flex items-center gap-1.5 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                </svg>
-                Admin Studio (/admin)
-              </a>
-            </li>
-            <li>
-              <a href="/readyz" target="_blank" class="hover:text-white flex items-center gap-1.5 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-                Health Check (/readyz)
-              </a>
-            </li>
-            <li>
-              <a href="https://ardalabs.dev" target="_blank" rel="noreferrer" class="hover:text-white flex items-center gap-1.5 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                </svg>
-                Official Site (ardalabs.dev)
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </aside>
   </div>
 </div>

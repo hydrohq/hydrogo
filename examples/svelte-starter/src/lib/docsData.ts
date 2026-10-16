@@ -63,15 +63,8 @@ export const docCategories: DocCategory[] = [
       { id: 'pages-api', title: 'Pages Endpoints' },
       { id: 'news-api', title: 'News & Articles Endpoints' },
       { id: 'custom-content-api', title: 'Custom Content Endpoints' },
-      { id: 'system-probes', title: 'Health & Probes (/readyz)' },
-    ],
-  },
-  {
-    title: 'Admin Studio',
-    topics: [
-      { id: 'admin-overview', title: 'Svelte 5 Architecture' },
-      { id: 'admin-rbac', title: 'Role-Based Access Control' },
-      { id: 'admin-revisions', title: 'Drafts & Revisions' },
+      { id: 'auth-and-tokens', title: 'Authentication & Tokens' },
+      { id: 'system-probes', title: 'Health Probes (/readyz)' },
     ],
   },
   {
@@ -85,39 +78,30 @@ export const docCategories: DocCategory[] = [
 ];
 
 export const docTopics: Record<string, DocTopic> = {
-  'overview': {
+  overview: {
     id: 'overview',
     title: 'Overview & Philosophy',
     category: 'Getting Started',
-    badge: 'v2.0 Headless',
+    badge: 'Headless v2.0',
     description: 'Learn the architectural principles behind HydroGo single-binary headless CMS.',
-    headings: ['Architecture', 'Core Principles', 'Why Go & Svelte 5?'],
+    headings: ['Architecture', 'Core Principles', 'Headless Design'],
     content: {
       lead: 'HydroGo is a headless, single-binary Content Management System engineered for speed, minimalism, and developer freedom.',
       sections: [
         {
           title: 'Architecture',
           id: 'architecture',
-          text: 'HydroGo cleanly decouples the content management layer from frontend rendering. The Go server serves strictly JSON APIs and embeds the modern Svelte 5 Admin Studio SPA. No HTML or CSS strings exist in the Go core.',
-          callout: {
-            type: 'note',
-            text: 'HydroGo does not render a public website on the server. Your web apps, mobile apps, or static frontends query the REST API independently.',
-          },
+          text: 'HydroGo cleanly decouples the content storage and API layer from your frontend. The Go core serves high-performance JSON REST APIs. No HTML or CSS markup exists in the server core, eliminating templating overhead and keeping the runtime ultra-fast and secure.',
         },
         {
           title: 'Core Principles',
           id: 'core-principles',
-          text: 'Every feature in HydroGo adheres to four strict standards: Single-binary deployment, Tri-dialect database compatibility (SQLite, PostgreSQL, MySQL), zero-code YAML content extensibility, and standard JSON envelope responses.',
-          code: {
-            lang: 'bash',
-            filename: 'terminal',
-            code: '# Start HydroGo devserver with rebuild-on-save and embedded SPA\ngo run ./tools/devserver',
-          },
+          text: '1. Single-Binary: No node_modules, Python, or Ruby required in production. One compiled Go binary runs everywhere.\n2. Predictable JSON APIs: Every endpoint follows a consistent {data, meta} envelope.\n3. Declarative Schema: Custom content types are modeled as clean YAML files in content-types/ without requiring custom database migrations or boilerplate Go code.\n4. Database Agnostic: Native first-class support for SQLite (with WAL mode), PostgreSQL, and MySQL.',
         },
         {
-          title: 'Why Go & Svelte 5?',
-          id: 'why-go-and-svelte-5',
-          text: 'Go provides ultra-fast startup (<20ms), tiny memory footprints (<30MB), and reliable concurrency. Svelte 5 runes deliver zero-runtime reactivity and sub-millisecond admin UI rendering.',
+          title: 'Headless Design',
+          id: 'headless-design',
+          text: 'Because HydroGo is strictly headless, you build your customer-facing applications in whatever frontend framework you prefer—Svelte, Next.js, Nuxt, Astro, or native mobile apps (iOS/Android)—simply consuming the standardized REST API.',
         },
       ],
     },
@@ -127,87 +111,80 @@ export const docTopics: Record<string, DocTopic> = {
     id: 'quick-start',
     title: 'Quick Start',
     category: 'Getting Started',
-    badge: '5 min',
-    description: 'Get your local development environment running in under 5 minutes.',
-    headings: ['Prerequisites', 'Starting Local Dev Server', 'Accessing Admin Studio', 'Connecting Your Frontend'],
+    badge: 'Popular',
+    description: 'Get a HydroGo instance up and running locally in under two minutes.',
+    headings: ['Prerequisites', 'Starting Local Dev Server', 'Connecting Your Frontend'],
     content: {
-      lead: 'Start building immediately with the unified development server, pre-seeded with disposable demo content.',
+      lead: 'Start building your content-driven application in minutes.',
       sections: [
         {
           title: 'Prerequisites',
           id: 'prerequisites',
-          text: 'You need Go 1.27+ and Node.js 18+ installed on your development machine.',
-          table: {
-            headers: ['Tool', 'Version', 'Purpose'],
-            rows: [
-              ['Go', '1.27.2+', 'Backend runtime & binary compiler'],
-              ['Node.js', '18.x or 20.x+', 'Admin panel and starter frontend toolchain'],
-              ['SQLite / Postgres / MySQL', 'Any modern version', 'Database store (SQLite is zero-config)'],
-            ],
-          },
+          text: 'You only need Go 1.22+ and Git installed on your system. SQLite is embedded by default, requiring no database installation.',
         },
         {
           title: 'Starting Local Dev Server',
           id: 'starting-local-dev-server',
-          text: 'The unified devserver compiles Go on save, proxies Vite HMR for Admin and Frontend, and exposes everything through a single proxy port (8090).',
+          text: 'Clone the repository and run the development server script:',
           code: {
             lang: 'bash',
-            filename: 'terminal',
-            code: 'go run ./tools/devserver',
+            filename: 'Terminal',
+            code: 'git clone https://github.com/ozyildirims/hydrogo.git\ncd hydrogo\ngo run ./tools/devserver',
           },
           callout: {
             type: 'tip',
-            text: 'Pass -address 0.0.0.0:8090 to test the admin studio or starter site from your mobile phone on the same Wi-Fi network.',
+            text: 'The devserver boots HydroGo with seeded demo data, applies migrations automatically, and starts listening on http://127.0.0.1:8090.',
           },
-        },
-        {
-          title: 'Accessing Admin Studio',
-          id: 'accessing-admin-studio',
-          text: 'Open http://127.0.0.1:8090/admin in your browser. Use your local administrator credentials to sign in and explore the pre-seeded content.',
         },
         {
           title: 'Connecting Your Frontend',
           id: 'connecting-your-frontend',
-          text: 'Your frontend interacts with the REST API at /api/v1/*. See examples/svelte-starter for an idiomatic Svelte 5 implementation.',
+          text: 'You can test the public API immediately with cURL or any HTTP client:',
+          code: {
+            lang: 'bash',
+            filename: 'Terminal',
+            code: 'curl http://127.0.0.1:8090/api/v1/pages\ncurl http://127.0.0.1:8090/api/v1/news',
+          },
         },
       ],
     },
   },
 
-  'configuration': {
+  configuration: {
     id: 'configuration',
     title: 'Configuration Guide',
     category: 'Getting Started',
-    description: 'Configure database connections, security headers, CORS, media storage, and capacity profiles.',
-    headings: ['Configuration Structure', 'Database Dialects', 'Security & Sessions'],
+    description: 'Configure ports, database drivers, JWT secrets, and CORS origins.',
+    headings: ['Configuration File', 'Environment Variables', 'CORS & Security'],
     content: {
-      lead: 'HydroGo reads configuration from a single declarative YAML file or environment variable overrides.',
+      lead: 'HydroGo reads configuration from config.yaml with full override support via environment variables.',
       sections: [
         {
-          title: 'Configuration Structure',
-          id: 'configuration-structure',
-          text: 'A standard config.yaml controls server ports, storage engines, session lifetimes, and CORS rules.',
+          title: 'Configuration File',
+          id: 'configuration-file',
+          text: 'A clean config.yaml file sets up your server:',
           code: {
             lang: 'yaml',
             filename: 'config.yaml',
-            code: `http:
-  listen: "127.0.0.1:8090"
+            code: `server:
+  port: 8090
+  bind: "127.0.0.1"
   public_origin: "https://yourdomain.com"
+
 database:
-  dialect: "sqlite" # sqlite, postgres, or mysql
-  dsn: "data/hydrogo.db"
+  dialect: sqlite # sqlite | postgres | mysql
+  dsn: "hydrogo.db"
+
 security:
-  secure_cookies: true
-  session_ttl: "168h" # 7 days
-media:
-  dir: "data/media"
-  max_upload_bytes: 10485760 # 10MB`,
+  cors_allowed_origins:
+    - "https://yourdomain.com"
+    - "http://localhost:3000"`,
           },
         },
         {
-          title: 'Database Dialects',
-          id: 'database-dialects',
-          text: 'HydroGo supports SQLite, PostgreSQL, and MySQL out of the box with zero code changes. Every migration is tested across all three dialects.',
+          title: 'Environment Variables',
+          id: 'environment-variables',
+          text: 'Any setting in config.yaml can be overridden using HYDRO_ prefixed environment variables in uppercase format (e.g., HYDRO_DATABASE_DIALECT=postgres).',
         },
       ],
     },
@@ -217,35 +194,33 @@ media:
     id: 'cli-commands',
     title: 'CLI Reference',
     category: 'Getting Started',
-    description: 'Full reference of all HydroGo commands: serve, migrate, create-admin, and seed-demo.',
-    headings: ['Core Commands', 'Command Usage Examples'],
+    description: 'Command line utilities for database migrations, user management, and schema generation.',
+    headings: ['Core Commands', 'User Management', 'OpenAPI Schema Export'],
     content: {
-      lead: 'The hydro command-line interface provides operational tools for migrations, administrative bootstrapping, and running the server.',
+      lead: 'HydroGo ships with built-in subcommands for operations and automation.',
       sections: [
         {
           title: 'Core Commands',
           id: 'core-commands',
-          text: 'HydroGo provides self-documenting commands for operational tasks.',
+          text: 'List of standard CLI subcommands:',
           table: {
-            headers: ['Command', 'Description', 'Key Flags'],
+            headers: ['Command', 'Description'],
             rows: [
-              ['hydro serve', 'Starts the headless CMS HTTP server', '--config, --fastcgi'],
-              ['hydro migrate', 'Runs all pending database schema migrations', '--config, --rollback-on-failure'],
-              ['hydro create-admin', 'Creates or updates an administrator user', '--email, --password-stdin'],
-              ['hydro seed-demo', 'Seeds disposable sample content for testing', '--confirm-demo, --locale'],
+              ['hydro serve', 'Starts the HTTP API server'],
+              ['hydro migrate', 'Runs pending database migrations across all tables'],
+              ['hydro user add', 'Creates an administrator or editor user'],
+              ['hydro schema openapi', 'Exports the OpenAPI 3.0 specification JSON'],
             ],
           },
         },
         {
-          title: 'Command Usage Examples',
-          id: 'command-usage-examples',
-          text: 'Bootstrapping a brand new server in production with automated migrations and an initial administrator account:',
+          title: 'OpenAPI Schema Export',
+          id: 'openapi-schema-export',
+          text: 'Export the complete OpenAPI contract to generate client SDKs or TypeScript types:',
           code: {
             lang: 'bash',
-            filename: 'terminal',
-            code: `./bin/hydro migrate --config config.yaml
-printf '%s' 'YourStrongPassword123!' | ./bin/hydro create-admin --email admin@example.com --password-stdin --config config.yaml
-./bin/hydro serve --config config.yaml`,
+            filename: 'Terminal',
+            code: 'hydro schema openapi > openapi.json',
           },
         },
       ],
@@ -254,54 +229,46 @@ printf '%s' 'YourStrongPassword123!' | ./bin/hydro create-admin --email admin@ex
 
   'content-types': {
     id: 'content-types',
-    title: 'Declarative Content Types',
+    title: 'YAML Content Types',
     category: 'Content & Modeling',
-    badge: 'Zero Code',
-    description: 'Create custom content structures with zero Go code and zero frontend recompilation.',
-    headings: ['Defining Content Types', 'Schema Properties', 'Instant Admin & API'],
+    badge: 'Core',
+    description: 'Define custom content collections using declarative YAML files.',
+    headings: ['Defining Collections', 'Automatic API Generation'],
     content: {
-      lead: 'Define structured collections like FAQs, Team Members, Portfolios, or Testimonials by dropping a single YAML file into content-types/.',
+      lead: 'Define structured content types in seconds without writing SQL migrations or backend Go structs.',
       sections: [
         {
-          title: 'Defining Content Types',
-          id: 'defining-content-types',
-          text: 'HydroGo parses all *.yaml files in content-types/ at startup. It automatically generates the database schema, Admin Studio editing forms, and public read APIs.',
+          title: 'Defining Collections',
+          id: 'defining-collections',
+          text: 'Drop a YAML file into content-types/. For example, content-types/faq.yaml:',
           code: {
             lang: 'yaml',
             filename: 'content-types/faq.yaml',
             code: `id: faq
-name: FAQ
-singular: Question
-plural: Questions
+singular: FAQ
+plural: FAQs
 public: true
-list:
-  search: [question, answer]
-  default_sort: -created_at
+drafts: true
 fields:
   - id: question
-    name: Question
-    type: text
+    type: string
     required: true
-    localized: true
+    searchable: true
   - id: answer
-    name: Answer
-    type: rich_text
+    type: richtext
     required: true
-    localized: true
   - id: category
-    name: Category
     type: select
-    options: [General, Billing, Technical]`,
-          },
-          callout: {
-            type: 'tip',
-            text: 'Setting localized: true makes that field translatable across all configured locales (e.g. en, tr, de).',
+    options: ["general", "billing", "technical"]
+  - id: sort_order
+    type: integer
+    default: 0`,
           },
         },
         {
-          title: 'Instant Admin & API',
-          id: 'instant-admin-and-api',
-          text: 'With the schema above, Admin Studio immediately renders a management UI at /admin/content/faq, and your frontend can query GET /api/v1/content/faq without writing a single line of backend code.',
+          title: 'Automatic API Generation',
+          id: 'automatic-api-generation',
+          text: 'With public: true, HydroGo immediately serves GET /api/v1/content/faq and GET /api/v1/content/faq/{id} with filtering, sorting, and full-text search.',
         },
       ],
     },
@@ -311,25 +278,26 @@ fields:
     id: 'field-types',
     title: 'Field Types & Validation',
     category: 'Content & Modeling',
-    description: 'Comprehensive guide to all supported field kinds in HydroGo content types.',
-    headings: ['Supported Kinds', 'Field Options'],
+    description: 'Comprehensive guide to supported field types and validation rules.',
+    headings: ['Supported Field Types'],
     content: {
-      lead: 'Each field in your YAML schema accepts attributes controlling its presentation, validation, and localization.',
+      lead: 'HydroGo supports rich field types tailored for modern content applications.',
       sections: [
         {
-          title: 'Supported Kinds',
-          id: 'supported-kinds',
-          text: 'HydroGo supports rich primitives designed for headless publishing.',
+          title: 'Supported Field Types',
+          id: 'supported-field-types',
+          text: 'Standard data types available in collection definitions:',
           table: {
-            headers: ['Kind', 'JSON Type', 'Admin Control'],
+            headers: ['Field Type', 'Storage Type', 'Description'],
             rows: [
-              ['text', 'string', 'Single-line text input'],
-              ['rich_text', 'string (HTML/Markdown)', 'TipTap / ProseMirror rich editor with blocks'],
-              ['media', 'string (media UUID)', 'Media library picker with thumbnail preview'],
-              ['select', 'string', 'Dropdown menu with configured options'],
-              ['boolean', 'boolean', 'Switch toggle control'],
-              ['datetime', 'string (ISO 8601)', 'Date & time picker'],
-              ['relation', 'string (entity UUID)', 'Searchable relationship picker to another collection'],
+              ['string', 'VARCHAR(255)', 'Short single-line text (titles, names, slugs)'],
+              ['text', 'TEXT', 'Multi-line plain text (descriptions, notes)'],
+              ['richtext', 'JSON / HTML', 'Structured formatting with headings, lists, links, images'],
+              ['integer', 'INTEGER', 'Whole numbers (counters, sort orders, ratings)'],
+              ['boolean', 'BOOLEAN', 'True/false flags (featured, active, sponsored)'],
+              ['select', 'VARCHAR(64)', 'Dropdown selection from a predefined options list'],
+              ['media', 'VARCHAR(255)', 'Image or document reference with WebP variants'],
+              ['date', 'DATETIME', 'Date or timestamp values'],
             ],
           },
         },
@@ -341,20 +309,20 @@ fields:
     id: 'pages-and-news',
     title: 'Pages & News Modules',
     category: 'Content & Modeling',
-    description: 'Built-in CMS modules for hierarchical pages and news articles.',
+    description: 'Built-in core modules for static pages and timestamped editorial news.',
     headings: ['Pages Module', 'News Module'],
     content: {
-      lead: 'Pages and News are first-class core modules designed for rich editorial workflows.',
+      lead: 'Built-in publishing systems for marketing pages and chronological blog posts.',
       sections: [
         {
           title: 'Pages Module',
           id: 'pages-module',
-          text: 'Pages support hierarchical URLs, structured layout blocks, custom SEO metadata, and draft previews before publishing.',
+          text: 'The Pages module manages hierarchical content with slugs, layout templates, and modular block payloads for landing pages and docs.',
         },
         {
           title: 'News Module',
           id: 'news-module',
-          text: 'News articles feature scheduled publishing, tags, categories, author attribution, and automated OpenGraph image cards.',
+          text: 'The News module handles editorial articles with categories, tags, author metadata, cover media, scheduled publishing dates, and view counts.',
         },
       ],
     },
@@ -364,19 +332,20 @@ fields:
     id: 'media-library',
     title: 'Media Engine & WebP',
     category: 'Content & Modeling',
-    description: 'Automatic WebP conversion, focal-point cropping, and BlurHash previews.',
-    headings: ['Media Pipelines', 'Serving Assets'],
+    description: 'Automatic image processing, WebP variant generation, and BlurHash placeholders.',
+    headings: ['Image Processing Pipeline', 'Serving Media'],
     content: {
-      lead: 'HydroGo includes an automated media processing pipeline in pure Go without external C library dependencies.',
+      lead: 'Zero-configuration media optimization designed for optimal Core Web Vitals.',
       sections: [
         {
-          title: 'Media Pipelines',
-          id: 'media-pipelines',
-          text: 'When images are uploaded to Admin Studio, HydroGo automatically generates WebP variants, calculates focal point coordinates, and produces compact BlurHash placeholder strings for smooth UI loading.',
-          callout: {
-            type: 'note',
-            text: 'Uploaded media is stored by SHA-256 hash, preventing duplicate file storage on disk or S3.',
-          },
+          title: 'Image Processing Pipeline',
+          id: 'image-processing-pipeline',
+          text: 'When images are uploaded, HydroGo automatically creates modern WebP variants (thumbnail, medium, large), calculates focal point coordinates, and produces compact BlurHash placeholder strings for smooth UI loading.',
+        },
+        {
+          title: 'Serving Media',
+          id: 'serving-media',
+          text: 'Uploaded media is served under /media/{id} with aggressive Cache-Control: public, max-age=31536000, immutable headers for maximum CDN and browser caching efficiency.',
         },
       ],
     },
@@ -386,46 +355,45 @@ fields:
     id: 'api-overview',
     title: 'API Architecture & Envelope',
     category: 'REST API Reference',
-    badge: 'REST',
-    description: 'Learn about the unified JSON envelope, authentication tokens, and error formats.',
-    headings: ['Standard Response Envelope', 'Error Format', 'Request ID Tracking'],
+    description: 'Consistent JSON responses, standard envelopes, and predictable error formats.',
+    headings: ['Success Envelope', 'Error Envelope'],
     content: {
-      lead: 'Every public and administrative API endpoint returns JSON wrapped in an explicit envelope.',
+      lead: 'All HydroGo API responses adhere to a unified, standardized envelope.',
       sections: [
         {
-          title: 'Standard Response Envelope',
-          id: 'standard-response-envelope',
-          text: 'Successful endpoints always return { data, meta }:',
+          title: 'Success Envelope',
+          id: 'success-envelope',
+          text: 'Standard response for single objects or paginated collections:',
           code: {
             lang: 'json',
-            filename: 'HTTP 200 OK',
+            filename: 'Response 200 OK',
             code: `{
   "data": [
     {
-      "id": "item-101",
+      "id": "item_123",
       "title": "Welcome to HydroGo",
       "slug": "welcome"
     }
   ],
   "meta": {
     "total": 1,
-    "page": 1,
-    "limit": 20
+    "limit": 20,
+    "offset": 0
   }
 }`,
           },
         },
         {
-          title: 'Error Format',
-          id: 'error-format',
-          text: 'Failed responses return { code, message, request_id, fields } with an HTTP error status:',
+          title: 'Error Envelope',
+          id: 'error-envelope',
+          text: 'Errors consistently include a request_id for end-to-end tracing:',
           code: {
             lang: 'json',
-            filename: 'HTTP 404 / 400',
+            filename: 'Response 400 Bad Request',
             code: `{
-  "code": "not_found",
-  "message": "The requested resource was not found",
-  "request_id": "f8a1e204c3b5"
+  "code": "VALIDATION_FAILED",
+  "message": "The title field is required",
+  "request_id": "req_8f93a1c2"
 }`,
           },
         },
@@ -437,29 +405,29 @@ fields:
     id: 'pages-api',
     title: 'Pages Endpoints',
     category: 'REST API Reference',
-    description: 'Retrieve published pages and layout blocks for your frontend.',
-    headings: ['List Pages', 'Get Page by Slug'],
+    description: 'Fetch published site pages by slug or list all site hierarchy.',
+    headings: ['List Pages', 'Get Page By Slug'],
     content: {
-      lead: 'Query published site pages with full block layouts and localization.',
+      lead: 'Endpoints to query static pages and layout structures.',
       sections: [
         {
           title: 'List Pages',
           id: 'list-pages',
-          text: 'Returns an array of published pages for a given locale.',
+          text: 'Fetch all published pages in the current locale:',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/pages?locale=en"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/pages"',
           },
         },
         {
-          title: 'Get Page by Slug',
+          title: 'Get Page By Slug',
           id: 'get-page-by-slug',
-          text: 'Fetches a single page with all structured content blocks.',
+          text: 'Retrieve a page by its URL slug:',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/pages/by-slug?locale=en&slug=about"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/pages/about"',
           },
         },
       ],
@@ -470,19 +438,29 @@ fields:
     id: 'news-api',
     title: 'News & Articles Endpoints',
     category: 'REST API Reference',
-    description: 'Fetch news articles, tags, authors, and cover media.',
-    headings: ['List News', 'Get Article by Slug'],
+    description: 'Query published articles with filtering, search, and pagination.',
+    headings: ['List Articles', 'Article Filtering & Search'],
     content: {
-      lead: 'Retrieve news articles with pagination, tags, and category filtering.',
+      lead: 'Query published news articles and blog posts.',
       sections: [
         {
-          title: 'List News',
-          id: 'list-news',
-          text: 'Returns published articles ordered by publish timestamp.',
+          title: 'List Articles',
+          id: 'list-articles',
+          text: 'Fetch published articles ordered chronologically:',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/news?locale=en&limit=10"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/news?limit=10&offset=0"',
+          },
+        },
+        {
+          title: 'Article Filtering & Search',
+          id: 'article-filtering-search',
+          text: 'Filter by category, search term, or featured status:',
+          code: {
+            lang: 'bash',
+            filename: 'cURL',
+            code: 'curl "http://127.0.0.1:8090/api/v1/news?search=release&category=product&featured=true"',
           },
         },
       ],
@@ -493,20 +471,48 @@ fields:
     id: 'custom-content-api',
     title: 'Custom Content Endpoints',
     category: 'REST API Reference',
-    description: 'Consume YAML-defined collections over the REST API.',
+    description: 'Query any content type defined in content-types/ via public read endpoints.',
     headings: ['Querying Collections'],
     content: {
-      lead: 'Any YAML schema with public: true gets a read endpoint at /api/v1/content/<id>.',
+      lead: 'All YAML content collections with public: true are instantly exposed as REST resources.',
       sections: [
         {
           title: 'Querying Collections',
           id: 'querying-collections',
-          text: 'Filter, search, and paginate through custom content items effortlessly.',
+          text: 'Filter, search, and paginate through custom content items effortlessly:',
           code: {
             lang: 'bash',
             filename: 'cURL',
-            code: 'curl "http://127.0.0.1:8090/api/v1/content/faq?search=billing"',
+            code: 'curl "http://127.0.0.1:8090/api/v1/content/faq?search=billing&limit=10"',
           },
+        },
+      ],
+    },
+  },
+
+  'auth-and-tokens': {
+    id: 'auth-and-tokens',
+    title: 'Authentication & Tokens',
+    category: 'REST API Reference',
+    description: 'Authenticate API requests using Bearer tokens, API keys, or session cookies.',
+    headings: ['Bearer Token Authentication', 'API Keys'],
+    content: {
+      lead: 'HydroGo supports three authentication methods: Bearer tokens, API keys, and session cookies.',
+      sections: [
+        {
+          title: 'Bearer Token Authentication',
+          id: 'bearer-token-authentication',
+          text: 'Pass an API token in the Authorization header for authenticated operations:',
+          code: {
+            lang: 'bash',
+            filename: 'cURL',
+            code: 'curl -H "Authorization: Bearer <your-token>" http://127.0.0.1:8090/api/v1/admin/me',
+          },
+        },
+        {
+          title: 'API Keys',
+          id: 'api-keys',
+          text: 'For machine-to-machine or headless frontend integration, generate API keys scoped to read-only or preview access in the configuration.',
         },
       ],
     },
@@ -514,7 +520,7 @@ fields:
 
   'system-probes': {
     id: 'system-probes',
-    title: 'Health & Probes (/readyz)',
+    title: 'Health Probes (/readyz)',
     category: 'REST API Reference',
     description: 'Readiness and liveness checks for load balancers and container orchestrators.',
     headings: ['Readiness Probe'],
@@ -524,71 +530,12 @@ fields:
         {
           title: 'Readiness Probe',
           id: 'readiness-probe',
-          text: 'Returns 200 OK ready when the database connection is healthy and migrations are verified.',
+          text: 'Returns 200 OK ready when the database connection is healthy and all migrations are verified:',
           code: {
             lang: 'bash',
             filename: 'cURL',
             code: 'curl -i http://127.0.0.1:8090/readyz',
           },
-        },
-      ],
-    },
-  },
-
-  'admin-overview': {
-    id: 'admin-overview',
-    title: 'Svelte 5 Architecture',
-    category: 'Admin Studio',
-    description: 'How the embedded Svelte 5 SPA is structured, built, and served.',
-    headings: ['Single Page Application', 'Zero-Latency Serving'],
-    content: {
-      lead: 'Admin Studio is an embedded Svelte 5 Single Page Application built with TypeScript, Tailwind CSS, and shadcn-svelte.',
-      sections: [
-        {
-          title: 'Single Page Application',
-          id: 'single-page-application',
-          text: 'All admin views, components, and schema renderers live in admin/src/. The Vite build bundles them into internal/adminui/dist, which Go embeds directly into the compiled executable using go:embed.',
-        },
-        {
-          title: 'Zero-Latency Serving',
-          id: 'zero-latency-serving',
-          text: 'Because admin assets are embedded inside Go memory with strong ETag headers, admin panel navigation is instant with zero disk I/O latency.',
-        },
-      ],
-    },
-  },
-
-  'admin-rbac': {
-    id: 'admin-rbac',
-    title: 'Role-Based Access Control',
-    category: 'Admin Studio',
-    description: 'Permissions, user roles, and granular security overrides.',
-    headings: ['User Roles', 'Permissions Model'],
-    content: {
-      lead: 'HydroGo enforces strict RBAC across all administrative routes.',
-      sections: [
-        {
-          title: 'User Roles',
-          id: 'user-roles',
-          text: 'Supported roles: admin (full access), editor (content management), and viewer (read-only inspection).',
-        },
-      ],
-    },
-  },
-
-  'admin-revisions': {
-    id: 'admin-revisions',
-    title: 'Drafts & Revisions',
-    category: 'Admin Studio',
-    description: 'Safe draft editing, version history, and rollbacks.',
-    headings: ['Revision History'],
-    content: {
-      lead: 'Every publish action creates an immutable revision record allowing editors to rollback to earlier states safely.',
-      sections: [
-        {
-          title: 'Revision History',
-          id: 'revision-history',
-          text: 'Revisions capture author ID, timestamp, and field deltas so changes can be audited and restored at any time.',
         },
       ],
     },
@@ -606,17 +553,17 @@ fields:
         {
           title: 'Compiling',
           id: 'compiling',
-          text: 'Build the standalone binary with Go:',
+          text: 'Cross-compile a standalone static binary with Go:',
           code: {
             lang: 'bash',
-            filename: 'terminal',
-            code: 'go build -ldflags="-s -w" -o bin/hydro ./cmd/hydro',
+            filename: 'Terminal',
+            code: 'GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/hydro ./cmd/hydro',
           },
         },
         {
           title: 'Systemd Service',
           id: 'systemd-service',
-          text: 'Run HydroGo under systemd with automatic restart on failure and sandboxed file permissions.',
+          text: 'Run HydroGo under systemd with automatic restart on failure and sandboxed file permissions:',
           code: {
             lang: 'ini',
             filename: '/etc/systemd/system/hydrogo.service',
@@ -652,12 +599,32 @@ WantedBy=multi-user.target`,
         {
           title: 'Caddyfile Example',
           id: 'caddyfile-example',
-          text: 'Caddy provides automated Let\'s Encrypt certificates in two lines of configuration:',
+          text: "Caddy provides automated Let's Encrypt certificates in two lines of configuration:",
           code: {
             lang: 'nginx',
             filename: 'Caddyfile',
             code: `cms.yourdomain.com {
   reverse_proxy 127.0.0.1:8090
+}`,
+          },
+        },
+        {
+          title: 'Nginx Example',
+          id: 'nginx-example',
+          text: 'Standard Nginx upstream block forwarding headers and requests:',
+          code: {
+            lang: 'nginx',
+            filename: 'nginx.conf',
+            code: `server {
+  server_name cms.yourdomain.com;
+
+  location / {
+    proxy_pass http://127.0.0.1:8090;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
 }`,
           },
         },
@@ -678,6 +645,11 @@ WantedBy=multi-user.target`,
           title: 'SQLite (Zero-Config)',
           id: 'sqlite-zero-config',
           text: 'HydroGo configures SQLite with WAL (Write-Ahead Logging), busy timeouts, and concurrent read connections, capable of handling hundreds of requests per second on a simple VPS.',
+        },
+        {
+          title: 'PostgreSQL & MySQL',
+          id: 'postgresql-mysql',
+          text: 'For multi-instance clustering or high write concurrency, switch database.dialect to postgres or mysql in config.yaml without altering any of your application code.',
         },
       ],
     },
