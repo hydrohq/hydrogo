@@ -155,7 +155,7 @@ export const docTopics: Record<string, DocTopic> = {
     title: 'Configuration Guide',
     category: 'Getting Started',
     description: 'Configure ports, database drivers, JWT secrets, and CORS origins.',
-    headings: ['Configuration File', 'Environment Variables', 'CORS & Security'],
+    headings: ['Configuration File', 'Environment Variables', 'CORS & Security', 'Local and Production Settings'],
     content: {
       lead: 'HydroGo reads configuration from config.yaml with full override support via environment variables.',
       sections: [
@@ -184,7 +184,22 @@ security:
         {
           title: 'Environment Variables',
           id: 'environment-variables',
-          text: 'Any setting in config.yaml can be overridden using HYDRO_ prefixed environment variables in uppercase format (e.g., HYDRO_DATABASE_DIALECT=postgres).',
+          text: 'Environment variables are useful for deployment secrets and host-specific settings. HydroGo reads selected settings such as the HTTP address, database dialect and DSN, media directory, and content-type directory from HYDRO_ variables. Check the shipped config.example.yaml and internal/config for the exact supported names; not every YAML key has a matching environment override.',
+          code: {
+            lang: 'bash',
+            filename: 'Environment',
+            code: 'HYDRO_HTTP_ADDRESS=127.0.0.1:8090\nHYDRO_DATABASE_DIALECT=postgres\nHYDRO_DATABASE_DSN="postgres://user:password@localhost:5432/hydro?sslmode=disable"',
+          },
+        },
+        {
+          title: 'CORS & Security',
+          id: 'cors-security',
+          text: 'Set allowed origins to the exact origins of browser clients, including scheme and port where needed. Keep database credentials and signing keys in protected deployment secrets. Bind the API to a private interface when a reverse proxy is responsible for public TLS termination.',
+        },
+        {
+          title: 'Local and Production Settings',
+          id: 'local-production-settings',
+          text: 'For local development, the starter devserver uses loopback and SQLite. In production, provide a persistent media directory and database DSN, configure a stable public origin, and run the binary behind HTTPS. Use config.example.yaml as the canonical list of configuration sections.',
         },
       ],
     },
@@ -195,7 +210,7 @@ security:
     title: 'CLI Reference',
     category: 'Getting Started',
     description: 'Command line utilities for database migrations, user management, and schema generation.',
-    headings: ['Core Commands', 'User Management', 'OpenAPI Schema Export'],
+    headings: ['Core Commands', 'Database Migrations', 'User Management', 'OpenAPI Schema Export'],
     content: {
       lead: 'HydroGo ships with built-in subcommands for operations and automation.',
       sections: [
@@ -223,6 +238,16 @@ security:
             code: 'hydro schema openapi > openapi.json',
           },
         },
+        {
+          title: 'Database Migrations',
+          id: 'database-migrations',
+          text: 'Run pending migrations as part of deployment before starting a new server version. The repository keeps a migration for each supported SQL dialect so the same schema change can be applied on SQLite, PostgreSQL, and MySQL.',
+          code: {
+            lang: 'bash',
+            filename: 'Terminal',
+            code: 'hydro migrate --config config.yaml',
+          },
+        },
       ],
     },
   },
@@ -233,7 +258,7 @@ security:
     category: 'Content & Modeling',
     badge: 'Core',
     description: 'Define custom content collections using declarative YAML files.',
-    headings: ['Defining Collections', 'Automatic API Generation'],
+    headings: ['Defining Collections', 'Field Options', 'Admin and Public APIs', 'Content Lifecycle'],
     content: {
       lead: 'Define structured content types in seconds without writing SQL migrations or backend Go structs.',
       sections: [
@@ -266,6 +291,37 @@ fields:
           },
         },
         {
+          title: 'Field Options',
+          id: 'field-options',
+          text: 'Each field has an id and a supported type. Depending on its type, a definition can also include required, default, searchable, localized, options, and validation constraints. Keep IDs stable once content has been entered; they are used in stored records and API responses.',
+          code: {
+            lang: 'yaml',
+            filename: 'Field options',
+            code: `fields:
+  - id: title
+    type: string
+    required: true
+    searchable: true
+  - id: status
+    type: select
+    options: [draft, published]
+    default: draft
+  - id: published_at
+    type: date
+    localized: true`,
+          },
+        },
+        {
+          title: 'Admin and Public APIs',
+          id: 'admin-public-apis',
+          text: 'A definition creates a schema-driven admin collection at /admin/content/{id}. When public is true, published records are also readable from GET /api/v1/content/{id} and GET /api/v1/content/{id}/{record-id}. Drafts and write operations remain behind the admin API and its permissions.',
+        },
+        {
+          title: 'Content Lifecycle',
+          id: 'content-lifecycle',
+          text: 'Enable drafts when editors need to review work before publication. Schema flags can also enable revisions, list search and filters, and localized fields. Publishing updates the API data immediately; a frontend can fetch the new content without a rebuild.',
+        },
+        {
           title: 'Automatic API Generation',
           id: 'automatic-api-generation',
           text: 'With public: true, HydroGo immediately serves GET /api/v1/content/faq and GET /api/v1/content/faq/{id} with filtering, sorting, and full-text search.',
@@ -279,7 +335,7 @@ fields:
     title: 'Field Types & Validation',
     category: 'Content & Modeling',
     description: 'Comprehensive guide to supported field types and validation rules.',
-    headings: ['Supported Field Types'],
+    headings: ['Supported Field Types', 'Validation and Defaults', 'Localization'],
     content: {
       lead: 'HydroGo supports rich field types tailored for modern content applications.',
       sections: [
@@ -301,6 +357,16 @@ fields:
             ],
           },
         },
+        {
+          title: 'Validation and Defaults',
+          id: 'validation-and-defaults',
+          text: 'Use required to reject missing values and default to provide an initial value when a record is created. Select fields should declare their allowed options. Validation happens when content is saved, so invalid values are reported to the editor instead of silently entering the collection.',
+        },
+        {
+          title: 'Localization',
+          id: 'localization',
+          text: 'Mark translatable fields as localized when the project has localization enabled. A localized field stores a value for each configured locale; fields that are not localized remain shared across translations. Set the default locale in the i18n configuration.',
+        },
       ],
     },
   },
@@ -310,7 +376,7 @@ fields:
     title: 'Pages & News Modules',
     category: 'Content & Modeling',
     description: 'Built-in core modules for static pages and timestamped editorial news.',
-    headings: ['Pages Module', 'News Module'],
+    headings: ['Pages Module', 'News Module', 'Choosing a Content Model'],
     content: {
       lead: 'Built-in publishing systems for marketing pages and chronological blog posts.',
       sections: [
@@ -318,6 +384,11 @@ fields:
           title: 'Pages Module',
           id: 'pages-module',
           text: 'The Pages module manages hierarchical content with slugs, layout templates, and modular block payloads for landing pages and docs.',
+        },
+        {
+          title: 'Choosing a Content Model',
+          id: 'choosing-a-content-model',
+          text: 'Use pages for slug-addressable site content and structured page blocks; use news for chronological editorial content with publication metadata. Use a YAML content type for repeatable records such as FAQs, locations, or team profiles when they do not need module-specific business logic.',
         },
         {
           title: 'News Module',
@@ -356,7 +427,7 @@ fields:
     title: 'API Architecture & Envelope',
     category: 'REST API Reference',
     description: 'Consistent JSON responses, standard envelopes, and predictable error formats.',
-    headings: ['Success Envelope', 'Error Envelope'],
+    headings: ['Success Envelope', 'Pagination Metadata', 'Error Envelope'],
     content: {
       lead: 'All HydroGo API responses adhere to a unified, standardized envelope.',
       sections: [
@@ -384,6 +455,11 @@ fields:
           },
         },
         {
+          title: 'Pagination Metadata',
+          id: 'pagination-metadata',
+          text: 'List endpoints accept limit and offset for paging through results. Responses include metadata when the endpoint provides a total or pagination details. Locale-aware endpoints accept locale; use the documented query parameters for each resource rather than assuming every collection supports identical filters.',
+        },
+        {
           title: 'Error Envelope',
           id: 'error-envelope',
           text: 'Errors consistently include a request_id for end-to-end tracing:',
@@ -406,7 +482,7 @@ fields:
     title: 'Pages Endpoints',
     category: 'REST API Reference',
     description: 'Fetch published site pages by slug or list all site hierarchy.',
-    headings: ['List Pages', 'Get Page By Slug'],
+    headings: ['List Pages', 'Get Page By Slug', 'Locale and Preview'],
     content: {
       lead: 'Endpoints to query static pages and layout structures.',
       sections: [
@@ -430,6 +506,16 @@ fields:
             code: 'curl "http://127.0.0.1:8090/api/v1/pages/about"',
           },
         },
+        {
+          title: 'Locale and Preview',
+          id: 'locale-and-preview',
+          text: 'The list endpoint accepts locale to return content for a language. For a public page lookup by slug, use the documented by-slug query route. Draft preview is a separate protected flow that uses a signed preview token; never expose that token in public links or logs.',
+          code: {
+            lang: 'bash',
+            filename: 'cURL',
+            code: 'curl "http://127.0.0.1:8090/api/v1/pages?locale=en"\ncurl "http://127.0.0.1:8090/api/v1/pages/by-slug?locale=en&slug=about"',
+          },
+        },
       ],
     },
   },
@@ -439,7 +525,7 @@ fields:
     title: 'News & Articles Endpoints',
     category: 'REST API Reference',
     description: 'Query published articles with filtering, search, and pagination.',
-    headings: ['List Articles', 'Article Filtering & Search'],
+    headings: ['List Articles', 'Article Lookup', 'Filtering and Pagination'],
     content: {
       lead: 'Query published news articles and blog posts.',
       sections: [
@@ -454,9 +540,19 @@ fields:
           },
         },
         {
-          title: 'Article Filtering & Search',
-          id: 'article-filtering-search',
-          text: 'Filter by category, search term, or featured status:',
+          title: 'Article Lookup',
+          id: 'article-lookup',
+          text: 'Resolve a published article by slug with the by-slug endpoint. This query form is useful when the slug comes from a route parameter:',
+          code: {
+            lang: 'bash',
+            filename: 'cURL',
+            code: 'curl "http://127.0.0.1:8090/api/v1/news/by-slug?locale=en&slug=release-notes"',
+          },
+        },
+        {
+          title: 'Filtering and Pagination',
+          id: 'filtering-and-pagination',
+          text: 'List requests support locale and pagination with limit. Use only filters documented by the API contract for your HydroGo version; endpoints can expose different query parameters.',
           code: {
             lang: 'bash',
             filename: 'cURL',
