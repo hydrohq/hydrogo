@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import type { ApiResponse } from '$lib/api/types';
@@ -41,6 +41,27 @@
   let revisionsOpen = $state(false);
   let errorMsg = $state<string | null>(null);
   let successMsg = $state<string | null>(null);
+  let initialSnapshot = $state('');
+
+  function captureSnapshot() {
+    initialSnapshot = JSON.stringify(formData);
+  }
+
+  const isDirty = $derived.by(() => {
+    if (saving || !initialSnapshot) return false;
+    return JSON.stringify(formData) !== initialSnapshot;
+  });
+
+  $effect(() => {
+    router.setDirty(
+      isDirty,
+      'Sayfada kaydedilmemiş değişiklikleriniz var. Taslak olarak kaydetmeden veya yayınlamadan çıkmak istediğinizden emin misiniz?'
+    );
+  });
+
+  onDestroy(() => {
+    router.setDirty(false);
+  });
 
   function autoSlug() {
     if (isNew && !formData.slug && formData.title) {
@@ -52,7 +73,10 @@
   }
 
   async function loadPage() {
-    if (isNew) return;
+    if (isNew) {
+      captureSnapshot();
+      return;
+    }
     try {
       const res = await api.get<ApiResponse<PageData>>(`/api/v1/admin/pages/${id}`);
       if (res && res.data) {
@@ -66,6 +90,7 @@
           status: res.data.status || 'draft',
           version: res.data.version || 1,
         };
+        captureSnapshot();
       }
     } catch (e: any) {
       errorMsg = e.message || 'Failed to load page';
@@ -88,7 +113,9 @@
       if (isNew) {
         const res = await api.post<ApiResponse<PageData>>('/api/v1/admin/pages', payload);
         if (res && res.data && res.data.id) {
-          router.navigate(`/pages/${res.data.id}`);
+          captureSnapshot();
+          router.setDirty(false);
+          router.navigate(`/pages/${res.data.id}`, true);
         }
       } else {
         payload.version = formData.version || 1;
@@ -97,6 +124,8 @@
           formData.version = res.data.version;
         }
         formData.status = 'draft';
+        captureSnapshot();
+        router.setDirty(false);
         successMsg = 'Draft saved.';
         setTimeout(() => { successMsg = null; }, 3000);
       }
@@ -124,6 +153,8 @@
           formData.version = (formData.version || 1) + 1;
         }
         formData.status = 'published';
+        captureSnapshot();
+        router.setDirty(false);
         successMsg = 'Page published successfully!';
       } else {
         // Saving a page draft in the backend resets the draft state

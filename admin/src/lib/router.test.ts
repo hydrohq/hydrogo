@@ -37,4 +37,30 @@ describe('Router', () => {
     expect(router.query.get('status')).toBe('published');
     expect(router.query.get('page')).toBe('2');
   });
+
+  it('protects navigation when dirty and allows cancel or confirm', () => {
+    router.navigate('/dashboard');
+    router.setDirty(true, 'Unsaved changes');
+    expect(router.isDirty).toBe(true);
+
+    // Navigation attempt should be intercepted
+    router.navigate('/news');
+    expect(router.showUnsavedModal).toBe(true);
+    expect(router.pendingTarget).toBe('/news');
+    expect(router.path).toBe('/dashboard'); // Path has not changed
+
+    // Cancel leave
+    router.cancelLeave();
+    expect(router.showUnsavedModal).toBe(false);
+    expect(router.pendingTarget).toBe(null);
+    expect(router.path).toBe('/dashboard');
+
+    // Attempt again and confirm leave
+    router.navigate('/news');
+    expect(router.showUnsavedModal).toBe(true);
+    router.confirmLeave();
+    expect(router.showUnsavedModal).toBe(false);
+    expect(router.isDirty).toBe(false);
+    expect(router.path).toBe('/news');
+  });
 });

@@ -2,6 +2,36 @@ class Router {
   currentPath = $state(typeof window !== 'undefined' ? this.extractSubpath() : '/');
   currentSearch = $state(typeof window !== 'undefined' ? window.location.search : '');
 
+  // Unsaved changes protection
+  isDirty = $state(false);
+  dirtyMessage = $state('Kaydedilmemiş değişiklikleriniz var. Ayrılmak istediğinizden emin misiniz?');
+  showUnsavedModal = $state(false);
+  pendingTarget = $state<string | null>(null);
+
+  setDirty(dirty: boolean, message?: string) {
+    this.isDirty = dirty;
+    if (message) this.dirtyMessage = message;
+    if (!dirty) {
+      this.showUnsavedModal = false;
+      this.pendingTarget = null;
+    }
+  }
+
+  confirmLeave() {
+    this.isDirty = false;
+    this.showUnsavedModal = false;
+    if (this.pendingTarget) {
+      const target = this.pendingTarget;
+      this.pendingTarget = null;
+      this.navigate(target, true);
+    }
+  }
+
+  cancelLeave() {
+    this.showUnsavedModal = false;
+    this.pendingTarget = null;
+  }
+
   private extractSubpath(): string {
     if (typeof window === 'undefined') return '/';
 
@@ -29,12 +59,33 @@ class Router {
 
   constructor() {
     if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', (e) => {
+        if (this.isDirty) {
+          e.preventDefault();
+          e.returnValue = this.dirtyMessage;
+          return this.dirtyMessage;
+        }
+      });
+
       window.addEventListener('popstate', () => {
+        if (this.isDirty) {
+          try {
+            window.history.pushState(null, '', `/admin${this.currentPath}${this.currentSearch}`);
+          } catch {}
+          this.pendingTarget = this.extractSubpath();
+          this.showUnsavedModal = true;
+          return;
+        }
         this.currentPath = this.extractSubpath();
         this.currentSearch = window.location.search;
       });
 
       window.addEventListener('hashchange', () => {
+        if (this.isDirty) {
+          this.pendingTarget = this.extractSubpath();
+          this.showUnsavedModal = true;
+          return;
+        }
         this.currentPath = this.extractSubpath();
         this.currentSearch = window.location.search;
       });
@@ -90,13 +141,19 @@ class Router {
     }
   }
 
-  navigate(to: string) {
+  navigate(to: string, force = false) {
     let target = to.startsWith('#') ? to.slice(1) : to;
     if (target.startsWith('/admin')) {
       target = target.slice('/admin'.length);
     }
     if (!target.startsWith('/')) {
       target = `/${target}`;
+    }
+
+    if (this.isDirty && !force && target !== this.currentPath) {
+      this.pendingTarget = target;
+      this.showUnsavedModal = true;
+      return;
     }
 
     const queryIndex = target.indexOf('?');
