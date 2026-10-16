@@ -1,8 +1,12 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import Link from '@tiptap/extension-link';
+  import Placeholder from '@tiptap/extension-placeholder';
+  import EditorToolbar from './EditorToolbar.svelte';
+  import BubbleMenu from './BubbleMenu.svelte';
+  import SlashCommandMenu, { type SlashItem } from './SlashCommandMenu.svelte';
 
   interface Props {
     value?: string;
@@ -15,20 +19,110 @@
     value = $bindable(),
     label,
     error,
-    placeholder = 'Start writing your story or content here...',
+    placeholder = "Type '/' for commands, or start writing...",
   }: Props = $props();
 
   let element: HTMLDivElement | null = $state(null);
   let editor = $state<Editor | null>(null);
 
-  // Link popover state
-  let showLinkInput = $state(false);
-  let linkUrl = $state('');
-
   // Status counters
   let wordCount = $state(0);
   let charCount = $state(0);
   let currentBlockType = $state('Paragraph');
+
+  // Floating Slash Command Palette state
+  let showSlashMenu = $state(false);
+  let slashMenuPos = $state<{ top: number; left: number }>({ top: 0, left: 0 });
+  let slashQuery = $state('');
+  let selectedSlashIndex = $state(0);
+
+  // Floating Selection Bubble Menu state
+  let showBubbleMenu = $state(false);
+  let bubbleMenuPos = $state<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  const rawSlashCommands: Array<Omit<SlashItem, 'action'> & { action: (ed: Editor) => void }> = [
+    {
+      id: 'text',
+      title: 'Text',
+      description: 'Just start writing with plain text.',
+      badge: 'P',
+      action: (ed) => ed.chain().focus().setParagraph().run(),
+    },
+    {
+      id: 'h1',
+      title: 'Heading 1',
+      description: 'Big section heading.',
+      badge: 'H1',
+      action: (ed) => ed.chain().focus().toggleHeading({ level: 1 }).run(),
+    },
+    {
+      id: 'h2',
+      title: 'Heading 2',
+      description: 'Medium section heading.',
+      badge: 'H2',
+      action: (ed) => ed.chain().focus().toggleHeading({ level: 2 }).run(),
+    },
+    {
+      id: 'h3',
+      title: 'Heading 3',
+      description: 'Small section heading.',
+      badge: 'H3',
+      action: (ed) => ed.chain().focus().toggleHeading({ level: 3 }).run(),
+    },
+    {
+      id: 'bullet',
+      title: 'Bulleted List',
+      description: 'Create a simple bulleted list.',
+      badge: 'List',
+      action: (ed) => ed.chain().focus().toggleBulletList().run(),
+    },
+    {
+      id: 'number',
+      title: 'Numbered List',
+      description: 'Create a list with numbering.',
+      badge: '1.',
+      action: (ed) => ed.chain().focus().toggleOrderedList().run(),
+    },
+    {
+      id: 'quote',
+      title: 'Quote',
+      description: 'Capture a quote or prominent callout.',
+      badge: 'Quote',
+      action: (ed) => ed.chain().focus().toggleBlockquote().run(),
+    },
+    {
+      id: 'code',
+      title: 'Code Block',
+      description: 'Capture a code snippet with formatting.',
+      badge: '</>',
+      action: (ed) => ed.chain().focus().toggleCodeBlock().run(),
+    },
+    {
+      id: 'divider',
+      title: 'Divider',
+      description: 'Visually divide sections with a clean line.',
+      badge: 'HR',
+      action: (ed) => ed.chain().focus().setHorizontalRule().run(),
+    },
+  ];
+
+  const filteredSlashCommands = $derived.by(() => {
+    if (!editor) return [];
+    const q = slashQuery.toLowerCase().trim();
+    const list = q
+      ? rawSlashCommands.filter(
+          (cmd) =>
+            cmd.id.includes(q) ||
+            cmd.title.toLowerCase().includes(q) ||
+            cmd.description.toLowerCase().includes(q)
+        )
+      : rawSlashCommands;
+
+    return list.map((cmd) => ({
+      ...cmd,
+      action: () => executeSlashCommand(cmd),
+    }));
+  });
 
   function updateMetrics(ed: Editor) {
     const text = ed.getText();
@@ -54,6 +148,84 @@
     }
   }
 
+  function checkSlashAndBubbleMenu(ed: Editor) {
+    if (!element) return;
+    const { from, to, empty } = ed.state.selection;
+
+    // 1. Check Floating Selection Bubble Menu
+    if (!empty && from !== to) {
+      showSlashMenu = false;
+      try {
+        const startCoords = ed.view.coordsAtPos(from);
+        const endCoords = ed.view.coordsAtPos(to);
+        const elRect = element.getBoundingClientRect();
+
+        const top = startCoords.top - elRect.top - 46;
+        const left = Math.max(
+          10,
+          Math.min(
+            elRect.width - 260,
+            (startCoords.left + endCoords.left) / 2 - elRect.left - 120
+          )
+        );
+
+        bubbleMenuPos = { top, left };
+        showBubbleMenu = true;
+      } catch {
+        showBubbleMenu = false;
+      }
+    } else {
+      showBubbleMenu = false;
+    }
+
+    // 2. Check Slash Command Menu trigger
+    if (empty) {
+      const anchorFrom = ed.state.selection.$from;
+      const textBefore = anchorFrom.parent.textBetween(0, anchorFrom.parentOffset, '\0', '\0');
+
+      if (textBefore.startsWith('/')) {
+        slashQuery = textBefore.slice(1);
+        selectedSlashIndex = 0;
+
+        try {
+          const coords = ed.view.coordsAtPos(from);
+          const elRect = element.getBoundingClientRect();
+
+          let top = coords.bottom - elRect.top + 8;
+          let left = Math.max(8, Math.min(elRect.width - 280, coords.left - elRect.left));
+
+          // If near bottom of container, flip upwards
+          if (top > elRect.height - 200 && top > 220) {
+            top = coords.top - elRect.top - 240;
+          }
+
+          slashMenuPos = { top, left };
+          showSlashMenu = true;
+          return;
+        } catch {
+          showSlashMenu = false;
+        }
+      } else {
+        showSlashMenu = false;
+      }
+    } else {
+      showSlashMenu = false;
+    }
+  }
+
+  function executeSlashCommand(cmd: { action: (ed: Editor) => void }) {
+    if (!editor) return;
+    const { from } = editor.state.selection;
+    const anchorFrom = editor.state.selection.$from;
+    const start = anchorFrom.start();
+
+    // Delete the slash trigger text (e.g. "/h1" or "/")
+    editor.chain().focus().deleteRange({ from: start, to: from }).run();
+    cmd.action(editor);
+    showSlashMenu = false;
+    slashQuery = '';
+  }
+
   onMount(() => {
     if (!element) return;
 
@@ -72,20 +244,63 @@
             class: 'text-primary underline underline-offset-2 hover:opacity-80 transition-opacity',
           },
         }),
+        Placeholder.configure({
+          placeholder: ({ node }) => {
+            if (node.type.name === 'heading') {
+              return 'Heading...';
+            }
+            if (node.type.name === 'codeBlock') {
+              return '// Write code here...';
+            }
+            if (node.type.name === 'blockquote') {
+              return 'Empty quote...';
+            }
+            return placeholder;
+          },
+        }),
       ],
       content: value || '',
       editorProps: {
         attributes: {
           class:
-            'prose dark:prose-invert max-w-none focus:outline-none min-h-[180px] p-4 text-xs sm:text-sm text-foreground leading-relaxed',
+            'prose dark:prose-invert max-w-none focus:outline-none min-h-[220px] p-4 text-xs sm:text-sm text-foreground leading-relaxed',
+        },
+        handleKeyDown: (_view, event) => {
+          if (showSlashMenu && filteredSlashCommands.length > 0) {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              selectedSlashIndex = (selectedSlashIndex + 1) % filteredSlashCommands.length;
+              return true;
+            }
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              selectedSlashIndex =
+                (selectedSlashIndex - 1 + filteredSlashCommands.length) %
+                filteredSlashCommands.length;
+              return true;
+            }
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              filteredSlashCommands[selectedSlashIndex].action();
+              return true;
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              showSlashMenu = false;
+              return true;
+            }
+          }
+          return false;
         },
       },
       onUpdate: ({ editor: ed }) => {
         value = ed.getHTML();
         updateMetrics(ed);
+        checkSlashAndBubbleMenu(ed);
       },
       onSelectionUpdate: ({ editor: ed }) => {
         updateMetrics(ed);
+        checkSlashAndBubbleMenu(ed);
       },
     });
 
@@ -109,34 +324,6 @@
       }
     }
   });
-
-  function openLinkPrompt() {
-    if (!editor) return;
-    const previousUrl = editor.getAttributes('link').href || '';
-    linkUrl = previousUrl;
-    showLinkInput = true;
-  }
-
-  function applyLink() {
-    if (!editor) return;
-    if (linkUrl.trim() === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-    } else {
-      let finalUrl = linkUrl.trim();
-      if (!/^https?:\/\//i.test(finalUrl) && !finalUrl.startsWith('/') && !finalUrl.startsWith('#')) {
-        finalUrl = 'https://' + finalUrl;
-      }
-      editor.chain().focus().extendMarkRange('link').setLink({ href: finalUrl }).run();
-    }
-    showLinkInput = false;
-    linkUrl = '';
-  }
-
-  function removeLink() {
-    if (!editor) return;
-    editor.chain().focus().unsetLink().run();
-    showLinkInput = false;
-  }
 </script>
 
 <div class="flex flex-col gap-1.5 w-full">
@@ -145,290 +332,62 @@
       <span class="text-xs font-semibold text-foreground">
         {label}
       </span>
-      <span class="text-[11px] text-muted-foreground font-mono">
-        {currentBlockType}
-      </span>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border">
+          <kbd class="font-bold">/</kbd> for commands
+        </span>
+        <span class="text-[11px] text-muted-foreground font-mono">
+          {currentBlockType}
+        </span>
+      </div>
     </div>
   {/if}
 
   <div
-    class="rounded-xl border {error
+    class="relative rounded-xl border {error
       ? 'border-destructive ring-1 ring-destructive'
-      : 'border-border'} bg-card overflow-hidden shadow-xs transition-all focus-within:border-ring focus-within:ring-1 focus-within:ring-ring flex flex-col"
+      : 'border-border'} bg-card shadow-xs transition-all focus-within:border-ring focus-within:ring-1 focus-within:ring-ring flex flex-col"
   >
-    <!-- Toolbar -->
+    <!-- Top Toolbar -->
     {#if editor}
-      <div
-        class="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/40 text-muted-foreground select-none"
-      >
-        <!-- History: Undo / Redo -->
-        <button
-          type="button"
-          disabled={!editor.can().undo()}
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-          onclick={() => editor?.chain().focus().undo().run()}
-          title="Undo (Ctrl+Z)"
-          aria-label="Undo"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 7v6h6"></path>
-            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          disabled={!editor.can().redo()}
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
-          onclick={() => editor?.chain().focus().redo().run()}
-          title="Redo (Ctrl+Y)"
-          aria-label="Redo"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 7v6h-6"></path>
-            <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path>
-          </svg>
-        </button>
-
-        <span class="w-[1px] h-4 bg-border mx-1"></span>
-
-        <!-- Headings -->
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('paragraph') && !editor.isActive('heading') ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
-          onclick={() => editor?.chain().focus().setParagraph().run()}
-          title="Normal Text (Paragraph)"
-        >
-          P
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('heading', { level: 1 }) ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
-          onclick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-          title="Heading 1"
-        >
-          H1
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('heading', { level: 2 }) ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
-          onclick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-          title="Heading 2"
-        >
-          H2
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('heading', { level: 3 }) ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
-          onclick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-          title="Heading 3"
-        >
-          H3
-        </button>
-
-        <span class="w-[1px] h-4 bg-border mx-1"></span>
-
-        <!-- Inline Formatting -->
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md font-bold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('bold') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleBold().run()}
-          title="Bold (Ctrl+B)"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M6 12h9a4 4 0 0 1 0 8H6v-8Z"></path>
-            <path d="M6 4h8a4 4 0 0 1 0 8H6V4Z"></path>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md italic hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('italic') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleItalic().run()}
-          title="Italic (Ctrl+I)"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="19" y1="4" x2="10" y2="4"></line>
-            <line x1="14" y1="20" x2="5" y2="20"></line>
-            <line x1="15" y1="4" x2="9" y2="20"></line>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('strike') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleStrike().run()}
-          title="Strikethrough"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M16 4H9a3 3 0 0 0-2.83 4"></path>
-            <path d="M14 12a4 4 0 0 1 0 8H6"></path>
-            <line x1="4" y1="12" x2="20" y2="12"></line>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md font-mono text-xs hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('code') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleCode().run()}
-          title="Inline Code"
-        >
-          &lt;/&gt;
-        </button>
-
-        <!-- Link Button -->
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('link') ? 'bg-background text-primary shadow-xs' : ''}"
-          onclick={openLinkPrompt}
-          title="Insert / Edit Link"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-        </button>
-
-        <span class="w-[1px] h-4 bg-border mx-1"></span>
-
-        <!-- Lists & Blocks -->
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('bulletList') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleBulletList().run()}
-          title="Bullet List"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('orderedList') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleOrderedList().run()}
-          title="Numbered List"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="10" y1="6" x2="21" y2="6"></line>
-            <line x1="10" y1="12" x2="21" y2="12"></line>
-            <line x1="10" y1="18" x2="21" y2="18"></line>
-            <path d="M4 6h1v4"></path>
-            <path d="M4 10h2"></path>
-            <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('blockquote') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleBlockquote().run()}
-          title="Blockquote"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path>
-            <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('codeBlock') ? 'bg-background text-foreground shadow-xs' : ''}"
-          onclick={() => editor?.chain().focus().toggleCodeBlock().run()}
-          title="Code Block"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="16 18 22 12 16 6"></polyline>
-            <polyline points="8 6 2 12 8 18"></polyline>
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-          onclick={() => editor?.chain().focus().setHorizontalRule().run()}
-          title="Horizontal Rule"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-          </svg>
-        </button>
-
-        <span class="w-[1px] h-4 bg-border mx-1"></span>
-
-        <!-- Clear formatting -->
-        <button
-          type="button"
-          class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-          onclick={() => editor?.chain().focus().clearNodes().unsetAllMarks().run()}
-          title="Clear formatting"
-        >
-          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="4" y1="4" x2="20" y2="20"></line>
-            <path d="M4 7h16"></path>
-            <path d="M10 11 8 17"></path>
-            <path d="M14 11l2 6"></path>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Link Inline Input Toolbar -->
-      {#if showLinkInput}
-        <div
-          class="flex items-center gap-2 p-2 bg-accent/40 border-b border-border text-xs animate-in fade-in duration-100"
-        >
-          <svg class="size-3.5 text-muted-foreground ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          <input
-            type="url"
-            placeholder="https://example.com"
-            bind:value={linkUrl}
-            onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyLink(); } else if (e.key === 'Escape') { showLinkInput = false; } }}
-            class="h-7 flex-1 rounded-md border border-input bg-background px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-          />
-          <button
-            type="button"
-            class="h-7 px-2.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium cursor-pointer shadow-xs"
-            onclick={applyLink}
-          >
-            Apply
-          </button>
-          {#if editor.isActive('link')}
-            <button
-              type="button"
-              class="h-7 px-2 rounded-md border border-input bg-background hover:bg-destructive/10 hover:text-destructive text-xs cursor-pointer shadow-xs"
-              onclick={removeLink}
-            >
-              Unlink
-            </button>
-          {/if}
-          <button
-            type="button"
-            class="size-7 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground cursor-pointer"
-            onclick={() => { showLinkInput = false; }}
-          >
-            ✕
-          </button>
-        </div>
-      {/if}
+      <EditorToolbar {editor} />
     {/if}
 
-    <!-- Content Writing Area -->
+    <!-- Content Writing Canvas -->
     <div
       bind:this={element}
-      class="editor-content flex-1 bg-background"
-      data-placeholder={placeholder}
-    ></div>
+      class="editor-content flex-1 bg-background relative"
+    >
+      <!-- Floating Selection Bubble Menu (Notion-style) -->
+      {#if showBubbleMenu && editor}
+        <BubbleMenu
+          {editor}
+          position={bubbleMenuPos}
+          onOpenLink={() => {
+            const previousUrl = editor?.getAttributes('link').href || '';
+            const nextUrl = window.prompt('Enter link URL:', previousUrl);
+            if (nextUrl !== null) {
+              if (nextUrl.trim() === '') {
+                editor?.chain().focus().unsetLink().run();
+              } else {
+                editor?.chain().focus().setLink({ href: nextUrl.trim() }).run();
+              }
+            }
+          }}
+        />
+      {/if}
+
+      <!-- Floating Slash Commands Palette (Notion-style) -->
+      {#if showSlashMenu && filteredSlashCommands.length > 0}
+        <SlashCommandMenu
+          items={filteredSlashCommands}
+          selectedIndex={selectedSlashIndex}
+          position={slashMenuPos}
+          onSelect={(cmd) => cmd.action()}
+          onHover={(index) => { selectedSlashIndex = index; }}
+        />
+      {/if}
+    </div>
 
     <!-- Status Bar Footer -->
     <div
@@ -440,7 +399,9 @@
         <span>{charCount} characters</span>
       </div>
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-2">
+        <span class="hidden sm:inline text-muted-foreground/70">Tip: Type '#' for H1, '>' for quote, '-' for list</span>
+        <span class="hidden sm:inline">•</span>
         <span>~{Math.max(1, Math.ceil(wordCount / 200))} min read</span>
       </div>
     </div>
@@ -453,7 +414,7 @@
 
 <style>
   :global(.editor-content .tiptap) {
-    min-height: 200px;
+    min-height: 220px;
   }
   :global(.editor-content .tiptap:focus) {
     outline: none;
@@ -463,24 +424,27 @@
     margin-bottom: 0.5rem;
   }
   :global(.editor-content .tiptap h1) {
-    font-size: 1.5rem;
+    font-size: 1.625rem;
     font-weight: 700;
     letter-spacing: -0.025em;
-    margin-top: 1.25rem;
+    margin-top: 1.5rem;
     margin-bottom: 0.5rem;
+    color: hsl(var(--foreground));
   }
   :global(.editor-content .tiptap h2) {
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     font-weight: 600;
     letter-spacing: -0.02em;
-    margin-top: 1rem;
+    margin-top: 1.25rem;
     margin-bottom: 0.375rem;
+    color: hsl(var(--foreground));
   }
   :global(.editor-content .tiptap h3) {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 600;
-    margin-top: 0.75rem;
+    margin-top: 1rem;
     margin-bottom: 0.25rem;
+    color: hsl(var(--foreground));
   }
   :global(.editor-content .tiptap ul) {
     list-style-type: disc;
@@ -494,40 +458,69 @@
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
+  /* Notion-style Quote / Callout */
   :global(.editor-content .tiptap blockquote) {
-    border-left: 3px solid var(--border, #e4e4e7);
-    padding-left: 0.875rem;
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
-    font-style: italic;
-    color: var(--muted-foreground, #71717a);
+    border-left: 3px solid hsl(var(--primary));
+    background-color: hsl(var(--muted) / 0.35);
+    padding: 0.75rem 1rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+    margin: 0.875rem 0;
+    font-style: normal;
+    color: hsl(var(--foreground));
   }
+  /* Notion-style Inline Code */
   :global(.editor-content .tiptap code) {
-    background-color: var(--muted, #f4f4f5);
-    padding: 0.125rem 0.25rem;
+    background-color: hsl(var(--muted));
+    color: hsl(var(--primary));
+    padding: 0.15rem 0.35rem;
     border-radius: 0.25rem;
-    font-family: monospace;
-    font-size: 0.8em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85em;
+    border: 1px solid hsl(var(--border) / 0.5);
   }
+  /* Notion-style Code Block */
   :global(.editor-content .tiptap pre) {
-    background-color: #18181b;
-    color: #fafafa;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    font-family: monospace;
-    font-size: 0.75rem;
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+    background-color: #09090b;
+    color: #f4f4f5;
+    padding: 1rem;
+    border-radius: 0.625rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    margin-top: 0.875rem;
+    margin-bottom: 0.875rem;
     overflow-x: auto;
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
   }
   :global(.editor-content .tiptap pre code) {
     background: transparent;
     color: inherit;
     padding: 0;
+    border: none;
   }
   :global(.editor-content .tiptap hr) {
     border: none;
-    border-top: 1px solid var(--border, #e4e4e7);
-    margin: 1.25rem 0;
+    border-top: 1px solid hsl(var(--border));
+    margin: 1.5rem 0;
+  }
+  /* Notion-style Empty Placeholders */
+  :global(.editor-content .tiptap p.is-editor-empty:first-child::before),
+  :global(.editor-content .tiptap p.is-empty::before) {
+    content: attr(data-placeholder);
+    float: left;
+    color: hsl(var(--muted-foreground));
+    opacity: 0.45;
+    pointer-events: none;
+    height: 0;
+  }
+  :global(.editor-content .tiptap h1.is-empty::before),
+  :global(.editor-content .tiptap h2.is-empty::before),
+  :global(.editor-content .tiptap h3.is-empty::before) {
+    content: attr(data-placeholder);
+    float: left;
+    color: hsl(var(--muted-foreground));
+    opacity: 0.35;
+    pointer-events: none;
+    height: 0;
   }
 </style>
