@@ -21,6 +21,10 @@ export default defineConfig({
         target: process.env.HYDRO_API_ORIGIN || 'http://127.0.0.1:8090',
         changeOrigin: true,
       },
+      '/admin': {
+        target: process.env.HYDRO_API_ORIGIN || 'http://127.0.0.1:8090',
+        changeOrigin: true,
+      },
       '/media': {
         target: process.env.HYDRO_API_ORIGIN || 'http://127.0.0.1:8090',
         changeOrigin: true,

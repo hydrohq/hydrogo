@@ -96,6 +96,34 @@
     return () => window.removeEventListener('keydown', openSearchShortcut);
   });
 
+  let scrollProgress = $state(0);
+  let activeHeadingId = $state<string>('');
+
+  function handleScroll() {
+    const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+    if (totalHeight > 0) {
+      scrollProgress = Math.min(100, Math.max(0, (window.scrollY / totalHeight) * 100));
+    }
+  }
+
+  function handleKeyNav(event: KeyboardEvent) {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.key === 'ArrowLeft' && prevTopic) {
+      selectTopic(prevTopic.id);
+    } else if (event.key === 'ArrowRight' && nextTopic) {
+      selectTopic(nextTopic.id);
+    }
+  }
+
+  $effect(() => {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('keydown', handleKeyNav);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('keydown', handleKeyNav);
+    };
+  });
+
   async function copyCode(code: string, id: string) {
     try {
       await navigator.clipboard.writeText(code);
@@ -110,6 +138,14 @@
 </script>
 
 <div class="docs-shell min-h-screen flex flex-col font-sans antialiased" data-theme={theme}>
+  <!-- Top Reading Progress Indicator -->
+  <div class="fixed top-0 left-0 right-0 h-[2px] z-50 pointer-events-none bg-transparent">
+    <div
+      class="h-full bg-gradient-to-r from-sky-400 via-indigo-500 to-sky-300 transition-all duration-75 ease-out"
+      style="width: {scrollProgress}%;"
+    ></div>
+  </div>
+
   <!-- Top Global Documentation Navbar -->
   <header class="docs-header sticky top-0 z-40 border-b">
     <div class="w-full max-w-[1480px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
@@ -147,7 +183,7 @@
             data-docs-search
             bind:value={searchQuery}
             onkeydown={handleSearchKeydown}
-            placeholder="Search the documentation..."
+            placeholder="Search the documentation... (press / or Ctrl K)"
             aria-label="Search documentation"
             class="docs-search w-full h-9 pl-9 pr-14 rounded-md border text-sm focus:outline-none transition-colors"
           />
@@ -157,6 +193,21 @@
 
       <!-- Right: Action Links -->
       <div class="flex items-center gap-2 text-xs font-medium">
+        <a
+          href="/admin"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="docs-icon-button hidden sm:inline-flex h-9 px-3 items-center gap-1.5 rounded-md border text-xs font-semibold transition-colors hover:text-[var(--accent)]"
+          title="Open HydroGo Admin Studio"
+        >
+          <span>Admin</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+
         <button
           type="button"
           onclick={toggleTheme}

@@ -20,6 +20,7 @@
   import AccountView from './routes/account/AccountView.svelte';
   import ContentTypesView from './routes/contenttypes/ContentTypesView.svelte';
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
+  import AppLoading from '$lib/components/shell/AppLoading.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   let initializing = $state(true);
@@ -95,7 +96,7 @@
 </script>
 
 {#if initializing}
-  <DashboardSkeleton />
+  <AppLoading />
 {:else if !auth.isAuthenticated}
   <LoginView />
 {:else}
