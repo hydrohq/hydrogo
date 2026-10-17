@@ -110,7 +110,7 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full size-2 bg-sky-500"></span>
         </span>
-        <span class="font-mono text-[11px] tracking-wide uppercase text-muted-foreground">Starting HydroGo Admin...</span>
+        <span class="font-mono text-[11px] tracking-wide uppercase text-muted-foreground">Loading HydroGo...</span>
       </div>
 
       <!-- Right Action Icons Placeholder -->
