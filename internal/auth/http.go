@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -19,6 +20,12 @@ import (
 // AuditRecorder records security-relevant authentication events.
 type AuditRecorder interface {
 	Record(ctx context.Context, action, targetID string) error
+}
+
+// DetailedAuditRecorder optionally records change details alongside an audit action.
+type DetailedAuditRecorder interface {
+	AuditRecorder
+	RecordDetails(ctx context.Context, action, targetID string, before, after []byte) error
 }
 
 type AuditRecorderFunc func(context.Context, string, string) error
@@ -179,7 +186,36 @@ func noStoreAuthResponse(w http.ResponseWriter) {
 
 func (h HTTPHandler) recordAuthFailure(r *http.Request, email string) {
 	digest := sha256.Sum256([]byte(NormalizeEmail(email)))
-	h.recordAuthEvent(r, "auth.login_failed", hex.EncodeToString(digest[:]))
+	target := hex.EncodeToString(digest[:])
+	if detailed, ok := h.Audit.(DetailedAuditRecorder); ok {
+		details, _ := json.Marshal(map[string]any{
+			"ip":              clientIP(r),
+			"user_agent":      r.UserAgent(),
+			"method":          r.Method,
+			"path":            r.URL.Path,
+			"attempted_email": maskEmail(email),
+			"status":          http.StatusUnauthorized,
+			"reason":          "invalid_credentials",
+		})
+		_ = detailed.RecordDetails(r.Context(), "auth.login_failed", target, nil, details)
+		return
+	}
+	h.recordAuthEvent(r, "auth.login_failed", target)
+}
+
+func maskEmail(email string) string {
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		if len(email) <= 3 {
+			return "***"
+		}
+		return email[:2] + "***"
+	}
+	user, domain := parts[0], parts[1]
+	if len(user) <= 2 {
+		return user[:1] + "***@" + domain
+	}
+	return user[:2] + "***@" + domain
 }
 
 func (h HTTPHandler) recordAuthEvent(r *http.Request, action, target string) {

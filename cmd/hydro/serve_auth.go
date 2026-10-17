@@ -20,13 +20,30 @@ import (
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
 )
 
-func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope bool) auth.AuditRecorder {
-	store := auditstore.Store{Dialect: dialect, RequireTenantScope: requireTenantScope}
-	return auth.AuditRecorderFunc(func(ctx context.Context, action, targetID string) error {
-		return database.NewTenantTransactor(db, dialect, requireTenantScope).Within(ctx, func(tx database.Executor) error {
-			return store.Record(ctx, tx, newAuditID(), action, targetID)
-		})
+type auditRecorderImpl struct {
+	store              auditstore.Store
+	db                 *sql.DB
+	dialect            database.Dialect
+	requireTenantScope bool
+}
+
+func (r auditRecorderImpl) Record(ctx context.Context, action, targetID string) error {
+	return r.RecordDetails(ctx, action, targetID, nil, nil)
+}
+
+func (r auditRecorderImpl) RecordDetails(ctx context.Context, action, targetID string, before, after []byte) error {
+	return database.NewTenantTransactor(r.db, r.dialect, r.requireTenantScope).Within(ctx, func(tx database.Executor) error {
+		return r.store.RecordChange(ctx, tx, newAuditID(), action, targetID, before, after)
 	})
+}
+
+func newAuditRecorder(db *sql.DB, dialect database.Dialect, requireTenantScope bool) auth.DetailedAuditRecorder {
+	return auditRecorderImpl{
+		store:              auditstore.Store{Dialect: dialect, RequireTenantScope: requireTenantScope},
+		db:                 db,
+		dialect:            dialect,
+		requireTenantScope: requireTenantScope,
+	}
 }
 
 func configuredMFARoles(values []string) []auth.Role {
