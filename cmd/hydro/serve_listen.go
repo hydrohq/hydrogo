@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -194,7 +195,20 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
 				target := rule + " from " + r.RemoteAddr
-				_ = authHTTP.Audit.Record(r.Context(), "security.request_rejected", target)
+				details, _ := json.Marshal(map[string]any{
+					"ip":         r.RemoteAddr,
+					"user_agent": r.UserAgent(),
+					"method":     r.Method,
+					"path":       r.URL.Path,
+					"query":      r.URL.RawQuery,
+					"rule":       rule,
+					"status":     http.StatusForbidden,
+				})
+				if detailed, ok := authHTTP.Audit.(auth.DetailedAuditRecorder); ok {
+					_ = detailed.RecordDetails(r.Context(), "security.request_rejected", target, nil, details)
+				} else {
+					_ = authHTTP.Audit.Record(r.Context(), "security.request_rejected", target)
+				}
 			}
 		},
 		SecureCookie:        cfg.Security.SecureCookies,

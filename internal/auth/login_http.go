@@ -120,7 +120,23 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Audit != nil {
-		if err := h.Audit.Record(r.Context(), "auth.login", user.ID); err != nil {
+		if detailed, ok := h.Audit.(DetailedAuditRecorder); ok {
+			details, _ := json.Marshal(map[string]any{
+				"ip":         clientIP(r),
+				"user_agent": r.UserAgent(),
+				"method":     r.Method,
+				"path":       r.URL.Path,
+				"user_id":    user.ID,
+				"email":      user.Email,
+				"role":       string(user.Role),
+				"status":     http.StatusOK,
+			})
+			if err := detailed.RecordDetails(r.Context(), "auth.login", user.ID, nil, details); err != nil {
+				_ = h.Service.RevokeSession(r.Context(), token)
+				http.Error(w, "authentication failed", http.StatusInternalServerError)
+				return
+			}
+		} else if err := h.Audit.Record(r.Context(), "auth.login", user.ID); err != nil {
 			_ = h.Service.RevokeSession(r.Context(), token)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
