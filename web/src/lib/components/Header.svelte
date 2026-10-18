@@ -35,10 +35,6 @@
 
       <div class="flex items-center gap-3">
         <a href="/en" class="hover:text-zinc-900 transition-colors text-[11px] font-bold text-zinc-600">English</a>
-        <span class="text-zinc-300">|</span>
-        <a href="/admin" target="_blank" class="text-red-600 hover:text-red-700 text-[11px] font-semibold">
-          Yönetici Paneli ↗
-        </a>
       </div>
     </div>
   </div>
