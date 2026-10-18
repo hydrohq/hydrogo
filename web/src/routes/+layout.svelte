@@ -1,6 +1,7 @@
 <script lang="ts">
   import './layout.css';
   import Header from '#lib/components/Header.svelte';
+  import LiveInfoBar from '#lib/components/LiveInfoBar.svelte';
   import Footer from '#lib/components/Footer.svelte';
   import type { LayoutProps } from './$types';
 
@@ -16,6 +17,7 @@
 <div class="min-h-screen bg-black text-white font-sans antialiased selection:bg-red-600 selection:text-white flex flex-col justify-between">
   <div>
     <Header />
+    <LiveInfoBar />
     <main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 w-full">
       {@render children()}
     </main>
