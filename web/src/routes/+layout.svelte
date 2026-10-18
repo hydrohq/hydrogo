@@ -2,6 +2,8 @@
   import './layout.css';
   import Header from '#lib/components/Header.svelte';
   import LiveInfoBar from '#lib/components/LiveInfoBar.svelte';
+  import WhatsAppTipButton from '#lib/components/WhatsAppTipButton.svelte';
+  import PushNotificationPrompt from '#lib/components/PushNotificationPrompt.svelte';
   import Footer from '#lib/components/Footer.svelte';
   import type { LayoutProps } from './$types';
 
@@ -22,5 +24,7 @@
       {@render children()}
     </main>
   </div>
+  <WhatsAppTipButton />
+  <PushNotificationPrompt />
   <Footer />
 </div>
