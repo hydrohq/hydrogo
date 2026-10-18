@@ -18,6 +18,18 @@ export interface NewsArticle {
   updated_at: string;
 }
 
+export interface PageData {
+  id: string;
+  locale: string;
+  slug: string;
+  title: string;
+  body: string;
+  tags?: string[];
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface NavItem {
   id: string;
   label: string;
@@ -509,6 +521,10 @@ export async function getNewsList(params?: {
 
 export async function getNewsBySlug(slug: string, locale: string = 'tr'): Promise<NewsArticle | null> {
   return await fetchApi<NewsArticle>(`/api/v1/news/${locale}/${slug}`);
+}
+
+export async function getPage(slug: string, locale: string = 'tr'): Promise<PageData | null> {
+  return await fetchApi<PageData>(`/api/v1/pages/${locale}/${slug}`);
 }
 
 // Fallback shown only if the panel has no site_navigation / site_settings

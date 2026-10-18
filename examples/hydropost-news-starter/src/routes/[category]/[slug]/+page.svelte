@@ -59,51 +59,84 @@
   let speechRate = $state(1.0);
   let speechSupported = $state(false);
   let speakingArticleId = $state<string | null>(null);
+  let audioPlayer: HTMLAudioElement | null = null;
 
   function getCleanArticleText(art: NewsArticle): string {
     if (!art) return '';
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = art.body || '';
     const bodyText = tempDiv.textContent || tempDiv.innerText || '';
-    return `${art.title}. ${art.excerpt || ''}. ${bodyText}`;
+    return `${art.title}. ${art.excerpt || ''}. ${bodyText}`.trim();
   }
 
-  // Chrome/Edge return an empty voice list until the async 'voiceschanged'
-  // event fires at least once — without this, picking a Turkish voice below
-  // silently fails on first use and the browser falls back to its default
-  // (usually English) voice even though utterance.lang is set correctly.
-  let voicesReady = $state(false);
-  function loadVoices() {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    if (window.speechSynthesis.getVoices().length > 0) voicesReady = true;
-  }
-
-  function pickVoice(lang: string): SpeechSynthesisVoice | null {
+  function pickTurkishVoice(): SpeechSynthesisVoice | null {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
     const voices = window.speechSynthesis.getVoices();
-    const prefix = lang.split('-')[0];
-    return voices.find((v) => v.lang === lang) || voices.find((v) => v.lang.startsWith(prefix)) || null;
+    // 1. Direct match: lang begins with tr (tr, tr-TR, tr_TR)
+    const direct = voices.find((v) => v.lang.toLowerCase().replace('_', '-').startsWith('tr'));
+    if (direct) return direct;
+    // 2. Name contains Turkish, Türkçe, Turkey, Tolga, Emel, or Yelda
+    return (
+      voices.find((v) => {
+        const n = v.name.toLowerCase();
+        return (
+          n.includes('turkish') ||
+          n.includes('türkçe') ||
+          n.includes('turkey') ||
+          n.includes('tolga') ||
+          n.includes('emel') ||
+          n.includes('yelda')
+        );
+      }) || null
+    );
+  }
+
+  function stopSpeech() {
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      audioPlayer = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    isSpeaking = false;
+    isPaused = false;
+    speakingArticleId = null;
   }
 
   function toggleSpeech(art: NewsArticle) {
-    if (!speechSupported || !art) return;
-    const synth = window.speechSynthesis;
+    if (!art) return;
 
     if (isSpeaking && speakingArticleId === art.id) {
       if (isPaused) {
-        synth.resume();
+        if (audioPlayer) {
+          audioPlayer.play();
+        } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.resume();
+        }
         isPaused = false;
       } else {
-        synth.pause();
+        if (audioPlayer) {
+          audioPlayer.pause();
+        } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.pause();
+        }
         isPaused = true;
       }
-    } else {
-      synth.cancel();
-      const text = getCleanArticleText(art);
-      const lang = art.locale === 'en' ? 'en-US' : 'tr-TR';
+      return;
+    }
+
+    stopSpeech();
+    const text = getCleanArticleText(art);
+    if (!text) return;
+
+    const nativeVoice = pickTurkishVoice();
+    if (nativeVoice && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      // 1. Browser has a native Turkish voice installed
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      const voice = pickVoice(lang);
-      if (voice) utterance.voice = voice;
+      utterance.lang = 'tr-TR';
+      utterance.voice = nativeVoice;
       utterance.rate = speechRate;
 
       utterance.onend = () => {
@@ -113,29 +146,50 @@
       };
 
       utterance.onerror = () => {
-        isSpeaking = false;
-        isPaused = false;
-        speakingArticleId = null;
+        stopSpeech();
       };
 
-      synth.speak(utterance);
+      window.speechSynthesis.speak(utterance);
       isSpeaking = true;
       isPaused = false;
       speakingArticleId = art.id;
-    }
-  }
+    } else {
+      // 2. Browser/OS has no Turkish voice installed -> Fall back to Google Turkish TTS API
+      const url = `/api/tts?text=${encodeURIComponent(text.slice(0, 2500))}`;
+      audioPlayer = new Audio(url);
+      audioPlayer.playbackRate = speechRate;
 
-  function stopSpeech() {
-    if (!speechSupported) return;
-    window.speechSynthesis.cancel();
-    isSpeaking = false;
-    isPaused = false;
-    speakingArticleId = null;
+      audioPlayer.onended = () => {
+        isSpeaking = false;
+        isPaused = false;
+        speakingArticleId = null;
+        audioPlayer = null;
+      };
+
+      audioPlayer.onerror = () => {
+        stopSpeech();
+      };
+
+      audioPlayer
+        .play()
+        .then(() => {
+          isSpeaking = true;
+          isPaused = false;
+          speakingArticleId = art.id;
+        })
+        .catch((err) => {
+          console.error('Audio play error:', err);
+          stopSpeech();
+        });
+    }
   }
 
   function changeRate(newRate: number) {
     speechRate = newRate;
-    if (isSpeaking && activeArticle) {
+    if (audioPlayer) {
+      audioPlayer.playbackRate = newRate;
+    }
+    if (isSpeaking && activeArticle && !audioPlayer) {
       const current = activeArticle;
       stopSpeech();
       toggleSpeech(current);
@@ -281,10 +335,12 @@
   }
 
   onMount(() => {
-    speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-    if (speechSupported) {
-      loadVoices();
-      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    speechSupported = typeof window !== 'undefined';
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', () => {
+        window.speechSynthesis.getVoices();
+      });
     }
 
     if (typeof localStorage !== 'undefined' && data?.article?.id) {
@@ -309,10 +365,7 @@
     return () => {
       if (articleObserver) articleObserver.disconnect();
       if (sentinelObserver) sentinelObserver.disconnect();
-      if (speechSupported) {
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
-      }
+      stopSpeech();
     };
   });
 </script>
@@ -393,7 +446,7 @@
             </h1>
 
             {#if art.excerpt}
-              <p class="text-base sm:text-lg text-[var(--hp-ink-soft)] font-medium leading-relaxed border-l-4 border-[var(--hp-primary)] pl-4 py-2 bg-[var(--hp-surface-sunken)] rounded-r-xl">
+              <p class="text-lg sm:text-xl text-[var(--hp-ink-soft)] font-medium leading-relaxed my-2">
                 {art.excerpt}
               </p>
             {/if}
@@ -498,9 +551,8 @@
                so a generic text-xl on the container doesn't cascade to them —
                use the plugin's own prose-lg/prose-xl size modifiers instead. -->
           <article
-            class={`prose max-w-none text-[var(--hp-ink-soft)] transition-all duration-150 ${
-              fontScale === 'xl' ? 'prose-xl' : fontScale === 'lg' ? 'prose-lg' : 'prose-base'
-            }`}
+            class="prose max-w-none text-[var(--hp-ink-soft)] transition-all duration-150"
+            style={`--article-font-size: ${fontScale === 'xl' ? '1.35rem' : fontScale === 'lg' ? '1.175rem' : '1.025rem'}; --article-line-height: ${fontScale === 'xl' ? '2.1' : fontScale === 'lg' ? '1.95' : '1.85'};`}
           >
             {@html sanitizeHtml(art.body)}
           </article>
