@@ -321,13 +321,16 @@
     {/if}
 
     <div class="flex items-center justify-between py-3 border-y border-zinc-800 text-xs text-zinc-400">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 flex-wrap">
         {#if article.author_name}
           <span class="font-bold text-white flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-red-500"></span>
             {article.author_name}
           </span>
         {/if}
+        <span class="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[11px]">
+          Mahreç: {article.author_name ? 'Özel Haber' : 'Haber Merkezi'}
+        </span>
         <span>Yayınlanma: {new Date(article.created_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
       </div>
 

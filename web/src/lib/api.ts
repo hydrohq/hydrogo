@@ -61,6 +61,35 @@ export interface VideoNews {
   category?: string;
 }
 
+export interface Masthead {
+  id?: string;
+  site_name: string;
+  publisher: string;
+  managing_editor: string;
+  news_director?: string;
+  legal_counsel?: string;
+  hosting_provider: string;
+  address: string;
+  phone: string;
+  email: string;
+  kep_address?: string;
+  publication_type?: string;
+  editorial_principles?: string;
+}
+
+export interface OfficialAnnouncement {
+  id: string;
+  title: string;
+  bik_number?: string;
+  institution: string;
+  announcement_type?: string;
+  city?: string;
+  deadline?: string;
+  body: string;
+  official_url?: string;
+  created_at?: string;
+}
+
 export interface ApiResponse<T> {
   data: T;
   metadata?: {
@@ -190,5 +219,15 @@ export async function getGalleries(limit: number = 6): Promise<Gallery[]> {
 
 export async function getVideos(limit: number = 6): Promise<VideoNews[]> {
   const data = await fetchApi<VideoNews[]>(`/api/v1/content/videos?limit=${limit}`);
+  return data || [];
+}
+
+export async function getMasthead(): Promise<Masthead | null> {
+  const data = await fetchApi<Masthead[]>('/api/v1/content/masthead?limit=1');
+  return data && data.length > 0 ? data[0] : null;
+}
+
+export async function getOfficialAnnouncements(limit: number = 20): Promise<OfficialAnnouncement[]> {
+  const data = await fetchApi<OfficialAnnouncement[]>(`/api/v1/content/official_announcements?limit=${limit}`);
   return data || [];
 }
