@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getNewsBySlug, getNewsList, getMediaUrl, getAds, getComments, getSiteSettings, type NewsArticle } from '#lib';
+import { getViewCount } from '#lib/server/views';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   // Edge cache 60s
@@ -53,6 +54,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
 
     return {
       article,
+      views: getViewCount(article.slug),
       related: relatedFiltered,
       popularNews,
       jsonLd,

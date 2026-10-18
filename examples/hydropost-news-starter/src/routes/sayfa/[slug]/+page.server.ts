@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getPage } from '#lib';
+import { getViewCount } from '#lib/server/views';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   if (params.slug.includes('.')) {
@@ -22,5 +23,6 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
 
   return {
     page,
+    views: getViewCount('page_' + params.slug),
   };
 };
