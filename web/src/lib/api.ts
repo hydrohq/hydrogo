@@ -160,6 +160,23 @@ const PHOTO_MAP: Record<string, string[]> = {
   ],
 };
 
+export function slugify(text?: string): string {
+  if (!text) return 'haber';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/&/g, 've')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'haber';
+}
+
 export function getMediaUrl(mediaId?: string, category?: string): string {
   if (mediaId && (mediaId.startsWith('http://') || mediaId.startsWith('https://'))) {
     return mediaId;
@@ -167,8 +184,23 @@ export function getMediaUrl(mediaId?: string, category?: string): string {
   // If demo media ID or no binary media uploaded, return curated editorial photo
   if (!mediaId || mediaId.startsWith('demo-')) {
     const key = mediaId || category || 'haber';
-    const cat = (category || '').toLowerCase();
-    const photos = PHOTO_MAP[cat] || PHOTO_MAP.default;
+    const cat = slugify(category);
+    let photos = PHOTO_MAP.default;
+
+    if (cat.includes('ekonomi') || cat.includes('ticaret') || cat.includes('finans')) {
+      photos = PHOTO_MAP.ekonomi;
+    } else if (cat.includes('teknoloji') || cat.includes('yazilim') || cat.includes('muhendislik') || cat.includes('urun') || cat.includes('tasarim') || cat.includes('performans') || cat.includes('veritabani') || cat.includes('guvenlik')) {
+      photos = PHOTO_MAP.teknoloji;
+    } else if (cat.includes('spor')) {
+      photos = PHOTO_MAP.spor;
+    } else if (cat.includes('dunya') || cat.includes('rehber')) {
+      photos = PHOTO_MAP.dunya;
+    } else if (cat.includes('saglik') || cat.includes('eczane')) {
+      photos = PHOTO_MAP.saglik;
+    } else if (cat.includes('gundem') || cat.includes('siyaset') || cat.includes('haber')) {
+      photos = PHOTO_MAP.gundem;
+    }
+
     let hash = 0;
     for (let i = 0; i < key.length; i++) {
       hash = (hash << 5) - hash + key.charCodeAt(i);
@@ -181,23 +213,35 @@ export function getMediaUrl(mediaId?: string, category?: string): string {
 }
 
 export function getCategoryBadge(category?: string): { bg: string; text: string; border: string; glow: string } {
-  const cat = (category || '').toLowerCase();
-  switch (cat) {
-    case 'gundem':
-      return { bg: 'bg-rose-600', text: 'text-white', border: 'border-rose-500', glow: 'shadow-rose-600/30' };
-    case 'ekonomi':
-      return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-500', glow: 'shadow-emerald-600/30' };
-    case 'teknoloji':
-      return { bg: 'bg-sky-600', text: 'text-white', border: 'border-sky-500', glow: 'shadow-sky-600/30' };
-    case 'spor':
-      return { bg: 'bg-amber-600', text: 'text-white', border: 'border-amber-500', glow: 'shadow-amber-600/30' };
-    case 'dunya':
-      return { bg: 'bg-violet-600', text: 'text-white', border: 'border-violet-500', glow: 'shadow-violet-600/30' };
-    case 'saglik':
-      return { bg: 'bg-teal-600', text: 'text-white', border: 'border-teal-500', glow: 'shadow-teal-600/30' };
-    default:
-      return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-500', glow: 'shadow-red-600/30' };
+  const cat = slugify(category);
+  if (cat.includes('gundem') || cat.includes('siyaset') || cat.includes('haber')) {
+    return { bg: 'bg-rose-600', text: 'text-white', border: 'border-rose-500', glow: 'shadow-rose-600/30' };
   }
+  if (cat.includes('ekonomi') || cat.includes('ticaret') || cat.includes('finans')) {
+    return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-500', glow: 'shadow-emerald-600/30' };
+  }
+  if (cat.includes('teknoloji') || cat.includes('yazilim') || cat.includes('muhendislik') || cat.includes('urun')) {
+    return { bg: 'bg-sky-600', text: 'text-white', border: 'border-sky-500', glow: 'shadow-sky-600/30' };
+  }
+  if (cat.includes('spor')) {
+    return { bg: 'bg-amber-600', text: 'text-white', border: 'border-amber-500', glow: 'shadow-amber-600/30' };
+  }
+  if (cat.includes('dunya') || cat.includes('rehber')) {
+    return { bg: 'bg-violet-600', text: 'text-white', border: 'border-violet-500', glow: 'shadow-violet-600/30' };
+  }
+  if (cat.includes('saglik') || cat.includes('eczane')) {
+    return { bg: 'bg-teal-600', text: 'text-white', border: 'border-teal-500', glow: 'shadow-teal-600/30' };
+  }
+  if (cat.includes('guvenlik') || cat.includes('mimari')) {
+    return { bg: 'bg-red-700', text: 'text-white', border: 'border-red-600', glow: 'shadow-red-700/30' };
+  }
+  if (cat.includes('veritabani') || cat.includes('performans')) {
+    return { bg: 'bg-indigo-600', text: 'text-white', border: 'border-indigo-500', glow: 'shadow-indigo-600/30' };
+  }
+  if (cat.includes('tasarim') || cat.includes('frontend')) {
+    return { bg: 'bg-fuchsia-600', text: 'text-white', border: 'border-fuchsia-500', glow: 'shadow-fuchsia-600/30' };
+  }
+  return { bg: 'bg-rose-600', text: 'text-white', border: 'border-rose-500', glow: 'shadow-rose-600/30' };
 }
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T | null> {

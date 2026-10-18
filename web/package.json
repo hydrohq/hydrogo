@@ -25,9 +25,9 @@
 		"vite": "^8.3.0"
 	},
 	"imports": {
-		"#lib": "./src/lib/index.js",
+		"#lib": "./src/lib/index.ts",
 		"#lib/*": "./src/lib/*",
-		"$lib": "./src/lib/index.js",
+		"$lib": "./src/lib/index.ts",
 		"$lib/*": "./src/lib/*"
 	},
 	"dependencies": {

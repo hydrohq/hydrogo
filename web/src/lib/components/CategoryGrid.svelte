@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type NewsArticle, getMediaUrl, getCategoryBadge } from '#lib';
+  import { type NewsArticle, getMediaUrl, getCategoryBadge, slugify } from '#lib';
 
   interface Props {
     title: string;
@@ -15,14 +15,14 @@
 {#if items.length > 0}
   <section class="my-8">
     <!-- Header -->
-    <div class="flex items-center justify-between pb-2 mb-4 border-b-2 border-zinc-800">
-      <h2 class="text-lg md:text-xl font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-        <span class={`w-2.5 h-2.5 rounded ${badge.bg}`}></span>
+    <div class="flex items-center justify-between pb-2.5 mb-4 border-b-2 border-zinc-800">
+      <h2 class="text-lg md:text-xl font-extrabold text-white uppercase tracking-wider flex items-center gap-2.5">
+        <span class={`w-3 h-3 rounded-md ${badge.bg} shadow-md`}></span>
         {title}
       </h2>
       <a
-        href={`/${categorySlug}`}
-        class="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
+        href={`/${slugify(categorySlug)}`}
+        class="text-xs font-bold text-zinc-400 hover:text-red-400 flex items-center gap-1.5 transition-colors"
       >
         Tümünü Gör <span>→</span>
       </a>
@@ -33,18 +33,18 @@
       <!-- Primary Card -->
       <div class="md:col-span-7">
         <a
-          href={`/${primary.category || categorySlug}/${primary.slug}`}
-          class="group block relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-xl aspect-[16/10] transition-all duration-300 hover:border-zinc-700 hover:shadow-2xl"
+          href={`/${slugify(primary.category || categorySlug)}/${primary.slug}`}
+          class="group block relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-xl aspect-[16/10] transition-all duration-300 hover:-translate-y-1.5 hover:border-red-500/80 hover:shadow-2xl hover:shadow-red-950/40 cursor-pointer"
         >
           <img
             src={getMediaUrl(primary.cover_media_id, primary.category || categorySlug)}
             alt={primary.title}
-            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
             loading="lazy"
           />
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-          <div class="absolute bottom-0 inset-x-0 p-5 space-y-2">
-            <span class={`inline-block px-2 py-0.5 rounded ${badge.bg} ${badge.text} text-[10px] font-bold uppercase tracking-wider shadow`}>
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent pointer-events-none"></div>
+          <div class="absolute bottom-0 inset-x-0 p-5 sm:p-6 space-y-2 pointer-events-auto">
+            <span class={`inline-block px-2.5 py-0.5 rounded ${badge.bg} ${badge.text} text-[10px] font-bold uppercase tracking-wider shadow`}>
               {primary.category || categorySlug}
             </span>
             <h3 class="text-base sm:text-lg md:text-xl font-extrabold text-white leading-snug group-hover:text-red-400 transition-colors drop-shadow">
@@ -63,14 +63,14 @@
       <div class="md:col-span-5 flex flex-col justify-between gap-3">
         {#each items.slice(1, 4) as item}
           <a
-            href={`/${item.category || categorySlug}/${item.slug}`}
-            class="group flex items-center gap-3.5 p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 transition-all duration-200 hover:-translate-y-0.5 shadow-md"
+            href={`/${slugify(item.category || categorySlug)}/${item.slug}`}
+            class="group flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 hover:border-red-500/70 hover:bg-zinc-850 hover:-translate-y-1 hover:shadow-xl hover:shadow-red-950/30 transition-all duration-300 cursor-pointer"
           >
-            <div class="w-24 h-18 sm:w-28 sm:h-20 shrink-0 rounded-lg overflow-hidden bg-zinc-800 relative">
+            <div class="w-24 h-18 sm:w-28 sm:h-20 shrink-0 rounded-xl overflow-hidden bg-zinc-800 relative shadow">
               <img
                 src={getMediaUrl(item.cover_media_id, item.category || categorySlug)}
                 alt={item.title}
-                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                class="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-115"
                 loading="lazy"
               />
             </div>
