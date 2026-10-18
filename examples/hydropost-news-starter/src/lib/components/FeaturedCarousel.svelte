@@ -37,10 +37,6 @@
     if (count <= 1) return;
     activeIndex = (activeIndex + 1) % count;
   }
-
-  function dateOf(item: NewsArticle): string {
-    return item.created_at ? new Date(item.created_at).toLocaleDateString('tr-TR') : '';
-  }
 </script>
 
 {#if count > 0}
@@ -73,7 +69,6 @@
           {#if active.excerpt}
             <p class="mt-2 text-sm text-white/75 line-clamp-2 max-w-xl hidden sm:block">{active.excerpt}</p>
           {/if}
-          <span class="mt-3 block text-xs text-white/60 hp-tabular">{dateOf(active)}</span>
         </a>
 
         {#if count > 1}

@@ -17,7 +17,7 @@
   <meta name="description" content={`${categoryTitle} kategorisindeki en son haberler, analizler ve sıcak gelişmeler.`} />
 </svelte:head>
 
-<div class="max-w-6xl mx-auto py-4">
+<div class="py-4">
   <!-- Breadcrumbs -->
   <nav class="flex items-center gap-2 text-xs text-[var(--hp-muted)] mb-4 select-none">
     <a href="/" class="hover:text-[var(--hp-ink-soft)] transition-colors">Ana Sayfa</a>

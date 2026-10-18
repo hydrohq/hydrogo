@@ -331,7 +331,7 @@
   {/if}
 </svelte:head>
 
-<div class="max-w-7xl mx-auto py-4 px-2 sm:px-0">
+<div class="py-4">
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
     <!-- Main Left Column: Article Stream & Related News -->
     <div class="lg:col-span-8 min-w-0">
@@ -352,17 +352,6 @@
           data-title={art.title}
           class="article-container mb-12"
         >
-          <!-- Breadcrumbs -->
-          <nav class="flex items-center gap-2 text-xs text-[var(--hp-muted)] mb-4 select-none">
-            <a href="/" class="hover:text-[var(--hp-ink-soft)] transition-colors">Ana Sayfa</a>
-            <span>/</span>
-            <a href={`/${slugify(art.category)}`} class="hover:text-[var(--hp-ink-soft)] transition-colors uppercase font-semibold">
-              {art.category || 'Haber'}
-            </a>
-            <span>/</span>
-            <span class="text-[var(--hp-ink-soft)] truncate max-w-xs">{art.title}</span>
-          </nav>
-
           <!-- Article Header -->
           <header class="space-y-4 mb-6">
             <div class="flex items-center justify-between flex-wrap gap-2">
@@ -603,12 +592,12 @@
 
     <!-- Right Sticky Column: Popüler Haberler & Sidebar Ad -->
     <aside class="hidden lg:block lg:col-span-4 sticky top-28 space-y-6">
-      <div class="bg-[var(--hp-surface)] border border-[var(--hp-border)] rounded-2xl p-5">
-        <h3 class="text-base font-bold text-[var(--hp-ink)] mb-4">
+      <div class="bg-[var(--hp-surface)] border border-[var(--hp-border)] rounded-2xl p-5 sm:p-6">
+        <h3 class="text-base font-bold text-[var(--hp-ink)] mb-5">
           Popüler Haberler
         </h3>
 
-        <div class="space-y-3.5">
+        <div class="space-y-5">
           {#each popularList.slice(0, 6) as item, idx (item.id)}
             <NewsCard {item} variant="row" rank={idx + 1} index={idx} />
           {/each}

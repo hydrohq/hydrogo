@@ -27,14 +27,14 @@
 </script>
 
 {#if variant === 'row'}
-  <a href={href} class="group flex items-center gap-3">
+  <a href={href} class="group flex items-center gap-3.5">
     {#if rank}
-      <span class="w-6 shrink-0 text-center font-mono font-bold text-xs text-[var(--hp-subtle)] group-hover:text-[var(--hp-primary)] transition-colors">{rank}</span>
+      <span class="w-6 shrink-0 text-center font-mono font-bold text-sm text-[var(--hp-subtle)] group-hover:text-[var(--hp-primary)] transition-colors">{rank}</span>
     {/if}
-    <div class="w-16 aspect-video shrink-0 rounded-lg overflow-hidden bg-[var(--hp-surface-sunken)]">
+    <div class="w-24 aspect-video shrink-0 rounded-lg overflow-hidden bg-[var(--hp-surface-sunken)]">
       <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)} alt={item.title} class="w-full h-full object-cover" loading="lazy" />
     </div>
-    <h4 class="min-w-0 text-xs sm:text-sm font-bold text-[var(--hp-ink)] line-clamp-2 leading-snug group-hover:text-[var(--hp-primary)] transition-colors">
+    <h4 class="min-w-0 text-sm font-bold text-[var(--hp-ink)] line-clamp-2 leading-snug group-hover:text-[var(--hp-primary)] transition-colors">
       {item.title}
     </h4>
   </a>
@@ -53,8 +53,7 @@
     </div>
     <div class="px-3.5 py-3">
       {#if showCategory && item.category}
-        <span class={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide mb-1 ${badge.text}`}>
-          <span class={`w-1.5 h-1.5 rounded-full ${badge.bg.replace('-100', '-600')}`}></span>
+        <span class={`block text-[11px] font-bold uppercase tracking-wide mb-1 ${badge.text}`}>
           {item.category}
         </span>
       {/if}
