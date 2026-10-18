@@ -334,6 +334,58 @@ func (s Store) ListPublished(ctx context.Context, db database.Executor, locale s
 	return items, rows.Err()
 }
 
+// ListPublishedFiltered returns published items for a locale, optionally filtered by category.
+func (s Store) ListPublishedFiltered(ctx context.Context, db database.Executor, locale string, category string, limit int) ([]news.Item, error) {
+	if category == "" {
+		return s.ListPublished(ctx, db, locale, limit)
+	}
+	if limit < 1 || limit > 100 {
+		return nil, ErrInvalidListLimit
+	}
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("news published list requires a query-capable executor")
+	}
+	filter, scopeID, err := s.tenantFilter(ctx, 4)
+	if err != nil {
+		return nil, err
+	}
+	var catFilter string
+	if s.Dialect == database.Postgres {
+		catFilter = ` AND LOWER(category) = LOWER(` + s.p(2) + `)`
+	} else {
+		catFilter = ` AND category = ` + s.p(2) + ` COLLATE NOCASE`
+	}
+	query := `SELECT id,locale,slug,title,body,cover_media_id,excerpt,key_takeaways,category,author_name,featured,tags,seo_title,seo_description,status,version,revision,published_revision,schedule_generation,scheduled_at,expires_at,created_at,updated_at FROM news_items WHERE locale = ` + s.p(1) + catFilter + ` AND status='published' AND published_revision IS NOT NULL AND deleted_at IS NULL` + s.expiryFilter() + filter + ` ORDER BY updated_at DESC, id ASC LIMIT ` + s.p(3)
+	args := []any{locale, category, limit}
+	if filter != "" {
+		if s.Dialect == database.Postgres {
+			args = append(args, scopeID)
+		} else {
+			args = []any{locale, category, scopeID, limit}
+		}
+	}
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]news.Item, 0)
+	for rows.Next() {
+		item, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 // StreamPublishedRoutes emits only the public route projection for sitemap
 // generation. Rows are read in key order without loading the catalog.
 func (s Store) StreamPublishedRoutes(ctx context.Context, db database.QueryExecutor, visit func(news.Item) error) error {

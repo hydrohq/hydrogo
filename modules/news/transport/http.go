@@ -68,6 +68,10 @@ type publishedListRepository interface {
 	ListPublished(context.Context, database.Executor, string, int) ([]news.Item, error)
 }
 
+type publishedCategoryFilterRepository interface {
+	ListPublishedFiltered(context.Context, database.Executor, string, string, int) ([]news.Item, error)
+}
+
 type adminListRepository interface {
 	ListAdmin(context.Context, database.Executor, int) ([]news.Item, error)
 }

@@ -24,6 +24,12 @@
   let badge = $derived(getCategoryBadge(item.category));
 
   let href = $derived(`/${slugify(item.category)}/${item.slug}`);
+
+  function handleImageError(e: Event) {
+    const target = e.currentTarget as HTMLImageElement;
+    target.onerror = null;
+    target.src = getMediaUrl('', item.category, item.slug, index);
+  }
 </script>
 
 {#if variant === 'row'}
@@ -32,7 +38,13 @@
       <span class="w-6 shrink-0 text-center font-mono font-bold text-sm text-[var(--hp-subtle)] group-hover:text-[var(--hp-primary)] transition-colors">{rank}</span>
     {/if}
     <div class="w-24 aspect-video shrink-0 rounded-lg overflow-hidden bg-[var(--hp-surface-sunken)]">
-      <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)} alt={item.title} class="w-full h-full object-cover" loading="lazy" />
+      <img
+        src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)}
+        alt={item.title}
+        class="w-full h-full object-cover"
+        loading="lazy"
+        onerror={handleImageError}
+      />
     </div>
     <h4 class="min-w-0 text-sm font-bold text-[var(--hp-ink)] line-clamp-2 leading-snug group-hover:text-[var(--hp-primary)] transition-colors">
       {item.title}
@@ -40,7 +52,13 @@
   </a>
 {:else if variant === 'overlay'}
   <a href={href} class="group relative rounded-2xl overflow-hidden bg-[var(--hp-surface-sunken)] aspect-video sm:aspect-auto sm:h-full min-h-[9.5rem] block">
-    <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)} alt={item.title} class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" loading="lazy" />
+    <img
+      src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)}
+      alt={item.title}
+      class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+      loading="lazy"
+      onerror={handleImageError}
+    />
     <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent pointer-events-none"></div>
     <h3 class="absolute bottom-0 inset-x-0 p-4 text-sm sm:text-base font-bold text-white leading-snug line-clamp-2 group-hover:underline decoration-1 underline-offset-2">
       {item.title}
@@ -49,7 +67,13 @@
 {:else}
   <a href={href} class="group rounded-xl overflow-hidden bg-[var(--hp-surface)] border border-[var(--hp-border)] flex flex-col">
     <div class="relative aspect-video overflow-hidden bg-[var(--hp-surface-sunken)]">
-      <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)} alt={item.title} class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" loading="lazy" />
+      <img
+        src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)}
+        alt={item.title}
+        class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        loading="lazy"
+        onerror={handleImageError}
+      />
     </div>
     <div class="px-3.5 py-3">
       {#if showCategory && item.category}
