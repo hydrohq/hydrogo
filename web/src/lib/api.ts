@@ -96,6 +96,7 @@ export interface Poll {
   options: string;
   category?: string;
   total_votes?: number;
+  votes_data?: string;
   is_active?: boolean;
   end_date?: string;
 }
@@ -251,6 +252,13 @@ export async function getActivePoll(): Promise<Poll | null> {
     question: 'Sizce Süper Lig 2026 sezonunda şampiyonluğun en güçlü adayı kim?',
     options: 'Galatasaray,Fenerbahçe,Beşiktaş,Trabzonspor,Diğer',
     total_votes: 1482,
+    votes_data: JSON.stringify({
+      Galatasaray: 620,
+      Fenerbahçe: 480,
+      Beşiktaş: 230,
+      Trabzonspor: 110,
+      Diğer: 42,
+    }),
     is_active: true,
   };
 }

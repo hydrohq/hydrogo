@@ -7,7 +7,7 @@
   import Footer from '#lib/components/Footer.svelte';
   import type { LayoutProps } from './$types';
 
-  let { children }: LayoutProps = $props();
+  let { children, data }: LayoutProps = $props();
 </script>
 
 <svelte:head>
@@ -24,7 +24,9 @@
       {@render children()}
     </main>
   </div>
-  <WhatsAppTipButton />
+  {#if data.whatsappPhone}
+    <WhatsAppTipButton phone={data.whatsappPhone} />
+  {/if}
   <PushNotificationPrompt />
   <Footer />
 </div>

@@ -10,8 +10,10 @@
 
   let selectedOption = $state<string | null>(null);
   let hasVoted = $state(false);
-  let userVoteCount = $state(0);
-  let totalVotes = $derived((poll?.total_votes || 100) + userVoteCount);
+  let isSubmitting = $state(false);
+  let errorMessage = $state<string | null>(null);
+  let extraVotes = $state(0);
+  let currentTotalVotes = $derived((poll?.total_votes || 0) + extraVotes);
 
   let optionsList = $derived(
     poll?.options
@@ -19,43 +21,80 @@
       : ['Evet', 'Hayır', 'Kararsızım']
   );
 
-  // Distribution generator for visual delight
-  let voteResults = $state<Record<string, number>>({});
+  let votePercentages = $state<Record<string, number>>({});
 
-  function calculatePercentages() {
-    const results: Record<string, number> = {};
-    const total = optionsList.length;
-    let remaining = 100;
-
-    optionsList.forEach((opt, idx) => {
-      if (idx === total - 1) {
-        results[opt] = Math.max(5, remaining);
-      } else {
-        const share = Math.floor(remaining / (total - idx + 0.5));
-        results[opt] = share;
-        remaining -= share;
+  function parseExistingVotes() {
+    if (!poll?.votes_data) return;
+    try {
+      const tallies: Record<string, number> = JSON.parse(poll.votes_data);
+      const total = poll.total_votes || Object.values(tallies).reduce((a, b) => a + b, 0);
+      currentTotalVotes = total;
+      const pcts: Record<string, number> = {};
+      for (const opt of optionsList) {
+        const count = tallies[opt] || 0;
+        pcts[opt] = total > 0 ? Math.round((count / total) * 100) : 0;
       }
-    });
-    voteResults = results;
+      votePercentages = pcts;
+    } catch {
+      // ignore JSON parse error
+    }
   }
 
-  function submitVote() {
-    if (!selectedOption || !poll) return;
-    hasVoted = true;
-    userVoteCount += 1;
-    calculatePercentages();
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(`voted_poll_${poll.id}`, selectedOption);
+  async function submitVote() {
+    if (!selectedOption || !poll || isSubmitting) return;
+    isSubmitting = true;
+    errorMessage = null;
+
+    try {
+      const res = await fetch('/api/poll/vote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          pollId: poll.id,
+          option: selectedOption,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.code === 'already_voted') {
+          hasVoted = true;
+          parseExistingVotes();
+        } else {
+          errorMessage = json.message || 'Oy kaydedilemedi.';
+        }
+        return;
+      }
+
+      // Success
+      hasVoted = true;
+      extraVotes += 1;
+      if (json.percentages) {
+        votePercentages = json.percentages;
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`voted_poll_${poll.id}`, selectedOption);
+      }
+    } catch (err) {
+      console.error('Failed to submit poll vote:', err);
+      errorMessage = 'Sunucuya bağlanılamadı, lütfen tekrar deneyin.';
+    } finally {
+      isSubmitting = false;
     }
   }
 
   onMount(() => {
-    if (poll && typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem(`voted_poll_${poll.id}`);
-      if (saved) {
-        selectedOption = saved;
-        hasVoted = true;
-        calculatePercentages();
+    if (poll) {
+      parseExistingVotes();
+      if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(`voted_poll_${poll.id}`);
+        if (saved) {
+          selectedOption = saved;
+          hasVoted = true;
+        }
       }
     }
   });
@@ -68,12 +107,18 @@
         <span class="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
         Günün Anketi
       </span>
-      <span class="text-[11px] text-zinc-500">{totalVotes.toLocaleString('tr-TR')} Oy</span>
+      <span class="text-[11px] text-zinc-500">{currentTotalVotes.toLocaleString('tr-TR')} Oy</span>
     </div>
 
     <h3 class="text-base font-bold text-white leading-snug">
       {poll.question}
     </h3>
+
+    {#if errorMessage}
+      <div class="p-3 rounded-xl bg-red-950/60 border border-red-900 text-red-300 text-xs">
+        ⚠️ {errorMessage}
+      </div>
+    {/if}
 
     {#if !hasVoted}
       <form
@@ -96,6 +141,7 @@
               name="poll_opt"
               value={opt}
               bind:group={selectedOption}
+              disabled={isSubmitting}
               class="w-4 h-4 text-red-600 focus:ring-0 bg-zinc-900 border-zinc-700 cursor-pointer"
             />
             <span class="flex-1">{opt}</span>
@@ -104,17 +150,22 @@
 
         <button
           type="submit"
-          disabled={!selectedOption}
-          class="w-full mt-3 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-red-600/20"
+          disabled={!selectedOption || isSubmitting}
+          class="w-full mt-3 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
         >
-          Oy Kullan
+          {#if isSubmitting}
+            <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span>Kaydediliyor...</span>
+          {:else}
+            <span>Oy Kullan</span>
+          {/if}
         </button>
       </form>
     {:else}
-      <!-- Results view with animated percentage bars -->
+      <!-- Results view with real percentage bars from database -->
       <div class="space-y-3 pt-1">
         {#each optionsList as opt}
-          {@const pct = voteResults[opt] || 25}
+          {@const pct = votePercentages[opt] ?? 0}
           {@const isMyVote = selectedOption === opt}
           <div class="space-y-1">
             <div class="flex items-center justify-between text-xs">
@@ -134,7 +185,7 @@
           </div>
         {/each}
         <div class="pt-2 text-center text-[11px] text-emerald-400 font-medium">
-          ✓ Oyunuz başarıyla kaydedildi. Katılımınız için teşekkürler!
+          ✓ Oyunuz HydroGo veritabanına başarıyla kaydedildi.
         </div>
       </div>
     {/if}
