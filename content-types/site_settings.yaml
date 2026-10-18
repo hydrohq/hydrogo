@@ -1,0 +1,18 @@
+id: site_settings
+label: Site Ayarları
+description: Marka adı, slogan ve footer metinleri — tek kayıt, panelden düzenlenir.
+title_field: site_name
+public: true
+drafts: false
+fields:
+  - {id: site_name, label: Site Adı, kind: text, required: true, list: true}
+  - {id: tagline, label: Slogan, kind: text, list: true}
+  - {id: seo_title, label: "SEO Başlığı (sekme / arama sonucu)", kind: text}
+  - {id: seo_description, label: SEO Açıklaması, kind: textarea}
+  - {id: favicon, label: Favicon, kind: media}
+  - {id: footer_description, label: Footer Açıklaması, kind: textarea}
+  - {id: footer_highlight_title, label: Footer Vitrin Başlığı, kind: text}
+  - {id: footer_highlight_text, label: Footer Vitrin Metni, kind: textarea}
+  - {id: footer_highlight_cta_text, label: Footer Vitrin Buton Metni, kind: text}
+  - {id: footer_highlight_cta_href, label: Footer Vitrin Buton Bağlantısı, kind: text}
+  - {id: copyright_text, label: Telif Metni, kind: text}

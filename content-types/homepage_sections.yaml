@@ -1,0 +1,10 @@
+id: homepage_sections
+label: Anasayfa Bölümleri
+description: Anasayfada hangi bölümlerin, hangi sırayla görüneceğini kontrol eder.
+title_field: key
+public: true
+drafts: false
+fields:
+  - {id: key, label: Bölüm, kind: select, required: true, list: true, filterable: true, options: [hero, son_haberler, bulten, ikinci_grid, cok_okunan, yazarlar_anket, galeri]}
+  - {id: visible, label: "Görünür mü?", kind: boolean, list: true}
+  - {id: sort_order, label: Sıra, kind: number, required: true, list: true}
