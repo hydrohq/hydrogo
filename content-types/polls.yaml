@@ -7,8 +7,8 @@ drafts: true
 revisions: true
 fields:
   - {id: question, label: Anket Sorusu, kind: text, required: true, list: true, searchable: true}
-  - {id: options, label: Seçenekler (Virgülle ayırın), kind: textarea, required: true}
+  - {id: options, label: "Seçenekler (Virgülle ayırın)", kind: textarea, required: true}
   - {id: category, label: Kategori, kind: text, list: true}
   - {id: total_votes, label: Toplam Oy Sayısı, kind: number, list: true}
-  - {id: is_active, label: Aktif mi?, kind: boolean, list: true}
+  - {id: is_active, label: "Aktif mi?", kind: boolean, list: true}
   - {id: end_date, label: Bitiş Tarihi, kind: text}
