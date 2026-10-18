@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, type NewsArticle } from '#lib';
+  import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, trackView, formatViews, type NewsArticle } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import NewsCard from '#lib/components/NewsCard.svelte';
   import CommentsSection from '#lib/components/CommentsSection.svelte';
@@ -15,6 +15,7 @@
   let isLoadingNext = $state(false);
   let hasMore = $state(true);
   let sentinelEl = $state<HTMLElement | null>(null);
+  let articleViews = $state<Record<string, number>>({});
 
   let initialArticle = $derived(data.article);
   let currentArticle = $derived(activeArticle || initialArticle || null);
@@ -37,6 +38,15 @@
       extraQueue = data.related ? [...data.related] : [];
       activeArticle = null;
       hasMore = true;
+      if (data.article.slug) {
+        const slug = data.article.slug;
+        if (data.views) {
+          articleViews[slug] = data.views;
+        }
+        trackView(slug, 'news').then((res) => {
+          if (res !== null) articleViews[slug] = res;
+        });
+      }
     }
   });
 
@@ -416,8 +426,15 @@
                   {art.category}
                 </a>
               {/if}
-              <div class="flex items-center gap-3 text-xs text-[var(--hp-muted)]">
+              <div class="flex items-center gap-3 text-xs text-[var(--hp-muted)] flex-wrap">
                 <span>⏱ {readingTime} dakika okuma</span>
+                <span class="flex items-center gap-1 font-medium text-[var(--hp-ink-soft)]">
+                  <svg class="w-3.5 h-3.5 text-[var(--hp-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>{formatViews(articleViews[art.slug] || (art.slug === data.article?.slug ? data.views : 1420))} okunma</span>
+                </span>
                 <!-- Font sizing controls -->
                 <div class="flex items-center bg-[var(--hp-surface)] border border-[var(--hp-border)] rounded-lg p-0.5">
                   <button

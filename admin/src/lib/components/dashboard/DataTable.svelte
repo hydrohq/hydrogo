@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -9,7 +9,7 @@
     id: string;
     title: string;
     slug?: string;
-    type: 'page' | 'news' | 'audit';
+    type: 'page' | 'news';
     status: string;
     author: string;
     date: string;
@@ -18,7 +18,7 @@
 
   let items = $state<DashboardTableItem[]>([]);
   let loading = $state(true);
-  let activeTab = $state<'all' | 'pages' | 'news' | 'audit'>('all');
+  let activeTab = $state<'all' | 'pages' | 'news'>('all');
   let selectedIds = $state<string[]>([]);
   let searchQuery = $state('');
   let statusFilter = $state('all');
@@ -86,30 +86,6 @@
       console.warn('Failed to load news for dashboard:', e);
     }
 
-    try {
-      // 3. Fetch Audit Logs
-      const auditRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/audit', {
-        params: { limit: 20 },
-      });
-      if (auditRes && auditRes.data && Array.isArray(auditRes.data)) {
-        for (const a of auditRes.data) {
-          combined.push({
-            id: `audit-${a.id}`,
-            title: `${a.action?.toUpperCase()} on ${a.resource || 'resource'}`,
-            slug: a.target,
-            type: 'audit',
-            status: 'recorded',
-            author: a.actor || 'system',
-            date: a.at || new Date().toISOString(),
-            targetPath: '/site',
-          });
-        }
-      }
-    } catch (e) {
-      // Audit may require admin role
-      console.warn('Audit fetch skipped for dashboard:', e);
-    }
-
     // Sort by most recent first
     combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     items = combined;
@@ -121,7 +97,6 @@
       all: items.length,
       pages: items.filter((i) => i.type === 'page').length,
       news: items.filter((i) => i.type === 'news').length,
-      audit: items.filter((i) => i.type === 'audit').length,
     };
   });
 
@@ -133,8 +108,6 @@
       list = list.filter((i) => i.type === 'page');
     } else if (activeTab === 'news') {
       list = list.filter((i) => i.type === 'news');
-    } else if (activeTab === 'audit') {
-      list = list.filter((i) => i.type === 'audit');
     }
 
     // Filter by status
@@ -228,17 +201,6 @@
         <span>News Articles</span>
         <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
           {tabCounts.news}
-        </span>
-      </button>
-
-      <button
-        type="button"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'audit' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
-        onclick={() => { activeTab = 'audit'; pageIndex = 0; }}
-      >
-        <span>Audit Logs</span>
-        <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
-          {tabCounts.audit}
         </span>
       </button>
     </div>
@@ -400,10 +362,8 @@
                   <td class="px-4 py-3 align-middle">
                     {#if item.type === 'page'}
                       <Badge variant="outline" size="sm" class="capitalize">Page</Badge>
-                    {:else if item.type === 'news'}
-                      <Badge variant="default" size="sm" class="capitalize">News</Badge>
                     {:else}
-                      <Badge variant="secondary" size="sm" class="capitalize font-mono text-[10px]">Audit</Badge>
+                      <Badge variant="default" size="sm" class="capitalize">News</Badge>
                     {/if}
                   </td>
                 {/if}
@@ -440,7 +400,7 @@
                         class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
                         onclick={(e) => { e.stopPropagation(); handleRowClick(item); }}
                       >
-                        {item.type === 'audit' ? 'Inspect' : 'Edit'}
+                        Edit
                       </button>
                     {/if}
                   </td>

@@ -1,9 +1,14 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { PageProps } from './$types';
-  import { sanitizeHtml } from '#lib';
+  import { sanitizeHtml, trackView, formatViews } from '#lib';
 
   let { data }: PageProps = $props();
   let p = $derived(data.page);
+  let viewCount = $state<number>(0);
+  $effect(() => {
+    if (data.views) viewCount = data.views;
+  });
 
   const formattedDate = $derived(
     p.updated_at
@@ -14,6 +19,15 @@
         })
       : ''
   );
+
+  onMount(async () => {
+    if (p.slug) {
+      const updated = await trackView('page_' + p.slug, 'page');
+      if (updated !== null) {
+        viewCount = updated;
+      }
+    }
+  });
 </script>
 
 <svelte:head>
@@ -37,11 +51,20 @@
     <h1 class="text-3xl sm:text-4xl font-extrabold text-[var(--hp-ink)] mt-2 tracking-tight">
       {p.title}
     </h1>
-    {#if formattedDate}
-      <p class="text-xs text-[var(--hp-muted)] mt-2">
-        Son Güncelleme: <time class="font-medium text-[var(--hp-ink-soft)]">{formattedDate}</time>
-      </p>
-    {/if}
+    <div class="flex items-center gap-4 text-xs text-[var(--hp-muted)] mt-2 flex-wrap">
+      {#if formattedDate}
+        <p>
+          Son Güncelleme: <time class="font-medium text-[var(--hp-ink-soft)]">{formattedDate}</time>
+        </p>
+      {/if}
+      <span class="flex items-center gap-1.5 font-medium text-[var(--hp-ink-soft)]">
+        <svg class="w-3.5 h-3.5 text-[var(--hp-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span>{formatViews(viewCount)} okunma</span>
+      </span>
+    </div>
   </div>
 
   <!-- Page Body -->
