@@ -10,5 +10,6 @@ fields:
   - {id: options, label: "Seçenekler (Virgülle ayırın)", kind: textarea, required: true}
   - {id: category, label: Kategori, kind: text, list: true}
   - {id: total_votes, label: Toplam Oy Sayısı, kind: number, list: true}
+  - {id: votes_data, label: "Oy Dağılımı (JSON)", kind: textarea}
   - {id: is_active, label: "Aktif mi?", kind: boolean, list: true}
   - {id: end_date, label: Bitiş Tarihi, kind: text}
