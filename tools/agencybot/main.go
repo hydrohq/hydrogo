@@ -208,11 +208,6 @@ func importItem(
 		content = strings.TrimSpace(item.Description)
 	}
 
-	// Clean body and wrap in paragraph if plain text
-	if !strings.Contains(content, "<p>") && !strings.Contains(content, "<div>") {
-		content = fmt.Sprintf("<p>%s</p>", strings.ReplaceAll(content, "\n", "</p><p>"))
-	}
-
 	category := strings.TrimSpace(item.Category)
 	if category == "" {
 		category = defaultCategory
