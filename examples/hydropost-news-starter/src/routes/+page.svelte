@@ -4,7 +4,6 @@
   import NewsGrid from '#lib/components/NewsGrid.svelte';
   import NewsletterSignup from '#lib/components/NewsletterSignup.svelte';
   import PopularReadList from '#lib/components/PopularReadList.svelte';
-  import ColumnistsSection from '#lib/components/ColumnistsSection.svelte';
   import MediaGallerySection from '#lib/components/MediaGallerySection.svelte';
   import PollWidget from '#lib/components/PollWidget.svelte';
 
@@ -33,14 +32,9 @@
     </section>
   {:else if section.key === 'cok_okunan'}
     <PopularReadList items={data.popularNews} />
-  {:else if section.key === 'yazarlar_anket'}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 my-10 items-start">
-      <div class="lg:col-span-2">
-        <ColumnistsSection columnists={data.columnists} />
-      </div>
-      <div class="lg:col-span-1">
-        <PollWidget poll={data.poll} />
-      </div>
+  {:else if section.key === 'anket'}
+    <div class="max-w-md my-10">
+      <PollWidget poll={data.poll} />
     </div>
   {:else if section.key === 'galeri'}
     <MediaGallerySection galleries={data.galleries} videos={data.videos} />
