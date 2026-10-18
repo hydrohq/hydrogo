@@ -11,9 +11,10 @@
   let activeIndex = $state(0);
   let isHovered = $state(false);
 
-  // Left: a small rotating carousel. Right: two fixed secondary stories.
-  let heroItems = $derived(items.slice(0, 5));
-  let sideItems = $derived(items.slice(5, 7));
+  // Left: a rotating carousel (classic Turkish portal "1..12" manşet strip).
+  // Right: two fixed secondary stories.
+  let heroItems = $derived(items.slice(0, 12));
+  let sideItems = $derived(items.slice(12, 14));
   let count = $derived(heroItems.length);
 
   onMount(() => {
@@ -46,30 +47,20 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
     <!-- Big rotating hero -->
     <div
-      class="lg:col-span-2 rounded-2xl overflow-hidden bg-[var(--hp-ink)] flex flex-col select-none"
+      class="lg:col-span-2 rounded-2xl overflow-hidden bg-[var(--hp-surface)] border border-[var(--hp-border)] flex flex-col select-none"
       onmouseenter={() => (isHovered = true)}
       onmouseleave={() => (isHovered = false)}
       role="region"
       aria-label="Öne çıkan haberler"
     >
-      <!-- Image + headline: pagination lives in its own bar below, so the
-           two never fight over the same bottom-left corner. -->
-      <div class="relative aspect-[16/10] sm:aspect-[16/9] w-full">
+      <!-- Image only — the title lives in the white area below, like
+           every other card on the site. -->
+      <div class="relative aspect-[16/10] sm:aspect-[16/9] w-full bg-[var(--hp-ink)]">
         {#each heroItems as item, i}
           <div class="absolute inset-0 transition-opacity duration-500 ease-in-out {i === activeIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}">
             <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, i)} alt={item.title} class="w-full h-full object-cover" />
-            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
           </div>
         {/each}
-
-        <a href={articleUrl} class="absolute bottom-0 inset-x-0 z-20 p-5 sm:p-7 block group">
-          <h2 class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white leading-tight tracking-tight group-hover:underline decoration-2 underline-offset-4">
-            {active.title}
-          </h2>
-          {#if active.excerpt}
-            <p class="mt-2 text-sm text-white/75 line-clamp-2 max-w-xl hidden sm:block">{active.excerpt}</p>
-          {/if}
-        </a>
 
         {#if count > 1}
           <button type="button" onclick={prevSlide} aria-label="Önceki" class="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer">
@@ -81,15 +72,24 @@
         {/if}
       </div>
 
+      <a href={articleUrl} class="block p-4 sm:p-5 group">
+        <h2 class="text-lg sm:text-xl lg:text-2xl font-extrabold text-[var(--hp-ink)] leading-snug group-hover:text-[var(--hp-primary)] transition-colors">
+          {active.title}
+        </h2>
+        {#if active.excerpt}
+          <p class="mt-1.5 text-sm text-[var(--hp-muted)] line-clamp-2 hidden sm:block">{active.excerpt}</p>
+        {/if}
+      </a>
+
       {#if count > 1}
-        <div class="flex items-stretch w-full bg-[var(--hp-surface)]">
+        <div class="flex items-stretch w-full border-t border-[var(--hp-border)]">
           {#each heroItems as _, i}
             <button
               type="button"
               onclick={() => selectSlide(i)}
               onmouseenter={() => selectSlide(i)}
               aria-label={`Slayt ${i + 1}`}
-              class="flex-1 h-10 sm:h-11 flex items-center justify-center text-sm sm:text-base font-bold hp-tabular transition-colors duration-150 cursor-pointer border-r border-[var(--hp-border)] last:border-r-0 {i === activeIndex ? 'bg-[var(--hp-primary)] text-white' : 'bg-[var(--hp-surface)] text-[var(--hp-ink)] hover:bg-[var(--hp-surface-sunken)]'}"
+              class="flex-1 h-10 sm:h-11 flex items-center justify-center text-xs sm:text-sm font-bold hp-tabular transition-colors duration-150 cursor-pointer border-r border-[var(--hp-border)] last:border-r-0 {i === activeIndex ? 'bg-[var(--hp-primary)] text-white' : 'bg-[var(--hp-surface)] text-[var(--hp-ink)] hover:bg-[var(--hp-surface-sunken)]'}"
             >{i + 1}</button>
           {/each}
         </div>
@@ -99,7 +99,7 @@
     <!-- Two fixed secondary stories -->
     <div class="grid grid-cols-1 gap-4">
       {#each sideItems as item, i (item.id)}
-        <NewsCard {item} variant="overlay" index={i + heroItems.length} />
+        <NewsCard {item} variant="tile" index={i + heroItems.length} />
       {/each}
     </div>
   </div>

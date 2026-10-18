@@ -13,6 +13,5 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
   return {
     timeline: all,
     popular: all.slice(0, 5),
-    spotlight: all[1] || all[0] || null,
   };
 };

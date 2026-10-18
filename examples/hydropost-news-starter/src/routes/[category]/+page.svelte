@@ -1,12 +1,10 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { getCategoryBadge } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import NewsCard from '#lib/components/NewsCard.svelte';
   import FeaturedCarousel from '#lib/components/FeaturedCarousel.svelte';
 
   let { data }: PageProps = $props();
-  let badge = $derived(getCategoryBadge(data.category));
   let categoryTitle = $derived(
     data.category.charAt(0).toUpperCase() + data.category.slice(1)
   );
@@ -18,19 +16,9 @@
 </svelte:head>
 
 <div class="py-4">
-  <!-- Breadcrumbs -->
-  <nav class="flex items-center gap-2 text-xs text-[var(--hp-muted)] mb-4 select-none">
-    <a href="/" class="hover:text-[var(--hp-ink-soft)] transition-colors">Ana Sayfa</a>
-    <span>/</span>
-    <span class="text-[var(--hp-ink-soft)] font-semibold uppercase">{data.category}</span>
-  </nav>
-
   <!-- Minimal category banner -->
   <div class="mb-6">
-    <span class={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badge.bg} ${badge.text}`}>
-      {data.category}
-    </span>
-    <h1 class="text-2xl sm:text-3xl font-extrabold text-[var(--hp-ink)] tracking-tight mt-2">
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-[var(--hp-ink)] tracking-tight">
       {categoryTitle} Haberleri
     </h1>
   </div>
@@ -57,7 +45,7 @@
 
     <!-- Remaining Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      {#each data.articles.slice(7) as art, i (art.id)}
+      {#each data.articles.slice(14) as art, i (art.id)}
         <NewsCard item={art} variant="tile" index={i} />
       {/each}
     </div>

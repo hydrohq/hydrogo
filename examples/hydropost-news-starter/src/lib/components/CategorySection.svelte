@@ -16,8 +16,7 @@
 {#if big}
   <section class="my-10">
     <div class="flex items-center gap-3 mb-5">
-      <span class={`w-2.5 h-2.5 rounded-full ${badge.bg.replace('-100', '-600')}`}></span>
-      <h2 class="text-lg md:text-xl font-extrabold text-[var(--hp-ink)] uppercase tracking-wide">{category} Haberleri</h2>
+      <h2 class={`text-lg md:text-xl font-extrabold uppercase tracking-wide ${badge.text}`}>{category} Haberleri</h2>
       <div class="flex-1 h-px bg-[var(--hp-border)]"></div>
       <a
         href={`/${slugify(category)}`}

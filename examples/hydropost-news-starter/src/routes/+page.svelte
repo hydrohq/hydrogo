@@ -22,7 +22,7 @@
         <h2 class="text-lg md:text-xl font-bold text-[var(--hp-ink)]">Son Haberler</h2>
         <a href="/gundem" class="text-xs font-bold text-[var(--hp-muted)] hover:text-[var(--hp-primary)] flex items-center gap-1.5 transition-colors">Tümünü Gör <span>→</span></a>
       </div>
-      <NewsGrid items={data.latestGridA} columns={4} showCategory />
+      <NewsGrid items={data.latestGridA} columns={4} />
     </section>
   {:else if section.key === 'bulten'}
     <NewsletterSignup />

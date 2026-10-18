@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     sections,
   ] = await Promise.all([
     getNewsList({ limit: 30 }),
-    getNewsList({ featured: true, limit: 12 }),
+    getNewsList({ featured: true, limit: 14 }),
     getGalleries(4),
     getVideos(4),
     getActivePoll(),
@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
   // Combine featured list with latest news to provide a full 12-item Turkish manset
   const seenIds = new Set(featuredList.map((f: NewsArticle) => f.id));
   const additional = allLatest.filter((n: NewsArticle) => !seenIds.has(n.id));
-  const featured = [...featuredList, ...additional].slice(0, 12);
+  const featured = [...featuredList, ...additional].slice(0, 14);
 
   // Each "kategori_vitrini" homepage section names a category via
   // category_filter — fetch that category's own article list so the

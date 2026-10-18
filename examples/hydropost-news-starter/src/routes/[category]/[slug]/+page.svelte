@@ -599,7 +599,7 @@
 
         <div class="space-y-5">
           {#each popularList.slice(0, 6) as item, idx (item.id)}
-            <NewsCard {item} variant="row" rank={idx + 1} index={idx} />
+            <NewsCard {item} variant="row" index={idx} />
           {/each}
         </div>
       </div>
