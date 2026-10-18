@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getNewsList, getAds, getPage, slugify, type NewsArticle } from '#lib';
+import { getNewsList, getAds, getPage, getSiteNavigation, slugify, type NewsArticle } from '#lib';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   if (params.category.includes('.')) {
@@ -30,6 +30,17 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       }
     } catch (e: any) {
       if (e?.status === 307 || e?.location) throw e;
+    }
+
+    // Check if it's an existing registered category in navigation (e.g. newly created)
+    const headerNav = await getSiteNavigation('header');
+    const isRegisteredNav = headerNav.some((item) => {
+      const cleanHref = item.href.replace(/^\//, '').toLowerCase();
+      return cleanHref === categoryParam || slugify(item.label) === categoryParam;
+    });
+
+    if (!isRegisteredNav) {
+      throw error(404, 'Sayfa veya kategori bulunamadı');
     }
   }
 

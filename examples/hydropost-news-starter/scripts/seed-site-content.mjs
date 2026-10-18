@@ -81,10 +81,11 @@ const NAV_ITEMS = [
 
   { label: 'Anasayfa', href: '/', placement: 'footer_sayfalar', sort_order: 1 },
   { label: 'Haberler', href: '/gundem', placement: 'footer_sayfalar', sort_order: 2 },
-  { label: 'Künye ve İletişim', href: '/kunye', placement: 'footer_sayfalar', sort_order: 3 },
-  { label: 'Gizlilik Politikası', href: '/sayfa/gizlilik-politikasi', placement: 'footer_sayfalar', sort_order: 4 },
-  { label: 'Çerez Politikası', href: '/sayfa/cerez-politikasi', placement: 'footer_sayfalar', sort_order: 5 },
-  { label: 'Yayın İlkeleri', href: '/sayfa/yayin-ilkeleri', placement: 'footer_sayfalar', sort_order: 6 },
+  { label: 'Künye', href: '/kunye', placement: 'footer_sayfalar', sort_order: 3 },
+  { label: 'İletişim', href: '/iletisim', placement: 'footer_sayfalar', sort_order: 4 },
+  { label: 'Gizlilik Politikası', href: '/sayfa/gizlilik-politikasi', placement: 'footer_sayfalar', sort_order: 5 },
+  { label: 'Çerez Politikası', href: '/sayfa/cerez-politikasi', placement: 'footer_sayfalar', sort_order: 6 },
+  { label: 'Yayın İlkeleri', href: '/sayfa/yayin-ilkeleri', placement: 'footer_sayfalar', sort_order: 7 },
 
   { label: 'X', href: 'https://x.com/hydropost', placement: 'footer_sosyal', sort_order: 1 },
   { label: 'Instagram', href: 'https://instagram.com/hydropost', placement: 'footer_sosyal', sort_order: 2 },
