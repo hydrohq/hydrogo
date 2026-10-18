@@ -54,15 +54,12 @@
   <a href={href} class="group rounded-xl overflow-hidden bg-[var(--hp-surface)] border border-[var(--hp-border)] flex flex-col">
     <div class="relative aspect-[4/3] overflow-hidden bg-[var(--hp-surface-sunken)]">
       <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, index)} alt={item.title} class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" loading="lazy" />
-      <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/5 to-transparent pointer-events-none"></div>
-      <div class="absolute bottom-0 inset-x-0 p-3.5">
-        <h3 class="text-sm font-bold text-white leading-snug line-clamp-2 group-hover:underline decoration-1 underline-offset-2">
-          {item.title}
-        </h3>
-      </div>
     </div>
-    <div class="px-3.5 py-2.5">
-      {#if dateText}<span class="text-[11px] text-[var(--hp-muted)] hp-tabular">{dateText}</span>{/if}
+    <div class="px-3.5 py-3 flex-1 flex flex-col">
+      <h3 class="text-sm font-bold text-[var(--hp-ink)] leading-snug line-clamp-2 group-hover:text-[var(--hp-primary)] transition-colors">
+        {item.title}
+      </h3>
+      {#if dateText}<span class="mt-2 text-[11px] text-[var(--hp-muted)] hp-tabular">{dateText}</span>{/if}
     </div>
   </a>
 {/if}

@@ -9,14 +9,7 @@
 </script>
 
 {#if columnists.length > 0}
-  <section id="yazarlar" class="my-10 p-5 sm:p-6 rounded-xl bg-[var(--hp-surface)] border border-[var(--hp-border)]">
-    <div class="flex items-end justify-between mb-5">
-      <h2 class="text-lg md:text-xl font-bold text-[var(--hp-ink)]">
-        Yazarlarımız &amp; Görüşler
-      </h2>
-      <span class="text-xs text-[var(--hp-muted)]">Güncel Köşe Yazıları</span>
-    </div>
-
+  <section class="p-5 sm:p-6 rounded-xl bg-[var(--hp-surface)] border border-[var(--hp-border)]">
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {#each columnists as c}
         <article class="group p-4 rounded-lg bg-[var(--hp-surface-sunken)] cursor-pointer flex flex-col justify-between transition-colors hover:bg-[var(--hp-primary-light)]">

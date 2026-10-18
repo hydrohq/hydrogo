@@ -75,26 +75,27 @@
           {/if}
           <span class="mt-3 block text-xs text-white/60 hp-tabular">{dateOf(active)}</span>
         </a>
+
+        {#if count > 1}
+          <button type="button" onclick={prevSlide} aria-label="Önceki" class="absolute left-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer">
+            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <button type="button" onclick={nextSlide} aria-label="Sonraki" class="absolute right-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer">
+            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+          </button>
+        {/if}
       </div>
 
       {#if count > 1}
-        <div class="flex items-center justify-center gap-3 py-3 bg-[var(--hp-surface)] border-t border-[var(--hp-border)]">
-          <button type="button" onclick={prevSlide} aria-label="Önceki" class="w-7 h-7 rounded-full text-[var(--hp-ink-soft)] hover:bg-[var(--hp-surface-sunken)] flex items-center justify-center transition-colors cursor-pointer">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <div class="flex items-center gap-1.5">
-            {#each heroItems as _, i}
-              <button
-                type="button"
-                onclick={() => selectSlide(i)}
-                aria-label={`Slayt ${i + 1}`}
-                class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold hp-tabular transition-colors cursor-pointer {i === activeIndex ? 'bg-[var(--hp-primary)] text-white' : 'bg-[var(--hp-surface-sunken)] text-[var(--hp-muted)] hover:text-[var(--hp-ink)]'}"
-              >{i + 1}</button>
-            {/each}
-          </div>
-          <button type="button" onclick={nextSlide} aria-label="Sonraki" class="w-7 h-7 rounded-full text-[var(--hp-ink-soft)] hover:bg-[var(--hp-surface-sunken)] flex items-center justify-center transition-colors cursor-pointer">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
-          </button>
+        <div class="flex items-stretch w-full bg-[var(--hp-surface)]">
+          {#each heroItems as _, i}
+            <button
+              type="button"
+              onclick={() => selectSlide(i)}
+              aria-label={`Slayt ${i + 1}`}
+              class="flex-1 h-10 sm:h-11 flex items-center justify-center text-sm sm:text-base font-bold hp-tabular transition-colors cursor-pointer border-r border-[var(--hp-border)] last:border-r-0 {i === activeIndex ? 'bg-[var(--hp-primary)] text-white' : 'bg-[var(--hp-surface)] text-[var(--hp-ink)] hover:bg-[var(--hp-surface-sunken)]'}"
+            >{i + 1}</button>
+          {/each}
         </div>
       {/if}
     </div>

@@ -47,7 +47,7 @@ export type HomepageSectionKey =
   | 'bulten'
   | 'ikinci_grid'
   | 'cok_okunan'
-  | 'yazarlar_anket'
+  | 'anket'
   | 'galeri';
 
 export interface HomepageSection {
@@ -58,7 +58,7 @@ export interface HomepageSection {
 }
 
 const FALLBACK_HOMEPAGE_SECTIONS: HomepageSection[] = (
-  ['hero', 'son_haberler', 'bulten', 'ikinci_grid', 'cok_okunan', 'yazarlar_anket', 'galeri'] as HomepageSectionKey[]
+  ['hero', 'son_haberler', 'bulten', 'ikinci_grid', 'cok_okunan', 'anket', 'galeri'] as HomepageSectionKey[]
 ).map((key, i) => ({ id: `fallback-${key}`, key, visible: true, sort_order: i + 1 }));
 
 export async function getHomepageSections(): Promise<HomepageSection[]> {
