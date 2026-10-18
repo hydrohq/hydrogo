@@ -4,12 +4,12 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
-    background-color: #09090b;
-    color: #f4f4f5;
+    background-color: #ffffff;
+    color: #18181b;
   }
 
   /* Custom scrollbar for news ticker and category menus */
@@ -18,14 +18,14 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #18181b;
+    background: #f4f4f5;
   }
   ::-webkit-scrollbar-thumb {
-    background: #3f3f46;
+    background: #d4d4d8;
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #71717a;
+    background: #a1a1aa;
   }
 }
 
@@ -37,22 +37,23 @@
   margin-top: 1.25em;
   margin-bottom: 1.25em;
   line-height: 1.85;
+  color: #27272a;
 }
 .prose h1, .prose h2, .prose h3 {
-  color: #ffffff;
+  color: #09090b;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 .prose a {
-  color: #f87171;
+  color: #dc2626;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 .prose blockquote {
-  border-left-color: #ef4444;
-  background: rgba(24, 24, 27, 0.5);
+  border-left-color: #dc2626;
+  background: #f4f4f5;
   padding: 0.75rem 1.25rem;
   border-radius: 0 0.75rem 0.75rem 0;
-  color: #d4d4d8;
+  color: #27272a;
   font-style: italic;
 }
