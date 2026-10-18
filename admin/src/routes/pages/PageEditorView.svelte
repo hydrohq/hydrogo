@@ -5,6 +5,7 @@
   import type { ApiResponse } from '$lib/api/types';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
   import BlocksEditor, { type Block } from './BlocksEditor.svelte';
   import PageRevisionsModal from './PageRevisionsModal.svelte';
   import { createPresence } from '$lib/presence.svelte';
@@ -40,6 +41,7 @@
   });
 
   let saving = $state(false);
+  let activeEditorTab = $state<'content' | 'blocks'>('content');
   let revisionsOpen = $state(false);
   let errorMsg = $state<string | null>(null);
   let successMsg = $state<string | null>(null);
@@ -276,14 +278,63 @@
 
       <!-- Page Settings & Blocks Split -->
       <div class="px-4 lg:px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Blocks Editor (Left 2 cols) -->
+        <!-- Main Content & Blocks Editor (Left 2 cols) -->
         <div class="lg:col-span-2 space-y-4">
           <div class="p-6 rounded-xl border border-border bg-card shadow-xs space-y-4">
-            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Layout Blocks</span>
-            <BlocksEditor
-              blocks={formData.blocks}
-              onchange={(newBlocks) => { formData.blocks = newBlocks; }}
-            />
+            <!-- Tabs Header -->
+            <div class="flex items-center justify-between border-b border-border pb-3">
+              <div class="flex items-center gap-1.5 bg-muted/60 p-1 rounded-lg">
+                <button
+                  type="button"
+                  onclick={() => { activeEditorTab = 'content'; }}
+                  class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer {activeEditorTab === 'content' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
+                >
+                  <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span>Sayfa İçeriği (Ana Metin)</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => { activeEditorTab = 'blocks'; }}
+                  class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer {activeEditorTab === 'blocks' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
+                >
+                  <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                  <span>Düzen Blokları (Layout Blocks)</span>
+                  {#if formData.blocks && formData.blocks.length > 0}
+                    <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-primary/10 text-primary font-semibold">
+                      {formData.blocks.length}
+                    </span>
+                  {/if}
+                </button>
+              </div>
+
+              <span class="text-[11px] text-muted-foreground hidden sm:inline-block">
+                {activeEditorTab === 'content' ? 'Zengin Metin / HTML' : 'Bileşen Blokları'}
+              </span>
+            </div>
+
+            {#if activeEditorTab === 'content'}
+              <RichTextEditor
+                label="Sayfa İçeriği"
+                bind:value={formData.body}
+                placeholder="Sayfa içeriğini buraya yazın veya '/' tuşuna basarak biçimlendirme menüsünü açın..."
+              />
+            {:else}
+              <BlocksEditor
+                blocks={formData.blocks}
+                onchange={(newBlocks) => { formData.blocks = newBlocks; }}
+              />
+            {/if}
           </div>
         </div>
 
