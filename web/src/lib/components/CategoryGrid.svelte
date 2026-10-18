@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type NewsArticle, getMediaUrl } from '#lib';
+  import { type NewsArticle, getMediaUrl, getCategoryBadge } from '#lib';
 
   interface Props {
     title: string;
@@ -9,19 +9,20 @@
 
   let { title, categorySlug, items = [] }: Props = $props();
   let primary = $derived(items[0]);
+  let badge = $derived(getCategoryBadge(categorySlug));
 </script>
 
 {#if items.length > 0}
   <section class="my-8">
     <!-- Header -->
-    <div class="flex items-center justify-between pb-2 mb-4 border-b-2 border-red-600">
+    <div class="flex items-center justify-between pb-2 mb-4 border-b-2 border-zinc-800">
       <h2 class="text-lg md:text-xl font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded bg-red-600"></span>
+        <span class={`w-2.5 h-2.5 rounded ${badge.bg}`}></span>
         {title}
       </h2>
       <a
         href={`/${categorySlug}`}
-        class="text-xs font-semibold text-zinc-400 hover:text-red-400 flex items-center gap-1 transition-colors"
+        class="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
       >
         Tümünü Gör <span>→</span>
       </a>
@@ -33,23 +34,24 @@
       <div class="md:col-span-7">
         <a
           href={`/${primary.category || categorySlug}/${primary.slug}`}
-          class="group block relative rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow aspect-[16/10]"
+          class="group block relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-xl aspect-[16/10] transition-all duration-300 hover:border-zinc-700 hover:shadow-2xl"
         >
-          {#if primary.cover_media_id}
-            <img
-              src={getMediaUrl(primary.cover_media_id)}
-              alt={primary.title}
-              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-            />
-          {/if}
+          <img
+            src={getMediaUrl(primary.cover_media_id, primary.category || categorySlug)}
+            alt={primary.title}
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="lazy"
+          />
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-          <div class="absolute bottom-0 inset-x-0 p-4 space-y-1.5">
-            <h3 class="text-base sm:text-lg md:text-xl font-extrabold text-white leading-snug group-hover:text-red-400 transition-colors">
+          <div class="absolute bottom-0 inset-x-0 p-5 space-y-2">
+            <span class={`inline-block px-2 py-0.5 rounded ${badge.bg} ${badge.text} text-[10px] font-bold uppercase tracking-wider shadow`}>
+              {primary.category || categorySlug}
+            </span>
+            <h3 class="text-base sm:text-lg md:text-xl font-extrabold text-white leading-snug group-hover:text-red-400 transition-colors drop-shadow">
               {primary.title}
             </h3>
             {#if primary.excerpt}
-              <p class="text-xs text-zinc-300 line-clamp-2 hidden sm:block">
+              <p class="text-xs text-zinc-300 line-clamp-2 hidden sm:block drop-shadow">
                 {primary.excerpt}
               </p>
             {/if}
@@ -62,24 +64,22 @@
         {#each items.slice(1, 4) as item}
           <a
             href={`/${item.category || categorySlug}/${item.slug}`}
-            class="group flex items-center gap-3 p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 transition-colors"
+            class="group flex items-center gap-3.5 p-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 transition-all duration-200 hover:-translate-y-0.5 shadow-md"
           >
-            {#if item.cover_media_id}
-              <div class="w-24 h-18 shrink-0 rounded-lg overflow-hidden bg-zinc-800">
-                <img
-                  src={getMediaUrl(item.cover_media_id)}
-                  alt={item.title}
-                  class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
-              </div>
-            {/if}
-            <div class="flex-1 min-w-0">
+            <div class="w-24 h-18 sm:w-28 sm:h-20 shrink-0 rounded-lg overflow-hidden bg-zinc-800 relative">
+              <img
+                src={getMediaUrl(item.cover_media_id, item.category || categorySlug)}
+                alt={item.title}
+                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                loading="lazy"
+              />
+            </div>
+            <div class="flex-1 min-w-0 space-y-1">
               <h4 class="text-xs sm:text-sm font-bold text-zinc-200 line-clamp-2 leading-snug group-hover:text-red-400 transition-colors">
                 {item.title}
               </h4>
               {#if item.created_at}
-                <span class="text-[10px] text-zinc-500 mt-1 block">
+                <span class="text-[10px] text-zinc-500 block font-medium">
                   {new Date(item.created_at).toLocaleDateString('tr-TR')}
                 </span>
               {/if}
