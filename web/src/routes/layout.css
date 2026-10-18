@@ -1,2 +1,58 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #09090b;
+    color: #f4f4f5;
+  }
+
+  /* Custom scrollbar for news ticker and category menus */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #71717a;
+  }
+}
+
+/* Typography refinements for news body */
+.prose {
+  max-width: 100%;
+}
+.prose p {
+  margin-top: 1.25em;
+  margin-bottom: 1.25em;
+  line-height: 1.85;
+}
+.prose h1, .prose h2, .prose h3 {
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.prose a {
+  color: #f87171;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.prose blockquote {
+  border-left-color: #ef4444;
+  background: rgba(24, 24, 27, 0.5);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0.75rem 0.75rem 0;
+  color: #d4d4d8;
+  font-style: italic;
+}

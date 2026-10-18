@@ -28,14 +28,12 @@
           rel="noopener noreferrer"
           class="group relative rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 aspect-video flex flex-col justify-end p-2.5 shadow"
         >
-          {#if v.cover_image}
-            <img
-              src={getMediaUrl(v.cover_image)}
-              alt={v.title}
-              class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-            />
-          {/if}
+          <img
+            src={getMediaUrl(v.cover_image, 'teknoloji')}
+            alt={v.title}
+            class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
           <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
 
           <!-- Play Icon Overlay -->
@@ -58,14 +56,12 @@
           href={`/galeri/${g.slug}`}
           class="group relative rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 aspect-video flex flex-col justify-end p-2.5 shadow"
         >
-          {#if g.cover_image}
-            <img
-              src={getMediaUrl(g.cover_image)}
-              alt={g.title}
-              class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-            />
-          {/if}
+          <img
+            src={getMediaUrl(g.cover_image, 'dunya')}
+            alt={g.title}
+            class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
 
           <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-semibold flex items-center gap-1 backdrop-blur-sm">

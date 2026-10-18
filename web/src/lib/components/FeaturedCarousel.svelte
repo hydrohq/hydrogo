@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type NewsArticle, getMediaUrl } from '#lib';
+  import { type NewsArticle, getMediaUrl, getCategoryBadge } from '#lib';
   import { onMount } from 'svelte';
 
   interface Props {
@@ -36,8 +36,9 @@
 
 {#if items.length > 0}
   {@const active = items[activeIndex]}
+  {@const activeBadge = getCategoryBadge(active.category)}
   <div
-    class="relative w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-xl"
+    class="relative w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-2xl"
     onmouseenter={() => (isHovered = true)}
     onmouseleave={() => (isHovered = false)}
     role="region"
@@ -49,17 +50,11 @@
         <div
           class="absolute inset-0 transition-opacity duration-700 ease-in-out {i === activeIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}"
         >
-          {#if item.cover_media_id}
-            <img
-              src={getMediaUrl(item.cover_media_id)}
-              alt={item.title}
-              class="w-full h-full object-cover transform duration-1000 scale-100 hover:scale-105"
-            />
-          {:else}
-            <div class="w-full h-full bg-gradient-to-tr from-zinc-950 via-zinc-900 to-zinc-800 flex items-center justify-center">
-              <span class="text-zinc-600 font-bold text-lg">Görsel Yok</span>
-            </div>
-          {/if}
+          <img
+            src={getMediaUrl(item.cover_media_id, item.category)}
+            alt={item.title}
+            class="w-full h-full object-cover transform duration-1000 scale-100 hover:scale-105"
+          />
 
           <!-- Dark Gradient Overlays for Readability -->
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
@@ -70,7 +65,7 @@
       <!-- Floating Article Info -->
       <div class="absolute bottom-14 md:bottom-16 left-0 right-0 z-20 px-4 md:px-8 max-w-4xl space-y-2">
         {#if active.category}
-          <span class="inline-block px-2.5 py-1 rounded bg-red-600 text-white text-[11px] font-bold uppercase tracking-wider shadow">
+          <span class={`inline-block px-2.5 py-1 rounded ${activeBadge.bg} ${activeBadge.text} text-[11px] font-bold uppercase tracking-wider shadow`}>
             {active.category}
           </span>
         {/if}
