@@ -6,6 +6,7 @@
   import type { ApiResponse } from '$lib/api/types';
   import Input from '$lib/components/ui/Input.svelte';
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
+  import JsonFieldEditor from '$lib/components/editor/JsonFieldEditor.svelte';
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
   import { createPresence } from '$lib/presence.svelte';
   import DocumentPresence from '$lib/components/presence/DocumentPresence.svelte';
@@ -82,9 +83,22 @@
     successMessage = null;
 
     try {
-      const payload = { ...formData };
+      const payload: Record<string, any> = { ...formData };
       if (statusToSet) {
         payload.status = statusToSet;
+      }
+
+      if (collection.fields) {
+        for (const f of collection.fields) {
+          const key = getFieldKey(f);
+          if (f.kind === 'number' && payload[key] !== undefined && payload[key] !== '') {
+            payload[key] = Number(payload[key]);
+          } else if (f.kind === 'boolean') {
+            payload[key] = Boolean(payload[key]);
+          } else if (typeof payload[key] === 'object' && payload[key] !== null) {
+            payload[key] = JSON.stringify(payload[key]);
+          }
+        }
       }
 
       let res: ApiResponse<any>;
@@ -113,6 +127,23 @@
 
   function getFieldKey(f: any): string {
     return f.id || f.name || '';
+  }
+
+  function isJsonField(field: any, key: string, val: any): boolean {
+    if (field?.kind === 'json' || field?.widget === 'json' || field?.kind === 'map' || field?.kind === 'object') return true;
+    if (key.includes('json') || key === 'votes_data' || key.endsWith('_data') || key.endsWith('_map')) return true;
+    if (field?.label && (field.label.toLowerCase().includes('(json)') || field.label.toLowerCase().includes('json'))) return true;
+    if (typeof val === 'object' && val !== null) return true;
+    if (typeof val === 'string' && val.trim().length > 1) {
+      const t = val.trim();
+      if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
+        try {
+          JSON.parse(t);
+          return true;
+        } catch {}
+      }
+    }
+    return false;
   }
 
   function openMediaPicker(fieldName: string) {
@@ -233,7 +264,13 @@
             {#each collection.fields as field (getFieldKey(field))}
               {@const key = getFieldKey(field)}
               <div class="flex flex-col gap-1.5">
-                {#if field.kind === 'text' && field.widget !== 'textarea'}
+                {#if isJsonField(field, key, formData[key])}
+                  <JsonFieldEditor
+                    label={field.label || key}
+                    bind:value={formData[key]}
+                    required={field.required}
+                  />
+                {:else if field.kind === 'text' && field.widget !== 'textarea'}
                   <Input
                     label={field.label || key}
                     placeholder={`Enter ${field.label || key}...`}
