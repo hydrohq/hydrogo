@@ -30,14 +30,6 @@
   function selectSlide(index: number) {
     if (index >= 0 && index < count) activeIndex = index;
   }
-  function prevSlide() {
-    if (count <= 1) return;
-    activeIndex = (activeIndex - 1 + count) % count;
-  }
-  function nextSlide() {
-    if (count <= 1) return;
-    activeIndex = (activeIndex + 1) % count;
-  }
 </script>
 
 {#if count > 0}
@@ -61,15 +53,6 @@
             <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, i)} alt={item.title} class="w-full h-full object-cover" />
           </div>
         {/each}
-
-        {#if count > 1}
-          <button type="button" onclick={prevSlide} aria-label="Önceki" class="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer">
-            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <button type="button" onclick={nextSlide} aria-label="Sonraki" class="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/35 hover:bg-black/55 backdrop-blur-sm text-white flex items-center justify-center transition-colors cursor-pointer">
-            <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
-          </button>
-        {/if}
       </div>
 
       <a href={articleUrl} class="block p-4 sm:p-5 group">
