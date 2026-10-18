@@ -81,11 +81,14 @@
 
 .prose {
   max-width: 100%;
+  font-size: var(--article-font-size, 1.025rem);
 }
-.prose p {
+.prose p,
+.prose li {
+  font-size: inherit;
+  line-height: var(--article-line-height, 1.85);
   margin-top: 1.3em;
   margin-bottom: 1.3em;
-  line-height: 1.85;
   color: var(--hp-ink-soft);
   max-width: 68ch;
 }

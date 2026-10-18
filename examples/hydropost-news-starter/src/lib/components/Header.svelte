@@ -23,6 +23,11 @@
   let searchQuery = $state('');
   let searchInput = $state<HTMLInputElement | null>(null);
 
+  const MAX_VISIBLE_NAV = 5;
+  let primaryNav = $derived(nav.slice(0, MAX_VISIBLE_NAV));
+  let overflowNav = $derived(nav.slice(MAX_VISIBLE_NAV));
+  let moreDropdownOpen = $state(false);
+
   function openSearch() {
     searchOpen = true;
     requestAnimationFrame(() => searchInput?.focus());
@@ -47,8 +52,8 @@
       </span>
     </a>
 
-    <nav class="hidden lg:flex items-center gap-5 overflow-x-auto scrollbar-none flex-1" aria-label="Ana kategoriler">
-      {#each nav as item}
+    <nav class="hidden lg:flex items-center gap-5 flex-1" aria-label="Ana kategoriler">
+      {#each primaryNav as item}
         <a
           href={item.href}
           class="text-[13px] font-semibold text-[var(--hp-ink-soft)] hover:text-[var(--hp-primary)] whitespace-nowrap transition-colors"
@@ -56,6 +61,44 @@
           {item.label}
         </a>
       {/each}
+
+      {#if overflowNav.length > 0}
+        <div
+          class="relative group"
+          role="region"
+          aria-label="Diğer kategoriler menüsü"
+          onmouseenter={() => (moreDropdownOpen = true)}
+          onmouseleave={() => (moreDropdownOpen = false)}
+        >
+          <button
+            type="button"
+            class="flex items-center gap-1 text-[13px] font-semibold text-[var(--hp-ink-soft)] group-hover:text-[var(--hp-primary)] whitespace-nowrap transition-colors py-1 cursor-pointer"
+            aria-expanded={moreDropdownOpen}
+            onclick={() => (moreDropdownOpen = !moreDropdownOpen)}
+          >
+            <span>Diğer</span>
+            <svg class="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          <div
+            class="absolute left-0 top-full pt-1.5 z-50 min-w-44 transition-all duration-150 {moreDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-1'}"
+          >
+            <div class="rounded-xl border border-[var(--hp-border)] bg-[var(--hp-surface)] shadow-xl p-1.5 flex flex-col gap-0.5">
+              {#each overflowNav as item}
+                <a
+                  href={item.href}
+                  class="px-3 py-2 text-xs font-semibold text-[var(--hp-ink-soft)] hover:text-[var(--hp-primary)] hover:bg-[var(--hp-surface-sunken)] rounded-lg whitespace-nowrap transition-colors"
+                  onclick={() => (moreDropdownOpen = false)}
+                >
+                  {item.label}
+                </a>
+              {/each}
+            </div>
+          </div>
+        </div>
+      {/if}
     </nav>
 
     <div class="flex items-center gap-3 ml-auto">

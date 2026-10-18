@@ -1,6 +1,6 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getNewsList, getAds, slugify, type NewsArticle } from '#lib';
+import { getNewsList, getAds, getPage, slugify, type NewsArticle } from '#lib';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   if (params.category.includes('.')) {
@@ -21,6 +21,17 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
   const inCategory = allArticles.filter((n: NewsArticle) => {
     return slugify(n.category) === categoryParam || (n.category && n.category.toLowerCase() === categoryParam);
   });
+
+  if (inCategory.length === 0) {
+    try {
+      const page = await getPage(categoryParam);
+      if (page) {
+        throw redirect(307, `/sayfa/${categoryParam}`);
+      }
+    } catch (e: any) {
+      if (e?.status === 307 || e?.location) throw e;
+    }
+  }
 
   // The top highlight card prefers an editor-marked "Featured" article within
   // this category (the same flag that drives the homepage manşet) over just

@@ -76,14 +76,15 @@ const NAV_ITEMS = [
   { label: 'Teknoloji', href: '/teknoloji', placement: 'header', sort_order: 4 },
   { label: 'Spor', href: '/spor', placement: 'header', sort_order: 5 },
   { label: 'Resmi İlanlar', href: '/resmi-ilanlar', placement: 'header', sort_order: 7 },
-  { label: 'Nöbetçi Eczaneler', href: '/nobetci-eczaneler', placement: 'header', sort_order: 8 },
   { label: 'Künye', href: '/kunye', placement: 'header', sort_order: 9 },
   { label: 'Son Dakika', href: '/son-dakika', placement: 'header', sort_order: 0 },
 
   { label: 'Anasayfa', href: '/', placement: 'footer_sayfalar', sort_order: 1 },
   { label: 'Haberler', href: '/gundem', placement: 'footer_sayfalar', sort_order: 2 },
-  { label: 'Hakkımızda', href: '/kunye', placement: 'footer_sayfalar', sort_order: 3 },
-  { label: 'İletişim', href: '/iletisim', placement: 'footer_sayfalar', sort_order: 4 },
+  { label: 'Künye ve İletişim', href: '/kunye', placement: 'footer_sayfalar', sort_order: 3 },
+  { label: 'Gizlilik Politikası', href: '/sayfa/gizlilik-politikasi', placement: 'footer_sayfalar', sort_order: 4 },
+  { label: 'Çerez Politikası', href: '/sayfa/cerez-politikasi', placement: 'footer_sayfalar', sort_order: 5 },
+  { label: 'Yayın İlkeleri', href: '/sayfa/yayin-ilkeleri', placement: 'footer_sayfalar', sort_order: 6 },
 
   { label: 'X', href: 'https://x.com/hydropost', placement: 'footer_sosyal', sort_order: 1 },
   { label: 'Instagram', href: 'https://instagram.com/hydropost', placement: 'footer_sosyal', sort_order: 2 },
@@ -156,6 +157,57 @@ async function run() {
     comments_require_email: false,
   }, { drafts: false });
   console.log('Seeded site_settings.');
+
+  const LEGAL_PAGES = [
+    {
+      slug: 'gizlilik-politikasi',
+      title: 'Gizlilik Politikası ve KVKK Aydınlatma Metni',
+      body: `<h2>1. Veri Sorumlusu ve Kapsam</h2><p>HydroPost ("Portal"), 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca veri sorumlusu sıfatıyla, ziyaretçilerimizin kişisel verilerinin güvenliğine ve gizliliğine azami hassasiyet göstermektedir. Bu metin, sitemizi ziyaret eden kullanıcılarımızın verilerinin toplanma yöntemleri, işlenme amaçları ve yasal hakları konusunda bilgilendirilmesi amacıyla hazırlanmıştır.</p><h2>2. İşlenen Kişisel Veriler</h2><p>Haber portalımızı kullanımınız esnasında; IP adresi, tarayıcı bilgileri, ziyaret edilen sayfalar, erişim saatleri ve yorum alanlarına isteğe bağlı girilen isim ve e-posta adresleri gibi sınırlı teknik veriler işlenebilmektedir.</p><h2>3. Kişisel Verilerin İşlenme Amaçları</h2><p>Toplanan kişisel veriler; 5651 sayılı İnternet Ortamında Yapılan Yayınların Düzenlenmesi Hakkında Kanun kapsamındaki yasal yükümlülüklerin yerine getirilmesi, haber platformunun güvenliğinin ve performansının sağlanması ve kullanıcı deneyiminin iyileştirilmesi amacıyla işlenmektedir.</p><h2>4. Veri Aktarımı ve Güvenlik</h2><p>Kişisel verileriniz, yasal zorunluluklar veya adli makamların resmi talepleri haricinde hiçbir üçüncü şahıs veya kuruma ticari amaçla satılmaz veya devredilmez. Verileriniz HydroGo'nun yüksek güvenlik standartlarına sahip sunucularında korunmaktadır.</p><h2>5. İlgili Kişinin Hakları</h2><p>KVKK'nın 11. maddesi uyarınca veri sahipleri; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme ve verilerin silinmesini veya düzeltilmesini isteme hakkına sahiptir.</p>`,
+    },
+    {
+      slug: 'cerez-politikasi',
+      title: 'Çerez (Cookie) Politikası',
+      body: `<h2>1. Çerez Nedir?</h2><p>Çerezler (cookies), bir internet sitesini ziyaret ettiğinizde tarayıcınız aracılığıyla cihazınıza veya ağ sunucusuna depolanan küçük metin dosyalarıdır. Çerezler sitenin daha verimli çalışmasını ve tercihlerinize uygun içerik sunulmasını sağlar.</p><h2>2. Kullanılan Çerez Türleri</h2><p><strong>Zorunlu Çerezler:</strong> Web sitemizin düzgün çalışması, oturum yönetimi ve güvenlik doğrulamaları için kesinlikle gerekli olan çerezlerdir.</p><p><strong>İşlevsel Çerezler:</strong> Yazı boyutu tercihiniz, tema seçiminiz ve anket oylama durumunuz gibi tercihlerin hatırlanmasını sağlayan çerezlerdir.</p><p><strong>Analitik Çerezler:</strong> Hangi haberlerin daha çok okunduğunu, site trafiğini ve ziyaretçi akışını anonim olarak ölçümleyen çerezlerdir.</p><h2>3. Çerezlerin Kontrolü ve Silinmesi</h2><p>Tarayıcınızın ayarlarını değiştirerek çerezlere ilişkin tercihlerinizi kişiselleştirebilirsiniz. Çerezleri devre dışı bırakmanız durumunda web sitesinin bazı işlevleri kısıtlanabilir.</p>`,
+    },
+    {
+      slug: 'yayin-ilkeleri',
+      title: 'Yayın İlkeleri ve Editoryal Bağımsızlık',
+      body: `<h2>1. Doğruluk ve Güvenilirlik</h2><p>HydroPost; haberin doğruluğunu teyit etmeden yayınlamamayı, teyit edilmemiş iddiaları kesin olgular gibi sunmamayı temel yayın ilkesi olarak kabul eder.</p><h2>2. Tarafsızlık ve Çoğulculuk</h2><p>Haber bültenlerimizde her türlü siyasi, ekonomik ve ideolojik baskıdan uzak, kamuoyunun haber alma hakkına saygılı ve tarafsız bir editoryal duruş sergilenir.</p><h2>3. Masumiyet Karinesi ve Kişilik Hakları</h2><p>Yargı kararı kesinleşmedikçe hiç kimse suçlu ilan edilemez. Özel hayatın gizliliğine, kişilik haklarına ve insan onuruna saygı gösterilir.</p><h2>4. Düzeltme ve Cevap Hakkı</h2><p>Hatalı veya eksik yayınlanan bilgiler, tespit edildiği anda gecikmeksizin şeffaf bir şekilde düzeltilir. İlgili kişi ve kurumların yasal tekzip ve cevap haklarına titizlikle riayet edilir.</p>`,
+    },
+  ];
+
+  for (const page of LEGAL_PAGES) {
+    try {
+      const existing = await request(`/api/v1/pages/tr/${page.slug}`);
+      if (existing?.data?.id) {
+        console.log(`Page '${page.slug}' already exists.`);
+        continue;
+      }
+    } catch {
+      // not found, proceed to create
+    }
+    try {
+      const created = await request('/api/v1/admin/pages', {
+        method: 'POST',
+        body: JSON.stringify({
+          locale: 'tr',
+          slug: page.slug,
+          title: page.title,
+          body: page.body,
+          blocks: [],
+        }),
+      });
+      if (created?.data?.id) {
+        await request(`/api/v1/admin/pages/${created.data.id}/publish`, {
+          method: 'POST',
+          body: JSON.stringify({ version: created.data.version }),
+        });
+        console.log(`Created and published page '${page.slug}'.`);
+      }
+    } catch (e) {
+      console.warn(`Could not seed page '${page.slug}':`, e.message);
+    }
+  }
 
   console.log('Done.');
 }
