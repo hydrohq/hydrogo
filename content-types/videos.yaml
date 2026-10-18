@@ -1,0 +1,14 @@
+id: videos
+label: Video Haberler
+description: Video formatındaki haberler ve röportajlar
+title_field: title
+public: true
+drafts: true
+revisions: true
+fields:
+  - {id: title, label: Video Başlığı, kind: text, required: true, list: true, searchable: true}
+  - {id: slug, label: URL Yolu (Slug), kind: text, required: true, unique: true, list: true}
+  - {id: cover_image, label: Video Kapağı, kind: media, required: true}
+  - {id: video_url, label: Video veya Embed URL, kind: text, required: true}
+  - {id: duration, label: Süre, kind: text}
+  - {id: category, label: Kategori, kind: select, options: [gundem, dunya, ekonomi, roportaj, spor], list: true, filterable: true}
