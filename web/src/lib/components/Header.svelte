@@ -8,6 +8,7 @@
     { name: 'Teknoloji', href: '/teknoloji' },
     { name: 'Spor', href: '/spor' },
     { name: 'Yazarlar', href: '/yazarlar' },
+    { name: 'Resmi İlanlar', href: '/resmi-ilanlar' },
     { name: 'Galeriler', href: '/galeri' },
   ];
 

@@ -1,0 +1,16 @@
+id: official_announcements
+label: BİK Resmi İlanlar
+description: Basın İlan Kurumu ve kamu kurumları resmi ilan ve tebligatları
+title_field: title
+public: true
+drafts: true
+revisions: true
+fields:
+  - {id: title, label: İlan Başlığı, kind: text, required: true, list: true, searchable: true}
+  - {id: bik_number, label: BİK İlan No, kind: text, list: true, searchable: true}
+  - {id: institution, label: İlanı Veren Kurum, kind: text, required: true, list: true, filterable: true}
+  - {id: announcement_type, label: İlan Türü, kind: select, options: [ihale, tebligat, icra, personel, duyuru], list: true, filterable: true}
+  - {id: city, label: İl / İlçe, kind: text, list: true, filterable: true}
+  - {id: deadline, label: Son Tarih, kind: text, list: true}
+  - {id: body, label: İlan Metni, kind: richtext, required: true, searchable: true}
+  - {id: official_url, label: İlan.gov.tr Bağlantısı, kind: text}

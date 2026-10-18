@@ -1,0 +1,20 @@
+id: masthead
+label: BİK Künye ve İletişim
+description: Basın İlan Kurumu yasal künye bilgileri ve yönetim kadrosu
+title_field: site_name
+public: true
+drafts: false
+revisions: true
+fields:
+  - {id: site_name, label: Yayın Adı, kind: text, required: true, list: true}
+  - {id: publisher, label: İmtiyaz Sahibi / Tüzel Kişi Temsilcisi, kind: text, required: true, list: true}
+  - {id: managing_editor, label: Sorumlu Yazı İşleri Müdürü, kind: text, required: true, list: true}
+  - {id: news_director, label: Haber Müdürü, kind: text, list: true}
+  - {id: legal_counsel, label: Hukuk Danışmanı, kind: text}
+  - {id: hosting_provider, label: Yer Sağlayıcı, kind: text, required: true}
+  - {id: address, label: İletişim ve Tebligat Adresi, kind: textarea, required: true}
+  - {id: phone, label: Telefon Numarası, kind: text, required: true}
+  - {id: email, label: Kurumsal E-posta, kind: text, required: true}
+  - {id: kep_address, label: KEP (Kayıtlı Elektronik Posta) Adresi, kind: text}
+  - {id: publication_type, label: Yayın Türü (Yaygın / Yerel Süreli), kind: text}
+  - {id: editorial_principles, label: Yayın İlkeleri ve Gizlilik, kind: richtext}
