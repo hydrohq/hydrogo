@@ -20,7 +20,12 @@
     <section class="my-10">
       <div class="flex items-end justify-between mb-5">
         <h2 class="text-lg md:text-xl font-bold text-[var(--hp-ink)]">Son Haberler</h2>
-        <a href="/gundem" class="text-xs font-bold text-[var(--hp-muted)] hover:text-[var(--hp-primary)] flex items-center gap-1.5 transition-colors">Tümünü Gör <span>→</span></a>
+        <a
+          href="/gundem"
+          class="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-[var(--hp-ink)] text-white hover:opacity-85 transition-opacity"
+        >
+          Tümünü Gör
+        </a>
       </div>
       <NewsGrid items={data.latestGridA} columns={4} />
     </section>
