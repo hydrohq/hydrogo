@@ -11,7 +11,7 @@
   <meta name="description" content={`${m.site_name} Basın İlan Kurumu yasal künye, yönetim kadrosu ve iletişim bilgileri.`} />
 </svelte:head>
 
-<div class="max-w-4xl mx-auto py-8">
+<div class="py-8">
   <div class="border-b border-[var(--hp-border)] pb-4 mb-8">
     <span class="text-xs font-bold text-[var(--hp-primary)] uppercase tracking-widest">Yasal Bildirim & BİK Uyumu</span>
     <h1 class="text-3xl sm:text-4xl font-extrabold text-[var(--hp-ink)] mt-1">Künye ve Yönetim</h1>

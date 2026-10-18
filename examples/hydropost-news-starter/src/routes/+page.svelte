@@ -5,7 +5,6 @@
   import NewsletterSignup from '#lib/components/NewsletterSignup.svelte';
   import PopularReadList from '#lib/components/PopularReadList.svelte';
   import MediaGallerySection from '#lib/components/MediaGallerySection.svelte';
-  import PollWidget from '#lib/components/PollWidget.svelte';
   import CategorySection from '#lib/components/CategorySection.svelte';
 
   let { data }: PageProps = $props();
@@ -29,14 +28,17 @@
     <NewsletterSignup />
   {:else if section.key === 'ikinci_grid'}
     <section class="my-10">
-      <NewsGrid items={data.latestGridB} ads={[data.homeGrid1Ad, data.homeGrid2Ad]} />
+      <NewsGrid
+        items={data.latestGridB}
+        extraCells={[
+          { kind: 'ad', ad: data.homeGrid1Ad },
+          { kind: 'poll', poll: data.poll },
+          { kind: 'ad', ad: data.homeGrid2Ad },
+        ]}
+      />
     </section>
   {:else if section.key === 'cok_okunan'}
     <PopularReadList items={data.popularNews} />
-  {:else if section.key === 'anket'}
-    <div class="max-w-md my-10">
-      <PollWidget poll={data.poll} />
-    </div>
   {:else if section.key === 'galeri'}
     <MediaGallerySection galleries={data.galleries} videos={data.videos} />
   {:else if section.key === 'kategori_vitrini' && section.category_filter}

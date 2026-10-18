@@ -24,7 +24,7 @@
   <title>{data.q ? `"${data.q}" için arama sonuçları` : 'Haber Ara'} — HydroPost</title>
 </svelte:head>
 
-<div class="max-w-5xl mx-auto py-8">
+<div class="py-8">
   <form onsubmit={onSubmit} class="flex items-center gap-2 mb-8">
     <div class="relative flex-1">
       <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--hp-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

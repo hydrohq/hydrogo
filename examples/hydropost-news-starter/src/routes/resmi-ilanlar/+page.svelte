@@ -10,7 +10,7 @@
   <meta name="description" content="Basın İlan Kurumu ve kamu kurumları resmi ihale, tebligat ve kamu personel ilanları." />
 </svelte:head>
 
-<div class="max-w-5xl mx-auto py-8">
+<div class="py-8">
   <div class="border-b border-[var(--hp-border)] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
     <div>
       <span class="text-xs font-bold text-amber-600 uppercase tracking-widest">Basın İlan Kurumu</span>

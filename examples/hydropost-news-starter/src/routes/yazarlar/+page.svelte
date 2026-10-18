@@ -10,7 +10,7 @@
   <meta name="description" content="HydroPost köşe yazarları ve güncel görüşleri." />
 </svelte:head>
 
-<div class="max-w-6xl mx-auto py-8">
+<div class="py-8">
   <div class="mb-8">
     <span class="text-xs font-bold text-[var(--hp-primary)] uppercase tracking-widest">Görüşler</span>
     <h1 class="text-3xl sm:text-4xl font-extrabold text-[var(--hp-ink)] mt-1">Yazarlarımız</h1>

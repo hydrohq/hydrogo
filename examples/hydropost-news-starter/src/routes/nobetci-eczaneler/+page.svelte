@@ -18,7 +18,7 @@
   <meta name="description" content={`Bugün ${currentCity} genelinde açık olan nöbetçi eczaneler, adres, telefon ve yol tarifi bilgileri.`} />
 </svelte:head>
 
-<div class="max-w-6xl mx-auto py-8">
+<div class="py-8">
   <div class="border-b border-[var(--hp-border)] pb-4 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
     <div>
       <span class="text-xs font-bold text-[var(--hp-primary)] uppercase tracking-widest">Sağlık & Yerel Rehber</span>
