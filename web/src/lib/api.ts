@@ -214,34 +214,44 @@ export function getMediaUrl(mediaId?: string, category?: string): string {
 
 export function getCategoryBadge(category?: string): { bg: string; text: string; border: string; glow: string } {
   const cat = slugify(category);
-  if (cat.includes('gundem') || cat.includes('siyaset') || cat.includes('haber')) {
-    return { bg: 'bg-rose-600', text: 'text-white', border: 'border-rose-500', glow: 'shadow-rose-600/30' };
+
+  // Limited, brand-governed category palette (see THEME_CONFIG.categoryPalette).
+  // Breaking/opinion news stays on the primary brand red; every other beat is
+  // assigned one of a small set of deliberately chosen accents so the page
+  // never reads as a random rainbow of Tailwind hues.
+  if (
+    cat.includes('ekonomi') ||
+    cat.includes('ticaret') ||
+    cat.includes('finans') ||
+    cat.includes('spor')
+  ) {
+    return { bg: 'bg-amber-700', text: 'text-white', border: 'border-amber-600', glow: 'shadow-amber-700/30' };
   }
-  if (cat.includes('ekonomi') || cat.includes('ticaret') || cat.includes('finans')) {
-    return { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-500', glow: 'shadow-emerald-600/30' };
+  if (
+    cat.includes('teknoloji') ||
+    cat.includes('yazilim') ||
+    cat.includes('muhendislik') ||
+    cat.includes('urun') ||
+    cat.includes('veritabani') ||
+    cat.includes('performans') ||
+    cat.includes('tasarim') ||
+    cat.includes('frontend')
+  ) {
+    return { bg: 'bg-slate-700', text: 'text-white', border: 'border-slate-600', glow: 'shadow-slate-700/30' };
   }
-  if (cat.includes('teknoloji') || cat.includes('yazilim') || cat.includes('muhendislik') || cat.includes('urun')) {
-    return { bg: 'bg-sky-600', text: 'text-white', border: 'border-sky-500', glow: 'shadow-sky-600/30' };
-  }
-  if (cat.includes('spor')) {
-    return { bg: 'bg-amber-600', text: 'text-white', border: 'border-amber-500', glow: 'shadow-amber-600/30' };
-  }
-  if (cat.includes('dunya') || cat.includes('rehber')) {
-    return { bg: 'bg-violet-600', text: 'text-white', border: 'border-violet-500', glow: 'shadow-violet-600/30' };
-  }
-  if (cat.includes('saglik') || cat.includes('eczane')) {
-    return { bg: 'bg-teal-600', text: 'text-white', border: 'border-teal-500', glow: 'shadow-teal-600/30' };
+  if (
+    cat.includes('dunya') ||
+    cat.includes('saglik') ||
+    cat.includes('eczane') ||
+    cat.includes('rehber')
+  ) {
+    return { bg: 'bg-teal-700', text: 'text-white', border: 'border-teal-600', glow: 'shadow-teal-700/30' };
   }
   if (cat.includes('guvenlik') || cat.includes('mimari')) {
-    return { bg: 'bg-red-700', text: 'text-white', border: 'border-red-600', glow: 'shadow-red-700/30' };
+    return { bg: 'bg-zinc-800', text: 'text-white', border: 'border-zinc-700', glow: 'shadow-zinc-800/30' };
   }
-  if (cat.includes('veritabani') || cat.includes('performans')) {
-    return { bg: 'bg-indigo-600', text: 'text-white', border: 'border-indigo-500', glow: 'shadow-indigo-600/30' };
-  }
-  if (cat.includes('tasarim') || cat.includes('frontend')) {
-    return { bg: 'bg-fuchsia-600', text: 'text-white', border: 'border-fuchsia-500', glow: 'shadow-fuchsia-600/30' };
-  }
-  return { bg: 'bg-rose-600', text: 'text-white', border: 'border-rose-500', glow: 'shadow-rose-600/30' };
+  // Default: gündem, siyaset, haber and anything unclassified — primary brand red.
+  return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-500', glow: 'shadow-red-600/30' };
 }
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T | null> {

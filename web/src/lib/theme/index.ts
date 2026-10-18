@@ -33,6 +33,18 @@ export const THEME_CONFIG = {
     textSubtle: '#a1a1aa', // Timestamps & minor labels (zinc-400)
   },
 
+  // Category badge palette — intentionally limited to 5 entries so section
+  // tags read as one deliberate system instead of a random Tailwind hue per
+  // category. Breaking/gündem always uses the primary brand red; everything
+  // else maps to one of these four accents in `getCategoryBadge` (api.ts).
+  categoryPalette: {
+    gundem: 'red', // primary brand red — breaking, siyaset, haber
+    ekonomiSpor: 'amber-700', // ekonomi, ticaret, finans, spor
+    teknoloji: 'slate-700', // teknoloji, ürün, tasarım, altyapı
+    dunyaSaglik: 'teal-700', // dünya, sağlık, eczane, rehberler
+    guvenlik: 'zinc-800', // güvenlik, mimari
+  },
+
   // Button Presets
   button: {
     primary:

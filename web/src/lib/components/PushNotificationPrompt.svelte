@@ -28,10 +28,21 @@
     if (typeof localStorage !== 'undefined') {
       const status = localStorage.getItem('push_permission');
       if (!status) {
-        // Show after 3 seconds of reading to avoid intrusive popups
+        // Only offer once the reader has scrolled past the headline
+        // carousel, so the prompt never covers its nav arrows or number bar.
         const timer = setTimeout(() => {
-          showPrompt = true;
-        }, 3000);
+          if (typeof window !== 'undefined' && window.scrollY > 200) {
+            showPrompt = true;
+          } else if (typeof window !== 'undefined') {
+            const onScroll = () => {
+              if (window.scrollY > 200) {
+                showPrompt = true;
+                window.removeEventListener('scroll', onScroll);
+              }
+            };
+            window.addEventListener('scroll', onScroll, { passive: true });
+          }
+        }, 4000);
         return () => clearTimeout(timer);
       }
     }
@@ -39,7 +50,7 @@
 </script>
 
 {#if showPrompt}
-  <div class="fixed bottom-5 left-5 z-40 max-w-sm p-4 rounded-2xl bg-white border border-zinc-200 shadow-xl text-xs space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+  <div class="fixed bottom-5 right-5 z-40 max-w-sm p-4 rounded-2xl bg-white border border-zinc-200 shadow-xl text-xs space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
     <div class="flex items-start gap-3">
       <div class="w-8 h-8 rounded-full bg-red-50 border border-red-200 text-red-600 flex items-center justify-center text-sm shrink-0">
         🔔

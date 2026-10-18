@@ -3,7 +3,6 @@
   import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, type NewsArticle } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import { onMount, tick } from 'svelte';
-  import { replaceState } from '$app/navigation';
 
   let { data }: PageProps = $props();
 
@@ -19,7 +18,12 @@
   let currentArticle = $derived(activeArticle || initialArticle || null);
   let articles = $derived<NewsArticle[]>([
     ...(initialArticle ? [initialArticle] : []),
-    ...extraArticles,
+    ...extraArticles.filter(
+      (item, idx, self) =>
+        item.id !== initialArticle?.id &&
+        item.slug !== initialArticle?.slug &&
+        self.findIndex((s) => s.id === item.id || s.slug === item.slug) === idx
+    ),
   ]);
 
   let popularList = $derived<NewsArticle[]>(data.popularNews || data.related || []);
@@ -228,9 +232,11 @@
               activeArticle = targetArticle;
               const newUrl = `/${slugify(targetArticle.category)}/${targetArticle.slug}`;
               try {
-                replaceState(newUrl, {});
+                if (typeof window !== 'undefined' && window.history?.replaceState) {
+                  window.history.replaceState(null, '', newUrl);
+                }
               } catch {
-                // Ignore router conflict
+                // Ignore history update error
               }
               document.title = `${targetArticle.seo_title || targetArticle.title} — HydroPost`;
             }
@@ -295,7 +301,7 @@
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
     <!-- Main Left Column: Article Stream & Related News -->
     <div class="lg:col-span-8 min-w-0">
-      {#each articles as art, index (art.id || art.slug)}
+      {#each articles as art, index (`${art.id || art.slug || index}_${index}`)}
         {@const badge = getCategoryBadge(art.category)}
         {@const readingTime = getReadingTime(art)}
         {@const reactions = getReactions(art.id)}

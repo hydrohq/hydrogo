@@ -151,7 +151,7 @@
         <button
           type="submit"
           disabled={!selectedOption || isSubmitting}
-          class="w-full mt-3 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
+          class="w-full mt-3 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-zinc-200 disabled:text-zinc-500 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
         >
           {#if isSubmitting}
             <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
