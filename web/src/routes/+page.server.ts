@@ -25,8 +25,8 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     mansetAds,
     poll,
   ] = await Promise.all([
-    getNewsList({ limit: 20 }),
-    getNewsList({ featured: true, limit: 10 }),
+    getNewsList({ limit: 30 }),
+    getNewsList({ featured: true, limit: 12 }),
     getColumnists(),
     getGalleries(4),
     getVideos(4),
@@ -35,8 +35,10 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     getActivePoll(),
   ]);
 
-  // If there are no specifically featured items, fallback to latest news
-  const featured = featuredList.length > 0 ? featuredList : allLatest.slice(0, 8);
+  // Combine featured list with latest news to provide a full 12-item Turkish manset
+  const seenIds = new Set(featuredList.map((f: NewsArticle) => f.id));
+  const additional = allLatest.filter((n: NewsArticle) => !seenIds.has(n.id));
+  const featured = [...featuredList, ...additional].slice(0, 12);
   const surManset = allLatest.slice(0, 4);
 
   // Group by categories

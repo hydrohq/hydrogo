@@ -1,6 +1,19 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+:root {
+  --hp-primary: #dc2626;
+  --hp-primary-dark: #b91c1c;
+  --hp-primary-light: #fef2f2;
+  --hp-accent-yellow: #ffe600;
+  --hp-bg: #ffffff;
+  --hp-surface: #fafafa;
+  --hp-border: #e4e4e7;
+  --hp-text-heading: #09090b;
+  --hp-text-body: #27272a;
+  --hp-text-muted: #71717a;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -8,8 +21,16 @@
   }
 
   body {
-    background-color: #ffffff;
-    color: #18181b;
+    background-color: var(--hp-bg);
+    color: var(--hp-text-body);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: #fee2e2;
+    color: #991b1b;
   }
 
   /* Custom scrollbar for news ticker and category menus */
