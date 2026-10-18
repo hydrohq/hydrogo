@@ -25,7 +25,7 @@ done if either step failed.
 | An admin API endpoint | `/api/v1/admin/...` in the module's `transport/http.go`, responses through `internal/api.WriteData` / `WriteError` |
 | Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql` |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
-| Example of consuming the API from a frontend | `examples/svelte-starter/` |
+| Example of consuming the API from a frontend | `examples/svelte-starter/`. `examples/hydropost-news-starter/` is another one (a Turkish news portal) — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
 
 Follow the closest existing example. `modules/news` is the reference module
 for content that needs custom behaviour; everything else should be a content

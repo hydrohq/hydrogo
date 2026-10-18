@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+:root {
+  --hp-primary: #e11d2e;
+  --hp-primary-dark: #c01124;
+  --hp-primary-light: #fdeced;
+  --hp-primary-border: #f8c6cb;
+
+  --hp-bg: #ffffff;
+  --hp-surface: #ffffff;
+  --hp-surface-sunken: #f6f6f7;
+  --hp-border: #ebebec;
+  --hp-border-strong: #dcdcdf;
+
+  --hp-ink: #141416;
+  --hp-ink-soft: #3f3f46;
+  --hp-muted: #8a8a92;
+  --hp-subtle: #b4b4ba;
+
+  --hp-font-display: 'Public Sans', system-ui, -apple-system, sans-serif;
+  --hp-font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--hp-bg);
+    color: var(--hp-ink-soft);
+    font-family: var(--hp-font-body);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--hp-primary-light);
+    color: var(--hp-primary-dark);
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--hp-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--hp-surface-sunken);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--hp-border-strong);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--hp-subtle);
+  }
+}
+
+/* Kept as a no-op alias so existing markup using .hp-display still works —
+   the redesign dropped the serif display face in favor of bold sans
+   throughout, matching the simpler reference layout. */
+.hp-display {
+  font-family: var(--hp-font-display);
+  text-wrap: balance;
+}
+
+.hp-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.prose {
+  max-width: 100%;
+}
+.prose p {
+  margin-top: 1.3em;
+  margin-bottom: 1.3em;
+  line-height: 1.85;
+  color: var(--hp-ink-soft);
+  max-width: 68ch;
+}
+.prose h1, .prose h2, .prose h3 {
+  color: var(--hp-ink);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.prose a {
+  color: var(--hp-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.prose blockquote {
+  border-left: 3px solid var(--hp-primary);
+  background: var(--hp-surface-sunken);
+  padding: 0.85rem 1.35rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: var(--hp-ink-soft);
+  font-style: italic;
+}
