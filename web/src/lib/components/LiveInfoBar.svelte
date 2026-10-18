@@ -39,6 +39,9 @@
         <option value="İzmir">İzmir</option>
         <option value="Bursa">Bursa</option>
         <option value="Antalya">Antalya</option>
+        <option value="Adana">Adana</option>
+        <option value="Konya">Konya</option>
+        <option value="Trabzon">Trabzon</option>
       </select>
 
       <!-- Weather -->
@@ -59,7 +62,7 @@
 
       <!-- Duty Pharmacy Quick Link -->
       <a
-        href="/nobetci-eczaneler"
+        href={`/nobetci-eczaneler?sehir=${encodeURIComponent(selectedCity)}`}
         class="flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded transition-colors whitespace-nowrap"
       >
         <span>🏥</span> Nöbetçi Eczaneler
