@@ -1,0 +1,15 @@
+id: ads
+label: Reklam Alanları
+description: Sitedeki banner ve sponsorlu reklam alanları
+title_field: name
+public: true
+drafts: true
+fields:
+  - {id: name, label: Reklam Adı, kind: text, required: true, list: true, searchable: true}
+  - {id: zone, label: Yerleşim Alanı, kind: select, options: [header_top, manset_alti, sur_manset_yani, haber_ici, sidebar, footer], required: true, list: true, filterable: true}
+  - {id: banner_image, label: Masaüstü Görseli, kind: media}
+  - {id: mobile_image, label: Mobil Görseli, kind: media}
+  - {id: target_url, label: Hedef Bağlantı (URL), kind: text}
+  - {id: custom_code, label: Özel HTML veya Script Kodu, kind: textarea}
+  - {id: start_date, label: Başlangıç Tarihi, kind: datetime}
+  - {id: end_date, label: Bitiş Tarihi, kind: datetime}
