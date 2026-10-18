@@ -90,6 +90,16 @@ export interface OfficialAnnouncement {
   created_at?: string;
 }
 
+export interface Poll {
+  id: string;
+  question: string;
+  options: string;
+  category?: string;
+  total_votes?: number;
+  is_active?: boolean;
+  end_date?: string;
+}
+
 export interface ApiResponse<T> {
   data: T;
   metadata?: {
@@ -230,4 +240,17 @@ export async function getMasthead(): Promise<Masthead | null> {
 export async function getOfficialAnnouncements(limit: number = 20): Promise<OfficialAnnouncement[]> {
   const data = await fetchApi<OfficialAnnouncement[]>(`/api/v1/content/official_announcements?limit=${limit}`);
   return data || [];
+}
+
+export async function getActivePoll(): Promise<Poll | null> {
+  const data = await fetchApi<Poll[]>('/api/v1/content/polls?limit=1');
+  if (data && data.length > 0) return data[0];
+  // Fallback demo poll for instant reader interaction
+  return {
+    id: 'demo-poll-1',
+    question: 'Sizce Süper Lig 2026 sezonunda şampiyonluğun en güçlü adayı kim?',
+    options: 'Galatasaray,Fenerbahçe,Beşiktaş,Trabzonspor,Diğer',
+    total_votes: 1482,
+    is_active: true,
+  };
 }
