@@ -39,7 +39,7 @@
   </div>
 {:else if zone}
   <!-- Placeholder slot for design preview if no active ad is placed in this zone -->
-  <div class="my-4 w-full h-[90px] max-w-[728px] mx-auto bg-zinc-900/40 border border-dashed border-zinc-800 rounded-lg flex items-center justify-center text-xs text-zinc-600 font-mono {className}">
+  <div class="my-4 w-full h-[90px] max-w-[728px] mx-auto bg-zinc-50 border border-dashed border-zinc-200 rounded-lg flex items-center justify-center text-xs text-zinc-400 font-mono {className}">
     Reklam Alanı [{zone}]
   </div>
 {/if}

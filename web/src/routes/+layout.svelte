@@ -16,7 +16,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </svelte:head>
 
-<div class="min-h-screen bg-black text-white font-sans antialiased selection:bg-red-600 selection:text-white flex flex-col justify-between">
+<div class="min-h-screen bg-white text-zinc-900 font-sans antialiased selection:bg-red-600 selection:text-white flex flex-col justify-between">
   <div>
     <Header />
     <LiveInfoBar />

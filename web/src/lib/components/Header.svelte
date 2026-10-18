@@ -20,23 +20,23 @@
   });
 </script>
 
-<header class="w-full bg-black border-b border-zinc-800 select-none">
+<header class="w-full bg-white border-b border-zinc-200 select-none shadow-xs">
   <!-- Topmost Utility Bar -->
-  <div class="border-b border-zinc-900 bg-zinc-950/80 px-4 py-1.5 text-xs text-zinc-400">
+  <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-1.5 text-xs text-zinc-600">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-4">
-        <span class="font-medium text-zinc-300">{currentDate}</span>
-        <div class="hidden md:flex items-center gap-3 border-l border-zinc-800 pl-4 text-[11px] font-mono">
-          <span class="text-zinc-300">USD/TRY: <b class="text-emerald-400">34.25</b></span>
-          <span class="text-zinc-300">EUR/TRY: <b class="text-emerald-400">37.10</b></span>
-          <span class="text-zinc-300">BIST 100: <b class="text-emerald-400">9.120</b></span>
+        <span class="font-medium text-zinc-700">{currentDate}</span>
+        <div class="hidden md:flex items-center gap-3 border-l border-zinc-200 pl-4 text-[11px] font-mono">
+          <span class="text-zinc-600">USD/TRY: <b class="text-emerald-600">34.25</b></span>
+          <span class="text-zinc-600">EUR/TRY: <b class="text-emerald-600">37.10</b></span>
+          <span class="text-zinc-600">BIST 100: <b class="text-emerald-600">9.120</b></span>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <a href="/en" class="hover:text-white transition-colors text-[11px] font-bold">English</a>
-        <span class="text-zinc-700">|</span>
-        <a href="/admin" target="_blank" class="text-red-400 hover:text-red-300 text-[11px] font-semibold">
+        <a href="/en" class="hover:text-zinc-900 transition-colors text-[11px] font-bold text-zinc-600">English</a>
+        <span class="text-zinc-300">|</span>
+        <a href="/admin" target="_blank" class="text-red-600 hover:text-red-700 text-[11px] font-semibold">
           Yönetici Paneli ↗
         </a>
       </div>
@@ -44,17 +44,17 @@
   </div>
 
   <!-- Main Branding Row -->
-  <div class="px-4 py-4 md:py-6 max-w-7xl mx-auto flex items-center justify-between">
+  <div class="px-4 py-4 md:py-5 max-w-7xl mx-auto flex items-center justify-between">
     <div class="flex items-center gap-3">
       <a href="/" class="flex items-center gap-3 group">
-        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-500 to-amber-500 flex items-center justify-center font-black text-white text-2xl shadow-xl shadow-red-600/40 group-hover:scale-105 group-hover:rotate-1 transition-all duration-300">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 via-rose-500 to-amber-500 flex items-center justify-center font-black text-white text-xl shadow-md shadow-red-500/20">
           H
         </div>
         <div class="flex flex-col">
-          <span class="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none group-hover:text-zinc-100 transition-colors">
-            HYDRO<span class="text-red-500">POST</span>
+          <span class="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight leading-none">
+            HYDRO<span class="text-red-600">POST</span>
           </span>
-          <span class="text-[9px] uppercase tracking-widest text-zinc-400 font-bold mt-1">
+          <span class="text-[9px] uppercase tracking-widest text-zinc-500 font-bold mt-1">
             Bağımsız Haber Portalı
           </span>
         </div>
@@ -63,20 +63,20 @@
 
     <!-- Quick Live Status -->
     <div class="hidden sm:flex items-center gap-2">
-      <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold shadow-inner">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+        <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
         Canlı Yayın & Haber Akışı
       </span>
     </div>
   </div>
 
   <!-- Primary Navigation Categories -->
-  <nav class="bg-zinc-950 border-t border-zinc-800/80 px-4">
-    <div class="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5">
+  <nav class="bg-white border-t border-zinc-200 px-4">
+    <div class="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto scrollbar-none py-1">
       {#each categories as cat}
         <a
           href={cat.href}
-          class="px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-bold text-zinc-300 hover:text-white hover:bg-zinc-800/90 hover:border-zinc-700 border border-transparent whitespace-nowrap transition-all duration-200"
+          class="px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold text-zinc-700 hover:text-red-600 hover:bg-zinc-50 whitespace-nowrap transition-colors"
         >
           {cat.name}
         </a>

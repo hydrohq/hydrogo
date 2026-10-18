@@ -14,12 +14,12 @@
       {@const badge = getCategoryBadge(item.category)}
       <a
         href={`/${slugify(item.category)}/${item.slug}`}
-        class="group relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-xl aspect-[4/3] flex flex-col justify-end p-4 transition-all duration-300 hover:-translate-y-2 hover:border-red-500/80 hover:shadow-2xl hover:shadow-red-950/50 cursor-pointer"
+        class="group relative rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200 shadow-xs aspect-[4/3] flex flex-col justify-end p-4 cursor-pointer"
       >
         <img
           src={getMediaUrl(item.cover_media_id, item.category)}
           alt={item.title}
-          class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-115"
+          class="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
         />
 
@@ -27,11 +27,11 @@
 
         <div class="relative z-10 space-y-1.5 pointer-events-auto">
           {#if item.category}
-            <span class={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${badge.bg} ${badge.text} shadow-md`}>
+            <span class={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${badge.bg} ${badge.text} shadow-xs`}>
               {item.category}
             </span>
           {/if}
-          <h3 class="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug group-hover:text-red-400 transition-colors drop-shadow">
+          <h3 class="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug group-hover:underline drop-shadow">
             {item.title}
           </h3>
         </div>

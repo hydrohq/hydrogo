@@ -24,6 +24,10 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       .filter((r: NewsArticle) => r.slug !== article.slug)
       .slice(0, 3);
 
+    const popularNews = allNews
+      .filter((r: NewsArticle) => r.slug !== article.slug)
+      .slice(0, 6);
+
     // Structured Data (JSON-LD) for Google News SEO
     const jsonLd = {
       '@context': 'https://schema.org',
@@ -42,6 +46,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     return {
       article,
       related: relatedFiltered,
+      popularNews,
       jsonLd,
     };
   } catch (err: any) {

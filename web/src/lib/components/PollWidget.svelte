@@ -101,21 +101,21 @@
 </script>
 
 {#if poll}
-  <div class="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
-    <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-      <span class="text-xs font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+  <div class="p-6 rounded-2xl bg-white border border-zinc-200 shadow-sm space-y-4">
+    <div class="flex items-center justify-between border-b border-zinc-200 pb-3">
+      <span class="text-xs font-bold text-red-600 uppercase tracking-widest flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
         Günün Anketi
       </span>
-      <span class="text-[11px] text-zinc-500">{currentTotalVotes.toLocaleString('tr-TR')} Oy</span>
+      <span class="text-[11px] text-zinc-500 font-medium">{currentTotalVotes.toLocaleString('tr-TR')} Oy</span>
     </div>
 
-    <h3 class="text-base font-bold text-white leading-snug">
+    <h3 class="text-base font-bold text-zinc-900 leading-snug">
       {poll.question}
     </h3>
 
     {#if errorMessage}
-      <div class="p-3 rounded-xl bg-red-950/60 border border-red-900 text-red-300 text-xs">
+      <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
         ⚠️ {errorMessage}
       </div>
     {/if}
@@ -130,10 +130,10 @@
       >
         {#each optionsList as opt}
           <label
-            class={`flex items-center gap-3 p-3 rounded-xl border text-xs font-medium cursor-pointer transition-all ${
+            class={`flex items-center gap-3 p-3 rounded-xl border text-xs font-medium cursor-pointer transition-colors ${
               selectedOption === opt
-                ? 'bg-red-950/40 border-red-600 text-white shadow'
-                : 'bg-zinc-950/80 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                ? 'bg-red-50 border-red-500 text-red-900 shadow-xs'
+                : 'bg-zinc-50/60 border-zinc-200 text-zinc-700 hover:border-zinc-300'
             }`}
           >
             <input
@@ -142,7 +142,7 @@
               value={opt}
               bind:group={selectedOption}
               disabled={isSubmitting}
-              class="w-4 h-4 text-red-600 focus:ring-0 bg-zinc-900 border-zinc-700 cursor-pointer"
+              class="w-4 h-4 text-red-600 focus:ring-0 border-zinc-300 cursor-pointer"
             />
             <span class="flex-1">{opt}</span>
           </label>
@@ -151,7 +151,7 @@
         <button
           type="submit"
           disabled={!selectedOption || isSubmitting}
-          class="w-full mt-3 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+          class="w-full mt-3 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-2"
         >
           {#if isSubmitting}
             <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -169,23 +169,23 @@
           {@const isMyVote = selectedOption === opt}
           <div class="space-y-1">
             <div class="flex items-center justify-between text-xs">
-              <span class={`font-medium ${isMyVote ? 'text-red-400 font-bold' : 'text-zinc-300'}`}>
+              <span class={`font-medium ${isMyVote ? 'text-red-600 font-bold' : 'text-zinc-700'}`}>
                 {opt} {isMyVote ? '✓ (Oyunuz)' : ''}
               </span>
-              <span class="font-mono text-zinc-400 font-bold">%{pct}</span>
+              <span class="font-mono text-zinc-600 font-bold">%{pct}</span>
             </div>
-            <div class="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+            <div class="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
               <div
                 class={`h-full rounded-full transition-all duration-700 ${
-                  isMyVote ? 'bg-gradient-to-r from-red-600 to-rose-400' : 'bg-zinc-600'
+                  isMyVote ? 'bg-red-600' : 'bg-zinc-400'
                 }`}
                 style={`width: ${pct}%`}
               ></div>
             </div>
           </div>
         {/each}
-        <div class="pt-2 text-center text-[11px] text-emerald-400 font-medium">
-          ✓ Oyunuz HydroGo veritabanına başarıyla kaydedildi.
+        <div class="pt-2 text-center text-xs text-emerald-600 font-medium">
+          ✓ Oyunuz başarıyla kaydedildi.
         </div>
       </div>
     {/if}

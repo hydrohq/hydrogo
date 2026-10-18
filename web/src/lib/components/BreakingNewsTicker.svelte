@@ -20,9 +20,9 @@
 </script>
 
 {#if items.length > 0}
-  <div class="w-full bg-zinc-950 border-y border-red-950/40 py-2 px-4 select-none">
+  <div class="w-full bg-zinc-100 border-y border-zinc-200 py-2 px-4 select-none">
     <div class="max-w-7xl mx-auto flex items-center gap-3">
-      <div class="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded bg-red-600 text-white font-extrabold text-[11px] uppercase tracking-wider shadow-sm animate-pulse">
+      <div class="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded bg-red-600 text-white font-extrabold text-[11px] uppercase tracking-wider shadow-xs">
         <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
         Son Dakika
       </div>
@@ -34,7 +34,7 @@
           >
             <a
               href={`/${item.category || 'haber'}/${item.slug}`}
-              class="text-xs sm:text-sm font-medium text-zinc-200 hover:text-red-400 truncate transition-colors"
+              class="text-xs sm:text-sm font-semibold text-zinc-800 hover:underline truncate"
             >
               {item.title}
             </a>
