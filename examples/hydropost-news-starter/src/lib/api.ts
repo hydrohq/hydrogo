@@ -492,18 +492,18 @@ export async function getNewsList(params?: {
   const query = new URLSearchParams();
   query.set('locale', locale);
 
-  // HydroGo publicList requires locale and supports limit up to 100
-  const fetchLimit = params?.category || params?.featured !== undefined ? 100 : (params?.limit || 20);
-  query.set('limit', String(Math.min(100, Math.max(1, fetchLimit))));
+  if (params?.category) {
+    query.set('category', params.category);
+  }
+
+  const fetchLimit = params?.limit ? Math.min(100, Math.max(1, params.limit)) : 30;
+  query.set('limit', String(fetchLimit));
 
   const endpoint = `/api/v1/news?${query.toString()}`;
   const data = await fetchApi<NewsArticle[]>(endpoint);
   if (!data) return [];
 
   let filtered = data;
-  if (params?.category) {
-    filtered = filtered.filter((item) => item.category === params.category);
-  }
   if (params?.featured !== undefined) {
     filtered = filtered.filter((item) => item.featured === params.featured);
   }

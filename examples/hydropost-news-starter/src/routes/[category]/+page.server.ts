@@ -17,10 +17,18 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
   }
 
   const categoryParam = params.category.toLowerCase();
-  const allArticles = await getNewsList({ limit: 100 });
-  const inCategory = allArticles.filter((n: NewsArticle) => {
-    return slugify(n.category) === categoryParam || (n.category && n.category.toLowerCase() === categoryParam);
+
+  const headerNav = await getSiteNavigation('header');
+  const matchedNav = headerNav.find((item) => {
+    const cleanHref = item.href.replace(/^\//, '').toLowerCase();
+    return cleanHref === categoryParam || slugify(item.label) === categoryParam;
   });
+
+  const queryCat = matchedNav ? matchedNav.label : params.category;
+  let inCategory = await getNewsList({ category: queryCat, limit: 50 });
+  if (inCategory.length === 0 && queryCat.toLowerCase() !== params.category.toLowerCase()) {
+    inCategory = await getNewsList({ category: params.category, limit: 50 });
+  }
 
   if (inCategory.length === 0) {
     try {
@@ -32,14 +40,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       if (e?.status === 307 || e?.location) throw e;
     }
 
-    // Check if it's an existing registered category in navigation (e.g. newly created)
-    const headerNav = await getSiteNavigation('header');
-    const isRegisteredNav = headerNav.some((item) => {
-      const cleanHref = item.href.replace(/^\//, '').toLowerCase();
-      return cleanHref === categoryParam || slugify(item.label) === categoryParam;
-    });
-
-    if (!isRegisteredNav) {
+    if (!matchedNav) {
       throw error(404, 'Sayfa veya kategori bulunamadı');
     }
   }

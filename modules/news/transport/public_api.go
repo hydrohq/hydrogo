@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
@@ -37,7 +38,16 @@ func (h Handler) publicList(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = parsed
 	}
-	items, err := repository.ListPublished(r.Context(), h.DB, locale, limit)
+	category := strings.TrimSpace(r.URL.Query().Get("category"))
+	var (
+		items []news.Item
+		err   error
+	)
+	if filterRepo, ok := h.Service.Repository.(publishedCategoryFilterRepository); ok && category != "" {
+		items, err = filterRepo.ListPublishedFiltered(r.Context(), h.DB, locale, category, limit)
+	} else {
+		items, err = repository.ListPublished(r.Context(), h.DB, locale, limit)
+	}
 	if err != nil {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "news is unavailable", nil)
 		return

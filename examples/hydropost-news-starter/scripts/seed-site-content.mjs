@@ -111,12 +111,17 @@ async function run() {
   const HOMEPAGE_SECTIONS = [
     { key: 'hero', visible: true, sort_order: 1 },
     { key: 'son_haberler', visible: true, sort_order: 2 },
-    { key: 'kategori_vitrini', category_filter: 'Ekonomi', visible: true, sort_order: 3 },
-    { key: 'kategori_vitrini', category_filter: 'Teknoloji', visible: true, sort_order: 4 },
+    { key: 'kategori_vitrini', category_filter: 'Gündem', visible: true, sort_order: 3 },
+    { key: 'kategori_vitrini', category_filter: 'Ekonomi', visible: true, sort_order: 4 },
     { key: 'bulten', visible: true, sort_order: 5 },
-    { key: 'ikinci_grid', visible: true, sort_order: 6 },
-    { key: 'cok_okunan', visible: true, sort_order: 7 },
-    { key: 'galeri', visible: true, sort_order: 8 },
+    { key: 'kategori_vitrini', category_filter: 'Teknoloji', visible: true, sort_order: 6 },
+    { key: 'kategori_vitrini', category_filter: 'Dünya', visible: true, sort_order: 7 },
+    { key: 'ikinci_grid', visible: true, sort_order: 8 },
+    { key: 'kategori_vitrini', category_filter: 'Spor', visible: true, sort_order: 9 },
+    { key: 'kategori_vitrini', category_filter: 'Sağlık', visible: true, sort_order: 10 },
+    { key: 'kategori_vitrini', category_filter: 'Yaşam', visible: true, sort_order: 11 },
+    { key: 'cok_okunan', visible: true, sort_order: 12 },
+    { key: 'galeri', visible: true, sort_order: 13 },
   ];
   for (const s of HOMEPAGE_SECTIONS) {
     await createAndPublish('homepage_sections', s, { drafts: false });

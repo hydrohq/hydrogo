@@ -66,9 +66,22 @@ for (const path of paths) {
     await page.setViewportSize(viewport);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    // "load" plus a short settle: pages with live polling never go network-idle.
     const response = await page.goto(path, { waitUntil: "load" });
-    await page.waitForTimeout(600);
+    await page.evaluate(async () => {
+      await new Promise((resolve) => {
+        let total = 0;
+        const timer = setInterval(() => {
+          window.scrollBy(0, 600);
+          total += 600;
+          if (total >= document.body.scrollHeight) {
+            clearInterval(timer);
+            window.scrollTo(0, 0);
+            resolve();
+          }
+        }, 40);
+      });
+    });
+    await page.waitForTimeout(500);
     const file = join(out, `${path.replace(/^\/+/, "").replace(/[^a-zA-Z0-9]+/g, "-") || "home"}-${name}.png`);
     await page.screenshot({ path: file, fullPage: true });
     const status = response ? response.status() : 0;
