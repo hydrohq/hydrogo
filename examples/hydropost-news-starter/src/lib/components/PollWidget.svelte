@@ -86,6 +86,43 @@
     }
   }
 
+  async function removeVote() {
+    if (!poll || isSubmitting) return;
+    isSubmitting = true;
+    errorMessage = null;
+    try {
+      const res = await fetch('/api/poll/vote', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ pollId: poll.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        errorMessage = json.message || 'Oy kaldırılamadı.';
+        return;
+      }
+      if (typeof json.votes_data === 'object') {
+        const total = json.total_votes ?? currentTotalVotes - 1;
+        const pcts: Record<string, number> = {};
+        for (const opt of optionsList) {
+          pcts[opt] = total > 0 ? Math.round(((json.votes_data[opt] || 0) / total) * 100) : 0;
+        }
+        votePercentages = pcts;
+        extraVotes -= 1;
+      }
+      hasVoted = false;
+      selectedOption = null;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(`voted_poll_${poll.id}`);
+      }
+    } catch (err) {
+      console.error('Failed to remove poll vote:', err);
+      errorMessage = 'Sunucuya bağlanılamadı, lütfen tekrar deneyin.';
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
   onMount(() => {
     if (poll) {
       parseExistingVotes();
@@ -187,8 +224,16 @@
             </div>
           </div>
         {/each}
-        <div class="pt-2 text-center text-xs text-emerald-700 font-medium">
-          Oyunuz kaydedildi.
+        <div class="pt-2 flex items-center justify-between text-xs">
+          <span class="text-emerald-700 font-medium">Oyunuz kaydedildi.</span>
+          <button
+            type="button"
+            onclick={removeVote}
+            disabled={isSubmitting}
+            class="font-semibold text-[var(--hp-muted)] hover:text-[var(--hp-primary)] transition-colors cursor-pointer disabled:opacity-50"
+          >
+            Oyumu geri al
+          </button>
         </div>
       </div>
     {/if}

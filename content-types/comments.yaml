@@ -1,0 +1,11 @@
+id: comments
+label: Yorumlar
+description: Haberlere yapılan okuyucu yorumları. Yayınlanmadan önce moderasyon bekler (taslak -> yayınla).
+title_field: author_name
+public: true
+drafts: true
+fields:
+  - {id: article_slug, label: Haber Slug, kind: text, required: true, list: true, filterable: true}
+  - {id: author_name, label: Yazan, kind: text, required: true, list: true, searchable: true}
+  - {id: author_email, label: E-posta (herkese açık gösterilmez), kind: text}
+  - {id: body, label: Yorum, kind: textarea, required: true, searchable: true}

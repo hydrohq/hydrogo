@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getNewsList, slugify, type NewsArticle } from '#lib';
+import { getNewsList, getAds, slugify, type NewsArticle } from '#lib';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   if (params.category.includes('.')) {
@@ -28,8 +28,15 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
   const pinned = inCategory.find((n: NewsArticle) => n.featured);
   const articles = pinned ? [pinned, ...inCategory.filter((n) => n.id !== pinned.id)] : inCategory;
 
+  const [headerTopAds, footerAds] = await Promise.all([
+    getAds('header_top', 'kategori'),
+    getAds('footer', 'kategori'),
+  ]);
+
   return {
     category: params.category,
     articles,
+    headerTopAd: headerTopAds[0] || null,
+    footerAd: footerAds[0] || null,
   };
 };

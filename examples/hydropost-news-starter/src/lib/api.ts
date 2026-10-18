@@ -39,6 +39,8 @@ export interface SiteSettings {
   seo_title?: string;
   seo_description?: string;
   favicon?: string;
+  comments_enabled?: boolean;
+  comments_require_email?: boolean;
 }
 
 export type HomepageSectionKey =
@@ -48,11 +50,13 @@ export type HomepageSectionKey =
   | 'ikinci_grid'
   | 'cok_okunan'
   | 'anket'
-  | 'galeri';
+  | 'galeri'
+  | 'kategori_vitrini';
 
 export interface HomepageSection {
   id: string;
   key: HomepageSectionKey;
+  category_filter?: string;
   visible: boolean;
   sort_order: number;
 }
@@ -79,10 +83,15 @@ export interface Columnist {
   sort_order?: number;
 }
 
+export type AdPageScope = 'tumu' | 'anasayfa' | 'kategori' | 'haber_detay';
+
 export interface Ad {
   id: string;
   name: string;
-  zone: 'header_top' | 'manset_alti' | 'sur_manset_yani' | 'haber_ici' | 'sidebar' | 'footer';
+  zone: string;
+  ad_type?: 'banner' | 'native' | 'script';
+  page_scope?: AdPageScope;
+  disabled?: boolean;
   banner_image?: string;
   mobile_image?: string;
   target_url?: string;
@@ -137,6 +146,14 @@ export interface OfficialAnnouncement {
   body: string;
   official_url?: string;
   created_at?: string;
+}
+
+export interface Comment {
+  id: string;
+  article_slug: string;
+  author_name: string;
+  body: string;
+  created_at: string;
 }
 
 export interface Poll {
@@ -540,10 +557,14 @@ export async function getColumnists(): Promise<Columnist[]> {
   return data || [];
 }
 
-export async function getAds(zone?: string): Promise<Ad[]> {
-  const endpoint = zone ? `/api/v1/content/ads?filter[zone]=${zone}` : '/api/v1/content/ads';
+export async function getAds(zone?: string, pageScope?: AdPageScope): Promise<Ad[]> {
+  const endpoint = zone ? `/api/v1/content/ads?limit=50&filter[zone]=${zone}` : '/api/v1/content/ads?limit=50';
   const data = await fetchApi<Ad[]>(endpoint);
-  return data || [];
+  // `disabled` and `page_scope` aren't server-filterable (booleans/selects
+  // can't be combined with another filter in one query in HydroGo's
+  // content-type API), so both the site-wide kill switch and the per-page
+  // scope are applied here.
+  return (data || []).filter((ad) => !ad.disabled && (!pageScope || !ad.page_scope || ad.page_scope === 'tumu' || ad.page_scope === pageScope));
 }
 
 export async function getGalleries(limit: number = 6): Promise<Gallery[]> {
@@ -563,6 +584,11 @@ export async function getMasthead(): Promise<Masthead | null> {
 
 export async function getOfficialAnnouncements(limit: number = 20): Promise<OfficialAnnouncement[]> {
   const data = await fetchApi<OfficialAnnouncement[]>(`/api/v1/content/official_announcements?limit=${limit}`);
+  return data || [];
+}
+
+export async function getComments(slug: string): Promise<Comment[]> {
+  const data = await fetchApi<Comment[]>(`/api/v1/content/comments?limit=50&filter[article_slug]=${encodeURIComponent(slug)}`);
   return data || [];
 }
 

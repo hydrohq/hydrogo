@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { getMediaUrl, getCategoryBadge, slugify } from '#lib';
+  import { getCategoryBadge } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import NewsCard from '#lib/components/NewsCard.svelte';
+  import FeaturedCarousel from '#lib/components/FeaturedCarousel.svelte';
 
   let { data }: PageProps = $props();
   let badge = $derived(getCategoryBadge(data.category));
@@ -24,25 +25,17 @@
     <span class="text-[var(--hp-ink-soft)] font-semibold uppercase">{data.category}</span>
   </nav>
 
-  <!-- Category Title & Accent Header -->
-  <div class="flex items-center justify-between pb-3 mb-6 border-b-2 border-[var(--hp-border)]">
-    <div class="flex items-center gap-3">
-      <span class={`w-3.5 h-8 rounded-full ${badge.bg}`}></span>
-      <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-[var(--hp-ink)] tracking-tight uppercase">
-          {categoryTitle} Haberleri
-        </h1>
-        <p class="text-xs text-[var(--hp-muted)] mt-0.5">
-          Günün öne çıkan {data.category} başlıkları ve son dakika gelişmeleri
-        </p>
-      </div>
-    </div>
-    <span class="text-xs text-[var(--hp-muted)] font-mono hidden sm:inline">
-      {data.articles.length} Haber
+  <!-- Minimal category banner -->
+  <div class="mb-6">
+    <span class={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badge.bg} ${badge.text}`}>
+      {data.category}
     </span>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-[var(--hp-ink)] tracking-tight mt-2">
+      {categoryTitle} Haberleri
+    </h1>
   </div>
 
-  <AdSlot zone="header_top" class="mb-6" />
+  <AdSlot ad={data.headerTopAd} zone="header_top" class="mb-6" />
 
   {#if data.articles.length === 0}
     <div class="text-center py-16 bg-[var(--hp-surface-sunken)] rounded-2xl border border-[var(--hp-border)] p-8 space-y-3">
@@ -56,42 +49,19 @@
       </a>
     </div>
   {:else}
-    <!-- Top Highlight Card (if more than 1) -->
-    {@const featured = data.articles[0]}
+    <!-- Category manşet: the same rotating-hero pattern as the homepage,
+         scoped to this category's own articles. -->
     <div class="mb-8">
-      <a
-        href={`/${slugify(featured.category || data.category)}/${featured.slug}`}
-        class="group relative block rounded-2xl overflow-hidden bg-[var(--hp-surface-sunken)] border border-[var(--hp-border)] aspect-[16/9] md:aspect-[21/9]"
-      >
-        <img
-          src={getMediaUrl(featured.cover_media_id, featured.category || data.category, featured.slug)}
-          alt={featured.title}
-          class="w-full h-full object-cover"
-        />
-        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none"></div>
-        <div class="absolute bottom-0 inset-x-0 p-6 sm:p-8 space-y-2 max-w-3xl">
-          <span class={`inline-block px-2.5 py-1 rounded ${badge.bg} ${badge.text} text-[10px] font-bold uppercase tracking-wider shadow`}>
-            {featured.category || data.category}
-          </span>
-          <h2 class="text-xl sm:text-2xl md:text-4xl font-extrabold text-white leading-tight group-hover:underline drop-shadow">
-            {featured.title}
-          </h2>
-          {#if featured.excerpt}
-            <p class="text-xs sm:text-sm text-[#e9e2d3] line-clamp-2 max-w-2xl drop-shadow hidden sm:block">
-              {featured.excerpt}
-            </p>
-          {/if}
-        </div>
-      </a>
+      <FeaturedCarousel items={data.articles} />
     </div>
 
     <!-- Remaining Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      {#each data.articles.slice(1) as art, i (art.id)}
+      {#each data.articles.slice(7) as art, i (art.id)}
         <NewsCard item={art} variant="tile" index={i} />
       {/each}
     </div>
   {/if}
 
-  <AdSlot zone="footer" class="my-8" />
+  <AdSlot ad={data.footerAd} zone="footer" class="my-8" />
 </div>

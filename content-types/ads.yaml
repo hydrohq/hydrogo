@@ -7,6 +7,9 @@ drafts: true
 fields:
   - {id: name, label: Reklam Adı, kind: text, required: true, list: true, searchable: true}
   - {id: zone, label: Yerleşim Alanı, kind: select, options: [header_top, manset_alti, sur_manset_yani, haber_ici, sidebar, footer, home_grid_1, home_grid_2], required: true, list: true, filterable: true}
+  - {id: ad_type, label: Reklam Türü, kind: select, options: [banner, native, script], list: true, filterable: true}
+  - {id: page_scope, label: Hangi Sayfa Türünde Gösterilsin, kind: select, options: [tumu, anasayfa, kategori, haber_detay], list: true, filterable: true}
+  - {id: disabled, label: "Devre dışı mı? (işaretlenirse site genelinde hiçbir yerde gösterilmez)", kind: boolean, list: true}
   - {id: banner_image, label: Masaüstü Görseli, kind: media}
   - {id: mobile_image, label: Mobil Görseli, kind: media}
   - {id: target_url, label: Hedef Bağlantı (URL), kind: text}

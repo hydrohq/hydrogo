@@ -10,6 +10,8 @@ fields:
   - {id: seo_title, label: "SEO Başlığı (sekme / arama sonucu)", kind: text}
   - {id: seo_description, label: SEO Açıklaması, kind: textarea}
   - {id: favicon, label: Favicon, kind: media}
+  - {id: comments_enabled, label: "Habere yorum yapılabilsin mi?", kind: boolean}
+  - {id: comments_require_email, label: "Yorum yazarken e-posta zorunlu olsun mu? (üyelik girişi yerine basit kimlik doğrulama)", kind: boolean}
   - {id: footer_description, label: Footer Açıklaması, kind: textarea}
   - {id: footer_highlight_title, label: Footer Vitrin Başlığı, kind: text}
   - {id: footer_highlight_text, label: Footer Vitrin Metni, kind: textarea}

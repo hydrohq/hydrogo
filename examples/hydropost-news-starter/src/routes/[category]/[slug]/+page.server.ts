@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getNewsBySlug, getNewsList, getMediaUrl, type NewsArticle } from '#lib';
+import { getNewsBySlug, getNewsList, getMediaUrl, getAds, getComments, getSiteSettings, type NewsArticle } from '#lib';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   // Edge cache 60s
@@ -43,11 +43,25 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       image: article.cover_media_id ? [getMediaUrl(article.cover_media_id, article.category)] : [getMediaUrl('', article.category)],
     };
 
+    const [inArticleAds, footerAds, sidebarAds, comments, siteSettings] = await Promise.all([
+      getAds('haber_ici', 'haber_detay'),
+      getAds('footer', 'haber_detay'),
+      getAds('sidebar', 'haber_detay'),
+      getComments(article.slug),
+      getSiteSettings(),
+    ]);
+
     return {
       article,
       related: relatedFiltered,
       popularNews,
       jsonLd,
+      inArticleAd: inArticleAds[0] || null,
+      footerAd: footerAds[0] || null,
+      sidebarAd: sidebarAds[0] || null,
+      comments,
+      commentsEnabled: Boolean(siteSettings.comments_enabled),
+      commentsRequireEmail: Boolean(siteSettings.comments_require_email),
     };
   } catch (err: any) {
     if (err?.status) throw err;
