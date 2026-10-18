@@ -577,7 +577,7 @@
 
     <!-- Right Sticky Column: Popüler Haberler & Sidebar Ad -->
     <aside class="hidden lg:block lg:col-span-4 sticky top-6 space-y-6">
-      <div class="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 shadow-xs">
+      <div class="bg-white border border-zinc-200 rounded-2xl p-5 shadow-xs">
         <h3 class="text-base font-extrabold text-zinc-900 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-200 pb-3 mb-3">
           <span class="w-2.5 h-2.5 rounded bg-red-600"></span>
           Popüler Haberler
