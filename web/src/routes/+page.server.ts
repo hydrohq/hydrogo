@@ -5,6 +5,7 @@ import {
   getAds,
   getGalleries,
   getVideos,
+  getActivePoll,
   type NewsArticle,
 } from '#lib';
 
@@ -22,6 +23,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     videos,
     headerAds,
     mansetAds,
+    poll,
   ] = await Promise.all([
     getNewsList({ limit: 20 }),
     getNewsList({ featured: true, limit: 10 }),
@@ -30,6 +32,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     getVideos(4),
     getAds('header_top'),
     getAds('manset_alti'),
+    getActivePoll(),
   ]);
 
   // If there are no specifically featured items, fallback to latest news
@@ -54,6 +57,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     columnists,
     galleries,
     videos,
+    poll,
     headerAd: headerAds[0] || null,
     mansetAltiAd: mansetAds[0] || null,
   };
