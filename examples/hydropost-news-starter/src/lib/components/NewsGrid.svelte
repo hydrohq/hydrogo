@@ -5,14 +5,16 @@
   interface Props {
     items: NewsArticle[];
     ads?: (Ad | null)[];
+    columns?: 3 | 4;
+    showCategory?: boolean;
   }
 
-  let { items = [], ads = [] }: Props = $props();
+  let { items = [], ads = [], columns = 3, showCategory = false }: Props = $props();
 </script>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+<div class={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${columns === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
   {#each items as item, i (item.id)}
-    <NewsCard {item} variant="tile" index={i} />
+    <NewsCard {item} variant="tile" index={i} {showCategory} />
   {/each}
 
   {#each ads as ad}

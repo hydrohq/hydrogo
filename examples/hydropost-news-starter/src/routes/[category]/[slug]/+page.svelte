@@ -3,6 +3,7 @@
   import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, type NewsArticle } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import NewsCard from '#lib/components/NewsCard.svelte';
+  import CommentsSection from '#lib/components/CommentsSection.svelte';
   import { onMount, tick } from 'svelte';
 
   let { data }: PageProps = $props();
@@ -67,6 +68,22 @@
     return `${art.title}. ${art.excerpt || ''}. ${bodyText}`;
   }
 
+  // Chrome/Edge return an empty voice list until the async 'voiceschanged'
+  // event fires at least once — without this, picking a Turkish voice below
+  // silently fails on first use and the browser falls back to its default
+  // (usually English) voice even though utterance.lang is set correctly.
+  let voicesReady = $state(false);
+  function loadVoices() {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (window.speechSynthesis.getVoices().length > 0) voicesReady = true;
+  }
+
+  function pickVoice(lang: string): SpeechSynthesisVoice | null {
+    const voices = window.speechSynthesis.getVoices();
+    const prefix = lang.split('-')[0];
+    return voices.find((v) => v.lang === lang) || voices.find((v) => v.lang.startsWith(prefix)) || null;
+  }
+
   function toggleSpeech(art: NewsArticle) {
     if (!speechSupported || !art) return;
     const synth = window.speechSynthesis;
@@ -82,8 +99,11 @@
     } else {
       synth.cancel();
       const text = getCleanArticleText(art);
+      const lang = art.locale === 'en' ? 'en-US' : 'tr-TR';
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = art.locale === 'en' ? 'en-US' : 'tr-TR';
+      utterance.lang = lang;
+      const voice = pickVoice(lang);
+      if (voice) utterance.voice = voice;
       utterance.rate = speechRate;
 
       utterance.onend = () => {
@@ -142,21 +162,29 @@
   function react(articleId: string, type: string) {
     const key = articleId || 'default';
     const current = userReactions[key];
-    if (current === type) return;
-
     const currentStats = reactionStats[key] || { ...DEFAULT_REACTIONS };
     const nextStats = { ...currentStats };
-    if (current) {
-      nextStats[current] = Math.max(0, (nextStats[current] || 1) - 1);
-    }
-    nextStats[type] = (nextStats[type] || 0) + 1;
 
-    userReactions = { ...userReactions, [key]: type };
+    if (current === type) {
+      // Clicking the active reaction again removes it.
+      nextStats[type] = Math.max(0, (nextStats[type] || 1) - 1);
+      const { [key]: _removed, ...rest } = userReactions;
+      userReactions = rest;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(`reaction_${key}`);
+      }
+    } else {
+      if (current) {
+        nextStats[current] = Math.max(0, (nextStats[current] || 1) - 1);
+      }
+      nextStats[type] = (nextStats[type] || 0) + 1;
+      userReactions = { ...userReactions, [key]: type };
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`reaction_${key}`, type);
+      }
+    }
+
     reactionStats = { ...reactionStats, [key]: nextStats };
-
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(`reaction_${key}`, type);
-    }
   }
 
   function getReadingTime(art?: NewsArticle): number {
@@ -254,6 +282,10 @@
 
   onMount(() => {
     speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+    if (speechSupported) {
+      loadVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    }
 
     if (typeof localStorage !== 'undefined' && data?.article?.id) {
       const saved = localStorage.getItem(`reaction_${data.article.id}`);
@@ -279,6 +311,7 @@
       if (sentinelObserver) sentinelObserver.disconnect();
       if (speechSupported) {
         window.speechSynthesis.cancel();
+        window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
       }
     };
   });
@@ -309,12 +342,7 @@
 
         <!-- Transition divider between infinite scroll articles -->
         {#if index > 0}
-          <div class="relative my-14 py-6 border-t-2 border-dashed border-[var(--hp-border)] text-center">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--hp-surface-sunken)] border border-[var(--hp-border-strong)] text-xs font-bold text-[var(--hp-ink-soft)] uppercase tracking-wider">
-              <span class="w-2 h-2 rounded-full bg-[var(--hp-primary)] animate-pulse"></span>
-              Sıradaki Haber: {art.category || 'Gündem'}
-            </div>
-          </div>
+          <div class="my-14 border-t-2 border-dashed border-[var(--hp-border)]"></div>
         {/if}
 
         <div
@@ -474,12 +502,15 @@
           </div>
 
           <!-- In-Article Ad Slot -->
-          <AdSlot zone="haber_ici" />
+          <AdSlot ad={data.inArticleAd} zone="haber_ici" />
 
           <!-- Article Body (Quill Delta JSON is automatically transformed to clean HTML) -->
+          <!-- Tailwind Typography sets explicit font sizes on nested p/li/etc,
+               so a generic text-xl on the container doesn't cascade to them —
+               use the plugin's own prose-lg/prose-xl size modifiers instead. -->
           <article
-            class={`prose max-w-none text-[var(--hp-ink-soft)] leading-relaxed transition-all duration-150 ${
-              fontScale === 'xl' ? 'text-2xl leading-loose' : fontScale === 'lg' ? 'text-xl leading-relaxed' : 'sm:text-lg'
+            class={`prose max-w-none text-[var(--hp-ink-soft)] transition-all duration-150 ${
+              fontScale === 'xl' ? 'prose-xl' : fontScale === 'lg' ? 'prose-lg' : 'prose-base'
             }`}
           >
             {@html sanitizeHtml(art.body)}
@@ -528,8 +559,12 @@
             </div>
           </div>
 
+          {#if data.commentsEnabled && art.slug === data.article?.slug}
+            <CommentsSection slug={art.slug} comments={data.comments} requireEmail={data.commentsRequireEmail} />
+          {/if}
+
           <!-- Bottom Ad Slot -->
-          <AdSlot zone="footer" class="my-8" />
+          <AdSlot ad={data.footerAd} zone="footer" class="my-8" />
         </div>
       {/each}
 
@@ -567,7 +602,7 @@
     </div>
 
     <!-- Right Sticky Column: Popüler Haberler & Sidebar Ad -->
-    <aside class="hidden lg:block lg:col-span-4 sticky top-6 space-y-6">
+    <aside class="hidden lg:block lg:col-span-4 sticky top-28 space-y-6">
       <div class="bg-[var(--hp-surface)] border border-[var(--hp-border)] rounded-2xl p-5">
         <h3 class="text-base font-bold text-[var(--hp-ink)] mb-4">
           Popüler Haberler
@@ -581,7 +616,7 @@
       </div>
 
       <!-- Sticky Sidebar Ad Slot -->
-      <AdSlot zone="sidebar" />
+      <AdSlot ad={data.sidebarAd} zone="sidebar" />
     </aside>
   </div>
 </div>

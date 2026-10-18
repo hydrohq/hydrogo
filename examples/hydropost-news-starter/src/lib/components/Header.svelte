@@ -66,16 +66,43 @@
       </div>
       <span class="hidden md:inline text-[11px] text-[var(--hp-muted)] border-r border-[var(--hp-border)] pr-3">{currentDate}</span>
 
-      <button
-        type="button"
-        aria-label="Ara"
-        onclick={openSearch}
-        class="w-9 h-9 flex items-center justify-center rounded-full text-[var(--hp-ink-soft)] hover:bg-[var(--hp-surface-sunken)] transition-colors cursor-pointer"
-      >
-        <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" stroke-linecap="round" />
-        </svg>
-      </button>
+      <div class="relative">
+        <button
+          type="button"
+          aria-label="Ara"
+          aria-expanded={searchOpen}
+          onclick={() => (searchOpen ? (searchOpen = false) : openSearch())}
+          class="w-9 h-9 flex items-center justify-center rounded-full transition-colors cursor-pointer {searchOpen ? 'bg-[var(--hp-surface-sunken)] text-[var(--hp-primary)]' : 'text-[var(--hp-ink-soft)] hover:bg-[var(--hp-surface-sunken)]'}"
+        >
+          <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" stroke-linecap="round" />
+          </svg>
+        </button>
+
+        {#if searchOpen}
+          <div class="fixed inset-0 z-40" onclick={() => (searchOpen = false)} aria-hidden="true"></div>
+          <div class="absolute right-0 top-full mt-2 z-50 w-72 sm:w-80 rounded-xl border border-[var(--hp-border)] bg-[var(--hp-surface)] shadow-lg p-3">
+            <form onsubmit={submitSearch} class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--hp-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" stroke-linecap="round" />
+                </svg>
+                <input
+                  bind:this={searchInput}
+                  type="search"
+                  bind:value={searchQuery}
+                  placeholder="Haber ara…"
+                  onkeydown={(e) => e.key === 'Escape' && (searchOpen = false)}
+                  class="w-full pl-9 pr-3 py-2 rounded-lg border border-[var(--hp-border-strong)] bg-[var(--hp-surface)] text-sm text-[var(--hp-ink)] outline-none focus:border-[var(--hp-primary)] transition-colors"
+                />
+              </div>
+              <button type="submit" class="shrink-0 px-3 py-2 rounded-lg bg-[var(--hp-primary)] hover:bg-[var(--hp-primary-dark)] text-white text-sm font-bold transition-colors cursor-pointer">
+                Ara
+              </button>
+            </form>
+          </div>
+        {/if}
+      </div>
       <button
         type="button"
         aria-label="Menü"
@@ -89,32 +116,6 @@
       </button>
     </div>
   </div>
-
-  {#if searchOpen}
-    <div class="border-t border-[var(--hp-border)] px-4 py-3">
-      <form onsubmit={submitSearch} class="max-w-7xl mx-auto flex items-center gap-2">
-        <div class="relative flex-1">
-          <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--hp-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" stroke-linecap="round" />
-          </svg>
-          <input
-            bind:this={searchInput}
-            type="search"
-            bind:value={searchQuery}
-            placeholder="Haber, konu veya başlık ara…"
-            onkeydown={(e) => e.key === 'Escape' && (searchOpen = false)}
-            class="w-full pl-10 pr-4 py-2 rounded-lg border border-[var(--hp-border-strong)] bg-[var(--hp-surface)] text-sm text-[var(--hp-ink)] outline-none focus:border-[var(--hp-primary)] transition-colors"
-          />
-        </div>
-        <button type="submit" class="px-4 py-2 rounded-lg bg-[var(--hp-primary)] hover:bg-[var(--hp-primary-dark)] text-white text-sm font-bold transition-colors cursor-pointer shrink-0">
-          Ara
-        </button>
-        <button type="button" onclick={() => (searchOpen = false)} aria-label="Kapat" class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full text-[var(--hp-muted)] hover:bg-[var(--hp-surface-sunken)] transition-colors cursor-pointer">
-          <svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
-        </button>
-      </form>
-    </div>
-  {/if}
 
   {#if menuOpen}
     <nav class="lg:hidden border-t border-[var(--hp-border)] px-4 py-3 flex flex-col gap-1" aria-label="Ana kategoriler (mobil)">

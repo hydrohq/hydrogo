@@ -139,3 +139,65 @@ export const POST: RequestHandler = async ({ request, getClientAddress, cookies 
     return json({ code: 'internal_error', message: 'Oy kaydedilirken bir hata oluştu.' }, { status: 500 });
   }
 };
+
+// Lets a reader take back their own vote: reads which option they picked
+// from the vote cookie (set in POST above), decrements that tally, clears
+// the cookie so they could vote again.
+export const DELETE: RequestHandler = async ({ request, cookies }) => {
+  let body: { pollId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return json({ code: 'bad_request', message: 'Geçersiz JSON verisi.' }, { status: 400 });
+  }
+
+  const { pollId } = body;
+  if (!pollId) {
+    return json({ code: 'bad_request', message: 'Anket ID zorunludur.' }, { status: 400 });
+  }
+
+  const cookieKey = `voted_${pollId}`;
+  const votedOption = cookies.get(cookieKey);
+  if (!votedOption) {
+    return json({ code: 'not_voted', message: 'Bu ankete oy vermediniz.' }, { status: 409 });
+  }
+  cookies.delete(cookieKey, { path: '/' });
+
+  if (pollId.startsWith('demo-')) {
+    return json({ success: true });
+  }
+
+  try {
+    const getRes = await fetch(`${API_BASE}/api/v1/content/polls/${pollId}`, { headers: { Accept: 'application/json' } });
+    if (!getRes.ok) {
+      return json({ success: true }); // vote cookie cleared either way
+    }
+    const jsonRes = await getRes.json();
+    const pollRecord = jsonRes.data;
+
+    let tallies: Record<string, number> = {};
+    if (pollRecord.votes_data) {
+      try {
+        tallies = JSON.parse(pollRecord.votes_data);
+      } catch {
+        tallies = {};
+      }
+    }
+    tallies[votedOption] = Math.max(0, (tallies[votedOption] || 1) - 1);
+    const newTotal = Math.max(0, (pollRecord.total_votes || 1) - 1);
+
+    const updateHeaders: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    if (API_KEY) updateHeaders['X-API-Key'] = API_KEY;
+
+    await fetch(`${API_BASE}/api/v1/admin/content/polls/${pollId}`, {
+      method: 'PUT',
+      headers: updateHeaders,
+      body: JSON.stringify({ ...pollRecord, total_votes: newTotal, votes_data: JSON.stringify(tallies) }),
+    });
+
+    return json({ success: true, total_votes: newTotal, votes_data: tallies });
+  } catch (err) {
+    console.error('[POLL VOTE] Error removing poll vote:', err);
+    return json({ success: true });
+  }
+};

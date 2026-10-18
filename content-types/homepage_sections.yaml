@@ -5,6 +5,7 @@ title_field: key
 public: true
 drafts: false
 fields:
-  - {id: key, label: Bölüm, kind: select, required: true, list: true, filterable: true, options: [hero, son_haberler, bulten, ikinci_grid, cok_okunan, anket, galeri]}
+  - {id: key, label: Bölüm, kind: select, required: true, list: true, filterable: true, options: [hero, son_haberler, bulten, ikinci_grid, cok_okunan, anket, galeri, kategori_vitrini]}
+  - {id: category_filter, label: "Kategori (yalnızca 'kategori_vitrini' için — haberdeki kategori adıyla birebir aynı yazılmalı, örn. Ekonomi)", kind: text}
   - {id: visible, label: "Görünür mü?", kind: boolean, list: true}
   - {id: sort_order, label: Sıra, kind: number, required: true, list: true}
