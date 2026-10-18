@@ -1,25 +1,34 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, type NewsArticle } from '#lib';
+  import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, type NewsArticle } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import { onMount, tick } from 'svelte';
 
   let { data }: PageProps = $props();
 
-  // --- Article Stream State (Infinite Scroll) ---
-  let articles = $state<NewsArticle[]>([]);
-  let queue = $state<NewsArticle[]>([]);
+  // --- Article Stream State (Clean Svelte 5 Runes) ---
+  let extraArticles = $state<NewsArticle[]>([]);
+  let extraQueue = $state<NewsArticle[]>([]);
   let activeArticle = $state<NewsArticle | null>(null);
   let isLoadingNext = $state(false);
   let hasMore = $state(true);
   let sentinelEl = $state<HTMLElement | null>(null);
 
-  // Sync state whenever page load data changes
+  let initialArticle = $derived(data.article);
+  let currentArticle = $derived(activeArticle || initialArticle || null);
+  let articles = $derived<NewsArticle[]>([
+    ...(initialArticle ? [initialArticle] : []),
+    ...extraArticles,
+  ]);
+
+  // Sync state if navigation changes the active article
   $effect(() => {
-    articles = [data.article];
-    queue = [...(data.related || [])];
-    activeArticle = data.article;
-    hasMore = queue.length > 0 || true;
+    if (data?.article) {
+      extraArticles = [];
+      extraQueue = data.related ? [...data.related] : [];
+      activeArticle = null;
+      hasMore = true;
+    }
   });
 
   // --- Reading Progress State ---
@@ -47,6 +56,7 @@
   let speakingArticleId = $state<string | null>(null);
 
   function getCleanArticleText(art: NewsArticle): string {
+    if (!art) return '';
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = art.body || '';
     const bodyText = tempDiv.textContent || tempDiv.innerText || '';
@@ -54,7 +64,7 @@
   }
 
   function toggleSpeech(art: NewsArticle) {
-    if (!speechSupported) return;
+    if (!speechSupported || !art) return;
     const synth = window.speechSynthesis;
 
     if (isSpeaking && speakingArticleId === art.id) {
@@ -113,8 +123,9 @@
   let reactionStats = $state<Record<string, Record<string, number>>>({});
 
   function getReactions(articleId: string) {
-    if (!reactionStats[articleId]) {
-      reactionStats[articleId] = {
+    const key = articleId || 'default';
+    if (!reactionStats[key]) {
+      reactionStats[key] = {
         like: 42,
         claps: 18,
         wow: 9,
@@ -122,27 +133,29 @@
         angry: 2,
       };
     }
-    return reactionStats[articleId];
+    return reactionStats[key];
   }
 
   function react(articleId: string, type: string) {
-    const current = userReactions[articleId];
+    const key = articleId || 'default';
+    const current = userReactions[key];
     if (current === type) return;
 
-    const stats = getReactions(articleId);
+    const stats = getReactions(key);
     if (current) {
       stats[current] = Math.max(0, (stats[current] || 1) - 1);
     }
-    userReactions[articleId] = type;
+    userReactions[key] = type;
     stats[type] = (stats[type] || 0) + 1;
 
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(`reaction_${articleId}`, type);
+      localStorage.setItem(`reaction_${key}`, type);
     }
   }
 
-  function getReadingTime(art: NewsArticle): number {
-    const words = (art.body || '').replace(/<[^>]*>/g, '').trim().split(/\s+/).length;
+  function getReadingTime(art?: NewsArticle): number {
+    if (!art?.body) return 2;
+    const words = art.body.replace(/<[^>]*>/g, '').trim().split(/\s+/).length;
     return Math.max(1, Math.ceil(words / 180));
   }
 
@@ -155,10 +168,9 @@
       let nextArt: NewsArticle | null = null;
 
       // 1. Check queue from related articles
-      while (queue.length > 0) {
-        const candidate = queue.shift()!;
+      while (extraQueue.length > 0) {
+        const candidate = extraQueue.shift()!;
         if (!articles.some((a) => a.slug === candidate.slug)) {
-          // If body is missing or short summary, fetch full article detail
           if (!candidate.body || candidate.body.length < 50) {
             const full = await fetchApi<NewsArticle>(`/api/v1/news/tr/${candidate.slug}`);
             nextArt = full || candidate;
@@ -169,16 +181,14 @@
         }
       }
 
-      // 2. If queue is exhausted, fetch more from API
+      // 2. If queue is empty, fetch additional articles from API
       if (!nextArt) {
-        const currentCat = activeArticle?.category || 'gundem';
         const res = await fetchApi<NewsArticle[]>(`/api/v1/news?locale=tr&limit=20`);
         if (res && res.length > 0) {
           const unread = res.filter((a) => !articles.some((existing) => existing.slug === a.slug));
           if (unread.length > 0) {
             nextArt = unread[0];
-            // Push remaining unread to queue
-            queue.push(...unread.slice(1));
+            extraQueue.push(...unread.slice(1));
           } else {
             hasMore = false;
           }
@@ -187,8 +197,8 @@
         }
       }
 
-      if (nextArt) {
-        articles.push(nextArt);
+      if (nextArt && nextArt.slug) {
+        extraArticles = [...extraArticles, nextArt];
         await tick();
         observeArticles();
       }
@@ -199,7 +209,6 @@
     }
   }
 
-  // Observe active article for URL and Title synchronization
   let articleObserver: IntersectionObserver | null = null;
   let sentinelObserver: IntersectionObserver | null = null;
 
@@ -216,7 +225,7 @@
             const targetArticle = articles.find((a) => a.slug === slug);
             if (targetArticle && activeArticle?.slug !== targetArticle.slug) {
               activeArticle = targetArticle;
-              const newUrl = `/${targetArticle.category || 'haber'}/${targetArticle.slug}`;
+              const newUrl = `/${slugify(targetArticle.category)}/${targetArticle.slug}`;
               window.history.replaceState(null, '', newUrl);
               document.title = `${targetArticle.seo_title || targetArticle.title} — HydroPost`;
             }
@@ -234,8 +243,7 @@
   onMount(() => {
     speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
-    // Load initial reaction
-    if (typeof localStorage !== 'undefined' && data.article?.id) {
+    if (typeof localStorage !== 'undefined' && data?.article?.id) {
       const saved = localStorage.getItem(`reaction_${data.article.id}`);
       if (saved) userReactions[data.article.id] = saved;
     }
@@ -251,7 +259,6 @@
 
     window.addEventListener('scroll', handleScroll, { passive: true });
 
-    // Setup intersection observer for infinite scroll sentinel
     if (sentinelEl) {
       sentinelObserver = new IntersectionObserver(
         (entries) => {
@@ -259,7 +266,7 @@
             loadNextArticle();
           }
         },
-        { rootMargin: '400px' }
+        { rootMargin: '300px' }
       );
       sentinelObserver.observe(sentinelEl);
     }
@@ -278,22 +285,23 @@
 </script>
 
 <svelte:head>
-  <title>{(activeArticle || data.article).seo_title || (activeArticle || data.article).title} — HydroPost</title>
-  <meta name="description" content={(activeArticle || data.article).seo_description || (activeArticle || data.article).excerpt || (activeArticle || data.article).title} />
+  <title>{activeArticle?.seo_title || activeArticle?.title || data?.article?.title || 'Haber Detay'} — HydroPost</title>
+  <meta name="description" content={activeArticle?.seo_description || activeArticle?.excerpt || data?.article?.excerpt || ''} />
   <!-- OpenGraph -->
-  <meta property="og:title" content={(activeArticle || data.article).title} />
-  <meta property="og:description" content={(activeArticle || data.article).excerpt || (activeArticle || data.article).title} />
+  <meta property="og:title" content={activeArticle?.title || data?.article?.title || ''} />
+  <meta property="og:description" content={activeArticle?.excerpt || data?.article?.excerpt || ''} />
   <meta property="og:type" content="article" />
-  <meta property="og:image" content={getMediaUrl((activeArticle || data.article).cover_media_id, (activeArticle || data.article).category)} />
-  <!-- Google News JSON-LD -->
-  <script type="application/ld+json">
-    {@html JSON.stringify(data.jsonLd)}
-  </script>
+  <meta property="og:image" content={getMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category)} />
+  {#if data?.jsonLd}
+    <!-- Google News JSON-LD -->
+    <script type="application/ld+json">
+      {@html JSON.stringify(data.jsonLd)}
+    </script>
+  {/if}
 </svelte:head>
 
 <!-- Sticky Top Progress & Quick Actions Bar -->
 <div class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
-  <!-- Progress line -->
   <div class="h-1 bg-zinc-800 w-full">
     <div
       class="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 transition-all duration-75"
@@ -357,8 +365,8 @@
     <!-- Transition divider between infinite scroll articles -->
     {#if index > 0}
       <div class="relative my-16 py-8 border-t-2 border-dashed border-zinc-800 text-center">
-        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-700 text-xs font-bold text-zinc-300 shadow-xl uppercase tracking-wider">
-          <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-xs font-bold text-zinc-300 shadow-2xl uppercase tracking-wider">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
           Sıradaki Haber: {art.category || 'Gündem'}
         </div>
       </div>
@@ -375,7 +383,7 @@
       <nav class="flex items-center gap-2 text-xs text-zinc-500 mb-4 select-none">
         <a href="/" class="hover:text-zinc-300 transition-colors">Ana Sayfa</a>
         <span>/</span>
-        <a href={`/${art.category || 'haber'}`} class="hover:text-zinc-300 transition-colors uppercase font-semibold">
+        <a href={`/${slugify(art.category)}`} class="hover:text-zinc-300 transition-colors uppercase font-semibold">
           {art.category || 'Haber'}
         </a>
         <span>/</span>
@@ -386,9 +394,12 @@
       <header class="space-y-4 mb-6">
         <div class="flex items-center justify-between flex-wrap gap-2">
           {#if art.category}
-            <span class={`inline-block px-3 py-1 rounded ${badge.bg} ${badge.text} text-xs font-bold uppercase tracking-wider shadow`}>
+            <a
+              href={`/${slugify(art.category)}`}
+              class={`inline-block px-3 py-1 rounded ${badge.bg} ${badge.text} text-xs font-bold uppercase tracking-wider shadow hover:opacity-90 transition-opacity`}
+            >
               {art.category}
-            </span>
+            </a>
           {/if}
           <div class="flex items-center gap-3 text-xs text-zinc-400">
             <span>⏱ {readingTime} dakika okuma</span>
@@ -420,19 +431,19 @@
         </h1>
 
         {#if art.excerpt}
-          <p class="text-base sm:text-lg text-zinc-300 font-medium leading-relaxed border-l-4 border-red-600 pl-4 py-1.5 bg-zinc-900/40 rounded-r-lg">
+          <p class="text-base sm:text-lg text-zinc-300 font-medium leading-relaxed border-l-4 border-red-600 pl-4 py-2 bg-zinc-900/60 rounded-r-xl">
             {art.excerpt}
           </p>
         {/if}
 
         <!-- Audio Player Bar (Text to Speech) -->
         {#if speechSupported}
-          <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 shadow-lg">
+          <div class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 shadow-xl">
             <div class="flex items-center gap-3">
               <button
                 type="button"
                 onclick={() => toggleSpeech(art)}
-                class="w-10 h-10 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-lg cursor-pointer transition-all hover:scale-105"
+                class="w-11 h-11 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center font-bold text-lg shadow-lg cursor-pointer transition-all hover:scale-105"
                 aria-label="Haberi Dinle"
               >
                 {#if isSpeaking && speakingArticleId === art.id && !isPaused}
@@ -454,12 +465,12 @@
                 <button
                   type="button"
                   onclick={stopSpeech}
-                  class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs cursor-pointer"
+                  class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs cursor-pointer"
                 >
                   Durdur
                 </button>
               {/if}
-              <div class="flex items-center gap-1 text-[11px] bg-zinc-950 px-2 py-1 rounded-lg border border-zinc-800 text-zinc-400">
+              <div class="flex items-center gap-1 text-[11px] bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800 text-zinc-400">
                 <span>Hız:</span>
                 {#each [1.0, 1.25, 1.5] as rate}
                   <button
@@ -500,7 +511,7 @@
                   alert('Haber bağlantısı kopyalandı!');
                 }
               }}
-              class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold transition-colors cursor-pointer"
+              class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold transition-colors cursor-pointer"
             >
               Paylaş ↗
             </button>
@@ -523,7 +534,7 @@
 
       <!-- Article Body (Quill Delta JSON is automatically transformed to clean HTML) -->
       <article
-        class={`prose prose-invert prose-red max-w-none text-zinc-300 leading-relaxed transition-all duration-150 ${
+        class={`prose prose-invert max-w-none text-zinc-300 leading-relaxed transition-all duration-150 ${
           fontScale === 'xl' ? 'text-2xl leading-loose' : fontScale === 'lg' ? 'text-xl leading-relaxed' : 'sm:text-lg'
         }`}
       >
@@ -560,7 +571,7 @@
               type="button"
               onclick={() => react(art.id, r.key)}
               class={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl border transition-all cursor-pointer ${
-                userReactions[art.id] === r.key
+                userReactions[art.id || 'default'] === r.key
                   ? 'bg-red-600/20 border-red-500 text-white scale-110 shadow-lg'
                   : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
               }`}
@@ -586,7 +597,7 @@
         <span>Sıradaki haber yükleniyor...</span>
       </div>
     {:else if hasMore}
-      <div class="text-xs text-zinc-600 flex items-center justify-center gap-2">
+      <div class="text-xs text-zinc-500 flex items-center justify-center gap-2">
         <span>↓ Aşağı kaydırarak sonraki habere geçin</span>
       </div>
     {:else}
@@ -597,7 +608,7 @@
   </div>
 
   <!-- Related News Grid at Bottom -->
-  {#if data.related && data.related.length > 0}
+  {#if data?.related && data.related.length > 0}
     <section class="mt-8 pt-8 border-t border-zinc-800">
       <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
         <span class="w-2.5 h-2.5 rounded bg-red-600"></span>
@@ -606,14 +617,14 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {#each data.related as r}
           <a
-            href={`/${r.category || 'haber'}/${r.slug}`}
-            class="group block p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:-translate-y-1 transition-all duration-300"
+            href={`/${slugify(r.category)}/${r.slug}`}
+            class="group block p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 hover:border-red-500/80 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-red-950/40 transition-all duration-300"
           >
-            <div class="aspect-video rounded-lg overflow-hidden bg-zinc-800 mb-2.5">
+            <div class="aspect-video rounded-xl overflow-hidden bg-zinc-800 mb-2.5 relative">
               <img
                 src={getMediaUrl(r.cover_media_id, r.category)}
                 alt={r.title}
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
                 loading="lazy"
               />
             </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { getMediaUrl, getCategoryBadge } from '#lib';
+  import { getMediaUrl, getCategoryBadge, slugify } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
 
   let { data }: PageProps = $props();
@@ -59,15 +59,15 @@
     {@const featured = data.articles[0]}
     <div class="mb-8">
       <a
-        href={`/${featured.category || data.category}/${featured.slug}`}
-        class="group relative block rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl aspect-[16/9] md:aspect-[21/9] transition-all duration-300 hover:border-zinc-700"
+        href={`/${slugify(featured.category || data.category)}/${featured.slug}`}
+        class="group relative block rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl aspect-[16/9] md:aspect-[21/9] transition-all duration-300 hover:border-red-500/80 hover:shadow-red-950/40"
       >
         <img
           src={getMediaUrl(featured.cover_media_id, featured.category || data.category)}
           alt={featured.title}
-          class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
         />
-        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none"></div>
         <div class="absolute bottom-0 inset-x-0 p-6 sm:p-8 space-y-2 max-w-3xl">
           <span class={`inline-block px-2.5 py-1 rounded ${badge.bg} ${badge.text} text-[10px] font-bold uppercase tracking-wider shadow`}>
             {featured.category || data.category}
@@ -88,14 +88,14 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {#each data.articles.slice(1) as art}
         <a
-          href={`/${art.category || data.category}/${art.slug}`}
-          class="group flex flex-col rounded-2xl overflow-hidden bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900 transition-all duration-300 hover:-translate-y-1 shadow-lg"
+          href={`/${slugify(art.category || data.category)}/${art.slug}`}
+          class="group flex flex-col rounded-2xl overflow-hidden bg-zinc-900/60 border border-zinc-800/80 hover:border-red-500/80 hover:bg-zinc-900 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-red-950/30"
         >
           <div class="aspect-video w-full overflow-hidden bg-zinc-800 relative">
             <img
               src={getMediaUrl(art.cover_media_id, art.category || data.category)}
               alt={art.title}
-              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              class="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-115"
               loading="lazy"
             />
             <div class="absolute top-3 left-3">

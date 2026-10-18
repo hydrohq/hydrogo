@@ -4,12 +4,12 @@
     { name: 'Gündem', href: '/gundem' },
     { name: 'Dünya', href: '/dunya' },
     { name: 'Ekonomi', href: '/ekonomi' },
-    { name: 'Siyaset', href: '/siyaset' },
     { name: 'Teknoloji', href: '/teknoloji' },
     { name: 'Spor', href: '/spor' },
-    { name: 'Yazarlar', href: '/yazarlar' },
+    { name: 'Yazarlar', href: '/#yazarlar' },
     { name: 'Resmi İlanlar', href: '/resmi-ilanlar' },
-    { name: 'Galeriler', href: '/galeri' },
+    { name: 'Nöbetçi Eczaneler', href: '/nobetci-eczaneler' },
+    { name: 'Künye', href: '/kunye' },
   ];
 
   const currentDate = new Date().toLocaleDateString('tr-TR', {
@@ -46,24 +46,24 @@
   <!-- Main Branding Row -->
   <div class="px-4 py-4 md:py-6 max-w-7xl mx-auto flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <a href="/" class="flex items-center gap-2.5 group">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform">
+      <a href="/" class="flex items-center gap-3 group">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-500 to-amber-500 flex items-center justify-center font-black text-white text-2xl shadow-xl shadow-red-600/40 group-hover:scale-105 group-hover:rotate-1 transition-all duration-300">
           H
         </div>
         <div class="flex flex-col">
-          <span class="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none">
+          <span class="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none group-hover:text-zinc-100 transition-colors">
             HYDRO<span class="text-red-500">POST</span>
           </span>
-          <span class="text-[9px] uppercase tracking-widest text-zinc-400 font-bold mt-0.5">
+          <span class="text-[9px] uppercase tracking-widest text-zinc-400 font-bold mt-1">
             Bağımsız Haber Portalı
           </span>
         </div>
       </a>
     </div>
 
-    <!-- Quick Search or Live Status -->
+    <!-- Quick Live Status -->
     <div class="hidden sm:flex items-center gap-2">
-      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+      <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold shadow-inner">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         Canlı Yayın & Haber Akışı
       </span>
@@ -72,11 +72,11 @@
 
   <!-- Primary Navigation Categories -->
   <nav class="bg-zinc-950 border-t border-zinc-800/80 px-4">
-    <div class="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto scrollbar-none py-1">
+    <div class="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5">
       {#each categories as cat}
         <a
           href={cat.href}
-          class="px-3.5 py-2 rounded-lg text-xs md:text-sm font-bold text-zinc-300 hover:text-white hover:bg-zinc-800/60 whitespace-nowrap transition-colors"
+          class="px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-bold text-zinc-300 hover:text-white hover:bg-zinc-800/90 hover:border-zinc-700 border border-transparent whitespace-nowrap transition-all duration-200"
         >
           {cat.name}
         </a>
