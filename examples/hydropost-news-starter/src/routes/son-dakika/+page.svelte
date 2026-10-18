@@ -94,23 +94,9 @@
       </div>
       <div class="space-y-3.5">
         {#each data.popular as item, i (item.id)}
-          <NewsCard {item} variant="row" rank={i + 1} index={i} />
+          <NewsCard {item} variant="row" index={i} />
         {/each}
       </div>
     </div>
-
-    {#if data.spotlight}
-      <a href={`/${slugify(data.spotlight.category)}/${data.spotlight.slug}`} class="group block rounded-xl overflow-hidden border border-[var(--hp-border)]">
-        <div class="aspect-video overflow-hidden bg-[var(--hp-surface-sunken)]">
-          <img src={getMediaUrl(data.spotlight.cover_media_id, data.spotlight.category, data.spotlight.slug)} alt={data.spotlight.title} class="w-full h-full object-cover" loading="lazy" />
-        </div>
-        <div class="p-3.5">
-          <span class="text-[11px] font-bold uppercase tracking-wide text-[var(--hp-primary)]">{data.spotlight.category}</span>
-          <h4 class="mt-1 text-sm font-bold text-[var(--hp-ink)] leading-snug group-hover:text-[var(--hp-primary)] transition-colors">
-            {data.spotlight.title}
-          </h4>
-        </div>
-      </a>
-    {/if}
   </aside>
 </div>

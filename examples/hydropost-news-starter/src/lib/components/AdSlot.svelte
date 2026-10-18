@@ -37,9 +37,4 @@
       </a>
     {/if}
   </div>
-{:else if zone}
-  <!-- Placeholder slot for design preview if no active ad is placed in this zone -->
-  <div class="my-4 w-full h-[90px] max-w-[728px] mx-auto bg-[var(--hp-surface-sunken)] border border-dashed border-[var(--hp-border-strong)] flex items-center justify-center text-xs text-[var(--hp-subtle)] uppercase tracking-wider {className}">
-    Reklam Alanı · {zone}
-  </div>
 {/if}
