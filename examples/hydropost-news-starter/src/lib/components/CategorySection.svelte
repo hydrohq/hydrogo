@@ -28,7 +28,7 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <NewsCard item={big} variant="overlay" index={0} />
+      <NewsCard item={big} variant="tile" index={0} />
       <div class="grid grid-cols-2 gap-4">
         {#each rest as item, i (item.id)}
           <NewsCard {item} variant="tile" index={i + 1} />
