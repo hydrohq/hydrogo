@@ -1,19 +1,10 @@
 import { error, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import type { PageLoad } from './$types';
 import { getNewsList, getAds, getPage, getSiteNavigation, slugify, type NewsArticle } from '#lib';
 
-export const load: PageServerLoad = async ({ params, setHeaders }) => {
+export const load: PageLoad = async ({ params }) => {
   if (params.category.includes('.')) {
     throw error(404, 'Not found');
-  }
-
-  // Edge cache 60s
-  try {
-    setHeaders({
-      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=600',
-    });
-  } catch {
-    // ignore if header was already set
   }
 
   const categoryParam = params.category.toLowerCase();

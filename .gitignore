@@ -27,6 +27,7 @@ config.env.*
 /bin/
 /build/
 /dist/
+/hydro_linux
 /hydro-cache-bench-linux
 /hydro-cache-load
 /hydro-capacity-load

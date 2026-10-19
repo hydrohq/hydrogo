@@ -13,10 +13,12 @@
 
   onMount(() => inputEl?.focus());
 
+  import { goto } from '$app/navigation';
+
   function onSubmit(e: SubmitEvent) {
     e.preventDefault();
     const q = query.trim();
-    window.location.href = q ? `/ara?q=${encodeURIComponent(q)}` : '/ara';
+    goto(q ? `/ara?q=${encodeURIComponent(q)}` : '/ara');
   }
 </script>
 

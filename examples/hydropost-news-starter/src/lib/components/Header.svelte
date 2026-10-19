@@ -28,6 +28,8 @@
   let overflowNav = $derived(nav.slice(MAX_VISIBLE_NAV));
   let moreDropdownOpen = $state(false);
 
+  import { goto } from '$app/navigation';
+
   function openSearch() {
     searchOpen = true;
     requestAnimationFrame(() => searchInput?.focus());
@@ -36,7 +38,8 @@
   function submitSearch(e: SubmitEvent) {
     e.preventDefault();
     const q = searchQuery.trim();
-    window.location.href = q ? `/ara?q=${encodeURIComponent(q)}` : '/ara';
+    searchOpen = false;
+    goto(q ? `/ara?q=${encodeURIComponent(q)}` : '/ara');
   }
 </script>
 
