@@ -1,0 +1,28 @@
+# Builds the .deb and .rpm packages (see .github/workflows/release.yml).
+# VERSION and ARCH (amd64 or arm64) and SRC (the extracted release archive) come from the environment.
+name: hydrogo
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: web
+priority: optional
+maintainer: HydroGo maintainers <noreply@example.com>
+description: |
+  HydroGo is a single-binary headless CMS: pages, news, media, members,
+  content types, a REST API and an embedded admin panel.
+homepage: https://github.com/ozyildirims/hydrogo
+license: MIT
+contents:
+  - src: ${SRC}/hydro
+    expand: true
+    dst: /usr/bin/hydro
+    file_info: {mode: 0755}
+  - src: ${SRC}/config.example.yaml
+    expand: true
+    dst: /usr/share/doc/hydrogo/config.example.yaml
+  - src: ${SRC}/README.md
+    expand: true
+    dst: /usr/share/doc/hydrogo/README.md
+  - src: ${SRC}/LICENSE
+    expand: true
+    dst: /usr/share/doc/hydrogo/LICENSE
