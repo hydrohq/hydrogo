@@ -31,18 +31,6 @@
 
   <!-- Action Buttons -->
   <div class="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
-    <!-- Visit Our Website (White pill button with triangle icon) -->
-    <a
-      href="https://ardalabs.dev"
-      target="_blank"
-      rel="noreferrer"
-      class="w-full sm:w-auto h-11 px-7 rounded-full bg-white hover:bg-zinc-200 text-black font-semibold text-sm flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
-    >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-        <polygon points="12 2 22 22 2 22"></polygon>
-      </svg>
-      Visit Our Website
-    </a>
 
     <!-- Read our docs (Dark pill button) -->
     <button

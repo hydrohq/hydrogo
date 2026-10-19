@@ -1,0 +1,157 @@
+name: Release
+
+# Push a tag such as v0.2.0 to publish binaries, a Windows installer, checksums
+# and a container image. The admin panel is embedded from internal/adminui/dist
+# (committed), so release builds need no Node toolchain.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build, for example v0.2.0'
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {goos: linux, goarch: amd64}
+          - {goos: linux, goarch: arm64}
+          - {goos: darwin, goarch: amd64}
+          - {goos: darwin, goarch: arm64}
+          - {goos: windows, goarch: amd64}
+          - {goos: windows, goarch: arm64}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          check-latest: false
+      - name: Build
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          ext=""; [ "$GOOS" = windows ] && ext=".exe"
+          name="hydrogo_${TAG}_${GOOS}_${GOARCH}"
+          mkdir -p "dist/${name}"
+          go build -trimpath -buildvcs=false \
+            -ldflags "-s -w -X main.version=${TAG#v} -X main.buildCommit=${GITHUB_SHA} -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "dist/${name}/hydro${ext}" ./cmd/hydro
+          cp LICENSE README.md config.example.yaml "dist/${name}/"
+          cd dist
+          if [ "$GOOS" = windows ]; then zip -qr "${name}.zip" "${name}"; else tar -czf "${name}.tar.gz" "${name}"; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bin-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+
+  windows-installer:
+    needs: binaries
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Download the Windows archives
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'bin-windows-*' --dir dl
+          mkdir archives && find dl -type f -exec mv {} archives/ \;
+      - name: Build Setup.exe with Inno Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install innosetup --no-progress -y
+          $version = "${env:TAG}".TrimStart('v')
+          foreach ($arch in 'amd64', 'arm64') {
+            $name = "hydrogo_${env:TAG}_windows_$arch"
+            Expand-Archive "archives/$name.zip" -DestinationPath staging -Force
+            & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+              "/DAppVersion=$version" "/DArch=$arch" `
+              "/DSourceDir=$PWD\staging\$name" "/DOutputDir=$PWD\dist" `
+              deploy\windows\hydrogo.iss
+          }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows-installer
+          path: dist/*.exe
+
+  publish:
+    needs: [binaries, windows-installer]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Download all build outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir dl
+          mkdir assets && find dl -type f -exec mv {} assets/ \;
+      - name: Checksums
+        run: |
+          cd assets
+          sha256sum * > SHA256SUMS
+          cp ../scripts/install.sh ../scripts/install.ps1 .
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          notes="$(awk -v v="${TAG#v}" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md)"
+          [ -n "$notes" ] || notes="See CHANGELOG.md."
+          prerelease=""; case "$TAG" in *-*) prerelease="--prerelease";; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" assets/* --clobber
+          else
+            gh release create "$TAG" assets/* --title "HydroGo $TAG" --notes "$notes" $prerelease
+          fi
+
+  image:
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Build and push to GHCR
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+          docker buildx create --use >/dev/null
+          tags="-t ${repo}:${TAG#v}"
+          case "$TAG" in *-*) ;; *) tags="$tags -t ${repo}:latest";; esac
+          docker buildx build --platform linux/amd64,linux/arm64 $tags --push .

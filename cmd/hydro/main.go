@@ -38,9 +38,9 @@ func clearPublicCaches(page pageCache, html *server.PublicHTMLCache) {
 	}
 }
 
-const version = "0.1.0"
-
 var (
+	// version is overridden at release time: -ldflags "-X main.version=v1.2.3".
+	version     = "0.1.0"
 	buildCommit = "unknown"
 	buildTime   = "unknown"
 )
@@ -110,6 +110,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 			return err
 		}
 		return errors.New("version accepts only --json")
+	case "content-type":
+		return contentTypeCommand(args[1:], stdout, stderr)
+	case "new", "init":
+		return newCommand(args[0], args[1:], stdin, stdout, stderr)
 	case "serve":
 		return serve(args[1:], stderr)
 	case "run", "dev":

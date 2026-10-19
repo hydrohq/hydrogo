@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "deploy": "powershell -ExecutionPolicy Bypass -File ../../scripts/deploy-ardalabs.ps1"
+    "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
     "clsx": "^2.1.1",

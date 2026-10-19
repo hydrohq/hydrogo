@@ -6,11 +6,9 @@
 go run ./tools/devserver
 ```
 
-This rebuilds on save, seeds disposable demo data and serves the site at
+This rebuilds on save, seeds disposable demo data and serves the API at
 http://127.0.0.1:8090 (admin at `/admin`). Use `-address 0.0.0.0:8090` to
-open it from a phone on the same network. The public theme defaults to
-`corporate`; run `HYDRO_THEME=newsroom go run ./tools/devserver` for the news
-theme. (`hydro serve --config config.yaml` reads `theme:` from the file.)
+open it from a phone on the same network.
 
 Optional local PostgreSQL/Redis: `docker compose -f compose.dev.yaml up -d`.
 

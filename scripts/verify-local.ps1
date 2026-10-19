@@ -57,7 +57,7 @@ if ($skipContractTests) {
     Write-Host "SKIPPED: headless starter contract smoke (#notest tag found)"
 } elseif (Get-Command npm -ErrorAction SilentlyContinue) {
     Invoke-Required "headless starter contract smoke" {
-        Push-Location (Join-Path $PSScriptRoot "..\examples\headless-starter")
+        Push-Location (Join-Path $PSScriptRoot "..\packages\client")
         try { npm test } finally { Pop-Location }
     }
 } else {

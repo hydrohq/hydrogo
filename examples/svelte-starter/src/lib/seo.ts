@@ -13,7 +13,7 @@ export interface SEOOptions {
   jsonLd?: Record<string, any>;
 }
 
-const DEFAULT_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://ardalabs.xyz';
+const DEFAULT_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://example.com';
 const DEFAULT_TITLE = 'HydroGo · High-Performance Headless Go CMS & Modern Svelte 5';
 const DEFAULT_DESCRIPTION =
   'Single-binary headless CMS powered by Go and Svelte 5. High-performance REST APIs, instant zero-build publishing, and rich developer tooling.';

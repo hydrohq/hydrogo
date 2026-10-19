@@ -3,12 +3,9 @@
 ## Supported versions
 
 HydroGo is under active development. Security fixes are applied to the latest
-`main` branch and to the latest published release once releases are declared
-supported. Older commits and unreleased development snapshots are not a
-security-support promise.
-
-The support status of profiles and database providers is documented in
-`docs/archive/SUPPORT_MATRIX.md` (historical).
+`main` branch, the latest release and the release before it. Older releases
+and unreleased development snapshots are not a security-support promise.
+See [upgrading.md](upgrading.md) for how to move to a fixed release.
 
 ## Reporting a vulnerability
 
@@ -36,7 +33,7 @@ whether an external provider must publish a coordinated fix.
 ## Scope and assumptions
 
 The threat model and deployment assumptions are maintained in
-`docs/archive/security/THREAT_MODEL.md`. A contract test, local benchmark, or
+the threat model in the repository history (`docs/archive/security/THREAT_MODEL.md` before it was removed). A contract test, local benchmark, or
 development-only configuration is not by itself a production security
 certification. Please identify the profile, database, storage provider, and
 deployment topology when reporting an operational security issue.
