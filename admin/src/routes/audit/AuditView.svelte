@@ -240,57 +240,57 @@
         <!-- Posture Card -->
         <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-5 shadow-xs text-card-foreground relative">
           <div class="flex items-center justify-between pb-2">
-            <span class="text-xs font-medium text-muted-foreground">Security Posture</span>
+            <span class="text-xs font-medium text-muted-foreground">{t('audit.posture')}</span>
             <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
               <span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Protected
+              {t('audit.protected')}
             </span>
           </div>
           <div class="space-y-1">
-            <div class="text-xl font-bold tracking-tight text-foreground">Zero Compromise</div>
-            <p class="text-xs text-muted-foreground">Rate limiters, tarpit and anomaly firewall active</p>
+            <div class="text-xl font-bold tracking-tight text-foreground">{t('audit.zeroCompromise')}</div>
+            <p class="text-xs text-muted-foreground">{t('audit.postureNote')}</p>
           </div>
         </div>
 
         <!-- Logins Metric -->
         <div class="rounded-xl border border-border bg-card p-5 shadow-xs text-card-foreground">
           <div class="flex items-center justify-between pb-2">
-            <span class="text-xs font-medium text-muted-foreground">Admin Sign-in Traffic</span>
-            <span class="text-xs font-mono text-muted-foreground">{total} events</span>
+            <span class="text-xs font-medium text-muted-foreground">{t('audit.signInTraffic')}</span>
+            <span class="text-xs font-mono text-muted-foreground">{t('audit.eventsCount', { count: total })}</span>
           </div>
           <div class="flex items-baseline gap-2">
             <span class="text-xl font-bold text-foreground tabular-nums">{securityStats.logins}</span>
-            <span class="text-xs text-emerald-600 font-medium">Valid</span>
+            <span class="text-xs text-emerald-600 font-medium">{t('audit.valid')}</span>
             {#if securityStats.failedLogins > 0}
               <span class="text-xs text-muted-foreground">/</span>
-              <span class="text-xs font-semibold text-destructive">{securityStats.failedLogins} Failed</span>
+              <span class="text-xs font-semibold text-destructive">{t('audit.failedCount', { count: securityStats.failedLogins })}</span>
             {/if}
           </div>
-          <p class="text-xs text-muted-foreground mt-1">Staff session lifecycle logs</p>
+          <p class="text-xs text-muted-foreground mt-1">{t('audit.sessionLogs')}</p>
         </div>
 
         <!-- Blocked Anomalies Metric -->
         <div class="rounded-xl border border-border bg-card p-5 shadow-xs text-card-foreground">
           <div class="flex items-center justify-between pb-2">
-            <span class="text-xs font-medium text-muted-foreground">Security Blocks</span>
+            <span class="text-xs font-medium text-muted-foreground">{t('audit.securityBlocks')}</span>
             <svg class="size-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
           </div>
           <div class="text-xl font-bold text-foreground tabular-nums">{securityStats.anomalies}</div>
-          <p class="text-xs text-muted-foreground mt-1">Suspicious requests & injection probes dropped</p>
+          <p class="text-xs text-muted-foreground mt-1">{t('audit.blocksNote')}</p>
         </div>
 
         <!-- 404 Probed Routes Metric -->
         <div class="rounded-xl border border-border bg-card p-5 shadow-xs text-card-foreground">
           <div class="flex items-center justify-between pb-2">
-            <span class="text-xs font-medium text-muted-foreground">Probed 404 Routes</span>
-            <span class="text-xs font-mono text-muted-foreground">{notFoundHits.length} routes</span>
+            <span class="text-xs font-medium text-muted-foreground">{t('audit.probed404')}</span>
+            <span class="text-xs font-mono text-muted-foreground">{t('audit.routesCount', { count: notFoundHits.length })}</span>
           </div>
           <div class="text-xl font-bold text-foreground tabular-nums">
             {notFoundHits.reduce((acc, h) => acc + h.hits, 0)}
           </div>
-          <p class="text-xs text-muted-foreground mt-1">Scanner bot hits on non-existent endpoints</p>
+          <p class="text-xs text-muted-foreground mt-1">{t('audit.probedNote')}</p>
         </div>
       </div>
 
@@ -344,14 +344,14 @@
         <div class="px-4 lg:px-6">
           <form onsubmit={handleFilter} class="p-3 rounded-xl border border-border bg-card shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
             <Input label={t('audit.filter.actor')} placeholder={t('audit.filter.actorPlaceholder')} bind:value={filterActor} />
-            <Input label={t('audit.filter.action')} placeholder="e.g. create, update, delete..." bind:value={filterAction} />
-            <Input label={t('audit.filter.resource')} placeholder="e.g. pages, auth, site..." bind:value={filterResource} />
+            <Input label={t('audit.filter.action')} placeholder={t('audit.filter.actionPlaceholder')} bind:value={filterAction} />
+            <Input label={t('audit.filter.resource')} placeholder={t('audit.filter.resourcePlaceholder')} bind:value={filterResource} />
             <div class="flex gap-2">
               <button
                 type="submit"
                 class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
               >
-                Filter
+                {t('audit.filter.apply')}
               </button>
               <button
                 type="button"
@@ -364,7 +364,7 @@
                   loadLogs();
                 }}
               >
-                Reset
+                {t('audit.filter.reset')}
               </button>
             </div>
           </form>
@@ -409,7 +409,7 @@
                             class="text-xs text-primary hover:underline font-medium cursor-pointer"
                             onclick={() => { selectedEntry = entry; }}
                           >
-                            Inspect
+                            {t('audit.inspect')}
                           </button>
                         </td>
                       </tr>
@@ -421,7 +421,7 @@
               <!-- Pagination -->
               <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
                 <div>
-                  Showing {offset + 1}–{Math.min(offset + entries.length, total)} of {total}
+                  {t('audit.showingRange', { from: offset + 1, to: Math.min(offset + entries.length, total), total })}
                 </div>
                 <div class="flex gap-2">
                   <button
@@ -430,7 +430,7 @@
                     onclick={() => { offset = Math.max(0, offset - limit); loadLogs(); }}
                     class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
                   >
-                    Previous
+                    {t('common.previous')}
                   </button>
                   <button
                     type="button"
@@ -438,7 +438,7 @@
                     onclick={() => { offset += limit; loadLogs(); }}
                     class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
                   >
-                    Next
+                    {t('common.next')}
                   </button>
                 </div>
               </div>
@@ -453,15 +453,15 @@
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             <div class="p-4 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 class="text-sm font-semibold text-foreground">Security & Access Audit Stream</h3>
-                <p class="text-xs text-muted-foreground">Monitoring login attempts, failed credentials, and blocked vulnerability probes</p>
+                <h3 class="text-sm font-semibold text-foreground">{t('audit.streamTitle')}</h3>
+                <p class="text-xs text-muted-foreground">{t('audit.streamHelp')}</p>
               </div>
-              <span class="text-xs font-mono text-muted-foreground">{securityEntries.length} security events</span>
+              <span class="text-xs font-mono text-muted-foreground">{t('audit.securityEvents', { count: securityEntries.length })}</span>
             </div>
 
             {#if securityEntries.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground">
-                No security anomalies or sign-in events recorded.
+                {t('audit.noSecurity')}
               </div>
             {:else}
               <div class="overflow-x-auto">
@@ -469,11 +469,11 @@
                   <thead class="bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                     <tr>
                       <th class="h-10 px-4 font-medium">{t('audit.col.timestamp')}</th>
-                      <th class="h-10 px-4 font-medium">Event / Outcome</th>
-                      <th class="h-10 px-4 font-medium">Actor / Target</th>
-                      <th class="h-10 px-4 font-medium">Client Info</th>
-                      <th class="h-10 px-4 font-medium">Request ID</th>
-                      <th class="h-10 w-24 px-4 font-medium text-right">Inspect</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.event')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.actorTarget')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.client')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.requestId')}</th>
+                      <th class="h-10 w-24 px-4 font-medium text-right">{t('audit.inspect')}</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -513,7 +513,7 @@
                             class="text-xs text-primary hover:underline font-medium cursor-pointer"
                             onclick={() => { selectedEntry = entry; }}
                           >
-                            Details
+                            {t('audit.details')}
                           </button>
                         </td>
                       </tr>
@@ -534,7 +534,7 @@
             <div class="relative w-full max-w-sm">
               <input
                 type="text"
-                placeholder="Filter probed paths (e.g. /wp-admin, .env)..."
+                placeholder={t('audit.pathFilter')}
                 bind:value={filterSearch}
                 class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
               />
@@ -544,28 +544,28 @@
               </svg>
             </div>
             <span class="text-xs text-muted-foreground">
-              Showing {filteredNotFoundHits.length} of {notFoundHits.length} scanned paths
+              {t('audit.pathsShowing', { shown: filteredNotFoundHits.length, total: notFoundHits.length })}
             </span>
           </div>
 
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if notFoundLoading}
-              <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">Loading 404 probe logs...</div>
+              <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">{t('audit.loading404')}</div>
             {:else if filteredNotFoundHits.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground">
-                No non-existent paths probed by visitors or bots.
+                {t('audit.empty404')}
               </div>
             {:else}
               <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-foreground">
                   <thead class="bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                     <tr>
-                      <th class="h-10 px-4 font-medium">Probed Path</th>
-                      <th class="h-10 px-4 font-medium">Threat Classification</th>
-                      <th class="h-10 px-4 font-medium">Hits</th>
-                      <th class="h-10 px-4 font-medium">First Seen</th>
-                      <th class="h-10 px-4 font-medium">Last Seen</th>
-                      <th class="h-10 px-4 font-medium text-right">Protection Action</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.path')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.threat')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.hits')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.firstSeen')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.lastSeen')}</th>
+                      <th class="h-10 px-4 font-medium text-right">{t('audit.col.protection')}</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -577,9 +577,9 @@
                         </td>
                         <td class="px-4 py-3">
                           {#if scanner}
-                            <Badge variant="destructive" size="sm">Vulnerability Scanner</Badge>
+                            <Badge variant="destructive" size="sm">{t('audit.vulnScanner')}</Badge>
                           {:else}
-                            <Badge variant="secondary" size="sm">404 Route Miss</Badge>
+                            <Badge variant="secondary" size="sm">{t('audit.routeMiss')}</Badge>
                           {/if}
                         </td>
                         <td class="px-4 py-3 font-mono text-xs tabular-nums font-semibold text-foreground">
@@ -592,17 +592,17 @@
                             type="button"
                             onclick={() => convertToRedirect(hit.path)}
                             class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
-                            title="Redirect to safe home page"
+                            title={t('audit.redirectTitle')}
                           >
-                            Redirect /
+                            {t('audit.redirectHome')}
                           </button>
                           <button
                             type="button"
                             onclick={() => dismissNotFound(hit.path)}
                             class="h-7 px-2 rounded-md hover:bg-destructive/10 text-xs text-destructive transition-colors cursor-pointer"
-                            title="Dismiss record"
+                            title={t('audit.dismissTitle')}
                           >
-                            Dismiss
+                            {t('common.dismiss')}
                           </button>
                         </td>
                       </tr>
@@ -671,7 +671,7 @@
           <div>
             <span class="text-muted-foreground block text-[11px]">{t('audit.clientIp')}</span>
             <span class="font-mono text-foreground font-medium">
-              {meta?.ip || (selectedEntry.target.includes('from') ? selectedEntry.target.split('from')[1].trim() : 'Server Internal / Loopback')}
+              {meta?.ip || (selectedEntry.target.includes('from') ? selectedEntry.target.split('from')[1].trim() : t('audit.loopback'))}
             </span>
           </div>
           <div>
@@ -688,7 +688,7 @@
             <span class="font-medium text-foreground">
               {#if meta?.status}
                 <Badge variant={meta.status < 400 ? 'success' : 'destructive'} size="sm">
-                  {meta.status} {meta.reason || (meta.status === 200 ? 'OK' : 'Rejected')}
+                  {meta.status} {meta.reason || (meta.status === 200 ? t('audit.ok') : t('audit.rejected'))}
                 </Badge>
               {:else}
                 <Badge variant={actionBadge(selectedEntry.action).variant} size="sm">

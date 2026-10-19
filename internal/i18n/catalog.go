@@ -209,6 +209,9 @@ func ResolveCatalogLocale(requested string) string {
 	return "tr"
 }
 
+// AdminLocaleCookieName holds the admin UI language a staff user saved.
+const AdminLocaleCookieName = "hydro_admin_locale"
+
 func IsSupportedCatalogLocale(requested string) bool {
 	locale := canonical.Locale(requested)
 	for _, supported := range SupportedCatalogLocales() {

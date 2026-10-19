@@ -165,7 +165,7 @@
     <div class="p-8 text-center text-xs text-muted-foreground">{t('site.nav.loading')}</div>
   {:else if items.length === 0}
     <div class="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground space-y-2">
-      <p>No navigation links configured for {selectedLocale.toUpperCase()}.</p>
+      <p>{t('site.nav.none', { locale: selectedLocale.toUpperCase() })}</p>
       <Button variant="outline" class="text-xs" onclick={addItem}>{t('site.nav.addFirst')}</Button>
     </div>
   {:else}

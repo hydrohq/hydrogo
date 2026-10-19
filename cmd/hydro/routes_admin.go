@@ -23,6 +23,8 @@ func (a *serveApp) adminStudioRoutes() []router.Route {
 		routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/search", Access: router.Protected, Handler: adminsearch.AdminSearchHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, Modules: modules}})
 	}
 	routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/schema", Access: router.Protected, Handler: http.HandlerFunc(a.adminSchema)})
+	// The sign-in screen needs the project's name, logo and colour before anyone is signed in.
+	routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/branding", Access: router.Public, Handler: http.HandlerFunc(a.adminBrandingHandler)})
 	return routes
 }
 
@@ -125,6 +127,16 @@ func (a *serveApp) adminDefaultLocale(ctx context.Context) string {
 		return ""
 	}
 	return setting.Value
+}
+
+// adminBrandingHandler serves the branding and default language without
+// authentication; both are already public site settings.
+func (a *serveApp) adminBrandingHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache")
+	api.WriteData(w, http.StatusOK, struct {
+		adminBranding
+		DefaultLocale string `json:"default_locale"`
+	}{a.adminBranding(r.Context()), a.adminDefaultLocale(r.Context())}, nil)
 }
 
 func (a *serveApp) adminBranding(ctx context.Context) adminBranding {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   export interface SlashItem {
     id: string;
     title: string;
@@ -23,7 +24,7 @@
   style="top: {position.top}px; left: {position.left}px;"
 >
   <div class="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 mb-1">
-    Basic Blocks
+    {t('slash.basic')}
   </div>
 
   <div class="space-y-0.5">

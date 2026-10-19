@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { kindLabel } from '$lib/i18n/labels';
   import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -225,7 +226,7 @@
             <div class="p-3 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors">
               <div class="flex items-center gap-2.5 min-w-0">
                 <Badge variant={term.kind === 'category' ? 'default' : 'outline'} size="sm">
-                  {term.kind || t('news.taxonomy.term')}
+                  {term.kind ? kindLabel(term.kind) : t('news.taxonomy.term')}
                 </Badge>
                 <span class="font-medium text-foreground truncate">{term.label}</span>
                 <span class="text-muted-foreground font-mono text-[11px]">/{term.slug}</span>

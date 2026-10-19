@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 </script>
 
@@ -19,7 +20,7 @@
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <span>Search modules...</span>
+        <span>{t('skeleton.search')}</span>
         <span class="ml-auto text-[10px] font-mono bg-muted/80 px-1 rounded border border-border">Ctrl K</span>
       </div>
     </div>
@@ -36,14 +37,14 @@
             <rect width="7" height="9" x="14" y="12" rx="1"></rect>
             <rect width="7" height="5" x="3" y="16" rx="1"></rect>
           </svg>
-          <span class="text-xs font-medium text-foreground">Dashboard</span>
+          <span class="text-xs font-medium text-foreground">{t('nav.dashboard')}</span>
         </div>
       </div>
 
       <!-- Section 2: Documents -->
       <div class="space-y-1">
         <div class="h-2.5 w-16 bg-muted/50 rounded mb-2 ml-2"></div>
-        {#each ['Pages', 'News', 'Media', 'FAQ'] as name}
+        {#each [t('nav.pages'), t('nav.news'), t('nav.media'), 'FAQ'] as name}
           <div class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-muted-foreground text-xs hover:bg-muted/30">
             <div class="size-3.5 rounded bg-muted/50"></div>
             <span class="text-xs text-muted-foreground">{name}</span>
@@ -54,7 +55,7 @@
       <!-- Section 3: System -->
       <div class="space-y-1">
         <div class="h-2.5 w-14 bg-muted/50 rounded mb-2 ml-2"></div>
-        {#each ['Members', 'Users & Roles', 'Site Settings', 'Telemetry'] as name}
+        {#each [t('nav.members'), t('nav.users'), t('title.siteSettings'), t('nav.telemetry')] as name}
           <div class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-muted-foreground text-xs hover:bg-muted/30">
             <div class="size-3.5 rounded bg-muted/50"></div>
             <span class="text-xs text-muted-foreground">{name}</span>
@@ -91,7 +92,7 @@
 
           <div class="mx-2 h-4 w-px bg-border"></div>
 
-          <h1 class="text-base font-medium text-foreground truncate">Dashboard</h1>
+          <h1 class="text-base font-medium text-foreground truncate">{t('nav.dashboard')}</h1>
         </div>
 
         <!-- Right: Status Indicator (Clean, restrained, exact shadcn aesthetic) -->
@@ -101,7 +102,7 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <span class="truncate flex-1 text-left">Search...</span>
+            <span class="truncate flex-1 text-left">{t('header.search')}</span>
             <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-background text-muted-foreground border border-border rounded">Ctrl K</kbd>
           </div>
 
@@ -118,7 +119,7 @@
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full size-2 bg-sky-500"></span>
             </span>
-            <span class="text-xs text-muted-foreground font-medium">Starting HydroGo Admin…</span>
+            <span class="text-xs text-muted-foreground font-medium">{t('skeleton.starting')}</span>
           </div>
         </div>
       </div>
@@ -132,10 +133,10 @@
             <!-- 4 Section Metric Cards (Exact match with SectionCards.svelte) -->
             <div class="grid grid-cols-1 gap-4 px-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 lg:px-6">
               {#each [
-                { title: 'Published Pages', sub: 'Site routes & layouts' },
-                { title: 'News Articles', sub: 'Editorial publications' },
-                { title: 'Active Members', sub: 'Verified subscriber base' },
-                { title: 'Requests & Latency', sub: 'System runtime online' }
+                { title: t('skeleton.pagesTitle'), sub: t('skeleton.pagesSub') },
+                { title: t('skeleton.newsTitle'), sub: t('skeleton.newsSub') },
+                { title: t('skeleton.membersTitle'), sub: t('skeleton.membersSub') },
+                { title: t('skeleton.reqTitle'), sub: t('skeleton.reqSub') }
               ] as card}
                 <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card relative">
                   <div class="relative flex flex-col space-y-1.5">
@@ -144,7 +145,7 @@
                     <div class="absolute right-0 top-0">
                       <span class="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5 text-xs font-normal text-muted-foreground shadow-xs">
                         <span class="size-1.5 rounded-full bg-sky-500"></span>
-                        Sync
+                        {t('skeleton.sync')}
                       </span>
                     </div>
                   </div>
@@ -159,13 +160,13 @@
             <div class="mx-4 lg:mx-6 rounded-xl border border-border bg-card text-card-foreground shadow-xs p-6 space-y-4">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
                 <div class="space-y-1">
-                  <span class="text-sm font-semibold text-foreground">Traffic & Analytics</span>
-                  <p class="text-xs text-muted-foreground">Showing request volume and visitor activity over time</p>
+                  <span class="text-sm font-semibold text-foreground">{t('skeleton.traffic')}</span>
+                  <p class="text-xs text-muted-foreground">{t('skeleton.trafficHelp')}</p>
                 </div>
                 <div class="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border text-xs text-muted-foreground">
-                  <span class="px-2.5 py-1 rounded-md bg-background text-foreground shadow-xs font-medium">30 Days</span>
-                  <span class="px-2.5 py-1">7 Days</span>
-                  <span class="px-2.5 py-1">90 Days</span>
+                  <span class="px-2.5 py-1 rounded-md bg-background text-foreground shadow-xs font-medium">{t('skeleton.days30')}</span>
+                  <span class="px-2.5 py-1">{t('skeleton.days7')}</span>
+                  <span class="px-2.5 py-1">{t('skeleton.days90')}</span>
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import type { Editor } from '@tiptap/core';
 
   interface Props {
@@ -43,8 +44,8 @@
       disabled={!editor.can().undo()}
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
       onclick={() => editor.chain().focus().undo().run()}
-      title="Undo (Ctrl+Z)"
-      aria-label="Undo"
+      title={t('editor.undoTip')}
+      aria-label={t('editor.undo')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 7v6h6" />
@@ -56,8 +57,8 @@
       disabled={!editor.can().redo()}
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
       onclick={() => editor.chain().focus().redo().run()}
-      title="Redo (Ctrl+Y)"
-      aria-label="Redo"
+      title={t('editor.redoTip')}
+      aria-label={t('editor.redo')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 7v6h-6" />
@@ -72,7 +73,7 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('paragraph') && !editor.isActive('heading') ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
       onclick={() => editor.chain().focus().setParagraph().run()}
-      title="Paragraph (Normal Text)"
+      title={t('editor.paragraph')}
     >
       P
     </button>
@@ -80,7 +81,7 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('heading', { level: 1 }) ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
       onclick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-      title="Heading 1"
+      title={t('editor.h1')}
     >
       H1
     </button>
@@ -88,7 +89,7 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('heading', { level: 2 }) ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
       onclick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-      title="Heading 2"
+      title={t('editor.h2')}
     >
       H2
     </button>
@@ -96,7 +97,7 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md text-xs font-semibold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('heading', { level: 3 }) ? 'bg-background text-foreground shadow-xs font-bold' : ''}"
       onclick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-      title="Heading 3"
+      title={t('editor.h3')}
     >
       H3
     </button>
@@ -108,8 +109,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md font-bold hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('bold') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleBold().run()}
-      title="Bold (Ctrl+B)"
-      aria-label="Bold"
+      title={t('editor.boldTip')}
+      aria-label={t('editor.bold')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M6 12h9a4 4 0 0 1 0 8H6v-8Z" />
@@ -120,8 +121,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md italic hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('italic') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleItalic().run()}
-      title="Italic (Ctrl+I)"
-      aria-label="Italic"
+      title={t('editor.italicTip')}
+      aria-label={t('editor.italic')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <line x1="19" y1="4" x2="10" y2="4" />
@@ -133,8 +134,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('strike') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleStrike().run()}
-      title="Strikethrough"
-      aria-label="Strikethrough"
+      title={t('editor.strike')}
+      aria-label={t('editor.strike')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M16 4H9a3 3 0 0 0-2.83 4" />
@@ -146,8 +147,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md font-mono text-xs hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('code') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleCode().run()}
-      title="Inline Code"
-      aria-label="Inline Code"
+      title={t('editor.inlineCode')}
+      aria-label={t('editor.inlineCode')}
     >
       &lt;/&gt;
     </button>
@@ -155,8 +156,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('link') ? 'bg-background text-primary shadow-xs' : ''}"
       onclick={openLinkInput}
-      title="Link"
-      aria-label="Insert Link"
+      title={t('editor.link')}
+      aria-label={t('editor.insertLink')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -171,8 +172,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('bulletList') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleBulletList().run()}
-      title="Bullet List"
-      aria-label="Bullet List"
+      title={t('editor.bulletList')}
+      aria-label={t('editor.bulletList')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="8" y1="6" x2="21" y2="6" />
@@ -187,8 +188,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('orderedList') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleOrderedList().run()}
-      title="Numbered List"
-      aria-label="Numbered List"
+      title={t('editor.numberedList')}
+      aria-label={t('editor.numberedList')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="10" y1="6" x2="21" y2="6" />
@@ -203,8 +204,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('blockquote') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleBlockquote().run()}
-      title="Quote / Callout"
-      aria-label="Quote"
+      title={t('editor.quoteCallout')}
+      aria-label={t('editor.quote')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
@@ -215,8 +216,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer {editor.isActive('codeBlock') ? 'bg-background text-foreground shadow-xs' : ''}"
       onclick={() => editor.chain().focus().toggleCodeBlock().run()}
-      title="Code Block"
-      aria-label="Code Block"
+      title={t('editor.codeBlock')}
+      aria-label={t('editor.codeBlock')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="16 18 22 12 16 6" />
@@ -227,8 +228,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
       onclick={() => editor.chain().focus().setHorizontalRule().run()}
-      title="Divider Line"
-      aria-label="Divider Line"
+      title={t('editor.divider')}
+      aria-label={t('editor.divider')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="3" y1="12" x2="21" y2="12" />
@@ -242,8 +243,8 @@
       type="button"
       class="size-7 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
       onclick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-      title="Clear formatting"
-      aria-label="Clear formatting"
+      title={t('editor.clearFormat')}
+      aria-label={t('editor.clearFormat')}
     >
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="4" y1="4" x2="20" y2="20" />
@@ -280,7 +281,7 @@
         class="h-7 px-2.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium cursor-pointer shadow-xs"
         onclick={applyLink}
       >
-        Apply
+        {t('editor.apply')}
       </button>
       {#if editor.isActive('link')}
         <button
@@ -288,15 +289,15 @@
           class="h-7 px-2 rounded-md border border-input bg-background hover:bg-destructive/10 hover:text-destructive text-xs cursor-pointer shadow-xs"
           onclick={removeLink}
         >
-          Unlink
+          {t('editor.unlink')}
         </button>
       {/if}
       <button
         type="button"
         class="size-7 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground cursor-pointer"
         onclick={() => { showLinkInput = false; }}
-        title="Close"
-        aria-label="Close"
+        title={t('editor.close')}
+        aria-label={t('editor.close')}
       >
         <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 6 6 18M6 6l12 12" />

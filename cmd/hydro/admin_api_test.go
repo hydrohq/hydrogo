@@ -195,6 +195,12 @@ func TestAdminSystemInfoAndAccountLocale(t *testing.T) {
 		t.Fatalf("locale: %d %s %q", valid.Code, valid.Body, valid.Header().Get("Set-Cookie"))
 	}
 
+	cleared := httptest.NewRecorder()
+	app.adminAccountLocaleHandler(cleared, adminAPIRequest(http.MethodPut, "/api/v1/admin/account/locale", `{"locale":""}`, user))
+	if cleared.Code != http.StatusOK || !strings.Contains(cleared.Header().Get("Set-Cookie"), "Max-Age=0") {
+		t.Fatalf("clear locale: %d %s %q", cleared.Code, cleared.Body, cleared.Header().Get("Set-Cookie"))
+	}
+
 	catalog := httptest.NewRecorder()
 	request := adminAPIRequest(http.MethodGet, "/api/v1/admin/i18n/en", "", user)
 	request.SetPathValue("locale", "en")
