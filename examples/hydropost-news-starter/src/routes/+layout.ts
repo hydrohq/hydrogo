@@ -24,7 +24,7 @@ export const load: LayoutLoad = async () => {
     getSiteNavigation('footer_sayfalar'),
     getSiteNavigation('footer_sosyal'),
     getSiteSettings(),
-    getNewsList({ limit: 60 }),
+    getNewsList({ limit: 8 }),
   ]);
 
   return {
@@ -33,6 +33,6 @@ export const load: LayoutLoad = async () => {
     footerPagesNav,
     footerSocialNav,
     siteSettings,
-    breakingNews: (allNews || []).slice(0, 8),
+    breakingNews: allNews || [],
   };
 };
