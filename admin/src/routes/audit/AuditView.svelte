@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -39,6 +40,7 @@
     user_id?: string;
     email?: string;
     role?: string;
+    body?: unknown;
   }
 
   let activeTab = $state<'events' | 'security' | 'not_found'>('events');
@@ -109,7 +111,7 @@
       const res = await api.get<ApiResponse<AuditEntry[]>>(`/api/v1/admin/audit?${params.toString()}`);
       if (res && res.data) {
         entries = Array.isArray(res.data) ? res.data : [];
-        total = res.meta?.total || 0;
+        total = res.metadata?.total ?? res.meta?.total ?? 0;
       }
     } catch (err: any) {
       console.warn('Failed to load audit logs:', err);
@@ -185,16 +187,19 @@
 
   function actionBadge(action: string) {
     if (action === 'auth.login') {
-      return { variant: 'success' as const, label: 'Sign-in Success' };
+      return { variant: 'success' as const, label: t('audit.signInSuccess') };
     }
     if (action === 'auth.login_failed') {
-      return { variant: 'destructive' as const, label: 'Sign-in Failed' };
+      return { variant: 'destructive' as const, label: t('audit.signInFailed') };
     }
     if (action === 'auth.mfa_failed') {
-      return { variant: 'warning' as const, label: 'MFA Failed' };
+      return { variant: 'warning' as const, label: t('audit.mfaFailed') };
     }
     if (action === 'security.request_rejected') {
-      return { variant: 'destructive' as const, label: 'Attack / Anomaly Blocked' };
+      return { variant: 'destructive' as const, label: t('audit.blocked') };
+    }
+    if (action === 'admin.request') {
+      return { variant: 'outline' as const, label: t('audit.adminRequest') };
     }
     if (action.includes('delete') || action.includes('revoke')) {
       return { variant: 'destructive' as const, label: action };
@@ -298,21 +303,21 @@
               onclick={() => (activeTab = 'events')}
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'events' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             >
-              Activity Stream ({total})
+              {t('audit.activity', { count: total })}
             </button>
             <button
               type="button"
               onclick={() => (activeTab = 'security')}
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'security' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             >
-              Security & Sign-ins ({securityEntries.length})
+              {t('audit.security', { count: securityEntries.length })}
             </button>
             <button
               type="button"
               onclick={() => (activeTab = 'not_found')}
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {activeTab === 'not_found' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             >
-              404 Scanner Log ({notFoundHits.length})
+              {t('audit.scanner', { count: notFoundHits.length })}
             </button>
           </div>
 
@@ -320,7 +325,7 @@
             type="button"
             onclick={() => { loadLogs(); loadNotFound(); }}
             class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer self-start sm:self-auto"
-            title="Refresh logs"
+            title={t('audit.refreshTitle')}
           >
             <svg class="size-3.5 {loading || notFoundLoading ? 'animate-spin' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
@@ -328,7 +333,7 @@
               <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
               <path d="M16 21h5v-5"></path>
             </svg>
-            <span>Refresh</span>
+            <span>{t('audit.refresh')}</span>
           </button>
         </div>
       </div>
@@ -338,9 +343,9 @@
         <!-- Filters Row -->
         <div class="px-4 lg:px-6">
           <form onsubmit={handleFilter} class="p-3 rounded-xl border border-border bg-card shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-            <Input label="Actor" placeholder="Filter by email or ID..." bind:value={filterActor} />
-            <Input label="Action" placeholder="e.g. create, update, delete..." bind:value={filterAction} />
-            <Input label="Resource" placeholder="e.g. pages, auth, site..." bind:value={filterResource} />
+            <Input label={t('audit.filter.actor')} placeholder={t('audit.filter.actorPlaceholder')} bind:value={filterActor} />
+            <Input label={t('audit.filter.action')} placeholder="e.g. create, update, delete..." bind:value={filterAction} />
+            <Input label={t('audit.filter.resource')} placeholder="e.g. pages, auth, site..." bind:value={filterResource} />
             <div class="flex gap-2">
               <button
                 type="submit"
@@ -369,20 +374,20 @@
         <div class="px-4 lg:px-6">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
-              <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">Loading audit log events...</div>
+              <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">{t('audit.loading')}</div>
             {:else if entries.length === 0}
-              <div class="p-12 text-center text-xs text-muted-foreground">No audit events found.</div>
+              <div class="p-12 text-center text-xs text-muted-foreground">{t('audit.empty')}</div>
             {:else}
               <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-foreground caption-bottom">
                   <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                     <tr>
-                      <th class="h-10 px-4 font-medium">Timestamp</th>
-                      <th class="h-10 px-4 font-medium">Actor</th>
-                      <th class="h-10 px-4 font-medium">Action</th>
-                      <th class="h-10 px-4 font-medium">Resource</th>
-                      <th class="h-10 px-4 font-medium">Target</th>
-                      <th class="h-10 w-24 px-4 font-medium text-right">Details</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.timestamp')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.actor')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.action')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.resource')}</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.target')}</th>
+                      <th class="h-10 w-24 px-4 font-medium text-right">{t('audit.col.details')}</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -463,7 +468,7 @@
                 <table class="w-full text-left text-sm text-foreground">
                   <thead class="bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                     <tr>
-                      <th class="h-10 px-4 font-medium">Timestamp</th>
+                      <th class="h-10 px-4 font-medium">{t('audit.col.timestamp')}</th>
                       <th class="h-10 px-4 font-medium">Event / Outcome</th>
                       <th class="h-10 px-4 font-medium">Actor / Target</th>
                       <th class="h-10 px-4 font-medium">Client Info</th>
@@ -619,8 +624,8 @@
   {@const meta = parseMetadata(selectedEntry.after_json)}
   <Modal
     open={true}
-    title="Audit Request Inspector"
-    description="Full security and state telemetry captured for this event"
+    title={t('audit.inspector')}
+    description={t('audit.inspectorHelp')}
     size="2xl"
     onclose={() => { selectedEntry = null; }}
   >
@@ -628,21 +633,21 @@
       <!-- High-level Summary Banner -->
       <div class="p-4 rounded-xl border border-border bg-muted/30 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">Action</span>
+          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">{t('audit.col.action')}</span>
           <span class="text-sm font-bold text-foreground font-mono">{selectedEntry.action}</span>
         </div>
         <div>
-          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">Timestamp</span>
+          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">{t('audit.col.timestamp')}</span>
           <span class="text-xs text-foreground font-mono">{formatDate(selectedEntry.at)}</span>
         </div>
         <div>
-          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">Actor / Identity</span>
+          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">{t('audit.actorIdentity')}</span>
           <span class="text-xs text-foreground font-semibold">
             {meta?.email || meta?.attempted_email || selectedEntry.actor}
           </span>
         </div>
         <div>
-          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">Target Resource</span>
+          <span class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">{t('audit.targetResource')}</span>
           <span class="text-xs font-mono text-muted-foreground">{selectedEntry.target}</span>
         </div>
       </div>
@@ -650,27 +655,27 @@
       <!-- Request Telemetry (IP, Method, Path, Agent) -->
       <div class="rounded-xl border border-border p-4 bg-card space-y-3">
         <div class="flex items-center justify-between border-b border-border pb-2">
-          <span class="text-xs font-semibold text-foreground uppercase tracking-wider">Inbound Request Telemetry</span>
+          <span class="text-xs font-semibold text-foreground uppercase tracking-wider">{t('audit.requestTelemetry')}</span>
           {#if selectedEntry.request_id}
             <button
               type="button"
               onclick={() => copyText(selectedEntry?.request_id || '', 'req-id')}
               class="inline-flex items-center gap-1 text-[11px] font-mono text-primary hover:underline cursor-pointer"
             >
-              <span>{copiedId === 'req-id' ? '✓ Copied ID' : 'Copy Request ID'}</span>
+              <span>{copiedId === 'req-id' ? '✓ ' : ''}{t('audit.copyRequestId')}</span>
             </button>
           {/if}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div>
-            <span class="text-muted-foreground block text-[11px]">Client IP Address:</span>
+            <span class="text-muted-foreground block text-[11px]">{t('audit.clientIp')}</span>
             <span class="font-mono text-foreground font-medium">
               {meta?.ip || (selectedEntry.target.includes('from') ? selectedEntry.target.split('from')[1].trim() : 'Server Internal / Loopback')}
             </span>
           </div>
           <div>
-            <span class="text-muted-foreground block text-[11px]">HTTP Request:</span>
+            <span class="text-muted-foreground block text-[11px]">{t('audit.httpRequest')}</span>
             <span class="font-mono text-foreground font-medium">
               {#if meta?.method}
                 <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold text-[10px] mr-1">{meta.method}</span>
@@ -679,7 +684,7 @@
             </span>
           </div>
           <div>
-            <span class="text-muted-foreground block text-[11px]">Execution Status:</span>
+            <span class="text-muted-foreground block text-[11px]">{t('audit.status')}</span>
             <span class="font-medium text-foreground">
               {#if meta?.status}
                 <Badge variant={meta.status < 400 ? 'success' : 'destructive'} size="sm">
@@ -693,7 +698,7 @@
             </span>
           </div>
           <div>
-            <span class="text-muted-foreground block text-[11px]">Tracking ID:</span>
+            <span class="text-muted-foreground block text-[11px]">{t('audit.trackingId')}</span>
             <span class="font-mono text-[11px] text-muted-foreground select-all break-all">
               {selectedEntry.request_id || selectedEntry.id}
             </span>
@@ -702,7 +707,7 @@
 
         {#if meta?.user_agent}
           <div class="pt-2 border-t border-border">
-            <span class="text-muted-foreground block text-[11px] mb-1">User Agent (Client Browser / Bot):</span>
+            <span class="text-muted-foreground block text-[11px] mb-1">{t('audit.userAgent')}</span>
             <div class="p-2 rounded-md bg-muted text-[11px] font-mono text-muted-foreground break-all select-all">
               {meta.user_agent}
             </div>
@@ -711,10 +716,21 @@
       </div>
 
       <!-- State Changes (Before / After JSON) -->
+      {#if selectedEntry.action === 'admin.request'}
+        <div class="rounded-xl border border-border p-4 bg-card space-y-2">
+          <span class="text-xs font-semibold text-foreground uppercase tracking-wider">{t('audit.requestContent')}</span>
+          {#if meta?.body !== undefined}
+            <pre class="p-3 bg-muted rounded-xl text-foreground font-mono text-[11px] overflow-x-auto whitespace-pre-wrap">{typeof meta.body === 'string' ? meta.body : JSON.stringify(meta.body, null, 2)}</pre>
+          {:else}
+            <p class="text-[11px] text-muted-foreground">{t('audit.requestContentOff')}</p>
+          {/if}
+        </div>
+      {/if}
+
       {#if selectedEntry.before_json && selectedEntry.before_json !== '{}'}
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <span class="text-xs font-semibold text-destructive uppercase">State Before Change</span>
+            <span class="text-xs font-semibold text-destructive uppercase">{t('audit.before')}</span>
             <button
               type="button"
               onclick={() => copyText(selectedEntry?.before_json || '', 'before-json')}
@@ -730,7 +746,7 @@
       {#if selectedEntry.after_json && selectedEntry.after_json !== '{}'}
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <span class="text-xs font-semibold text-emerald-500 uppercase">State After / Event Payload</span>
+            <span class="text-xs font-semibold text-emerald-500 uppercase">{t('audit.after')}</span>
             <button
               type="button"
               onclick={() => copyText(selectedEntry?.after_json || '', 'after-json')}

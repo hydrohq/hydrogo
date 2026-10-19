@@ -22,6 +22,8 @@
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
+  import { i18n } from '$lib/i18n/index.svelte';
+
   let initializing = $state(true);
 
   onMount(async () => {
@@ -39,6 +41,13 @@
       }
     } finally {
       initializing = false;
+    }
+  });
+
+  // Pick the admin language: the user's own choice, else the project default.
+  $effect(() => {
+    if (auth.user && schema.schema) {
+      i18n.init(auth.user.id, schema.schema.locales?.admin_default ?? null);
     }
   });
 

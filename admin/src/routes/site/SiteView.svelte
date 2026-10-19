@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { t, i18n, isLocale } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
@@ -52,6 +53,7 @@
     'site.home_path': '/',
     'appearance.favicon_url': '',
     'appearance.social_image_url': '',
+    'admin.default_locale': '',
   });
 
   // Maintenance settings
@@ -205,6 +207,7 @@
         settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
       };
       await api.post('/api/v1/admin/site/settings', payload, { method: 'PUT' });
+      if (isLocale(settings['admin.default_locale'])) i18n.setProjectDefault(settings['admin.default_locale']);
       showNotification('General settings saved successfully.');
     } catch (err: any) {
       showNotification(err.message || 'Failed to save general settings', true);
@@ -480,6 +483,20 @@
         <div>
           <label for="social-img" class="block text-xs font-medium text-foreground mb-1">Open Graph / Social Sharing Image URL</label>
           <Input id="social-img" type="text" bind:value={settings['appearance.social_image_url']} placeholder="https://..." />
+        </div>
+
+        <div>
+          <label for="admin-default-locale" class="block text-xs font-medium text-foreground mb-1">{t('language.project')}</label>
+          <select
+            id="admin-default-locale"
+            bind:value={settings['admin.default_locale']}
+            class="h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          >
+            <option value="">{t('language.auto')}</option>
+            <option value="en">{t('language.en')}</option>
+            <option value="tr">{t('language.tr')}</option>
+          </select>
+          <p class="text-[11px] text-muted-foreground mt-1">{t('language.projectHelp')}</p>
         </div>
 
         <div class="pt-3 border-t border-border flex justify-end">

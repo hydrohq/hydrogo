@@ -11,11 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`hydro content-type new|validate`** and a JSON Schema for content type YAML (`docs/schemas/content-type.schema.json`).
 - **Releases and installers**: tagged releases publish binaries for Linux, macOS and Windows (amd64, arm64), a Windows `Setup.exe` that adds `hydro` to PATH, `install.sh`, `install.ps1`, `SHA256SUMS` and a multi-arch container image on GHCR (`.github/workflows/release.yml`).
 - **`@hydrogo/client`** (`packages/client`, moved from `examples/headless-starter`): typed client, now with `listContent` / `getContent` for content types.
-- **`examples/sveltekit-starter`**: server-rendered starter with canonical/Open Graph/JSON-LD and `sitemap.xml`.
+- **`examples/sveltekit-starter`**: server-rendered starter (home, news list/article, pages, locale prefixes, canonical/Open Graph/JSON-LD, `sitemap.xml`, `rss.xml`, `robots.txt`, Dockerfile). `hydro new --starter sveltekit` copies it into `<project>/frontend`.
+- **Admin language**: English and Turkish admin UI; each user picks theirs under Account, and the project default is set under Site settings (`admin.default_locale`).
+- **Audit request content**: with `audit.log_request_bodies: true` (`HYDRO_AUDIT_LOG_REQUEST_BODIES`) every admin API write is recorded as an `admin.request` event with a redacted body, shown in the audit log.
 - Docs: getting started, content types, deployment, upgrading and versioning; `CONTRIBUTING.md`; issue and PR templates; ADR 0007.
 - `hydro version` reports the release version injected at build time.
 
 ### Changed
+- Admin lists and the audit log now read the `metadata.total` field the API actually sends (they showed 0 results before).
 - **Breaking for client code:** `@hydrogo/client` pages and news methods now unwrap the `{data, metadata}` envelope the API returns (they previously returned the raw envelope typed as the payload).
 - `examples/svelte-starter` no longer links to a specific deployment.
 

@@ -22,7 +22,7 @@
       const res = await api.get<any>('/api/v1/admin/notifications');
       if (res?.data && Array.isArray(res.data)) {
         notifications = res.data;
-        unreadCount = Number(res?.meta?.unread ?? res.data.filter((n: NotificationItem) => !n.read).length);
+        unreadCount = Number(res?.metadata?.unread ?? res?.meta?.unread ?? res.data.filter((n: NotificationItem) => !n.read).length);
       } else if (res?.data?.items && Array.isArray(res.data.items)) {
         notifications = res.data.items;
         unreadCount = Number(res?.data?.unread_count ?? 0);

@@ -67,7 +67,7 @@
       });
       if (res && res.data) {
         items = Array.isArray(res.data) ? res.data : [];
-        total = res.meta?.total || items.length;
+        total = res.metadata?.total ?? res.meta?.total ?? items.length;
       }
     } catch (e) {
       console.warn('Failed to load items:', e);

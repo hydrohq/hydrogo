@@ -9,9 +9,7 @@
     "start": "node build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
-  "dependencies": {
-    "@hydrogo/client": "^0.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.2.0",
     "@sveltejs/kit": "^2.15.0",
@@ -20,5 +18,6 @@
     "svelte-check": "^4.1.4",
     "typescript": "^5.7.3",
     "vite": "^6.2.0"
-  }
+  },
+  "description": "Server-rendered HydroGo site starter (SvelteKit)"
 }

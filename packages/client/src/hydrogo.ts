@@ -1,7 +1,8 @@
 export type Block = { type: string; payload: Record<string, unknown> };
 export type Page = { id: string; locale: string; slug: string; title: string; body: string; blocks: Block[]; status: "draft" | "published"; revision: number; published_revision?: number };
 export type PageSummary = { id: string; locale: string; slug: string; title: string; revision: number; publication_generation: number; updated_at: string };
-export type NewsItem = { id: string; locale: string; slug: string; title: string; body: string; status: "published"; revision: number; published_revision: number; updated_at: string };
+export type NewsItem = { id: string; locale: string; slug: string; title: string; body: string; status: "published"; revision: number; published_revision: number; updated_at: string; created_at?: string; excerpt?: string; cover_media_id?: string; category?: string; author_name?: string; tags?: string; seo_title?: string; seo_description?: string };
+export type NewsPage = { data: NewsItem[]; metadata: { limit: number; offset?: number; total?: number; has_more: boolean } };
 export type MemberTokenPair = { access_token: string; refresh_token: string; token_type: "Bearer"; expires_in: number; expires_at: string };
 export type MemberDevice = { device_id: string; device_name: string; platform: string; created_at: string; last_used_at: string; is_current: boolean };
 export type MemberProfile = { id: string; email: string; active: boolean; email_verified_at?: string | null; last_login_at?: string | null; created_at: string; updated_at: string };
@@ -90,6 +91,18 @@ export class HydroGoClient {
   async listNews(locale: string, limit = 20, options?: HydroGoRequestOptions): Promise<NewsItem[]> {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
     return this.getData<NewsItem[]>(`/api/v1/news?locale=${encodeURIComponent(locale)}&limit=${limit}`, options);
+  }
+
+  // One page of news with pagination metadata (listNews returns only the items).
+  async listNewsPage(locale: string, limit = 20, offset = 0, options?: HydroGoRequestOptions): Promise<NewsPage> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("limit must be between 1 and 100");
+    if (!Number.isInteger(offset) || offset < 0) throw new RangeError("offset must be 0 or greater");
+    return this.request<NewsPage>(`/api/v1/news?locale=${encodeURIComponent(locale)}&limit=${limit}&offset=${offset}`, {}, options);
+  }
+
+  // URL of an uploaded media file (the id comes from fields such as cover_media_id).
+  mediaUrl(id: string): string {
+    return `${this.origin}/media/${encodeURIComponent(id)}`;
   }
 
   async getNews(locale: string, slug: string, options?: HydroGoRequestOptions): Promise<NewsItem> {

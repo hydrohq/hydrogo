@@ -364,3 +364,16 @@ func TestAdminSiteEndpointsRequirePermission(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminDefaultLocaleSettingAcceptsOnlySupportedLanguages(t *testing.T) {
+	_, handler, _ := openSiteDB(t)
+	mux := adminMux(t, handler, siteAdmin)
+	if response := call(t, mux, http.MethodPut, "/api/v1/admin/site/settings", `{"settings":[{"key":"admin.default_locale","value":"xx"}]}`); response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("unsupported language status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, value := range []string{"tr", ""} {
+		if response := call(t, mux, http.MethodPut, "/api/v1/admin/site/settings", `{"settings":[{"key":"admin.default_locale","value":"`+value+`"}]}`); response.Code != http.StatusOK {
+			t.Fatalf("value %q status=%d body=%s", value, response.Code, response.Body.String())
+		}
+	}
+}

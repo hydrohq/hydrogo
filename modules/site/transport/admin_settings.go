@@ -23,6 +23,8 @@ var plainSettingKeys = map[string]func(string) bool{
 	"seo.llms_excluded_paths":     validExcludedPaths,
 	"appearance.favicon_url":      validAssetURL,
 	"appearance.social_image_url": validAssetURL,
+	// The language the admin panel opens in for users who did not pick one.
+	"admin.default_locale": func(value string) bool { return value == "" || i18n.IsSupportedCatalogLocale(value) },
 }
 
 func maxLen(limit int) func(string) bool {

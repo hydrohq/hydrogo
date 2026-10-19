@@ -1,10 +1,13 @@
 package scaffold
 
 import (
+	"bytes"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
 
+	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 )
@@ -54,5 +57,36 @@ func TestCreateRefusesToOverwrite(t *testing.T) {
 func TestUnknownPreset(t *testing.T) {
 	if _, err := Create(Options{Dir: t.TempDir(), Preset: "nope"}); err == nil {
 		t.Fatal("expected unknown preset error")
+	}
+}
+
+func TestCreateCopiesFrontendStarter(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "site")
+	if _, err := Create(Options{Dir: dir, Preset: "blog", Starter: "sveltekit"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"frontend/package.json", "frontend/src/app.html", "frontend/src/lib/hydrogo.ts", "frontend/src/routes/[[lang=locale]]/+page.svelte", "frontend/.env.example"} {
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("missing %s: %v", rel, err)
+		}
+	}
+	if _, err := Create(Options{Dir: filepath.Join(t.TempDir(), "x"), Starter: "nope"}); err == nil {
+		t.Error("unknown starter accepted")
+	}
+}
+
+// The starter vendors packages/client so it installs without a registry; the
+// two copies must not drift.
+func TestStarterVendoredClientMatchesPackage(t *testing.T) {
+	want, err := os.ReadFile(filepath.Join("..", "..", "packages", "client", "src", "hydrogo.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := fs.ReadFile(sveltekitstarter.FS, "src/lib/hydrogo.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Error("examples/sveltekit-starter/src/lib/hydrogo.ts differs from packages/client/src/hydrogo.ts; copy it over")
 	}
 }

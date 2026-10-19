@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -52,8 +53,8 @@
     <!-- Login Card -->
     <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs p-6 sm:p-8">
       <div class="flex flex-col space-y-1.5 text-center mb-6">
-        <h1 class="text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p class="text-sm text-muted-foreground">Enter your credentials to sign in to your studio</p>
+        <h1 class="text-2xl font-semibold tracking-tight">{t('login.welcome')}</h1>
+        <p class="text-sm text-muted-foreground">{t('login.subtitle')}</p>
       </div>
 
       <form onsubmit={handleLogin} class="flex flex-col gap-4">
@@ -69,7 +70,7 @@
         {/if}
 
         <Input
-          label="Email"
+          label={t('login.email')}
           type="email"
           placeholder="admin@example.com"
           bind:value={email}
@@ -78,7 +79,7 @@
         />
 
         <Input
-          label="Password"
+          label={t('login.password')}
           type="password"
           placeholder="••••••••"
           bind:value={password}
@@ -87,9 +88,9 @@
 
         {#if mfaRequired}
           <Input
-            label="MFA Authenticator Code"
+            label={t('login.mfa')}
             type="text"
-            placeholder="6-digit code"
+            placeholder={t('login.mfaPlaceholder')}
             bind:value={code}
             required
             maxlength={6}
@@ -103,7 +104,7 @@
           class="w-full mt-2 font-medium"
           {loading}
         >
-          {mfaRequired ? 'Verify & Sign In' : 'Sign in'}
+          {mfaRequired ? t('login.verify') : t('login.signIn')}
         </Button>
       </form>
     </div>
