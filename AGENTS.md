@@ -7,6 +7,12 @@ public website; projects build their own frontend on the API (see
 change does not serve that, don't make it. Background:
 `docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`.
 
+## Branches
+
+`main` is the release branch (tags `vX.Y.Z` are cut from it; GitHub CI runs for
+pull requests into it). Work happens on `development`, which has no GitHub CI,
+so the local check below is the only gate there.
+
 ## Before you finish any task
 
 Run `go run ./tools/check` (or `make check`; build, vet, gofmt, guards, Go
