@@ -18,6 +18,14 @@
       loader.remove();
     }
   });
+
+  $effect(() => {
+    // Secondary safety: ensure loader is gone as soon as reactive state settles
+    if (typeof document !== 'undefined') {
+      const loader = document.getElementById('hp-initial-loader');
+      if (loader) loader.remove();
+    }
+  });
 </script>
 
 <svelte:head>

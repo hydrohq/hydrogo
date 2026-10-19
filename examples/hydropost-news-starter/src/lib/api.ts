@@ -1,3 +1,6 @@
+/** HydroPost API Client - Build 20261019-0506 */
+export const HYDRO_API_BUILD_VERSION = '20261019-0506';
+
 export interface NewsArticle {
   id: string;
   locale: string;
@@ -612,7 +615,10 @@ export async function getSiteNavigation(placement?: NavItem['placement']): Promi
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   const data = await fetchApi<SiteSettings[]>('/api/v1/content/site_settings?limit=1');
-  return data && data.length > 0 ? data[0] : FALLBACK_SETTINGS;
+  if (data && data.length > 0) {
+    return data[0];
+  }
+  return { ...FALLBACK_SETTINGS };
 }
 
 export async function getColumnists(): Promise<Columnist[]> {
