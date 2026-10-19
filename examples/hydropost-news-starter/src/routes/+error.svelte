@@ -1,5 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { onMount } from 'svelte';
+
+  onMount(() => {
+    const loader = document.getElementById('hp-initial-loader');
+    if (loader) loader.remove();
+  });
 </script>
 
 <svelte:head>

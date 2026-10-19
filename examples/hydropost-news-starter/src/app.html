@@ -48,6 +48,16 @@
 						</div>
 					</div>
 				</div>
+				<script>
+					setTimeout(function() {
+						var el = document.getElementById('hp-initial-loader');
+						if (el) {
+							el.style.transition = 'opacity 0.2s ease';
+							el.style.opacity = '0';
+							setTimeout(function() { if (el && el.parentNode) el.parentNode.removeChild(el); }, 200);
+						}
+					}, 2000);
+				</script>
 			</div>
 		</div>
 	</body>
