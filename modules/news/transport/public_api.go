@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -120,4 +122,145 @@ func (h Handler) publicPreview(w http.ResponseWriter, r *http.Request) {
 
 func previewable(status news.Status) bool {
 	return status == news.StatusPublished || status == news.StatusDraft || status == news.StatusScheduled || status == news.StatusRetracted
+}
+
+type contentViewIncrementer interface {
+	IncrementContentView(context.Context, string, string, string, string) (int64, error)
+}
+
+type contentViewReader interface {
+	ContentViewTotal(context.Context, string, string, string) (int64, error)
+}
+
+type viewInput struct {
+	Slug string `json:"slug"`
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
+func (h Handler) publicRecordView(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		api.WriteError(w, r, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16384)
+	var in viewInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid json body", nil)
+		return
+	}
+	slug := strings.TrimSpace(in.Slug)
+	if slug == "" {
+		slug = strings.TrimSpace(in.ID)
+	}
+	if slug == "" {
+		api.WriteError(w, r, http.StatusBadRequest, "slug is required", nil)
+		return
+	}
+	contentType := strings.TrimSpace(in.Type)
+	if contentType == "" {
+		contentType = "news"
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	}
+	locale := h.defaultLocale()
+	contentID := slug
+	if contentType == "news" && h.Service.Repository != nil && h.DB != nil {
+		if item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug); err == nil && item.ID != "" {
+			contentID = item.ID
+		}
+	}
+	var total int64 = 1
+	if incrementer, ok := h.ContentViews.(contentViewIncrementer); ok && h.ContentViews != nil {
+		if count, err := incrementer.IncrementContentView(r.Context(), tenantID, contentType, contentID, locale); err == nil {
+			total = count
+		}
+	}
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"slug":        slug,
+		"views":       total,
+		"incremented": true,
+	}, nil)
+}
+
+func (h Handler) publicGetViews(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		api.WriteError(w, r, http.StatusMethodNotAllowed, "method not allowed", nil)
+		return
+	}
+	tenantID := "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	}
+	contentType := strings.TrimSpace(r.URL.Query().Get("type"))
+	if contentType == "" {
+		contentType = "news"
+	}
+	locale := h.defaultLocale()
+	slugsParam := strings.TrimSpace(r.URL.Query().Get("slugs"))
+	if slugsParam != "" {
+		rawList := strings.Split(slugsParam, ",")
+		slugs := make([]string, 0, len(rawList))
+		for _, s := range rawList {
+			trimmed := strings.TrimSpace(s)
+			if trimmed != "" {
+				slugs = append(slugs, trimmed)
+			}
+		}
+		result := make(map[string]int64, len(slugs))
+		if len(slugs) > 0 && h.ContentViews != nil {
+			lookupIDs := make([]string, len(slugs))
+			idToSlug := make(map[string]string, len(slugs))
+			for i, slug := range slugs {
+				contentID := slug
+				if contentType == "news" && h.Service.Repository != nil && h.DB != nil {
+					if item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug); err == nil && item.ID != "" {
+						contentID = item.ID
+					}
+				}
+				lookupIDs[i] = contentID
+				idToSlug[contentID] = slug
+			}
+			if counts, err := h.ContentViews.ContentViewCounts(r.Context(), tenantID, contentType, lookupIDs); err == nil {
+				for id, count := range counts {
+					if origSlug, ok := idToSlug[id]; ok {
+						result[origSlug] = count
+					}
+				}
+			}
+		}
+		api.WriteData(w, http.StatusOK, result, nil)
+		return
+	}
+
+	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
+	if slug == "" {
+		slug = strings.TrimSpace(r.URL.Query().Get("id"))
+	}
+	if slug == "" {
+		api.WriteError(w, r, http.StatusBadRequest, "slug is required", nil)
+		return
+	}
+	contentID := slug
+	if contentType == "news" && h.Service.Repository != nil && h.DB != nil {
+		if item, err := h.Service.GetPublishedByRoute(r.Context(), h.DB, locale, slug); err == nil && item.ID != "" {
+			contentID = item.ID
+		}
+	}
+	var total int64
+	if reader, ok := h.ContentViews.(contentViewReader); ok && h.ContentViews != nil {
+		if count, err := reader.ContentViewTotal(r.Context(), tenantID, contentType, contentID); err == nil {
+			total = count
+		}
+	} else if h.ContentViews != nil {
+		if counts, err := h.ContentViews.ContentViewCounts(r.Context(), tenantID, contentType, []string{contentID}); err == nil {
+			total = counts[contentID]
+		}
+	}
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"slug":  slug,
+		"views": total,
+	}, nil)
 }

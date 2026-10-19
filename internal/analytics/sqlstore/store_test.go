@@ -321,6 +321,56 @@ func TestContentViewCountsAreBoundedToTenantAndType(t *testing.T) {
 	}
 }
 
+func TestIncrementContentViewAndTotal(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE analytics_content_daily (day TEXT NOT NULL, tenant_id TEXT NOT NULL, content_type TEXT NOT NULL, content_id TEXT NOT NULL, locale TEXT NOT NULL, purpose_version TEXT NOT NULL, view_count INTEGER NOT NULL, PRIMARY KEY(day,tenant_id,content_type,content_id,locale,purpose_version))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Executor: db, Dialect: database.SQLite}
+	ctx := context.Background()
+
+	// 1. Initial count is 0
+	total, err := store.ContentViewTotal(ctx, "tenant-a", "news", "item-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 0 {
+		t.Fatalf("expected 0, got %d", total)
+	}
+
+	// 2. Increment once
+	total, err = store.IncrementContentView(ctx, "tenant-a", "news", "item-1", "tr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 1 {
+		t.Fatalf("expected 1, got %d", total)
+	}
+
+	// 3. Increment again
+	total, err = store.IncrementContentView(ctx, "tenant-a", "news", "item-1", "tr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 {
+		t.Fatalf("expected 2, got %d", total)
+	}
+
+	// 4. Verify ContentViewCounts
+	counts, err := store.ContentViewCounts(ctx, "tenant-a", "news", []string{"item-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts["item-1"] != 2 {
+		t.Fatalf("expected 2 in counts, got %d", counts["item-1"])
+	}
+}
+
 func TestStoreRequiresCurrentGrantedConsentAndAggregates(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

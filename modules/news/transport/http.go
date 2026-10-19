@@ -119,6 +119,10 @@ func (h Handler) Routes() []Route {
 	routes := []Route{
 		{Pattern: "GET " + publicBase, Handler: http.HandlerFunc(h.publicList)},
 		{Pattern: "GET " + publicBase + "/by-slug", Handler: http.HandlerFunc(h.publicGetByQuery)},
+		{Pattern: "POST " + publicBase + "/views", Handler: http.HandlerFunc(h.publicRecordView)},
+		{Pattern: "GET " + publicBase + "/views", Handler: http.HandlerFunc(h.publicGetViews)},
+		{Pattern: "POST /api/views", Handler: http.HandlerFunc(h.publicRecordView)},
+		{Pattern: "GET /api/views", Handler: http.HandlerFunc(h.publicGetViews)},
 		{Pattern: "GET " + publicBase + "/{locale}/{slug}", Handler: http.HandlerFunc(h.publicGet)},
 
 		{Pattern: "GET " + adminBase, Protected: true, Handler: http.HandlerFunc(h.adminList)},

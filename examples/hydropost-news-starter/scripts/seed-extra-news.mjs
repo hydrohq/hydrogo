@@ -3,8 +3,13 @@
 // Safe to delete after running once against a fresh DB that already has the
 // original 15 from seed-demo-news.mjs.
 const BASE = process.env.HYDRO_BASE || 'http://127.0.0.1:8090';
-const EMAIL = process.env.HYDRO_ADMIN_EMAIL || 'admin@haberdiyari.com';
-const PASSWORD = process.env.HYDRO_ADMIN_PASSWORD || 'HydroNews2026!SecureKey';
+const EMAIL = process.env.HYDRO_ADMIN_EMAIL;
+const PASSWORD = process.env.HYDRO_ADMIN_PASSWORD;
+
+if (!EMAIL || !PASSWORD) {
+  console.error('Error: HYDRO_ADMIN_EMAIL and HYDRO_ADMIN_PASSWORD environment variables are required.');
+  process.exit(1);
+}
 
 let cookieJar = [];
 let csrfToken = '';

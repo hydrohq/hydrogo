@@ -36,10 +36,51 @@ function splitIntoChunks(text: string, maxLen = 180): string[] {
   return chunks;
 }
 
-export const GET: RequestHandler = async ({ url }) => {
-  const text = url.searchParams.get('text') || '';
+// In-memory rate limiting map: IP -> timestamp array
+const ipRequests = new Map<string, number[]>();
+
+function isRateLimited(clientIp: string, maxRequests = 10, windowMs = 60_000): boolean {
+  const now = Date.now();
+  const timestamps = (ipRequests.get(clientIp) || []).filter((ts) => now - ts < windowMs);
+  if (timestamps.length >= maxRequests) {
+    ipRequests.set(clientIp, timestamps);
+    return true;
+  }
+  timestamps.push(now);
+  ipRequests.set(clientIp, timestamps);
+  return false;
+}
+
+export const GET: RequestHandler = async ({ url, request, getClientAddress }) => {
+  // 1. IP rate limiting: max 10 requests per minute
+  let clientIp = '127.0.0.1';
+  try {
+    clientIp = getClientAddress();
+  } catch {
+    clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  }
+
+  if (isRateLimited(clientIp, 10, 60_000)) {
+    return new Response('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
+  }
+
+  // 2. Secret token check if configured
+  const ttsSecret = process.env.TTS_API_SECRET;
+  if (ttsSecret) {
+    const auth = request.headers.get('Authorization') || url.searchParams.get('token');
+    if (auth !== `Bearer ${ttsSecret}` && auth !== ttsSecret) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+  }
+
+  const text = (url.searchParams.get('text') || '').trim();
   if (!text) {
     return new Response('Text is required', { status: 400 });
+  }
+
+  // 3. Length cap to prevent resource exhaustion (max 1000 characters)
+  if (text.length > 1000) {
+    return new Response('Text exceeds 1000 characters maximum limit', { status: 400 });
   }
 
   const chunks = splitIntoChunks(text, 180);

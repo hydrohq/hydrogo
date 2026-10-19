@@ -1,5 +1,5 @@
 profile: compact
-modules: [core, auth, members, pages, media, site, news, collections]
+modules: [core, auth, members, pages, media, site, news, collections, analytics]
 http:
   address: "127.0.0.1:8080"
   # Set this to the canonical HTTPS origin in deployed environments.

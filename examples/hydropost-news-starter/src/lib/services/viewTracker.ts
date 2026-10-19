@@ -14,14 +14,15 @@ export async function trackView(slug: string, type: 'news' | 'page' = 'news'): P
   }
 
   try {
-    const res = await fetch('/api/views', {
+    const res = await fetch('/api/v1/news/views', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, type }),
     });
 
     if (res.ok) {
-      const data = await res.json();
+      const json = await res.json();
+      const data = json.data || json;
       localStorage.setItem(storageKey, Date.now().toString());
       return typeof data.views === 'number' ? data.views : null;
     }

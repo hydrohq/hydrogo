@@ -38,7 +38,7 @@ func clearPublicCaches(page pageCache, html *server.PublicHTMLCache) {
 	}
 }
 
-const version = "0.0.0-dev"
+const version = "0.1.0"
 
 var (
 	buildCommit = "unknown"

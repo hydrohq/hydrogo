@@ -45,8 +45,11 @@ export const POST: RequestHandler = async ({ request }) => {
   const categoryFilter = body.category ? String(body.category).toLowerCase() : null;
 
   const ingestToken = process.env.RSS_INGEST_TOKEN;
+  if (!ingestToken) {
+    return json({ error: 'Server misconfiguration: RSS_INGEST_TOKEN is not configured' }, { status: 500 });
+  }
   const authHeader = request.headers.get('Authorization') || request.headers.get('X-Ingest-Token');
-  if (ingestToken && authHeader !== `Bearer ${ingestToken}` && authHeader !== ingestToken) {
+  if (authHeader !== `Bearer ${ingestToken}` && authHeader !== ingestToken) {
     return json({ error: 'Unauthorized: missing or invalid ingest token' }, { status: 401 });
   }
 

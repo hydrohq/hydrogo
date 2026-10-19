@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -158,4 +159,66 @@ func (s Store) ListContentViews(ctx context.Context, filter ContentViewFilter) (
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+// IncrementContentView atomically updates the daily view count for the content
+// item and returns the updated lifetime total count.
+func (s Store) IncrementContentView(ctx context.Context, tenantID, contentType, contentID, locale string) (int64, error) {
+	if err := s.validate(); err != nil {
+		return 0, err
+	}
+	if err := contextErr(ctx); err != nil {
+		return 0, err
+	}
+	if strings.TrimSpace(tenantID) == "" {
+		tenantID = "default"
+	}
+	contentType = strings.TrimSpace(contentType)
+	contentID = strings.TrimSpace(contentID)
+	if contentType == "" || len(contentType) > 32 || contentID == "" || len(contentID) > 128 {
+		return 0, errors.New("invalid content view parameters")
+	}
+	day := time.Now().UTC().Format("2006-01-02")
+	purpose := "content-views-v1"
+
+	var err error
+	if s.Dialect == database.Postgres {
+		_, err = s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES ($1,$2,$3,$4,$5,$6,1)
+			ON CONFLICT (day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=analytics_content_daily.view_count+1`, day, tenantID, contentType, contentID, locale, purpose)
+	} else if s.Dialect == database.MySQL {
+		_, err = s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
+			ON DUPLICATE KEY UPDATE view_count=view_count+1`, day, tenantID, contentType, contentID, locale, purpose)
+	} else {
+		_, err = s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
+			ON CONFLICT(day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=view_count+1`, day, tenantID, contentType, contentID, locale, purpose)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	return s.ContentViewTotal(ctx, tenantID, contentType, contentID)
+}
+
+// ContentViewTotal returns the lifetime total view count for a single content item.
+func (s Store) ContentViewTotal(ctx context.Context, tenantID, contentType, contentID string) (int64, error) {
+	if err := s.validate(); err != nil {
+		return 0, err
+	}
+	if err := contextErr(ctx); err != nil {
+		return 0, err
+	}
+	if strings.TrimSpace(tenantID) == "" {
+		tenantID = "default"
+	}
+	queryExecutor, ok := s.Executor.(database.QueryExecutor)
+	if !ok {
+		return 0, errors.New("analytics content total requires query executor")
+	}
+	query := "SELECT COALESCE(SUM(view_count), 0) FROM analytics_content_daily WHERE tenant_id=" + placeholder(s.Dialect, 1) + " AND content_type=" + placeholder(s.Dialect, 2) + " AND content_id=" + placeholder(s.Dialect, 3)
+	var total int64
+	err := queryExecutor.QueryRowContext(ctx, query, tenantID, contentType, contentID).Scan(&total)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }
