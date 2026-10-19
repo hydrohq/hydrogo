@@ -189,7 +189,9 @@ export interface ApiResponse<T> {
   };
 }
 
-const API_BASE = (typeof process !== 'undefined' && process.env?.HYDROGO_API_URL) || 'http://127.0.0.1:8090';
+const API_BASE = typeof window !== 'undefined'
+  ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8090' : '')
+  : ((typeof process !== 'undefined' && process.env?.HYDROGO_API_URL) || 'http://127.0.0.1:8090');
 
 // Self-hosted under static/images/editorial so the starter never depends on
 // a live third-party image host (hotlinked Unsplash URLs go dead over time —
@@ -311,30 +313,67 @@ export function getCategoryBadge(category?: string): { bg: string; text: string;
   return { bg: 'bg-red-100', text: 'text-red-800', border: 'border-transparent', glow: '' };
 }
 
-export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
-  try {
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Accept': 'application/json',
-        ...(options?.headers || {}),
-      },
-      // SSR-friendly cache header
-      cache: 'no-store',
-    });
+interface CacheEntry {
+  expiresAt: number;
+  data: any;
+}
+const apiCache = new Map<string, CacheEntry>();
+const inFlightRequests = new Map<string, Promise<any>>();
 
-    if (!res.ok) {
-      console.warn(`API request failed [${res.status}]: ${url}`);
-      return null;
+export function clearApiCache() {
+  apiCache.clear();
+}
+
+export async function fetchApi<T>(endpoint: string, options?: RequestInit & { ttl?: number; bypassCache?: boolean }): Promise<T | null> {
+  const method = (options?.method || 'GET').toUpperCase();
+  const isCacheable = method === 'GET' && !options?.bypassCache;
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+
+  if (isCacheable) {
+    const cached = apiCache.get(url);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data as T;
     }
-
-    const json = (await res.json()) as ApiResponse<T>;
-    return json.data;
-  } catch (err) {
-    console.error(`API network error on ${endpoint}:`, err);
-    return null;
+    if (inFlightRequests.has(url)) {
+      return inFlightRequests.get(url) as Promise<T | null>;
+    }
   }
+
+  const reqPromise = (async () => {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          'Accept': 'application/json',
+          ...(options?.headers || {}),
+        },
+      });
+
+      if (!res.ok) {
+        console.warn(`API request failed [${res.status}]: ${url}`);
+        return null;
+      }
+
+      const json = (await res.json()) as ApiResponse<T>;
+      if (isCacheable && json && json.data !== undefined) {
+        const ttl = options?.ttl ?? 60_000; // 60s in-memory TTL
+        apiCache.set(url, { expiresAt: Date.now() + ttl, data: json.data });
+      }
+      return json.data;
+    } catch (err) {
+      console.error(`API network error on ${endpoint}:`, err);
+      return null;
+    } finally {
+      if (isCacheable) {
+        inFlightRequests.delete(url);
+      }
+    }
+  })();
+
+  if (isCacheable) {
+    inFlightRequests.set(url, reqPromise);
+  }
+  return reqPromise;
 }
 
 export function safeUrl(url?: string): string {
@@ -556,10 +595,10 @@ const FALLBACK_SETTINGS: SiteSettings = {
 };
 
 export async function getSiteNavigation(placement?: NavItem['placement']): Promise<NavItem[]> {
-  const endpoint = `/api/v1/content/site_navigation?limit=100&sort=sort_order${placement ? `&filter[placement]=${placement}` : ''}`;
+  const endpoint = '/api/v1/content/site_navigation?limit=100&sort=sort_order';
   const data = await fetchApi<NavItem[]>(endpoint);
-  if (data && data.length > 0) return data;
-  return placement ? FALLBACK_NAV.filter((n) => n.placement === placement) : FALLBACK_NAV;
+  const items = (data && data.length > 0) ? data : FALLBACK_NAV;
+  return placement ? items.filter((n) => n.placement === placement) : items;
 }
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -573,13 +612,14 @@ export async function getColumnists(): Promise<Columnist[]> {
 }
 
 export async function getAds(zone?: string, pageScope?: AdPageScope): Promise<Ad[]> {
-  const endpoint = zone ? `/api/v1/content/ads?limit=50&filter[zone]=${zone}` : '/api/v1/content/ads?limit=50';
+  const endpoint = '/api/v1/content/ads?limit=100';
   const data = await fetchApi<Ad[]>(endpoint);
-  // `disabled` and `page_scope` aren't server-filterable (booleans/selects
-  // can't be combined with another filter in one query in HydroGo's
-  // content-type API), so both the site-wide kill switch and the per-page
-  // scope are applied here.
-  return (data || []).filter((ad) => !ad.disabled && (!pageScope || !ad.page_scope || ad.page_scope === 'tumu' || ad.page_scope === pageScope));
+  return (data || []).filter((ad) => {
+    if (ad.disabled) return false;
+    if (zone && ad.zone !== zone) return false;
+    if (pageScope && ad.page_scope && ad.page_scope !== 'tumu' && ad.page_scope !== pageScope) return false;
+    return true;
+  });
 }
 
 export async function getGalleries(limit: number = 6): Promise<Gallery[]> {

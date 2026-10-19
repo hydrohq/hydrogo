@@ -1,7 +1,10 @@
-import type { LayoutServerLoad } from './$types';
+import type { LayoutLoad } from './$types';
 import { getMasthead, getSiteNavigation, getSiteSettings, getNewsList } from '#lib';
 
-export const load: LayoutServerLoad = async () => {
+export const ssr = false;
+export const prerender = false;
+
+export const load: LayoutLoad = async () => {
   const envPhone = (typeof process !== 'undefined' && (process.env?.WHATSAPP_PHONE || process.env?.PUBLIC_WHATSAPP_PHONE)) || '';
 
   let phone = envPhone;
@@ -16,12 +19,12 @@ export const load: LayoutServerLoad = async () => {
     }
   }
 
-  const [headerNav, footerPagesNav, footerSocialNav, siteSettings, breakingNews] = await Promise.all([
+  const [headerNav, footerPagesNav, footerSocialNav, siteSettings, allNews] = await Promise.all([
     getSiteNavigation('header'),
     getSiteNavigation('footer_sayfalar'),
     getSiteNavigation('footer_sosyal'),
     getSiteSettings(),
-    getNewsList({ limit: 8 }),
+    getNewsList({ limit: 60 }),
   ]);
 
   return {
@@ -30,6 +33,6 @@ export const load: LayoutServerLoad = async () => {
     footerPagesNav,
     footerSocialNav,
     siteSettings,
-    breakingNews,
+    breakingNews: (allNews || []).slice(0, 8),
   };
 };

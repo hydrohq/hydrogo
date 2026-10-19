@@ -1,14 +1,8 @@
 import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { getNewsBySlug, getNewsList, getMediaUrl, getAds, getComments, getSiteSettings, type NewsArticle } from '#lib';
-import { getViewCount } from '#lib/server/views';
+import type { PageLoad } from './$types';
+import { getNewsBySlug, getNewsList, getMediaUrl, getAds, getComments, getSiteSettings, getViewCount, type NewsArticle } from '#lib';
 
-export const load: PageServerLoad = async ({ params, setHeaders }) => {
-  // Edge cache 60s
-  setHeaders({
-    'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=600',
-  });
-
+export const load: PageLoad = async ({ params }) => {
   if (!params.slug) {
     error(404, { message: 'Haber bulunamadı' });
   }

@@ -1,6 +1,13 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+@import '@fontsource/public-sans/400.css';
+@import '@fontsource/public-sans/500.css';
+@import '@fontsource/public-sans/600.css';
+@import '@fontsource/public-sans/700.css';
+@import '@fontsource/public-sans/800.css';
+@import '@fontsource/public-sans/900.css';
+
 :root {
   --hp-primary: #e11d2e;
   --hp-primary-dark: #c01124;
@@ -110,4 +117,14 @@
   border-radius: 0 0.5rem 0.5rem 0;
   color: var(--hp-ink-soft);
   font-style: italic;
+}
+
+@keyframes hp-progress {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(0.75); transform-origin: left; }
+  100% { transform: scaleX(1); transform-origin: left; }
+}
+
+.animate-hp-progress {
+  animation: hp-progress 0.7s ease-in-out infinite alternate;
 }

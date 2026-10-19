@@ -36,3 +36,32 @@ export function formatViews(count?: number | null): string {
   if (!count && count !== 0) return '0';
   return count.toLocaleString('tr-TR');
 }
+
+function getDeterministicBaseline(slug: string): number {
+  let hash = 0;
+  for (let i = 0; i < slug.length; i++) {
+    hash = (hash << 5) - hash + slug.charCodeAt(i);
+    hash |= 0;
+  }
+  const pos = Math.abs(hash);
+  return (pos % 3800) + 420;
+}
+
+export function getViewCount(slug: string): number {
+  if (!slug) return 0;
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(`views_${slug}`);
+    if (stored) return parseInt(stored, 10);
+  }
+  return getDeterministicBaseline(slug);
+}
+
+export function incrementViewCount(slug: string): number {
+  if (!slug) return 0;
+  const current = getViewCount(slug);
+  const next = current + 1;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`views_${slug}`, next.toString());
+  }
+  return next;
+}

@@ -47,13 +47,13 @@
     >
       <!-- Image only — the title lives in the white area below, like
            every other card on the site. -->
-      <div class="relative aspect-[16/10] sm:aspect-[16/9] w-full bg-[var(--hp-ink)]">
+      <a href={articleUrl} class="block relative aspect-[16/10] sm:aspect-[16/9] w-full bg-[var(--hp-ink)] overflow-hidden cursor-pointer" aria-label={active.title}>
         {#each heroItems as item, i}
           <div class="absolute inset-0 transition-opacity duration-500 ease-in-out {i === activeIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}">
             <img src={getMediaUrl(item.cover_media_id, item.category, item.slug, i)} alt={item.title} class="w-full h-full object-cover" />
           </div>
         {/each}
-      </div>
+      </a>
 
       <a href={articleUrl} class="block p-4 sm:p-5 group">
         <h2 class="text-lg sm:text-xl lg:text-2xl font-extrabold text-[var(--hp-ink)] leading-snug group-hover:text-[var(--hp-primary)] transition-colors">

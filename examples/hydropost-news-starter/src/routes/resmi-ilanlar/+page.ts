@@ -1,11 +1,7 @@
-import type { PageServerLoad } from './$types';
+import type { PageLoad } from './$types';
 import { getOfficialAnnouncements } from '#lib';
 
-export const load: PageServerLoad = async ({ setHeaders, url }) => {
-  setHeaders({
-    'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
-  });
-
+export const load: PageLoad = async ({ url }) => {
   const filterType = url.searchParams.get('tur') || undefined;
   const announcements = await getOfficialAnnouncements(50);
 

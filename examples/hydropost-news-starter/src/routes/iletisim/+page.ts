@@ -1,11 +1,7 @@
-import type { PageServerLoad } from './$types';
+import type { PageLoad } from './$types';
 import { getMasthead } from '#lib';
 
-export const load: PageServerLoad = async ({ setHeaders }) => {
-  setHeaders({
-    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-  });
-
+export const load: PageLoad = async () => {
   const masthead = await getMasthead();
 
   return {
