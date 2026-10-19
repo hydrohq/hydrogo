@@ -1,4 +1,5 @@
 import { api } from '$lib/api/client';
+import { auth } from '$lib/stores/auth.svelte';
 import { en, type MessageKey } from './en';
 import { tr } from './tr';
 
@@ -48,6 +49,16 @@ export function resolveLocale(userChoice: string | null, projectDefault: string 
   return browserLocale();
 }
 
+/**
+ * The signed-in user's saved language: the server's copy wins, the value this
+ * browser remembered is the fallback, and null means "follow the project default".
+ */
+export function pickUserChoice(serverValue: unknown, storedValue: unknown): Locale | null {
+  if (isLocale(serverValue)) return serverValue;
+  if (isLocale(storedValue)) return storedValue;
+  return null;
+}
+
 export function interpolate(message: string, params?: Record<string, string | number>): string {
   if (!params) return message;
   return message.replace(/\{(\w+)\}/g, (whole, name) => (name in params ? String(params[name]) : whole));
@@ -66,12 +77,16 @@ class I18nState {
     this.apply();
   }
 
-  /** Call once the user and the project default are known. */
-  init(userId: string, projectDefault: string | null | undefined) {
+  /**
+   * Call once the user and the project default are known. The language saved
+   * on the server (from /me) is preferred, then this browser's remembered one.
+   */
+  init(userId: string, projectDefault: string | null | undefined, serverLocale: string | null | undefined = auth.serverLocale) {
     this.userId = userId;
     this.projectDefault = isLocale(projectDefault) ? projectDefault : null;
     const stored = userId ? read(userKey(userId)) : null;
-    this.userChoice = isLocale(stored) ? stored : null;
+    this.userChoice = pickUserChoice(serverLocale, stored);
+    if (userId && this.userChoice && this.userChoice !== stored) write(userKey(userId), this.userChoice);
     this.locale = resolveLocale(this.userChoice, this.projectDefault);
     this.apply();
   }
@@ -87,13 +102,13 @@ class I18nState {
     this.locale = resolveLocale(choice, this.projectDefault);
     write(LAST_USED_KEY, this.locale);
     this.apply();
-    if (choice) {
-      // The server keeps a cookie too, so server-rendered admin messages match.
-      try {
-        await api.put('/api/v1/admin/account/locale', { locale: choice });
-      } catch {
-        /* the browser already switched; the cookie is a convenience */
-      }
+    auth.serverLocale = choice;
+    // The server keeps the choice (an empty locale clears it), so it survives a
+    // cleared browser and server-rendered admin messages match.
+    try {
+      await api.put('/api/v1/admin/account/locale', { locale: choice ?? '' });
+    } catch {
+      /* the browser already switched; the server copy is a convenience */
     }
   }
 

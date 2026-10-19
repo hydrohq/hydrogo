@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { t, i18n, isLocale } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
-  import { schema } from '$lib/stores/schema.svelte';
+  import { brandingStore } from '$lib/stores/branding.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
@@ -213,7 +213,7 @@
         settings: Object.entries(settings).map(([key, value]) => ({ key, value })),
       };
       await api.put('/api/v1/admin/site/settings', payload);
-      await schema.loadSchema(true);
+      await brandingStore.load();
       if (isLocale(settings['admin.default_locale'])) i18n.setProjectDefault(settings['admin.default_locale']);
       showNotification(t('site.general.saved'));
     } catch (err: any) {
@@ -446,7 +446,7 @@
         onclick={() => (activeTab = 'redirects')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'redirects' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Redirects ({redirects.length})
+        {t('site.tab.redirectsCount', { count: redirects.length })}
       </button>
       <button
         type="button"
@@ -473,7 +473,7 @@
 
         <div>
           <label for="site-desc" class="block text-xs font-medium text-foreground mb-1">{t('site.general.description')}</label>
-          <Input id="site-desc" type="text" bind:value={settings['site.description']} placeholder="Brief description for search engines..." />
+          <Input id="site-desc" type="text" bind:value={settings['site.description']} placeholder={t('site.descPlaceholder')} />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

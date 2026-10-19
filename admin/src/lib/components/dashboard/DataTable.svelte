@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
+  import { statusLabel } from '$lib/i18n/labels';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -376,7 +377,7 @@
                       size="sm"
                       class="capitalize"
                     >
-                      {item.status}
+                      {statusLabel(item.status)}
                     </Badge>
                   </td>
                 {/if}

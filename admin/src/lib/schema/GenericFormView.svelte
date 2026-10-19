@@ -172,7 +172,7 @@
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schema...</span>
+    <span>{t('schema.loadingSchema', { type })}</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -339,7 +339,7 @@
                   <div class="flex items-center gap-2">
                     {#if formData[key]}
                       <div class="relative size-12 rounded-md overflow-hidden border border-border bg-muted shrink-0">
-                        <img src={formData[key]} alt="Selected asset" class="w-full h-full object-cover" />
+                        <img src={formData[key]} alt={t('schema.selectedAsset')} class="w-full h-full object-cover" />
                       </div>
                     {/if}
                     <Input

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '$lib/i18n/index.svelte';
+  import { i18n, t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -50,7 +50,7 @@
       if (res?.data && Array.isArray(res.data)) {
         const counts: Record<string, number> = {};
         for (const item of res.data) {
-          const cat = item.category || 'Genel';
+          const cat = item.category || t('dashboard.chart.uncategorized');
           counts[cat] = (counts[cat] || 0) + 1;
         }
         totalArticles = res.data.length;
@@ -231,9 +231,9 @@
   function formatAxisDate(iso: string): string {
     const parts = iso.split('-');
     if (parts.length < 3) return iso;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const m = parseInt(parts[1], 10) - 1;
-    return `${months[m] || parts[1]} ${parseInt(parts[2], 10)}`;
+    const date = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+    if (Number.isNaN(date.getTime())) return iso;
+    return new Intl.DateTimeFormat(i18n.locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(date);
   }
 
   const axisLabels = $derived.by(() => {
@@ -375,7 +375,7 @@
                     {cat.name}
                   </span>
                   <span class="text-sm font-bold text-foreground font-mono group-hover:text-primary transition-colors">
-                    {cat.count} <span class="text-[11px] font-normal text-muted-foreground">haber</span>
+                    {cat.count} <span class="text-[11px] font-normal text-muted-foreground">{t('dashboard.chart.articlesUnit')}</span>
                   </span>
                 </div>
                 <div class="space-y-1.5 mt-2">
@@ -488,7 +488,7 @@
             <span class="size-1.5 rounded-full bg-muted-foreground/50"></span>
             <span>{t('dashboard.chart.noTraffic')}</span>
           </div>
-          <span class="font-mono text-[11px]">Today: {todayStr}</span>
+          <span class="font-mono text-[11px]">{t('dashboard.chart.today', { date: todayStr })}</span>
         </div>
       {/if}
     </div>

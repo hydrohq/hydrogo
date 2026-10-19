@@ -359,7 +359,7 @@
       <!-- Location / Tech info -->
       {#if selectedItem.location}
         <div class="text-xs text-muted-foreground flex items-center gap-2">
-          <span>Location: {selectedItem.location.city || ''} {selectedItem.location.country_code || ''}</span>
+          <span>{t('site.inbox.location', { place: `${selectedItem.location.city || ''} ${selectedItem.location.country_code || ''}`.trim() })}</span>
           {#if selectedItem.location.local}
             <Badge variant="outline" class="text-[9px]">{t('site.inbox.local')}</Badge>
           {/if}

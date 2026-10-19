@@ -155,7 +155,7 @@
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schema...</span>
+    <span>{t('schema.loadingSchema', { type })}</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -239,7 +239,7 @@
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
               <div class="p-12 text-center text-xs text-muted-foreground">
-                Loading {(collection.plural || collection.label || type).toLowerCase()}...
+                {t('schema.loadingItems', { name: (collection.plural || collection.label || type).toLowerCase() })}
               </div>
             {:else if filteredItems.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">

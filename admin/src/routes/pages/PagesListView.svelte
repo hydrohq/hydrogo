@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { statusLabel } from '$lib/i18n/labels';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -186,7 +187,7 @@
                       </td>
                       <td class="px-4 py-3">
                         <Badge variant={page.status === 'published' ? 'success' : 'outline'} size="sm">
-                          {page.status}
+                          {statusLabel(page.status)}
                         </Badge>
                       </td>
                       <td class="px-4 py-3 text-xs text-muted-foreground">

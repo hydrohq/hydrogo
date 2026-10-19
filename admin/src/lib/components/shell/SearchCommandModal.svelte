@@ -275,7 +275,7 @@
           <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Enter</kbd> {t('search.hintSelect')}</span>
           <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Esc</kbd> {t('search.hintClose')}</span>
         </div>
-        <span class="font-mono">{filteredItems.length} results</span>
+        <span class="font-mono">{t('search.results', { count: filteredItems.length })}</span>
       </div>
     </div>
   </div>
