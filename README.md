@@ -47,7 +47,7 @@ Checksums are in `SHA256SUMS` on every release; the install scripts verify them.
 ## Quick start
 
 ```bash
-hydro new mysite --preset blog --admin-email you@example.com
+hydro new mysite --preset blog --starter sveltekit --admin-email you@example.com
 cd mysite
 hydro serve --config config.yaml
 # admin: http://127.0.0.1:8080/admin   API: http://127.0.0.1:8080/api/v1

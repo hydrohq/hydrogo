@@ -75,6 +75,16 @@ assert.equal(faq.data[0].id, "a");
 assert.equal(requestedUrl, "https://hydrogo.example/api/v1/content/faq?limit=5&search=refund&filter%5Bcategory%5D=billing");
 await assert.rejects(async () => contentClient.listContent("faq", { limit: 0 }), RangeError);
 
+const pagedClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url) => { requestedUrl = String(url); return new Response(JSON.stringify({ data: [], metadata: { limit: 10, offset: 20, has_more: true } })); },
+});
+const page2 = await pagedClient.listNewsPage("en", 10, 20);
+assert.equal(page2.metadata.has_more, true);
+assert.equal(requestedUrl, "https://hydrogo.example/api/v1/news?locale=en&limit=10&offset=20");
+assert.equal(pagedClient.mediaUrl("a b"), "https://hydrogo.example/media/a%20b");
+await assert.rejects(async () => pagedClient.listNewsPage("en", 10, -1), RangeError);
+
 const oversized = new Uint8Array(2 * 1024 * 1024 + 1);
 const boundedClient = createHydroGoClient({ origin: "https://hydrogo.example", fetch: async () => new Response(oversized) });
 await assert.rejects(() => boundedClient.listNews(), (error) => {

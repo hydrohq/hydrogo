@@ -67,7 +67,7 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
    comes from `make generate` (`hydro schema openapi` → `openapi-typescript`);
    `admin/dist` comes from `vite build`.
 10. **Every API response uses the envelope** in `internal/api/response.go`:
-    `{data, meta}` or `{code, message, request_id, fields}`. Errors must carry
+    `{data, metadata}` or `{code, message, request_id, fields}`. Errors must carry
     the request id so the admin can show it.
 11. **Every admin endpoint works with all three credentials** — session
     cookie + CSRF header, `Authorization: Bearer`, or API key — through the

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	adminsearch "github.com/ardaozyildirim/hydrogo/internal/search"
 )
@@ -85,6 +87,9 @@ type adminSchemaLocales struct {
 	Enabled bool     `json:"enabled"`
 	Default string   `json:"default"`
 	All     []string `json:"all"`
+	// AdminDefault is the admin panel language an administrator chose for the
+	// project in Site settings; empty until they do.
+	AdminDefault string `json:"admin_default"`
 }
 
 func (a *serveApp) adminSchema(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +98,22 @@ func (a *serveApp) adminSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	api.WriteData(w, http.StatusOK, a.buildAdminSchema(), nil)
+	schema := a.buildAdminSchema()
+	schema.Locales.AdminDefault = a.adminDefaultLocale(r.Context())
+	api.WriteData(w, http.StatusOK, schema, nil)
+}
+
+// adminDefaultLocale reads the project-wide admin language setting. A missing
+// site module, setting or an unsupported value all mean "no project default".
+func (a *serveApp) adminDefaultLocale(ctx context.Context) string {
+	if !a.modules["site"] {
+		return ""
+	}
+	setting, found, err := a.siteStore.GetSetting(ctx, a.db, "admin.default_locale")
+	if err != nil || !found || !i18n.IsSupportedCatalogLocale(setting.Value) {
+		return ""
+	}
+	return setting.Value
 }
 
 func (a *serveApp) buildAdminSchema() adminSchema {

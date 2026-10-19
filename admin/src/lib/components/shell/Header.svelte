@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { router } from '$lib/router.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { sidebar } from '$lib/stores/sidebar.svelte';
@@ -11,31 +12,31 @@
 
   const pageTitle = $derived.by(() => {
     if (path === '/' || path === '/dashboard' || path === '/admin' || path === '/admin/' || path === '') {
-      return 'Dashboard';
+      return t('nav.dashboard');
     }
     if (path.startsWith('/content/')) {
       const parts = path.split('/');
       const type = parts[2];
       const collection = schema.getCollection(type);
       const name = collection?.label || collection?.plural || type;
-      if (parts[3] === 'new') return `New ${name}`;
-      if (parts[3]) return `Edit ${name}`;
+      if (parts[3] === 'new') return t('title.newItem', { name });
+      if (parts[3]) return t('title.editItem', { name });
       return collection?.plural || collection?.label || name;
     }
-    if (path.startsWith('/pages/new')) return 'New Page';
-    if (path.startsWith('/pages/')) return 'Edit Page';
-    if (path.startsWith('/pages')) return 'Pages';
-    if (path.startsWith('/news/new')) return 'New Article';
-    if (path.startsWith('/news/')) return 'Edit Article';
-    if (path.startsWith('/news')) return 'News';
-    if (path.startsWith('/media')) return 'Media Library';
-    if (path.startsWith('/members')) return 'Members';
-    if (path.startsWith('/site')) return 'Site Settings';
-    if (path.startsWith('/users')) return 'Users & Access';
-    if (path.startsWith('/account')) return 'My Account';
-    if (path.startsWith('/audit')) return 'Audit Trail';
-    if (path.startsWith('/system')) return 'Telemetry';
-    return 'Documents';
+    if (path.startsWith('/pages/new')) return t('nav.newPage');
+    if (path.startsWith('/pages/')) return t('title.editPage');
+    if (path.startsWith('/pages')) return t('nav.pages');
+    if (path.startsWith('/news/new')) return t('nav.newArticle');
+    if (path.startsWith('/news/')) return t('title.editArticle');
+    if (path.startsWith('/news')) return t('nav.news');
+    if (path.startsWith('/media')) return t('nav.media');
+    if (path.startsWith('/members')) return t('nav.members');
+    if (path.startsWith('/site')) return t('title.siteSettings');
+    if (path.startsWith('/users')) return t('title.users');
+    if (path.startsWith('/account')) return t('title.account');
+    if (path.startsWith('/audit')) return t('title.audit');
+    if (path.startsWith('/system')) return t('nav.telemetry');
+    return t('nav.documents');
   });
 
   function handleToggleSidebar() {

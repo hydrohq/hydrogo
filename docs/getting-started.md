@@ -25,7 +25,7 @@ Check it: `hydro version`. Every download has a checksum in `SHA256SUMS`; the in
 ## 2. Create a project
 
 ```bash
-hydro new mysite --preset blog --admin-email you@example.com
+hydro new mysite --preset blog --starter sveltekit --admin-email you@example.com
 cd mysite
 hydro serve --config config.yaml
 ```
@@ -59,7 +59,7 @@ The admin gets screens at `/admin/content/recipes` and, with `public: true`, the
 
 Use the API from any frontend. Two ready starting points:
 
-- [`examples/sveltekit-starter`](../examples/sveltekit-starter): server-rendered SvelteKit site (SEO-friendly, no rebuild when content changes).
+- [`examples/sveltekit-starter`](../examples/sveltekit-starter): server-rendered SvelteKit site (SEO-friendly, no rebuild when content changes). `--starter sveltekit` copies it into `frontend/`; then `cd frontend && npm install && npm run dev`.
 - [`@hydrogo/client`](../packages/client): typed fetch client for any JavaScript/TypeScript frontend.
 
 Publishing is live immediately: the frontend reads the API on every request (or through a short cache you control). Nothing needs rebuilding when an editor clicks Publish.

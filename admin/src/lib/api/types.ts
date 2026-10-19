@@ -2,6 +2,14 @@
 
 export interface ApiResponse<T> {
   data: T;
+  /** The API envelope is {data, metadata}; `meta` is the older spelling. */
+  metadata?: {
+    total?: number;
+    limit?: number;
+    offset?: number;
+    has_more?: boolean;
+    [key: string]: unknown;
+  };
   meta?: {
     total?: number;
     page?: number;
@@ -123,6 +131,8 @@ export interface AdminSchemaLocales {
   enabled: boolean;
   default: string;
   all: string[];
+  /** Project-wide admin panel language set in Site settings (empty = none). */
+  admin_default?: string;
 }
 
 export interface AdminSchema {

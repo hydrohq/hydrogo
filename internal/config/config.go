@@ -33,6 +33,14 @@ type Config struct {
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
 	Backup          Backup           `yaml:"backup"`
+	Audit           Audit            `yaml:"audit"`
+}
+
+// Audit configures the optional detail recorded in the audit trail.
+type Audit struct {
+	// LogRequestBodies records the redacted, size-capped JSON body of every
+	// state-changing admin API request, so the audit trail shows what was sent.
+	LogRequestBodies bool `yaml:"log_request_bodies"`
 }
 
 type Backup struct {

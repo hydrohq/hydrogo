@@ -8,10 +8,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	contenttypedata "github.com/ardaozyildirim/hydrogo/content-types"
+	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
 )
 
 // Preset is a starting point for a project: the modules it enables and the
@@ -85,6 +87,36 @@ type Options struct {
 	Name string
 	// Preset is the preset name; empty means "minimal".
 	Preset string
+	// Starter names a frontend starter to copy into <Dir>/frontend. Empty
+	// means none; see Starters.
+	Starter string
+}
+
+// Starters lists the frontend starters Create can copy into a project.
+func Starters() []string { return []string{"sveltekit"} }
+
+// copyStarter writes the embedded SvelteKit starter into dir.
+func copyStarter(name, dir string) error {
+	if name != "sveltekit" {
+		return fmt.Errorf("unknown starter %q (available: %s)", name, strings.Join(Starters(), ", "))
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return fmt.Errorf("%s already exists; refusing to overwrite", dir)
+	}
+	return fs.WalkDir(sveltekitstarter.FS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dir, filepath.FromSlash(path))
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, readErr := fs.ReadFile(sveltekitstarter.FS, path)
+		if readErr != nil {
+			return readErr
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
 }
 
 // Create writes a new project into opts.Dir. It refuses to overwrite an
@@ -108,7 +140,10 @@ func Create(opts Options) (Preset, error) {
 		}
 		opts.Name = filepath.Base(abs)
 	}
-	for _, existing := range []string{"config.yaml", "content-types"} {
+	if opts.Starter != "" && !slices.Contains(Starters(), opts.Starter) {
+		return Preset{}, fmt.Errorf("unknown starter %q (available: %s)", opts.Starter, strings.Join(Starters(), ", "))
+	}
+	for _, existing := range []string{"config.yaml", "content-types", "frontend"} {
 		if _, statErr := os.Stat(filepath.Join(opts.Dir, existing)); statErr == nil {
 			return Preset{}, fmt.Errorf("%s already exists in %s; refusing to overwrite", existing, opts.Dir)
 		}
@@ -139,6 +174,11 @@ func Create(opts Options) (Preset, error) {
 			continue // keep an existing README / .gitignore
 		}
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return Preset{}, err
+		}
+	}
+	if opts.Starter != "" {
+		if err := copyStarter(opts.Starter, filepath.Join(opts.Dir, "frontend")); err != nil {
 			return Preset{}, err
 		}
 	}
