@@ -27,4 +27,4 @@ npm ci && npm test
 
 ## Publish
 
-`npm publish --access public` from this directory (runs the tests first).
+This package is private and is never published to npm or any public registry. Frontends use it from the repository: the starters vendor a copy (`examples/sveltekit-starter/src/lib/hydrogo.ts`, kept in sync by a Go test), or install it from a checkout with `npm install ../path/to/hydrogo/packages/client`.

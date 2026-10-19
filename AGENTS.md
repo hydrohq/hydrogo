@@ -26,7 +26,7 @@ done if either step failed.
 | Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql` |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
 | A starting point for a public site | `examples/sveltekit-starter/` (server-rendered, uses `packages/client`). `examples/svelte-starter/` is HydroGo's own landing/docs SPA. `examples/hydropost-news-starter/` is a Turkish news portal — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
-| The typed API client for frontends | `packages/client` (`@hydrogo/client`, published to npm). Keep it in step with the public API envelope: pages, news and content return `{data, metadata}` |
+| The typed API client for frontends | `packages/client` (`@hydrogo/client`, private: never published to npm or any public registry). Keep it in step with the public API envelope: pages, news and content return `{data, metadata}` |
 | What `hydro new` / `hydro init` create (presets, config template) | `internal/scaffold`. Presets only pick modules and stock types from `content-types/` |
 | Release, installer, install scripts | `.github/workflows/release.yml`, `deploy/windows/hydrogo.iss`, `scripts/install.sh`, `scripts/install.ps1` (see `docs/upgrading.md`) |
 

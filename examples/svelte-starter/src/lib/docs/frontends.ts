@@ -10,8 +10,8 @@ export const frontends: DocSection = {
       "A typed, dependency-free fetch client for the public API. Works in browsers, Node 20+, Deno, Bun and edge runtimes.",
       p("`@hydrogo/client` wraps the public endpoints with TypeScript types, request timeouts, size-capped responses and a proper error class. You can also call the API with plain `fetch`; the client just removes boilerplate."),
       h2('Install'),
-      code('bash', "npm install @hydrogo/client"),
-      note("Inside the HydroGo repository, until you publish or vendor the package, install it from the sibling folder: `npm install ../../packages/client`."),
+      p("The client is not published to a public registry. Use the copy bundled with the SvelteKit starter (`hydro new --starter sveltekit` puts it at `frontend/src/lib/hydrogo.ts`), or install it from a HydroGo checkout:"),
+      code('bash', "npm install ../path/to/hydrogo/packages/client"),
       h2('Create a client'),
       code('ts', `import { createHydroGoClient } from '@hydrogo/client';
 
