@@ -32,20 +32,6 @@
       >
         Docs
       </button>
-
-
-      <a
-        href="https://ardalabs.dev"
-        target="_blank"
-        rel="noreferrer"
-        class="px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-colors flex items-center gap-1.5"
-      >
-        <span>Visit Website</span>
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M7 17L17 7" />
-          <path d="M7 7h10v10" />
-        </svg>
-      </a>
     </nav>
   </div>
 </header>

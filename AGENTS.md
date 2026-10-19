@@ -3,7 +3,7 @@
 HydroGo is a **single-binary headless Go CMS**: pages, news, media, members,
 content types, a REST API and an embedded admin panel. It does not render a
 public website; projects build their own frontend on the API (see
-`examples/svelte-starter`). It is not a framework or a product factory. If a
+`examples/sveltekit-starter`). It is not a framework or a product factory. If a
 change does not serve that, don't make it. Background:
 `docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`.
 
@@ -25,7 +25,10 @@ done if either step failed.
 | An admin API endpoint | `/api/v1/admin/...` in the module's `transport/http.go`, responses through `internal/api.WriteData` / `WriteError` |
 | Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql` |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
-| Example of consuming the API from a frontend | `examples/svelte-starter/`. `examples/hydropost-news-starter/` is another one (a Turkish news portal) — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
+| A starting point for a public site | `examples/sveltekit-starter/` (server-rendered, uses `packages/client`). `examples/svelte-starter/` is HydroGo's own landing/docs SPA. `examples/hydropost-news-starter/` is a Turkish news portal — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
+| The typed API client for frontends | `packages/client` (`@hydrogo/client`, published to npm). Keep it in step with the public API envelope: pages, news and content return `{data, metadata}` |
+| What `hydro new` / `hydro init` create (presets, config template) | `internal/scaffold`. Presets only pick modules and stock types from `content-types/` |
+| Release, installer, install scripts | `.github/workflows/release.yml`, `deploy/windows/hydrogo.iss`, `scripts/install.sh`, `scripts/install.ps1` (see `docs/upgrading.md`) |
 
 Follow the closest existing example. `modules/news` is the reference module
 for content that needs custom behaviour; everything else should be a content
