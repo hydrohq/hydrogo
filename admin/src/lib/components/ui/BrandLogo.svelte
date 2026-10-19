@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { schema } from '$lib/stores/schema.svelte';
   interface Props {
     size?: 'sm' | 'md' | 'lg' | 'xl';
     showIcon?: boolean;
@@ -7,6 +8,9 @@
   }
 
   let { size = 'md', showIcon = true, showText = true, class: className = '' }: Props = $props();
+
+  const brand = $derived(schema.schema?.branding);
+  const brandName = $derived(brand?.name || 'HydroGo');
 
   const iconSizes = {
     sm: 'size-6',
@@ -31,7 +35,9 @@
 </script>
 
 <div class="flex items-center gap-2.5 select-none {className}">
-  {#if showIcon}
+  {#if showIcon && brand?.logo_url}
+    <img src={brand.logo_url} alt="" class="{iconSizes[size]} shrink-0 rounded-lg object-contain" />
+  {:else if showIcon}
     <div
       class="flex {iconSizes[size]} shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold shadow-xs"
     >
@@ -52,7 +58,7 @@
   {/if}
   {#if showText}
     <span class="{textSizes[size]} font-semibold tracking-tight text-current truncate">
-      HydroGo
+      {brandName}
     </span>
   {/if}
 </div>

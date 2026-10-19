@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -49,11 +50,11 @@
         for (const p of pagesRes.data) {
           combined.push({
             id: `page-${p.id}`,
-            title: p.title || p.slug || 'Untitled Page',
+            title: p.title || p.slug || t('dashboard.table.untitledPage'),
             slug: p.slug,
             type: 'page',
             status: p.status || 'published',
-            author: p.author_name || 'Admin',
+            author: p.author_name || t('dashboard.table.adminAuthor'),
             date: p.updated_at || p.created_at || new Date().toISOString(),
             targetPath: `/pages/${p.id}`,
           });
@@ -72,11 +73,11 @@
         for (const n of newsRes.data) {
           combined.push({
             id: `news-${n.id}`,
-            title: n.title || n.slug || 'Untitled Story',
+            title: n.title || n.slug || t('dashboard.table.untitledNews'),
             slug: n.slug,
             type: 'news',
             status: n.status || 'published',
-            author: n.author_name || 'Editorial Team',
+            author: n.author_name || t('dashboard.table.editorialTeam'),
             date: n.published_at || n.updated_at || n.created_at || new Date().toISOString(),
             targetPath: `/news/${n.id}`,
           });
@@ -176,7 +177,7 @@
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'all' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
         onclick={() => { activeTab = 'all'; pageIndex = 0; }}
       >
-        <span>All Content</span>
+        <span>{t('dashboard.table.all')}</span>
         <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
           {tabCounts.all}
         </span>
@@ -187,7 +188,7 @@
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'pages' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
         onclick={() => { activeTab = 'pages'; pageIndex = 0; }}
       >
-        <span>Pages</span>
+        <span>{t('dashboard.table.pages')}</span>
         <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
           {tabCounts.pages}
         </span>
@@ -198,7 +199,7 @@
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-all whitespace-nowrap cursor-pointer {activeTab === 'news' ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
         onclick={() => { activeTab = 'news'; pageIndex = 0; }}
       >
-        <span>News Articles</span>
+        <span>{t('dashboard.table.news')}</span>
         <span class="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-muted-foreground/20 text-[10px] font-mono">
           {tabCounts.news}
         </span>
@@ -215,7 +216,7 @@
         </svg>
         <input
           type="text"
-          placeholder="Filter content..."
+          placeholder={t('dashboard.table.filter')}
           bind:value={searchQuery}
           class="h-8 w-full pl-8 pr-3 text-xs rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
         />
@@ -226,10 +227,10 @@
         bind:value={statusFilter}
         class="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs cursor-pointer"
       >
-        <option value="all">All Status</option>
-        <option value="published">Published</option>
-        <option value="draft">Draft</option>
-        <option value="recorded">Recorded</option>
+        <option value="all">{t('dashboard.table.allStatus')}</option>
+        <option value="published">{t('common.published')}</option>
+        <option value="draft">{t('common.draft')}</option>
+        <option value="recorded">{t('dashboard.table.recorded')}</option>
       </select>
 
       <!-- Customize Columns Dropdown -->
@@ -250,7 +251,7 @@
             <line x1="9" y1="8" x2="15" y2="8"></line>
             <line x1="17" y1="16" x2="23" y2="16"></line>
           </svg>
-          <span>Columns</span>
+          <span>{t('dashboard.table.columns')}</span>
         </button>
 
         {#if showColumnsMenu}
@@ -258,11 +259,11 @@
             class="absolute right-0 top-full mt-1.5 w-44 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md z-30 animate-in fade-in zoom-in-95 duration-100"
           >
             {#each [
-              { key: 'type', label: 'Item Type' },
-              { key: 'status', label: 'Status' },
-              { key: 'author', label: 'Author / Actor' },
-              { key: 'date', label: 'Date' },
-              { key: 'actions', label: 'Actions' }
+              { key: 'type', label: t('dashboard.table.colType') },
+              { key: 'status', label: t('common.status') },
+              { key: 'author', label: t('dashboard.table.colAuthor') },
+              { key: 'date', label: t('common.date') },
+              { key: 'actions', label: t('dashboard.table.colActions') }
             ] as col}
               <label class="flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent cursor-pointer">
                 <input
@@ -284,14 +285,14 @@
     {#if loading}
       <div class="py-20 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        <span>Loading CMS content & records...</span>
+        <span>{t('dashboard.table.loading')}</span>
       </div>
     {:else if paginatedItems.length === 0}
       <div class="py-16 text-center text-xs text-muted-foreground">
         {#if searchQuery}
-          <p>No content matched your search query "{searchQuery}".</p>
+          <p>{t('dashboard.table.noMatch', { query: searchQuery })}</p>
         {:else}
-          <p>No records found in this section.</p>
+          <p>{t('dashboard.table.empty')}</p>
         {/if}
       </div>
     {:else}
@@ -305,26 +306,26 @@
                   class="rounded border-input text-primary focus:ring-ring size-3.5 cursor-pointer align-middle"
                   checked={allSelected}
                   onchange={toggleSelectAll}
-                  aria-label="Select all rows"
+                  aria-label={t('dashboard.table.selectAll')}
                 />
               </th>
               {#if visibleColumns.title}
-                <th class="h-10 px-4 font-medium align-middle">Item Title / Action</th>
+                <th class="h-10 px-4 font-medium align-middle">{t('dashboard.table.itemTitle')}</th>
               {/if}
               {#if visibleColumns.type}
-                <th class="h-10 px-4 font-medium align-middle">Type</th>
+                <th class="h-10 px-4 font-medium align-middle">{t('common.type')}</th>
               {/if}
               {#if visibleColumns.status}
-                <th class="h-10 px-4 font-medium align-middle">Status</th>
+                <th class="h-10 px-4 font-medium align-middle">{t('common.status')}</th>
               {/if}
               {#if visibleColumns.author}
-                <th class="h-10 px-4 font-medium align-middle">Author / Actor</th>
+                <th class="h-10 px-4 font-medium align-middle">{t('dashboard.table.colAuthor')}</th>
               {/if}
               {#if visibleColumns.date}
-                <th class="h-10 px-4 font-medium align-middle">Date</th>
+                <th class="h-10 px-4 font-medium align-middle">{t('common.date')}</th>
               {/if}
               {#if visibleColumns.actions}
-                <th class="h-10 w-24 px-4 font-medium text-right align-middle">Action</th>
+                <th class="h-10 w-24 px-4 font-medium text-right align-middle">{t('dashboard.table.action')}</th>
               {/if}
             </tr>
           </thead>
@@ -343,7 +344,7 @@
                     class="rounded border-input text-primary focus:ring-ring size-3.5 cursor-pointer align-middle"
                     checked={selectedIds.includes(item.id)}
                     onchange={() => toggleSelectRow(item.id)}
-                    aria-label={`Select row ${item.title}`}
+                    aria-label={t('dashboard.table.selectRow', { title: item.title })}
                   />
                 </td>
 
@@ -361,9 +362,9 @@
                 {#if visibleColumns.type}
                   <td class="px-4 py-3 align-middle">
                     {#if item.type === 'page'}
-                      <Badge variant="outline" size="sm" class="capitalize">Page</Badge>
+                      <Badge variant="outline" size="sm" class="capitalize">{t('common.page')}</Badge>
                     {:else}
-                      <Badge variant="default" size="sm" class="capitalize">News</Badge>
+                      <Badge variant="default" size="sm" class="capitalize">{t('common.news')}</Badge>
                     {/if}
                   </td>
                 {/if}
@@ -400,7 +401,7 @@
                         class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
                         onclick={(e) => { e.stopPropagation(); handleRowClick(item); }}
                       >
-                        Edit
+                        {t('common.edit')}
                       </button>
                     {/if}
                   </td>
@@ -414,12 +415,12 @@
       <!-- Pagination & Row Count Footer (Exact shadcn specification) -->
       <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-border text-xs text-muted-foreground">
         <div>
-          <span>{selectedIds.length} of {filteredItems.length} row(s) selected.</span>
+          <span>{t('dashboard.table.selected', { selected: selectedIds.length, total: filteredItems.length })}</span>
         </div>
 
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
-            <span>Rows per page:</span>
+            <span>{t('dashboard.table.rowsPerPage')}</span>
             <select
               bind:value={pageSize}
               onchange={() => { pageIndex = 0; }}
@@ -432,7 +433,7 @@
           </div>
 
           <span class="font-medium">
-            Page {pageIndex + 1} of {totalPages}
+            {t('dashboard.table.pageOf', { page: pageIndex + 1, total: totalPages })}
           </span>
 
           <div class="flex items-center gap-1">
@@ -441,7 +442,7 @@
               disabled={pageIndex === 0}
               class="size-7 inline-flex items-center justify-center rounded border border-input bg-background hover:bg-accent text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
               onclick={() => { if (pageIndex > 0) pageIndex--; }}
-              aria-label="Previous Page"
+              aria-label={t('dashboard.table.prev')}
             >
               ‹
             </button>
@@ -450,7 +451,7 @@
               disabled={pageIndex >= totalPages - 1}
               class="size-7 inline-flex items-center justify-center rounded border border-input bg-background hover:bg-accent text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
               onclick={() => { if (pageIndex < totalPages - 1) pageIndex++; }}
-              aria-label="Next Page"
+              aria-label={t('dashboard.table.next')}
             >
               ›
             </button>

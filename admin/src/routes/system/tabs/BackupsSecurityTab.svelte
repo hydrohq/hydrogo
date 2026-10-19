@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -101,7 +102,7 @@
       });
 
       if (!res.ok) {
-        let errMsg = 'Failed to generate backup.';
+        let errMsg = t('system.backup.failed');
         try {
           const errData = await res.json();
           errMsg = errData.message || errMsg;
@@ -132,7 +133,7 @@
       adminPassword = '';
       await loadBackups();
     } catch (err: any) {
-      backupError = err.message || 'Backup creation failed.';
+      backupError = err.message || t('system.backup.creationFailed');
     } finally {
       downloadingBackup = false;
     }
@@ -153,7 +154,7 @@
       newDuration = '24h';
       await loadBans();
     } catch (err: any) {
-      banError = err.message || 'Failed to ban IP address. Ensure format is valid IPv4/IPv6 or CIDR.';
+      banError = err.message || t('system.ban.failed');
     } finally {
       banning = false;
     }
@@ -188,14 +189,14 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
       <div>
         <div class="flex items-center gap-2">
-          <h3 class="text-base font-semibold text-foreground">Disaster Recovery & Signed Backups</h3>
+          <h3 class="text-base font-semibold text-foreground">{t('system.backup.title')}</h3>
           {#if backupStatus?.enabled}
-            <Badge variant="default" class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">Cloud S3 Active</Badge>
+            <Badge variant="default" class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">{t('system.backup.cloud')}</Badge>
           {:else}
-            <Badge variant="secondary" class="text-[10px]">Local Standby</Badge>
+            <Badge variant="secondary" class="text-[10px]">{t('system.backup.local')}</Badge>
           {/if}
         </div>
-        <p class="text-xs text-muted-foreground mt-0.5">Stream cryptographically signed tarballs of the database and media assets.</p>
+        <p class="text-xs text-muted-foreground mt-0.5">{t('system.backup.help')}</p>
       </div>
 
       <Button onclick={() => { backupModalOpen = true; backupError = null; adminPassword = ''; }}>
@@ -204,14 +205,14 @@
           <polyline points="7 10 12 15 17 10"></polyline>
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
-        Download Backup Archive
+        {t('system.backup.download')}
       </Button>
     </div>
 
     {#if backupStatus?.public_key}
       <div class="rounded-lg border border-border bg-muted/30 p-3.5 text-xs flex items-center justify-between gap-4">
         <div>
-          <span class="font-medium text-foreground block">Archive Signing Verification Key:</span>
+          <span class="font-medium text-foreground block">{t('system.backup.key')}</span>
           <span class="font-mono text-muted-foreground text-[11px] select-all break-all">{backupStatus.public_key}</span>
         </div>
         <button
@@ -219,18 +220,18 @@
           onclick={() => navigator.clipboard.writeText(backupStatus?.public_key || '')}
           class="text-xs text-primary hover:underline font-medium shrink-0 cursor-pointer"
         >
-          Copy Key
+          {t('system.backup.copyKey')}
         </button>
       </div>
     {/if}
 
     <div class="space-y-3">
-      <h4 class="text-xs font-semibold text-foreground uppercase tracking-wider">Recent Cloud Snapshots</h4>
+      <h4 class="text-xs font-semibold text-foreground uppercase tracking-wider">{t('system.backup.recent')}</h4>
       {#if loadingBackups}
-        <div class="p-8 text-center text-xs text-muted-foreground animate-pulse">Loading snapshots...</div>
+        <div class="p-8 text-center text-xs text-muted-foreground animate-pulse">{t('system.backup.loading')}</div>
       {:else if !backupStatus?.recent || backupStatus.recent.length === 0}
         <div class="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-          No automated snapshots found in destination storage. You can trigger an on-demand signed archive at any time.
+          {t('system.backup.empty')}
         </div>
       {:else}
         <div class="rounded-lg border border-border divide-y divide-border overflow-hidden">
@@ -252,8 +253,8 @@
   <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
       <div>
-        <h3 class="text-base font-semibold text-foreground">Security & IP Access Control</h3>
-        <p class="text-xs text-muted-foreground mt-0.5">Enforce real-time in-memory and database level IP blocks to thwart brute-force and DDoS attempts.</p>
+        <h3 class="text-base font-semibold text-foreground">{t('system.ban.title')}</h3>
+        <p class="text-xs text-muted-foreground mt-0.5">{t('system.ban.help')}</p>
       </div>
 
       <Button onclick={() => { banModalOpen = true; banError = null; newAddress = ''; }}>
@@ -261,15 +262,15 @@
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
         </svg>
-        Ban IP Address
+        {t('system.ban.action')}
       </Button>
     </div>
 
     {#if loadingBans}
-      <div class="p-8 text-center text-xs text-muted-foreground animate-pulse">Loading active ban rules...</div>
+      <div class="p-8 text-center text-xs text-muted-foreground animate-pulse">{t('system.ban.loading')}</div>
     {:else if ipBans.length === 0}
       <div class="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-        No active IP bans. All inbound traffic matching rate limits is permitted.
+        {t('system.ban.empty')}
       </div>
     {:else}
       <div class="rounded-lg border border-border divide-y divide-border overflow-hidden">
@@ -279,15 +280,15 @@
               <span class="font-mono text-xs font-semibold text-foreground block">{ban.address}</span>
               <span class="text-[11px] text-muted-foreground">
                 {#if ban.expires_at}
-                  Expires: {new Date(ban.expires_at).toLocaleString()}
+                  {t('users.expires', { date: new Date(ban.expires_at).toLocaleString() })}
                 {:else}
-                  <span class="text-amber-500 font-medium">Permanent block</span>
+                  <span class="text-amber-500 font-medium">{t('system.ban.permanent')}</span>
                 {/if}
               </span>
             </div>
 
             <Button variant="outline" onclick={() => (unbanTarget = ban)}>
-              Unban
+              {t('system.ban.unban')}
             </Button>
           </div>
         {/each}
@@ -297,11 +298,10 @@
 </div>
 
 <!-- Modal: Download Backup Confirmation -->
-<Modal open={backupModalOpen} title="Download Signed Backup Archive" onclose={() => (backupModalOpen = false)}>
+<Modal open={backupModalOpen} title={t('system.backup.modalTitle')} onclose={() => (backupModalOpen = false)}>
   <form onsubmit={handleDownloadBackup} class="space-y-4">
     <p class="text-xs text-muted-foreground">
-      Creating a full backup snapshot contains all system configuration, content collections, and media records.
-      Please verify your administrator password to proceed.
+      {t('system.backup.modalHelp')}
     </p>
 
     {#if backupError}
@@ -311,24 +311,24 @@
     {/if}
 
     <div>
-      <label for="admin-pwd" class="block text-xs font-medium text-foreground mb-1">Administrator Password</label>
-      <Input id="admin-pwd" type="password" bind:value={adminPassword} placeholder="Enter your account password" required />
+      <label for="admin-pwd" class="block text-xs font-medium text-foreground mb-1">{t('system.backup.password')}</label>
+      <Input id="admin-pwd" type="password" bind:value={adminPassword} placeholder={t('system.backup.passwordPlaceholder')} required />
     </div>
 
     <div class="flex items-center justify-end gap-2 pt-2 border-t border-border">
-      <Button type="button" variant="outline" onclick={() => (backupModalOpen = false)}>Cancel</Button>
+      <Button type="button" variant="outline" onclick={() => (backupModalOpen = false)}>{t('common.cancel')}</Button>
       <Button type="submit" disabled={downloadingBackup || !adminPassword}>
-        {downloadingBackup ? 'Creating Snapshot...' : 'Authorize & Download'}
+        {downloadingBackup ? t('system.backup.creating') : t('system.backup.authorize')}
       </Button>
     </div>
   </form>
 </Modal>
 
 <!-- Modal: Ban IP Address -->
-<Modal open={banModalOpen} title="Ban IP Address / CIDR" onclose={() => (banModalOpen = false)}>
+<Modal open={banModalOpen} title={t('system.ban.modalTitle')} onclose={() => (banModalOpen = false)}>
   <form onsubmit={handleAddBan} class="space-y-4">
     <p class="text-xs text-muted-foreground">
-      Immediately blocks requests from this IP or CIDR block at the router gateway level.
+      {t('system.ban.modalHelp')}
     </p>
 
     {#if banError}
@@ -338,29 +338,29 @@
     {/if}
 
     <div>
-      <label for="ban-ip" class="block text-xs font-medium text-foreground mb-1">IP Address or CIDR Subnet</label>
-      <Input id="ban-ip" type="text" bind:value={newAddress} placeholder="e.g. 192.0.2.1 or 198.51.100.0/24" required />
+      <label for="ban-ip" class="block text-xs font-medium text-foreground mb-1">{t('system.ban.address')}</label>
+      <Input id="ban-ip" type="text" bind:value={newAddress} placeholder={t('system.ban.addressPlaceholder')} required />
     </div>
 
     <div>
-      <label for="ban-dur" class="block text-xs font-medium text-foreground mb-1">Duration</label>
+      <label for="ban-dur" class="block text-xs font-medium text-foreground mb-1">{t('system.ban.duration')}</label>
       <select
         id="ban-dur"
         bind:value={newDuration}
         class="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
       >
-        <option value="1h">1 Hour</option>
-        <option value="24h">24 Hours</option>
-        <option value="168h">7 Days (1 Week)</option>
-        <option value="720h">30 Days (1 Month)</option>
-        <option value="">Permanent (Indefinite)</option>
+        <option value="1h">{t('system.ban.d1h')}</option>
+        <option value="24h">{t('system.ban.d24h')}</option>
+        <option value="168h">{t('system.ban.d7d')}</option>
+        <option value="720h">{t('system.ban.d30d')}</option>
+        <option value="">{t('system.ban.dperm')}</option>
       </select>
     </div>
 
     <div class="flex items-center justify-end gap-2 pt-2 border-t border-border">
-      <Button type="button" variant="outline" onclick={() => (banModalOpen = false)}>Cancel</Button>
+      <Button type="button" variant="outline" onclick={() => (banModalOpen = false)}>{t('common.cancel')}</Button>
       <Button type="submit" disabled={banning || !newAddress.trim()}>
-        {banning ? 'Enforcing Rule...' : 'Confirm Block'}
+        {banning ? t('system.ban.enforcing') : t('system.ban.confirm')}
       </Button>
     </div>
   </form>
@@ -369,9 +369,9 @@
 <!-- Unban Confirm Dialog -->
 <ConfirmDialog
   open={!!unbanTarget}
-  title="Remove IP Ban"
-  description={`Are you sure you want to lift the access ban for '${unbanTarget?.address}'? Inbound traffic from this address will be allowed again.`}
-  confirmLabel="Lift Ban"
+  title={t('system.ban.removeTitle')}
+  description={t('system.ban.removeDescription', { address: unbanTarget?.address ?? '' })}
+  confirmLabel={t('system.ban.lift')}
   loading={unbanning}
   onconfirm={handleUnban}
   oncancel={() => (unbanTarget = null)}

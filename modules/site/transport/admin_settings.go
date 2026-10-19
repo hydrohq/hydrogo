@@ -23,6 +23,28 @@ var plainSettingKeys = map[string]func(string) bool{
 	"seo.llms_excluded_paths":     validExcludedPaths,
 	"appearance.favicon_url":      validAssetURL,
 	"appearance.social_image_url": validAssetURL,
+	// The language the admin panel opens in for users who did not pick one.
+	// Admin panel branding (see ValidBrandColor); empty values mean the HydroGo defaults.
+	"admin.brand_name":     maxLen(60),
+	"admin.brand_logo_url": validAssetURL,
+	"admin.brand_color":    ValidBrandColor,
+	"admin.default_locale": func(value string) bool { return value == "" || i18n.IsSupportedCatalogLocale(value) },
+}
+
+// ValidBrandColor accepts an empty value or a #rrggbb colour.
+func ValidBrandColor(value string) bool {
+	if value == "" {
+		return true
+	}
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, c := range value[1:] {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 func maxLen(limit int) func(string) bool {

@@ -92,3 +92,4 @@ scratch*.py
 /.claude/
 /.agent/
 /.agents/
+/config.yaml

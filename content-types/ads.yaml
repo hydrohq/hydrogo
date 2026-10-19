@@ -1,18 +1,18 @@
 id: ads
-label: Reklam Alanları
-description: Sitedeki banner ve sponsorlu reklam alanları
+label: Ad placements
+description: Banner and sponsored ad slots on the site
 title_field: name
 public: true
 drafts: true
 fields:
-  - {id: name, label: Reklam Adı, kind: text, required: true, list: true, searchable: true}
-  - {id: zone, label: Yerleşim Alanı, kind: select, options: [header_top, manset_alti, sur_manset_yani, haber_ici, sidebar, footer, home_grid_1, home_grid_2], required: true, list: true, filterable: true}
-  - {id: ad_type, label: Reklam Türü, kind: select, options: [banner, native, script], list: true, filterable: true}
-  - {id: page_scope, label: Hangi Sayfa Türünde Gösterilsin, kind: select, options: [tumu, anasayfa, kategori, haber_detay], list: true, filterable: true}
-  - {id: disabled, label: "Devre dışı mı? (işaretlenirse site genelinde hiçbir yerde gösterilmez)", kind: boolean, list: true}
-  - {id: banner_image, label: Masaüstü Görseli, kind: media}
-  - {id: mobile_image, label: Mobil Görseli, kind: media}
-  - {id: target_url, label: Hedef Bağlantı (URL), kind: text}
-  - {id: custom_code, label: Özel HTML veya Script Kodu, kind: textarea}
-  - {id: start_date, label: Başlangıç Tarihi, kind: datetime}
-  - {id: end_date, label: Bitiş Tarihi, kind: datetime}
+  - {id: name, label: Ad name, kind: text, required: true, list: true, searchable: true}
+  - {id: zone, label: Placement zone, kind: select, options: [header_top, manset_alti, sur_manset_yani, haber_ici, sidebar, footer, home_grid_1, home_grid_2], required: true, list: true, filterable: true}
+  - {id: ad_type, label: Ad type, kind: select, options: [banner, native, script], list: true, filterable: true}
+  - {id: page_scope, label: Show on page type, kind: select, options: [tumu, anasayfa, kategori, haber_detay], list: true, filterable: true}
+  - {id: disabled, label: "Disabled? (when checked the ad is not shown anywhere)", kind: boolean, list: true}
+  - {id: banner_image, label: Desktop image, kind: media}
+  - {id: mobile_image, label: Mobile image, kind: media}
+  - {id: target_url, label: Target link (URL), kind: text}
+  - {id: custom_code, label: Custom HTML or script code, kind: textarea}
+  - {id: start_date, label: Start date, kind: datetime}
+  - {id: end_date, label: End date, kind: datetime}

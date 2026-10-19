@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -81,7 +82,7 @@
       onupdated();
       onclose();
     } catch (e: any) {
-      errorMessage = e?.message || 'Failed to save changes';
+      errorMessage = e?.message || t('media.detail.saveFailed');
     } finally {
       saving = false;
     }
@@ -97,7 +98,7 @@
       onupdated();
       onclose();
     } catch (e: any) {
-      errorMessage = e?.message || 'Failed to delete asset';
+      errorMessage = e?.message || t('media.detail.deleteFailed');
     } finally {
       deleteLoading = false;
     }
@@ -106,9 +107,9 @@
 
 <ConfirmDialog
   open={showDeleteConfirm}
-  title="Delete Media Asset"
-  description={`Permanently delete "${asset?.original_filename || asset?.id}"? This file will be removed from storage and any pages referencing its URL will show broken links.`}
-  confirmLabel="Delete Asset"
+  title={t('media.detail.deleteTitle')}
+  description={t('media.detail.deleteDescription', { name: asset?.original_filename || asset?.id || '' })}
+  confirmLabel={t('media.detail.delete')}
   variant="destructive"
   loading={deleteLoading}
   onconfirm={confirmDelete}
@@ -117,7 +118,7 @@
 
 <Modal
   {open}
-  title={asset?.original_filename || 'Asset Details'}
+  title={asset?.original_filename || t('media.detail.title')}
   description={`ID: ${asset?.id || ''}`}
   {onclose}
 >
@@ -131,7 +132,7 @@
             class="text-xs hover:underline cursor-pointer"
             onclick={() => { errorMessage = null; }}
           >
-            Dismiss
+            {t('common.dismiss')}
           </button>
         </div>
       {/if}
@@ -158,7 +159,7 @@
               <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
             </svg>
-            <span class="text-xs font-mono font-medium">{asset.mime_type || 'Unknown Type'}</span>
+            <span class="text-xs font-mono font-medium">{asset.mime_type || t('media.detail.unknownType')}</span>
           </div>
         {/if}
 
@@ -167,7 +168,7 @@
           target="_blank"
           rel="noopener noreferrer"
           class="absolute top-2 right-2 size-8 rounded-lg bg-background/80 backdrop-blur-xs border border-border inline-flex items-center justify-center text-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
-          title="Open original"
+          title={t('media.detail.open')}
         >
           <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -194,9 +195,9 @@
           onclick={copyUrl}
         >
           {#if copied}
-            <span class="text-emerald-500 font-semibold">✓ Copied URL</span>
+            <span class="text-emerald-500 font-semibold">{t('media.detail.copied')}</span>
           {:else}
-            <span>Copy Direct URL</span>
+            <span>{t('media.detail.copy')}</span>
           {/if}
         </button>
       </div>
@@ -206,14 +207,14 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label for="asset-folder-select" class="text-xs font-medium text-foreground block mb-1">
-              Folder
+              {t('media.detail.folder')}
             </label>
             <select
               id="asset-folder-select"
               bind:value={folderId}
               class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             >
-              <option value="">No folder (Root)</option>
+              <option value="">{t('media.detail.noFolder')}</option>
               {#each folders as f (f.id)}
                 <option value={f.id}>{f.name}</option>
               {/each}
@@ -222,22 +223,22 @@
 
           <div>
             <label for="asset-visibility-select" class="text-xs font-medium text-foreground block mb-1">
-              Visibility
+              {t('media.detail.visibility')}
             </label>
             <select
               id="asset-visibility-select"
               bind:value={visibility}
               class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             >
-              <option value="public">Public (Direct URL accessible)</option>
-              <option value="private">Private (Restricted token needed)</option>
+              <option value="public">{t('media.detail.public')}</option>
+              <option value="private">{t('media.detail.private')}</option>
             </select>
           </div>
         </div>
 
         <Input
-          label="Tags (comma-separated)"
-          placeholder="e.g. hero, marketing, logo, avatar"
+          label={t('media.detail.tags')}
+          placeholder={t('media.detail.tagsPlaceholder')}
           bind:value={tagsStr}
         />
       </div>
@@ -250,14 +251,14 @@
       size="sm"
       onclick={() => { showDeleteConfirm = true; }}
     >
-      Delete Asset
+      {t('media.detail.delete')}
     </Button>
     <div class="flex-1"></div>
     <Button variant="ghost" size="sm" onclick={onclose}>
-      Cancel
+      {t('common.cancel')}
     </Button>
     <Button variant="primary" size="sm" loading={saving} onclick={handleSave}>
-      Save Changes
+      {t('media.detail.save')}
     </Button>
   {/snippet}
 </Modal>

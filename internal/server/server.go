@@ -60,9 +60,12 @@ type Config struct {
 	RealtimeHub                *realtime.Hub
 	PublicErrorPage            func(context.Context, int) ([]byte, bool)
 	Maintenance                MaintenanceConfig
-	CustomCodeProvider         func(*http.Request) (head, body string)
-	SafeMode                   bool
-	PublicHTMLCache            *PublicHTMLCache
+	// AdminRequestAudit, when set, wraps the router to record admin API writes
+	// (see internal/audit.RequestLog).
+	AdminRequestAudit  func(http.Handler) http.Handler
+	CustomCodeProvider func(*http.Request) (head, body string)
+	SafeMode           bool
+	PublicHTMLCache    *PublicHTMLCache
 	// MaxInFlightRequests caps concurrently handled requests for this process.
 	// Requests beyond the cap fail fast with 503 instead of queuing behind
 	// already-admitted work (ADR-0333). Non-positive disables the limiter.
@@ -175,6 +178,11 @@ func NewHandler(config Config) http.Handler {
 	var handler http.Handler = routerHandler
 	if config.CustomCodeProvider != nil && !config.SafeMode {
 		handler = CustomCodeMiddleware(config.CustomCodeProvider)(handler)
+	}
+	// Runs inside the auth middleware, so the signed-in user and request id are
+	// already on the request context.
+	if config.AdminRequestAudit != nil {
+		handler = config.AdminRequestAudit(handler)
 	}
 	// Cache the uncompressed representation; compression runs per response.
 

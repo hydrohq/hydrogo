@@ -51,7 +51,7 @@ try {
     }
     Push-Location (Join-Path $repo "e2e")
     try {
-        Push-Location (Join-Path $repo "examples\headless-starter")
+        Push-Location (Join-Path $repo "packages\client")
         try {
             npm test
             if ($LASTEXITCODE -ne 0) { throw "Headless starter contract smoke failed with exit code $LASTEXITCODE" }

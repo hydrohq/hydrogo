@@ -36,5 +36,5 @@ The generated file is disposable. Customer-specific journeys belong under
 provide the declared `data-testid` values; unknown routes or missing metadata
 must fail generation or the browser test.
 
-The local orchestration also builds `examples/headless-starter` and runs its
+The local orchestration also builds `packages/client` and runs its
 typed-client smoke journey against the seeded versioned API.

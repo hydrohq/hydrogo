@@ -1,0 +1,41 @@
+# Deployment
+
+HydroGo is one static binary plus a config file and a data directory. Pick one of these.
+
+## VPS or any Linux server
+
+1. Install the binary (`install.sh`, see [getting started](getting-started.md)) and create the project on the server with `hydro new`, or copy yours.
+2. Set the production values in `config.yaml` (or `HYDRO_*` environment variables):
+   `http.public_origin: "https://cms.example.com"`, `security.secure_cookies: true`, `security.enable_hsts: true`. Enroll admins in MFA before using `mfa_required_roles`.
+3. Run it under systemd:
+
+```ini
+# /etc/systemd/system/hydrogo.service
+[Service]
+User=hydro
+WorkingDirectory=/srv/mysite
+ExecStart=/usr/local/bin/hydro serve --config config.yaml
+Restart=on-failure
+```
+
+4. Put Caddy or nginx in front for TLS: see [`deploy/caddy`](../deploy/caddy) and [`deploy/nginx`](../deploy/nginx).
+
+## Docker
+
+`ghcr.io/ozyildirims/hydrogo` (linux/amd64 and arm64). Mount a project at `/app` or a config at `/app/config.yaml`, and a volume at `/app/data`. [`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml) is a full example with Caddy.
+
+## Shared hosting (CGI/FastCGI)
+
+See [`deploy/hosting/README.md`](../deploy/hosting/README.md). Use PostgreSQL or MySQL once traffic grows beyond a small site.
+
+## Databases
+
+SQLite (default) for small sites; PostgreSQL or MySQL/MariaDB for more traffic or several instances (`database.dialect`, `HYDRO_DATABASE_DSN`). Add Redis (`HYDRO_REDIS_URL`) for shared rate limits and caches when you run more than one instance.
+
+## Backups
+
+`hydro backup sqlite --destination backups/ --media-dir data/media` (or `postgres`), and test `hydro restore` on a scratch copy before you need it. Run it from cron or a systemd timer.
+
+## Frontend
+
+Deploy your frontend separately and point it at the API. The SvelteKit starter runs as a Node server (`npm run build && npm start`) next to HydroGo.

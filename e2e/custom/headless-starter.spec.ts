@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createHydroGoClient } from "../../examples/headless-starter/dist/hydrogo.js";
+import { createHydroGoClient } from "../../packages/client/dist/hydrogo.js";
 
 test("headless starter reads published content through the versioned API", async ({ request }) => {
   const client = createHydroGoClient({

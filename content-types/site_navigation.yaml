@@ -1,11 +1,11 @@
 id: site_navigation
-label: Site Navigasyonu
-description: Header ve footer menü bağlantıları — panelden eklenir, sıralanır, kaldırılır.
+label: Site navigation
+description: "Header and footer menu links, added, ordered and removed from the admin."
 title_field: label
 public: true
 drafts: true
 fields:
-  - {id: label, label: Etiket, kind: text, required: true, list: true, searchable: true}
-  - {id: href, label: Bağlantı, kind: text, required: true, list: true}
-  - {id: placement, label: Yerleşim, kind: select, options: [header, footer_sayfalar, footer_sosyal], required: true, list: true, filterable: true}
-  - {id: sort_order, label: Sıra, kind: number, list: true}
+  - {id: label, label: Label, kind: text, required: true, list: true, searchable: true}
+  - {id: href, label: Link, kind: text, required: true, list: true}
+  - {id: placement, label: Placement, kind: select, options: [header, footer_sayfalar, footer_sosyal], required: true, list: true, filterable: true}
+  - {id: sort_order, label: Order, kind: number, list: true}

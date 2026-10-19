@@ -1,0 +1,12 @@
+<script lang="ts">
+  import Seo from '$lib/components/Seo.svelte';
+
+  let { data } = $props();
+</script>
+
+<Seo title="{data.page.title} · {data.siteName}" path="/{data.page.slug}" locale={data.locale} siteOrigin={data.siteOrigin} />
+
+<article class="article">
+  <h1>{data.page.title}</h1>
+  <div class="prose">{@html data.page.body}</div>
+</article>

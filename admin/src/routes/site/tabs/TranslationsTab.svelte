@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -53,7 +54,7 @@
         selectedLocale = res.data.locale || loc;
       }
     } catch (e: any) {
-      notify(e.message || 'Failed to load translations', true);
+      notify(e.message || t('site.tr.loadFailed'), true);
     } finally {
       loading = false;
     }
@@ -81,12 +82,12 @@
       }
 
       await api.put(`/api/v1/admin/site/translations/${selectedLocale}`, { values });
-      notify('Translations saved successfully!');
+      notify(t('site.tr.saved'));
       newKey = '';
       newValue = '';
       await loadTranslations(selectedLocale);
     } catch (e: any) {
-      notify(e.message || 'Failed to save translations', true);
+      notify(e.message || t('site.tr.saveFailed'), true);
     } finally {
       saving = false;
     }
@@ -100,8 +101,8 @@
 <div class="space-y-4">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
     <div>
-      <h3 class="text-sm font-semibold text-foreground">Site Translations (i18n)</h3>
-      <p class="text-xs text-muted-foreground">Manage locale string overrides and dictionary translations.</p>
+      <h3 class="text-sm font-semibold text-foreground">{t('site.tr.title')}</h3>
+      <p class="text-xs text-muted-foreground">{t('site.tr.help')}</p>
     </div>
 
     <div class="flex items-center gap-2">
@@ -118,7 +119,7 @@
       </div>
 
       <Button onclick={handleSave} disabled={saving} class="text-xs">
-        {saving ? 'Saving...' : 'Save Translations'}
+        {saving ? t('common.saving') : t('site.tr.save')}
       </Button>
     </div>
   </div>
@@ -139,7 +140,7 @@
     <div class="relative flex-1 max-w-sm">
       <input
         type="search"
-        placeholder="Filter translation keys..."
+        placeholder={t('site.tr.filter')}
         bind:value={search}
         class="w-full rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
       />
@@ -149,20 +150,20 @@
       </svg>
     </div>
 
-    <span class="text-xs text-muted-foreground">{filteredItems.length} translation strings</span>
+    <span class="text-xs text-muted-foreground">{t('site.tr.count', { count: filteredItems.length })}</span>
   </div>
 
   {#if loading}
-    <div class="p-8 text-center text-xs text-muted-foreground">Loading translations...</div>
+    <div class="p-8 text-center text-xs text-muted-foreground">{t('site.tr.loading')}</div>
   {:else}
     <div class="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
           <thead class="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             <tr>
-              <th class="px-4 py-2.5 w-1/3">Key</th>
-              <th class="px-4 py-2.5 w-1/4">Default Catalog</th>
-              <th class="px-4 py-2.5">Value ({selectedLocale.toUpperCase()})</th>
+              <th class="px-4 py-2.5 w-1/3">{t('site.tr.key')}</th>
+              <th class="px-4 py-2.5 w-1/4">{t('site.tr.default')}</th>
+              <th class="px-4 py-2.5">{t('site.tr.value', { locale: selectedLocale.toUpperCase() })}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
@@ -171,7 +172,7 @@
                 <td class="px-4 py-2.5 font-mono text-[11px] text-foreground font-medium">
                   {item.key}
                   {#if item.overridden}
-                    <Badge variant="outline" class="ml-1 text-[9px] py-0 px-1">custom</Badge>
+                    <Badge variant="outline" class="ml-1 text-[9px] py-0 px-1">{t('site.tr.custom')}</Badge>
                   {/if}
                 </td>
                 <td class="px-4 py-2.5 text-muted-foreground truncate max-w-xs">
@@ -180,7 +181,7 @@
                 <td class="px-4 py-2">
                   <input
                     bind:value={item.value}
-                    placeholder={item.default || 'Translation value...'}
+                    placeholder={item.default || t('site.tr.valuePlaceholder')}
                     class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </td>

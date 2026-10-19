@@ -34,6 +34,32 @@ jobs:
       - name: Build reproducible OCI image (no push)
         run: docker build --pull --platform linux/${{ matrix.arch }} --build-arg TARGETARCH=${{ matrix.arch }} --tag hydrogo:ci-${{ matrix.arch }} .
 
+  first-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          check-latest: false
+      - name: Install, scaffold and serve like a new user
+        run: |
+          set -euo pipefail
+          go build -o "$RUNNER_TEMP/hydro" ./cmd/hydro
+          cd "$RUNNER_TEMP"
+          printf '%s' 'Quartz-Meadow-4417-lantern' | ./hydro new smoke --preset blog --admin-email ci@example.com --admin-password-stdin
+          cd smoke
+          ../hydro content-type new recipes
+          ../hydro content-type validate
+          ../hydro serve --config config.yaml > serve.log 2>&1 &
+          pid=$!
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8080/healthz
+          curl -fsS http://127.0.0.1:8080/api/v1/content/faq
+          curl -fsS http://127.0.0.1:8080/admin/ >/dev/null
+          kill $pid || true
+
   go:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -247,7 +273,7 @@ jobs:
             npm ci
             npx playwright install chromium
           } finally { Pop-Location }
-          Push-Location examples/headless-starter
+          Push-Location packages/client
           try { npm ci } finally { Pop-Location }
       - name: Run generated browser journeys against an isolated SQLite server
         shell: pwsh

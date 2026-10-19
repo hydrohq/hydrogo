@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -40,7 +41,7 @@
       }
     } catch (e: any) {
       console.warn('Revisions load error:', e);
-      errorMessage = e?.message || 'Failed to load page revisions';
+      errorMessage = e?.message || t('pages.revisions.loadFailed');
     } finally {
       loading = false;
     }
@@ -56,7 +57,7 @@
       onrestored();
       onclose();
     } catch (err: any) {
-      errorMessage = err?.message || 'Failed to restore revision';
+      errorMessage = err?.message || t('pages.revisions.restoreFailed');
     } finally {
       restoring = false;
     }
@@ -71,9 +72,9 @@
 
 <ConfirmDialog
   open={!!restoreTarget}
-  title={`Restore Revision #${restoreTarget?.revision}`}
-  description={`Are you sure you want to restore revision #${restoreTarget?.revision}? Any unsaved edits in the current draft will be overwritten.`}
-  confirmLabel="Restore Revision"
+  title={t('pages.revisions.restoreTitle', { revision: restoreTarget?.revision ?? '' })}
+  description={t('pages.revisions.restoreDescription', { revision: restoreTarget?.revision ?? '' })}
+  confirmLabel={t('pages.revisions.restoreConfirm')}
   variant="primary"
   loading={restoring}
   onconfirm={confirmRestore}
@@ -82,8 +83,8 @@
 
 <Modal
   {open}
-  title="Revision History"
-  description="Inspect and restore previous snapshots saved during page editing."
+  title={t('pages.revisions.title')}
+  description={t('pages.revisions.description')}
   {onclose}
 >
   <div class="space-y-4">
@@ -95,7 +96,7 @@
           class="text-xs hover:underline cursor-pointer"
           onclick={() => { errorMessage = null; }}
         >
-          Dismiss
+          {t('common.dismiss')}
         </button>
       </div>
     {/if}
@@ -103,12 +104,12 @@
     {#if loading}
       <div class="py-12 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        <span>Loading revision history...</span>
+        <span>{t('pages.revisions.loading')}</span>
       </div>
     {:else if revisions.length === 0}
       <div class="py-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
-        <p>No previous revisions recorded yet for this page.</p>
-        <p class="text-[11px] text-muted-foreground/70 mt-1">Revisions are automatically captured when saving changes.</p>
+        <p>{t('pages.revisions.empty')}</p>
+        <p class="text-[11px] text-muted-foreground/70 mt-1">{t('pages.revisions.emptyHelp')}</p>
       </div>
     {:else}
       <div class="divide-y divide-border rounded-xl border border-border bg-card max-h-80 overflow-y-auto">
@@ -124,7 +125,7 @@
               <p class="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
                 <span>{new Date(rev.created_at).toLocaleString()}</span>
                 <span>•</span>
-                <span>{rev.author_name || 'System Admin'}</span>
+                <span>{rev.author_name || t('pages.revisions.systemAdmin')}</span>
               </p>
             </div>
 
@@ -133,7 +134,7 @@
               class="h-7 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs shrink-0"
               onclick={() => { restoreTarget = rev; }}
             >
-              Restore
+              {t('pages.revisions.restore')}
             </button>
           </div>
         {/each}
@@ -142,6 +143,6 @@
   </div>
 
   {#snippet footer()}
-    <Button variant="secondary" size="sm" onclick={onclose}>Close</Button>
+    <Button variant="secondary" size="sm" onclick={onclose}>{t('common.close')}</Button>
   {/snippet}
 </Modal>
