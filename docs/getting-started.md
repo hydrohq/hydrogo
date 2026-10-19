@@ -20,7 +20,7 @@ irm https://github.com/ozyildirims/hydrogo/releases/latest/download/install.ps1 
 
 **Docker:** `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ozyildirims/hydrogo:latest` (mount your own `config.yaml` at `/app/config.yaml`; see [deployment](deployment.md)).
 
-While the repository is private, the `curl`/`irm` one-liners and `docker pull` cannot download anonymously. Sign in to GitHub and download the installer (`hydrogo-Setup.exe`) or the archive for your platform from the repository's **Releases** page instead; the scripts work unchanged once the repository is public.
+While the repository is private, the `curl`/`irm` one-liners and `docker pull` cannot download anonymously. Sign in to GitHub and download the installer (`HydroGo-Setup-<version>-windows-<arch>.exe`) or the archive for your platform from the repository's **Releases** page instead; the scripts work unchanged once the repository is public.
 
 Check it: `hydro version`. Every download has a checksum in `SHA256SUMS`; the install scripts verify it.
 
