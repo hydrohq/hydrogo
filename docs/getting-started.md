@@ -4,7 +4,17 @@ HydroGo is a headless CMS: one binary gives you the admin panel at `/admin` and 
 
 ## 1. Install the `hydro` command
 
-**Windows:** download `HydroGo-Setup-<version>-windows-amd64.exe` (or `arm64`) from the [latest release](https://github.com/ozyildirims/hydrogo/releases/latest) and run it. Leave "Add hydro to PATH" ticked, then open a new terminal. No administrator rights are needed (it installs per user; choose "install for all users" to use Program Files).
+Download the installer for your system from the [latest release](https://github.com/ozyildirims/hydrogo/releases/latest):
+
+| System | CPU | File | Install |
+|---|---|---|---|
+| Windows | x64 / ARM64 | `HydroGo-Setup-<version>-windows-amd64.exe` / `-arm64.exe` | Run it, keep "Add hydro to PATH" ticked, open a new terminal. Installs per user, no administrator rights needed |
+| macOS | Apple silicon / Intel | `HydroGo-<version>-macos-arm64.pkg` / `-amd64.pkg` | Open it, or `sudo installer -pkg HydroGo-*.pkg -target /`. The package is unsigned: on first open use right-click > Open |
+| Debian, Ubuntu | amd64 / arm64 | `hydrogo_<version>_amd64.deb` / `_arm64.deb` | `sudo apt install ./hydrogo_*.deb` |
+| Fedora, RHEL, openSUSE | x86_64 / aarch64 | `hydrogo-<version>-1.x86_64.rpm` / `.aarch64.rpm` | `sudo dnf install ./hydrogo-*.rpm` |
+| Any Linux or macOS | amd64 / arm64 | `hydrogo_v<version>_<os>_<arch>.tar.gz` | Unpack and put `hydro` on your `PATH` |
+
+The one-line scripts (`install.sh`, `install.ps1`) pick the right archive for your system automatically.
 
 **Linux / macOS:**
 
@@ -12,7 +22,7 @@ HydroGo is a headless CMS: one binary gives you the admin panel at `/admin` and 
 curl -fsSL https://github.com/ozyildirims/hydrogo/releases/latest/download/install.sh | sh
 ```
 
-**Windows without the installer (PowerShell):**
+**Windows (PowerShell):**
 
 ```powershell
 irm https://github.com/ozyildirims/hydrogo/releases/latest/download/install.ps1 | iex

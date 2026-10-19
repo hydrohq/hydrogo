@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag such as v0.2.0 to publish binaries, a Windows installer, checksums
-# and a container image. The admin panel is embedded from internal/adminui/dist
+# Push a tag such as v0.2.0 to publish binaries, a Windows Setup.exe, macOS .pkg,
+# Linux .deb/.rpm packages, checksums and a container image. The admin panel is embedded from internal/adminui/dist
 # (committed), so release builds need no Node toolchain.
 on:
   push:
@@ -98,8 +98,83 @@ jobs:
           name: windows-installer
           path: dist/*.exe
 
+  linux-packages:
+    needs: binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          check-latest: false
+      - name: Download the Linux archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'bin-linux-*' --dir dl
+          mkdir archives && find dl -type f -exec mv {} archives/ \;
+      - name: Build .deb and .rpm
+        run: |
+          set -euo pipefail
+          export VERSION="${TAG#v}"
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            name="hydrogo_${TAG}_linux_${arch}"
+            tar -xzf "archives/${name}.tar.gz" -C archives
+            export ARCH="$arch" SRC="$PWD/archives/${name}"
+            for format in deb rpm; do
+              go run github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.1 package \
+                --config deploy/linux/nfpm.yaml --packager "$format" --target dist/
+            done
+          done
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: linux-packages
+          path: |
+            dist/*.deb
+            dist/*.rpm
+
+  macos-installer:
+    needs: binaries
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Download the macOS archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'bin-darwin-*' --dir dl
+          mkdir archives && find dl -type f -exec mv {} archives/ \;
+      - name: Build .pkg installers
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            name="hydrogo_${TAG}_darwin_${arch}"
+            tar -xzf "archives/${name}.tar.gz" -C archives
+            root="pkgroot_${arch}"
+            mkdir -p "${root}/usr/local/bin" "${root}/usr/local/share/doc/hydrogo"
+            cp "archives/${name}/hydro" "${root}/usr/local/bin/hydro"
+            cp "archives/${name}/config.example.yaml" "archives/${name}/LICENSE" "${root}/usr/local/share/doc/hydrogo/"
+            pkgbuild --root "$root" --identifier io.github.ozyildirims.hydrogo \
+              --version "$version" --install-location / \
+              "dist/HydroGo-${version}-macos-${arch}.pkg"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: macos-installer
+          path: dist/*.pkg
+
   publish:
-    needs: [binaries, windows-installer]
+    needs: [binaries, windows-installer, linux-packages, macos-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
