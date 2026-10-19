@@ -289,7 +289,7 @@
                   {/if}
 
                   <div class="flex flex-wrap gap-1.5 mt-3">
-                    <Badge variant="outline" class="text-[10px]">{ct.fields?.length || 0} fields</Badge>
+                    <Badge variant="outline" class="text-[10px]">{t('ct.fieldsCount', { count: ct.fields?.length || 0 })}</Badge>
                     {#if ct.public}
                       <Badge variant="success" class="text-[10px]">{t('ct.badge.api')}</Badge>
                     {/if}

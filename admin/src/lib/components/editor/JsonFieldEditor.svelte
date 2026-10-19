@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   interface Props {
     value?: any;
     label?: string;
@@ -8,7 +9,7 @@
 
   let {
     value = $bindable(),
-    label = 'JSON Verisi',
+    label,
     required = false,
   }: Props = $props();
 
@@ -53,7 +54,7 @@
         // Not valid JSON yet, stay in raw mode
         mode = 'raw';
         rawJsonText = value;
-        parseError = 'Geçerli bir JSON formatı değil';
+        parseError = t('json.notValid');
         return;
       }
     } else {
@@ -148,7 +149,7 @@
         }));
       }
     } catch (e: any) {
-      parseError = e?.message || 'Geçersiz JSON';
+      parseError = e?.message || t('json.invalid');
       value = newText;
       lastSyncedValue = value;
     }
@@ -187,7 +188,7 @@
   <!-- Header with Label and Mode Switcher -->
   <div class="flex items-center justify-between gap-2">
     <span class="text-xs font-semibold text-foreground flex items-center gap-1.5">
-      <span>{label}</span>
+      <span>{label ?? t('json.data')}</span>
       {#if required}
         <span class="text-destructive">*</span>
       {/if}
@@ -203,14 +204,14 @@
         class="px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer {mode === 'form' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
         onclick={() => { mode = 'form'; }}
       >
-        Form (Ayrı Inputlar)
+        {t('json.formMode')}
       </button>
       <button
         type="button"
         class="px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer {mode === 'raw' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
         onclick={() => { mode = 'raw'; }}
       >
-        Ham JSON
+        {t('json.rawMode')}
       </button>
     </div>
   </div>
@@ -221,7 +222,7 @@
       {#if isArray}
         <!-- Array Item Inputs -->
         {#if arrayRows.length === 0}
-          <p class="text-xs text-muted-foreground py-2 text-center">Henüz liste öğesi eklenmedi.</p>
+          <p class="text-xs text-muted-foreground py-2 text-center">{t('json.noItems')}</p>
         {:else}
           <div class="space-y-2">
             {#each arrayRows as row, idx (row.id)}
@@ -229,7 +230,7 @@
                 <span class="w-6 text-[11px] font-mono font-semibold text-muted-foreground text-center">#{idx + 1}</span>
                 <input
                   type="text"
-                  placeholder="Değer..."
+                  placeholder={t('json.valuePlaceholder')}
                   bind:value={row.val}
                   oninput={syncFromForm}
                   class="flex-1 h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
@@ -238,7 +239,7 @@
                   type="button"
                   class="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                   onclick={() => removeArrayRow(row.id)}
-                  title="Öğeyi Sil"
+                  title={t('json.removeItem')}
                 >
                   <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -258,25 +259,25 @@
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>Yeni Öğe Ekle</span>
+          <span>{t('json.addItem')}</span>
         </button>
       {:else}
         <!-- Object Key-Value Table Inputs -->
         {#if objectRows.length === 0}
-          <p class="text-xs text-muted-foreground py-2 text-center">Henüz anahtar/değer alanı tanımlanmadı.</p>
+          <p class="text-xs text-muted-foreground py-2 text-center">{t('json.noFields')}</p>
         {:else}
           <div class="space-y-2">
             <div class="grid grid-cols-12 gap-2 text-[11px] font-semibold text-muted-foreground px-1 uppercase tracking-wider">
-              <span class="col-span-5">Seçenek / Anahtar (Key)</span>
-              <span class="col-span-6">Değer (Value / Sayı)</span>
-              <span class="col-span-1 text-center">İşlem</span>
+              <span class="col-span-5">{t('json.colKey')}</span>
+              <span class="col-span-6">{t('json.colValue')}</span>
+              <span class="col-span-1 text-center">{t('json.colAction')}</span>
             </div>
             {#each objectRows as row (row.id)}
               <div class="grid grid-cols-12 gap-2 items-center">
                 <div class="col-span-5">
                   <input
                     type="text"
-                    placeholder="örn: Galatasaray"
+                    placeholder={t('json.keyExample')}
                     bind:value={row.key}
                     oninput={syncFromForm}
                     class="w-full h-8 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
@@ -285,7 +286,7 @@
                 <div class="col-span-6">
                   <input
                     type="text"
-                    placeholder="örn: 620"
+                    placeholder={t('json.valueExample')}
                     bind:value={row.val}
                     oninput={syncFromForm}
                     class="w-full h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
@@ -296,7 +297,7 @@
                     type="button"
                     class="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                     onclick={() => removeObjectRow(row.id)}
-                    title="Alanı Sil"
+                    title={t('json.removeField')}
                   >
                     <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -317,7 +318,7 @@
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>Yeni Alan / Seçenek Ekle</span>
+          <span>{t('json.addField')}</span>
         </button>
       {/if}
     </div>
@@ -329,7 +330,7 @@
           rows="6"
           value={rawJsonText}
           oninput={(e) => handleRawChange((e.target as HTMLTextAreaElement).value)}
-          placeholder={`{\n  "anahtar": "değer"\n}`}
+          placeholder={`{\n  "${t('json.exampleKey')}": "${t('json.exampleValue')}"\n}`}
           class="w-full rounded-md border border-input bg-background p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs leading-relaxed"
         ></textarea>
         <button
@@ -337,7 +338,7 @@
           onclick={prettifyJson}
           class="absolute right-2.5 top-2.5 px-2 py-0.5 rounded border border-border bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
-          Formatla
+          {t('json.format')}
         </button>
       </div>
 
@@ -348,7 +349,7 @@
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
-          <span>Hata: {parseError}</span>
+          <span>{t('json.error', { message: parseError })}</span>
         </p>
       {/if}
     </div>

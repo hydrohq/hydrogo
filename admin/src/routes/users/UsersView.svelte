@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { roleLabel } from '$lib/i18n/labels';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -323,7 +324,7 @@
                     <div class="flex items-center gap-2">
                       <span class="text-sm font-semibold text-foreground truncate">{u.email}</span>
                       <Badge variant="outline" class="text-[10px] capitalize font-mono">
-                        {u.role}
+                        {roleLabel(u.role)}
                       </Badge>
                       {#if !u.active}
                         <Badge variant="danger" class="text-[10px]">{t('common.disabled')}</Badge>

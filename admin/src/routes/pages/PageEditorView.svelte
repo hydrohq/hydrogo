@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { statusLabel } from '$lib/i18n/labels';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
@@ -212,7 +213,7 @@
               {isNew ? t('pages.editor.new') : t('pages.editor.edit')}
             </span>
             <Badge variant={formData.status === 'published' ? 'success' : 'outline'} size="sm">
-              {formData.status}
+              {statusLabel(formData.status)}
             </Badge>
             {#if !isNew}
               <DocumentPresence {presence} mode="pill" />

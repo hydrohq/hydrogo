@@ -275,7 +275,7 @@
             </div>
 
             <div class="flex flex-wrap gap-1.5 mt-3">
-              <Badge variant="outline" class="text-[10px]">{f.fields?.length || 0} fields</Badge>
+              <Badge variant="outline" class="text-[10px]">{t('ct.fieldsCount', { count: f.fields?.length || 0 })}</Badge>
               {#if f.notification_recipients && f.notification_recipients.length > 0}
                 <Badge variant="secondary" class="text-[10px]">{t('site.forms.emailAlert')}</Badge>
               {/if}

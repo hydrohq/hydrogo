@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `GET /api/v1/admin/branding` (public): admin name, logo, accent colour and default language, so the sign-in page is branded and in the project's language.
+- `GET /api/v1/admin/me` returns the saved admin `locale` (a browser-bound cookie set by `PUT /api/v1/admin/account/locale`); `PUT` with an empty locale clears it.
+- `examples/sveltekit-starter`: `npm run smoke` starts the production build against a stub API and checks 404 and 502 handling; CI runs it.
+
+### Changed
+- Admin: the English and Turkish catalogs are split per area under `admin/src/lib/i18n/messages/`; editor, chart axis, status/role labels and more screens are translated.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added
