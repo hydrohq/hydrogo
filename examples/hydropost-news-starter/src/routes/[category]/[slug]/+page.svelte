@@ -30,6 +30,7 @@
   ]);
 
   let popularList = $derived<NewsArticle[]>(data.popularNews || data.related || []);
+  let pageOrigin = $derived((typeof window !== 'undefined' && window.location?.origin) || data?.siteSettings?.public_origin || '');
 
   // Sync state if navigation changes the active article
   $effect(() => {
@@ -383,18 +384,18 @@
 <svelte:head>
   <title>{activeArticle?.seo_title || activeArticle?.title || data?.article?.title || 'Haber Detay'} — {data?.siteSettings?.site_name || 'HydroPost'}</title>
   <meta name="description" content={activeArticle?.seo_description || activeArticle?.excerpt || data?.article?.excerpt || ''} />
-  <link rel="canonical" href="{typeof window !== 'undefined' ? window.location.href : `https://ardalabs.xyz/${data?.article?.category ? slugify(data.article.category) : 'haber'}/${data?.article?.slug || ''}`}" />
+  <link rel="canonical" href="{typeof window !== 'undefined' ? window.location.href : (pageOrigin ? `${pageOrigin}/${data?.article?.category ? slugify(data.article.category) : 'haber'}/${data?.article?.slug || ''}` : '')}" />
   <!-- OpenGraph -->
   <meta property="og:title" content={activeArticle?.title || data?.article?.title || ''} />
   <meta property="og:description" content={activeArticle?.excerpt || data?.article?.excerpt || ''} />
   <meta property="og:type" content="article" />
-  <meta property="og:url" content="{typeof window !== 'undefined' ? window.location.href : `https://ardalabs.xyz/${data?.article?.category ? slugify(data.article.category) : 'haber'}/${data?.article?.slug || ''}`}" />
-  <meta property="og:image" content={getAbsoluteMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category)} />
+  <meta property="og:url" content="{typeof window !== 'undefined' ? window.location.href : (pageOrigin ? `${pageOrigin}/${data?.article?.category ? slugify(data.article.category) : 'haber'}/${data?.article?.slug || ''}` : '')}" />
+  <meta property="og:image" content={getAbsoluteMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category, undefined, undefined, pageOrigin)} />
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={activeArticle?.title || data?.article?.title || ''} />
   <meta name="twitter:description" content={activeArticle?.excerpt || data?.article?.excerpt || ''} />
-  <meta name="twitter:image" content={getAbsoluteMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category)} />
+  <meta name="twitter:image" content={getAbsoluteMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category, undefined, undefined, pageOrigin)} />
   {#if data?.jsonLd}
     <!-- Google News JSON-LD -->
     {@html `<script type="application/ld+json">${JSON.stringify(data.jsonLd)}<\/script>`}
