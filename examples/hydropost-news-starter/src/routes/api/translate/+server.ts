@@ -6,6 +6,12 @@ const HYDROGO_ADMIN_API_KEY = process.env.HYDROGO_ADMIN_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 export const POST: RequestHandler = async ({ request }) => {
+  const apiSecret = process.env.TRANSLATE_API_SECRET || process.env.HYDROGO_ADMIN_API_KEY;
+  const authHeader = request.headers.get('Authorization') || request.headers.get('X-API-Key');
+  if (apiSecret && authHeader !== `Bearer ${apiSecret}` && authHeader !== apiSecret) {
+    return json({ error: 'Unauthorized: missing or invalid translation authorization' }, { status: 401 });
+  }
+
   if (!HYDROGO_ADMIN_API_KEY) {
     return json({ error: 'Server misconfiguration: HYDROGO_ADMIN_API_KEY is not configured' }, { status: 500 });
   }

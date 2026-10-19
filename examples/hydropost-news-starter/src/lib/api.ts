@@ -273,6 +273,13 @@ export function getAssetUrl(mediaId?: string): string | null {
   return `${API_BASE}/media/${mediaId}`;
 }
 
+export function getAbsoluteMediaUrl(mediaId?: string, category?: string, seed?: string, index?: number): string {
+  const rel = getMediaUrl(mediaId, category, seed, index);
+  if (rel.startsWith('http://') || rel.startsWith('https://')) return rel;
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'https://ardalabs.xyz';
+  return `${origin}${rel.startsWith('/') ? '' : '/'}${rel}`;
+}
+
 export function getCategoryBadge(category?: string): { bg: string; text: string; border: string; glow: string } {
   const cat = slugify(category);
 

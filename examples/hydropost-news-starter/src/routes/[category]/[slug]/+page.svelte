@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageProps } from './$types';
-  import { getMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, trackView, formatViews, type NewsArticle } from '#lib';
+  import { getMediaUrl, getAbsoluteMediaUrl, sanitizeHtml, getCategoryBadge, fetchApi, slugify, trackView, formatViews, type NewsArticle } from '#lib';
   import AdSlot from '#lib/components/AdSlot.svelte';
   import NewsCard from '#lib/components/NewsCard.svelte';
   import CommentsSection from '#lib/components/CommentsSection.svelte';
@@ -331,7 +331,7 @@
               } catch {
                 // Ignore history update error
               }
-              document.title = `${targetArticle.seo_title || targetArticle.title} — HydroPost`;
+              document.title = `${targetArticle.seo_title || targetArticle.title} — ${data?.siteSettings?.site_name || 'HydroPost'}`;
             }
           }
         }
@@ -381,13 +381,20 @@
 </script>
 
 <svelte:head>
-  <title>{activeArticle?.seo_title || activeArticle?.title || data?.article?.title || 'Haber Detay'} — HydroPost</title>
+  <title>{activeArticle?.seo_title || activeArticle?.title || data?.article?.title || 'Haber Detay'} — {data?.siteSettings?.site_name || 'HydroPost'}</title>
   <meta name="description" content={activeArticle?.seo_description || activeArticle?.excerpt || data?.article?.excerpt || ''} />
+  <link rel="canonical" href="{typeof window !== 'undefined' ? window.location.href : `https://ardalabs.xyz/${data?.article?.category ? slugify(data.article.category) : 'haber'}/${data?.article?.slug || ''}`}" />
   <!-- OpenGraph -->
   <meta property="og:title" content={activeArticle?.title || data?.article?.title || ''} />
   <meta property="og:description" content={activeArticle?.excerpt || data?.article?.excerpt || ''} />
   <meta property="og:type" content="article" />
-  <meta property="og:image" content={getMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category)} />
+  <meta property="og:url" content="{typeof window !== 'undefined' ? window.location.href : `https://ardalabs.xyz/${data?.article?.category ? slugify(data.article.category) : 'haber'}/${data?.article?.slug || ''}`}" />
+  <meta property="og:image" content={getAbsoluteMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category)} />
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={activeArticle?.title || data?.article?.title || ''} />
+  <meta name="twitter:description" content={activeArticle?.excerpt || data?.article?.excerpt || ''} />
+  <meta name="twitter:image" content={getAbsoluteMediaUrl(activeArticle?.cover_media_id || data?.article?.cover_media_id, activeArticle?.category || data?.article?.category)} />
   {#if data?.jsonLd}
     <!-- Google News JSON-LD -->
     {@html `<script type="application/ld+json">${JSON.stringify(data.jsonLd)}<\/script>`}

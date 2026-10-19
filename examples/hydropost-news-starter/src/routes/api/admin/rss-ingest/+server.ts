@@ -44,9 +44,19 @@ export const POST: RequestHandler = async ({ request }) => {
   const limit = Math.min(30, Math.max(1, Number(body.limit) || 10));
   const categoryFilter = body.category ? String(body.category).toLowerCase() : null;
 
+  const ingestToken = process.env.RSS_INGEST_TOKEN;
+  const authHeader = request.headers.get('Authorization') || request.headers.get('X-Ingest-Token');
+  if (ingestToken && authHeader !== `Bearer ${ingestToken}` && authHeader !== ingestToken) {
+    return json({ error: 'Unauthorized: missing or invalid ingest token' }, { status: 401 });
+  }
+
   const hydroBase = process.env.HYDROGO_API_URL || 'http://127.0.0.1:8090';
-  const email = process.env.HYDRO_ADMIN_EMAIL || 'admin@haberdiyari.com';
-  const password = process.env.HYDRO_ADMIN_PASSWORD || 'HydroNews2026!SecureKey';
+  const email = process.env.HYDRO_ADMIN_EMAIL;
+  const password = process.env.HYDRO_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    return json({ error: 'Admin credentials not configured in environment' }, { status: 500 });
+  }
 
   // 1. Authenticate to HydroGo
   let cookieHeader = '';
