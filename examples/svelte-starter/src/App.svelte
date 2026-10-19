@@ -2,75 +2,57 @@
   import { onMount } from 'svelte';
   import Header from './lib/Header.svelte';
   import HomeView from './lib/HomeView.svelte';
-  import PageView from './lib/PageView.svelte';
-  import NewsView from './lib/NewsView.svelte';
   import DocsView from './lib/DocsView.svelte';
-
-  import { setDefaultSEO, setDocsSEO } from './lib/seo';
-
-  let route = $state('/');
-  let activeSlug = $state('');
-
-  function syncRouteFromHash() {
-    const hash = window.location.hash.replace(/^#\/?/, '');
-    if (hash === 'docs' || window.location.pathname === '/docs') {
-      route = '/docs';
-      setDocsSEO();
-    } else if (route === '/') {
-      setDefaultSEO();
-    }
-  }
+  import SearchDialog from './lib/components/SearchDialog.svelte';
+  import { router } from './lib/router.svelte';
+  import { theme } from './lib/theme.svelte';
+  import { ui } from './lib/ui.svelte';
+  import { setDefaultSEO } from './lib/seo';
 
   onMount(() => {
-    syncRouteFromHash();
-    window.addEventListener('hashchange', syncRouteFromHash);
-    return () => {
-      window.removeEventListener('hashchange', syncRouteFromHash);
+    theme.init();
+    router.init();
+
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        ui.searchOpen = !ui.searchOpen;
+        return;
+      }
+      const el = e.target as HTMLElement | null;
+      const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        ui.searchOpen = true;
+      }
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   });
 
-  function navigateTo(path: string) {
-    route = path;
-    activeSlug = '';
-    window.location.hash = path === '/' ? '' : path;
-    if (path === '/') {
+  $effect(() => {
+    if (router.current.name === 'home') {
       setDefaultSEO();
-    } else if (path === '/docs') {
-      setDocsSEO();
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     }
-  }
-
-  function openPage(slug: string) {
-    activeSlug = slug;
-    route = '/page';
-  }
-
-  function openNews(slug: string) {
-    activeSlug = slug;
-    route = '/news-article';
-  }
+  });
 </script>
 
-{#if route === '/docs'}
-  <DocsView onback={() => navigateTo('/')} />
-{:else}
-  <div class="min-h-screen bg-black flex flex-col text-white font-sans antialiased selection:bg-white selection:text-black">
-    {#if route !== '/'}
-      <Header currentRoute={route} onnavigate={navigateTo} />
-    {/if}
+<!-- A hash link would be read by the router, so the skip link moves focus itself. -->
+<button
+  type="button"
+  class="sr-only z-[70] rounded-md bg-accent px-3 py-2 text-accent-fg focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+  onclick={() => document.getElementById('main')?.focus()}>Skip to content</button
+>
 
-    <main class="flex-1 w-full flex flex-col justify-center px-6 py-12">
-      {#if route === '/'}
-        <HomeView onopenpage={openPage} onopennews={openNews} onopendocs={() => navigateTo('/docs')} />
-      {:else if route === '/page'}
-        <PageView slug={activeSlug} onback={() => navigateTo('/')} />
-      {:else if route === '/news' || route === '/news-article'}
-        {#if activeSlug}
-          <NewsView slug={activeSlug} onback={() => { activeSlug = ''; route = '/'; }} />
-        {:else}
-          <HomeView onopenpage={openPage} onopennews={openNews} onopendocs={() => navigateTo('/docs')} />
-        {/if}
-      {/if}
-    </main>
-  </div>
-{/if}
+<div class="flex min-h-screen flex-col bg-bg text-fg">
+  <Header />
+  <main id="main" class="flex-1" tabindex="-1">
+    {#if router.current.name === 'docs'}
+      <DocsView />
+    {:else}
+      <HomeView />
+    {/if}
+  </main>
+  <SearchDialog />
+</div>

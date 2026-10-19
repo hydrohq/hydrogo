@@ -13,10 +13,10 @@ export interface SEOOptions {
   jsonLd?: Record<string, any>;
 }
 
-const DEFAULT_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://ardalabs.xyz';
-const DEFAULT_TITLE = 'HydroGo · High-Performance Headless Go CMS & Modern Svelte 5';
+const DEFAULT_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://example.com';
+const DEFAULT_TITLE = 'HydroGo · Headless CMS in a single Go binary';
 const DEFAULT_DESCRIPTION =
-  'Single-binary headless CMS powered by Go and Svelte 5. High-performance REST APIs, instant zero-build publishing, and rich developer tooling.';
+  'HydroGo is a single-binary headless CMS written in Go: pages, news, media, members and YAML content types behind one REST API, with an embedded admin panel.';
 const DEFAULT_KEYWORDS = [
   'HydroGo',
   'headless CMS',
@@ -152,11 +152,6 @@ export function setDefaultSEO() {
       name: 'HydroGo',
       url: origin + '/',
       description: DEFAULT_DESCRIPTION,
-      potentialAction: {
-        '@type': 'SearchAction',
-        target: `${origin}/#docs?q={search_term_string}`,
-        'query-input': 'required name=search_term_string',
-      },
       publisher: {
         '@type': 'Organization',
         name: 'HydroGo',
@@ -166,27 +161,21 @@ export function setDefaultSEO() {
   });
 }
 
-export function setDocsSEO(sectionTitle?: string) {
+export function setDocsSEO(pageTitle?: string, description?: string) {
   const origin = typeof window !== 'undefined' ? window.location.origin : DEFAULT_ORIGIN;
-  const pageTitle = sectionTitle ? `${sectionTitle} · Documentation` : 'Documentation';
+  const url = typeof window !== 'undefined' ? window.location.href : `${origin}/#/docs`;
   setSEO({
-    title: pageTitle,
-    description: 'Developer guide and API documentation for HydroGo single-binary headless Go CMS with Svelte 5 admin studio.',
-    canonical: `${origin}/#docs`,
-    keywords: ['HydroGo docs', 'HydroGo API', 'headless CMS tutorial', 'Go CMS documentation', 'Svelte CMS starter'],
+    title: pageTitle ? `${pageTitle} · Docs` : 'Documentation',
+    description: description || 'Developer documentation for HydroGo, a single-binary headless CMS written in Go.',
+    canonical: url,
     type: 'website',
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'TechArticle',
-      headline: sectionTitle || 'HydroGo Developer Documentation',
-      description: 'Official architecture and developer reference for the HydroGo headless CMS.',
-      url: `${origin}/#docs`,
+      headline: pageTitle || 'HydroGo documentation',
+      description: description || 'Developer documentation for HydroGo.',
+      url,
       inLanguage: 'en',
-      author: {
-        '@type': 'Organization',
-        name: 'HydroGo Engineering',
-        url: origin,
-      },
     },
   });
 }

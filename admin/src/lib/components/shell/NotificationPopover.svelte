@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -22,7 +23,7 @@
       const res = await api.get<any>('/api/v1/admin/notifications');
       if (res?.data && Array.isArray(res.data)) {
         notifications = res.data;
-        unreadCount = Number(res?.meta?.unread ?? res.data.filter((n: NotificationItem) => !n.read).length);
+        unreadCount = Number(res?.metadata?.unread ?? res?.meta?.unread ?? res.data.filter((n: NotificationItem) => !n.read).length);
       } else if (res?.data?.items && Array.isArray(res.data.items)) {
         notifications = res.data.items;
         unreadCount = Number(res?.data?.unread_count ?? 0);
@@ -95,8 +96,8 @@
     type="button"
     onclick={toggleOpen}
     class="relative flex size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer shadow-xs"
-    title="Notifications"
-    aria-label="Notifications"
+    title={t('notif.title')}
+    aria-label={t('notif.title')}
   >
     <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
@@ -117,10 +118,10 @@
     >
       <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold text-foreground">Notifications</span>
+          <span class="text-xs font-semibold text-foreground">{t('notif.title')}</span>
           {#if unreadCount > 0}
             <span class="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-              {unreadCount} unread
+              {t('notif.unread', { count: unreadCount })}
             </span>
           {/if}
         </div>
@@ -131,7 +132,7 @@
             onclick={markAllRead}
             class="text-[11px] text-primary hover:underline font-medium cursor-pointer"
           >
-            Mark all read
+            {t('notif.markAll')}
           </button>
         {/if}
       </div>
@@ -143,7 +144,7 @@
               <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
               <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
             </svg>
-            No new notifications
+            {t('notif.empty')}
           </div>
         {:else}
           {#each notifications as item}
@@ -167,8 +168,8 @@
                 type="button"
                 onclick={(e) => dismissNotification(item.id, e)}
                 class="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground rounded transition-opacity cursor-pointer shrink-0"
-                title="Dismiss"
-                aria-label="Dismiss notification"
+                title={t('common.dismiss')}
+                aria-label={t('notif.dismiss')}
               >
                 <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>

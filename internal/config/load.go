@@ -215,6 +215,13 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		}
 		result.Security.EnableHSTS = enableHSTS
 	}
+	if value, ok := lookup("HYDRO_AUDIT_LOG_REQUEST_BODIES"); ok && value != "" {
+		logBodies, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_AUDIT_LOG_REQUEST_BODIES: %w", err)
+		}
+		result.Audit.LogRequestBodies = logBodies
+	}
 	if value, ok := lookup("HYDRO_PUBLIC_API_ORIGINS"); ok && value != "" {
 		result.Security.PublicAPIOrigins = strings.Split(value, ",")
 	}

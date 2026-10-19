@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import type { ApiResponse } from '$lib/api/types';
@@ -90,7 +91,7 @@
         formData = initFormData({});
       }
     } catch (err: any) {
-      errorMessage = err?.message || 'Failed to load item';
+      errorMessage = err?.message || t('schema.err.loadItem');
       formData = initFormData({});
     } finally {
       loading = false;
@@ -139,7 +140,7 @@
       onsaved();
       onclose();
     } catch (err: any) {
-      errorMessage = err?.message || 'Failed to save item';
+      errorMessage = err?.message || t('schema.err.saveItem');
     } finally {
       saving = false;
     }
@@ -167,27 +168,27 @@
 <Modal
   {open}
   title={isNew
-    ? `Create ${collection?.singular || collection?.label || type}`
-    : `Edit ${collection?.singular || collection?.label || type}`}
-  description={collection?.description || `Configure fields for this ${collection?.label || type} record.`}
+    ? t('schema.create', { name: collection?.singular || collection?.label || type })
+    : t('schema.edit', { name: collection?.singular || collection?.label || type })}
+  description={collection?.description || t('schema.configure', { name: collection?.label || type })}
   size="2xl"
   {onclose}
 >
   {#if loading}
     <div class="py-16 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
       <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-      <span>Loading record details...</span>
+      <span>{t('schema.loadingRecord')}</span>
     </div>
   {:else if !collection}
     <div class="p-8 text-center text-xs text-muted-foreground">
-      Content type schema not found.
+      {t('schema.schemaNotFound')}
     </div>
   {:else}
     <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-4">
       {#if errorMessage}
         <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-center justify-between">
           <span>{errorMessage}</span>
-          <button type="button" class="hover:underline cursor-pointer" onclick={() => { errorMessage = null; }}>Dismiss</button>
+          <button type="button" class="hover:underline cursor-pointer" onclick={() => { errorMessage = null; }}>{t('common.dismiss')}</button>
         </div>
       {/if}
 
@@ -203,7 +204,7 @@
           {:else if field.kind === 'text' && field.widget !== 'textarea'}
             <Input
               label={field.label || key}
-              placeholder={`Enter ${field.label || key}...`}
+              placeholder={t('schema.enter', { name: field.label || key })}
               bind:value={formData[key]}
               required={field.required}
             />
@@ -230,7 +231,7 @@
               bind:value={formData[key]}
               class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             >
-              <option value="">Select option...</option>
+              <option value="">{t('schema.selectOption')}</option>
               {#if field.options}
                 {#each field.options as opt}
                   <option value={typeof opt === 'string' ? opt : opt.value}>
@@ -256,14 +257,14 @@
               id={`textarea-${key}`}
               bind:value={formData[key]}
               rows="3"
-              placeholder={`Enter ${field.label || key}...`}
+              placeholder={t('schema.enter', { name: field.label || key })}
               class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             ></textarea>
           {:else if field.kind === 'richtext' || field.widget === 'richtext'}
             <RichTextEditor
               label={field.label || key}
               bind:value={formData[key]}
-              placeholder={`Write content for ${field.label || key}...`}
+              placeholder={t('schema.write', { name: field.label || key })}
             />
           {:else if field.kind === 'media'}
             <label for={`media-input-${key}`} class="text-xs font-medium text-foreground">
@@ -284,7 +285,7 @@
                 <input
                   id={`media-input-${key}`}
                   type="text"
-                  placeholder="URL or select from library..."
+                  placeholder={t('schema.urlPlaceholder')}
                   bind:value={formData[key]}
                   class="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                 />
@@ -293,14 +294,14 @@
                   class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs whitespace-nowrap"
                   onclick={() => openMediaPicker(key)}
                 >
-                  Select Media
+                  {t('schema.selectMedia')}
                 </button>
               </div>
             </div>
           {:else}
             <Input
               label={field.label || key}
-              placeholder={`Enter ${field.label || key}...`}
+              placeholder={t('schema.enter', { name: field.label || key })}
               bind:value={formData[key]}
             />
           {/if}
@@ -311,7 +312,7 @@
 
   {#snippet footer()}
     <Button variant="ghost" size="sm" onclick={onclose}>
-      Cancel
+      {t('common.cancel')}
     </Button>
     {#if collection?.workflow?.enabled || collection?.drafts}
       <Button
@@ -320,7 +321,7 @@
         disabled={saving || loading}
         onclick={() => handleSave('draft')}
       >
-        Save Draft
+        {t('news.editor.saveDraft')}
       </Button>
       <Button
         variant="primary"
@@ -329,7 +330,7 @@
         disabled={loading}
         onclick={() => handleSave('published')}
       >
-        Publish
+        {t('pages.editor.publish')}
       </Button>
     {:else}
       <Button
@@ -339,7 +340,7 @@
         disabled={loading}
         onclick={() => handleSave()}
       >
-        {isNew ? 'Create Item' : 'Save Changes'}
+        {isNew ? t('schema.createItem') : t('media.detail.save')}
       </Button>
     {/if}
   {/snippet}

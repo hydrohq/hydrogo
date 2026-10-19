@@ -1,13 +1,13 @@
 id: galleries
-label: Foto Galeriler
-description: Foto haber ve resim galerileri
+label: Photo galleries
+description: Photo stories and image galleries
 title_field: title
 public: true
 drafts: true
 revisions: true
 fields:
-  - {id: title, label: Galeri Başlığı, kind: text, required: true, list: true, searchable: true}
-  - {id: slug, label: URL Yolu (Slug), kind: text, required: true, unique: true, list: true}
-  - {id: cover_image, label: Kapak Görseli, kind: media, required: true}
-  - {id: description, label: Açıklama, kind: textarea}
-  - {id: category, label: Kategori, kind: select, options: [gundem, magazin, spor, dunya, yasam], list: true, filterable: true}
+  - {id: title, label: Gallery title, kind: text, required: true, list: true, searchable: true}
+  - {id: slug, label: URL path (slug), kind: text, required: true, unique: true, list: true}
+  - {id: cover_image, label: Cover image, kind: media, required: true}
+  - {id: description, label: Description, kind: textarea}
+  - {id: category, label: Category, kind: select, options: [gundem, magazin, spor, dunya, yasam], list: true, filterable: true}

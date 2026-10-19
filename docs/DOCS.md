@@ -12,9 +12,8 @@ Welcome to the official HydroGo documentation. HydroGo is a high-performance, si
 4. [Admin Studio](#admin-studio)
 5. [Content Types (Declarative YAML)](#content-types-declarative-yaml)
 6. [Public REST API Reference](#public-rest-api-reference)
-7. [Frontend Integration (Svelte Starter)](#frontend-integration-svelte-starter)
+7. [Frontend Integration](#frontend-integration)
 8. [Production Deployment](#production-deployment)
-9. [Official Links](#official-links)
 
 ---
 
@@ -62,7 +61,7 @@ Navigate to [http://127.0.0.1:8090/admin/](http://127.0.0.1:8090/admin/) and log
 ├── cmd/hydro/           # CLI entrypoints (serve, migrate, seed-demo, create-admin)
 ├── content-types/       # Declarative YAML schemas for custom content types
 ├── docs/                # Architecture decisions, guides, and API specifications
-├── examples/            # Example client frontends (examples/svelte-starter)
+├── examples/            # Example client frontends (examples/sveltekit-starter)
 ├── internal/            # Core CMS engine: auth, database, security, media, api
 ├── migrations/          # Tri-dialect SQL migrations (SQLite, PostgreSQL, MySQL)
 ├── modules/             # Built-in CMS modules (pages, news, members, site)
@@ -151,20 +150,19 @@ All successful API responses adhere to the standard envelope:
 
 ---
 
-## Frontend Integration (Svelte Starter)
+## Frontend Integration
 
-The starter client in `examples/svelte-starter` shows how to consume the HydroGo REST API:
+Use [`@hydrogo/client`](../packages/client) (typed, with timeouts and error ids) or plain `fetch`. Public endpoints return `{data, metadata}`:
 
 ```typescript
-// examples/svelte-starter/src/lib/api.ts
-const API_BASE = '/api/v1';
+import { createHydroGoClient } from '@hydrogo/client';
 
-export async function fetchPublishedPages(locale: string = 'en') {
-  const res = await fetch(`${API_BASE}/pages?locale=${encodeURIComponent(locale)}`);
-  const json = await res.json();
-  return json.data || [];
-}
+const hydro = createHydroGoClient({ origin: 'https://cms.example.com' });
+const news = await hydro.listNews('en', 10);          // NewsItem[]
+const faq = await hydro.listContent('faq', { limit: 20 }); // any content type
 ```
+
+A complete server-rendered site is in [`examples/sveltekit-starter`](../examples/sveltekit-starter).
 
 ---
 
@@ -185,10 +183,4 @@ go build -o bin/hydro ./cmd/hydro
 
 HydroGo supports both standard HTTP reverse-proxies (Nginx, Caddy, Cloudflare) and FastCGI (`--fastcgi`) environments.
 
----
-
-## Official Links
-
-- **Website:** [https://ardalabs.dev](https://ardalabs.dev)
-- **Repository:** HydroGo on GitHub
-- **Admin Studio:** `/admin/`
+More: [getting-started.md](getting-started.md), [deployment.md](deployment.md), [upgrading.md](upgrading.md).

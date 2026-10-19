@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   interface Props {
     uploading: boolean;
     onupload: (files: FileList) => void;
@@ -37,7 +38,7 @@
 
 <div
   role="region"
-  aria-label="File upload dropzone"
+  aria-label={t('media.dropzone.aria')}
   class="relative rounded-xl border border-dashed p-6 transition-all duration-150 text-center flex flex-col items-center justify-center gap-2 {isDragging ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/30 hover:border-muted-foreground/40'}"
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
@@ -59,16 +60,16 @@
   </div>
   <div>
     <p class="text-sm font-medium text-foreground">
-      Drag & drop assets here, or
+      {t('media.dropzone.drag')}
       <button
         type="button"
         class="text-foreground underline underline-offset-4 font-semibold cursor-pointer ml-1 hover:text-muted-foreground"
         onclick={() => fileInput?.click()}
       >
-        browse files
+        {t('media.dropzone.browse')}
       </button>
     </p>
-    <p class="text-xs text-muted-foreground mt-0.5">Images, PDFs, documents up to 50MB</p>
+    <p class="text-xs text-muted-foreground mt-0.5">{t('media.dropzone.limits')}</p>
   </div>
   {#if uploading}
     <div class="flex items-center gap-2 text-xs text-foreground font-medium mt-1">
@@ -82,7 +83,7 @@
         <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
         <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
       </svg>
-      Uploading files...
+      {t('media.dropzone.uploading')}
     </div>
   {/if}
 </div>

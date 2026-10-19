@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { tick } from 'svelte';
   import { router } from '$lib/router.svelte';
   import { schema } from '$lib/stores/schema.svelte';
@@ -18,32 +19,32 @@
   let liveLoading = $state(false);
   let liveResults = $state<Array<{ title: string; subtitle: string; path: string; icon: string }>>([]);
 
-  const baseNavItems = [
-    { title: 'Dashboard', category: 'Navigation', path: '/dashboard', icon: 'dashboard', desc: 'Overview & metrics' },
-    { title: 'Pages', category: 'Navigation', path: '/pages', icon: 'pages', desc: 'Manage hierarchical pages' },
-    { title: 'News', category: 'Navigation', path: '/news', icon: 'news', desc: 'Articles & publications' },
-    { title: 'Media Library', category: 'Navigation', path: '/media', icon: 'media', desc: 'Images, assets & files' },
-    { title: 'Members', category: 'Navigation', path: '/members', icon: 'members', desc: 'Subscriber & member directory' },
-    { title: 'Site Settings', category: 'Settings', path: '/site', icon: 'site', desc: 'Configuration, maintenance & redirects' },
-    { title: 'Users & Roles', category: 'Settings', path: '/users', icon: 'users', desc: 'Staff users, access keys & permissions' },
-    { title: 'System Telemetry', category: 'Settings', path: '/system', icon: 'system', desc: 'Runtime metrics, heap & health' },
-    { title: 'My Account', category: 'Account', path: '/account', icon: 'account', desc: 'Security, password & personal tokens' },
-    { title: 'Documentation', category: 'Help', path: '/admin/docs', icon: 'docs', desc: 'Architecture, guides & API references' },
-  ];
+  const baseNavItems = $derived([
+    { title: t('nav.dashboard'), category: t('search.cat.navigation'), path: '/dashboard', icon: 'dashboard', desc: t('search.desc.dashboard') },
+    { title: t('nav.pages'), category: t('search.cat.navigation'), path: '/pages', icon: 'pages', desc: t('search.desc.pages') },
+    { title: t('nav.news'), category: t('search.cat.navigation'), path: '/news', icon: 'news', desc: t('search.desc.news') },
+    { title: t('nav.media'), category: t('search.cat.navigation'), path: '/media', icon: 'media', desc: t('search.desc.media') },
+    { title: t('nav.members'), category: t('search.cat.navigation'), path: '/members', icon: 'members', desc: t('search.desc.members') },
+    { title: t('title.siteSettings'), category: t('search.cat.settings'), path: '/site', icon: 'site', desc: t('search.desc.site') },
+    { title: t('nav.users'), category: t('search.cat.settings'), path: '/users', icon: 'users', desc: t('search.desc.users') },
+    { title: t('search.systemTelemetry'), category: t('search.cat.settings'), path: '/system', icon: 'system', desc: t('search.desc.system') },
+    { title: t('title.account'), category: t('search.cat.account'), path: '/account', icon: 'account', desc: t('search.desc.account') },
+    { title: t('search.docs'), category: t('search.cat.help'), path: '/admin/docs', icon: 'docs', desc: t('search.desc.docs') },
+  ]);
 
-  const quickActions = [
-    { title: 'Create New Page', category: 'Quick Actions', path: '/pages/new', icon: 'add', desc: 'Draft a new page' },
-    { title: 'Write News Article', category: 'Quick Actions', path: '/news/new', icon: 'add', desc: 'Draft a new article' },
-    { title: 'Upload Media', category: 'Quick Actions', path: '/media', icon: 'upload', desc: 'Add files to media library' },
-  ];
+  const quickActions = $derived([
+    { title: t('search.newPage'), category: t('search.cat.quick'), path: '/pages/new', icon: 'add', desc: t('search.desc.newPage') },
+    { title: t('search.newArticle'), category: t('search.cat.quick'), path: '/news/new', icon: 'add', desc: t('search.desc.newArticle') },
+    { title: t('nav.uploadMedia'), category: t('search.cat.quick'), path: '/media', icon: 'upload', desc: t('search.desc.upload') },
+  ]);
 
   const collectionItems = $derived.by(() => {
     return schema.collections.map((col) => ({
       title: col.plural || col.label || col.id,
-      category: 'Collections',
+      category: t('search.cat.collections'),
       path: `/content/${col.id}`,
       icon: 'collection',
-      desc: col.description || `Manage ${col.plural || col.id}`,
+      desc: col.description || t('search.manage', { name: col.plural || col.id }),
     }));
   });
 
@@ -61,7 +62,7 @@
 
     const live = liveResults.map((r) => ({
       title: r.title,
-      category: 'Content',
+      category: t('search.cat.content'),
       path: r.path,
       icon: r.icon,
       desc: r.subtitle,
@@ -87,8 +88,8 @@
             if (pRes?.data && Array.isArray(pRes.data)) {
               for (const p of pRes.data) {
                 results.push({
-                  title: p.title || p.slug || 'Untitled Page',
-                  subtitle: `Page • /${p.slug || ''}`,
+                  title: p.title || p.slug || t('dashboard.table.untitledPage'),
+                  subtitle: `${t('common.page')} • /${p.slug || ''}`,
                   path: `/pages/${p.id}`,
                   icon: 'pages',
                 });
@@ -102,8 +103,8 @@
             if (nRes?.data && Array.isArray(nRes.data)) {
               for (const n of nRes.data) {
                 results.push({
-                  title: n.title || n.slug || 'Untitled Article',
-                  subtitle: `Article • ${n.published_at ? 'Published' : 'Draft'}`,
+                  title: n.title || n.slug || t('search.untitledArticle'),
+                  subtitle: `${t('search.article')} • ${n.published_at ? t('common.published') : t('common.draft')}`,
                   path: `/news/${n.id}`,
                   icon: 'news',
                 });
@@ -181,14 +182,14 @@
       type="button"
       class="fixed inset-0 bg-black/60 backdrop-blur-xs cursor-default transition-opacity border-0"
       onclick={onclose}
-      aria-label="Close command search"
+      aria-label={t('search.close')}
     ></button>
 
     <!-- Dialog Card -->
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Command search"
+      aria-label={t('search.aria')}
       class="relative z-10 w-full max-w-xl rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl overflow-hidden flex flex-col max-h-[75vh] animate-in zoom-in-95 duration-150"
     >
       <!-- Search Input Header -->
@@ -201,7 +202,7 @@
           bind:this={searchInput}
           bind:value={query}
           type="text"
-          placeholder="Search navigation, collections, content..."
+          placeholder={t('search.placeholder')}
           class="flex-1 h-12 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-hidden"
         />
         {#if liveLoading}
@@ -216,7 +217,7 @@
       <div class="flex-1 overflow-y-auto p-2 divide-y divide-border/40 space-y-1">
         {#if filteredItems.length === 0}
           <div class="py-12 text-center text-sm text-muted-foreground">
-            No matching navigation or content found for "{query}".
+            {t('search.noResults', { query })}
           </div>
         {:else}
           {#each filteredItems as item, idx}
@@ -270,9 +271,9 @@
       <!-- Footer Guide -->
       <div class="px-4 py-2 border-t border-border bg-card/40 flex items-center justify-between text-[11px] text-muted-foreground">
         <div class="flex items-center gap-3">
-          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↑</kbd><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↓</kbd> navigate</span>
-          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Enter</kbd> select</span>
-          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Esc</kbd> close</span>
+          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↑</kbd><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">↓</kbd> {t('search.hintNavigate')}</span>
+          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Enter</kbd> {t('search.hintSelect')}</span>
+          <span class="flex items-center gap-1"><kbd class="font-mono bg-muted px-1.5 py-0.5 rounded border border-border">Esc</kbd> {t('search.hintClose')}</span>
         </div>
         <span class="font-mono">{filteredItems.length} results</span>
       </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -103,9 +104,9 @@
 
 <ConfirmDialog
   open={deleteBlockIndex !== null}
-  title="Remove Content Block"
-  description={`Are you sure you want to remove block #${(deleteBlockIndex ?? 0) + 1}? Content configured in this block will be removed from the draft.`}
-  confirmLabel="Remove Block"
+  title={t('pages.blocks.removeTitle')}
+  description={t('pages.blocks.removeDescription', { number: (deleteBlockIndex ?? 0) + 1 })}
+  confirmLabel={t('pages.blocks.removeConfirm')}
   variant="destructive"
   onconfirm={confirmRemoveBlock}
   oncancel={() => { deleteBlockIndex = null; }}
@@ -114,8 +115,8 @@
 <!-- Add Block Modal -->
 <Modal
   open={addModalOpen}
-  title="Add Content Block"
-  description="Select a block type to insert into your page layout."
+  title={t('pages.blocks.addTitle')}
+  description={t('pages.blocks.addDescription')}
   onclose={() => { addModalOpen = false; }}
 >
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-1">
@@ -131,19 +132,19 @@
           </span>
           <p class="text-[10px] text-muted-foreground mt-0.5 uppercase font-mono">{item.badge}</p>
         </div>
-        <span class="text-xs text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">+ Add</span>
+        <span class="text-xs text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">{t('pages.blocks.addShort')}</span>
       </button>
     {/each}
   </div>
   {#snippet footer()}
-    <Button variant="ghost" size="sm" onclick={() => { addModalOpen = false; }}>Cancel</Button>
+    <Button variant="ghost" size="sm" onclick={() => { addModalOpen = false; }}>{t('common.cancel')}</Button>
   {/snippet}
 </Modal>
 
 <div class="space-y-4">
   <div class="flex items-center justify-between pb-3 border-b border-border">
     <div class="flex items-center gap-2">
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Page Blocks</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('pages.blocks.title')}</h3>
       <span class="text-xs bg-muted border border-border text-foreground px-2 py-0.5 rounded-md font-mono">
         {blocks.length}
       </span>
@@ -153,19 +154,19 @@
       class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
       onclick={() => { addModalOpen = true; }}
     >
-      + Add Block
+      {t('pages.blocks.add')}
     </button>
   </div>
 
   {#if blocks.length === 0}
     <div class="py-12 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2">
-      <p>No content blocks added yet.</p>
+      <p>{t('pages.blocks.empty')}</p>
       <button
         type="button"
         class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
         onclick={() => { addModalOpen = true; }}
       >
-        Insert First Block
+        {t('pages.blocks.insertFirst')}
       </button>
     </div>
   {:else}
@@ -187,8 +188,8 @@
                 disabled={index === 0}
                 class="size-7 inline-flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                 onclick={() => moveBlock(index, 'up')}
-                title="Move Up"
-                aria-label="Move Block Up"
+                title={t('pages.blocks.moveUp')}
+                aria-label={t('pages.blocks.moveUpAria')}
               >
                 <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="m18 15-6-6-6 6" />
@@ -199,8 +200,8 @@
                 disabled={index === blocks.length - 1}
                 class="size-7 inline-flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                 onclick={() => moveBlock(index, 'down')}
-                title="Move Down"
-                aria-label="Move Block Down"
+                title={t('pages.blocks.moveDown')}
+                aria-label={t('pages.blocks.moveDownAria')}
               >
                 <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="m6 9 6 6 6-6" />
@@ -210,8 +211,8 @@
                 type="button"
                 class="ml-1 size-7 inline-flex items-center justify-center rounded-md border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors cursor-pointer"
                 onclick={() => { deleteBlockIndex = index; }}
-                title="Remove Block"
-                aria-label="Remove Block"
+                title={t('pages.blocks.remove')}
+                aria-label={t('pages.blocks.remove')}
               >
                 <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 6 6 18" />
@@ -224,27 +225,27 @@
           <!-- Block Fields -->
           <div class="p-4 space-y-3">
             <Input
-              label="Block Title"
-              placeholder="Headline for this section..."
+              label={t('pages.blocks.blockTitle')}
+              placeholder={t('pages.blocks.blockTitlePlaceholder')}
               value={block.props?.title || ''}
               oninput={(e) => updateBlockProps(index, 'title', (e.target as HTMLInputElement).value)}
             />
 
             <Input
-              label="Subtitle / Eyebrow"
-              placeholder="Optional subtitle..."
+              label={t('pages.blocks.subtitle')}
+              placeholder={t('pages.blocks.subtitlePlaceholder')}
               value={block.props?.subtitle || ''}
               oninput={(e) => updateBlockProps(index, 'subtitle', (e.target as HTMLInputElement).value)}
             />
 
             <div class="flex flex-col gap-1.5">
               <label for={`block-content-${index}`} class="text-xs font-medium text-foreground">
-                Content / Body
+                {t('pages.blocks.content')}
               </label>
               <textarea
                 id={`block-content-${index}`}
                 rows="3"
-                placeholder="Block body text..."
+                placeholder={t('pages.blocks.contentPlaceholder')}
                 value={block.props?.content || ''}
                 oninput={(e) => updateBlockProps(index, 'content', (e.target as HTMLTextAreaElement).value)}
                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"

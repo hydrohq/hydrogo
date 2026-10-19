@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   interface Props {
     open: boolean;
     title: string;
@@ -14,14 +15,18 @@
   let {
     open = false,
     title,
-    description = 'Are you sure you want to proceed with this action? This cannot be undone.',
-    confirmLabel = 'Delete',
-    cancelLabel = 'Cancel',
+    description,
+    confirmLabel,
+    cancelLabel,
     variant = 'destructive',
     loading = false,
     onconfirm,
     oncancel,
   }: Props = $props();
+
+  const descriptionText = $derived(description ?? t('confirm.description'));
+  const confirmText = $derived(confirmLabel ?? t('common.delete'));
+  const cancelText = $derived(cancelLabel ?? t('common.cancel'));
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && open && !loading) {
@@ -75,7 +80,7 @@
             {title}
           </h3>
           <p class="text-xs text-muted-foreground leading-relaxed">
-            {description}
+            {descriptionText}
           </p>
         </div>
       </div>
@@ -88,7 +93,7 @@
           onclick={oncancel}
           class="h-9 px-4 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs disabled:opacity-50"
         >
-          {cancelLabel}
+          {cancelText}
         </button>
 
         <button
@@ -100,7 +105,7 @@
           {#if loading}
             <div class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
           {/if}
-          <span>{confirmLabel}</span>
+          <span>{confirmText}</span>
         </button>
       </div>
     </div>

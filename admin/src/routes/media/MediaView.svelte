@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -137,23 +138,23 @@
 
 <Modal
   open={newFolderOpen}
-  title="New Folder"
-  description="Create a folder to organise your media files."
+  title={t('media.folder.title')}
+  description={t('media.folder.description')}
   onclose={() => { newFolderOpen = false; }}
 >
   <form onsubmit={(e) => { e.preventDefault(); handleCreateFolder(); }}>
     <Input
-      label="Folder Name"
-      placeholder="e.g. Products, Blog, Team"
+      label={t('media.folder.name')}
+      placeholder={t('media.folder.placeholder')}
       bind:value={newFolderName}
       required
       autofocus
     />
   </form>
   {#snippet footer()}
-    <Button variant="ghost" size="sm" onclick={() => { newFolderOpen = false; }}>Cancel</Button>
+    <Button variant="ghost" size="sm" onclick={() => { newFolderOpen = false; }}>{t('common.cancel')}</Button>
     <Button variant="primary" size="sm" loading={creatingFolder} onclick={handleCreateFolder}>
-      Create Folder
+      {t('media.folder.create')}
     </Button>
   {/snippet}
 </Modal>
@@ -178,21 +179,21 @@
             class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {selectedKind === 'all' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             onclick={() => { selectedKind = 'all'; loadAssets(); }}
           >
-            All Media
+            {t('media.view.all')}
           </button>
           <button
             type="button"
             class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {selectedKind === 'image' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             onclick={() => { selectedKind = 'image'; loadAssets(); }}
           >
-            Images
+            {t('media.view.images')}
           </button>
           <button
             type="button"
             class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {selectedKind === 'document' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             onclick={() => { selectedKind = 'document'; loadAssets(); }}
           >
-            Documents
+            {t('media.view.documents')}
           </button>
         </div>
 
@@ -205,7 +206,7 @@
             </svg>
             <input
               type="search"
-              placeholder="Search files..."
+              placeholder={t('media.view.search')}
               bind:value={search}
               oninput={() => loadAssets()}
               class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
@@ -222,7 +223,7 @@
               <line x1="12" y1="10" x2="12" y2="16"></line>
               <line x1="9" y1="13" x2="15" y2="13"></line>
             </svg>
-            <span>+ Folder</span>
+            <span>{t('media.view.addFolder')}</span>
           </button>
         </div>
       </div>
@@ -232,7 +233,7 @@
         <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
           {#if loading}
             <div class="py-16 text-center text-xs text-muted-foreground">
-              Loading media library...
+              {t('media.view.loading')}
             </div>
           {:else if assets.length === 0}
             <div class="py-16 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
@@ -241,7 +242,7 @@
                 <circle cx="9" cy="9" r="2"></circle>
                 <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
               </svg>
-              <p>No media assets found in this view.</p>
+              <p>{t('media.view.empty')}</p>
             </div>
           {:else}
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -286,7 +287,7 @@
 
             <!-- Footer Stats -->
             <div class="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-              <span>{assets.length} assets total</span>
+              <span>{t('media.view.total', { count: assets.length })}</span>
             </div>
           {/if}
         </div>

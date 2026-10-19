@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, i18n } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { api } from '$lib/api/client';
@@ -28,6 +29,7 @@
   }
 
   type ActiveTab = 'profile' | 'security' | 'mfa' | 'sessions' | 'tokens' | 'export';
+  let languageSaved = $state(false);
   let activeTab = $state<ActiveTab>('profile');
 
   // Password change state
@@ -275,8 +277,8 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
       <div>
-        <h2 class="text-xl font-semibold tracking-tight text-foreground">Account & Security</h2>
-        <p class="text-xs text-muted-foreground mt-0.5">Manage your credentials, 2FA, sessions, and personal access tokens.</p>
+        <h2 class="text-xl font-semibold tracking-tight text-foreground">{t('account.title')}</h2>
+        <p class="text-xs text-muted-foreground mt-0.5">{t('account.subtitle')}</p>
       </div>
 
       <div class="flex items-center gap-2">
@@ -296,42 +298,42 @@
         onclick={() => (activeTab = 'profile')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'profile' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Profile
+        {t('account.tab.profile')}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'security')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'security' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Password
+        {t('account.tab.password')}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'mfa')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'mfa' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Two-Factor Auth
+        {t('account.tab.mfa')}
       </button>
       <button
         type="button"
         onclick={() => { activeTab = 'sessions'; loadSessions(); }}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'sessions' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Active Sessions ({sessions.length})
+        {t('account.tab.sessions', { count: sessions.length })}
       </button>
       <button
         type="button"
         onclick={() => { activeTab = 'tokens'; loadTokens(); }}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'tokens' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Personal Tokens ({tokens.length})
+        {t('account.tab.tokens', { count: tokens.length })}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'export')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'export' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Data Export
+        {t('account.tab.export')}
       </button>
     </div>
 
@@ -350,14 +352,14 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/60">
           <div>
-            <span class="block text-xs font-medium text-muted-foreground mb-1">Email Address</span>
+            <span class="block text-xs font-medium text-muted-foreground mb-1">{t('account.email')}</span>
             <div class="p-2.5 rounded-lg border border-border bg-muted/30 text-xs font-mono text-foreground">
               {auth.user?.email}
             </div>
           </div>
 
           <div>
-            <span class="block text-xs font-medium text-muted-foreground mb-1">Assigned Role</span>
+            <span class="block text-xs font-medium text-muted-foreground mb-1">{t('account.role')}</span>
             <div class="p-2.5 rounded-lg border border-border bg-muted/30 text-xs text-foreground capitalize">
               {auth.user?.role || 'admin'}
             </div>
@@ -365,12 +367,38 @@
         </div>
       </div>
 
+      <div class="rounded-xl border border-border bg-card p-6 shadow-xs mt-4 space-y-3">
+        <div>
+          <h3 class="text-sm font-semibold text-foreground">{t('language.title')}</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">{t('language.description')}</p>
+        </div>
+        <label class="block text-xs font-medium text-foreground" for="admin-language">{t('language.mine')}</label>
+        <select
+          id="admin-language"
+          class="h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          value={i18n.userChoice ?? ''}
+          onchange={async (e) => {
+            const value = (e.currentTarget as HTMLSelectElement).value;
+            await i18n.setUserLocale(value === '' ? null : (value as 'en' | 'tr'));
+            languageSaved = true;
+            setTimeout(() => (languageSaved = false), 2500);
+          }}
+        >
+          <option value="">{t('language.useDefault', { language: t(i18n.projectDefault === 'tr' ? 'language.tr' : 'language.en') })}</option>
+          <option value="en">{t('language.en')}</option>
+          <option value="tr">{t('language.tr')}</option>
+        </select>
+        {#if languageSaved}
+          <p class="text-xs text-emerald-600" role="status">{t('language.saved')}</p>
+        {/if}
+      </div>
+
     <!-- Tab 2: Security & Password -->
     {:else if activeTab === 'security'}
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs max-w-xl space-y-4">
         <div>
-          <h3 class="text-sm font-semibold text-foreground">Change Password</h3>
-          <p class="text-xs text-muted-foreground mt-0.5">Ensure your account uses a strong, unique password.</p>
+          <h3 class="text-sm font-semibold text-foreground">{t('account.changePassword')}</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">{t('account.changePasswordHelp')}</p>
         </div>
 
         {#if passwordSuccess}
@@ -387,17 +415,17 @@
 
         <form onsubmit={handlePasswordChange} class="space-y-4 pt-2">
           <div>
-            <label for="current-pwd" class="block text-xs font-medium text-foreground mb-1">Current Password</label>
+            <label for="current-pwd" class="block text-xs font-medium text-foreground mb-1">{t('account.currentPassword')}</label>
             <Input id="current-pwd" type="password" bind:value={currentPassword} required placeholder="••••••••••••" />
           </div>
 
           <div>
-            <label for="new-pwd" class="block text-xs font-medium text-foreground mb-1">New Password</label>
+            <label for="new-pwd" class="block text-xs font-medium text-foreground mb-1">{t('account.newPassword')}</label>
             <Input id="new-pwd" type="password" bind:value={newPassword} required minlength={8} placeholder="At least 8 characters" />
           </div>
 
           <div>
-            <label for="confirm-pwd" class="block text-xs font-medium text-foreground mb-1">Confirm New Password</label>
+            <label for="confirm-pwd" class="block text-xs font-medium text-foreground mb-1">{t('account.confirmPassword')}</label>
             <Input id="confirm-pwd" type="password" bind:value={confirmPassword} required minlength={8} placeholder="Repeat new password" />
           </div>
 
@@ -483,7 +511,7 @@
               <Input type="text" bind:value={mfaCode} placeholder="000000" maxlength={6} class="font-mono tracking-widest text-base text-center w-40" required />
               <div class="flex items-center gap-2">
                 <Button type="submit" disabled={mfaLoading}>Verify & Activate</Button>
-                <Button type="button" variant="outline" onclick={() => { mfaEnrolling = false; }}>Cancel</Button>
+                <Button type="button" variant="outline" onclick={() => { mfaEnrolling = false; }}>{t('account.cancel')}</Button>
               </div>
             </form>
           </div>
@@ -495,8 +523,8 @@
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-sm font-semibold text-foreground">Active Sessions</h3>
-            <p class="text-xs text-muted-foreground mt-0.5">Devices currently authenticated to your account.</p>
+            <h3 class="text-sm font-semibold text-foreground">{t('account.sessions')}</h3>
+            <p class="text-xs text-muted-foreground mt-0.5">{t('account.sessionsHelp')}</p>
           </div>
           <Button variant="outline" onclick={handleRevokeOtherSessions} disabled={revokingSessions || sessions.length <= 1}>
             {revokingSessions ? 'Revoking...' : 'Sign Out Other Sessions'}
@@ -525,7 +553,7 @@
                     <div class="flex items-center gap-2">
                       <span class="text-xs font-semibold text-foreground truncate">{s.user_agent || 'Browser session'}</span>
                       {#if s.current}
-                        <Badge variant="outline" class="text-[10px] bg-primary/10 text-primary border-primary/20">This Device</Badge>
+                        <Badge variant="outline" class="text-[10px] bg-primary/10 text-primary border-primary/20">{t('account.thisDevice')}</Badge>
                       {/if}
                     </div>
                     <span class="text-[11px] text-muted-foreground font-mono mt-0.5">{s.ip_address || '127.0.0.1'} • Last active: {s.last_active_at ? new Date(s.last_active_at).toLocaleString() : 'Just now'}</span>
@@ -542,8 +570,8 @@
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-sm font-semibold text-foreground">Personal Access Tokens</h3>
-            <p class="text-xs text-muted-foreground mt-0.5">Programmatic API tokens scoped to your staff identity.</p>
+            <h3 class="text-sm font-semibold text-foreground">{t('account.tokens')}</h3>
+            <p class="text-xs text-muted-foreground mt-0.5">{t('account.tokensHelp')}</p>
           </div>
           <Button onclick={() => { tokenModalOpen = true; newTokenName = ''; issuedTokenValue = null; }}>
             Generate New Token
@@ -565,7 +593,7 @@
                   </div>
                   <span class="text-[11px] text-muted-foreground mt-0.5">Created: {new Date(tok.created_at).toLocaleDateString()} {tok.expires_at ? `• Expires: ${new Date(tok.expires_at).toLocaleDateString()}` : ''}</span>
                 </div>
-                <Button variant="danger" onclick={() => (deleteTokenTarget = tok)}>Revoke</Button>
+                <Button variant="danger" onclick={() => (deleteTokenTarget = tok)}>{t('account.revoke')}</Button>
               </div>
             {/each}
           {/if}
@@ -611,7 +639,7 @@
         </Button>
       </div>
       <div class="flex justify-end pt-2">
-        <Button onclick={() => (tokenModalOpen = false)}>Done</Button>
+        <Button onclick={() => (tokenModalOpen = false)}>{t('account.done')}</Button>
       </div>
     </div>
   {:else}
@@ -630,7 +658,7 @@
         <Input id="tok-days" type="number" bind:value={newTokenDays} min={1} max={365} required />
       </div>
       <div class="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onclick={() => (tokenModalOpen = false)}>Cancel</Button>
+        <Button type="button" variant="outline" onclick={() => (tokenModalOpen = false)}>{t('account.cancel')}</Button>
         <Button type="submit" disabled={creatingToken}>Generate Token</Button>
       </div>
     </form>

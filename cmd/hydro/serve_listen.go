@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -211,6 +212,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 				}
 			}
 		},
+		AdminRequestAudit:   adminRequestAudit(cfg.Audit.LogRequestBodies, authHTTP.Audit),
 		SecureCookie:        cfg.Security.SecureCookies,
 		HTTPBodyLimit:       budget.HTTPBodyBytes,
 		MaxInFlightRequests: budget.MaxInFlightHTTP,
@@ -247,4 +249,19 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		Routes:         routes,
 		Ready:          a.readiness,
 	}, nil
+}
+
+// adminRequestAudit returns the request-body audit middleware when the
+// operator enabled audit.log_request_bodies, and nil otherwise.
+func adminRequestAudit(enabled bool, recorder auth.AuditRecorder) func(http.Handler) http.Handler {
+	detailed, ok := recorder.(auth.DetailedAuditRecorder)
+	if !enabled || !ok {
+		return nil
+	}
+	return audit.RequestLog{
+		Recorder: detailed,
+		// Uploads are multipart and skipped by content type; these endpoints are
+		// high-volume reports from the admin UI itself, not user actions.
+		SkipPath: func(path string) bool { return path == "/api/v1/admin/client-errors" },
+	}.Middleware
 }

@@ -41,6 +41,10 @@ observability:
   sentry_dsn: ""
 # Optional external webhook: set HYDRO_WEBHOOK_URL, HYDRO_WEBHOOK_SECRET,
 # and HYDRO_WEBHOOK_TOPICS in the deployment environment.
+audit:
+  # Record the (redacted, size-capped) JSON body of admin API writes in the audit
+  # log so reviewers can see what was requested. Off by default.
+  log_request_bodies: false
 security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false

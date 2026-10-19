@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -108,8 +109,8 @@
 
 <Modal
   {open}
-  title="Media Library"
-  description="Select an asset from the media library or upload new files."
+  title={t('nav.media')}
+  description={t('media.picker.description')}
   {onclose}
 >
   <div class="flex flex-col gap-3.5">
@@ -130,7 +131,7 @@
         </svg>
         <input
           type="text"
-          placeholder="Filter assets..."
+          placeholder={t('media.picker.filter')}
           bind:value={search}
           class="h-8 w-full pl-8 pr-3 text-xs rounded-md border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
         />
@@ -144,14 +145,14 @@
       >
         {#if uploading}
           <div class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-          <span>Uploading...</span>
+          <span>{t('media.picker.uploading')}</span>
         {:else}
           <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
             <line x1="12" y1="3" x2="12" y2="15"></line>
           </svg>
-          <span>Upload Asset</span>
+          <span>{t('media.picker.upload')}</span>
         {/if}
       </button>
     </div>
@@ -159,14 +160,14 @@
     {#if loading}
       <div class="py-16 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
         <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-        <span>Loading library assets...</span>
+        <span>{t('media.picker.loading')}</span>
       </div>
     {:else if filteredItems.length === 0}
       <div class="py-14 text-center text-muted-foreground text-xs border border-dashed border-border rounded-xl">
         {#if search}
-          <p>No assets matched "{search}".</p>
+          <p>{t('media.picker.noMatch', { query: search })}</p>
         {:else}
-          <p>No media assets found in library. Click "Upload Asset" above.</p>
+          <p>{t('media.picker.empty')}</p>
         {/if}
       </div>
     {:else}
@@ -216,28 +217,28 @@
     {#if selectedItem}
       <div class="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border text-xs">
         <span class="truncate font-medium text-foreground max-w-[280px]">
-          Selected: {getName(selectedItem)}
+          {t('media.picker.selected', { name: getName(selectedItem) })}
         </span>
         <button
           type="button"
           class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
           onclick={() => { selectedId = null; }}
         >
-          Deselect
+          {t('media.picker.deselect')}
         </button>
       </div>
     {/if}
   </div>
 
   {#snippet footer()}
-    <Button variant="ghost" size="sm" onclick={onclose}>Cancel</Button>
+    <Button variant="ghost" size="sm" onclick={onclose}>{t('common.cancel')}</Button>
     <Button
       variant="primary"
       size="sm"
       disabled={!selectedId}
       onclick={confirmSelection}
     >
-      Choose Asset
+      {t('media.picker.choose')}
     </Button>
   {/snippet}
 </Modal>

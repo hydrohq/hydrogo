@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -64,7 +65,7 @@
   $effect(() => {
     router.setDirty(
       isDirty,
-      'Sayfada kaydedilmemiş değişiklikleriniz var. Taslak olarak kaydetmeden veya yayınlamadan çıkmak istediğinizden emin misiniz?'
+      t('pages.editor.unsaved')
     );
   });
 
@@ -102,7 +103,7 @@
         captureSnapshot();
       }
     } catch (e: any) {
-      errorMsg = e.message || 'Failed to load page';
+      errorMsg = e.message || t('pages.editor.loadFailed');
     }
   }
 
@@ -135,11 +136,11 @@
         formData.status = 'draft';
         captureSnapshot();
         router.setDirty(false);
-        successMsg = 'Draft saved.';
+        successMsg = t('pages.editor.draftSaved');
         setTimeout(() => { successMsg = null; }, 3000);
       }
     } catch (e: any) {
-      errorMsg = e.message || 'Save failed';
+      errorMsg = e.message || t('news.editor.saveFailed');
     } finally {
       saving = false;
     }
@@ -164,15 +165,15 @@
         formData.status = 'published';
         captureSnapshot();
         router.setDirty(false);
-        successMsg = 'Page published successfully!';
+        successMsg = t('pages.editor.published');
       } else {
         // Saving a page draft in the backend resets the draft state
         await handleSaveDraft();
-        successMsg = 'Page set to draft.';
+        successMsg = t('pages.editor.setDraft');
       }
       setTimeout(() => { successMsg = null; }, 3000);
     } catch (e: any) {
-      errorMsg = e.message || `Action ${action} failed`;
+      errorMsg = e.message || t('news.editor.actionFailed', { action });
     } finally {
       saving = false;
     }
@@ -204,11 +205,11 @@
             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m15 18-6-6 6-6" />
             </svg>
-            <span>Back</span>
+            <span>{t('common.back')}</span>
           </button>
           <div class="flex items-center gap-2">
             <span class="text-sm font-semibold text-foreground">
-              {isNew ? 'New Page' : 'Edit Page'}
+              {isNew ? t('pages.editor.new') : t('pages.editor.edit')}
             </span>
             <Badge variant={formData.status === 'published' ? 'success' : 'outline'} size="sm">
               {formData.status}
@@ -226,7 +227,7 @@
               onclick={() => { revisionsOpen = true; }}
               class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
             >
-              History
+              {t('pages.editor.history')}
             </button>
           {/if}
 
@@ -236,7 +237,7 @@
             onclick={handleSaveDraft}
             class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
           >
-            Save Draft
+            {t('news.editor.saveDraft')}
           </button>
 
           {#if !isNew && formData.status === 'published'}
@@ -246,7 +247,7 @@
               onclick={() => handleWorkflowAction('retract')}
               class="h-8 px-3 rounded-md border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-medium transition-colors cursor-pointer shadow-xs"
             >
-              Retract
+              {t('news.editor.retract')}
             </button>
           {:else if !isNew}
             <button
@@ -255,7 +256,7 @@
               onclick={() => handleWorkflowAction('publish')}
               class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer shadow-xs"
             >
-              Publish
+              {t('pages.editor.publish')}
             </button>
           {/if}
         </div>
@@ -296,7 +297,7 @@
                     <line x1="16" y1="17" x2="8" y2="17"></line>
                     <polyline points="10 9 9 9 8 9"></polyline>
                   </svg>
-                  <span>Sayfa İçeriği (Ana Metin)</span>
+                  <span>{t('pages.editor.tabContent')}</span>
                 </button>
                 <button
                   type="button"
@@ -309,7 +310,7 @@
                     <rect x="14" y="14" width="7" height="7"></rect>
                     <rect x="3" y="14" width="7" height="7"></rect>
                   </svg>
-                  <span>Düzen Blokları (Layout Blocks)</span>
+                  <span>{t('pages.editor.tabBlocks')}</span>
                   {#if formData.blocks && formData.blocks.length > 0}
                     <span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-primary/10 text-primary font-semibold">
                       {formData.blocks.length}
@@ -319,15 +320,15 @@
               </div>
 
               <span class="text-[11px] text-muted-foreground hidden sm:inline-block">
-                {activeEditorTab === 'content' ? 'Zengin Metin / HTML' : 'Bileşen Blokları'}
+                {activeEditorTab === 'content' ? t('pages.editor.modeContent') : t('pages.editor.modeBlocks')}
               </span>
             </div>
 
             {#if activeEditorTab === 'content'}
               <RichTextEditor
-                label="Sayfa İçeriği"
+                label={t('pages.editor.contentLabel')}
                 bind:value={formData.body}
-                placeholder="Sayfa içeriğini buraya yazın veya '/' tuşuna basarak biçimlendirme menüsünü açın..."
+                placeholder={t('pages.editor.contentPlaceholder')}
               />
             {:else}
               <BlocksEditor
@@ -342,36 +343,36 @@
         <div class="space-y-4">
           <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
             <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Page Attributes
+              {t('pages.editor.attributes')}
             </h3>
 
             <Input
-              label="Page Title"
-              placeholder="e.g. About Us"
+              label={t('pages.editor.pageTitle')}
+              placeholder={t('pages.editor.titlePlaceholder')}
               bind:value={formData.title}
               oninput={autoSlug}
               required
             />
 
             <Input
-              label="URL Slug"
-              placeholder="e.g. about-us"
+              label={t('pages.editor.slug')}
+              placeholder={t('pages.editor.slugPlaceholder')}
               bind:value={formData.slug}
               required
             />
 
             <div class="flex flex-col gap-1.5">
               <label for="layout-template-select" class="text-xs font-medium text-foreground">
-                Layout Template
+                {t('pages.editor.layout')}
               </label>
               <select
                 id="layout-template-select"
                 bind:value={formData.layout_template}
                 class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               >
-                <option value="default">Default Page</option>
-                <option value="landing">Full-width Landing</option>
-                <option value="contained">Contained / Centered</option>
+                <option value="default">{t('pages.editor.layoutDefault')}</option>
+                <option value="landing">{t('pages.editor.layoutLanding')}</option>
+                <option value="contained">{t('pages.editor.layoutContained')}</option>
               </select>
             </div>
           </div>

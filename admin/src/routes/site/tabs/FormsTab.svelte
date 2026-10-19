@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -81,7 +82,7 @@
         forms = res.data;
       }
     } catch (e: any) {
-      notify(e.message || 'Failed to load forms', true);
+      notify(e.message || t('site.forms.loadFailed'), true);
     } finally {
       loading = false;
     }
@@ -132,7 +133,7 @@
   async function handleSaveForm() {
     const id = slugify(formId || formTitle);
     if (!id || !formTitle.trim()) {
-      notify('Form ID and Title are required.', true);
+      notify(t('site.forms.required'), true);
       return;
     }
 
@@ -146,7 +147,7 @@
       }));
 
     if (cleanedFields.length === 0) {
-      notify('At least one form field is required.', true);
+      notify(t('site.forms.fieldRequired'), true);
       return;
     }
 
@@ -167,16 +168,16 @@
 
       if (editingId) {
         await api.put(`/api/v1/admin/site/forms/${editingId}`, payload);
-        notify(`Form '${payload.title}' updated successfully.`);
+        notify(t('site.forms.updated', { title: payload.title }));
       } else {
         await api.post('/api/v1/admin/site/forms', payload);
-        notify(`Form '${payload.title}' created successfully.`);
+        notify(t('site.forms.created', { title: payload.title }));
       }
 
       modalOpen = false;
       await loadForms();
     } catch (e: any) {
-      notify(e.message || 'Failed to save form', true);
+      notify(e.message || t('site.forms.saveFailed'), true);
     } finally {
       saving = false;
     }
@@ -187,11 +188,11 @@
     deleting = true;
     try {
       await api.delete(`/api/v1/admin/site/forms/${deleteTarget.id}`);
-      notify(`Form '${deleteTarget.title}' deleted.`);
+      notify(t('site.forms.deleted', { title: deleteTarget.title }));
       deleteTarget = null;
       await loadForms();
     } catch (e: any) {
-      notify(e.message || 'Failed to delete form', true);
+      notify(e.message || t('site.forms.deleteFailed'), true);
     } finally {
       deleting = false;
     }
@@ -205,13 +206,13 @@
 <div class="space-y-4">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
     <div>
-      <h3 class="text-sm font-semibold text-foreground">Custom Forms Builder</h3>
-      <p class="text-xs text-muted-foreground">Build contact, inquiry, survey and lead capture forms.</p>
+      <h3 class="text-sm font-semibold text-foreground">{t('site.forms.title')}</h3>
+      <p class="text-xs text-muted-foreground">{t('site.forms.help')}</p>
     </div>
 
     <Button onclick={openCreate} class="gap-1.5 text-xs shadow-xs">
       <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-      <span>New Form</span>
+      <span>{t('site.forms.new')}</span>
     </Button>
   </div>
 
@@ -227,11 +228,11 @@
   {/if}
 
   {#if loading}
-    <div class="p-8 text-center text-xs text-muted-foreground">Loading forms...</div>
+    <div class="p-8 text-center text-xs text-muted-foreground">{t('site.forms.loading')}</div>
   {:else if forms.length === 0}
     <div class="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground space-y-2">
-      <p>No custom forms configured yet.</p>
-      <Button variant="outline" class="text-xs" onclick={openCreate}>Create First Form</Button>
+      <p>{t('site.forms.empty')}</p>
+      <Button variant="outline" class="text-xs" onclick={openCreate}>{t('site.forms.createFirst')}</Button>
     </div>
   {:else}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -258,7 +259,7 @@
                   type="button"
                   class="size-7 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer"
                   onclick={() => openEdit(f)}
-                  title="Edit Form"
+                  title={t('site.forms.edit')}
                 >
                   <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path></svg>
                 </button>
@@ -266,7 +267,7 @@
                   type="button"
                   class="size-7 rounded hover:bg-muted text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer"
                   onclick={() => { deleteTarget = f; }}
-                  title="Delete Form"
+                  title={t('site.forms.delete')}
                 >
                   <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
@@ -276,10 +277,10 @@
             <div class="flex flex-wrap gap-1.5 mt-3">
               <Badge variant="outline" class="text-[10px]">{f.fields?.length || 0} fields</Badge>
               {#if f.notification_recipients && f.notification_recipients.length > 0}
-                <Badge variant="secondary" class="text-[10px]">Email alert</Badge>
+                <Badge variant="secondary" class="text-[10px]">{t('site.forms.emailAlert')}</Badge>
               {/if}
               {#if f.autoresponder}
-                <Badge variant="success" class="text-[10px]">Autoresponder</Badge>
+                <Badge variant="success" class="text-[10px]">{t('site.forms.autoresponder')}</Badge>
               {/if}
             </div>
           </div>
@@ -294,18 +295,18 @@
 </div>
 
 <!-- Form Create/Edit Modal -->
-<Modal open={modalOpen} onclose={() => { modalOpen = false; }} title={editingId ? `Edit Form: ${formTitle}` : 'Create New Form'}>
+<Modal open={modalOpen} onclose={() => { modalOpen = false; }} title={editingId ? t('site.forms.editTitle', { title: formTitle }) : t('site.forms.createTitle')}>
   <div class="space-y-4 max-h-[75vh] overflow-y-auto px-1">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <Input
-        label="Form Title"
-        placeholder="e.g. Contact Us, Request a Quote"
+        label={t('site.forms.formTitle')}
+        placeholder={t('site.forms.titlePlaceholder')}
         bind:value={formTitle}
         required
       />
       <Input
-        label="Form ID / Key"
-        placeholder="e.g. contact, quote"
+        label={t('site.forms.formId')}
+        placeholder={t('site.forms.idPlaceholder')}
         bind:value={formId}
         disabled={!!editingId}
         required
@@ -313,22 +314,22 @@
     </div>
 
     <Input
-      label="Notification Emails"
-      placeholder="Comma-separated: team@example.com, sales@example.com"
+      label={t('site.forms.recipients')}
+      placeholder={t('site.forms.recipientsPlaceholder')}
       bind:value={formRecipients}
     />
 
     <!-- Fields Builder -->
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold text-foreground">Form Fields ({formFields.length})</span>
+        <span class="text-xs font-semibold text-foreground">{t('site.forms.fields', { count: formFields.length })}</span>
         <button
           type="button"
           class="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
           onclick={addField}
         >
           <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Add Field</span>
+          <span>{t('ct.addField')}</span>
         </button>
       </div>
 
@@ -337,37 +338,37 @@
           <div class="flex items-center gap-2 rounded-lg border border-border bg-card p-2.5 shadow-xs">
             <input
               bind:value={field.label}
-              placeholder="Field Label (e.g. Phone)"
+              placeholder={t('site.forms.fieldLabel')}
               class="flex-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <input
               bind:value={field.id}
-              placeholder="ID"
+              placeholder={t('site.forms.fieldId')}
               class="w-24 rounded-md border border-input bg-background px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <select
               bind:value={field.type}
               class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value="text">Text</option>
-              <option value="email">Email</option>
-              <option value="textarea">Textarea</option>
-              <option value="phone">Phone</option>
-              <option value="number">Number</option>
-              <option value="checkbox">Checkbox</option>
-              <option value="select">Select</option>
+              <option value="text">{t('site.forms.type.text')}</option>
+              <option value="email">{t('site.forms.type.email')}</option>
+              <option value="textarea">{t('site.forms.type.textarea')}</option>
+              <option value="phone">{t('site.forms.type.phone')}</option>
+              <option value="number">{t('site.forms.type.number')}</option>
+              <option value="checkbox">{t('site.forms.type.checkbox')}</option>
+              <option value="select">{t('site.forms.type.select')}</option>
             </select>
             <label class="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
               <input type="checkbox" bind:checked={field.required} class="size-3.5 rounded text-primary" />
-              <span>Req</span>
+              <span>{t('site.forms.req')}</span>
             </label>
             {#if formFields.length > 1}
               <button
                 type="button"
                 onclick={() => removeField(idx)}
                 class="size-6 rounded hover:bg-muted text-muted-foreground hover:text-destructive flex items-center justify-center cursor-pointer"
-                title="Remove field"
-                aria-label="Remove field"
+                title={t('ct.removeField')}
+                aria-label={t('ct.removeField')}
               >
                 <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               </button>
@@ -381,23 +382,23 @@
     <div class="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
       <label class="flex items-center gap-2 cursor-pointer text-xs select-none font-medium">
         <input type="checkbox" bind:checked={autoresponder} class="size-4 rounded text-primary" />
-        <span>Enable Automatic Email Reply (Autoresponder)</span>
+        <span>{t('site.forms.enableAuto')}</span>
       </label>
 
       {#if autoresponder}
         <div class="space-y-2 pt-2">
           <Input
-            label="Email Subject"
-            placeholder="Thank you for reaching out!"
+            label={t('site.forms.subject')}
+            placeholder={t('site.forms.subjectPlaceholder')}
             bind:value={autoSubject}
           />
           <div>
-            <label for="auto-body" class="text-xs font-medium text-foreground">Email Body</label>
+            <label for="auto-body" class="text-xs font-medium text-foreground">{t('site.forms.body')}</label>
             <textarea
               id="auto-body"
               bind:value={autoBody}
               rows="3"
-              placeholder="We received your submission and will get back to you shortly..."
+              placeholder={t('site.forms.bodyPlaceholder')}
               class="w-full rounded-md border border-input bg-background p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             ></textarea>
           </div>
@@ -407,9 +408,9 @@
   </div>
 
   <div class="mt-4 pt-3 border-t border-border flex justify-end gap-2">
-    <Button variant="outline" onclick={() => { modalOpen = false; }} disabled={saving}>Cancel</Button>
+    <Button variant="outline" onclick={() => { modalOpen = false; }} disabled={saving}>{t('common.cancel')}</Button>
     <Button onclick={handleSaveForm} disabled={saving || !formTitle}>
-      {saving ? 'Saving...' : 'Save Form'}
+      {saving ? t('common.saving') : t('site.forms.save')}
     </Button>
   </div>
 </Modal>
@@ -417,9 +418,9 @@
 <!-- Delete Form Dialog -->
 <ConfirmDialog
   open={!!deleteTarget}
-  title={`Delete Form '${deleteTarget?.title}'?`}
-  description="Deleting this form will prevent new submissions. Existing submission data will remain preserved."
-  confirmLabel={deleting ? 'Deleting...' : 'Delete Form'}
+  title={t('site.forms.deleteTitle', { title: deleteTarget?.title ?? '' })}
+  description={t('site.forms.deleteDescription')}
+  confirmLabel={deleting ? t('ct.deleting') : t('site.forms.deleteConfirm')}
   variant="destructive"
   loading={deleting}
   onconfirm={handleDeleteForm}

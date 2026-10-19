@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -82,7 +83,7 @@
           <line x1="8" y1="12" x2="16" y2="12"></line>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Quick Create</span>
+          <span class="truncate">{t('nav.quickCreate')}</span>
         {/if}
       </button>
 
@@ -91,13 +92,13 @@
           type="button"
           onclick={() => handleNavigate('/audit')}
           class="size-9 shrink-0 flex items-center justify-center rounded-md border border-sidebar-border bg-background hover:bg-sidebar-accent text-sidebar-foreground transition-colors cursor-pointer shadow-xs"
-          title="Audit Log"
+          title={t('nav.auditLog')}
         >
           <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="20" height="16" x="2" y="4" rx="2"></rect>
             <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
           </svg>
-          <span class="sr-only">Audit</span>
+          <span class="sr-only">{t('nav.audit')}</span>
         </button>
       {/if}
 
@@ -105,7 +106,7 @@
       {#if showQuickCreate}
         <div class="absolute left-0 top-11 w-48 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md z-50 text-xs">
           <div class="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Create New
+            {t('nav.createNew')}
           </div>
           <button
             type="button"
@@ -113,7 +114,7 @@
             onclick={() => handleNavigate('/pages/new')}
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            <span>New Page</span>
+            <span>{t('nav.newPage')}</span>
           </button>
           <button
             type="button"
@@ -121,7 +122,7 @@
             onclick={() => handleNavigate('/news/new')}
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path></svg>
-            <span>New Article</span>
+            <span>{t('nav.newArticle')}</span>
           </button>
           <button
             type="button"
@@ -129,7 +130,7 @@
             onclick={() => handleNavigate('/media')}
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
-            <span>Upload Media</span>
+            <span>{t('nav.uploadMedia')}</span>
           </button>
           {#each schema.collections as col}
             <button
@@ -161,7 +162,7 @@
           <rect width="7" height="5" x="3" y="16" rx="1"></rect>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Dashboard</span>
+          <span class="truncate">{t('nav.dashboard')}</span>
         {/if}
       </a>
 
@@ -176,7 +177,7 @@
           <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Pages</span>
+          <span class="truncate">{t('nav.pages')}</span>
         {/if}
       </a>
 
@@ -195,7 +196,7 @@
           <line x1="10" y1="9" x2="8" y2="9"></line>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">News</span>
+          <span class="truncate">{t('nav.news')}</span>
         {/if}
       </a>
 
@@ -212,7 +213,7 @@
           <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Media Library</span>
+          <span class="truncate">{t('nav.media')}</span>
         {/if}
       </a>
 
@@ -230,7 +231,7 @@
           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Members</span>
+          <span class="truncate">{t('nav.members')}</span>
         {/if}
       </a>
     </div>
@@ -239,7 +240,7 @@
     <div class="mt-3 flex flex-col gap-1">
       {#if sidebar.open}
         <div class="px-2 py-1 flex items-center justify-between text-xs font-medium text-sidebar-foreground/60 tracking-wider">
-          <span>Documents</span>
+          <span>{t('nav.documents')}</span>
           <button
             type="button"
             onclick={() => handleNavigate('/content-types')}
@@ -297,7 +298,7 @@
                       onclick={() => handleNavigate(`/content/${collection.id}`)}
                     >
                       <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
-                      <span>Open</span>
+                      <span>{t('nav.open')}</span>
                     </button>
                     <button
                       type="button"
@@ -305,7 +306,7 @@
                       onclick={() => handleNavigate(`/content/${collection.id}/new`)}
                     >
                       <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                      <span>Create</span>
+                      <span>{t('nav.create')}</span>
                     </button>
                   </div>
                 {/if}
@@ -328,7 +329,7 @@
           <circle cx="12" cy="12" r="3"></circle>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Settings</span>
+          <span class="truncate">{t('nav.settings')}</span>
         {/if}
       </a>
 
@@ -342,7 +343,7 @@
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Users & Roles</span>
+          <span class="truncate">{t('nav.users')}</span>
         {/if}
       </a>
 
@@ -358,7 +359,7 @@
           <line x1="6" y1="20" x2="6" y2="14"></line>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Telemetry</span>
+          <span class="truncate">{t('nav.telemetry')}</span>
         {/if}
       </a>
     </div>
@@ -406,7 +407,7 @@
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <span>Account</span>
+            <span>{t('nav.account')}</span>
           </a>
           <a
             href="/admin/system"
@@ -414,7 +415,7 @@
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-            <span>Telemetry</span>
+            <span>{t('nav.telemetry')}</span>
           </a>
           <button
             type="button"
@@ -427,9 +428,9 @@
               {:else}
                 <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
               {/if}
-              <span>Theme</span>
+              <span>{t('nav.theme')}</span>
             </div>
-            <span class="text-[11px] text-muted-foreground capitalize">{theme.isDark ? 'Dark' : 'Light'}</span>
+            <span class="text-[11px] text-muted-foreground capitalize">{theme.isDark ? t('nav.dark') : t('nav.light')}</span>
           </button>
         </div>
         <div class="border-t border-border/80 pt-1">
@@ -439,7 +440,7 @@
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-destructive hover:bg-destructive/10 text-left transition-colors cursor-pointer"
           >
             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            <span>Log out</span>
+            <span>{t('nav.logout')}</span>
           </button>
         </div>
       </div>

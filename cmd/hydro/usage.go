@@ -10,6 +10,10 @@ func printUsage(w io.Writer) {
 	fmt.Fprint(w, `HydroGo development CLI
 
 Usage:
+  Start a project
+  hydro new DIR [--preset minimal|blog|corporate|news|docs] [--admin-email EMAIL [--admin-password-stdin]]
+  hydro init [same options]  (scaffold in the current directory)
+
   Run and develop
   hydro serve [--cgi | --fastcgi --fastcgi-address 127.0.0.1:9001] [--dev] [runtime flags]
   hydro run [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--poll DUR]
@@ -27,6 +31,8 @@ Usage:
   hydro db reindex [runtime flags]
 
   Content and users
+  hydro content-type new ID [--dir content-types]
+  hydro content-type validate [--dir content-types]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
   hydro clean --demo [--target demo|staging|production] [--force-prod] [runtime flags]

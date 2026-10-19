@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -83,7 +84,7 @@
   $effect(() => {
     router.setDirty(
       isDirty,
-      'Yazıda kaydedilmemiş değişiklikleriniz var. Taslak olarak kaydetmeden veya yayınlamadan çıkmak istediğinizden emin misiniz?'
+      t('news.editor.unsaved')
     );
   });
 
@@ -133,7 +134,7 @@
         captureSnapshot();
       }
     } catch (e: any) {
-      errorMsg = e.message || 'Failed to load article';
+      errorMsg = e.message || t('news.editor.loadFailed');
     } finally {
       loading = false;
     }
@@ -177,11 +178,11 @@
         }
         captureSnapshot();
         router.setDirty(false);
-        successMsg = 'Draft saved successfully.';
+        successMsg = t('news.editor.draftSaved');
       }
       setTimeout(() => { successMsg = null; }, 3000);
     } catch (e: any) {
-      errorMsg = e.message || 'Save failed';
+      errorMsg = e.message || t('news.editor.saveFailed');
     } finally {
       saving = false;
     }
@@ -204,7 +205,7 @@
         status = 'published';
         captureSnapshot();
         router.setDirty(false);
-        successMsg = 'Article published!';
+        successMsg = t('news.editor.published');
       } else if (action === 'retract') {
         const res = await api.post<ApiResponse<any>>(`/api/v1/admin/news/${id}/retract`, {
           version: version || 1,
@@ -215,10 +216,10 @@
         status = 'retracted';
         captureSnapshot();
         router.setDirty(false);
-        successMsg = 'Article retracted to draft state.';
+        successMsg = t('news.editor.retracted');
       } else if (action === 'schedule') {
         if (!scheduledAt) {
-          errorMsg = 'Please specify a scheduled publication date and time.';
+          errorMsg = t('news.editor.needSchedule');
           return;
         }
         const res = await api.post<ApiResponse<any>>(`/api/v1/admin/news/${id}/schedule`, {
@@ -231,11 +232,11 @@
         status = 'scheduled';
         captureSnapshot();
         router.setDirty(false);
-        successMsg = 'Article scheduled for release.';
+        successMsg = t('news.editor.scheduled');
       }
       setTimeout(() => { successMsg = null; }, 3000);
     } catch (e: any) {
-      errorMsg = e.message || `Action ${action} failed`;
+      errorMsg = e.message || t('news.editor.actionFailed', { action });
     } finally {
       saving = false;
     }
@@ -266,11 +267,11 @@
             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m15 18-6-6 6-6" />
             </svg>
-            <span>Back</span>
+            <span>{t('common.back')}</span>
           </button>
           <div class="flex items-center gap-2">
             <span class="text-sm font-semibold text-foreground">
-              {isNew ? 'New Article' : 'Edit Article'}
+              {isNew ? t('news.editor.new') : t('news.editor.edit')}
             </span>
             {#if !isNew}
               <Badge variant={status === 'published' ? 'success' : status === 'scheduled' ? 'secondary' : status === 'retracted' ? 'destructive' : 'outline'} size="sm">
@@ -279,7 +280,7 @@
               <DocumentPresence {presence} mode="pill" />
             {/if}
             {#if loading}
-              <span class="text-xs text-muted-foreground animate-pulse">Loading...</span>
+              <span class="text-xs text-muted-foreground animate-pulse">{t('common.loading')}</span>
             {/if}
           </div>
         </div>
@@ -291,7 +292,7 @@
             onclick={handleSaveDraft}
             class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
           >
-            Save Draft
+            {t('news.editor.saveDraft')}
           </button>
 
           {#if !isNew && status === 'published'}
@@ -301,7 +302,7 @@
               onclick={() => handleWorkflowAction('retract')}
               class="h-8 px-3 rounded-md border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-medium transition-colors cursor-pointer shadow-xs"
             >
-              Retract
+              {t('news.editor.retract')}
             </button>
           {:else if !isNew}
             <button
@@ -310,7 +311,7 @@
               onclick={() => handleWorkflowAction('publish')}
               class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer shadow-xs"
             >
-              Publish Now
+              {t('news.editor.publishNow')}
             </button>
           {/if}
         </div>
@@ -337,35 +338,35 @@
         <div class="lg:col-span-2 space-y-4">
           <div class="p-6 rounded-xl border border-border bg-card shadow-xs space-y-4">
             <Input
-              label="Title"
-              placeholder="Article headline..."
+              label={t('common.title')}
+              placeholder={t('news.editor.titlePlaceholder')}
               bind:value={formData.title}
               oninput={autoSlug}
               required
             />
 
             <Input
-              label="Slug"
-              placeholder="url-friendly-slug"
+              label={t('common.slug')}
+              placeholder={t('news.editor.slugPlaceholder')}
               bind:value={formData.slug}
               required
             />
 
             <div class="flex flex-col gap-1.5">
               <label for="news-excerpt" class="text-xs font-medium text-foreground">
-                Excerpt / Summary
+                {t('news.editor.excerpt')}
               </label>
               <textarea
                 id="news-excerpt"
                 bind:value={formData.excerpt}
                 rows="3"
-                placeholder="A brief summary for cards and social previews..."
+                placeholder={t('news.editor.excerptPlaceholder')}
                 class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               ></textarea>
             </div>
 
             <RichTextEditor
-              label="Body Content"
+              label={t('news.editor.body')}
               bind:value={formData.body}
             />
           </div>
@@ -376,14 +377,14 @@
           <!-- Publishing Card -->
           <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
             <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Editorial & Schedule
+              {t('news.editor.editorial')}
             </h3>
 
             {#if !isNew && status !== 'published'}
               <div class="space-y-2">
                 <Input
                   type="datetime-local"
-                  label="Schedule Release"
+                  label={t('news.editor.scheduleRelease')}
                   bind:value={scheduledAt}
                 />
                 <button
@@ -392,7 +393,7 @@
                   disabled={saving}
                   onclick={() => handleWorkflowAction('schedule')}
                 >
-                  Set Schedule
+                  {t('news.editor.setSchedule')}
                 </button>
               </div>
             {/if}
@@ -403,20 +404,20 @@
                 bind:checked={formData.featured}
                 class="size-4 rounded border-input text-primary focus:ring-ring"
               />
-              <span class="text-xs font-medium text-foreground">Featured Article (Pinned)</span>
+              <span class="text-xs font-medium text-foreground">{t('news.editor.featured')}</span>
             </label>
           </div>
 
           <!-- Featured Image -->
           <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
             <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Cover Image
+              {t('news.editor.cover')}
             </h3>
             {#if formData.cover_media_id}
               <div class="w-full aspect-video rounded-lg bg-muted border border-border overflow-hidden relative">
                 <img
                   src={`/media/${formData.cover_media_id}`}
-                  alt="Cover asset"
+                  alt={t('news.editor.coverAlt')}
                   class="w-full h-full object-cover"
                 />
               </div>
@@ -426,31 +427,31 @@
               class="w-full h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
               onclick={() => { mediaPickerOpen = true; }}
             >
-              {formData.cover_media_id ? 'Change Cover Image' : 'Select Cover Image'}
+              {formData.cover_media_id ? t('news.editor.changeCover') : t('news.editor.selectCover')}
             </button>
           </div>
 
           <!-- Organization -->
           <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-4">
             <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Organization
+              {t('news.editor.organization')}
             </h3>
 
             <Input
-              label="Category"
-              placeholder="e.g. Engineering, Company"
+              label={t('common.category')}
+              placeholder={t('news.editor.categoryPlaceholder')}
               bind:value={formData.category}
             />
 
             <Input
-              label="Author Name"
-              placeholder="e.g. Jane Doe"
+              label={t('news.editor.authorName')}
+              placeholder={t('news.editor.authorPlaceholder')}
               bind:value={formData.author_name}
             />
 
             <Input
-              label="Tags"
-              placeholder="Comma-separated: tech, release"
+              label={t('common.tags')}
+              placeholder={t('news.editor.tagsPlaceholder')}
               bind:value={tagsInput}
             />
           </div>
@@ -458,16 +459,16 @@
           <!-- SEO -->
           <div class="p-5 rounded-xl border border-border bg-card shadow-xs space-y-3">
             <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              SEO & Meta
+              {t('news.editor.seo')}
             </h3>
             <Input
-              label="SEO Title"
-              placeholder="Custom title tag"
+              label={t('news.editor.seoTitle')}
+              placeholder={t('news.editor.seoTitlePlaceholder')}
               bind:value={formData.seo_title}
             />
             <Input
-              label="SEO Description"
-              placeholder="Meta description"
+              label={t('news.editor.seoDescription')}
+              placeholder={t('news.editor.seoDescriptionPlaceholder')}
               bind:value={formData.seo_description}
             />
           </div>
