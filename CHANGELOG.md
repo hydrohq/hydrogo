@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`hydro new DIR` / `hydro init`**: scaffold a project (config, content types, SQLite database, admin user) from a preset: `minimal`, `blog`, `corporate`, `news`, `docs`.
 - **`hydro content-type new|validate`** and a JSON Schema for content type YAML (`docs/schemas/content-type.schema.json`).
 - **Releases and installers**: tagged releases publish binaries for Linux, macOS and Windows (amd64, arm64), a Windows `Setup.exe` that adds `hydro` to PATH, `install.sh`, `install.ps1`, `SHA256SUMS` and a multi-arch container image on GHCR (`.github/workflows/release.yml`).
-- **`@hydrogo/client`** (`packages/client`, moved from `examples/headless-starter`): typed client, now with `listContent` / `getContent` for content types.
+- **`@hydrogo/client`** (`packages/client`, private, never published to npm; moved from `examples/headless-starter`): typed client, now with `listContent` / `getContent` for content types.
 - **`examples/sveltekit-starter`**: server-rendered starter (home, news list/article, pages, locale prefixes, canonical/Open Graph/JSON-LD, `sitemap.xml`, `rss.xml`, `robots.txt`, Dockerfile). `hydro new --starter sveltekit` copies it into `<project>/frontend`.
 - **Admin language**: English and Turkish admin UI; each user picks theirs under Account, and the project default is set under Site settings (`admin.default_locale`).
 - **Admin branding**: panel name, logo URL and accent colour under Site settings (`admin.brand_name`, `admin.brand_logo_url`, `admin.brand_color`).

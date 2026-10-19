@@ -23,7 +23,9 @@ hydro serve --config config.yaml
 
 ## Releasing (maintainers)
 
+Releases are published only to this repository: GitHub Releases for the binaries and installers, and the repository's own container registry (GHCR) for the image. Their visibility follows the repository's. Nothing is sent to npm, Docker Hub, winget, Homebrew or any other public registry.
+
 1. Move the "Unreleased" notes in `CHANGELOG.md` under a new `## [x.y.z] - date` heading.
 2. `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/release.yml` builds binaries for Linux, macOS and Windows (amd64, arm64), the Windows `Setup.exe`, `SHA256SUMS` and the container image, and creates the GitHub release with that changelog section. Tags with a hyphen (`v0.2.0-rc.1`) publish as pre-releases and do not move the `latest` image tag.
-4. Publish `packages/client` to npm (`npm publish --access public`) when its API changed.
+4. If the public API changed, update `packages/client` and copy `packages/client/src/hydrogo.ts` to `examples/sveltekit-starter/src/lib/hydrogo.ts` (a test fails when they differ). Nothing is published to npm.
