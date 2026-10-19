@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -176,8 +177,8 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
       <div>
-        <h2 class="text-xl font-semibold tracking-tight text-foreground">System Telemetry & Runtime Diagnostics</h2>
-        <p class="text-xs text-muted-foreground mt-0.5">In-process Go runtime performance, memory heap, connection pooling, and request metrics.</p>
+        <h2 class="text-xl font-semibold tracking-tight text-foreground">{t('system.title')}</h2>
+        <p class="text-xs text-muted-foreground mt-0.5">{t('system.subtitle')}</p>
       </div>
 
       <div class="flex items-center gap-2">
@@ -187,7 +188,7 @@
           class="h-8 px-2.5 rounded-md border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer {autoRefresh ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'border-input bg-background hover:bg-accent text-muted-foreground'}"
         >
           <span class="size-2 rounded-full {autoRefresh ? 'bg-emerald-500 animate-ping' : 'bg-muted-foreground'}"></span>
-          <span>{autoRefresh ? 'Live (5s)' : 'Auto-refresh'}</span>
+          <span>{autoRefresh ? t('system.live') : t('system.autoRefresh')}</span>
         </button>
 
         <Button variant="outline" onclick={loadData} disabled={loading}>
@@ -197,7 +198,7 @@
             <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
             <path d="M16 21h5v-5"></path>
           </svg>
-          Refresh
+          {t('system.refresh')}
         </Button>
       </div>
     </div>
@@ -207,52 +208,52 @@
       <!-- Card 1: Engine Health & Uptime -->
       <div class="rounded-xl border border-border bg-card p-4 shadow-xs space-y-2">
         <div class="flex items-center justify-between text-xs text-muted-foreground">
-          <span class="font-medium">Engine Status</span>
+          <span class="font-medium">{t('system.engineStatus')}</span>
           <span class="size-2 rounded-full {health?.ok ? 'bg-emerald-500' : 'bg-destructive'}"></span>
         </div>
         <div class="flex items-baseline gap-2">
           <span class="text-2xl font-bold tracking-tight text-foreground">
-            {health?.ok ? 'Healthy' : 'Degraded'}
+            {health?.ok ? t('system.healthy') : t('system.degraded')}
           </span>
           <span class="text-xs font-mono text-muted-foreground capitalize">
             {info?.dialect || 'sqlite'}
           </span>
         </div>
         <p class="text-[11px] text-muted-foreground">
-          Uptime: <span class="font-mono text-foreground font-medium">{formatDuration(metrics?.Uptime)}</span>
+          {t('system.uptime')}: <span class="font-mono text-foreground font-medium">{formatDuration(metrics?.Uptime)}</span>
         </p>
       </div>
 
       <!-- Card 2: Memory Heap -->
       <div class="rounded-xl border border-border bg-card p-4 shadow-xs space-y-2">
         <div class="flex items-center justify-between text-xs text-muted-foreground">
-          <span class="font-medium">Memory Allocation</span>
-          <span class="font-mono text-[10px]">{metrics?.HeapObjects?.toLocaleString() || 0} objects</span>
+          <span class="font-medium">{t('system.memoryAlloc')}</span>
+          <span class="font-mono text-[10px]">{t('system.objects', { count: metrics?.HeapObjects?.toLocaleString() || 0 })}</span>
         </div>
         <div class="flex items-baseline gap-2">
           <span class="text-2xl font-bold tracking-tight text-foreground font-mono">
             {formatBytes(metrics?.HeapAllocBytes)}
           </span>
           <span class="text-xs text-muted-foreground font-mono">
-            / {formatBytes(metrics?.HeapSysBytes)} sys
+            / {t('system.sys', { size: formatBytes(metrics?.HeapSysBytes) })}
           </span>
         </div>
         <p class="text-[11px] text-muted-foreground">
-          In-use: <span class="font-mono text-foreground font-medium">{formatBytes(metrics?.HeapInUseBytes)}</span>
+          {t('system.inUse')}: <span class="font-mono text-foreground font-medium">{formatBytes(metrics?.HeapInUseBytes)}</span>
         </p>
       </div>
 
       <!-- Card 3: Concurrency & Threads -->
       <div class="rounded-xl border border-border bg-card p-4 shadow-xs space-y-2">
         <div class="flex items-center justify-between text-xs text-muted-foreground">
-          <span class="font-medium">Go Runtime Concurrency</span>
-          <span class="font-mono text-[10px]">{metrics?.CPUCount || 1} CPU cores</span>
+          <span class="font-medium">{t('system.concurrency')}</span>
+          <span class="font-mono text-[10px]">{t('system.cpuCores', { count: metrics?.CPUCount || 1 })}</span>
         </div>
         <div class="flex items-baseline gap-2">
           <span class="text-2xl font-bold tracking-tight text-foreground font-mono">
             {metrics?.Goroutines || 0}
           </span>
-          <span class="text-xs text-muted-foreground">goroutines</span>
+          <span class="text-xs text-muted-foreground">{t('system.goroutines')}</span>
         </div>
         <p class="text-[11px] text-muted-foreground">
           GOMAXPROCS: <span class="font-mono text-foreground font-medium">{metrics?.GOMAXPROCS || 1}</span>
@@ -262,19 +263,19 @@
       <!-- Card 4: HTTP Latency & Throughput -->
       <div class="rounded-xl border border-border bg-card p-4 shadow-xs space-y-2">
         <div class="flex items-center justify-between text-xs text-muted-foreground">
-          <span class="font-medium">Request Throughput</span>
-          <span class="font-mono text-[10px]">{metrics?.InFlight || 0} in-flight</span>
+          <span class="font-medium">{t('system.throughput')}</span>
+          <span class="font-mono text-[10px]">{t('system.inFlight', { count: metrics?.InFlight || 0 })}</span>
         </div>
         <div class="flex items-baseline gap-2">
           <span class="text-2xl font-bold tracking-tight text-foreground font-mono">
             {metrics?.Requests?.toLocaleString() || 0}
           </span>
           <span class="text-xs text-muted-foreground font-mono">
-            ~{metrics?.AvgLatencyMS || 0}ms avg
+            {t('system.avgLatency', { ms: metrics?.AvgLatencyMS || 0 })}
           </span>
         </div>
         <p class="text-[11px] text-muted-foreground">
-          Errors: <span class="font-mono text-destructive font-medium">{metrics?.Errors || 0}</span>
+          {t('system.errors')}: <span class="font-mono text-destructive font-medium">{metrics?.Errors || 0}</span>
         </p>
       </div>
     </div>
@@ -286,42 +287,42 @@
         onclick={() => (activeTab = 'overview')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'overview' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Engine Overview
+        {t('system.tab.overview')}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'memory')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'memory' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Memory & Runtime
+        {t('system.tab.memory')}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'database')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'database' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Database & Cache
+        {t('system.tab.database')}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'jobs')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'jobs' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Async Workers & Jobs
+        {t('system.tab.workers')}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'paths')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'paths' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Monitored Paths ({metrics?.TopPaths?.length || 0})
+        {t('system.tab.paths', { count: metrics?.TopPaths?.length || 0 })}
       </button>
       <button
         type="button"
         onclick={() => (activeTab = 'backups')}
         class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'backups' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
       >
-        Backups & Security
+        {t('system.tab.backups')}
       </button>
     </div>
 
@@ -330,39 +331,39 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Configuration Card -->
         <div class="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
-          <h3 class="text-sm font-semibold text-foreground">Server Information</h3>
+          <h3 class="text-sm font-semibold text-foreground">{t('system.server')}</h3>
           <div class="divide-y divide-border/60 text-xs">
             <div class="py-2.5 flex justify-between">
-              <span class="text-muted-foreground">HydroGo Core Version</span>
+              <span class="text-muted-foreground">{t('system.coreVersion')}</span>
               <span class="font-mono font-medium text-foreground">{info?.version || 'dev'}</span>
             </div>
             <div class="py-2.5 flex justify-between">
-              <span class="text-muted-foreground">Go Compiler Version</span>
+              <span class="text-muted-foreground">{t('system.goVersion')}</span>
               <span class="font-mono text-foreground">{info?.go_version || 'go1.24'}</span>
             </div>
             <div class="py-2.5 flex justify-between">
-              <span class="text-muted-foreground">Database Engine Dialect</span>
+              <span class="text-muted-foreground">{t('system.dialect')}</span>
               <Badge variant="outline" class="font-mono text-[10px] uppercase">{info?.dialect || 'sqlite'}</Badge>
             </div>
             <div class="py-2.5 flex justify-between">
-              <span class="text-muted-foreground">Capacity Profile</span>
+              <span class="text-muted-foreground">{t('system.capacity')}</span>
               <span class="font-mono text-foreground capitalize">{info?.capacity_profile || 'standard'}</span>
             </div>
             <div class="py-2.5 flex justify-between">
-              <span class="text-muted-foreground">Development Hot Reload Mode</span>
-              <Badge variant={info?.dev_mode ? 'primary' : 'outline'}>{info?.dev_mode ? 'Enabled' : 'Disabled'}</Badge>
+              <span class="text-muted-foreground">{t('system.devMode')}</span>
+              <Badge variant={info?.dev_mode ? 'primary' : 'outline'}>{info?.dev_mode ? t('common.enabled') : t('common.disabled')}</Badge>
             </div>
             <div class="py-2.5 flex justify-between">
-              <span class="text-muted-foreground">Safe Mode</span>
-              <span class="font-medium text-foreground">{info?.safe_mode ? 'Active' : 'Inactive'}</span>
+              <span class="text-muted-foreground">{t('system.safeMode')}</span>
+              <span class="font-medium text-foreground">{info?.safe_mode ? t('common.active') : t('system.inactive')}</span>
             </div>
           </div>
         </div>
 
         <!-- Modules Card -->
         <div class="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
-          <h3 class="text-sm font-semibold text-foreground">Active Modules</h3>
-          <p class="text-xs text-muted-foreground">Modules loaded into the binary for this installation.</p>
+          <h3 class="text-sm font-semibold text-foreground">{t('system.modules')}</h3>
+          <p class="text-xs text-muted-foreground">{t('system.modulesHelp')}</p>
           <div class="flex flex-wrap gap-2 pt-2">
             {#if info?.modules}
               {#each Object.entries(info.modules) as [mod, enabled]}
@@ -374,7 +375,7 @@
                 {/if}
               {/each}
             {:else}
-              <span class="text-xs text-muted-foreground">Loading active modules...</span>
+              <span class="text-xs text-muted-foreground">{t('system.modulesLoading')}</span>
             {/if}
           </div>
         </div>
@@ -384,29 +385,29 @@
     {:else if activeTab === 'memory'}
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-6">
         <div>
-          <h3 class="text-sm font-semibold text-foreground">Go Runtime Memory Heap</h3>
-          <p class="text-xs text-muted-foreground mt-0.5">Real-time memory allocations recorded by the Go runtime collector.</p>
+          <h3 class="text-sm font-semibold text-foreground">{t('system.heap')}</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">{t('system.heapHelp')}</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="p-4 rounded-lg border border-border bg-muted/20 space-y-1">
-            <span class="text-xs text-muted-foreground block">Heap Alloc (Active Objects)</span>
+            <span class="text-xs text-muted-foreground block">{t('system.heapAlloc')}</span>
             <span class="text-xl font-bold font-mono text-foreground">{formatBytes(metrics?.HeapAllocBytes)}</span>
           </div>
           <div class="p-4 rounded-lg border border-border bg-muted/20 space-y-1">
-            <span class="text-xs text-muted-foreground block">Heap In-Use (Spanned Memory)</span>
+            <span class="text-xs text-muted-foreground block">{t('system.heapInUse')}</span>
             <span class="text-xl font-bold font-mono text-foreground">{formatBytes(metrics?.HeapInUseBytes)}</span>
           </div>
           <div class="p-4 rounded-lg border border-border bg-muted/20 space-y-1">
-            <span class="text-xs text-muted-foreground block">Heap System (OS Reserved)</span>
+            <span class="text-xs text-muted-foreground block">{t('system.heapSys')}</span>
             <span class="text-xl font-bold font-mono text-foreground">{formatBytes(metrics?.HeapSysBytes)}</span>
           </div>
         </div>
 
         <div class="p-4 rounded-lg border border-border bg-muted/10 flex items-center justify-between text-xs">
           <div>
-            <span class="font-semibold text-foreground block">Garbage Collector Heap Objects</span>
-            <span class="text-muted-foreground block mt-0.5">Total live pointer-managed objects tracked by Go's concurrent tri-color GC.</span>
+            <span class="font-semibold text-foreground block">{t('system.gcObjects')}</span>
+            <span class="text-muted-foreground block mt-0.5">{t('system.gcHelp')}</span>
           </div>
           <span class="text-base font-bold font-mono text-foreground">{metrics?.HeapObjects?.toLocaleString() || 0}</span>
         </div>
@@ -417,22 +418,22 @@
       <div class="space-y-4">
         <!-- Database Pool -->
         <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
-          <h3 class="text-sm font-semibold text-foreground">SQL Connection Pool ({info?.dialect || 'SQLite'})</h3>
+          <h3 class="text-sm font-semibold text-foreground">{t('system.pool', { dialect: info?.dialect || 'SQLite' })}</h3>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">In-Use Connections</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.poolInUse')}</span>
               <span class="text-lg font-bold font-mono text-foreground">{metrics?.Database?.InUseConnections || 0}</span>
             </div>
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Idle in Pool</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.poolIdle')}</span>
               <span class="text-lg font-bold font-mono text-foreground">{metrics?.Database?.IdleConnections || 0}</span>
             </div>
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Max Configured</span>
-              <span class="text-lg font-bold font-mono text-foreground">{metrics?.Database?.MaxOpenConnections || 'Default'}</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.poolMax')}</span>
+              <span class="text-lg font-bold font-mono text-foreground">{metrics?.Database?.MaxOpenConnections || t('system.default')}</span>
             </div>
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Lock Wait Count</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.lockWait')}</span>
               <span class="text-lg font-bold font-mono text-foreground">{metrics?.Database?.WaitCount || 0}</span>
             </div>
           </div>
@@ -440,22 +441,22 @@
 
         <!-- Cache -->
         <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
-          <h3 class="text-sm font-semibold text-foreground">Internal In-Memory Cache</h3>
+          <h3 class="text-sm font-semibold text-foreground">{t('system.cache')}</h3>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Cache Hits</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.cacheHits')}</span>
               <span class="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">{metrics?.Cache?.Hits || 0}</span>
             </div>
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Cache Misses</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.cacheMisses')}</span>
               <span class="text-lg font-bold font-mono text-foreground">{metrics?.Cache?.Misses || 0}</span>
             </div>
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Evictions</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.evictions')}</span>
               <span class="text-lg font-bold font-mono text-foreground">{metrics?.Cache?.Evictions || 0}</span>
             </div>
             <div class="p-3 rounded-lg border border-border bg-muted/20">
-              <span class="text-[11px] text-muted-foreground block">Loads & Refreshes</span>
+              <span class="text-[11px] text-muted-foreground block">{t('system.loads')}</span>
               <span class="text-lg font-bold font-mono text-foreground">{metrics?.Cache?.Loads || 0}</span>
             </div>
           </div>
@@ -465,22 +466,22 @@
     <!-- Tab 4: Async Workers & Jobs -->
     {:else if activeTab === 'jobs'}
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
-        <h3 class="text-sm font-semibold text-foreground">Background Queue & Job Processor</h3>
+        <h3 class="text-sm font-semibold text-foreground">{t('system.queue')}</h3>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div class="p-3 rounded-lg border border-border bg-muted/20">
-            <span class="text-[11px] text-muted-foreground block">Queue Depth</span>
+            <span class="text-[11px] text-muted-foreground block">{t('system.queueDepth')}</span>
             <span class="text-lg font-bold font-mono text-foreground">{metrics?.Jobs?.Depth || 0}</span>
           </div>
           <div class="p-3 rounded-lg border border-border bg-muted/20">
-            <span class="text-[11px] text-muted-foreground block">Leased / Running</span>
+            <span class="text-[11px] text-muted-foreground block">{t('system.leased')}</span>
             <span class="text-lg font-bold font-mono text-primary">{metrics?.Jobs?.Leased || 0}</span>
           </div>
           <div class="p-3 rounded-lg border border-border bg-muted/20">
-            <span class="text-[11px] text-muted-foreground block">Dead Lettered</span>
+            <span class="text-[11px] text-muted-foreground block">{t('system.dead')}</span>
             <span class="text-lg font-bold font-mono text-destructive">{metrics?.Jobs?.DeadLettered || 0}</span>
           </div>
           <div class="p-3 rounded-lg border border-border bg-muted/20">
-            <span class="text-[11px] text-muted-foreground block">Worker Processed</span>
+            <span class="text-[11px] text-muted-foreground block">{t('system.processed')}</span>
             <span class="text-lg font-bold font-mono text-foreground">{metrics?.WorkerProcessed || 0}</span>
           </div>
         </div>
@@ -490,12 +491,12 @@
     {:else if activeTab === 'paths'}
       <div class="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
         <div class="p-4 border-b border-border">
-          <h3 class="text-sm font-semibold text-foreground">Top Instrumented Request Paths</h3>
+          <h3 class="text-sm font-semibold text-foreground">{t('system.topPaths')}</h3>
         </div>
         <div class="divide-y divide-border">
           {#if !metrics?.TopPaths || metrics.TopPaths.length === 0}
             <div class="p-8 text-center text-xs text-muted-foreground">
-              No top path samples collected yet. Request traffic will populate this table automatically.
+              {t('system.noPaths')}
             </div>
           {:else}
             {#each metrics.TopPaths as p}
@@ -503,13 +504,13 @@
                 <div class="grid text-left min-w-0">
                   <span class="font-mono text-xs font-semibold text-foreground truncate">{p.Path}</span>
                   <span class="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                    {p.Requests} requests • Avg: {p.AvgMS}ms • P95: {p.P95MS}ms
+                    {t('system.pathStats', { requests: p.Requests, avg: p.AvgMS, p95: p.P95MS })}
                   </span>
                 </div>
                 <div class="flex items-center gap-2 font-mono text-xs">
                   <span class="text-emerald-600 dark:text-emerald-400">{p.Status2xx} 2xx</span>
                   {#if p.Errors > 0}
-                    <span class="text-destructive font-semibold">{p.Errors} err</span>
+                    <span class="text-destructive font-semibold">{t('system.pathErr', { count: p.Errors })}</span>
                   {/if}
                 </div>
               </div>

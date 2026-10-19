@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   interface DashboardMetrics {
     pagesPublished?: number;
     newsPublished?: number;
@@ -23,15 +24,15 @@
   const latency = $derived(metrics?.avgLatencyMs ? `${metrics.avgLatencyMs}ms` : '< 5ms');
 
   function formatUptime(seconds?: number): string {
-    if (!seconds || seconds <= 0) return 'System Online';
+    if (!seconds || seconds <= 0) return t('dashboard.cards.online');
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     if (hrs > 24) {
       const days = Math.floor(hrs / 24);
-      return `${days}d ${hrs % 24}h uptime`;
+      return t('dashboard.cards.uptimeDays', { days, hours: hrs % 24 });
     }
-    if (hrs > 0) return `${hrs}h ${mins}m uptime`;
-    return `${mins}m uptime`;
+    if (hrs > 0) return t('dashboard.cards.uptimeHours', { hours: hrs, mins });
+    return t('dashboard.cards.uptimeMins', { mins });
   }
 </script>
 
@@ -39,7 +40,7 @@
   <!-- Card 1: Pages Published -->
   <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
     <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">Published Pages</span>
+      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.pages')}</span>
       <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
         {pagesCount}
       </span>
@@ -49,26 +50,26 @@
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
             <polyline points="17 6 23 6 23 12"></polyline>
           </svg>
-          Active
+          {t('dashboard.cards.pagesBadge')}
         </span>
       </div>
     </div>
     <div class="flex flex-col items-start gap-1 text-sm pt-4">
       <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>Site routes & layouts</span>
+        <span>{t('dashboard.cards.pagesLine')}</span>
         <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
           <polyline points="17 6 23 6 23 12"></polyline>
         </svg>
       </div>
-      <div class="text-xs text-muted-foreground">Served via Headless REST API</div>
+      <div class="text-xs text-muted-foreground">{t('dashboard.cards.pagesNote')}</div>
     </div>
   </div>
 
   <!-- Card 2: News Articles -->
   <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
     <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">News & Stories</span>
+      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.news')}</span>
       <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
         {newsCount}
       </span>
@@ -78,28 +79,28 @@
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
             <polyline points="17 6 23 6 23 12"></polyline>
           </svg>
-          Editorial
+          {t('dashboard.cards.newsBadge')}
         </span>
       </div>
     </div>
     <div class="flex flex-col items-start gap-1 text-sm pt-4">
       <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>Published articles</span>
+        <span>{t('dashboard.cards.newsLine')}</span>
         <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
           <polyline points="17 6 23 6 23 12"></polyline>
         </svg>
       </div>
-      <div class="text-xs text-muted-foreground">Categorized and tagged</div>
+      <div class="text-xs text-muted-foreground">{t('dashboard.cards.newsNote')}</div>
     </div>
   </div>
 
-  <!-- Card 3: Content Categories -->
+  <!-- Card 3: Members -->
   <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
     <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">Haber Kategorileri</span>
+      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.members')}</span>
       <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
-        7 Aktif
+        {(metrics?.totalMembers ?? 0).toLocaleString()}
       </span>
       <div class="absolute right-0 top-0">
         <span class="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5 text-xs font-normal text-foreground shadow-xs">
@@ -107,26 +108,26 @@
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
             <polyline points="17 6 23 6 23 12"></polyline>
           </svg>
-          Yayında
+          {t('dashboard.cards.membersActive', { count: metrics?.activeMembers ?? 0 })}
         </span>
       </div>
     </div>
     <div class="flex flex-col items-start gap-1 text-sm pt-4">
       <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>Gündem, Ekonomi, Spor...</span>
+        <span>{t('dashboard.cards.membersVerified', { count: metrics?.verifiedMembers ?? 0 })}</span>
         <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
           <polyline points="17 6 23 6 23 12"></polyline>
         </svg>
       </div>
-      <div class="text-xs text-muted-foreground">Kategori vitrinleri ve akışlar</div>
+      <div class="text-xs text-muted-foreground">{t('dashboard.cards.membersNote')}</div>
     </div>
   </div>
 
   <!-- Card 4: API & Runtime -->
   <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
     <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">API Traffic</span>
+      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.api')}</span>
       <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
         {requestsCount}
       </span>
@@ -148,7 +149,7 @@
           <polyline points="17 6 23 6 23 12"></polyline>
         </svg>
       </div>
-      <div class="text-xs text-muted-foreground">Zero downtime Go server</div>
+      <div class="text-xs text-muted-foreground">{t('dashboard.cards.noteServer')}</div>
     </div>
   </div>
 </div>

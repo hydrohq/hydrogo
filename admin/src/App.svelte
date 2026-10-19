@@ -23,6 +23,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
   import { i18n } from '$lib/i18n/index.svelte';
+  import { applyBrandColor } from '$lib/branding';
 
   let initializing = $state(true);
 
@@ -49,6 +50,12 @@
     if (auth.user && schema.schema) {
       i18n.init(auth.user.id, schema.schema.locales?.admin_default ?? null);
     }
+  });
+
+  $effect(() => {
+    applyBrandColor(schema.schema?.branding?.color);
+    const name = schema.schema?.branding?.name;
+    if (name) document.title = name;
   });
 
   $effect(() => {

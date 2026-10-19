@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -81,9 +82,9 @@
       await api.post(`/api/v1/admin/members/${selectedMember.id}/verify-email`);
       selectedMember.email_verified_at = new Date().toISOString();
       await loadMembers();
-      feedbackMessage = { type: 'success', text: 'Email verified successfully.' };
+      feedbackMessage = { type: 'success', text: t('members.verifyDone') };
     } catch (err: any) {
-      feedbackMessage = { type: 'error', text: err?.message || 'Verification failed.' };
+      feedbackMessage = { type: 'error', text: err?.message || t('members.verifyFailed') };
     } finally {
       actionLoading = false;
     }
@@ -96,11 +97,21 @@
     try {
       await api.post(`/api/v1/admin/members/${selectedMember.id}/sessions/revoke-all`);
       revokeConfirmOpen = false;
-      feedbackMessage = { type: 'success', text: 'All active sessions for this member were revoked.' };
+      feedbackMessage = { type: 'success', text: t('members.revokeDone') };
     } catch (err: any) {
-      feedbackMessage = { type: 'error', text: err?.message || 'Revoking sessions failed.' };
+      feedbackMessage = { type: 'error', text: err?.message || t('members.revokeFailed') };
     } finally {
       actionLoading = false;
+    }
+  }
+
+  function filterLabel(filter: string): string {
+    switch (filter) {
+      case 'active': return t('common.active');
+      case 'inactive': return t('members.filter.inactive');
+      case 'verified': return t('members.filter.verified');
+      case 'unverified': return t('members.verification.unverified');
+      default: return t('common.all');
     }
   }
 
@@ -111,9 +122,9 @@
 
 <ConfirmDialog
   open={revokeConfirmOpen}
-  title="Revoke Member Sessions"
-  description={`Revoke all active sessions for "${selectedMember?.email}"? The member will be required to log in again on all devices.`}
-  confirmLabel="Revoke Sessions"
+  title={t('members.revokeTitle')}
+  description={t('members.revokeDescription', { email: selectedMember?.email ?? '' })}
+  confirmLabel={t('members.revokeConfirm')}
   variant="destructive"
   loading={actionLoading}
   onconfirm={confirmRevokeSessions}
@@ -123,7 +134,7 @@
 <!-- Member Detail Modal -->
 <Modal
   open={detailOpen}
-  title={selectedMember?.email || 'Member Detail'}
+  title={selectedMember?.email || t('members.detail')}
   description={`ID: ${selectedMember?.id || ''}`}
   onclose={() => { detailOpen = false; }}
 >
@@ -132,27 +143,27 @@
       {#if feedbackMessage}
         <div class="p-3 rounded-lg text-xs {feedbackMessage.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' : 'bg-destructive/10 border border-destructive/20 text-destructive'} flex items-center justify-between">
           <span>{feedbackMessage.text}</span>
-          <button type="button" class="hover:underline cursor-pointer" onclick={() => { feedbackMessage = null; }}>Dismiss</button>
+          <button type="button" class="hover:underline cursor-pointer" onclick={() => { feedbackMessage = null; }}>{t('common.dismiss')}</button>
         </div>
       {/if}
 
       <div class="p-4 rounded-lg bg-muted/50 border border-border space-y-2.5 text-xs">
         <div class="flex justify-between items-center">
-          <span class="text-muted-foreground font-medium">Status:</span>
+          <span class="text-muted-foreground font-medium">{t('members.status')}</span>
           <Badge variant={selectedMember.active ? 'success' : 'destructive'} size="sm">
-            {selectedMember.active ? 'Active' : 'Disabled'}
+            {selectedMember.active ? t('common.active') : t('common.disabled')}
           </Badge>
         </div>
         <div class="flex justify-between items-center">
-          <span class="text-muted-foreground font-medium">Email Verification:</span>
+          <span class="text-muted-foreground font-medium">{t('members.emailVerification')}</span>
           {#if selectedMember.email_verified_at}
-            <span class="text-emerald-500 font-medium">Verified ({new Date(selectedMember.email_verified_at).toLocaleDateString()})</span>
+            <span class="text-emerald-500 font-medium">{t('members.verifiedOn', { date: new Date(selectedMember.email_verified_at).toLocaleDateString() })}</span>
           {:else}
-            <span class="text-amber-500 font-medium">Unverified</span>
+            <span class="text-amber-500 font-medium">{t('members.verification.unverified')}</span>
           {/if}
         </div>
         <div class="flex justify-between items-center">
-          <span class="text-muted-foreground font-medium">Member Since:</span>
+          <span class="text-muted-foreground font-medium">{t('members.since')}</span>
           <span class="text-foreground">{new Date(selectedMember.created_at).toLocaleDateString()}</span>
         </div>
       </div>
@@ -166,7 +177,7 @@
             loading={actionLoading}
             onclick={verifyEmail}
           >
-            Mark Email as Verified
+            {t('members.markVerified')}
           </Button>
         {/if}
         <Button
@@ -176,13 +187,13 @@
           loading={actionLoading}
           onclick={() => { revokeConfirmOpen = true; }}
         >
-          Revoke All Active Sessions
+          {t('members.revokeAll')}
         </Button>
       </div>
     </div>
   {/if}
   {#snippet footer()}
-    <Button variant="secondary" size="sm" onclick={() => { detailOpen = false; }}>Close</Button>
+    <Button variant="secondary" size="sm" onclick={() => { detailOpen = false; }}>{t('common.close')}</Button>
   {/snippet}
 </Modal>
 
@@ -199,7 +210,7 @@
               class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer capitalize {statusFilter === filter ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
               onclick={() => { statusFilter = filter; }}
             >
-              {filter}
+              {filterLabel(filter)}
             </button>
           {/each}
         </div>
@@ -213,7 +224,7 @@
             </svg>
             <input
               type="search"
-              placeholder="Search members..."
+              placeholder={t('members.search')}
               bind:value={search}
               class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             />
@@ -229,7 +240,7 @@
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span>Export CSV</span>
+            <span>{t('members.export')}</span>
           </a>
         </div>
       </div>
@@ -239,22 +250,22 @@
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {#if loading}
             <div class="p-12 text-center text-xs text-muted-foreground">
-              Loading members...
+              {t('members.loading')}
             </div>
           {:else if filteredMembers.length === 0}
             <div class="p-12 text-center text-xs text-muted-foreground">
-              No registered members found.
+              {t('members.empty')}
             </div>
           {:else}
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm text-foreground caption-bottom">
                 <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                   <tr>
-                    <th class="h-10 px-4 font-medium">Email</th>
-                    <th class="h-10 px-4 font-medium">Status</th>
-                    <th class="h-10 px-4 font-medium">Verification</th>
-                    <th class="h-10 px-4 font-medium">Joined Date</th>
-                    <th class="h-10 w-24 px-4 font-medium text-right">Actions</th>
+                    <th class="h-10 px-4 font-medium">{t('common.email')}</th>
+                    <th class="h-10 px-4 font-medium">{t('common.status')}</th>
+                    <th class="h-10 px-4 font-medium">{t('members.col.verification')}</th>
+                    <th class="h-10 px-4 font-medium">{t('members.col.joined')}</th>
+                    <th class="h-10 w-24 px-4 font-medium text-right">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -268,14 +279,14 @@
                       </td>
                       <td class="px-4 py-3">
                         <Badge variant={m.active ? 'success' : 'destructive'} size="sm">
-                          {m.active ? 'Active' : 'Disabled'}
+                          {m.active ? t('common.active') : t('common.disabled')}
                         </Badge>
                       </td>
                       <td class="px-4 py-3">
                         {#if m.email_verified_at}
-                          <span class="text-xs text-emerald-500 font-medium">✓ Verified</span>
+                          <span class="text-xs text-emerald-500 font-medium">{t('members.verifiedShort')}</span>
                         {:else}
-                          <span class="text-xs text-amber-500 font-medium">Unverified</span>
+                          <span class="text-xs text-amber-500 font-medium">{t('members.verification.unverified')}</span>
                         {/if}
                       </td>
                       <td class="px-4 py-3 text-xs text-muted-foreground">
@@ -287,7 +298,7 @@
                           class="px-2.5 py-1 text-xs rounded-md border border-input bg-background hover:bg-accent text-foreground transition-colors cursor-pointer shadow-xs"
                           onclick={(e) => toggleActive(m, e)}
                         >
-                          {m.active ? 'Disable' : 'Enable'}
+                          {m.active ? t('members.disable') : t('members.enable')}
                         </button>
                       </td>
                     </tr>
@@ -298,7 +309,7 @@
 
             <!-- Footer Pagination / Stats -->
             <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              <span>Showing {filteredMembers.length} of {members.length} members</span>
+              <span>{t('members.showing', { shown: filteredMembers.length, total: members.length })}</span>
             </div>
           {/if}
         </div>

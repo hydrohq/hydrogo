@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
@@ -107,7 +108,7 @@
       }
     } catch (e: any) {
       console.warn('Failed to load content types:', e);
-      notify(e.message || 'Failed to load content types', true);
+      notify(e.message || t('ct.err.load'), true);
     } finally {
       loading = false;
     }
@@ -116,7 +117,7 @@
   async function handleCreateObject() {
     const id = slugify(newId);
     if (!id || !newLabel.trim()) {
-      notify('Object ID and Label are required.', true);
+      notify(t('ct.err.required'), true);
       return;
     }
 
@@ -146,7 +147,7 @@
       });
 
     if (cleanedFields.length === 0) {
-      notify('At least one field is required.', true);
+      notify(t('ct.err.field'), true);
       return;
     }
 
@@ -165,7 +166,7 @@
 
       await api.post('/api/v1/admin/content-types', payload);
       createModalOpen = false;
-      notify(`Object '${payload.label}' created! Its panel is now generated.`);
+      notify(t('ct.created', { label: payload.label }));
 
       // Refresh schema so sidebar and routing immediately discover the new object
       await schema.loadSchema(true);
@@ -174,7 +175,7 @@
       // Navigate to the newly generated object panel
       router.navigate(`/content/${id}`);
     } catch (e: any) {
-      notify(e.message || 'Failed to create object', true);
+      notify(e.message || t('ct.err.create'), true);
     } finally {
       creating = false;
     }
@@ -185,12 +186,12 @@
     deleting = true;
     try {
       await api.delete(`/api/v1/admin/content-types/${deleteTarget.id}`);
-      notify(`Object '${deleteTarget.label}' deleted.`);
+      notify(t('ct.deleted', { label: deleteTarget.label }));
       deleteTarget = null;
       await schema.loadSchema(true);
       await loadContentTypes();
     } catch (e: any) {
-      notify(e.message || 'Failed to delete object', true);
+      notify(e.message || t('ct.err.delete'), true);
     } finally {
       deleting = false;
     }
@@ -207,9 +208,9 @@
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 lg:px-6">
         <div>
-          <h1 class="text-xl font-semibold tracking-tight text-foreground">Content Types & Objects</h1>
+          <h1 class="text-xl font-semibold tracking-tight text-foreground">{t('ct.title')}</h1>
           <p class="text-xs text-muted-foreground mt-0.5">
-            Define dynamic data schemas. When an object is created, its admin list, form views, and API panels are automatically generated.
+            {t('ct.subtitle')}
           </p>
         </div>
 
@@ -218,7 +219,7 @@
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span>New Object</span>
+          <span>{t('ct.new')}</span>
         </Button>
       </div>
 
@@ -239,13 +240,13 @@
         {#if loading}
           <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
             <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-            <span>Loading objects...</span>
+            <span>{t('ct.loading')}</span>
           </div>
         {:else if contentTypes.length === 0}
           <div class="rounded-xl border border-dashed border-border p-12 text-center text-xs text-muted-foreground">
-            <p>No custom objects defined yet.</p>
+            <p>{t('ct.empty')}</p>
             <Button variant="outline" class="mt-3 text-xs" onclick={() => { createModalOpen = true; }}>
-              Create your first Object
+              {t('ct.createFirst')}
             </Button>
           </div>
         {:else}
@@ -272,7 +273,7 @@
                       <button
                         type="button"
                         class="size-7 rounded hover:bg-muted text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors cursor-pointer"
-                        title="Delete object definition"
+                        title={t('ct.deleteDefinition')}
                         onclick={() => { deleteTarget = ct; }}
                       >
                         <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -290,25 +291,25 @@
                   <div class="flex flex-wrap gap-1.5 mt-3">
                     <Badge variant="outline" class="text-[10px]">{ct.fields?.length || 0} fields</Badge>
                     {#if ct.public}
-                      <Badge variant="success" class="text-[10px]">Public API</Badge>
+                      <Badge variant="success" class="text-[10px]">{t('ct.badge.api')}</Badge>
                     {/if}
                     {#if ct.drafts}
-                      <Badge variant="secondary" class="text-[10px]">Drafts</Badge>
+                      <Badge variant="secondary" class="text-[10px]">{t('ct.badge.drafts')}</Badge>
                     {/if}
                     {#if ct.revisions}
-                      <Badge variant="outline" class="text-[10px]">Revisions</Badge>
+                      <Badge variant="outline" class="text-[10px]">{t('ct.badge.revisions')}</Badge>
                     {/if}
                   </div>
                 </div>
 
                 <div class="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                  <span class="text-[11px] text-muted-foreground">Auto-generated panel ready</span>
+                  <span class="text-[11px] text-muted-foreground">{t('ct.panelReady')}</span>
                   <button
                     type="button"
                     class="text-xs font-medium text-primary hover:underline flex items-center gap-1 cursor-pointer"
                     onclick={() => router.navigate(`/content/${ct.id}`)}
                   >
-                    <span>Open Panel</span>
+                    <span>{t('ct.openPanel')}</span>
                     <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="9 18 15 12 9 6"></polyline>
                     </svg>
@@ -324,49 +325,49 @@
 </div>
 
 <!-- Create New Object Modal -->
-<Modal open={createModalOpen} onclose={() => { createModalOpen = false; }} title="Create New Object & Generate Panel">
+<Modal open={createModalOpen} onclose={() => { createModalOpen = false; }} title={t('ct.modalTitle')}>
   <div class="space-y-4 max-h-[75vh] overflow-y-auto px-1">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <Input
-        label="Object Label (Name)"
-        placeholder="e.g. Products, Portfolios, Testimonials"
+        label={t('ct.label')}
+        placeholder={t('ct.labelPlaceholder')}
         value={newLabel}
         oninput={(e: any) => handleLabelChange(e.target.value)}
         required
       />
       <Input
-        label="Identifier / Slug"
-        placeholder="e.g. products, portfolios"
+        label={t('ct.id')}
+        placeholder={t('ct.idPlaceholder')}
         bind:value={newId}
         required
       />
     </div>
 
     <div>
-      <label for="new-desc" class="text-xs font-medium text-foreground">Description</label>
+      <label for="new-desc" class="text-xs font-medium text-foreground">{t('ct.description')}</label>
       <input
         id="new-desc"
         bind:value={newDescription}
-        placeholder="Optional summary for editors and API documentation..."
+        placeholder={t('ct.descriptionPlaceholder')}
         class="mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
       />
     </div>
 
     <!-- Toggles -->
     <div class="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
-      <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Features & Capabilities</div>
+      <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.features')}</div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
         <label class="flex items-center gap-2 cursor-pointer text-xs select-none">
           <input type="checkbox" bind:checked={newPublic} class="size-4 rounded border-input text-primary" />
-          <span>Public API (Read)</span>
+          <span>{t('ct.featApi')}</span>
         </label>
         <label class="flex items-center gap-2 cursor-pointer text-xs select-none">
           <input type="checkbox" bind:checked={newDrafts} class="size-4 rounded border-input text-primary" />
-          <span>Drafts Workflow</span>
+          <span>{t('ct.featDrafts')}</span>
         </label>
         <label class="flex items-center gap-2 cursor-pointer text-xs select-none">
           <input type="checkbox" bind:checked={newRevisions} class="size-4 rounded border-input text-primary" />
-          <span>Revisions History</span>
+          <span>{t('ct.featRevisions')}</span>
         </label>
       </div>
     </div>
@@ -374,14 +375,14 @@
     <!-- Field Definitions -->
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold text-foreground">Fields ({newFields.length})</span>
+        <span class="text-xs font-semibold text-foreground">{t('ct.fields', { count: newFields.length })}</span>
         <button
           type="button"
           class="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
           onclick={addField}
         >
           <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Add Field</span>
+          <span>{t('ct.addField')}</span>
         </button>
       </div>
 
@@ -391,40 +392,40 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input
                 bind:value={f.label}
-                placeholder="Field Label (e.g. Price, Title)"
+                placeholder={t('ct.fieldLabel')}
                 class="rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <input
                 bind:value={f.id}
-                placeholder="ID (auto if empty)"
+                placeholder={t('ct.fieldId')}
                 class="rounded-md border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <select
                 bind:value={f.kind}
                 class="rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="text">Text (Single-line)</option>
-                <option value="textarea">Textarea (Multi-line)</option>
-                <option value="richtext">Rich Text (Notion / TipTap)</option>
-                <option value="number">Number</option>
-                <option value="boolean">Boolean (Checkbox)</option>
-                <option value="select">Select Dropdown</option>
-                <option value="date">Date</option>
-                <option value="media">Media / Image Asset</option>
-                <option value="relation">Relation to other Object</option>
+                <option value="text">{t('ct.kind.text')}</option>
+                <option value="textarea">{t('ct.kind.textarea')}</option>
+                <option value="richtext">{t('ct.kind.richtext')}</option>
+                <option value="number">{t('ct.kind.number')}</option>
+                <option value="boolean">{t('ct.kind.boolean')}</option>
+                <option value="select">{t('ct.kind.select')}</option>
+                <option value="date">{t('ct.kind.date')}</option>
+                <option value="media">{t('ct.kind.media')}</option>
+                <option value="relation">{t('ct.kind.relation')}</option>
               </select>
             </div>
 
             {#if f.kind === 'select'}
               <input
                 bind:value={f.options}
-                placeholder="Comma-separated options: basic, premium, enterprise"
+                placeholder={t('ct.options')}
                 class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             {:else if f.kind === 'relation'}
               <input
                 bind:value={f.to}
-                placeholder="Target Object ID: e.g. team, faq"
+                placeholder={t('ct.target')}
                 class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             {/if}
@@ -433,19 +434,19 @@
               <div class="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground select-none">
                 <label class="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" bind:checked={f.required} class="size-3.5 rounded text-primary" />
-                  <span>Required</span>
+                  <span>{t('ct.required')}</span>
                 </label>
                 <label class="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" bind:checked={f.list} class="size-3.5 rounded text-primary" />
-                  <span>Show in Table</span>
+                  <span>{t('ct.showInTable')}</span>
                 </label>
                 <label class="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" bind:checked={f.searchable} class="size-3.5 rounded text-primary" />
-                  <span>Searchable</span>
+                  <span>{t('ct.searchable')}</span>
                 </label>
                 <label class="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" bind:checked={f.filterable} class="size-3.5 rounded text-primary" />
-                  <span>Filterable</span>
+                  <span>{t('ct.filterable')}</span>
                 </label>
               </div>
 
@@ -454,7 +455,7 @@
                   type="button"
                   onclick={() => removeField(idx)}
                   class="text-xs text-muted-foreground hover:text-destructive cursor-pointer"
-                  title="Remove field"
+                  title={t('ct.removeField')}
                 >
                   <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
@@ -468,10 +469,10 @@
 
   <div class="mt-4 pt-3 border-t border-border flex justify-end gap-2">
     <Button variant="outline" onclick={() => { createModalOpen = false; }} disabled={creating}>
-      Cancel
+      {t('common.cancel')}
     </Button>
     <Button onclick={handleCreateObject} disabled={creating || !newLabel || !newId}>
-      {creating ? 'Generating Panel...' : 'Create Object & Generate Panel'}
+      {creating ? t('ct.generating') : t('ct.modalTitle')}
     </Button>
   </div>
 </Modal>
@@ -479,9 +480,9 @@
 <!-- Delete Confirm Dialog -->
 <ConfirmDialog
   open={!!deleteTarget}
-  title={`Delete Object '${deleteTarget?.label}'?`}
-  description="This will delete the content type YAML file and remove its auto-generated admin panel. Existing records in storage will remain protected."
-  confirmLabel={deleting ? 'Deleting...' : 'Delete Object'}
+  title={t('ct.deleteTitle', { label: deleteTarget?.label ?? '' })}
+  description={t('ct.deleteDescription')}
+  confirmLabel={deleting ? t('ct.deleting') : t('ct.deleteConfirm')}
   variant="destructive"
   loading={deleting}
   onconfirm={handleDeleteObject}

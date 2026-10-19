@@ -1,16 +1,16 @@
 id: columnists
-label: Köşe Yazarları
-description: Gazete ve portal köşe yazarları
+label: Columnists
+description: Newspaper and portal columnists
 title_field: name
 public: true
 drafts: true
 revisions: true
 fields:
-  - {id: name, label: Ad Soyad, kind: text, required: true, list: true, searchable: true}
-  - {id: title, label: Unvan / Görev, kind: text, list: true}
-  - {id: avatar, label: Yazar Fotoğrafı, kind: media}
-  - {id: email, label: E-posta, kind: text}
-  - {id: bio, label: Biyografi, kind: textarea}
-  - {id: latest_article_title, label: Son Yazı Başlığı, kind: text, list: true, searchable: true}
-  - {id: latest_article_body, label: Son Yazı İçeriği, kind: richtext}
-  - {id: sort_order, label: Sıralama, kind: number, list: true}
+  - {id: name, label: Full name, kind: text, required: true, list: true, searchable: true}
+  - {id: title, label: Title / role, kind: text, list: true}
+  - {id: avatar, label: Author photo, kind: media}
+  - {id: email, label: Email, kind: text}
+  - {id: bio, label: Biography, kind: textarea}
+  - {id: latest_article_title, label: Latest article title, kind: text, list: true, searchable: true}
+  - {id: latest_article_body, label: Latest article body, kind: richtext}
+  - {id: sort_order, label: Order, kind: number, list: true}

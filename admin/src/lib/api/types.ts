@@ -135,6 +135,12 @@ export interface AdminSchemaLocales {
   admin_default?: string;
 }
 
+export interface AdminBranding {
+  name: string;
+  logo_url: string;
+  color: string;
+}
+
 export interface AdminSchema {
   version: number;
   resources: Collection[];
@@ -142,6 +148,7 @@ export interface AdminSchema {
   modules: Record<string, boolean>;
   locales: AdminSchemaLocales;
   permissions: string[];
+  branding?: AdminBranding;
 }
 
 export interface ContentItem {

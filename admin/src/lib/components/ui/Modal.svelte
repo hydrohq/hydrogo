@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import type { Snippet } from 'svelte';
   import Button from './Button.svelte';
 
@@ -56,7 +57,7 @@
       type="button"
       class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-150 cursor-default"
       onclick={close}
-      aria-label="Close modal backdrop"
+      aria-label={t('common.closeBackdrop')}
       tabindex="-1"
     ></button>
     <div
@@ -71,7 +72,7 @@
             <p class="text-xs text-muted-foreground mt-0.5">{description}</p>
           {/if}
         </div>
-        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" onclick={close} aria-label="Close modal">
+        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-foreground" onclick={close} aria-label={t('common.closeModal')}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>

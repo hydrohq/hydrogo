@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
@@ -47,7 +48,7 @@
   $effect(() => {
     router.setDirty(
       isDirty,
-      'İçerikte kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istediğinizden emin misiniz?'
+      t('schema.unsaved')
     );
   });
 
@@ -70,7 +71,7 @@
         captureSnapshot();
       }
     } catch (err: any) {
-      errorMessage = err.message || 'Failed to load entry';
+      errorMessage = err.message || t('schema.err.load');
     } finally {
       loading = false;
     }
@@ -119,7 +120,7 @@
         router.navigate(`/content/${type}/${res.data.id}`, true);
       }
     } catch (err: any) {
-      errorMessage = err.message || 'Save failed';
+      errorMessage = err.message || t('news.editor.saveFailed');
     } finally {
       saving = false;
     }
@@ -175,13 +176,13 @@
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
-    <p>Content type <strong>{type}</strong> not found in schema.</p>
+    <p>{t('schema.notFoundBefore')} <strong>{type}</strong> {t('schema.notFoundAfter')}</p>
     <button
       type="button"
       class="mt-4 inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
       onclick={() => router.navigate('/dashboard')}
     >
-      Back to Dashboard
+      {t('schema.backToDashboard')}
     </button>
   </div>
 {:else}
@@ -199,16 +200,16 @@
               <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m15 18-6-6 6-6" />
               </svg>
-              <span>Back</span>
+              <span>{t('common.back')}</span>
             </button>
             <span class="text-sm font-semibold text-foreground">
-              {isNew ? `New ${collection.singular || collection.label || type}` : `Edit ${collection.singular || collection.label || type}`}
+              {isNew ? t('title.newItem', { name: collection.singular || collection.label || type }) : t('title.editItem', { name: collection.singular || collection.label || type })}
             </span>
             {#if !isNew}
               <DocumentPresence {presence} mode="pill" />
             {/if}
             {#if loading}
-              <span class="text-xs text-muted-foreground animate-pulse">Loading...</span>
+              <span class="text-xs text-muted-foreground animate-pulse">{t('common.loading')}</span>
             {/if}
           </div>
 
@@ -220,7 +221,7 @@
                 class="h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs"
                 onclick={() => handleSave('draft')}
               >
-                Save Draft
+                {t('news.editor.saveDraft')}
               </button>
               <button
                 type="button"
@@ -228,7 +229,7 @@
                 class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer shadow-xs"
                 onclick={() => handleSave('published')}
               >
-                Publish
+                {t('pages.editor.publish')}
               </button>
             {:else}
               <button
@@ -237,7 +238,7 @@
                 class="h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer shadow-xs"
                 onclick={() => handleSave()}
               >
-                Save Changes
+                {t('media.detail.save')}
               </button>
             {/if}
           </div>
@@ -273,7 +274,7 @@
                 {:else if field.kind === 'text' && field.widget !== 'textarea'}
                   <Input
                     label={field.label || key}
-                    placeholder={`Enter ${field.label || key}...`}
+                    placeholder={t('schema.enter', { name: field.label || key })}
                     bind:value={formData[key]}
                     required={field.required}
                   />
@@ -292,7 +293,7 @@
                     id={`field-${key}`}
                     bind:value={formData[key]}
                     rows="4"
-                    placeholder={`Enter ${field.label || key}...`}
+                    placeholder={t('schema.enter', { name: field.label || key })}
                     class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                   ></textarea>
                 {:else if field.kind === 'richtext' || field.widget === 'richtext'}
@@ -318,7 +319,7 @@
                     bind:value={formData[key]}
                     class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
                   >
-                    <option value="">Select option...</option>
+                    <option value="">{t('schema.selectOption')}</option>
                     {#each (field.options || []) as opt}
                       {@const optVal = typeof opt === 'string' ? opt : opt.value}
                       {@const optLabel = typeof opt === 'string' ? opt : opt.label}
@@ -342,7 +343,7 @@
                       </div>
                     {/if}
                     <Input
-                      placeholder="Asset URL or path..."
+                      placeholder={t('schema.assetPlaceholder')}
                       bind:value={formData[key]}
                       class="flex-1 font-mono text-xs"
                     />
@@ -351,7 +352,7 @@
                       class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer shadow-xs shrink-0"
                       onclick={() => openMediaPicker(key)}
                     >
-                      Browse
+                      {t('schema.browse')}
                     </button>
                   </div>
                 {:else}

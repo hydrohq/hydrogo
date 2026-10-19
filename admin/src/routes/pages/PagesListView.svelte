@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -90,21 +91,21 @@
             class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {statusFilter === '' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             onclick={() => { statusFilter = ''; }}
           >
-            All Pages
+            {t('pages.list.all')}
           </button>
           <button
             type="button"
             class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {statusFilter === 'published' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             onclick={() => { statusFilter = 'published'; }}
           >
-            Published
+            {t('common.published')}
           </button>
           <button
             type="button"
             class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {statusFilter === 'draft' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
             onclick={() => { statusFilter = 'draft'; }}
           >
-            Drafts
+            {t('news.list.drafts')}
           </button>
         </div>
 
@@ -117,7 +118,7 @@
             </svg>
             <input
               type="search"
-              placeholder="Filter pages..."
+              placeholder={t('pages.list.filter')}
               bind:value={search}
               class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
             />
@@ -132,7 +133,7 @@
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            <span>Add Page</span>
+            <span>{t('pages.list.add')}</span>
           </button>
         </div>
       </div>
@@ -142,17 +143,17 @@
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {#if loading}
             <div class="p-12 text-center text-xs text-muted-foreground">
-              Loading pages...
+              {t('pages.list.loading')}
             </div>
           {:else if filteredPages.length === 0}
             <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">
-              <p>No pages match the criteria.</p>
+              <p>{t('pages.list.empty')}</p>
               <button
                 type="button"
                 class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
                 onclick={() => router.navigate('/pages/new')}
               >
-                Create First Page
+                {t('pages.list.createFirst')}
               </button>
             </div>
           {:else}
@@ -160,12 +161,12 @@
               <table class="w-full text-left text-sm text-foreground caption-bottom">
                 <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                   <tr>
-                    <th class="h-10 px-4 font-medium">Title</th>
-                    <th class="h-10 px-4 font-medium">Path / Slug</th>
-                    <th class="h-10 px-4 font-medium">Template</th>
-                    <th class="h-10 px-4 font-medium">Status</th>
-                    <th class="h-10 px-4 font-medium">Updated</th>
-                    <th class="h-10 w-24 px-4 font-medium text-right">Actions</th>
+                    <th class="h-10 px-4 font-medium">{t('common.title')}</th>
+                    <th class="h-10 px-4 font-medium">{t('pages.list.path')}</th>
+                    <th class="h-10 px-4 font-medium">{t('pages.list.template')}</th>
+                    <th class="h-10 px-4 font-medium">{t('common.status')}</th>
+                    <th class="h-10 px-4 font-medium">{t('pages.list.updated')}</th>
+                    <th class="h-10 w-24 px-4 font-medium text-right">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border">
@@ -181,7 +182,7 @@
                         /{page.slug}
                       </td>
                       <td class="px-4 py-3 text-xs text-muted-foreground">
-                        {page.layout_template || 'default'}
+                        {page.layout_template || t('pages.list.defaultTemplate')}
                       </td>
                       <td class="px-4 py-3">
                         <Badge variant={page.status === 'published' ? 'success' : 'outline'} size="sm">
@@ -197,7 +198,7 @@
                             type="button"
                             class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                             onclick={(e) => { e.stopPropagation(); router.navigate(`/pages/${page.id}`); }}
-                            title="Edit"
+                            title={t('common.edit')}
                           >
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                           </button>
@@ -205,7 +206,7 @@
                             type="button"
                             class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                             onclick={(e) => handleDelete(page.id, page.title, e)}
-                            title="Delete"
+                            title={t('common.delete')}
                           >
                             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                           </button>
@@ -219,21 +220,21 @@
 
             <!-- Footer Pagination / Stats -->
             <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              <span>Showing {filteredPages.length} of {pages.length} pages</span>
+              <span>{t('pages.list.showing', { shown: filteredPages.length, total: pages.length })}</span>
               <div class="flex items-center gap-2">
                 <button
                   type="button"
                   disabled
                   class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium opacity-50 cursor-not-allowed"
                 >
-                  Previous
+                  {t('common.previous')}
                 </button>
                 <button
                   type="button"
                   disabled
                   class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium opacity-50 cursor-not-allowed"
                 >
-                  Next
+                  {t('common.next')}
                 </button>
               </div>
             </div>
@@ -246,8 +247,8 @@
 
 <ConfirmDialog
   open={deletePageTarget !== null}
-  title={`Delete Page "${deletePageTarget?.title || ''}"`}
-  description="Are you sure you want to permanently delete this page? This action cannot be undone."
+  title={t('pages.list.deleteTitle', { title: deletePageTarget?.title || '' })}
+  description={t('pages.list.deleteDescription')}
   loading={deleteLoading}
   onconfirm={confirmDeletePage}
   oncancel={() => { deletePageTarget = null; }}

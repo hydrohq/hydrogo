@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -144,8 +145,8 @@
 <!-- Delete Confirm Dialog -->
 <ConfirmDialog
   open={deleteTargetId !== null}
-  title={`Delete ${collection?.singular || collection?.label || 'Item'}`}
-  description="Are you sure you want to permanently delete this item? This action cannot be undone."
+  title={t('schema.deleteTitle', { name: collection?.singular || collection?.label || t('schema.item') })}
+  description={t('schema.deleteDescription')}
   loading={deleteLoading}
   onconfirm={confirmDelete}
   oncancel={() => { deleteTargetId = null; }}
@@ -158,13 +159,13 @@
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
-    <p>Content type <strong>{type}</strong> not found in schema.</p>
+    <p>{t('schema.notFoundBefore')} <strong>{type}</strong> {t('schema.notFoundAfter')}</p>
     <button
       type="button"
       class="mt-4 inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
       onclick={() => router.navigate('/dashboard')}
     >
-      Back to Dashboard
+      {t('schema.backToDashboard')}
     </button>
   </div>
 {:else}
@@ -181,21 +182,21 @@
                 class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {statusFilter === '' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
                 onclick={() => { statusFilter = ''; }}
               >
-                All
+                {t('common.all')}
               </button>
               <button
                 type="button"
                 class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {statusFilter === 'published' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
                 onclick={() => { statusFilter = 'published'; }}
               >
-                Published
+                {t('common.published')}
               </button>
               <button
                 type="button"
                 class="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium ring-offset-background transition-all cursor-pointer {statusFilter === 'draft' ? 'bg-background text-foreground shadow-xs' : 'hover:bg-background/50 hover:text-foreground'}"
                 onclick={() => { statusFilter = 'draft'; }}
               >
-                Drafts
+                {t('news.list.drafts')}
               </button>
             </div>
           {:else}
@@ -213,7 +214,7 @@
               </svg>
               <input
                 type="search"
-                placeholder="Search {(collection.plural || collection.label || type).toLowerCase()}..."
+                placeholder={t('schema.search', { name: (collection.plural || collection.label || type).toLowerCase() })}
                 bind:value={search}
                 class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               />
@@ -228,7 +229,7 @@
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
-              <span>Add {collection.singular || collection.label || 'Item'}</span>
+              <span>{t('schema.add', { name: collection.singular || collection.label || t('schema.item') })}</span>
             </button>
           </div>
         </div>
@@ -242,13 +243,13 @@
               </div>
             {:else if filteredItems.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">
-                <p>No entries found.</p>
+                <p>{t('schema.empty')}</p>
                 <button
                   type="button"
                   class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
                   onclick={openCreate}
                 >
-                  Create First {collection.singular || collection.label || 'Item'}
+                  {t('schema.createFirst', { name: collection.singular || collection.label || t('schema.item') })}
                 </button>
               </div>
             {:else}
@@ -260,9 +261,9 @@
                         <th class="h-10 px-4 font-medium">{field.label || getFieldKey(field)}</th>
                       {/each}
                       {#if collection.workflow?.enabled}
-                        <th class="h-10 px-4 font-medium">Status</th>
+                        <th class="h-10 px-4 font-medium">{t('common.status')}</th>
                       {/if}
-                      <th class="h-10 w-24 px-4 font-medium text-right">Actions</th>
+                      <th class="h-10 w-24 px-4 font-medium text-right">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -276,7 +277,7 @@
                           <td class="px-4 py-3 text-xs text-foreground max-w-xs truncate">
                             {#if field.kind === 'boolean'}
                               <Badge variant={item[key] ? 'success' : 'outline'} size="sm">
-                                {item[key] ? 'Yes' : 'No'}
+                                {item[key] ? t('common.yes') : t('common.no')}
                               </Badge>
                             {:else if field.kind === 'media'}
                               {#if item[key]}
@@ -316,7 +317,7 @@
                               type="button"
                               class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
                               onclick={(e) => openEdit(item.id, e)}
-                              title="Edit"
+                              title={t('common.edit')}
                             >
                               <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                             </button>
@@ -324,7 +325,7 @@
                               type="button"
                               class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
                               onclick={(e) => handleDelete(item.id, e)}
-                              title="Delete"
+                              title={t('common.delete')}
                             >
                               <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                             </button>
@@ -338,7 +339,7 @@
 
               <!-- Footer Pagination / Stats -->
               <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-                <span>Showing {filteredItems.length} of {total || items.length} entries</span>
+                <span>{t('schema.showing', { shown: filteredItems.length, total: total || items.length })}</span>
                 <div class="flex items-center gap-2">
                   <button
                     type="button"
@@ -346,7 +347,7 @@
                     onclick={() => { page--; loadItems(); }}
                     class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                   >
-                    Previous
+                    {t('common.previous')}
                   </button>
                   <button
                     type="button"
@@ -354,7 +355,7 @@
                     onclick={() => { page++; loadItems(); }}
                     class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                   >
-                    Next
+                    {t('common.next')}
                   </button>
                 </div>
               </div>

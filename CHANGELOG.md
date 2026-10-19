@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`@hydrogo/client`** (`packages/client`, moved from `examples/headless-starter`): typed client, now with `listContent` / `getContent` for content types.
 - **`examples/sveltekit-starter`**: server-rendered starter (home, news list/article, pages, locale prefixes, canonical/Open Graph/JSON-LD, `sitemap.xml`, `rss.xml`, `robots.txt`, Dockerfile). `hydro new --starter sveltekit` copies it into `<project>/frontend`.
 - **Admin language**: English and Turkish admin UI; each user picks theirs under Account, and the project default is set under Site settings (`admin.default_locale`).
+- **Admin branding**: panel name, logo URL and accent colour under Site settings (`admin.brand_name`, `admin.brand_logo_url`, `admin.brand_color`).
 - **Audit request content**: with `audit.log_request_bodies: true` (`HYDRO_AUDIT_LOG_REQUEST_BODIES`) every admin API write is recorded as an `admin.request` event with a redacted body, shown in the audit log.
 - Docs: getting started, content types, deployment, upgrading and versioning; `CONTRIBUTING.md`; issue and PR templates; ADR 0007.
 - `hydro version` reports the release version injected at build time.
 
 ### Changed
+- Stock content types (`content-types/`) now have English labels and descriptions; ids and option values are unchanged, so existing data is unaffected.
 - Admin lists and the audit log now read the `metadata.total` field the API actually sends (they showed 0 results before).
 - **Breaking for client code:** `@hydrogo/client` pages and news methods now unwrap the `{data, metadata}` envelope the API returns (they previously returned the raw envelope typed as the payload).
 - `examples/svelte-starter` no longer links to a specific deployment.
