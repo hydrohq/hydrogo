@@ -39,6 +39,8 @@ export interface MeResponse {
   permissions: string[];
   csrf_token: string;
   locales?: string[];
+  /** Admin language saved on the server; null until the user chose one. */
+  locale?: string | null;
 }
 
 export type FieldKind =

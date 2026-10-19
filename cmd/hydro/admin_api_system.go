@@ -16,7 +16,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
-const adminLocaleCookieName = "hydro_admin_locale"
+const adminLocaleCookieName = i18n.AdminLocaleCookieName
 
 func adminLocaleFromRequest(r *http.Request) string {
 	if r != nil {
@@ -45,6 +45,12 @@ func (a *serveApp) adminAccountLocaleHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	locale := strings.TrimSpace(input.Locale)
+	if locale == "" {
+		// An empty locale clears the saved choice: follow the project default.
+		http.SetCookie(w, &http.Cookie{Name: adminLocaleCookieName, Value: "", Path: "/", MaxAge: -1, Secure: a.cfg.Security.SecureCookies, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		api.WriteData(w, http.StatusOK, map[string]any{"locale": nil}, nil)
+		return
+	}
 	if !i18n.IsSupportedCatalogLocale(locale) {
 		api.WriteValidation(w, r, map[string]string{"locale": "invalid"})
 		return

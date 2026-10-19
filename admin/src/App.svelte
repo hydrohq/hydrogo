@@ -22,12 +22,14 @@
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 
-  import { i18n } from '$lib/i18n/index.svelte';
+  import { i18n, isLocale } from '$lib/i18n/index.svelte';
   import { applyBrandColor } from '$lib/branding';
+  import { brandingStore } from '$lib/stores/branding.svelte';
 
   let initializing = $state(true);
 
   onMount(async () => {
+    void brandingStore.load();
     try {
       const isAuthed = await auth.checkAuth();
       if (isAuthed) {
@@ -52,9 +54,16 @@
     }
   });
 
+  // Before sign-in there is no user choice yet: the sign-in page follows the project default.
   $effect(() => {
-    applyBrandColor(schema.schema?.branding?.color);
-    const name = schema.schema?.branding?.name;
+    const fallback = brandingStore.defaultLocale;
+    if (!auth.user && fallback && isLocale(fallback)) i18n.setProjectDefault(fallback);
+  });
+
+  $effect(() => {
+    const branding = brandingStore.branding ?? schema.schema?.branding;
+    applyBrandColor(branding?.color);
+    const name = branding?.name;
     if (name) document.title = name;
   });
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { createPresence, type PresenceState } from '$lib/presence.svelte';
 
   interface Props {
@@ -71,7 +72,7 @@
         type="button"
         onclick={() => { showPopover = !showPopover; }}
         class="group inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 text-xs text-amber-800 dark:text-amber-200 transition-all cursor-pointer shadow-xs animate-fade-in"
-        title="Bu belge şu anda başkası tarafından da görüntüleniyor/düzenleniyor"
+        title={t('presence.pillTitle')}
       >
         <!-- Pulsing live indicator -->
         <span class="relative flex size-2 shrink-0">
@@ -102,9 +103,9 @@
         <!-- Text Label -->
         <span class="font-medium text-[11px] hidden sm:inline-block">
           {#if currentPresence.count === 1}
-            <span class="font-semibold">{currentPresence.activeEditors[0].name}</span> düzenliyor
+            <span class="font-semibold">{currentPresence.activeEditors[0].name}</span> {t('presence.isEditing')}
           {:else}
-            <span class="font-semibold">{currentPresence.count} kişi</span> düzenliyor
+            <span class="font-semibold">{t('presence.people', { count: currentPresence.count })}</span> {t('presence.isEditing')}
           {/if}
         </span>
       </button>
@@ -115,7 +116,7 @@
           class="absolute left-0 top-full mt-1.5 w-64 rounded-lg border border-border bg-popover p-2.5 text-popover-foreground shadow-lg z-50 animate-modal-in"
         >
           <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-border text-[11px] font-semibold text-muted-foreground">
-            <span>Şu Anda Bu Belgedeki Kullanıcılar</span>
+            <span>{t('presence.popoverTitle')}</span>
             <button
               type="button"
               onclick={() => { showPopover = false; }}
@@ -169,16 +170,15 @@
           </svg>
         </div>
         <div class="leading-relaxed">
-          <strong>Eşzamanlı Düzenleme Uyarısı:</strong> Bu içerik şu anda
-          <span class="font-semibold underline decoration-amber-500/50">{currentPresence.names}</span>
-          tarafından da düzenleniyor. Aynı anda yapılan kaydetmeler çakışmaya (conflict) veya üzerine yazılmaya yol açabilir.
+          <strong>{t('presence.warnTitle')}</strong>
+          {t('presence.warnBody', { names: currentPresence.names })}
         </div>
       </div>
       <button
         type="button"
         onclick={() => { currentPresence.dismiss(); }}
         class="text-amber-700 hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-100 p-1 rounded hover:bg-amber-500/20 transition-colors cursor-pointer shrink-0"
-        title="Uyarıyı Kapat"
+        title={t('presence.dismiss')}
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18" />
