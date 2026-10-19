@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
@@ -52,7 +53,7 @@
         selectedLocale = res.data.locale || loc;
       }
     } catch (e: any) {
-      notify(e.message || 'Failed to load navigation', true);
+      notify(e.message || t('site.nav.loadFailed'), true);
     } finally {
       loading = false;
     }
@@ -107,10 +108,10 @@
       }));
 
       await api.put(`/api/v1/admin/site/navigation/${selectedLocale}`, { items: cleanedItems });
-      notify('Navigation saved successfully!');
+      notify(t('site.nav.saved'));
       await loadNavigation(selectedLocale);
     } catch (e: any) {
-      notify(e.message || 'Failed to save navigation', true);
+      notify(e.message || t('site.nav.saveFailed'), true);
     } finally {
       saving = false;
     }
@@ -124,8 +125,8 @@
 <div class="space-y-4">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
     <div>
-      <h3 class="text-sm font-semibold text-foreground">Menu & Navigation Tree</h3>
-      <p class="text-xs text-muted-foreground">Configure the site header and footer menu links per locale.</p>
+      <h3 class="text-sm font-semibold text-foreground">{t('site.nav.title')}</h3>
+      <p class="text-xs text-muted-foreground">{t('site.nav.help')}</p>
     </div>
 
     <div class="flex items-center gap-2">
@@ -144,7 +145,7 @@
 
       <Button variant="outline" class="text-xs gap-1.5" onclick={addItem}>
         <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>Add Link</span>
+        <span>{t('site.nav.add')}</span>
       </Button>
     </div>
   </div>
@@ -161,11 +162,11 @@
   {/if}
 
   {#if loading}
-    <div class="p-8 text-center text-xs text-muted-foreground">Loading menu items...</div>
+    <div class="p-8 text-center text-xs text-muted-foreground">{t('site.nav.loading')}</div>
   {:else if items.length === 0}
     <div class="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground space-y-2">
       <p>No navigation links configured for {selectedLocale.toUpperCase()}.</p>
-      <Button variant="outline" class="text-xs" onclick={addItem}>Add First Link</Button>
+      <Button variant="outline" class="text-xs" onclick={addItem}>{t('site.nav.addFirst')}</Button>
     </div>
   {:else}
     <div class="space-y-2">
@@ -178,7 +179,7 @@
               disabled={index === 0}
               onclick={() => moveItem(index, 'up')}
               class="size-5 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 flex items-center justify-center cursor-pointer"
-              title="Move Up"
+              title={t('pages.blocks.moveUp')}
             >
               <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
             </button>
@@ -187,7 +188,7 @@
               disabled={index === items.length - 1}
               onclick={() => moveItem(index, 'down')}
               class="size-5 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 flex items-center justify-center cursor-pointer"
-              title="Move Down"
+              title={t('pages.blocks.moveDown')}
             >
               <svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
@@ -197,7 +198,7 @@
           <div class="flex-1 min-w-[120px]">
             <input
               bind:value={item.label}
-              placeholder="Menu Label (e.g. About, Contact)"
+              placeholder={t('site.nav.labelPlaceholder')}
               class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
@@ -206,7 +207,7 @@
           <div class="flex-1 min-w-[140px]">
             <input
               bind:value={item.href}
-              placeholder="Target URL (e.g. /about, https://...)"
+              placeholder={t('site.nav.urlPlaceholder')}
               class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
@@ -216,14 +217,14 @@
             bind:value={item.target}
             class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shrink-0 focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="_self">Same tab (_self)</option>
-            <option value="_blank">New tab (_blank)</option>
+            <option value="_self">{t('site.nav.sameTab')}</option>
+            <option value="_blank">{t('site.nav.newTab')}</option>
           </select>
 
           <!-- Visible Toggle -->
           <label class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer shrink-0 select-none px-1">
             <input type="checkbox" bind:checked={item.visible} class="size-3.5 rounded text-primary" />
-            <span class="hidden sm:inline">Visible</span>
+            <span class="hidden sm:inline">{t('site.nav.visible')}</span>
           </label>
 
           <!-- Remove -->
@@ -231,7 +232,7 @@
             type="button"
             onclick={() => removeItem(index)}
             class="size-7 rounded hover:bg-muted text-muted-foreground hover:text-destructive flex items-center justify-center shrink-0 cursor-pointer"
-            title="Remove Item"
+            title={t('site.nav.remove')}
           >
             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
@@ -241,7 +242,7 @@
 
     <div class="flex justify-end pt-3">
       <Button onclick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Navigation'}
+        {saving ? t('common.saving') : t('site.nav.save')}
       </Button>
     </div>
   {/if}

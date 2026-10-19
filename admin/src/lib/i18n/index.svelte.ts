@@ -90,7 +90,7 @@ class I18nState {
     if (choice) {
       // The server keeps a cookie too, so server-rendered admin messages match.
       try {
-        await api.post('/api/v1/admin/account/locale', { locale: choice }, { method: 'PUT' });
+        await api.put('/api/v1/admin/account/locale', { locale: choice });
       } catch {
         /* the browser already switched; the cookie is a convenience */
       }

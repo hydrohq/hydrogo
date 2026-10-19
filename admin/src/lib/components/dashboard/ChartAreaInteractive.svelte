@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -264,26 +265,26 @@
       <div>
         <div class="flex items-center gap-2">
           {#if activeView === 'categories'}
-            <h3 class="text-base font-semibold leading-none tracking-tight text-foreground">Kategori Dağılımı & Editoryal Durum</h3>
+            <h3 class="text-base font-semibold leading-none tracking-tight text-foreground">{t('dashboard.chart.categoriesTitle')}</h3>
             <span class="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
               <span class="size-1.5 rounded-full bg-primary"></span>
-              {totalArticles > 0 ? `${totalArticles} Haber` : 'Aktif'}
+              {totalArticles > 0 ? t('dashboard.chart.articleCount', { count: totalArticles }) : t('dashboard.chart.active')}
             </span>
           {:else}
-            <h3 class="text-base font-semibold leading-none tracking-tight text-foreground">Total Visitors</h3>
+            <h3 class="text-base font-semibold leading-none tracking-tight text-foreground">{t('dashboard.chart.visitors')}</h3>
             <span class="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
               <span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live Telemetry
+              {t('dashboard.chart.live')}
             </span>
           {/if}
         </div>
         <p class="text-sm text-muted-foreground mt-1.5">
           {#if activeView === 'categories'}
-            Portaldaki yayınlanmış haberlerin ana kategorilere göre dağılımı ve içerik dengesi
+            {t('dashboard.chart.categoriesHelp')}
           {:else}
-            {#if timeRange === '90d'}Total for the last 3 months ({totalVisitors.toLocaleString()} recorded visits)
-            {:else if timeRange === '30d'}Total for the last 30 days ({totalVisitors.toLocaleString()} recorded visits)
-            {:else}Total for the last 7 days ({totalVisitors.toLocaleString()} recorded visits){/if}
+            {#if timeRange === '90d'}{t('dashboard.chart.total90', { count: totalVisitors.toLocaleString() })}
+            {:else if timeRange === '30d'}{t('dashboard.chart.total30', { count: totalVisitors.toLocaleString() })}
+            {:else}{t('dashboard.chart.total7', { count: totalVisitors.toLocaleString() })}{/if}
           {/if}
         </p>
       </div>
@@ -296,14 +297,14 @@
             class="px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer {activeView === 'categories' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { activeView = 'categories'; }}
           >
-            Kategori Dağılımı
+            {t('dashboard.chart.viewCategories')}
           </button>
           <button
             type="button"
             class="px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer {activeView === 'traffic' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { activeView = 'traffic'; }}
           >
-            Ziyaretçi Grafiği
+            {t('dashboard.chart.viewTraffic')}
           </button>
         </div>
 
@@ -313,11 +314,11 @@
             <div class="hidden md:flex items-center gap-3 text-xs font-mono mr-2">
               <span class="flex items-center gap-1.5 text-foreground font-medium">
                 <span class="size-2 rounded-full bg-foreground"></span>
-                Desktop: {totalDesktop.toLocaleString()}
+                {t('dashboard.chart.desktop')}: {totalDesktop.toLocaleString()}
               </span>
               <span class="flex items-center gap-1.5 text-muted-foreground font-medium">
                 <span class="size-2 rounded-full bg-muted-foreground"></span>
-                Mobile: {totalMobile.toLocaleString()}
+                {t('dashboard.chart.mobile')}: {totalMobile.toLocaleString()}
               </span>
             </div>
           {/if}
@@ -329,21 +330,21 @@
               class="px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer {timeRange === '90d' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
               onclick={() => { timeRange = '90d'; }}
             >
-              Last 3 months
+              {t('dashboard.chart.range90')}
             </button>
             <button
               type="button"
               class="px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer {timeRange === '30d' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
               onclick={() => { timeRange = '30d'; }}
             >
-              Last 30 days
+              {t('dashboard.chart.range30')}
             </button>
             <button
               type="button"
               class="px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer {timeRange === '7d' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
               onclick={() => { timeRange = '7d'; }}
             >
-              Last 7 days
+              {t('dashboard.chart.range7')}
             </button>
           </div>
         {/if}
@@ -355,11 +356,11 @@
       <div class="p-6">
         {#if loadingCategories}
           <div class="py-12 text-center text-sm text-muted-foreground animate-pulse">
-            Kategori verileri yükleniyor...
+            {t('dashboard.chart.loadingCategories')}
           </div>
         {:else if categories.length === 0}
           <div class="py-12 text-center text-sm text-muted-foreground">
-            Henüz kategori verisi bulunamadı.
+            {t('dashboard.chart.noCategories')}
           </div>
         {:else}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -379,7 +380,7 @@
                 </div>
                 <div class="space-y-1.5 mt-2">
                   <div class="flex justify-between text-[11px] text-muted-foreground">
-                    <span>Pay</span>
+                    <span>{t('dashboard.chart.share')}</span>
                     <span class="font-mono">%{cat.percent}</span>
                   </div>
                   <div class="h-2 w-full bg-muted rounded-full overflow-hidden">
@@ -452,16 +453,16 @@
             <div class="font-medium">{hoveredPoint.date}</div>
             <div class="flex items-center gap-2 mt-1">
               <span class="size-2 rounded-full bg-foreground"></span>
-              <span class="text-muted-foreground">Desktop:</span>
+              <span class="text-muted-foreground">{t('dashboard.chart.desktop')}:</span>
               <span class="font-mono font-medium">{hoveredPoint.desktop}</span>
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="size-2 rounded-full bg-muted-foreground"></span>
-              <span class="text-muted-foreground">Mobile:</span>
+              <span class="text-muted-foreground">{t('dashboard.chart.mobile')}:</span>
               <span class="font-mono font-medium">{hoveredPoint.mobile}</span>
             </div>
             <div class="flex items-center gap-2 mt-0.5 pt-1 border-t border-border/50">
-              <span class="text-muted-foreground">Total:</span>
+              <span class="text-muted-foreground">{t('dashboard.chart.total')}:</span>
               <span class="font-mono font-medium">{hoveredPoint.total}</span>
             </div>
           </div>
@@ -485,7 +486,7 @@
         <div class="mt-2 pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
           <div class="flex items-center gap-2">
             <span class="size-1.5 rounded-full bg-muted-foreground/50"></span>
-            <span>0 visits recorded in this period. Public pages and REST API visits are captured in real time without cookies.</span>
+            <span>{t('dashboard.chart.noTraffic')}</span>
           </div>
           <span class="font-mono text-[11px]">Today: {todayStr}</span>
         </div>

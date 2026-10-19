@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -68,7 +69,7 @@
       newSlug = '';
       await loadTerms();
     } catch (err: any) {
-      formError = err?.message || 'Failed to add taxonomy term';
+      formError = err?.message || t('news.taxonomy.addFailed');
     } finally {
       saving = false;
     }
@@ -82,7 +83,7 @@
       deleteTarget = null;
       await loadTerms();
     } catch (err: any) {
-      formError = err?.message || 'Failed to delete term';
+      formError = err?.message || t('news.taxonomy.deleteFailed');
     } finally {
       deleteLoading = false;
     }
@@ -98,9 +99,9 @@
 
 <ConfirmDialog
   open={!!deleteTarget}
-  title="Delete Taxonomy Term"
-  description={`Are you sure you want to delete "${deleteTarget?.label}"? Articles associated with this term may lose their categorization.`}
-  confirmLabel="Delete Term"
+  title={t('news.taxonomy.deleteTitle')}
+  description={t('news.taxonomy.deleteDescription', { label: deleteTarget?.label ?? '' })}
+  confirmLabel={t('news.taxonomy.deleteConfirm')}
   variant="destructive"
   loading={deleteLoading}
   onconfirm={confirmDeleteTerm}
@@ -109,8 +110,8 @@
 
 <Modal
   {open}
-  title="News Taxonomy (Categories & Tags)"
-  description="Manage categories and tags used to organize news articles and publications."
+  title={t('news.taxonomy.title')}
+  description={t('news.taxonomy.description')}
   {onclose}
 >
   <div class="space-y-5">
@@ -122,7 +123,7 @@
           class="text-xs hover:underline cursor-pointer"
           onclick={() => { formError = null; }}
         >
-          Dismiss
+          {t('common.dismiss')}
         </button>
       </div>
     {/if}
@@ -130,40 +131,40 @@
     <!-- Add Term Form -->
     <form onsubmit={handleAddTerm} class="p-4 rounded-xl border border-border bg-muted/40 space-y-3">
       <div class="flex items-center justify-between">
-        <h4 class="text-xs font-semibold text-foreground">Create New Term</h4>
+        <h4 class="text-xs font-semibold text-foreground">{t('news.taxonomy.create')}</h4>
         <div class="flex items-center rounded-lg bg-background p-0.5 border border-border text-[11px]">
           <button
             type="button"
             class="px-2.5 py-0.5 rounded font-medium transition-all {newKind === 'category' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { newKind = 'category'; }}
           >
-            Category
+            {t('news.taxonomy.category')}
           </button>
           <button
             type="button"
             class="px-2.5 py-0.5 rounded font-medium transition-all {newKind === 'tag' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { newKind = 'tag'; }}
           >
-            Tag
+            {t('news.taxonomy.tag')}
           </button>
         </div>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <Input
-          placeholder={newKind === 'category' ? 'Category name (e.g. Technology)' : 'Tag name (e.g. Open Source)'}
+          placeholder={newKind === 'category' ? t('news.taxonomy.categoryPlaceholder') : t('news.taxonomy.tagPlaceholder')}
           bind:value={newLabel}
           required
         />
         <Input
-          placeholder="Slug (optional, auto-generated)"
+          placeholder={t('news.taxonomy.slugPlaceholder')}
           bind:value={newSlug}
         />
       </div>
 
       <div class="flex items-center justify-between pt-1">
         <span class="text-[11px] text-muted-foreground">
-          {newKind === 'category' ? 'Categories provide primary hierarchical grouping' : 'Tags provide flexible cross-cutting labels'}
+          {newKind === 'category' ? t('news.taxonomy.categoryHelp') : t('news.taxonomy.tagHelp')}
         </span>
         <button
           type="submit"
@@ -173,7 +174,7 @@
           {#if saving}
             <div class="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
           {/if}
-          <span>Add {newKind === 'category' ? 'Category' : 'Tag'}</span>
+          <span>{newKind === 'category' ? t('news.taxonomy.addCategory') : t('news.taxonomy.addTag')}</span>
         </button>
       </div>
     </form>
@@ -182,7 +183,7 @@
     <div class="space-y-2.5">
       <div class="flex items-center justify-between">
         <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Existing Terms ({filteredTerms.length})
+          {t('news.taxonomy.existing', { count: filteredTerms.length })}
         </h4>
         <div class="flex items-center gap-1 text-[11px]">
           <button
@@ -190,21 +191,21 @@
             class="px-2 py-0.5 rounded {filterKind === 'all' ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { filterKind = 'all'; }}
           >
-            All
+            {t('common.all')}
           </button>
           <button
             type="button"
             class="px-2 py-0.5 rounded {filterKind === 'category' ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { filterKind = 'category'; }}
           >
-            Categories
+            {t('common.categories')}
           </button>
           <button
             type="button"
             class="px-2 py-0.5 rounded {filterKind === 'tag' ? 'bg-accent text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'}"
             onclick={() => { filterKind = 'tag'; }}
           >
-            Tags
+            {t('common.tags')}
           </button>
         </div>
       </div>
@@ -212,11 +213,11 @@
       {#if loading}
         <div class="py-8 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
           <div class="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-          <span>Loading terms...</span>
+          <span>{t('news.taxonomy.loading')}</span>
         </div>
       {:else if filteredTerms.length === 0}
         <div class="p-8 text-center rounded-xl border border-dashed border-border bg-card">
-          <p class="text-xs text-muted-foreground">No taxonomy terms found matching the current filter.</p>
+          <p class="text-xs text-muted-foreground">{t('news.taxonomy.empty')}</p>
         </div>
       {:else}
         <div class="divide-y divide-border rounded-xl border border-border bg-card max-h-64 overflow-y-auto">
@@ -224,7 +225,7 @@
             <div class="p-3 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors">
               <div class="flex items-center gap-2.5 min-w-0">
                 <Badge variant={term.kind === 'category' ? 'default' : 'outline'} size="sm">
-                  {term.kind || 'term'}
+                  {term.kind || t('news.taxonomy.term')}
                 </Badge>
                 <span class="font-medium text-foreground truncate">{term.label}</span>
                 <span class="text-muted-foreground font-mono text-[11px]">/{term.slug}</span>
@@ -233,7 +234,7 @@
                 type="button"
                 class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shrink-0"
                 onclick={() => { deleteTarget = term; }}
-                title="Delete term"
+                title={t('news.taxonomy.deleteTerm')}
               >
                 <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M3 6h18"></path>
@@ -249,6 +250,6 @@
   </div>
 
   {#snippet footer()}
-    <Button variant="secondary" size="sm" onclick={onclose}>Done</Button>
+    <Button variant="secondary" size="sm" onclick={onclose}>{t('common.done')}</Button>
   {/snippet}
 </Modal>
