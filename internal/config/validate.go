@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/cron"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 )
@@ -119,6 +120,21 @@ func (c Config) Validate() error {
 		if hook.Timeout != "" {
 			if timeout, err := time.ParseDuration(hook.Timeout); err != nil || timeout < 100*time.Millisecond || timeout > 10*time.Second {
 				return fmt.Errorf("hook %q timeout must be between 100ms and 10s", hook.ID)
+			}
+		}
+	}
+	for _, hook := range c.Hooks {
+		if len(hook.Schedules) > 20 {
+			return fmt.Errorf("hook %q has more than 20 schedules", hook.ID)
+		}
+		names := map[string]bool{}
+		for _, schedule := range hook.Schedules {
+			if !hookID.MatchString(schedule.Name) || names[schedule.Name] {
+				return fmt.Errorf("hook %q schedule name %q must be unique lowercase letters, digits, dashes or underscores", hook.ID, schedule.Name)
+			}
+			names[schedule.Name] = true
+			if _, err := cron.Parse(schedule.Cron); err != nil {
+				return fmt.Errorf("hook %q schedule %q: %w", hook.ID, schedule.Name, err)
 			}
 		}
 	}
