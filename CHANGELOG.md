@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
+### Fixed
+- MySQL: concurrent audited writes no longer deadlock on the audit chain head (found by running the new SQL on a real server), and a transaction the database aborts for a lock race (deadlock, lock wait timeout, serialization failure) now answers 409 so the request can be retried, instead of 500.
+
 ### Added
 - Admin: a "Services" tab under System lists the configured hook services (host, calls and failures since start, last call, content types using them, schedules). It appears only when `hooks:` is configured; `GET /api/v1/admin/system/services`.
 - The admin schema leaves out fields whose `permission` the signed-in user lacks, so forms and lists no longer show a label for a value the API never sends.
