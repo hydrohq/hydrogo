@@ -9,7 +9,7 @@ import (
 
 // PublicAPI serves read-only JSON for content types marked `public: true`:
 //
-//	GET /api/v1/content/{type}?limit=&offset=&sort=&search=&filter[field]=&expand=
+//	GET /api/v1/content/{type}?limit=&offset=&after=&sort=&search=&filter[field]=&expand=
 //	    -> {"data": [...], "metadata": {"limit": n, "offset": n, "has_more": b, "locale": "tr"}}
 //	GET /api/v1/content/{type}/{id} -> {"data": record}
 //
@@ -147,7 +147,11 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, item)
 	}
-	api.WriteData(w, http.StatusOK, items, publicPage{PaginationMeta: api.PaginationMeta{Limit: limit, Offset: query.Offset, HasMore: hasMore}, Locale: locale})
+	page := api.PaginationMeta{Limit: limit, Offset: query.Offset, HasMore: hasMore}
+	if hasMore && len(records) > 0 {
+		page.NextCursor = collections.NextCursor(query, records[len(records)-1])
+	}
+	api.WriteData(w, http.StatusOK, items, publicPage{PaginationMeta: page, Locale: locale})
 }
 
 func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {

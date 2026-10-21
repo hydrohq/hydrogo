@@ -239,6 +239,19 @@ func buildRecordQuery(dialect database.Dialect, tenantID, collectionID string, q
 		}
 		sql.WriteString(" AND " + clause)
 	}
+	if after := query.After; after != nil {
+		if (after.Field != collections.SortCreatedAt && after.Field != collections.SortUpdatedAt) || len(after.Value) == 0 || len(after.ID) == 0 {
+			return "", nil, collections.ErrInvalidQuery
+		}
+		// Same order as the ORDER BY: the column (direction as sorted), then
+		// id ascending. The column name comes from the allowlist above.
+		compare := ">"
+		if after.Desc {
+			compare = "<"
+		}
+		sql.WriteString(" AND (" + after.Field + " " + compare + " " + b.param(after.Value) +
+			" OR (" + after.Field + " = " + b.param(after.Value) + " AND id > " + b.param(after.ID) + "))")
+	}
 	if len(query.IDs) > 0 {
 		if len(query.IDs) > collections.MaxQueryIDs {
 			return "", nil, collections.ErrInvalidQuery

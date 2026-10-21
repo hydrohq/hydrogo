@@ -81,6 +81,9 @@ type Query struct {
 	// IDs restricts the result to these record IDs (at most MaxQueryIDs).
 	// Related records are loaded this way (see contenttypes expand).
 	IDs []string
+	// After continues a list after a cursor from NextCursor; it replaces
+	// Offset and only works with the default sort or a created_at/updated_at sort.
+	After *Cursor
 }
 
 // ParseSort reads "field" or "-field".
@@ -118,7 +121,12 @@ func (s Schema) ValidateQuery(q Query) (Query, error) {
 			return Query{}, fmt.Errorf("%w: invalid record id", ErrInvalidQuery)
 		}
 	}
-	result := Query{Limit: q.Limit, Offset: q.Offset, IDs: q.IDs}
+	if q.After != nil {
+		if err := validateCursor(q.After, q); err != nil {
+			return Query{}, err
+		}
+	}
+	result := Query{Limit: q.Limit, Offset: q.Offset, IDs: q.IDs, After: q.After}
 	for _, group := range []struct {
 		in  []Condition
 		out *[]Condition
