@@ -153,6 +153,13 @@ func toStorage(schema collections.Schema, payload map[string]any) map[string]any
 // transitions; 409 for a stale version; 422 with per-field codes for
 // validation and uniqueness failures.
 func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema collections.Schema) {
+	status, message, fields := serviceFailure(err, schema)
+	api.WriteError(w, r, status, message, fields)
+}
+
+// serviceFailure maps a service error to the HTTP status, message and field
+// codes of its error response.
+func serviceFailure(err error, schema collections.Schema) (int, string, map[string]string) {
 	var data map[string]any
 	var submitted *saveError
 	if errors.As(err, &submitted) {
@@ -162,15 +169,17 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema
 	case errors.Is(err, collections.ErrCollectionNotFound), errors.Is(err, collections.ErrRecordNotFound),
 		errors.Is(err, collections.ErrRevisionNotFound), errors.Is(err, collections.ErrNotLocalized),
 		errors.Is(err, errNoRevisions), errors.Is(err, errLocale):
-		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
+		return http.StatusNotFound, "not found", nil
+	case errors.Is(err, errBatchOperation):
+		return http.StatusBadRequest, "invalid operation", nil
 	case errors.Is(err, collections.ErrInvalidQuery):
-		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
+		return http.StatusBadRequest, "invalid list query", nil
 	case errors.Is(err, collections.ErrInvalidLocale):
-		api.WriteError(w, r, http.StatusBadRequest, "unsupported locale", nil)
+		return http.StatusBadRequest, "unsupported locale", nil
 	case errors.Is(err, errTransition):
-		api.WriteError(w, r, http.StatusBadRequest, "transition not allowed", nil)
+		return http.StatusBadRequest, "transition not allowed", nil
 	case errors.Is(err, collections.ErrVersionConflict):
-		api.WriteError(w, r, http.StatusConflict, "the record was changed by someone else", nil)
+		return http.StatusConflict, "the record was changed by someone else", nil
 	case errors.Is(err, collections.ErrUniqueValue):
 		fields := map[string]string{}
 		for _, field := range schema.Fields {
@@ -178,7 +187,7 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema
 				fields[field.ID] = "taken"
 			}
 		}
-		api.WriteValidation(w, r, fields)
+		return http.StatusUnprocessableEntity, "validation failed", fields
 	case errors.Is(err, collections.ErrInvalidRecord):
 		fields := map[string]string{}
 		if _, id, found := strings.Cut(err.Error(), ": "); found {
@@ -188,8 +197,8 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema
 			}
 			fields[id] = code
 		}
-		api.WriteValidation(w, r, fields)
+		return http.StatusUnprocessableEntity, "validation failed", fields
 	default:
-		api.WriteError(w, r, http.StatusInternalServerError, "request could not be completed", nil)
+		return http.StatusInternalServerError, "request could not be completed", nil
 	}
 }
