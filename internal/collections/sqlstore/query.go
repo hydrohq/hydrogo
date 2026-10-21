@@ -125,12 +125,70 @@ func (b *queryBuilder) condition(condition collections.Condition) (string, error
 		pattern := "%" + escapeLike(strings.ToLower(text)) + "%"
 		return "LOWER(" + b.text(condition.Field) + ") LIKE " + b.param(pattern) + " ESCAPE '" + likeEscape + "'", nil
 	case collections.Equals:
-		switch typed := condition.Typed.(type) {
-		case string:
-			return b.text(condition.Field) + " = " + b.param(typed), nil
-		case float64, bool:
-			return b.value(condition.Field) + " = " + b.literal(typed), nil
+		return b.compare(condition.Field, "=", condition.Typed)
+	case collections.NotEquals:
+		// Bind in the order the placeholders appear in the SQL text.
+		missing := b.text(condition.Field) + " IS NULL"
+		clause, err := b.compare(condition.Field, "<>", condition.Typed)
+		if err != nil {
+			return "", err
 		}
+		return "(" + missing + " OR " + clause + ")", nil
+	case collections.GreaterThan:
+		return b.compare(condition.Field, ">", condition.Typed)
+	case collections.GreaterOrEqual:
+		return b.compare(condition.Field, ">=", condition.Typed)
+	case collections.LessThan:
+		return b.compare(condition.Field, "<", condition.Typed)
+	case collections.LessOrEqual:
+		return b.compare(condition.Field, "<=", condition.Typed)
+	case collections.IsNull:
+		flag, ok := condition.Typed.(bool)
+		if !ok {
+			return "", collections.ErrInvalidQuery
+		}
+		if flag {
+			return b.text(condition.Field) + " IS NULL", nil
+		}
+		return b.text(condition.Field) + " IS NOT NULL", nil
+	case collections.In:
+		values, ok := condition.Typed.([]any)
+		if !ok || len(values) == 0 || len(values) > collections.MaxInValues {
+			return "", collections.ErrInvalidQuery
+		}
+		var left string
+		placeholders := make([]string, 0, len(values))
+		switch values[0].(type) {
+		case string:
+			left = b.text(condition.Field)
+			for _, value := range values {
+				text, ok := value.(string)
+				if !ok {
+					return "", collections.ErrInvalidQuery
+				}
+				placeholders = append(placeholders, b.param(text))
+			}
+		case float64, bool:
+			left = b.value(condition.Field)
+			for _, value := range values {
+				placeholders = append(placeholders, b.literal(value))
+			}
+		default:
+			return "", collections.ErrInvalidQuery
+		}
+		return left + " IN (" + strings.Join(placeholders, ",") + ")", nil
+	}
+	return "", collections.ErrInvalidQuery
+}
+
+// compare renders "field <op> value" for a validated string, number or
+// boolean value.
+func (b *queryBuilder) compare(field, op string, typed any) (string, error) {
+	switch value := typed.(type) {
+	case string:
+		return b.text(field) + " " + op + " " + b.param(value), nil
+	case float64, bool:
+		return b.value(field) + " " + op + " " + b.literal(value), nil
 	}
 	return "", collections.ErrInvalidQuery
 }

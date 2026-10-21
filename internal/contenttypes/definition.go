@@ -34,7 +34,11 @@
 //   - searchable: include the field in the admin list search and the public
 //     API's ?search= (text, textarea, richtext, select).
 //   - filterable: add a filter for the field to the admin list and allow
-//     ?filter[field]= on the public API (text, textarea, select, number).
+//     ?filter[field]= on the public API (text, textarea, select, number,
+//     boolean, date, datetime and single relation fields). Beyond equality
+//     the API accepts filter[field][ne|gt|gte|lt|lte|in|null]=value; gt, gte,
+//     lt and lte need a number or date field, in takes a comma separated
+//     list (at most 50 values) and null takes true or false.
 //   - localized: keep one value per site locale (text, textarea, richtext,
 //     media; not together with unique, searchable or filterable). A type
 //     with localized fields needs revisions: true. The record holds the
@@ -108,7 +112,7 @@ type Field struct {
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
 	Searchable bool `json:"searchable" yaml:"searchable"`
-	// Filterable fields (text, textarea, select, number) get a filter in
+	// Filterable fields (see the package documentation) get a filter in
 	// the admin list and accept filter[field]= on the public API.
 	Filterable bool `json:"filterable" yaml:"filterable"`
 	// Localized fields (text, textarea, richtext, media) have a value per
@@ -173,7 +177,7 @@ func (d Definition) Validate() error {
 		if field.Searchable && !oneOf(field.Kind, "text", "textarea", "richtext", "select") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be searchable", ErrInvalidDefinition, field.ID, field.Kind)
 		}
-		if field.Filterable && !oneOf(field.Kind, "text", "textarea", "select", "number") {
+		if field.Filterable && (!oneOf(field.Kind, "text", "textarea", "select", "number", "boolean", "date", "datetime", "relation") || field.Many) {
 			return fmt.Errorf("%w: field %q of kind %s cannot be filterable", ErrInvalidDefinition, field.ID, field.Kind)
 		}
 		if field.Localized && !oneOf(field.Kind, "text", "textarea", "richtext", "media") {
