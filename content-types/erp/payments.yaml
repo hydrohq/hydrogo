@@ -1,0 +1,15 @@
+id: payments
+label: Payments
+description: Money received against invoices.
+group: ERP
+icon: banknote
+title_field: number
+rules:
+  - {assert: "amount > 0", message: "The amount must be above zero"}
+fields:
+  - {id: number, label: Number, kind: text, list: true, searchable: true, sequence: {prefix: "PAY-{yyyy}-", pad: 5}}
+  - {id: invoice, label: Invoice, kind: relation, to: invoices, required: true, list: true, filterable: true}
+  - {id: amount, label: Amount, kind: number, decimals: 2, required: true, list: true, filterable: true}
+  - {id: paid_on, label: Paid on, kind: date, required: true, list: true, filterable: true}
+  - {id: method, label: Method, kind: select, options: [bank_transfer, card, cash, cheque], list: true, filterable: true}
+  - {id: reference, label: Reference, kind: text, searchable: true}

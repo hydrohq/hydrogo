@@ -3,7 +3,7 @@ package contenttypes
 import "testing"
 
 func TestStockContentTypesAreValid(t *testing.T) {
-	for _, dir := range []string{"../../content-types", "../../content-types/crm"} {
+	for _, dir := range []string{"../../content-types", "../../content-types/crm", "../../content-types/erp"} {
 		definitions, err := LoadDir(dir)
 		if err != nil {
 			t.Fatalf("%s: %v", dir, err)
