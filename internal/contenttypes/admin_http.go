@@ -28,6 +28,7 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	PUT    /api/v1/admin/content/{type}/{id}   {version, fields...}
 //	DELETE /api/v1/admin/content/{type}/{id}                -> 204
 //	POST   .../{id}/workflow                   {target, version}
+//	POST   .../{id}/state                      {to, version} (types with states)
 //	GET    .../{id}/revisions?limit=
 //	GET    .../{id}/revisions/{version}
 //	POST   .../{id}/revisions/{version}/restore {version}
@@ -52,6 +53,7 @@ func (a AdminAPI) Routes() []router.Route {
 		{"PUT " + record, a.update},
 		{"DELETE " + record, a.delete},
 		{"POST " + record + "/workflow", a.workflow},
+		{"POST " + record + "/state", a.state},
 		{"GET " + record + "/revisions", a.revisions},
 		{"GET " + record + "/revisions/{version}", a.revision},
 		{"POST " + record + "/revisions/{version}/restore", a.restore},
@@ -558,4 +560,28 @@ func (a AdminAPI) presenceLeave(w http.ResponseWriter, r *http.Request) {
 	resource := "content:" + r.PathValue("type") + ":" + r.PathValue("id")
 	a.Presence.Leave(tenantID, resource, user.ID)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// state moves a record along its type's state machine.
+func (a AdminAPI) state(w http.ResponseWriter, r *http.Request) {
+	definition, _, ok := a.resolve(w, r, true)
+	if !ok {
+		return
+	}
+	var input struct {
+		To      string `json:"to"`
+		Version int    `json:"version"`
+	}
+	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+		return
+	}
+	r = a.withActor(r)
+	can := func(permission string) bool { return a.Can != nil && a.Can(r, permission) }
+	id := r.PathValue("id")
+	schema, _ := a.Service.GetSchema(r.Context(), definition.ID)
+	if _, err := a.Service.Transition(r.Context(), definition.ID, id, input.To, input.Version, can); err != nil {
+		writeServiceError(w, r, err, schema)
+		return
+	}
+	a.current(w, r, definition.ID, id)
 }

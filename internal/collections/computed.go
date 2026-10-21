@@ -43,7 +43,7 @@ func (s Schema) applyComputed(clean map[string]any) error {
 		if err != nil {
 			return ErrInvalidSchema
 		}
-		result, err := expr.Eval(func(name string) *big.Rat { return decimalOf(clean[name]) })
+		result, err := expr.EvalNumber(func(name string) Value { return valueOf(clean[name]) })
 		if err != nil {
 			return fieldError(field.ID)
 		}
@@ -57,9 +57,14 @@ func (s Schema) applyComputed(clean map[string]any) error {
 	return nil
 }
 
-// decimalOf converts a stored number to an exact decimal through its shortest
-// text form, so 0.1 is one tenth and not the nearest binary fraction.
-func decimalOf(value any) *big.Rat {
+// valueOf converts a stored field value to an expression value. Numbers
+// become exact decimals through their shortest text form, so 0.1 is one tenth
+// and not the nearest binary fraction. Lists and anything else read as unset.
+func valueOf(value any) Value {
+	switch typed := value.(type) {
+	case string, bool:
+		return typed
+	}
 	number, ok := numeric(value)
 	if !ok {
 		return nil

@@ -64,6 +64,33 @@
 //     when the site has i18n enabled with more than one locale; otherwise
 //     the flag changes nothing.
 //
+// Rules and states (type level, next to fields):
+//
+//	rules:
+//	  - assert: "quantity > 0"                 # every saved record must satisfy it
+//	    message: "Quantity must be positive"
+//	  - when: "status == 'posted'"             # ...only while the record is posted
+//	    assert: "total > 0"
+//	  - when: "status == 'posted'"             # a stored record matching it is locked:
+//	    readonly: true                         # no edits, no delete
+//	    message: "Posted invoices are locked"
+//	states:
+//	  field: status                            # a select field; read-only in the admin
+//	  initial: draft                           # new records start here
+//	  transitions:
+//	    - {from: draft, to: approved, permission: invoice.approve}
+//	    - {from: approved, to: posted, when: "total > 0", message: "Nothing to post"}
+//	    - {from: posted, to: void}
+//
+// Conditions use the expression language of computed fields plus comparisons
+// (== != < <= > >=), && || !, 'text', true, false and empty(field); they may
+// only read fields of the type. A save can never change the state field: it
+// moves along transitions with POST /api/v1/admin/content/{type}/{id}/state
+// {"to": "approved", "version": n}, which needs the transition's permission
+// (admins have every permission) and runs the asserts on the resulting
+// record. Readonly rules do not block transitions, so a locked record can
+// still be voided.
+//
 // The public API also accepts ?sort=field or ?sort=-field on any field and
 // on created_at and updated_at.
 package contenttypes
@@ -107,8 +134,12 @@ type Definition struct {
 	Drafts bool `json:"drafts" yaml:"drafts"`
 	// Revisions keeps the last collections.MaxRevisionsPerRecord saved
 	// versions of each record; the admin can view and restore them.
-	Revisions bool    `json:"revisions" yaml:"revisions"`
-	Fields    []Field `json:"fields" yaml:"fields"`
+	Revisions bool `json:"revisions" yaml:"revisions"`
+	// Rules validate and lock records; States restricts how a select field
+	// changes (see the package documentation).
+	Rules  []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
+	States *collections.StateMachine `json:"states,omitempty" yaml:"states"`
+	Fields []Field                   `json:"fields" yaml:"fields"`
 }
 
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
@@ -236,7 +267,7 @@ func (d Definition) Validate() error {
 
 // Schema returns the storage schema.
 func (d Definition) Schema() (collections.Schema, error) {
-	schema := collections.Schema{ID: d.ID, Label: d.Label, Description: d.Description, Revisions: d.Revisions}
+	schema := collections.Schema{ID: d.ID, Label: d.Label, Description: d.Description, Revisions: d.Revisions, Rules: d.Rules, States: d.States}
 	for _, field := range d.Fields {
 		kind, err := storageKind(field)
 		if err != nil {
@@ -316,7 +347,7 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
 			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
-			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "",
+			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "" || (d.States != nil && d.States.Field == field.ID),
 		}
 		switch field.Kind {
 		case "text":

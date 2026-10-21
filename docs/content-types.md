@@ -30,6 +30,26 @@ Filters work on fields marked `filterable` (text, textarea, select, number, bool
 
 **Money and computed fields.** `decimals: 2` on a number field fixes its decimal places: `12.345` is rejected instead of rounded, and so is a value too large to be held exactly (more than 15 digits including the places). `computed: "quantity * unit_price"` makes the server calculate a number field on every save with exact decimal arithmetic (no floating point), rounding half away from zero to the field's `decimals`. It reads number fields declared before it, so totals can build on subtotals: `subtotal` = `quantity * unit_price`, `tax` = `subtotal * 0.18`, `total` = `subtotal + tax`. Operators are `+ - * /` and parentheses; functions are `abs(x)`, `min(a, b)`, `max(a, b)` and `round(x, places)`. An empty field counts as 0; dividing by zero, or a result that does not fit, rejects the save. The value is stored and returned like any field (so it can be filtered and sorted), a value sent by a client is ignored, and the field is read-only in the admin.
 
+**Rules and states.** Type-level `rules` check and lock records, and `states` turns a select field into a small state machine:
+
+```yaml
+rules:
+  - assert: "quantity > 0"                  # every saved record must satisfy it
+    message: "Quantity must be positive"
+  - when: "status == 'posted'"              # a stored record matching `when` is locked:
+    readonly: true                          # no edits, no delete
+    message: "Posted invoices are locked"
+states:
+  field: status
+  initial: draft
+  transitions:
+    - {from: draft, to: approved, permission: invoice.approve}
+    - {from: approved, to: posted, when: "total > 0", message: "Nothing to post"}
+    - {from: posted, to: void}
+```
+
+Conditions use the same expression language as computed fields plus comparisons (`== != < <= > >=`), `&& || !`, `'text'`, `true`, `false` and `empty(field)`, and may only read fields of the type (an unset field equals `""`, `0` and `false`). An `assert` with `when` only applies while `when` holds for the saved record. A failed rule answers 422 with the rule's message (and `fields._rule`). The state field is read-only: new records start in `initial` whatever the client sends, a normal save keeps the stored state, and a change goes through `POST /api/v1/admin/content/<type>/<id>/state` with `{"to": "approved", "version": 3}`. A step that does not exist, or whose `when` fails, answers 422; a step with a `permission` needs a user who holds it (admins hold every permission) and answers 403 otherwise. Readonly rules do not block transitions, so a posted invoice can still be voided, and asserts run on the record as it will be after the change.
+
 **Batch (admin API).** `POST /api/v1/admin/content/_batch` applies up to 200 `create`, `update` and `delete` operations in one transaction: all of them are saved or none. Body: `{"operations":[{"op":"create","type":"companies","fields":{"name":"Acme"}},{"op":"create","type":"contacts","fields":{"full_name":"Al","company":"$ref:0"}}]}`. `"$ref:N"` stands for the id of the record created by operation N, so related records can be created together. `update` needs `id` and the record's current `version`. On success the response lists `results` (index, type, id, record). On failure nothing is saved and the error names the operation: field errors come back as `operations[1].full_name`. It needs the same write permission as a single save.
 
 Tools: `hydro content-type new <id>` writes a skeleton; `hydro content-type validate` loads every file and reports errors. Restart `hydro serve` after changing a file.

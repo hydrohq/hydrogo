@@ -16,4 +16,5 @@ func TestMySQLStaticStoreSupportsQueriesRevisionsAndTranslations(t *testing.T) {
 	runTranslationContract(t, db, database.MySQL)
 	runFilterContract(t, db, database.MySQL)
 	runSequenceContract(t, db, database.MySQL)
+	runRulesContract(t, db, database.MySQL)
 }

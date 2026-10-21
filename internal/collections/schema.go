@@ -92,6 +92,10 @@ type Schema struct {
 	// Revisions keeps a snapshot of every saved version of a record (see
 	// MaxRevisionsPerRecord).
 	Revisions bool `json:"revisions,omitempty"`
+	// Rules validate and lock records; States restricts how a select field
+	// changes. See Rule and StateMachine.
+	Rules  []Rule        `json:"rules,omitempty"`
+	States *StateMachine `json:"states,omitempty"`
 }
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
@@ -156,7 +160,7 @@ func (s Schema) Validate() error {
 			return ErrInvalidSchema
 		}
 	}
-	return nil
+	return s.validateRulesAndStates()
 }
 
 func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
@@ -174,7 +178,7 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 	}
 	clean := make(map[string]any, len(data))
 	for _, field := range s.Fields {
-		if field.Sequence != nil || field.Computed != "" {
+		if field.Sequence != nil || field.Computed != "" || (s.States != nil && s.States.Field == field.ID) {
 			// Numbered by the server on create (Service.saveRecord) or
 			// calculated below.
 			continue
