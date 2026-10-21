@@ -45,7 +45,8 @@ func main() {
 		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json"}},
 	}
 	if !*short {
-		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}})
+		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}},
+			step{name: "side-service example", dir: "examples/side-service", args: []string{"go", "test", "./...", "-count=1"}})
 
 		npm := "npm"
 		if runtime.GOOS == "windows" {

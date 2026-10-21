@@ -160,6 +160,9 @@ permissions and a new token.
 
 ## Hooks: ask a side service first
 
+`examples/side-service` is a small standard-library Go service that verifies the
+signature and answers hooks and schedules; copy it as the starting point.
+
 Domain logic (posting to a ledger, a credit check, e-invoicing) lives in a
 side service, not in HydroGo. A type can make a change wait for it:
 
