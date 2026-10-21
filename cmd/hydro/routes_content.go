@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
@@ -39,6 +41,15 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 		return nil, err
 	}
 	a.contentTypes = definitions
+	if names := contenttypes.PermissionNames(definitions); len(names) > 0 && a.authSvc != nil {
+		catalog, err := auth.NewPermissionCatalog(names...)
+		if err != nil {
+			return nil, fmt.Errorf("content types: permissions: %w", err)
+		}
+		if err := a.authSvc.SetPermissionCatalog(catalog); err != nil {
+			return nil, err
+		}
+	}
 	return contentRoutes, nil
 }
 

@@ -115,11 +115,17 @@ func (a AdminAPI) schemaOf(r *http.Request, typeID string) collections.Schema {
 	return schema
 }
 
+var errBatchForbidden = errors.New("not allowed to change this type")
+
 var errBatchOperation = errors.New("invalid batch operation")
 
 func (a AdminAPI) runBatchOperation(r *http.Request, index int, operation batchOperation, done []batchResult) (batchResult, error) {
-	if _, ok := definitionByID(a.types(), operation.Type); !ok {
+	definition, ok := definitionByID(a.types(), operation.Type)
+	if !ok {
 		return batchResult{}, collections.ErrCollectionNotFound
+	}
+	if !a.allowed(r, definition, true, true) {
+		return batchResult{}, errBatchForbidden
 	}
 	id, err := resolveRef(operation.ID, done)
 	if err != nil {
