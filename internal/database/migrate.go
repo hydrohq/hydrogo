@@ -131,6 +131,9 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 		}
 		pending = append(pending, migrationID)
 	}
+	if err := rejectPagesOnCoreCreatedDatabase(pending, existingMap); err != nil {
+		return err
+	}
 	migrations = pending
 	for index := 0; index < len(migrations); {
 		transactional, err := migrationIsTransactional(migrationFS, migrations[index], dialect)
@@ -269,6 +272,10 @@ func canonicalEnabledModules(enabled map[string]bool) map[string]bool {
 	}
 	return canonical
 }
+
+// ErrPagesNeedsFreshDatabase reports that a database created without the pages
+// module cannot enable it yet (ADR 0009, known limit).
+var ErrPagesNeedsFreshDatabase = errors.New("the pages module cannot be enabled on a database that was created without it")
 
 var ErrUnknownMigration = errors.New("database contains a migration unknown to this binary")
 
@@ -654,4 +661,30 @@ func placeholder(dialect Dialect, position int) string {
 
 func isNoRows(err error) bool {
 	return err == sql.ErrNoRows
+}
+
+const (
+	pagesFirstMigration   = "202609060001_transaction_contract"
+	coreAuditEventsMarker = "202610210002_core_audit_events"
+)
+
+// rejectPagesOnCoreCreatedDatabase stops before any SQL runs when the pages
+// chain would start on a database whose audit/outbox tables core already
+// created: the first pages migration creates them again and fails, and on
+// MySQL (no transactional DDL) the earlier statements would stay applied.
+// Published migrations cannot be edited, so the fix is the baseline of ADR 0009;
+// until then the operator gets the reason instead of a raw SQL error.
+func rejectPagesOnCoreCreatedDatabase(pending []string, applied map[string]string) error {
+	if _, ok := applied[coreAuditEventsMarker]; !ok {
+		return nil
+	}
+	if _, ok := applied[pagesFirstMigration]; ok {
+		return nil
+	}
+	for _, id := range pending {
+		if id == pagesFirstMigration {
+			return fmt.Errorf("%w: its audit and outbox tables already exist from core (ADR 0009); create the project with pages enabled from the start, or migrate the content into a new database", ErrPagesNeedsFreshDatabase)
+		}
+	}
+	return nil
 }

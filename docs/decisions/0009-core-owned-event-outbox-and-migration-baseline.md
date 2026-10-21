@@ -20,7 +20,7 @@ Making `collections` create the outbox with its own migration would collide with
 
 Core migration `202610210002_core_audit_events` creates `audit_events` in its final shape (columns, indexes, immutability triggers and, on PostgreSQL, the tenant policy) when it does not exist, so a project without `pages` (the `crm` preset) can sign in and keep an audit trail. Every statement is a no-op where the pages migrations already built the table, so existing databases are unchanged. The released `pages` migrations were not touched: moving the first one to `core` would also create an empty `pages` table without `tenant_id`, which breaks the PostgreSQL tenant policy migration.
 
-Known limit: enabling `pages` later on a database that was created without it fails at the first pages migration (the audit table already exists). The baseline below removes that.
+Known limit: enabling `pages` later on a database that was created without it fails at the first pages migration (the audit table already exists). The baseline below removes that. Until then the migration runner detects this before running any SQL and stops with `ErrPagesNeedsFreshDatabase` (so MySQL, which has no transactional DDL, is never left half-migrated); the way out is to create the project with `pages` from the start.
 
 ## Second slice (done)
 
