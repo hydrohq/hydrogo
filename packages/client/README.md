@@ -13,6 +13,10 @@ const posts = await hydro.listNews("en", 10);
 // Any content type from content-types/*.yaml
 const faq = await hydro.listContent<{ id: string; question: string }>("faq", { limit: 20, search: "refund" });
 const one = await hydro.getContent("faq", faq.data[0].id);
+
+// Filters with operators, related records and keyset paging
+const deals = await hydro.listContent("deals", { filter: { amount: { gte: "100" } }, expand: ["company"], limit: 50 });
+const next = await hydro.listContent("deals", { after: deals.metadata.next_cursor, limit: 50 });
 ```
 
 Errors are `HydroGoError` with `status`, `code`, `message` and `requestId` (quote the request id when reporting a problem). Requests time out after 15 s (`timeoutMs`, max 120 s), response bodies are size-capped, and member methods never send browser cookies.

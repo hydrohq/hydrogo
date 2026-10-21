@@ -47,25 +47,41 @@ func (s Store) appendChain(ctx context.Context, tx database.Executor, tenantID s
 		return nil
 	}
 	p := s.placeholder
-	var ensure string
-	switch s.Dialect {
-	case database.Postgres:
-		ensure = "INSERT INTO audit_chain_heads (tenant_id, seq, last_hash) VALUES (" + p(1) + ", 0, '') ON CONFLICT (tenant_id) DO NOTHING"
-	case database.MySQL:
-		ensure = "INSERT IGNORE INTO audit_chain_heads (tenant_id, seq, last_hash) VALUES (" + p(1) + ", 0, '')"
-	default:
-		ensure = "INSERT OR IGNORE INTO audit_chain_heads (tenant_id, seq, last_hash) VALUES (" + p(1) + ", 0, '')"
-	}
-	if _, err := tx.ExecContext(ctx, ensure, tenantID); err != nil {
-		return err
-	}
 	lock := ""
 	if s.Dialect != database.SQLite {
 		lock = " FOR UPDATE"
 	}
-	var seq int64
-	var last string
-	if err := tx.QueryRowContext(ctx, "SELECT seq, last_hash FROM audit_chain_heads WHERE tenant_id = "+p(1)+lock, tenantID).Scan(&seq, &last); err != nil {
+	// PostgreSQL and SQLite look at the head first and insert it only for the
+	// first event of a tenant. MySQL always runs the insert, as ON DUPLICATE
+	// KEY UPDATE: it takes the row's exclusive lock at once, so racing writers
+	// queue, whereas INSERT IGNORE or a plain read first leaves them holding
+	// shared or gap locks that they then deadlock upgrading.
+	read := func() (int64, string, error) {
+		var seq int64
+		var last string
+		err := tx.QueryRowContext(ctx, "SELECT seq, last_hash FROM audit_chain_heads WHERE tenant_id = "+p(1)+lock, tenantID).Scan(&seq, &last)
+		return seq, last, err
+	}
+	seq, last, err := int64(0), "", error(sql.ErrNoRows)
+	if s.Dialect != database.MySQL {
+		seq, last, err = read()
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		var ensure string
+		switch s.Dialect {
+		case database.Postgres:
+			ensure = "INSERT INTO audit_chain_heads (tenant_id, seq, last_hash) VALUES (" + p(1) + ", 0, '') ON CONFLICT (tenant_id) DO NOTHING"
+		case database.MySQL:
+			ensure = "INSERT INTO audit_chain_heads (tenant_id, seq, last_hash) VALUES (" + p(1) + ", 0, '') ON DUPLICATE KEY UPDATE tenant_id = tenant_id"
+		default:
+			ensure = "INSERT OR IGNORE INTO audit_chain_heads (tenant_id, seq, last_hash) VALUES (" + p(1) + ", 0, '')"
+		}
+		if _, err = tx.ExecContext(ctx, ensure, tenantID); err != nil {
+			return err
+		}
+		seq, last, err = read()
+	}
+	if err != nil {
 		return err
 	}
 	seq++
@@ -73,7 +89,7 @@ func (s Store) appendChain(ctx context.Context, tx database.Executor, tenantID s
 	if _, err := tx.ExecContext(ctx, "INSERT INTO audit_chain (tenant_id, seq, event_id, prev_hash, chain_hash) VALUES ("+p(1)+", "+p(2)+", "+p(3)+", "+p(4)+", "+p(5)+")", tenantID, seq, e.ID, last, hash); err != nil {
 		return err
 	}
-	_, err := tx.ExecContext(ctx, "UPDATE audit_chain_heads SET seq = "+p(1)+", last_hash = "+p(2)+" WHERE tenant_id = "+p(3), seq, hash, tenantID)
+	_, err = tx.ExecContext(ctx, "UPDATE audit_chain_heads SET seq = "+p(1)+", last_hash = "+p(2)+" WHERE tenant_id = "+p(3), seq, hash, tenantID)
 	return err
 }
 
