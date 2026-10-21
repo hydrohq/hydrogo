@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
-  import { api, apiRequest, ApiClientError } from '$lib/api/client';
+  import { api, ApiClientError } from '$lib/api/client';
+  import { importCsvFile, importErrorMessage } from './csvImport';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import type { ContentItem, ApiResponse, Field } from '$lib/api/types';
@@ -111,21 +112,11 @@
     importMessage = '';
     importFailed = false;
     try {
-      const res = await apiRequest<{ created?: number }>(`${csvBase}/_import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/csv' },
-        body: await file.text(),
-      });
-      importMessage = t('schema.importDone', { count: res?.created ?? 0 });
+      importMessage = t('schema.importDone', { count: await importCsvFile(csvBase, file) });
       await loadItems();
     } catch (err) {
       importFailed = true;
-      if (err instanceof ApiClientError) {
-        const details = Object.entries(err.fields ?? {}).slice(0, 3).map(([key, value]) => `${key}: ${value}`).join('; ');
-        importMessage = `${err.message}${details ? ` — ${details}` : ''}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`;
-      } else {
-        importMessage = t('schema.importFailed');
-      }
+      importMessage = importErrorMessage(err, t('schema.requestId'), t('schema.importFailed'));
     }
   }
 

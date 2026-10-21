@@ -28,6 +28,19 @@ type Store struct {
 	// collections.DefaultMaxRecords; a negative value removes the cap and
 	// with it the per-insert COUNT(*).
 	MaxRecords int
+	// Events, when set, is called inside the transaction of every record
+	// create, update and delete with the topic (content.created,
+	// content.updated, content.deleted) and the aggregate id "<type>/<id>",
+	// so the event commits or rolls back with the record. An error aborts the
+	// write.
+	Events func(ctx context.Context, tx database.Executor, topic, aggregateID string, version int) error
+}
+
+func (s Store) emit(ctx context.Context, topic, collectionID, id string, version int) error {
+	if s.Events == nil {
+		return nil
+	}
+	return s.Events(ctx, s.DB, topic, collectionID+"/"+id, version)
 }
 
 func (s Store) recordCap() int {
@@ -55,7 +68,13 @@ func (s Store) p(n int) string {
 }
 func (s Store) within(ctx context.Context, fn func(Store) error) error {
 	if db, ok := s.DB.(*sql.DB); ok {
-		return database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error { next := s; next.DB = tx; return fn(next) })
+		err := database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error { next := s; next.DB = tx; return fn(next) })
+		if isRetryable(err) {
+			// The database rolled this transaction back to resolve a lock
+			// cycle: nothing was saved, and retrying the request will work.
+			return collections.ErrVersionConflict
+		}
+		return err
 	}
 	return fn(s)
 }
@@ -264,6 +283,7 @@ func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	var created string
 	var version int
+	topic := "content.updated"
 	selectQuery := `SELECT created_at,version FROM hydro_collection_records WHERE tenant_id=` + s.p(1) + ` AND collection_id=` + s.p(2) + ` AND id=` + s.p(3)
 	if err := s.row(ctx, selectQuery, tenantID, collectionID, id).Scan(&created, &version); err == nil {
 		if expectedVersion > 0 && version != expectedVersion {
@@ -283,6 +303,7 @@ func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map
 	} else if errors.Is(err, sql.ErrNoRows) {
 		created = now
 		version = 1
+		topic = "content.created"
 		insert := `INSERT INTO hydro_collection_records (tenant_id,collection_id,id,data_json,version,created_at,updated_at) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,1,` + s.p(5) + `,` + s.p(6) + `)`
 		if _, err := s.exec(ctx, insert, tenantID, collectionID, id, string(encoded), now, now); err != nil {
 			return err
@@ -348,6 +369,9 @@ func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map
 			return err
 		}
 	}
+	if err := s.emit(ctx, topic, collectionID, id, version); err != nil {
+		return err
+	}
 	*result = collections.Record{ID: id, CollectionID: collectionID, Data: data, Version: version, CreatedAt: parseTime(created), UpdatedAt: parseTime(now)}
 	return nil
 }
@@ -365,7 +389,7 @@ func (s Store) DeleteRecord(ctx context.Context, collectionID, id string) error 
 		if n, _ := result.RowsAffected(); n == 0 {
 			return collections.ErrRecordNotFound
 		}
-		return nil
+		return tx.emit(ctx, "content.deleted", collectionID, id, 0)
 	})
 }
 
@@ -400,6 +424,23 @@ func mapNoRows(err, target error) error {
 	}
 	return err
 }
+
+// isRetryable recognises the errors a database raises when it aborts a
+// transaction that lost a lock race (deadlock, lock wait timeout,
+// serialization failure) on MySQL and PostgreSQL.
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	text := strings.ToLower(err.Error())
+	for _, marker := range []string{"deadlock", "error 1213", "error 1205", "lock wait timeout", "40001", "40p01", "could not serialize"} {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func isConflict(err error) bool {
 	if err == nil {
 		return false

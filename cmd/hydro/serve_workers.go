@@ -106,7 +106,7 @@ func (a *serveApp) startWorkers() {
 	if modules["news"] && !cgiMode && !cfg.SafeMode {
 		go runNewsWorker(ctx, db, a.newsWorker, metrics, stderr, a.budget.WorkerConcurrency)
 	}
-	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"]) {
+	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 	}
 	if !cfg.SafeMode && !cgiMode && modules["site"] && a.linkScanManager != nil && a.linkScanOrigin != "" {
@@ -122,7 +122,7 @@ func (a *serveApp) startWorkers() {
 		}
 	}
 	if !cfg.SafeMode && !cgiMode {
-		go runHookSchedules(ctx, cfg, syncHookCaller(cfg), time.Now, logger)
+		go runHookSchedules(ctx, cfg, a.hookCaller(), time.Now, logger)
 	}
 	if !cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
 		go database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance)

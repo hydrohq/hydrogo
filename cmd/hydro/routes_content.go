@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	adminsearch "github.com/ardaozyildirim/hydrogo/internal/search"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -31,10 +32,11 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 		return nil, nil
 	}
 	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, MaxRecords: cfg.Limits.RecordsPerType}
+	collectionDB.Events = contentEvents(cfg, outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope})
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
-	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, syncHookCaller(cfg), func() []contenttypes.Definition {
+	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, a.hookCaller(), func() []contenttypes.Definition {
 		return a.contentTypes
 	})
 	if err != nil {

@@ -222,6 +222,27 @@ minutes missed while the server was down are not caught up, and every server
 instance fires its own calls, so run one instance per schedule (or make the
 service idempotent per `at`). Failures are logged as warnings.
 
+## Events: tell a side service afterwards
+
+Hooks ask before a change; events report it afterwards. Subscribe a webhook to
+`content.created`, `content.updated` or `content.deleted` in `config.yaml`:
+
+```yaml
+webhooks:
+  - id: warehouse
+    url: https://example.com/hydro-events
+    topics: [content.created, content.updated, content.deleted]
+```
+
+Every record change then writes an event in the same transaction as the
+record (so a rolled-back change sends nothing), and a background worker
+delivers it as a signed POST with retries and a dead-letter table. The event
+carries `topic`, `aggregate_id` (`<type>/<record id>`) and `payload_version`
+1, not the record: read the record through the API. Delivery is at least
+once, so make the receiver idempotent (the `Idempotency-Key` header is the
+event id). Nothing is written while no webhook subscribes to a content event.
+Works in every preset, with or without pages.
+
 ## The erp-lite preset
 
 `hydro new --preset erp-lite` starts a back office for small trade

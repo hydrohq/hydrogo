@@ -36,6 +36,9 @@ var definitions = []Definition{
 	{Topic: "news.published", PayloadVersion: 1},
 	{Topic: "news.retracted", PayloadVersion: 1},
 	{Topic: "order.created", PayloadVersion: 1},
+	{Topic: "content.created", PayloadVersion: 1},
+	{Topic: "content.updated", PayloadVersion: 1},
+	{Topic: "content.deleted", PayloadVersion: 1},
 	{Topic: "tenant.provisioned", PayloadVersion: 1},
 	{Topic: "user.invited", PayloadVersion: 1, PII: true},
 }
