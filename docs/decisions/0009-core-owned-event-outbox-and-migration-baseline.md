@@ -22,9 +22,12 @@ Core migration `202610210002_core_audit_events` creates `audit_events` in its fi
 
 Known limit: enabling `pages` later on a database that was created without it fails at the first pages migration (the audit table already exists). The baseline below removes that.
 
+## Second slice (done)
+
+Core migration `202610210004_core_outbox_events` creates `outbox_events` in its final shape (with the PostgreSQL tenant policy) when it does not exist, the same way as the audit table. Content events (`content.created`, `content.updated`, `content.deleted`, payload version 1, `aggregate_id` = `<type>/<id>`) are written in the record's transaction by the collections store, only while a configured webhook subscribes to one, and the outbox worker starts for `collections` in that case. The baseline (decision 1) is still open; the known limit above now also covers `outbox_events`.
+
 ## Consequences
 
 - Fresh installs get a short, verifiable schema; upgrades are unchanged.
-- Until this lands, content-type events are not implemented; phase A.4 of the roadmap waits for this decision.
 - The baseline generator and the equivalence test are the main work; the event emission itself is small.
 - Risk: a baseline that drifts from the chain. The equivalence test runs in `tools/check` for all dialects that are available.
