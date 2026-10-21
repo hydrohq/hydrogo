@@ -214,13 +214,13 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
-			Localized: field.Localized,
+			Localized: field.Localized, Indexed: field.Filterable,
 		})
 	}
 	if d.Drafts {
 		// Not required: records written before drafts were enabled have no
 		// status and count as drafts (see recordStatus).
-		schema.Fields = append(schema.Fields, collections.Field{ID: StatusField, Label: "Status", Kind: collections.Select, Options: []string{StatusDraft, StatusPublished}})
+		schema.Fields = append(schema.Fields, collections.Field{ID: StatusField, Label: "Status", Kind: collections.Select, Options: []string{StatusDraft, StatusPublished}, Indexed: true})
 	}
 	return schema, nil
 }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -21,7 +22,15 @@ func TestComparisonOperatorsFilterRecords(t *testing.T) {
 	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
-	service := collections.Service{Repository: Store{DB: db, Dialect: database.SQLite}}
+	runFilterContract(t, db, database.SQLite)
+}
+
+// runFilterContract exercises the comparison operators, id and cursor paging
+// against a real database of the given dialect.
+func runFilterContract(t *testing.T, db database.Executor, dialect database.Dialect) {
+	t.Helper()
+	ctx := context.Background()
+	service := collections.Service{Repository: Store{DB: db, Dialect: dialect}}
 	companies := collections.Schema{ID: "companies", Label: "Companies", Fields: []collections.Field{{ID: "name", Label: "Name", Kind: collections.Text, Required: true}}}
 	deals := collections.Schema{ID: "deals", Label: "Deals", Fields: []collections.Field{
 		{ID: "name", Label: "Name", Kind: collections.Text, Required: true},
@@ -92,6 +101,37 @@ func TestComparisonOperatorsFilterRecords(t *testing.T) {
 				t.Fatalf("got %q, want %q", got, test.want)
 			}
 		})
+	}
+
+	// Cursor paging walks every record once, newest first.
+	var seen []string
+	query := collections.Query{Limit: 2}
+	for page := 0; page < 5; page++ {
+		checked, err := deals.ValidateQuery(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		records, err := service.QueryRecords(ctx, "deals", checked)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, record := range records {
+			seen = append(seen, record.Data["name"].(string))
+		}
+		if len(records) < 2 {
+			break
+		}
+		last := records[len(records)-1]
+		query.After = &collections.Cursor{Field: collections.SortUpdatedAt, Desc: true, Value: last.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: last.ID}
+	}
+	if strings.Join(seen, "") != "dcba" {
+		t.Fatalf("cursor paging saw %v, want d c b a", seen)
+	}
+
+	// IDs load exactly the named records.
+	byID, err := service.QueryRecords(ctx, "companies", collections.Query{Limit: 10, IDs: []string{globex.ID, "r_missing"}})
+	if err != nil || len(byID) != 1 || byID[0].ID != globex.ID {
+		t.Fatalf("ids filter: %+v %v", byID, err)
 	}
 }
 

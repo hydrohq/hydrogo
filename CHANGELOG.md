@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Content type filters: `filterable` now also works on boolean, date, datetime and single relation fields, and the API accepts `filter[field][ne|gt|gte|lt|lte|in|null]=value` besides the exact match (see `docs/content-types.md`).
 - Content type APIs (public and admin) accept `?expand=field,field` on lists and single records: the records that relation fields point to come back under `expanded` in the same response. The public API only expands relations to public types and hides related drafts.
 - Cursor paging for content type lists (public and admin API): when `metadata.has_more` is true, `metadata.next_cursor` holds a cursor to pass as `?after=` for the next page. It has no offset limit and works with the default order and `sort=[-]created_at|updated_at`.
+- PostgreSQL: fields marked `filterable` (and the `status` of drafts types) get a database index, built at startup and dropped when the flag is removed. On a table of one million records a filtered or sorted list page went from 100–600 ms to about 1 ms in a local test, and cursor paging stays fast deep into the list. Other databases are unchanged. Adding the first indexes to a large table briefly blocks writes while they build.
 
 ### Fixed
 - Saving a record with a `many: true` relation field panicked instead of checking the related records.

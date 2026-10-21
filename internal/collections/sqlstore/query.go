@@ -249,8 +249,10 @@ func buildRecordQuery(dialect database.Dialect, tenantID, collectionID string, q
 		if after.Desc {
 			compare = "<"
 		}
-		sql.WriteString(" AND (" + after.Field + " " + compare + " " + b.param(after.Value) +
-			" OR (" + after.Field + " = " + b.param(after.Value) + " AND id > " + b.param(after.ID) + "))")
+		// The leading non-strict bound is redundant but lets the planner
+		// start an index scan at the cursor instead of filtering from the top.
+		sql.WriteString(" AND " + after.Field + " " + compare + "= " + b.param(after.Value) +
+			" AND (" + after.Field + " " + compare + " " + b.param(after.Value) + " OR id > " + b.param(after.ID) + ")")
 	}
 	if len(query.IDs) > 0 {
 		if len(query.IDs) > collections.MaxQueryIDs {
