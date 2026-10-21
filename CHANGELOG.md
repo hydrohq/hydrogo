@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 ### Added
+- Sequence fields: `sequence: {prefix: "INV-{yyyy}-", pad: 5}` on a text field numbers new records without gaps (per tenant, type and prefix period). The number is taken in the record's own transaction, never changes, and a client value is ignored. New table `hydro_collection_sequences` (all three dialects).
 - `POST /api/v1/admin/content/_batch`: up to 200 create/update/delete operations on content records in one transaction (all or nothing), with `$ref:N` to refer to a record created earlier in the same batch; errors name the failing operation.
 - `GET /api/v1/admin/branding` (public): admin name, logo, accent colour and default language, so the sign-in page is branded and in the project's language.
 - `GET /api/v1/admin/me` returns the saved admin `locale` (a browser-bound cookie set by `PUT /api/v1/admin/account/locale`); `PUT` with an empty locale clears it.
@@ -20,9 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Saving a record with a `many: true` relation field panicked instead of checking the related records.
-
-### Fixed
-- Projects without the `pages` module (such as the `crm` preset) failed to sign in because `audit_events` was owned by `pages`; the audit migrations now belong to `core`.
+- Projects without the `pages` module (such as the `crm` preset) failed to sign in because `audit_events` was owned by `pages`; the audit log is now created by a core migration (no change where the pages migrations already built it).
 
 ### Changed
 - Content types can hold up to 100,000 records per tenant by default (was a fixed 10,000); set `limits.records_per_type` in `config.yaml` to change it, or a negative value to remove the cap. Creating a record no longer runs a `COUNT(*)` when there is no cap. `?offset=` stays limited to 10,000.

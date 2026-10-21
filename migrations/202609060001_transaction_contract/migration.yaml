@@ -1,5 +1,5 @@
 id: "202609060001_transaction_contract"
-module: "core"
+module: "pages"
 class:
   sqlite: "maintenance"
   postgres: "online"
