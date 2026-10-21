@@ -20,7 +20,9 @@
   let unreadCount = $state(0);
 
   async function loadNotifications() {
-    if (schema.schema && schema.modules.pages !== true) return;
+    // The endpoint belongs to the pages module; wait for the schema so an
+    // install without it never makes the request (it would 404).
+    if (!schema.schema || schema.modules.pages !== true) return;
     try {
       const res = await api.get<any>('/api/v1/admin/notifications');
       if (res?.data && Array.isArray(res.data)) {
@@ -70,8 +72,12 @@
     }
   }
 
+  // Load as soon as the schema says the module is on (and again if it changes).
+  $effect(() => {
+    if (schema.schema && schema.modules.pages === true) loadNotifications();
+  });
+
   onMount(() => {
-    loadNotifications();
     // Poll notifications every 45s
     const timer = setInterval(loadNotifications, 45000);
     return () => clearInterval(timer);
