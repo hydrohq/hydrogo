@@ -37,6 +37,7 @@
         "list": {"type": "boolean", "description": "Show as a sortable column in the admin list."},
         "options": {"type": "array", "items": {"type": "string"}, "description": "Choices of a select field."},
         "to": {"type": "string", "description": "Target content type id of a relation field."},
+        "rollup": {"type": "object", "additionalProperties": false, "required": ["from", "via"], "description": "Server-kept total of the records of type from whose relation field via points at this record: sum of the number field sum, or their count when sum is omitted. Needs decimals; read-only.", "properties": {"from": {"type": "string"}, "via": {"type": "string"}, "sum": {"type": "string"}}},
         "many": {"type": "boolean", "description": "A relation field holding several records."},
         "permission": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", "description": "Only holders of this permission see or change the field (admins always do). Not with required, unique, searchable, localized or sequence; the type cannot be public."},
         "min": {"type": "number"},

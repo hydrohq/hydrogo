@@ -82,6 +82,9 @@ type Field struct {
 	// on every save (see Expr): the value is stored, a client value is
 	// ignored. Needs Decimals, which defines the rounding.
 	Computed string `json:"computed,omitempty"`
+	// Rollup makes the server total the records of another type that point
+	// at this one (see Rollup). Needs Decimals; read-only for clients.
+	Rollup *Rollup `json:"rollup,omitempty"`
 }
 
 type Schema struct {
@@ -96,6 +99,9 @@ type Schema struct {
 	// changes. See Rule and StateMachine.
 	Rules  []Rule        `json:"rules,omitempty"`
 	States *StateMachine `json:"states,omitempty"`
+	// RollupParents lists the types that total this type's records; set by
+	// the loader of the types (contenttypes.Schemas), not written by hand.
+	RollupParents []string `json:"rollup_parents,omitempty"`
 }
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
@@ -132,6 +138,9 @@ func (s Schema) Validate() error {
 			if err := s.validateComputed(field); err != nil {
 				return err
 			}
+		}
+		if field.Rollup != nil && (field.Kind != Number || field.Decimals == nil || field.Computed != "" || field.Required || field.Unique || field.Localized || field.Sequence != nil || field.Rollup.validate() != nil) {
+			return ErrInvalidSchema
 		}
 		if field.Sequence != nil && (field.Kind != Text || field.Localized || field.Sequence.validate() != nil) {
 			return ErrInvalidSchema
@@ -178,7 +187,7 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 	}
 	clean := make(map[string]any, len(data))
 	for _, field := range s.Fields {
-		if field.Sequence != nil || field.Computed != "" || (s.States != nil && s.States.Field == field.ID) {
+		if field.Sequence != nil || field.Computed != "" || field.Rollup != nil || (s.States != nil && s.States.Field == field.ID) {
 			// Numbered by the server on create (Service.saveRecord) or
 			// calculated below.
 			continue

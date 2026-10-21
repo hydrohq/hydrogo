@@ -1,6 +1,6 @@
 id: invoices
 label: Invoices
-description: Sales invoices. A posted invoice is locked; corrections go through void and a new invoice.
+description: Sales invoices. Totals come from the lines; a posted invoice and its lines are locked, corrections go through void and a new invoice.
 group: ERP
 icon: receipt
 title_field: number
@@ -22,7 +22,7 @@ fields:
   - {id: issue_date, label: Issue date, kind: date, list: true, filterable: true}
   - {id: due_date, label: Due date, kind: date, list: true, filterable: true}
   - {id: currency, label: Currency, kind: select, options: [TRY, USD, EUR], filterable: true}
-  - {id: subtotal, label: Subtotal, kind: number, decimals: 2, min: 0}
-  - {id: tax, label: Tax, kind: number, decimals: 2, min: 0}
+  - {id: subtotal, label: Subtotal, kind: number, decimals: 2, rollup: {from: invoice_lines, via: invoice, sum: line_total}}
+  - {id: tax, label: Tax, kind: number, decimals: 2, rollup: {from: invoice_lines, via: invoice, sum: vat_amount}}
   - {id: total, label: Total, kind: number, decimals: 2, list: true, computed: "subtotal + tax"}
   - {id: notes, label: Notes, kind: textarea}
