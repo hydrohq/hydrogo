@@ -61,7 +61,7 @@ var presets = []Preset{
 		Name:         "erp-lite",
 		Description:  "light ERP: products, warehouses, accounts, sales orders, invoices and payments",
 		Modules:      []string{"core", "auth", "media", "collections"},
-		ContentTypes: []string{"erp/products", "erp/warehouses", "erp/accounts", "erp/sales_orders", "erp/order_lines", "erp/invoices", "erp/invoice_lines", "erp/payments"},
+		ContentTypes: []string{"erp/products", "erp/warehouses", "erp/accounts", "erp/sales_orders", "erp/order_lines", "erp/invoices", "erp/invoice_lines", "erp/payments", "erp/period_closings"},
 	},
 	{
 		Name:         "docs",

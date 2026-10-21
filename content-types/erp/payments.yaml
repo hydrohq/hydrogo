@@ -4,6 +4,7 @@ description: Money received against invoices.
 group: ERP
 icon: banknote
 title_field: number
+period_lock: {field: paid_on, closings: period_closings, through: closed_through}
 rules:
   - {assert: "amount > 0", message: "The amount must be above zero"}
 fields:

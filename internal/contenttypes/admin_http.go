@@ -325,6 +325,10 @@ func (a AdminAPI) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = a.withActor(r)
+	if err := a.guardPeriod(r, definition, r.PathValue("id"), nil); err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	if !a.hookGuard(w, r, definition, HookEvent{On: "delete", ID: r.PathValue("id")}) {
 		return
 	}
@@ -618,6 +622,10 @@ func (a AdminAPI) state(w http.ResponseWriter, r *http.Request) {
 	can := func(permission string) bool { return a.Can != nil && a.Can(r, permission) }
 	id := r.PathValue("id")
 	schema, _ := a.Service.GetSchema(r.Context(), definition.ID)
+	if err := a.guardPeriod(r, definition, id, nil); err != nil {
+		writeServiceError(w, r, err, schema)
+		return
+	}
 	if len(definition.Hooks) > 0 {
 		current, err := a.Service.GetRecord(r.Context(), definition.ID, id)
 		if err != nil {

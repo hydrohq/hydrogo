@@ -5,6 +5,7 @@ group: ERP
 icon: receipt
 title_field: number
 revisions: true
+period_lock: {field: issue_date, closings: period_closings, through: closed_through}
 states:
   field: status
   initial: draft

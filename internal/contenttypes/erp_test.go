@@ -11,7 +11,7 @@ import (
 // invoice and a payment: numbering, exact money, state steps and locking.
 func TestERPLiteFlow(t *testing.T) {
 	files, err := filepath.Glob("../../content-types/erp/*.yaml")
-	if err != nil || len(files) != 8 {
+	if err != nil || len(files) != 9 {
 		t.Fatalf("erp types: %v %v", files, err)
 	}
 	var sources []string
@@ -157,4 +157,57 @@ func TestRollupDefinitionsAreChecked(t *testing.T) {
 			t.Errorf("%s accepted", name)
 		}
 	}
+}
+
+func TestPeriodClosingLocksDatedRecords(t *testing.T) {
+	files, _ := filepath.Glob("../../content-types/erp/*.yaml")
+	var sources []string
+	for _, file := range files {
+		content, _ := os.ReadFile(file)
+		sources = append(sources, string(content))
+	}
+	service, types := newServiceFor(t, sources...)
+	allow := func(*http.Request, string) bool { return true }
+	admin := adminMux(AdminAPI{Service: service, Types: types, Authorize: allowAll, Can: allow})
+	root := AdminAPIPath
+	_, body := call(t, admin, http.MethodPost, root+"/accounts", `{"name":"Acme","kind":"customer"}`)
+	account := data(t, body)["id"].(string)
+	invoice := func(date string) *httptestRecorder {
+		r, b := call(t, admin, http.MethodPost, root+"/invoices", `{"account":"`+account+`","issue_date":"`+date+`"}`)
+		return &httptestRecorder{code: r.Code, body: b}
+	}
+	_, body = call(t, admin, http.MethodPost, root+"/invoices", `{"account":"`+account+`","issue_date":"2026-09-10"}`)
+	september := data(t, body)["id"].(string)
+
+	// Without the permission nobody can close a period; with it, it is final.
+	denied := adminMux(AdminAPI{Service: service, Types: types, Authorize: allowAll, Can: func(*http.Request, string) bool { return false }})
+	if r, _ := call(t, denied, http.MethodPost, root+"/period_closings", `{"closed_through":"2026-09-30"}`); r.Code != http.StatusForbidden {
+		t.Fatalf("close without permission: %d", r.Code)
+	}
+	_, body = call(t, admin, http.MethodPost, root+"/period_closings", `{"closed_through":"2026-09-30"}`)
+	closing := data(t, body)["id"].(string)
+	if r, _ := call(t, admin, http.MethodDelete, root+"/period_closings/"+closing, ""); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("reopen a period: %d", r.Code)
+	}
+
+	if got := invoice("2026-09-30"); got.code != http.StatusUnprocessableEntity || got.body["message"] != "The period up to 2026-09-30 is closed" {
+		t.Fatalf("create in closed period: %d %v", got.code, got.body)
+	}
+	if got := invoice("2026-10-01"); got.code != http.StatusCreated {
+		t.Fatalf("create after the period: %d %v", got.code, got.body)
+	}
+	if r, _ := call(t, admin, http.MethodPut, root+"/invoices/"+september, `{"account":"`+account+`","issue_date":"2026-10-05"}`); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("move a closed record out: %d", r.Code)
+	}
+	if r, _ := call(t, admin, http.MethodDelete, root+"/invoices/"+september, ""); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("delete in closed period: %d", r.Code)
+	}
+	if r, _ := call(t, admin, http.MethodPost, root+"/invoices/"+september+"/state", `{"to":"posted"}`); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("step in closed period: %d", r.Code)
+	}
+}
+
+type httptestRecorder struct {
+	code int
+	body map[string]any
 }
