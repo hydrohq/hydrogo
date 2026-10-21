@@ -156,3 +156,21 @@ func TestCursorRoundTripAndValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestDecimalsRejectsRoundingAndOverflow(t *testing.T) {
+	two := 2
+	schema := Schema{ID: "inv", Label: "Inv", Fields: []Field{{ID: "total", Label: "Total", Kind: Number, Decimals: &two}}}
+	for value, ok := range map[float64]bool{12.5: true, 0.01: true, 100: true, 12.345: false, 0.001: false, 1e12: true, 1e13: false} {
+		_, err := schema.ValidateRecord(map[string]any{"total": value})
+		if (err == nil) != ok {
+			t.Errorf("%v accepted=%v want %v (%v)", value, err == nil, ok, err)
+		}
+	}
+	bad := 9
+	if (Schema{ID: "x", Label: "X", Fields: []Field{{ID: "n", Label: "N", Kind: Number, Decimals: &bad}}}).Validate() == nil {
+		t.Error("9 decimals accepted")
+	}
+	if (Schema{ID: "x", Label: "X", Fields: []Field{{ID: "n", Label: "N", Kind: Text, Decimals: &two}}}).Validate() == nil {
+		t.Error("decimals on a text field accepted")
+	}
+}

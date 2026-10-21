@@ -39,6 +39,16 @@
 //     the API accepts filter[field][ne|gt|gte|lt|lte|in|null]=value; gt, gte,
 //     lt and lte need a number or date field, in takes a comma separated
 //     list (at most 50 values) and null takes true or false.
+//   - decimals: 2 fixes the decimal places of a number field (money). A
+//     value with more places, or too large to be held exactly (more than 15
+//     digits including the places), is rejected, never rounded.
+//   - computed: "quantity * unit_price" calculates a number field on the
+//     server on every save, with exact decimal arithmetic. It needs
+//     decimals (the result is rounded half away from zero to that many
+//     places), reads only number fields declared before it, and supports
+//   - - * /, parentheses and abs, min, max and round(x, places). The
+//     stored value is returned like any field, a client value is ignored,
+//     and the field is read-only in the admin.
 //   - sequence: {prefix: "INV-{yyyy}-", pad: 5}: number new records
 //     without gaps ("INV-2026-00001", "INV-2026-00002", ...). The counter
 //     restarts when the expanded prefix changes ({yyyy}, {yy} and {mm} are
@@ -115,6 +125,12 @@ type Field struct {
 	Many     bool     `json:"many,omitempty" yaml:"many"`
 	Min      *float64 `json:"min,omitempty" yaml:"min"`
 	Max      *float64 `json:"max,omitempty" yaml:"max"`
+	// Decimals fixes the decimal places of a number field (money: 2);
+	// values with more places are rejected, never rounded.
+	Decimals *int `json:"decimals,omitempty" yaml:"decimals"`
+	// Computed calculates a number field on the server from other number
+	// fields declared before it; see collections.Expr.
+	Computed string `json:"computed,omitempty" yaml:"computed"`
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
 	Searchable bool `json:"searchable" yaml:"searchable"`
@@ -192,6 +208,9 @@ func (d Definition) Validate() error {
 		if field.Localized && !oneOf(field.Kind, "text", "textarea", "richtext", "media") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be localized", ErrInvalidDefinition, field.ID, field.Kind)
 		}
+		if field.Decimals != nil && (field.Kind != "number" || *field.Decimals < 0 || *field.Decimals > collections.MaxDecimals) {
+			return fmt.Errorf("%w: decimals needs a number field and 0 to %d places (field %q)", ErrInvalidDefinition, collections.MaxDecimals, field.ID)
+		}
 		if field.Sequence != nil && (field.Kind != "text" || field.Required || field.Localized) {
 			return fmt.Errorf("%w: sequence field %q must be a plain text field (not required or localized)", ErrInvalidDefinition, field.ID)
 		}
@@ -226,7 +245,7 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
-			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence,
+			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence, Decimals: field.Decimals, Computed: field.Computed,
 		})
 	}
 	if d.Drafts {
@@ -297,7 +316,7 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
 			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
-			Localized: field.Localized, ReadOnly: field.Sequence != nil,
+			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "",
 		}
 		switch field.Kind {
 		case "text":

@@ -37,7 +37,10 @@
         "max": {"type": "number"},
         "searchable": {"type": "boolean", "description": "text, textarea, richtext, select."},
         "filterable": {"type": "boolean", "description": "text, textarea, select, number, boolean, date, datetime and single relation fields."},
-        "localized": {"type": "boolean", "description": "One value per site locale (text, textarea, richtext, media)."}
+        "localized": {"type": "boolean", "description": "One value per site locale (text, textarea, richtext, media)."},
+        "decimals": {"type": "integer", "minimum": 0, "maximum": 8, "description": "Number fields: fixed decimal places (money: 2). Values with more places are rejected, never rounded."},
+        "computed": {"type": "string", "maxLength": 256, "description": "Number fields with decimals: an expression over number fields declared earlier, calculated on every save (+ - * /, parentheses, abs, min, max, round(x, places))."},
+        "sequence": {"type": "object", "additionalProperties": false, "description": "Text fields: number new records without gaps.", "properties": {"prefix": {"type": "string", "maxLength": 32, "description": "May contain {yyyy}, {yy} and {mm}; the counter restarts when the expanded prefix changes."}, "pad": {"type": "integer", "minimum": 0, "maximum": 12}}}
       },
       "allOf": [
         {"if": {"properties": {"kind": {"const": "relation"}}, "required": ["kind"]}, "then": {"required": ["to"]}},
