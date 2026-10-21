@@ -31,6 +31,9 @@ type AdminAPI struct {
 	// Authorize reports whether the request may read (write false) or change
 	// (write true) content. Nil denies every request.
 	Authorize func(r *http.Request, write bool) bool
+	// Subject names the signed-in user as record owners are written (their
+	// e-mail address); used by Definition.Access.
+	Subject func(r *http.Request) string
 	// Presence tracks active editors in process memory.
 	Presence *realtime.Presence
 }
@@ -58,6 +61,11 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 	expectedVersion := 0
 	if version, ok := payload["version"].(float64); ok {
 		expectedVersion = int(version)
+	}
+	if definition, ok := definitionByID(a.types(), schema.ID); ok {
+		if err := a.scopePayload(r, definition, id, payload); err != nil {
+			return nil, err
+		}
 	}
 	data := toStorage(schema, payload)
 	if err := a.keepStatus(r, schema.ID, id, data); err != nil {

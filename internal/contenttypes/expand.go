@@ -26,6 +26,8 @@ type expansion struct {
 	publishedOnly bool
 	// present renders a related record for the response.
 	present func(Definition, collections.Record) map[string]any
+	// visible, when set, hides related records the caller may not see.
+	visible func(Definition, collections.Record) bool
 }
 
 // parse reads ?expand=field,field and returns the relation fields of
@@ -98,6 +100,9 @@ func (e expansion) load(ctx context.Context, fields []Field, records []collectio
 				return nil, err
 			}
 			for _, record := range found {
+				if e.visible != nil && !e.visible(target, record) {
+					continue
+				}
 				related[record.ID] = e.present(target, record)
 			}
 		}

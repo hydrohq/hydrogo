@@ -126,6 +126,9 @@ func PermissionNames(definitions []Definition) []string {
 	var names []string
 	for _, d := range definitions {
 		declared := []string{d.Permissions.Read, d.Permissions.Write}
+		if d.Access != nil {
+			declared = append(declared, d.Access.All)
+		}
 		if d.States != nil {
 			for _, step := range d.States.Transitions {
 				declared = append(declared, step.Permission)
@@ -163,6 +166,7 @@ type Definition struct {
 	// changes (see the package documentation).
 	// Permissions names the permissions that guard this type in the admin API
 	// instead of the generic content permissions.
+	Access      *Access                   `json:"access,omitempty" yaml:"access"`
 	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions"`
 	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
 	States      *collections.StateMachine `json:"states,omitempty" yaml:"states"`
@@ -296,6 +300,23 @@ func (d Definition) Validate() error {
 	for _, name := range []string{d.Permissions.Read, d.Permissions.Write} {
 		if name != "" && (!permissionName.MatchString(name) || strings.HasPrefix(name, "admin.")) {
 			return fmt.Errorf("%w: permission %q must look like crm.deals.read and not start with admin.", ErrInvalidDefinition, name)
+		}
+	}
+	if d.Access != nil {
+		owner, found := Field{}, false
+		for _, field := range d.Fields {
+			if field.ID == d.Access.Owner {
+				owner, found = field, true
+			}
+		}
+		if d.Public {
+			return fmt.Errorf("%w: a type with access rules cannot be public", ErrInvalidDefinition)
+		}
+		if !found || owner.Kind != "text" || owner.Localized {
+			return fmt.Errorf("%w: access.owner must name a plain text field", ErrInvalidDefinition)
+		}
+		if !permissionName.MatchString(d.Access.All) || strings.HasPrefix(d.Access.All, "admin.") {
+			return fmt.Errorf("%w: access.all needs a permission such as deals.read_all", ErrInvalidDefinition)
 		}
 	}
 	if d.Localized() && !d.Revisions {

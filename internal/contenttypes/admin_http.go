@@ -89,6 +89,12 @@ func (a AdminAPI) resolve(w http.ResponseWriter, r *http.Request, write bool) (D
 		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
 		return Definition{}, adminstudio.Collection{}, false
 	}
+	if id := r.PathValue("id"); id != "" {
+		if subject, restricted := a.restriction(r, definition); restricted && !a.owns(r.Context(), definition, subject, id) {
+			api.WriteError(w, r, http.StatusNotFound, "not found", nil)
+			return Definition{}, adminstudio.Collection{}, false
+		}
+	}
 	return definition, AdminCollections([]Definition{definition}, a.Locales.Enabled())[0], true
 }
 
@@ -119,8 +125,9 @@ func (a AdminAPI) listLocale(values url.Values, definition Definition) (string, 
 }
 
 // expansion loads related records for ?expand=.
-func (a AdminAPI) expansion() expansion {
+func (a AdminAPI) expansion(r *http.Request) expansion {
 	return expansion{
+		visible: a.visibleTo(r),
 		service: a.Service,
 		target:  func(id string) (Definition, bool) { return definitionByID(a.types(), id) },
 		present: func(definition Definition, record collections.Record) map[string]any {
@@ -140,7 +147,7 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	expand, err := a.expansion().parse(values, definition)
+	expand, err := a.expansion(r).parse(values, definition)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
@@ -160,6 +167,13 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "unsupported locale", nil)
 		return
 	}
+	if subject, restricted := a.restriction(r, definition); restricted {
+		if subject == "" {
+			api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+			return
+		}
+		query.Where = append(query.Where, collections.Condition{Field: definition.Access.Owner, Op: collections.Equals, Value: subject})
+	}
 	records, hasMore, err := a.page(r, definition.ID, query)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
@@ -176,7 +190,7 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	expanded, err := a.expansion().load(r.Context(), expand, records)
+	expanded, err := a.expansion(r).load(r.Context(), expand, records)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
@@ -229,7 +243,7 @@ func (a AdminAPI) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	expand, err := a.expansion().parse(r.URL.Query(), definition)
+	expand, err := a.expansion(r).parse(r.URL.Query(), definition)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
@@ -240,7 +254,7 @@ func (a AdminAPI) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item := a.present(definition.ID, Flatten(record))
-	expanded, err := a.expansion().load(r.Context(), expand, []collections.Record{record})
+	expanded, err := a.expansion(r).load(r.Context(), expand, []collections.Record{record})
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
