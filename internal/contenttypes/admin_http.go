@@ -40,6 +40,8 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	GET    .../{id}/presence                   active editors
 //	DELETE .../{id}/presence                   leave
 //	GET    .../_aggregate?group_by=&sum=       counts and exact sums, per group
+//	GET    .../_export                         CSV of the matching records
+//	POST   .../_import[?dry_run=1]             CSV body, one atomic transaction
 //	POST   /api/v1/admin/content/_batch        {operations:[{op,type,id,version,fields}]} atomic
 func (a AdminAPI) Routes() []router.Route {
 	base := AdminAPIPath + "/{type}"
@@ -50,6 +52,8 @@ func (a AdminAPI) Routes() []router.Route {
 	}{
 		{"GET " + base, a.list},
 		{"GET " + base + AggregatePath, a.aggregate},
+		{"GET " + base + "/_export", a.export},
+		{"POST " + base + "/_import", a.importCSV},
 		{"POST " + base, a.create},
 		{"GET " + record, a.get},
 		{"PUT " + record, a.update},

@@ -66,28 +66,9 @@ func (a AdminAPI) aggregate(w http.ResponseWriter, r *http.Request) {
 		}
 		group = field
 	}
-	query, err := parsePublicQuery(values, definition)
-	if err != nil {
-		writeServiceError(w, r, err, collections.Schema{})
+	query, ok := a.scopedQuery(w, r, definition)
+	if !ok {
 		return
-	}
-	if status := values.Get("status"); status != "" {
-		if !definition.Drafts || (status != StatusDraft && status != StatusPublished) {
-			api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
-			return
-		}
-		query.Where = append(query.Where, collections.Condition{Field: StatusField, Op: collections.Equals, Value: status})
-	}
-	if err := a.checkFilters(r, definition, query); err != nil {
-		writeServiceError(w, r, err, collections.Schema{})
-		return
-	}
-	if subject, restricted := a.restriction(r, definition); restricted {
-		if subject == "" {
-			api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
-			return
-		}
-		query.Where = append(query.Where, collections.Condition{Field: definition.Access.Owner, Op: collections.Equals, Value: subject})
 	}
 	query.Sort, query.Offset, query.Limit = nil, 0, 100
 
@@ -219,3 +200,65 @@ func formatExact(value *big.Rat, decimals *int) string {
 	}
 	return text
 }
+
+// scopedQuery builds the query of a bulk read (aggregate, export) from the
+// list parameters and applies field permissions and row access. It answers
+// the error itself and reports false.
+func (a AdminAPI) scopedQuery(w http.ResponseWriter, r *http.Request, definition Definition) (collections.Query, bool) {
+	values := r.URL.Query()
+	query, err := parsePublicQuery(values, definition)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return query, false
+	}
+	if status := values.Get("status"); status != "" {
+		if !definition.Drafts || (status != StatusDraft && status != StatusPublished) {
+			api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
+			return query, false
+		}
+		query.Where = append(query.Where, collections.Condition{Field: StatusField, Op: collections.Equals, Value: status})
+	}
+	if err := a.checkFilters(r, definition, query); err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return query, false
+	}
+	if subject, restricted := a.restriction(r, definition); restricted {
+		if subject == "" {
+			api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+			return query, false
+		}
+		query.Where = append(query.Where, collections.Condition{Field: definition.Access.Owner, Op: collections.Equals, Value: subject})
+	}
+	query.Sort, query.Offset, query.Limit = nil, 0, 100
+	return query, true
+}
+
+// eachRecord visits every record matching query in pages of 100, stopping
+// at limit records (reported as errTooMany).
+func (a AdminAPI) eachRecord(r *http.Request, typeID string, query collections.Query, limit int, visit func(collections.Record) error) error {
+	seen := 0
+	for {
+		records, err := a.Service.QueryRecords(r.Context(), typeID, query)
+		if err != nil {
+			return err
+		}
+		for _, record := range records {
+			if seen++; seen > limit {
+				return errTooMany
+			}
+			if err := visit(record); err != nil {
+				return err
+			}
+		}
+		if len(records) < query.Limit {
+			return nil
+		}
+		cursor, err := collections.DecodeCursor(collections.NextCursor(query, records[len(records)-1]))
+		if err != nil {
+			return err
+		}
+		query.After = &cursor
+	}
+}
+
+var errTooMany = errors.New("too many records")

@@ -117,3 +117,20 @@ field's `decimals`). The list filters, `search` and `status` apply, as do row
 access and field permissions. The server totals the matching records itself,
 so a request that matches more than 20,000 records or forms more than 1,000
 groups is answered 422: narrow it with filters.
+
+## CSV export and import
+
+`GET /api/v1/admin/content/<type>/_export` streams the records matching the
+list filters as CSV (`id`, then every field the caller may read; lists are
+joined with `;`). Cells that start with `=`, `+`, `-`, `@` or a tab are
+prefixed with `'` so a spreadsheet does not run them. Row access and field
+permissions apply; more than 50,000 matching records end the file with a
+`# export incomplete` row (narrow the filters).
+
+`POST .../_import` takes `Content-Type: text/csv`: the first row names fields
+(computed, sequence and state fields and `id` are refused), every further row
+creates a record. Numbers, booleans (`true/false/1/0/yes/no`) and `;`-separated
+relation lists are converted. The whole file is one transaction: the first
+bad row answers 422 with `rows[i].<field>` codes and nothing is saved. Add
+`?dry_run=1` to validate without saving. Limits: 1,000 rows and 5 MB;
+write access, row access and rules apply as for single saves.
