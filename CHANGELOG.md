@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GET /api/v1/admin/me` returns the saved admin `locale` (a browser-bound cookie set by `PUT /api/v1/admin/account/locale`); `PUT` with an empty locale clears it.
 - `examples/sveltekit-starter`: `npm run smoke` starts the production build against a stub API and checks 404 and 502 handling; CI runs it.
 - Content type filters: `filterable` now also works on boolean, date, datetime and single relation fields, and the API accepts `filter[field][ne|gt|gte|lt|lte|in|null]=value` besides the exact match (see `docs/content-types.md`).
+- Content type APIs (public and admin) accept `?expand=field,field` on lists and single records: the records that relation fields point to come back under `expanded` in the same response. The public API only expands relations to public types and hides related drafts.
+
+### Fixed
+- Saving a record with a `many: true` relation field panicked instead of checking the related records.
 
 ### Changed
 - Content types can hold up to 100,000 records per tenant by default (was a fixed 10,000); set `limits.records_per_type` in `config.yaml` to change it, or a negative value to remove the cap. Creating a record no longer runs a `COUNT(*)` when there is no cap. `?offset=` stays limited to 10,000.

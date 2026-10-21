@@ -239,6 +239,16 @@ func buildRecordQuery(dialect database.Dialect, tenantID, collectionID string, q
 		}
 		sql.WriteString(" AND " + clause)
 	}
+	if len(query.IDs) > 0 {
+		if len(query.IDs) > collections.MaxQueryIDs {
+			return "", nil, collections.ErrInvalidQuery
+		}
+		placeholders := make([]string, 0, len(query.IDs))
+		for _, id := range query.IDs {
+			placeholders = append(placeholders, b.param(id))
+		}
+		sql.WriteString(" AND id IN (" + strings.Join(placeholders, ",") + ")")
+	}
 	if len(query.AnyOf) > 0 {
 		clauses := make([]string, 0, len(query.AnyOf))
 		for _, condition := range query.AnyOf {

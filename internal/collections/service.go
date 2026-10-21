@@ -181,13 +181,13 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 		if field.Kind != Relation && field.Kind != RelationMany {
 			continue
 		}
-		relationIDs := []string{value.(string)}
+		var relationIDs []string
 		if field.Kind == RelationMany {
-			items := value.([]any)
-			relationIDs = relationIDs[:0]
-			for _, item := range items {
+			for _, item := range value.([]any) {
 				relationIDs = append(relationIDs, item.(string))
 			}
+		} else {
+			relationIDs = []string{value.(string)}
 		}
 		for _, relatedID := range relationIDs {
 			exists, err := s.Repository.RecordExists(ctx, field.Relation, relatedID)

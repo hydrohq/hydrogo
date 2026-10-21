@@ -22,7 +22,7 @@ const AdminAPIPath = "/api/v1/admin/content"
 // Routes lists the admin content API. Every route is protected; reads need
 // Authorize(r, false) and mutations Authorize(r, true).
 //
-//	GET    /api/v1/admin/content/{type}?limit&offset&sort&search&filter[f]=&status=&locale=
+//	GET    /api/v1/admin/content/{type}?limit&offset&sort&search&filter[f]=&status=&locale=&expand=
 //	POST   /api/v1/admin/content/{type}                     -> 201 record
 //	GET    /api/v1/admin/content/{type}/{id}?locale=
 //	PUT    /api/v1/admin/content/{type}/{id}   {version, fields...}
@@ -102,6 +102,17 @@ func (a AdminAPI) listLocale(values url.Values, definition Definition) (string, 
 	return locale, a.translatable(definition.ID, locale), true
 }
 
+// expansion loads related records for ?expand=.
+func (a AdminAPI) expansion() expansion {
+	return expansion{
+		service: a.Service,
+		target:  func(id string) (Definition, bool) { return definitionByID(a.types(), id) },
+		present: func(definition Definition, record collections.Record) map[string]any {
+			return a.present(definition.ID, Flatten(record))
+		},
+	}
+}
+
 func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 	definition, collection, ok := a.resolve(w, r, false)
 	if !ok {
@@ -109,6 +120,11 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 	}
 	values := r.URL.Query()
 	query, err := parsePublicQuery(values, definition)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	expand, err := a.expansion().parse(values, definition)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
@@ -144,11 +160,19 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	expanded, err := a.expansion().load(r.Context(), expand, records)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	items := make([]map[string]any, 0, len(records))
 	for _, record := range records {
 		item := a.present(definition.ID, Flatten(record))
 		if translation, ok := translations[record.ID]; ok {
 			item = withFallback(item, translation)
+		}
+		if related, ok := expanded[record.ID]; ok {
+			item["expanded"] = related
 		}
 		items = append(items, item)
 	}
@@ -185,12 +209,25 @@ func (a AdminAPI) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
+	expand, err := a.expansion().parse(r.URL.Query(), definition)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	record, err := a.Service.GetRecord(r.Context(), definition.ID, id)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
 	item := a.present(definition.ID, Flatten(record))
+	expanded, err := a.expansion().load(r.Context(), expand, []collections.Record{record})
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	if related, ok := expanded[record.ID]; ok {
+		item["expanded"] = related
+	}
 	if translate {
 		translations, err := a.ListLocalized(r, collection, []string{id}, locale)
 		if err != nil {

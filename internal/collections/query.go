@@ -46,6 +46,7 @@ const (
 	MaxQueryConditions = 32
 	MaxQueryValueBytes = 256
 	MaxInValues        = 50
+	MaxQueryIDs        = 100
 )
 
 // Condition compares one schema field with a value. Value is the raw string
@@ -77,6 +78,9 @@ type Query struct {
 	Where  []Condition
 	AnyOf  []Condition
 	Sort   *Sort
+	// IDs restricts the result to these record IDs (at most MaxQueryIDs).
+	// Related records are loaded this way (see contenttypes expand).
+	IDs []string
 }
 
 // ParseSort reads "field" or "-field".
@@ -105,7 +109,16 @@ func (s Schema) ValidateQuery(q Query) (Query, error) {
 	for _, field := range s.Fields {
 		fields[field.ID] = field
 	}
-	result := Query{Limit: q.Limit, Offset: q.Offset}
+	if len(q.IDs) > MaxQueryIDs {
+		return Query{}, fmt.Errorf("%w: too many ids", ErrInvalidQuery)
+	}
+	for _, id := range q.IDs {
+		// Generated record IDs have the identifier shape (sqlstore newID).
+		if !identifier.MatchString(id) {
+			return Query{}, fmt.Errorf("%w: invalid record id", ErrInvalidQuery)
+		}
+	}
+	result := Query{Limit: q.Limit, Offset: q.Offset, IDs: q.IDs}
 	for _, group := range []struct {
 		in  []Condition
 		out *[]Condition
