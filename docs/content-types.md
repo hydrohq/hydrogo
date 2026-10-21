@@ -24,6 +24,8 @@ The complete reference is the header comment of [`internal/contenttypes/definiti
 
 Public API: `GET /api/v1/content/<id>?limit=&offset=&sort=-field&search=&filter[field]=&locale=` and `GET /api/v1/content/<id>/<record-id>`. Responses use the standard `{data, metadata}` envelope. A type holds up to 100,000 records per tenant by default; change it with `limits.records_per_type` in `config.yaml` (a negative value removes the cap). `offset` is limited to 10,000, so page deeper by filtering or sorting.
 
+Filters work on fields marked `filterable` (text, textarea, select, number, boolean, date, datetime and single relation). `filter[field]=v` is an exact match; `filter[field][op]=v` takes an operator: `ne` (also matches records without a value), `gt`, `gte`, `lt`, `lte` (number and date fields; a date such as `2026-10-01` means midnight UTC), `in` (comma separated, at most 50 values) and `null` (`true` for records without a value, `false` for those with one). Combine two operators on one field for a range: `filter[amount][gte]=100&filter[amount][lt]=900`. For a relation field the value is the related record's id, so `filter[company]=<id>` lists the records that belong to one company.
+
 Tools: `hydro content-type new <id>` writes a skeleton; `hydro content-type validate` loads every file and reports errors. Restart `hydro serve` after changing a file.
 
 Stock types that ship with the repository (`content-types/`) are copied into your project by `hydro new --preset ...`; delete the ones you do not need.

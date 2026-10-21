@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ErrInvalidQuery reports a list query that names an unknown field, uses an
@@ -19,6 +20,20 @@ const (
 	Equals Operator = "equals"
 	// Contains is a case-insensitive substring match on text values.
 	Contains Operator = "contains"
+	// NotEquals matches records whose value differs, including records
+	// that have no value for the field.
+	NotEquals Operator = "ne"
+	// GreaterThan, GreaterOrEqual, LessThan and LessOrEqual compare numbers
+	// and dates (RFC 3339 strings compare in time order).
+	GreaterThan    Operator = "gt"
+	GreaterOrEqual Operator = "gte"
+	LessThan       Operator = "lt"
+	LessOrEqual    Operator = "lte"
+	// In matches any of a comma separated list of values.
+	In Operator = "in"
+	// IsNull matches records with no value for the field (Value "true") or
+	// with a value (Value "false").
+	IsNull Operator = "null"
 )
 
 // System sort keys are record columns rather than fields in the record data.
@@ -30,6 +45,7 @@ const (
 const (
 	MaxQueryConditions = 32
 	MaxQueryValueBytes = 256
+	MaxInValues        = 50
 )
 
 // Condition compares one schema field with a value. Value is the raw string
@@ -136,27 +152,77 @@ func validateCondition(fields map[string]Field, condition Condition) (Condition,
 		default:
 			return Condition{}, fmt.Errorf("%w: %q does not support contains", ErrInvalidQuery, field.ID)
 		}
-	case Equals:
-		switch field.Kind {
-		case Text, RichText, Select, DateTime, Media, Relation:
-			condition.Typed = condition.Value
-		case Number:
-			number, err := strconv.ParseFloat(strings.TrimSpace(condition.Value), 64)
-			if err != nil {
-				return Condition{}, fmt.Errorf("%w: %q needs a number", ErrInvalidQuery, field.ID)
-			}
-			condition.Typed = number
-		case Boolean:
-			value, err := strconv.ParseBool(strings.TrimSpace(condition.Value))
-			if err != nil {
-				return Condition{}, fmt.Errorf("%w: %q needs true or false", ErrInvalidQuery, field.ID)
-			}
-			condition.Typed = value
-		default:
-			return Condition{}, fmt.Errorf("%w: %q does not support equals", ErrInvalidQuery, field.ID)
+	case Equals, NotEquals:
+		typed, err := scalarValue(field, condition.Value)
+		if err != nil {
+			return Condition{}, err
 		}
+		condition.Typed = typed
+	case GreaterThan, GreaterOrEqual, LessThan, LessOrEqual:
+		if field.Kind != Number && field.Kind != DateTime {
+			return Condition{}, fmt.Errorf("%w: %q does not support %s", ErrInvalidQuery, field.ID, condition.Op)
+		}
+		typed, err := scalarValue(field, condition.Value)
+		if err != nil {
+			return Condition{}, err
+		}
+		condition.Typed = typed
+	case In:
+		parts := strings.Split(condition.Value, ",")
+		if len(parts) > MaxInValues {
+			return Condition{}, fmt.Errorf("%w: too many values for %q", ErrInvalidQuery, field.ID)
+		}
+		values := make([]any, 0, len(parts))
+		for _, part := range parts {
+			typed, err := scalarValue(field, strings.TrimSpace(part))
+			if err != nil {
+				return Condition{}, err
+			}
+			values = append(values, typed)
+		}
+		condition.Typed = values
+	case IsNull:
+		if _, err := scalarValue(Field{ID: field.ID, Kind: Boolean}, condition.Value); err != nil {
+			return Condition{}, err
+		}
+		if field.Kind == RelationMany || field.Kind == MultiSelect {
+			return Condition{}, fmt.Errorf("%w: %q does not support null", ErrInvalidQuery, field.ID)
+		}
+		flag, _ := strconv.ParseBool(strings.TrimSpace(condition.Value))
+		condition.Typed = flag
 	default:
 		return Condition{}, fmt.Errorf("%w: unknown operator %q", ErrInvalidQuery, condition.Op)
 	}
 	return condition, nil
+}
+
+// scalarValue converts a raw query value to the type the field's kind is
+// compared as: string, float64 or bool.
+func scalarValue(field Field, raw string) (any, error) {
+	switch field.Kind {
+	case Text, RichText, Select, Media, Relation:
+		return raw, nil
+	case DateTime:
+		// Records store UTC RFC 3339 timestamps (see contenttypes.toStorage),
+		// so a date or local time is converted the same way before comparing.
+		for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02"} {
+			if parsed, err := time.Parse(layout, strings.TrimSpace(raw)); err == nil {
+				return parsed.UTC().Format(time.RFC3339), nil
+			}
+		}
+		return nil, fmt.Errorf("%w: %q needs a date or RFC 3339 timestamp", ErrInvalidQuery, field.ID)
+	case Number:
+		number, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %q needs a number", ErrInvalidQuery, field.ID)
+		}
+		return number, nil
+	case Boolean:
+		value, err := strconv.ParseBool(strings.TrimSpace(raw))
+		if err != nil {
+			return nil, fmt.Errorf("%w: %q needs true or false", ErrInvalidQuery, field.ID)
+		}
+		return value, nil
+	}
+	return nil, fmt.Errorf("%w: %q cannot be compared", ErrInvalidQuery, field.ID)
 }

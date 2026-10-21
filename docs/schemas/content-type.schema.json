@@ -36,7 +36,7 @@
         "min": {"type": "number"},
         "max": {"type": "number"},
         "searchable": {"type": "boolean", "description": "text, textarea, richtext, select."},
-        "filterable": {"type": "boolean", "description": "text, textarea, select, number."},
+        "filterable": {"type": "boolean", "description": "text, textarea, select, number, boolean, date, datetime and single relation fields."},
         "localized": {"type": "boolean", "description": "One value per site locale (text, textarea, richtext, media)."}
       },
       "allOf": [

@@ -13,6 +13,7 @@ import (
 // parsePublicQuery reads the public API's list parameters:
 //
 //	filter[field]=v  exact match on a field marked filterable
+//	filter[field][op]=v  op is ne, gt, gte, lt, lte, in (comma separated) or null (true/false)
 //	search=q         substring match on any field marked searchable
 //	sort=field | sort=-field (also created_at, updated_at)
 //	limit=n&offset=n
@@ -61,11 +62,14 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 				query.AnyOf = append(query.AnyOf, collections.Condition{Field: field, Op: collections.Contains, Value: strings.TrimSpace(value)})
 			}
 		case strings.HasSuffix(key, "]"):
-			field := key[len("filter[") : len(key)-1]
+			field, op, err := parseFilterKey(key)
+			if err != nil {
+				return collections.Query{}, err
+			}
 			if !filterable[field] {
 				return collections.Query{}, fmt.Errorf("%w: %q is not filterable", collections.ErrInvalidQuery, field)
 			}
-			query.Where = append(query.Where, collections.Condition{Field: field, Op: collections.Equals, Value: value})
+			query.Where = append(query.Where, collections.Condition{Field: field, Op: op, Value: value})
 		default:
 			return collections.Query{}, fmt.Errorf("%w: unsupported parameter %q", collections.ErrInvalidQuery, key)
 		}
@@ -75,6 +79,29 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 		return collections.Query{}, fmt.Errorf("%w: too many conditions", collections.ErrInvalidQuery)
 	}
 	return query, nil
+}
+
+// filterOperators maps the operator suffix of filter[field][op] to its
+// collections operator.
+var filterOperators = map[string]collections.Operator{
+	"eq": collections.Equals, "ne": collections.NotEquals,
+	"gt": collections.GreaterThan, "gte": collections.GreaterOrEqual,
+	"lt": collections.LessThan, "lte": collections.LessOrEqual,
+	"in": collections.In, "null": collections.IsNull,
+}
+
+// parseFilterKey splits "filter[field]" or "filter[field][op]".
+func parseFilterKey(key string) (string, collections.Operator, error) {
+	inner := key[len("filter[") : len(key)-1]
+	field, name := inner, "eq"
+	if i := strings.Index(inner, "]["); i >= 0 {
+		field, name = inner[:i], inner[i+2:]
+	}
+	op, ok := filterOperators[name]
+	if !ok || strings.ContainsAny(field, "[]") {
+		return "", "", fmt.Errorf("%w: unsupported filter %q", collections.ErrInvalidQuery, key)
+	}
+	return field, op, nil
 }
 
 func pagingValues(values url.Values) (int, int, error) {
