@@ -58,6 +58,12 @@ var presets = []Preset{
 		ContentTypes: []string{"crm/companies", "crm/contacts", "crm/deals", "crm/activities"},
 	},
 	{
+		Name:         "erp-lite",
+		Description:  "light ERP: products, warehouses, accounts, sales orders, invoices and payments",
+		Modules:      []string{"core", "auth", "media", "collections"},
+		ContentTypes: []string{"erp/products", "erp/warehouses", "erp/accounts", "erp/sales_orders", "erp/order_lines", "erp/invoices", "erp/invoice_lines", "erp/payments"},
+	},
+	{
 		Name:         "docs",
 		Description:  "documentation site: pages, FAQ and navigation",
 		Modules:      []string{"core", "auth", "pages", "media", "site", "collections"},

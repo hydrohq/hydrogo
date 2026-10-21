@@ -1,0 +1,28 @@
+id: invoices
+label: Invoices
+description: Sales invoices. A posted invoice is locked; corrections go through void and a new invoice.
+group: ERP
+icon: receipt
+title_field: number
+revisions: true
+states:
+  field: status
+  initial: draft
+  transitions:
+    - {from: draft, to: posted, when: "total > 0", permission: erp.invoices.post, message: "An invoice needs a total above zero before it is posted"}
+    - {from: posted, to: paid, permission: erp.invoices.post}
+    - {from: posted, to: void, permission: erp.invoices.void}
+rules:
+  - {when: "status == 'posted' || status == 'paid' || status == 'void'", readonly: true, message: "Posted invoices are locked"}
+fields:
+  - {id: number, label: Number, kind: text, list: true, searchable: true, sequence: {prefix: "INV-{yyyy}-", pad: 5}}
+  - {id: account, label: Customer, kind: relation, to: accounts, required: true, list: true, filterable: true}
+  - {id: order, label: Sales order, kind: relation, to: sales_orders, filterable: true}
+  - {id: status, label: Status, kind: select, options: [draft, posted, paid, void], list: true, filterable: true}
+  - {id: issue_date, label: Issue date, kind: date, list: true, filterable: true}
+  - {id: due_date, label: Due date, kind: date, list: true, filterable: true}
+  - {id: currency, label: Currency, kind: select, options: [TRY, USD, EUR], filterable: true}
+  - {id: subtotal, label: Subtotal, kind: number, decimals: 2, min: 0}
+  - {id: tax, label: Tax, kind: number, decimals: 2, min: 0}
+  - {id: total, label: Total, kind: number, decimals: 2, list: true, computed: "subtotal + tax"}
+  - {id: notes, label: Notes, kind: textarea}

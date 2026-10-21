@@ -1,0 +1,16 @@
+id: invoice_lines
+label: Invoice lines
+description: One row per item on an invoice.
+group: ERP
+icon: list
+title_field: description
+rules:
+  - {assert: "quantity > 0", message: "The quantity must be above zero"}
+fields:
+  - {id: invoice, label: Invoice, kind: relation, to: invoices, required: true, list: true, filterable: true}
+  - {id: product, label: Product, kind: relation, to: products, filterable: true}
+  - {id: description, label: Description, kind: text, required: true, list: true}
+  - {id: quantity, label: Quantity, kind: number, decimals: 3, required: true, list: true}
+  - {id: unit_price, label: Unit price, kind: number, decimals: 2, min: 0, required: true, list: true}
+  - {id: vat_rate, label: VAT rate (%), kind: number, decimals: 2, min: 0, max: 100}
+  - {id: line_total, label: Line total, kind: number, decimals: 2, list: true, computed: "quantity * unit_price"}

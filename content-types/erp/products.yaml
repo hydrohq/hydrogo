@@ -1,0 +1,16 @@
+id: products
+label: Products
+description: Goods and services you sell or buy.
+group: ERP
+icon: package
+title_field: name
+revisions: true
+fields:
+  - {id: sku, label: SKU, kind: text, required: true, unique: true, list: true, searchable: true}
+  - {id: name, label: Name, kind: text, required: true, list: true, searchable: true}
+  - {id: unit, label: Unit, kind: select, options: [piece, kg, litre, metre, hour, box], required: true, filterable: true}
+  - {id: price, label: Sales price, kind: number, decimals: 2, min: 0, list: true}
+  - {id: cost, label: Cost, kind: number, decimals: 2, min: 0}
+  - {id: vat_rate, label: VAT rate (%), kind: number, decimals: 2, min: 0, max: 100}
+  - {id: active, label: Active, kind: boolean, list: true, filterable: true}
+  - {id: description, label: Description, kind: textarea}

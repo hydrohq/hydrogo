@@ -216,3 +216,28 @@ service-account token. A call that is still running is not started again,
 minutes missed while the server was down are not caught up, and every server
 instance fires its own calls, so run one instance per schedule (or make the
 service idempotent per `at`). Failures are logged as warnings.
+
+## The erp-lite preset
+
+`hydro new --preset erp-lite` starts a back office for small trade
+businesses: `products`, `warehouses`, `accounts` (customers and suppliers),
+`sales_orders` with `order_lines`, `invoices` with `invoice_lines`, and
+`payments`. It is a starting point to edit, not an accounting system:
+
+- Documents are numbered without gaps (`SO-2026-00001`, `INV-…`, `PAY-…`).
+- Money has two decimals, line totals and document totals are computed on
+  the server (`quantity * unit_price`, `subtotal - discount + tax`).
+- Orders and invoices have state machines. Posting, voiding, fulfilling and
+  cancelling need `erp.invoices.post`, `erp.invoices.void`, `erp.orders.fulfil`
+  and `erp.orders.cancel`; admins hold them, give them to others per user (or
+  to a service account).
+- A posted, paid or void invoice and a closed order cannot be edited.
+- Create a document and its lines in one `_batch` request (`"order":
+  "$ref:0"`), so a failed line saves nothing.
+
+What it deliberately leaves to you or to a side service: document totals are
+sent by the client (a computed field cannot sum another type's rows yet),
+lines of a posted invoice are not locked by the invoice's state, and there is
+no stock ledger or accounting journal. Add those as a service that is called
+through `hooks` (for example `on: transition, to: posted`) and works through
+a service account.
