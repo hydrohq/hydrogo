@@ -125,3 +125,34 @@ func TestValidateQueryAcceptsComparisonOperators(t *testing.T) {
 		})
 	}
 }
+
+func TestCursorRoundTripAndValidation(t *testing.T) {
+	schema := querySchema()
+	cursor := Cursor{Field: SortUpdatedAt, Desc: true, Value: "2026-10-21T10:00:00.5Z", ID: "r_abc"}
+	decoded, err := DecodeCursor(EncodeCursor(cursor))
+	if err != nil || decoded != cursor {
+		t.Fatalf("round trip: %+v %v", decoded, err)
+	}
+	if _, err := schema.ValidateQuery(Query{Limit: 5, After: &cursor}); err != nil {
+		t.Fatalf("default sort cursor: %v", err)
+	}
+	bad := map[string]Query{
+		"with offset":     {Limit: 5, Offset: 5, After: &cursor},
+		"wrong direction": {Limit: 5, After: &cursor, Sort: &Sort{Field: SortUpdatedAt}},
+		"wrong column":    {Limit: 5, After: &cursor, Sort: &Sort{Field: SortCreatedAt, Desc: true}},
+		"field sort":      {Limit: 5, After: &cursor, Sort: &Sort{Field: "order", Desc: true}},
+		"bad id":          {Limit: 5, After: &Cursor{Field: SortUpdatedAt, Desc: true, Value: "x", ID: "r'; DROP"}},
+		"empty value":     {Limit: 5, After: &Cursor{Field: SortUpdatedAt, Desc: true, ID: "r_abc"}},
+		"unknown column":  {Limit: 5, After: &Cursor{Field: "data_json", Desc: true, Value: "x", ID: "r_abc"}},
+	}
+	for name, query := range bad {
+		if _, err := schema.ValidateQuery(query); !errors.Is(err, ErrInvalidQuery) {
+			t.Errorf("%s: err=%v", name, err)
+		}
+	}
+	for _, raw := range []string{"", "%%%", "bm90IGpzb24"} {
+		if _, err := DecodeCursor(raw); !errors.Is(err, ErrInvalidQuery) {
+			t.Errorf("%q: err=%v", raw, err)
+		}
+	}
+}

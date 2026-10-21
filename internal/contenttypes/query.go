@@ -16,6 +16,7 @@ import (
 //	filter[field][op]=v  op is ne, gt, gte, lt, lte, in (comma separated) or null (true/false)
 //	search=q         substring match on any field marked searchable
 //	sort=field | sort=-field (also created_at, updated_at)
+//	after=cursor     continue after metadata.next_cursor (default or created_at/updated_at sort; no offset)
 //	limit=n&offset=n
 //
 // Other parameters are ignored.
@@ -40,7 +41,7 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 	for _, key := range keys {
 		entries := values[key]
 		switch {
-		case key == "sort" || key == "search" || strings.HasPrefix(key, "filter["):
+		case key == "sort" || key == "search" || key == "after" || strings.HasPrefix(key, "filter["):
 			if len(entries) != 1 {
 				return collections.Query{}, fmt.Errorf("%w: repeated parameter %q", collections.ErrInvalidQuery, key)
 			}
@@ -51,6 +52,12 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 		switch {
 		case key == "sort":
 			query.Sort = collections.ParseSort(value)
+		case key == "after":
+			cursor, err := collections.DecodeCursor(value)
+			if err != nil {
+				return collections.Query{}, err
+			}
+			query.After = &cursor
 		case key == "search":
 			if strings.TrimSpace(value) == "" {
 				continue

@@ -176,7 +176,11 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, item)
 	}
-	api.WriteList(w, items, api.PaginationMeta{Limit: query.Limit, Offset: query.Offset, HasMore: hasMore})
+	meta := api.PaginationMeta{Limit: query.Limit, Offset: query.Offset, HasMore: hasMore}
+	if hasMore && len(records) > 0 {
+		meta.NextCursor = collections.NextCursor(query, records[len(records)-1])
+	}
+	api.WriteList(w, items, meta)
 }
 
 // page fetches one record past the page to learn whether more follow. At

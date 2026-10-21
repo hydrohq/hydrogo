@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/sveltekit-starter`: `npm run smoke` starts the production build against a stub API and checks 404 and 502 handling; CI runs it.
 - Content type filters: `filterable` now also works on boolean, date, datetime and single relation fields, and the API accepts `filter[field][ne|gt|gte|lt|lte|in|null]=value` besides the exact match (see `docs/content-types.md`).
 - Content type APIs (public and admin) accept `?expand=field,field` on lists and single records: the records that relation fields point to come back under `expanded` in the same response. The public API only expands relations to public types and hides related drafts.
+- Cursor paging for content type lists (public and admin API): when `metadata.has_more` is true, `metadata.next_cursor` holds a cursor to pass as `?after=` for the next page. It has no offset limit and works with the default order and `sort=[-]created_at|updated_at`.
 
 ### Fixed
 - Saving a record with a `many: true` relation field panicked instead of checking the related records.
