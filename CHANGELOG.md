@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 ### Added
 - `GET /api/v1/admin/branding` (public): admin name, logo, accent colour and default language, so the sign-in page is branded and in the project's language.
 - `GET /api/v1/admin/me` returns the saved admin `locale` (a browser-bound cookie set by `PUT /api/v1/admin/account/locale`); `PUT` with an empty locale clears it.
