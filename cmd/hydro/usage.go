@@ -17,7 +17,7 @@ Usage:
   Run and develop
   hydro serve [--cgi | --fastcgi --fastcgi-address 127.0.0.1:9001] [--dev] [runtime flags]
   hydro run [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--poll DUR]
-  hydro dev [same options]  (alias for hydro run)
+  hydro dev [--service NAME=COMMAND ...] [serve options]  (in a project: server + side services in one terminal; in a checkout: alias for hydro run)
   hydro version [--json]
   hydro healthcheck
 
