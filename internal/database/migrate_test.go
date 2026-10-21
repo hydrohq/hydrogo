@@ -229,7 +229,7 @@ func TestSQLiteSectoralModulesCreateSchemaOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
-func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
+func TestSQLiteCoreOnlyMigrationSetOwnsAuditEvents(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-only.sqlite"))
 	if err != nil {
@@ -245,8 +245,8 @@ func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM pragma_table_info('audit_events') WHERE name = 'request_id'").Scan(&auditColumns); err != nil {
 		t.Fatal(err)
 	}
-	if auditColumns != 0 {
-		t.Fatal("core-only migration set altered the optional audit_events table")
+	if auditColumns != 1 {
+		t.Fatal("core-only migration set must create audit_events with request_id: audit does not depend on pages")
 	}
 }
 

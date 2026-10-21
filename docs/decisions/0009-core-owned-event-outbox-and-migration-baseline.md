@@ -16,6 +16,10 @@ Making `collections` create the outbox with its own migration would collide with
 3. Start the outbox worker when any module or content type emits events and a webhook endpoint is configured; emit nothing (and write no rows) when no endpoint exists, so the table cannot grow unread.
 4. Add `content.created`, `content.updated` and `content.deleted` to the event catalog (additive, payload version 1, `aggregate_id` = `<type>/<record id>`), written in the same transaction as the record.
 
+## First slice (done)
+
+The audit tables and their five migrations (`202609060001`, `202609090017`, `202609190004`, `202609280004`, `202609291001`) now belong to `core`: only the `module:` and `requires_modules:` lines changed, SQL and checksums did not. Databases that already applied them are unaffected, and a project without `pages` (the `crm` preset) gets `audit_events`; without it sign-in failed.
+
 ## Consequences
 
 - Fresh installs get a short, verifiable schema; upgrades are unchanged.

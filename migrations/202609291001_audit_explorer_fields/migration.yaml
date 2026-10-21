@@ -1,7 +1,5 @@
 id: "202609291001_audit_explorer_fields"
 module: "core"
-requires_modules:
-  - "pages"
 class:
   sqlite: "expand"
   postgres: "expand"
