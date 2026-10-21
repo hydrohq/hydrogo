@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { schema } from '$lib/stores/schema.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -19,6 +20,7 @@
   let unreadCount = $state(0);
 
   async function loadNotifications() {
+    if (schema.schema && schema.modules.pages !== true) return;
     try {
       const res = await api.get<any>('/api/v1/admin/notifications');
       if (res?.data && Array.isArray(res.data)) {
