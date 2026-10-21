@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -132,6 +133,9 @@ type serveApp struct {
 
 	// Runtime.
 	metrics          *observability.Metrics
+	hookOnce         sync.Once
+	hookStatus       *hookStatus
+	hookCall         contenttypes.HookCaller
 	webhookEndpoints []webhooks.Endpoint
 	logger           *slog.Logger
 }

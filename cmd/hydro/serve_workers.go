@@ -122,7 +122,7 @@ func (a *serveApp) startWorkers() {
 		}
 	}
 	if !cfg.SafeMode && !cgiMode {
-		go runHookSchedules(ctx, cfg, syncHookCaller(cfg), time.Now, logger)
+		go runHookSchedules(ctx, cfg, a.hookCaller(), time.Now, logger)
 	}
 	if !cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
 		go database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance)
