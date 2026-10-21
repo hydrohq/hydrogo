@@ -80,16 +80,28 @@ func (a AdminAPI) Routes() []router.Route {
 // resolve authorizes the request and looks up the type in the path. It
 // answers 403 or 404 itself and reports false.
 func (a AdminAPI) resolve(w http.ResponseWriter, r *http.Request, write bool) (Definition, adminstudio.Collection, bool) {
-	if a.Authorize == nil || !a.Authorize(r, write) {
+	definition, ok := definitionByID(a.types(), r.PathValue("type"))
+	if !a.allowed(r, definition, ok, write) {
 		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
 		return Definition{}, adminstudio.Collection{}, false
 	}
-	definition, ok := definitionByID(a.types(), r.PathValue("type"))
 	if !ok {
 		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
 		return Definition{}, adminstudio.Collection{}, false
 	}
 	return definition, AdminCollections([]Definition{definition}, a.Locales.Enabled())[0], true
+}
+
+// allowed decides access to one type. A type with its own permissions
+// (Definition.Permissions) is governed by those alone; any other type, and an
+// unknown one, by the generic content permissions behind Authorize.
+func (a AdminAPI) allowed(r *http.Request, definition Definition, known, write bool) bool {
+	if known {
+		if permission := definition.Permissions.For(write); permission != "" {
+			return a.Can != nil && a.Can(r, permission)
+		}
+	}
+	return a.Authorize != nil && a.Authorize(r, write)
 }
 
 // listLocale resolves ?locale= for lists and reads: empty means the default

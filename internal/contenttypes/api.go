@@ -173,6 +173,8 @@ func serviceFailure(err error, schema collections.Schema) (int, string, map[stri
 		errors.Is(err, collections.ErrRevisionNotFound), errors.Is(err, collections.ErrNotLocalized),
 		errors.Is(err, errNoRevisions), errors.Is(err, errLocale):
 		return http.StatusNotFound, "not found", nil
+	case errors.Is(err, errBatchForbidden):
+		return http.StatusForbidden, "forbidden", nil
 	case errors.Is(err, collections.ErrRuleViolated):
 		_, text, _ := strings.Cut(err.Error(), ": ")
 		return http.StatusUnprocessableEntity, text, map[string]string{"_rule": text}

@@ -55,3 +55,20 @@ Conditions use the same expression language as computed fields plus comparisons 
 Tools: `hydro content-type new <id>` writes a skeleton; `hydro content-type validate` loads every file and reports errors. Restart `hydro serve` after changing a file.
 
 Stock types that ship with the repository (`content-types/`) are copied into your project by `hydro new --preset ...`; delete the ones you do not need.
+
+## Per-type permissions
+
+By default a type is readable with `admin.content.read` and writable with
+`admin.content.write`. To restrict one, name its own permissions:
+
+```yaml
+permissions: {read: deals.read, write: deals.write}
+```
+
+Either side may be left out (that direction keeps the generic permission).
+When a side is named, only that permission counts: editors do not get it by
+role. Admins hold every permission; for anyone else grant it per user on the
+Users screen. Names look like `area.action` and may not start with `admin.`.
+Writes cover create, update, delete, state steps and `_batch`; a batch fails
+as a whole with 403 if any operation touches a type the caller cannot write.
+The `permission` of a state step is added to the same catalog.

@@ -117,6 +117,30 @@ var ErrInvalidDefinition = errors.New("invalid content type definition")
 // "locale" is added to public API responses.
 var reserved = map[string]bool{"id": true, "version": true, "created_at": true, "updated_at": true, "locale": true}
 
+var permissionName = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
+
+// PermissionNames lists the custom permissions the definitions declare, for
+// the permission catalog (type permissions and state-step permissions).
+func PermissionNames(definitions []Definition) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, d := range definitions {
+		declared := []string{d.Permissions.Read, d.Permissions.Write}
+		if d.States != nil {
+			for _, step := range d.States.Transitions {
+				declared = append(declared, step.Permission)
+			}
+		}
+		for _, name := range declared {
+			if name != "" && !seen[name] {
+				seen[name] = true
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
+
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
 // Definition is one content type as written in YAML.
@@ -137,9 +161,29 @@ type Definition struct {
 	Revisions bool `json:"revisions" yaml:"revisions"`
 	// Rules validate and lock records; States restricts how a select field
 	// changes (see the package documentation).
-	Rules  []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
-	States *collections.StateMachine `json:"states,omitempty" yaml:"states"`
-	Fields []Field                   `json:"fields" yaml:"fields"`
+	// Permissions names the permissions that guard this type in the admin API
+	// instead of the generic content permissions.
+	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions"`
+	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
+	States      *collections.StateMachine `json:"states,omitempty" yaml:"states"`
+	Fields      []Field                   `json:"fields" yaml:"fields"`
+}
+
+// Permissions guards one content type: Read for lists and reads, Write for
+// creating, changing, deleting and state steps. An empty name keeps the
+// generic admin.content.read / admin.content.write for that direction. Admins
+// hold every permission; others get a named one from a per-user override.
+type Permissions struct {
+	Read  string `json:"read,omitempty" yaml:"read"`
+	Write string `json:"write,omitempty" yaml:"write"`
+}
+
+// For returns the permission that guards reads or writes ("" = generic).
+func (p Permissions) For(write bool) string {
+	if write {
+		return p.Write
+	}
+	return p.Read
 }
 
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
@@ -247,6 +291,11 @@ func (d Definition) Validate() error {
 		}
 		if field.Localized && (field.Unique || field.Searchable || field.Filterable) {
 			return fmt.Errorf("%w: localized field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
+		}
+	}
+	for _, name := range []string{d.Permissions.Read, d.Permissions.Write} {
+		if name != "" && (!permissionName.MatchString(name) || strings.HasPrefix(name, "admin.")) {
+			return fmt.Errorf("%w: permission %q must look like crm.deals.read and not start with admin.", ErrInvalidDefinition, name)
 		}
 	}
 	if d.Localized() && !d.Revisions {
