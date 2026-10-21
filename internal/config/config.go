@@ -115,8 +115,8 @@ type SyncHook struct {
 
 // HookSchedule fires the event Name at the five-field cron expression Cron.
 type HookSchedule struct {
-	Name string `yaml:"name"`
-	Cron string `yaml:"cron"`
+	Name string `yaml:"name" json:"name"`
+	Cron string `yaml:"cron" json:"cron"`
 }
 
 type HTTP struct {
