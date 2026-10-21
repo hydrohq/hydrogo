@@ -134,3 +134,32 @@ func TestAuditChainKeepsTenantsApartAndSerializesWriters(t *testing.T) {
 		}
 	}
 }
+
+func TestAuditChainRelinkAfterGap(t *testing.T) {
+	ctx := context.Background()
+	db := chainDB(t, "audit-chain-relink")
+	store := Store{Dialect: database.SQLite}
+	if err := store.Record(ctx, db, "a1", "auth.login", "u1"); err != nil {
+		t.Fatal(err)
+	}
+	SetChain(false)
+	for _, id := range []string{"gap1", "gap2"} {
+		if err := store.Record(ctx, db, id, "auth.login", "u1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	SetChain(true)
+	if report, _ := store.VerifyChain(ctx, db, "", nil); len(report.Problems) == 0 {
+		t.Fatal("a gap in the chain went unnoticed")
+	}
+	linked, err := store.Relink(ctx, db, "")
+	if err != nil || linked != 2 {
+		t.Fatalf("relink = %d, %v", linked, err)
+	}
+	if report, err := store.VerifyChain(ctx, db, "", nil); err != nil || len(report.Problems) != 0 || report.Links != 3 {
+		t.Fatalf("after relink: %+v err=%v", report, err)
+	}
+	if !ChainEnabled() {
+		t.Fatal("relink left chaining switched off")
+	}
+}

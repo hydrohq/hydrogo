@@ -69,13 +69,12 @@ func (a AdminAPI) export(w http.ResponseWriter, r *http.Request) {
 		}
 		return out.Write(row)
 	})
-	out.Flush()
 	if err != nil {
 		// The status line is already out; end the file with a marker row
 		// so a truncated export cannot pass for a complete one.
-		w.Header().Set("X-Export-Incomplete", "1")
-		_ = csv.NewWriter(w).Write([]string{"# export incomplete: " + exportFailure(err)})
+		_ = out.Write([]string{"# export incomplete: " + exportFailure(err)})
 	}
+	out.Flush()
 }
 
 func exportFailure(err error) string {
@@ -133,23 +132,45 @@ func (a AdminAPI) importCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	dryRun := r.URL.Query().Get("dry_run") == "1"
 	r = a.withActor(r)
+	schema, err := a.Service.GetSchema(r.Context(), definition.ID)
+	if err != nil {
+		writeServiceError(w, r, err, schema)
+		return
+	}
+	// Convert every row and consult the hooks before the transaction opens, so
+	// no hook call runs while the database holds locks. A dry run asks the
+	// hooks too (they should only decide, not act).
+	payloads := make([]map[string]any, 0, len(rows))
+	for index, row := range rows {
+		payload := make(map[string]any, len(columns))
+		for position, field := range columns {
+			value, present, err := csvValue(field, row[position])
+			if err != nil {
+				a.writeImportFailure(w, r, &batchError{index: index, err: err, schema: schema})
+				return
+			}
+			if present {
+				payload[field.ID] = value
+			}
+		}
+		payloads = append(payloads, payload)
+	}
+	if len(definition.Hooks) > 0 {
+		hookRequest, cancel := a.hookBudget(r)
+		defer cancel()
+		for index, payload := range payloads {
+			if err := a.runHooks(hookRequest, definition, HookEvent{On: "create", Fields: toStorage(schema, payload)}); err != nil {
+				a.writeImportFailure(w, r, &batchError{index: index, err: err, schema: schema})
+				return
+			}
+		}
+	}
 	var created []string
 	err = a.Service.InTransaction(r.Context(), func(tx collections.Service) error {
 		inTx := a
+		inTx.hooksDone = true
 		inTx.Service = tx
-		schema, err := tx.GetSchema(r.Context(), definition.ID)
-		if err != nil {
-			return err
-		}
-		for index, row := range rows {
-			payload := make(map[string]any, len(columns))
-			for position, field := range columns {
-				if value, present, err := csvValue(field, row[position]); err != nil {
-					return &batchError{index: index, err: err, schema: schema}
-				} else if present {
-					payload[field.ID] = value
-				}
-			}
+		for index, payload := range payloads {
 			record, err := inTx.save(r, schema, "", payload)
 			if err != nil {
 				return &batchError{index: index, err: err, schema: schema}
@@ -167,20 +188,25 @@ func (a AdminAPI) importCSV(w http.ResponseWriter, r *http.Request) {
 	case err == nil || errors.Is(err, errDryRun):
 		api.WriteData(w, http.StatusOK, map[string]any{"rows": len(rows), "created": len(created), "dry_run": dryRun}, nil)
 	case errors.As(err, &failed):
-		status, message, fields := serviceFailure(failed.err, failed.schema)
-		prefixed := map[string]string{}
-		for field, code := range fields {
-			prefixed[fmt.Sprintf("rows[%d].%s", failed.index, field)] = code
-		}
-		if len(prefixed) == 0 {
-			prefixed[fmt.Sprintf("rows[%d]", failed.index)] = message
-		}
-		api.WriteError(w, r, status, fmt.Sprintf("row %d failed: %s", failed.index+1, message), prefixed)
+		a.writeImportFailure(w, r, failed)
 	case errors.Is(err, collections.ErrNoTransactions):
 		api.WriteError(w, r, http.StatusNotImplemented, "import is not available with this storage", nil)
 	default:
 		writeServiceError(w, r, err, collections.Schema{})
 	}
+}
+
+// writeImportFailure answers the first failing row as rows[i].<field>.
+func (a AdminAPI) writeImportFailure(w http.ResponseWriter, r *http.Request, failed *batchError) {
+	status, message, fields := serviceFailure(failed.err, failed.schema)
+	prefixed := map[string]string{}
+	for field, code := range fields {
+		prefixed[fmt.Sprintf("rows[%d].%s", failed.index, field)] = code
+	}
+	if len(prefixed) == 0 {
+		prefixed[fmt.Sprintf("rows[%d]", failed.index)] = message
+	}
+	api.WriteError(w, r, status, fmt.Sprintf("row %d failed: %s", failed.index+1, message), prefixed)
 }
 
 // readImport parses the body into rows aligned with the returned columns.

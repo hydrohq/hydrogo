@@ -22,13 +22,14 @@ import (
 //
 //	hydro audit head                         print the head of every chain (JSON) to keep outside the database
 //	hydro audit verify [--anchor T:SEQ:HASH]  recompute every chain; exits non-zero when it does not add up
+//	hydro audit relink                       link events written while audit.chain was off (after a gap)
 //
 // An anchor is a head printed earlier: verify then also proves the chain still
 // contains that exact link. T is the tenant id (empty for a single-tenant
 // project, written as ":SEQ:HASH").
 func auditCommand(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || (args[0] != "head" && args[0] != "verify") {
-		return errors.New("usage: hydro audit head|verify [--anchor TENANT:SEQ:HASH]")
+	if len(args) == 0 || (args[0] != "head" && args[0] != "verify" && args[0] != "relink") {
+		return errors.New("usage: hydro audit head|verify|relink [--anchor TENANT:SEQ:HASH]")
 	}
 	action := args[0]
 	flags := flag.NewFlagSet("audit "+action, flag.ContinueOnError)
@@ -69,6 +70,16 @@ func auditCommand(args []string, stdout, stderr io.Writer) error {
 	heads, err := store.ChainHeads(ctx, db)
 	if err != nil {
 		return fmt.Errorf("the audit chain is not available (is audit.chain on and the database migrated?): %w", err)
+	}
+	if action == "relink" {
+		for _, head := range heads {
+			linked, err := store.Relink(ctx, db, head.TenantID)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "tenant %q: linked %d event(s)\n", head.TenantID, linked)
+		}
+		return nil
 	}
 	if action == "head" {
 		encoded, _ := json.MarshalIndent(heads, "", "  ")

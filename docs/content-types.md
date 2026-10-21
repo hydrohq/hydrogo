@@ -134,7 +134,7 @@ creates a record. Numbers, booleans (`true/false/1/0/yes/no`) and `;`-separated
 relation lists are converted. The whole file is one transaction: the first
 bad row answers 422 with `rows[i].<field>` codes and nothing is saved. Add
 `?dry_run=1` to validate without saving. Limits: 1,000 rows and 5 MB;
-write access, row access and rules apply as for single saves.
+write access, row access and rules apply as for single saves. Create hooks run for every row first (also in a dry run, so a service sees validation-only traffic), before the transaction.
 
 ## Service accounts
 
@@ -155,7 +155,8 @@ state-step `permission`) are ignored by the server, so a typo fails closed.
 Note that, as a viewer, it can still read types that use the generic content
 permissions. Rotate by creating a new account name; end one with
 `hydro service-account revoke --name ledger` (tokens revoked, account
-disabled).
+disabled). Creating a revoked name again brings it back with the new
+permissions and a new token.
 
 ## Hooks: ask a side service first
 
@@ -193,7 +194,7 @@ unreachable service rejects it with 503 (fail closed), except for
 reachable. Hooks run before the change and outside its transaction, so the
 service judges what was submitted; versions still guard the save. In a
 `_batch` all hooks run first, before the transaction (with `$ref:N` values
-unresolved). Keep the service fast and idempotent: a change may be retried.
+unresolved). A list read at `limit=100` may report `has_more` when exactly 100 records matched. On MySQL, concurrent writes to lines of one rolled-up parent can answer 409 (the retry cannot see the other commit under REPEATABLE READ); retry the request. Keep the service fast and idempotent: a change may be retried.
 
 ### Schedules
 

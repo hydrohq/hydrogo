@@ -53,12 +53,13 @@ audit:
 
 Every new audit event then gets a link: its position per tenant and a SHA-256
 over the previous link and the event's fields. Writers queue on the tenant's
-head row (one extra row lock per audit write), so the chain never forks.
+head row (one extra row lock per audit write: audited writes of a tenant are serialized), so the chain never forks.
 Events written before the chain was switched on stay outside it.
 
 ```bash
 hydro audit verify --config config.yaml    # recomputes every link; exit 1 if anything is off
 hydro audit head   --config config.yaml    # JSON: the latest position and hash per tenant
+hydro audit relink --config config.yaml   # link events written while audit.chain was off
 hydro audit verify --anchor :1520:9f2c…    # TENANT:SEQ:HASH, a head you saved earlier
 ```
 

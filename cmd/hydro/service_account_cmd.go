@@ -116,10 +116,19 @@ func serviceAccountCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	// The password only has to satisfy the strength rules; nobody ever sees it.
 	user, err := authSvc.CreateUser(ctx, email, "Svc-"+base64.RawURLEncoding.EncodeToString(secret)+"-1a", auth.RoleViewer)
-	if err != nil {
-		if errors.Is(err, auth.ErrUserAlreadyExists) {
+	if errors.Is(err, auth.ErrUserAlreadyExists) {
+		// A revoked account can be created again: it comes back with exactly
+		// the permissions given now and a new token.
+		existing, lookup := userStore.GetByEmail(ctx, email)
+		if lookup != nil || existing == nil || existing.Active {
 			return fmt.Errorf("service account %q already exists (revoke it first to replace it)", *name)
 		}
+		if err := userStore.SetActive(ctx, existing.ID, true); err != nil {
+			return err
+		}
+		user, err = existing, nil
+	}
+	if err != nil {
 		return err
 	}
 	if err := userStore.ReplacePermissionOverrides(ctx, user.ID, overrides); err != nil {

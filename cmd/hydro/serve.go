@@ -91,6 +91,11 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	}
 	app.initMetrics()
 	app.logger = newServeLogger(stderr)
+	if !cfg.Audit.Chain {
+		if heads, err := (auditstore.Store{Dialect: cfg.Database.Dialect}).ChainHeads(context.Background(), app.db); err == nil && len(heads) > 0 {
+			app.logger.Warn("audit.chain is off but a chain exists: new events are not linked; turn it on or run 'hydro audit relink' after the gap")
+		}
+	}
 	app.startWorkers()
 	return app.listen(routes)
 }
