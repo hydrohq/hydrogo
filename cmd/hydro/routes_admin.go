@@ -111,6 +111,7 @@ func (a *serveApp) adminSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	schema := a.buildAdminSchema()
+	schema.Resources = contenttypes.HideUnreadableFields(schema.Resources, a.contentTypes, func(permission string) bool { return contentTypeCan(r, permission) })
 	schema.Locales.AdminDefault = a.adminDefaultLocale(r.Context())
 	schema.Branding = a.adminBranding(r.Context())
 	api.WriteData(w, http.StatusOK, schema, nil)
