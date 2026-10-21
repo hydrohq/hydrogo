@@ -94,3 +94,18 @@ await assert.rejects(() => boundedClient.listNews(), (error) => {
 });
 
 console.log("PASS: headless client contract smoke");
+
+const listClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url) => {
+    const query = new URL(url).searchParams;
+    assert.equal(query.get("after"), "cursor-1");
+    assert.equal(query.get("expand"), "company,partners");
+    assert.equal(query.get("filter[status]"), "open");
+    assert.equal(query.get("filter[amount][gte]"), "100");
+    assert.equal(query.get("filter[amount][lt]"), "900");
+    return new Response(JSON.stringify({ data: [], metadata: { limit: 10, has_more: true, next_cursor: "cursor-2" } }));
+  },
+});
+const listed = await listClient.listContent("deals", { limit: 10, after: "cursor-1", expand: ["company", "partners"], filter: { status: "open", amount: { gte: "100", lt: "900" } } });
+assert.equal(listed.metadata.next_cursor, "cursor-2");
