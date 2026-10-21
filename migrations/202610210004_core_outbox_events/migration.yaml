@@ -1,0 +1,30 @@
+id: "202610210004_core_outbox_events"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "001d65e220ca59794a84d5b2b8ed9a85e4e0579f26f00d2848fd9a0f119496d7"
+  postgres: "e61576bb0c1e272d5f48cafab8e1e135d4024b16c076168e34a0e616f699703d"
+  mysql: "2c30c1ad01335431761740c4e15dc43e6ab48c7dfef101b3e2dd2dcc1ddace51"
+dependencies:
+  - "202609200003_postgres_tenant_rls"
+  - "202609210002_outbox_dead_letters"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "None; creates the outbox table only when the pages migrations have not"
+lock_timeout: "bounded by the migration runner deadline"
+disk_estimate: "One empty table with two indexes; nothing changes where the table exists"
+compatibility: "Databases that enabled pages already have this table in the same shape and are unchanged; projects without pages gain it, so content events can be delivered there"
+smoke:
+  - "A core-only database has outbox_events with its final columns"
+  - "A database with the pages migrations applied is unchanged by this migration"
+restart: "Safe to rerun; every statement is idempotent and the ledger verifies checksums"
+rollback: "Forward-only; restore or apply a corrective migration rather than dropping the table"
