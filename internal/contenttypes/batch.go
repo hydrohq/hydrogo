@@ -134,6 +134,9 @@ func (a AdminAPI) runBatchOperation(r *http.Request, index int, operation batchO
 	result := batchResult{Index: index, Op: operation.Op, Type: operation.Type}
 	switch operation.Op {
 	case "delete":
+		if subject, restricted := a.restriction(r, definition); restricted && !a.owns(r.Context(), definition, subject, id) {
+			return batchResult{}, collections.ErrRecordNotFound
+		}
 		if err := a.Service.DeleteRecord(r.Context(), operation.Type, id); err != nil {
 			return batchResult{}, err
 		}

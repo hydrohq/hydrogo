@@ -51,7 +51,7 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		provider = typesProvider[0]
 	}
 	public := contenttypes.PublicAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales}
-	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Authorize: contentTypeAccess, Can: contentTypeCan}
+	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Subject: contentTypeActor, Authorize: contentTypeAccess, Can: contentTypeCan}
 	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.List)},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Get)},

@@ -72,3 +72,21 @@ Users screen. Names look like `area.action` and may not start with `admin.`.
 Writes cover create, update, delete, state steps and `_batch`; a batch fails
 as a whole with 403 if any operation touches a type the caller cannot write.
 The `permission` of a state step is added to the same catalog.
+
+## Row access
+
+```yaml
+access: {owner: owner, all: deals.read_all}
+fields:
+  - {id: owner, label: Owner, kind: text, filterable: true}
+```
+
+In the admin API, a user without `deals.read_all` only sees records whose
+`owner` equals their e-mail address. Lists are filtered in the database (so
+paging and totals stay right), reading, editing, deleting, revisions, state
+steps and `_batch` on someone else's record answer 404, `expand` leaves out
+related records they do not own, and whatever they create or save gets them
+as the owner (a value sent for `owner` is replaced). Admins and holders of
+the permission see everything. The permission joins the catalog (grant it per
+user). The public API (`/api/v1/content/...`) has no users and is not
+affected, so a type with `access` cannot be `public`.
