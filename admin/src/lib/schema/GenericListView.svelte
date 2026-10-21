@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
-  import { api } from '$lib/api/client';
+  import { api, ApiClientError } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import type { ContentItem, ApiResponse, Field } from '$lib/api/types';
@@ -55,6 +55,46 @@
     }
     return list;
   });
+
+  // Bulk selection. Content types delete the selection in one atomic batch
+  // request; other resources have no batch endpoint yet.
+  const bulkEnabled = $derived(!!collection && collection.api_path?.startsWith('/api/v1/admin/content/'));
+  let selected = $state<Record<string, boolean>>({});
+  const selectedIds = $derived(Object.keys(selected).filter((id) => selected[id]));
+  let bulkDeleteOpen = $state(false);
+  let bulkLoading = $state(false);
+  let bulkError = $state('');
+
+  const allShownSelected = $derived(filteredItems.length > 0 && filteredItems.every((item) => selected[item.id]));
+
+  function toggleAll() {
+    const next = !allShownSelected;
+    const map: Record<string, boolean> = { ...selected };
+    for (const item of filteredItems) map[item.id] = next;
+    selected = map;
+  }
+
+  async function confirmBulkDelete() {
+    if (!collection) return;
+    bulkLoading = true;
+    bulkError = '';
+    try {
+      await api.post('/api/v1/admin/content/_batch', {
+        operations: selectedIds.map((id) => ({ op: 'delete', type, id })),
+      });
+      bulkDeleteOpen = false;
+      selected = {};
+      await loadItems();
+    } catch (err) {
+      // The batch is atomic: nothing was deleted. Show why, with the request id.
+      bulkError = err instanceof ApiClientError
+        ? `${err.message}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`
+        : t('schema.bulkFailed');
+      bulkDeleteOpen = false;
+    } finally {
+      bulkLoading = false;
+    }
+  }
 
   async function loadItems() {
     if (!collection) return;
@@ -121,6 +161,8 @@
       page = 1;
       statusFilter = '';
       search = '';
+      selected = {};
+      bulkError = '';
       loadItems();
     }
   });
@@ -150,6 +192,15 @@
   loading={deleteLoading}
   onconfirm={confirmDelete}
   oncancel={() => { deleteTargetId = null; }}
+/>
+
+<ConfirmDialog
+  open={bulkDeleteOpen}
+  title={t('schema.bulkDeleteTitle', { count: selectedIds.length })}
+  description={t('schema.bulkDeleteDescription')}
+  loading={bulkLoading}
+  onconfirm={confirmBulkDelete}
+  oncancel={() => { bulkDeleteOpen = false; }}
 />
 
 {#if schema.isLoading}
@@ -234,6 +285,19 @@
           </div>
         </div>
 
+        {#if bulkEnabled && selectedIds.length > 0}
+          <div class="mx-4 lg:mx-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 px-4 py-2 text-xs">
+            <span>{t('schema.selected', { count: selectedIds.length })}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent cursor-pointer" onclick={() => { selected = {}; }}>{t('schema.clearSelection')}</button>
+              <button type="button" class="h-7 px-2.5 rounded-md bg-destructive text-white hover:bg-destructive/90 cursor-pointer" onclick={() => { bulkDeleteOpen = true; }}>{t('schema.bulkDelete')}</button>
+            </div>
+          </div>
+        {/if}
+        {#if bulkError}
+          <p class="mx-4 lg:mx-6 text-xs text-destructive" role="alert">{bulkError}</p>
+        {/if}
+
         <!-- Table Container -->
         <div class="px-4 lg:px-6">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
@@ -257,6 +321,9 @@
                 <table class="w-full text-left text-sm text-foreground caption-bottom">
                   <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                     <tr>
+                      {#if bulkEnabled}
+                        <th class="h-10 w-10 px-4"><input type="checkbox" checked={allShownSelected} onchange={toggleAll} aria-label={t('schema.selectAll')} /></th>
+                      {/if}
                       {#each listFields as field}
                         <th class="h-10 px-4 font-medium">{field.label || getFieldKey(field)}</th>
                       {/each}
@@ -272,6 +339,11 @@
                         class="hover:bg-muted/50 transition-colors cursor-pointer"
                         onclick={() => openEdit(item.id)}
                       >
+                        {#if bulkEnabled}
+                          <td class="w-10 px-4 py-3" onclick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" bind:checked={selected[item.id]} aria-label={t('schema.selectRow')} />
+                          </td>
+                        {/if}
                         {#each listFields as field}
                           {@const key = getFieldKey(field)}
                           <td class="px-4 py-3 text-xs text-foreground max-w-xs truncate">

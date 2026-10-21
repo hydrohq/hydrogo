@@ -343,6 +343,13 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 	if collection.Group == "" {
 		collection.Group = "Content"
 	}
+	if d.States != nil {
+		machine := &adminstudio.StateMachine{Field: d.States.Field, Initial: d.States.Initial}
+		for _, step := range d.States.Transitions {
+			machine.Transitions = append(machine.Transitions, adminstudio.StateTransition{From: step.From, To: step.To, Permission: step.Permission})
+		}
+		collection.StateMachine = machine
+	}
 	for _, field := range d.Fields {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
