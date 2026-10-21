@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
-  import { api, ApiClientError } from '$lib/api/client';
+  import { api, apiRequest, ApiClientError } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import type { ContentItem, ApiResponse, Field } from '$lib/api/types';
@@ -93,6 +93,39 @@
       bulkDeleteOpen = false;
     } finally {
       bulkLoading = false;
+    }
+  }
+
+  // CSV transfer (content types only): export downloads the list through the
+  // browser session; import sends the file as the request body.
+  const csvBase = $derived(collection?.api_path || `/api/v1/admin/content/${type}`);
+  let importInput = $state<HTMLInputElement | null>(null);
+  let importMessage = $state('');
+  let importFailed = $state(false);
+
+  async function importCsv(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    importMessage = '';
+    importFailed = false;
+    try {
+      const res = await apiRequest<{ created?: number }>(`${csvBase}/_import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv' },
+        body: await file.text(),
+      });
+      importMessage = t('schema.importDone', { count: res?.created ?? 0 });
+      await loadItems();
+    } catch (err) {
+      importFailed = true;
+      if (err instanceof ApiClientError) {
+        const details = Object.entries(err.fields ?? {}).slice(0, 3).map(([key, value]) => `${key}: ${value}`).join('; ');
+        importMessage = `${err.message}${details ? ` — ${details}` : ''}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`;
+      } else {
+        importMessage = t('schema.importFailed');
+      }
     }
   }
 
@@ -271,6 +304,20 @@
               />
             </div>
 
+            {#if bulkEnabled}
+              <a
+                href="{csvBase}/_export"
+                download
+                class="inline-flex items-center h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium shadow-xs shrink-0"
+              >{t('schema.exportCsv')}</a>
+              <button
+                type="button"
+                class="inline-flex items-center h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium shadow-xs cursor-pointer shrink-0"
+                onclick={() => importInput?.click()}
+              >{t('schema.importCsv')}</button>
+              <input bind:this={importInput} type="file" accept=".csv,text/csv" class="hidden" onchange={importCsv} />
+            {/if}
+
             <button
               type="button"
               class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs cursor-pointer shrink-0 transition-colors"
@@ -293,6 +340,9 @@
               <button type="button" class="h-7 px-2.5 rounded-md bg-destructive text-white hover:bg-destructive/90 cursor-pointer" onclick={() => { bulkDeleteOpen = true; }}>{t('schema.bulkDelete')}</button>
             </div>
           </div>
+        {/if}
+        {#if importMessage}
+          <p class="mx-4 lg:mx-6 text-xs {importFailed ? 'text-destructive' : 'text-muted-foreground'}" role={importFailed ? 'alert' : 'status'}>{importMessage}</p>
         {/if}
         {#if bulkError}
           <p class="mx-4 lg:mx-6 text-xs text-destructive" role="alert">{bulkError}</p>
