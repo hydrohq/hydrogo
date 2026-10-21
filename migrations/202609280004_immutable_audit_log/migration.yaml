@@ -1,5 +1,5 @@
 id: "202609280004_immutable_audit_log"
-module: "pages"
+module: "core"
 class:
   sqlite: "expand"
   postgres: "expand"

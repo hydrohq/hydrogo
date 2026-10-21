@@ -1,7 +1,5 @@
 id: "202609090017_audit_request_id"
 module: "core"
-requires_modules:
-  - "pages"
 class:
   sqlite: "maintenance"
   postgres: "maintenance"

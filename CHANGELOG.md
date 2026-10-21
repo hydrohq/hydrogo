@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Saving a record with a `many: true` relation field panicked instead of checking the related records.
 
+### Fixed
+- Projects without the `pages` module (such as the `crm` preset) failed to sign in because `audit_events` was owned by `pages`; the audit migrations now belong to `core`.
+
 ### Changed
 - Content types can hold up to 100,000 records per tenant by default (was a fixed 10,000); set `limits.records_per_type` in `config.yaml` to change it, or a negative value to remove the cap. Creating a record no longer runs a `COUNT(*)` when there is no cap. `?offset=` stays limited to 10,000.
 - Admin: the English and Turkish catalogs are split per area under `admin/src/lib/i18n/messages/`; editor, chart axis, status/role labels and more screens are translated.
