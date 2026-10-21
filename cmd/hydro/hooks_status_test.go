@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
+	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 )
 
@@ -29,5 +32,17 @@ func TestHookStatusCountsOnlyBrokenCallsAsFailures(t *testing.T) {
 	}
 	if status.snapshot("other").Calls != 0 {
 		t.Fatal("an unknown service has history")
+	}
+}
+
+// The Services tab reads these keys; a missing json tag once rendered them
+// as "Name"/"Cron" and the tab showed "undefined (undefined)".
+func TestServiceInfoSchedulesUseLowercaseJSONKeys(t *testing.T) {
+	raw, err := json.Marshal(serviceInfo{ID: "ledger", Schedules: []config.HookSchedule{{Name: "overdue-check", Cron: "0 2 * * *"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"schedules":[{"name":"overdue-check","cron":"0 2 * * *"}]`) {
+		t.Fatalf("json = %s", raw)
 	}
 }
