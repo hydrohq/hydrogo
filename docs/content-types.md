@@ -233,11 +233,35 @@ businesses: `products`, `warehouses`, `accounts` (customers and suppliers),
   to a service account).
 - A posted, paid or void invoice and a closed order cannot be edited.
 - Create a document and its lines in one `_batch` request (`"order":
-  "$ref:0"`), so a failed line saves nothing.
+  "$ref:0"`), so a failed line saves nothing; the totals follow the lines.
 
-What it deliberately leaves to you or to a side service: document totals are
-sent by the client (a computed field cannot sum another type's rows yet),
-lines of a posted invoice are not locked by the invoice's state, and there is
-no stock ledger or accounting journal. Add those as a service that is called
+Order and invoice subtotals and taxes are totalled from their lines by the
+server (`rollup`), and the lines of a posted invoice are locked with it.
+What it deliberately leaves to you or to a side service: there is no stock
+ledger or accounting journal. Add those as a service that is called
 through `hooks` (for example `on: transition, to: posted`) and works through
 a service account.
+
+## Rollups: totals from related records
+
+```yaml
+# invoices.yaml
+- {id: subtotal, label: Subtotal, kind: number, decimals: 2, rollup: {from: invoice_lines, via: invoice, sum: line_total}}
+- {id: total, label: Total, kind: number, decimals: 2, computed: "subtotal + tax"}
+```
+
+`from` is the type holding the lines, `via` its single relation field that
+points back at this type, `sum` the number field to add up (leave it out to
+count). The field is read-only: clients cannot set it. The server recalculates
+it, and the computed fields that read it, in the same transaction as every
+create, update, delete or move of a line to another parent, so it is never
+stale. Declare rollups before the computed fields that use them.
+
+A line cannot be changed while its parent is locked by a readonly rule (a
+posted invoice): that would change the parent's total, so the change is
+refused like any edit of the locked parent. Limits: 20,000 lines per parent;
+every line write also rewrites its parent (its version goes up). On
+PostgreSQL concurrent writes to the lines of one parent queue on the parent
+row; MySQL's default isolation may leave a total briefly stale if two lines of
+one parent are written at the same moment, and the next line change corrects
+it (MySQL is not exercised by the test suite here).

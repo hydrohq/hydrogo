@@ -14,3 +14,4 @@ fields:
   - {id: unit_price, label: Unit price, kind: number, decimals: 2, min: 0, required: true, list: true}
   - {id: vat_rate, label: VAT rate (%), kind: number, decimals: 2, min: 0, max: 100}
   - {id: line_total, label: Line total, kind: number, decimals: 2, list: true, computed: "quantity * unit_price"}
+  - {id: vat_amount, label: VAT, kind: number, decimals: 2, computed: "line_total * vat_rate / 100"}

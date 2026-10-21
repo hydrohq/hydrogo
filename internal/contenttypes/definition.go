@@ -102,6 +102,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -220,6 +221,9 @@ type Field struct {
 	// Computed calculates a number field on the server from other number
 	// fields declared before it; see collections.Expr.
 	Computed string `json:"computed,omitempty" yaml:"computed"`
+	// Rollup totals the records of another type that point at this one
+	// (see collections.Rollup); the field is read-only.
+	Rollup *collections.Rollup `json:"rollup,omitempty" yaml:"rollup"`
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
 	Searchable bool `json:"searchable" yaml:"searchable"`
@@ -370,7 +374,7 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
-			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence, Decimals: field.Decimals, Computed: field.Computed,
+			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence, Decimals: field.Decimals, Computed: field.Computed, Rollup: field.Rollup,
 		})
 	}
 	if d.Drafts {
@@ -448,7 +452,7 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
 			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
-			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "" || (d.States != nil && d.States.Field == field.ID),
+			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "" || field.Rollup != nil || (d.States != nil && d.States.Field == field.ID),
 		}
 		switch field.Kind {
 		case "text":
@@ -508,7 +512,50 @@ func Schemas(definitions []Definition) ([]collections.Schema, error) {
 		}
 		result = append(result, schema)
 	}
-	return result, nil
+	return result, linkRollups(result)
+}
+
+// linkRollups checks every rollup against the types it totals and tells those
+// types which parents depend on them.
+func linkRollups(schemas []collections.Schema) error {
+	byID := make(map[string]int, len(schemas))
+	for index, schema := range schemas {
+		byID[schema.ID] = index
+	}
+	for _, parent := range schemas {
+		for _, field := range parent.Fields {
+			if field.Rollup == nil {
+				continue
+			}
+			index, ok := byID[field.Rollup.From]
+			if !ok {
+				return fmt.Errorf("%w: %s.%s totals unknown type %q", ErrInvalidDefinition, parent.ID, field.ID, field.Rollup.From)
+			}
+			child := schemas[index]
+			via, found := schemaField(child, field.Rollup.Via)
+			if !found || via.Kind != collections.Relation || via.Relation != parent.ID {
+				return fmt.Errorf("%w: %s.%s needs %s.%s to be a relation to %s", ErrInvalidDefinition, parent.ID, field.ID, child.ID, field.Rollup.Via, parent.ID)
+			}
+			if field.Rollup.Sum != "" {
+				if sum, found := schemaField(child, field.Rollup.Sum); !found || sum.Kind != collections.Number {
+					return fmt.Errorf("%w: %s.%s sums %s.%s, which is not a number field", ErrInvalidDefinition, parent.ID, field.ID, child.ID, field.Rollup.Sum)
+				}
+			}
+			if !slices.Contains(schemas[index].RollupParents, parent.ID) {
+				schemas[index].RollupParents = append(schemas[index].RollupParents, parent.ID)
+			}
+		}
+	}
+	return nil
+}
+
+func schemaField(schema collections.Schema, id string) (collections.Field, bool) {
+	for _, field := range schema.Fields {
+		if field.ID == id {
+			return field, true
+		}
+	}
+	return collections.Field{}, false
 }
 
 // AdminCollections converts the definitions for the admin. With localize

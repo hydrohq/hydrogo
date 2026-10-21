@@ -1,6 +1,6 @@
 id: sales_orders
 label: Sales orders
-description: Orders from customers. Add the lines (order_lines) in one atomic batch.
+description: Orders from customers. Subtotal and tax are totalled from the order lines by the server.
 group: ERP
 icon: shopping-cart
 title_field: number
@@ -22,8 +22,8 @@ fields:
   - {id: status, label: Status, kind: select, options: [draft, confirmed, fulfilled, cancelled], list: true, filterable: true}
   - {id: order_date, label: Order date, kind: date, list: true, filterable: true}
   - {id: warehouse, label: Warehouse, kind: relation, to: warehouses, filterable: true}
-  - {id: subtotal, label: Subtotal, kind: number, decimals: 2, min: 0}
+  - {id: subtotal, label: Subtotal, kind: number, decimals: 2, rollup: {from: order_lines, via: order, sum: line_total}}
   - {id: discount, label: Discount, kind: number, decimals: 2, min: 0}
-  - {id: tax, label: Tax, kind: number, decimals: 2, min: 0}
+  - {id: tax, label: Tax, kind: number, decimals: 2, rollup: {from: order_lines, via: order, sum: vat_amount}}
   - {id: total, label: Total, kind: number, decimals: 2, list: true, computed: "subtotal - discount + tax"}
   - {id: notes, label: Notes, kind: textarea}

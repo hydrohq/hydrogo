@@ -167,12 +167,23 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 	if err != nil {
 		return Record{}, err
 	}
+	if len(schema.RollupParents) == 0 {
+		return s.saveChecked(ctx, schema, id, data, expectedVersion)
+	}
+	return s.withRollups(ctx, schema, id, func(tx Service) (Record, error) {
+		return tx.saveChecked(ctx, schema, id, data, expectedVersion)
+	})
+}
+
+// saveChecked validates and saves one record of schema.
+func (s Service) saveChecked(ctx context.Context, schema Schema, id string, data map[string]any, expectedVersion int) (Record, error) {
+	collectionID := schema.ID
 	clean, err := schema.ValidateRecord(data)
 	if err != nil {
 		return Record{}, err
 	}
 	var stored *Record
-	if id != "" && (len(schema.sequenceFields()) > 0 || schema.States != nil || schema.hasReadonlyRules()) {
+	if id != "" && (len(schema.sequenceFields()) > 0 || schema.States != nil || schema.hasReadonlyRules() || len(schema.rollupFields()) > 0) {
 		record, err := s.Repository.GetRecord(ctx, collectionID, id)
 		if err != nil {
 			return Record{}, err
@@ -207,6 +218,9 @@ func (s Service) persist(ctx context.Context, schema Schema, id string, clean ma
 				clean[field.ID] = value
 			}
 		}
+	}
+	if err := schema.carryRollups(clean, stored); err != nil {
+		return Record{}, err
 	}
 	if err := schema.checkAsserts(clean); err != nil {
 		return Record{}, err
@@ -339,6 +353,16 @@ func (s Service) DeleteRecord(ctx context.Context, collectionID, id string) erro
 	if id == "" {
 		return errors.New("record id is required")
 	}
+	if schema, err := s.Repository.GetSchema(ctx, collectionID); err == nil && len(schema.RollupParents) > 0 {
+		_, err := s.withRollups(ctx, schema, id, func(tx Service) (Record, error) {
+			return Record{}, tx.deleteChecked(ctx, collectionID, id)
+		})
+		return err
+	}
+	return s.deleteChecked(ctx, collectionID, id)
+}
+
+func (s Service) deleteChecked(ctx context.Context, collectionID, id string) error {
 	if schema, err := s.Repository.GetSchema(ctx, collectionID); err == nil && schema.hasReadonlyRules() {
 		stored, err := s.Repository.GetRecord(ctx, collectionID, id)
 		if err != nil {

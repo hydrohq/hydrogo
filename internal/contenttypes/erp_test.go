@@ -33,14 +33,14 @@ func TestERPLiteFlow(t *testing.T) {
 
 	// The order and its lines are created together, atomically.
 	batch := `{"operations":[
-	 {"op":"create","type":"sales_orders","fields":{"account":"` + account + `","subtotal":59.97,"discount":0.97,"tax":10.8}},
-	 {"op":"create","type":"order_lines","fields":{"order":"$ref:0","product":"` + product + `","quantity":3,"unit_price":19.99}}]}`
+	 {"op":"create","type":"sales_orders","fields":{"account":"` + account + `","discount":0.97}},
+	 {"op":"create","type":"order_lines","fields":{"order":"$ref:0","product":"` + product + `","quantity":3,"unit_price":19.99,"vat_rate":18}}]}`
 	if r, _ := call(t, admin, http.MethodPost, BatchPath, batch); r.Code != http.StatusOK {
 		t.Fatalf("batch: %d %s", r.Code, r.Body)
 	}
 	_, list := call(t, admin, http.MethodGet, root+"/sales_orders", "")
 	order := list["data"].([]any)[0].(map[string]any)
-	if order["number"] == "" || order["total"].(float64) != 69.8 || order["status"] != "draft" {
+	if order["number"] == "" || order["subtotal"].(float64) != 59.97 || order["tax"].(float64) != 10.79 || order["total"].(float64) != 69.79 || order["status"] != "draft" {
 		t.Fatalf("order = %v", order)
 	}
 	orderID := order["id"].(string)
@@ -56,10 +56,13 @@ func TestERPLiteFlow(t *testing.T) {
 	}
 
 	// Invoice: numbered, posted once, then locked.
-	_, body = call(t, admin, http.MethodPost, root+"/invoices", `{"account":"`+account+`","order":"`+orderID+`","subtotal":59.97,"tax":10.8}`)
-	invoice := data(t, body)
-	invoiceID := invoice["id"].(string)
-	if invoice["number"] == "" || invoice["total"].(float64) != 70.77 {
+	_, body = call(t, admin, http.MethodPost, root+"/invoices", `{"account":"`+account+`","order":"`+orderID+`"}`)
+	invoiceID := data(t, body)["id"].(string)
+	if r, _ := call(t, admin, http.MethodPost, root+"/invoice_lines", `{"invoice":"`+invoiceID+`","description":"Widget","quantity":3,"unit_price":19.99,"vat_rate":18}`); r.Code != http.StatusCreated {
+		t.Fatalf("invoice line: %d %s", r.Code, r.Body)
+	}
+	_, body = call(t, admin, http.MethodGet, root+"/invoices/"+invoiceID, "")
+	if invoice := data(t, body); invoice["number"] == "" || invoice["subtotal"].(float64) != 59.97 || invoice["total"].(float64) != 70.76 {
 		t.Fatalf("invoice = %v", invoice)
 	}
 	if r, _ := call(t, admin, http.MethodPost, root+"/invoices/"+invoiceID+"/state", `{"to":"posted"}`); r.Code != http.StatusOK {
@@ -68,10 +71,90 @@ func TestERPLiteFlow(t *testing.T) {
 	if r, b := call(t, admin, http.MethodPut, root+"/invoices/"+invoiceID, `{"account":"`+account+`","subtotal":1,"tax":0}`); r.Code != http.StatusUnprocessableEntity || b["message"] != "Posted invoices are locked" {
 		t.Fatalf("edit posted invoice: %d %s", r.Code, r.Body)
 	}
-	if r, _ := call(t, admin, http.MethodPost, root+"/payments", `{"invoice":"`+invoiceID+`","amount":70.77,"paid_on":"2026-10-21","method":"bank_transfer"}`); r.Code != http.StatusCreated {
+	// Lines of a posted invoice are locked with it, so its total cannot move.
+	if r, _ := call(t, admin, http.MethodPost, root+"/invoice_lines", `{"invoice":"`+invoiceID+`","description":"Late","quantity":1,"unit_price":5}`); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("line on posted invoice: %d %s", r.Code, r.Body)
+	}
+	if r, _ := call(t, admin, http.MethodPost, root+"/payments", `{"invoice":"`+invoiceID+`","amount":70.76,"paid_on":"2026-10-21","method":"bank_transfer"}`); r.Code != http.StatusCreated {
 		t.Fatalf("payment: %d %s", r.Code, r.Body)
 	}
 	if r, _ := call(t, admin, http.MethodPost, root+"/invoices/"+invoiceID+"/state", `{"to":"paid"}`); r.Code != http.StatusOK {
 		t.Fatalf("paid: %d %s", r.Code, r.Body)
+	}
+}
+
+const rollupParentYAML = `id: carts
+label: Carts
+fields:
+  - {id: name, label: Name, kind: text}
+  - {id: items, label: Items, kind: number, decimals: 0, rollup: {from: cart_items, via: cart}}
+  - {id: total, label: Total, kind: number, decimals: 2, rollup: {from: cart_items, via: cart, sum: price}}
+`
+
+const rollupChildYAML = `id: cart_items
+label: Cart items
+fields:
+  - {id: cart, label: Cart, kind: relation, to: carts, required: true, filterable: true}
+  - {id: price, label: Price, kind: number, decimals: 2}
+`
+
+func TestRollupsFollowEveryChangeToTheChildren(t *testing.T) {
+	service, types := newServiceFor(t, rollupParentYAML, rollupChildYAML)
+	admin := adminMux(AdminAPI{Service: service, Types: types, Authorize: allowAll})
+	root := AdminAPIPath
+	cart := func(id string) map[string]any {
+		_, body := call(t, admin, http.MethodGet, root+"/carts/"+id, "")
+		return data(t, body)
+	}
+	_, body := call(t, admin, http.MethodPost, root+"/carts", `{"name":"a","total":999}`)
+	a := data(t, body)["id"].(string)
+	_, body = call(t, admin, http.MethodPost, root+"/carts", `{"name":"b"}`)
+	b := data(t, body)["id"].(string)
+	if got := cart(a); got["total"].(float64) != 0 || got["items"].(float64) != 0 {
+		t.Fatalf("new cart = %v", got)
+	}
+	_, body = call(t, admin, http.MethodPost, root+"/cart_items", `{"cart":"`+a+`","price":0.1}`)
+	first := data(t, body)["id"].(string)
+	call(t, admin, http.MethodPost, root+"/cart_items", `{"cart":"`+a+`","price":0.2}`)
+	if got := cart(a); got["total"].(float64) != 0.3 || got["items"].(float64) != 2 {
+		t.Fatalf("after two items = %v", got)
+	}
+	// Moving an item to another cart updates both.
+	call(t, admin, http.MethodPut, root+"/cart_items/"+first, `{"cart":"`+b+`","price":0.1}`)
+	if got := cart(a); got["total"].(float64) != 0.2 || got["items"].(float64) != 1 {
+		t.Fatalf("source cart = %v", got)
+	}
+	if got := cart(b); got["total"].(float64) != 0.1 || got["items"].(float64) != 1 {
+		t.Fatalf("target cart = %v", got)
+	}
+	// Editing the parent keeps its totals; deleting an item lowers them.
+	call(t, admin, http.MethodPut, root+"/carts/"+b, `{"name":"renamed","total":5}`)
+	if got := cart(b); got["name"] != "renamed" || got["total"].(float64) != 0.1 {
+		t.Fatalf("renamed cart = %v", got)
+	}
+	call(t, admin, http.MethodDelete, root+"/cart_items/"+first, "")
+	if got := cart(b); got["total"].(float64) != 0 || got["items"].(float64) != 0 {
+		t.Fatalf("after delete = %v", got)
+	}
+}
+
+func TestRollupDefinitionsAreChecked(t *testing.T) {
+	for name, child := range map[string]string{
+		"missing type":   "",
+		"wrong via":      "id: cart_items\nlabel: Items\nfields:\n  - {id: cart, label: Cart, kind: text}\n  - {id: price, label: Price, kind: number}\n",
+		"sum not number": "id: cart_items\nlabel: Items\nfields:\n  - {id: cart, label: Cart, kind: relation, to: carts}\n  - {id: price, label: Price, kind: text}\n",
+	} {
+		dir := t.TempDir()
+		_ = os.WriteFile(filepath.Join(dir, "a.yaml"), []byte(rollupParentYAML), 0o644)
+		if child != "" {
+			_ = os.WriteFile(filepath.Join(dir, "b.yaml"), []byte(child), 0o644)
+		}
+		types, err := LoadDir(dir)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if _, err := Schemas(types); err == nil {
+			t.Errorf("%s accepted", name)
+		}
 	}
 }
