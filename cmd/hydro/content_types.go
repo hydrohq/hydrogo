@@ -19,7 +19,7 @@ import (
 // returns the public read routes and the admin JSON API for them. A missing
 // or empty directory yields no routes. Rich text is returned as stored;
 // rendering it is the frontend's job.
-func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, presence *realtime.Presence, typesProvider ...func() []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
+func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, presence *realtime.Presence, hook contenttypes.HookCaller, typesProvider ...func() []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("content types: %w", err)
@@ -51,7 +51,7 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		provider = typesProvider[0]
 	}
 	public := contenttypes.PublicAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales}
-	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Authorize: contentTypeAccess}
+	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Subject: contentTypeActor, Hook: hook, Authorize: contentTypeAccess, Can: contentTypeCan}
 	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.List)},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Get)},
@@ -75,4 +75,9 @@ func contentTypeActor(r *http.Request) string {
 		return user.Email
 	}
 	return ""
+}
+
+// contentTypeCan answers permission checks of state transitions.
+func contentTypeCan(r *http.Request, permission string) bool {
+	return auth.Can(auth.UserFromContext(r.Context()), permission)
 }

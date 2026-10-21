@@ -466,3 +466,32 @@ func lookup(values map[string]string) LookupEnv {
 		return value, ok
 	}
 }
+
+func TestLoadSyncHooksNeedASecretFromTheEnvironment(t *testing.T) {
+	body := "hooks:\n  - id: ledger\n    url: http://127.0.0.1:9100/hydro\n    secret_env: LEDGER_SECRET\n    timeout: 3s\n"
+	env := map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}
+	if _, err := Load(writeConfig(t, body), lookup(env), Overrides{}); err == nil {
+		t.Fatal("hook without a secret accepted")
+	}
+	env["LEDGER_SECRET"] = "0123456789abcdef"
+	cfg, err := Load(writeConfig(t, body), lookup(env), Overrides{})
+	if err != nil || cfg.Hooks[0].Secret != "0123456789abcdef" {
+		t.Fatalf("hooks = %#v err=%v", cfg.Hooks, err)
+	}
+	if _, err := Load(writeConfig(t, strings.Replace(body, "3s", "1m", 1)), lookup(env), Overrides{}); err == nil {
+		t.Fatal("hook timeout above 10s accepted")
+	}
+}
+
+func TestLoadHookSchedulesNeedValidCronExpressions(t *testing.T) {
+	env := map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "LEDGER_SECRET": "0123456789abcdef"}
+	head := "hooks:\n  - id: ledger\n    url: http://127.0.0.1:9100/hydro\n    secret_env: LEDGER_SECRET\n    schedules:\n"
+	if cfg, err := Load(writeConfig(t, head+"      - {name: nightly, cron: \"0 2 * * *\"}\n"), lookup(env), Overrides{}); err != nil || len(cfg.Hooks[0].Schedules) != 1 {
+		t.Fatalf("valid schedule: %v %#v", err, cfg.Hooks)
+	}
+	for _, bad := range []string{"      - {name: nightly, cron: \"61 2 * * *\"}\n", "      - {name: Bad Name, cron: \"0 2 * * *\"}\n", "      - {name: a, cron: \"0 2 * * *\"}\n      - {name: a, cron: \"0 3 * * *\"}\n"} {
+		if _, err := Load(writeConfig(t, head+bad), lookup(env), Overrides{}); err == nil {
+			t.Fatalf("accepted: %s", bad)
+		}
+	}
+}

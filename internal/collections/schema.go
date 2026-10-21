@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -22,11 +23,19 @@ var (
 )
 
 const (
-	MaxCollections       = 100
-	MaxFields            = 64
-	MaxCollectionRecords = 10000
-	MaxRecordBytes       = 64 << 10
-	MaxFieldTextBytes    = 16 << 10
+	MaxCollections    = 100
+	MaxFields         = 64
+	MaxRecordBytes    = 64 << 10
+	MaxFieldTextBytes = 16 << 10
+	// DefaultMaxRecords is the per-type, per-tenant record cap used when the
+	// store has no configured limit (limits.records_per_type).
+	DefaultMaxRecords = 100000
+	// MaxListOffset bounds ?offset= so deep paging stays cheap.
+	MaxListOffset = 10000
+	// MaxDecimals is the most decimal places a number field can fix.
+	MaxDecimals = 8
+	// maxExactDigits keeps decimal values within what a float64 holds exactly.
+	maxExactDigits = 15
 )
 
 type FieldKind string
@@ -58,6 +67,24 @@ type Field struct {
 	// in the record, the others as translations (see Service.SaveTranslation).
 	// Only text, rich text, media and select fields can be localized.
 	Localized bool `json:"localized,omitempty"`
+	// Indexed asks the store for a database index that serves filters and
+	// lookups on this field. Only PostgreSQL builds them today; the flag is
+	// a hint and never changes results.
+	Indexed bool `json:"indexed,omitempty"`
+	// Sequence makes the server number new records (see Sequence). The value
+	// is assigned on create, never changes, and any client value is ignored.
+	Sequence *Sequence `json:"sequence,omitempty"`
+	// Decimals fixes the number of decimal places of a number field (money:
+	// 2). Values with more places, or too large to be held exactly, are
+	// rejected instead of being rounded.
+	Decimals *int `json:"decimals,omitempty"`
+	// Computed makes the server calculate the field from other number fields
+	// on every save (see Expr): the value is stored, a client value is
+	// ignored. Needs Decimals, which defines the rounding.
+	Computed string `json:"computed,omitempty"`
+	// Rollup makes the server total the records of another type that point
+	// at this one (see Rollup). Needs Decimals; read-only for clients.
+	Rollup *Rollup `json:"rollup,omitempty"`
 }
 
 type Schema struct {
@@ -68,6 +95,13 @@ type Schema struct {
 	// Revisions keeps a snapshot of every saved version of a record (see
 	// MaxRevisionsPerRecord).
 	Revisions bool `json:"revisions,omitempty"`
+	// Rules validate and lock records; States restricts how a select field
+	// changes. See Rule and StateMachine.
+	Rules  []Rule        `json:"rules,omitempty"`
+	States *StateMachine `json:"states,omitempty"`
+	// RollupParents lists the types that total this type's records; set by
+	// the loader of the types (contenttypes.Schemas), not written by hand.
+	RollupParents []string `json:"rollup_parents,omitempty"`
 }
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
@@ -97,6 +131,20 @@ func (s Schema) Validate() error {
 		default:
 			return ErrInvalidSchema
 		}
+		if field.Decimals != nil && (field.Kind != Number || *field.Decimals < 0 || *field.Decimals > MaxDecimals) {
+			return ErrInvalidSchema
+		}
+		if field.Computed != "" {
+			if err := s.validateComputed(field); err != nil {
+				return err
+			}
+		}
+		if field.Rollup != nil && (field.Kind != Number || field.Decimals == nil || field.Computed != "" || field.Required || field.Unique || field.Localized || field.Sequence != nil || field.Rollup.validate() != nil) {
+			return ErrInvalidSchema
+		}
+		if field.Sequence != nil && (field.Kind != Text || field.Localized || field.Sequence.validate() != nil) {
+			return ErrInvalidSchema
+		}
 		if field.Localized && (field.Unique || !localizable(field.Kind)) {
 			return ErrInvalidSchema
 		}
@@ -121,7 +169,7 @@ func (s Schema) Validate() error {
 			return ErrInvalidSchema
 		}
 	}
-	return nil
+	return s.validateRulesAndStates()
 }
 
 func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
@@ -139,6 +187,11 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 	}
 	clean := make(map[string]any, len(data))
 	for _, field := range s.Fields {
+		if field.Sequence != nil || field.Computed != "" || field.Rollup != nil || (s.States != nil && s.States.Field == field.ID) {
+			// Numbered by the server on create (Service.saveRecord) or
+			// calculated below.
+			continue
+		}
 		value, present := data[field.ID]
 		if !present || value == nil || value == "" {
 			if field.Required {
@@ -150,6 +203,9 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 			return nil, fieldError(field.ID)
 		}
 		clean[field.ID] = value
+	}
+	if err := s.applyComputed(clean); err != nil {
+		return nil, err
 	}
 	encoded, err := json.Marshal(clean)
 	if err != nil || len(encoded) > MaxRecordBytes {
@@ -171,6 +227,9 @@ func validateValue(field Field, value any) error {
 	case Number:
 		number, ok := numeric(value)
 		if !ok || field.Min != nil && number < *field.Min || field.Max != nil && number > *field.Max {
+			return ErrInvalidRecord
+		}
+		if field.Decimals != nil && !fitsDecimals(number, *field.Decimals) {
 			return ErrInvalidRecord
 		}
 	case Boolean:
@@ -226,6 +285,15 @@ func validateValue(field Field, value any) error {
 		return ErrInvalidRecord
 	}
 	return nil
+}
+
+// fitsDecimals reports whether n has at most places decimal places and is
+// small enough to be held exactly (at most maxExactDigits significant digits
+// once scaled), so money is never silently rounded.
+func fitsDecimals(n float64, places int) bool {
+	text := strconv.FormatFloat(math.Abs(n), 'f', -1, 64)
+	whole, fraction, _ := strings.Cut(text, ".")
+	return len(fraction) <= places && len(whole)+places <= maxExactDigits
 }
 
 func numeric(value any) (float64, bool) {

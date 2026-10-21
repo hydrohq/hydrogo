@@ -8,6 +8,10 @@
   import { theme } from '$lib/stores/theme.svelte';
   import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
+  // A module that is not enabled adds no navigation. Until the schema has
+  // loaded everything shows, so the menu does not flash empty.
+  const moduleOn = (name: string) => !schema.schema || schema.modules[name] === true;
+
   const currentPath = $derived(router.path);
   let showQuickCreate = $state(false);
   let showUserMenu = $state(false);
@@ -109,6 +113,7 @@
           <div class="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             {t('nav.createNew')}
           </div>
+          {#if moduleOn('pages')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -117,6 +122,8 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
             <span>{t('nav.newPage')}</span>
           </button>
+          {/if}
+          {#if moduleOn('news')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -125,6 +132,8 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path></svg>
             <span>{t('nav.newArticle')}</span>
           </button>
+          {/if}
+          {#if moduleOn('media')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -133,6 +142,7 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
             <span>{t('nav.uploadMedia')}</span>
           </button>
+          {/if}
           {#each schema.collections as col}
             <button
               type="button"
@@ -167,6 +177,7 @@
         {/if}
       </a>
 
+      {#if moduleOn('pages')}
       <!-- Pages -->
       <a
         href="/admin/pages"
@@ -181,7 +192,9 @@
           <span class="truncate">{t('nav.pages')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if moduleOn('news')}
       <!-- News -->
       <a
         href="/admin/news"
@@ -200,7 +213,9 @@
           <span class="truncate">{t('nav.news')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if moduleOn('media')}
       <!-- Media -->
       <a
         href="/admin/media"
@@ -217,7 +232,9 @@
           <span class="truncate">{t('nav.media')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if moduleOn('members')}
       <!-- Members -->
       <a
         href="/admin/members"
@@ -235,6 +252,7 @@
           <span class="truncate">{t('nav.members')}</span>
         {/if}
       </a>
+      {/if}
     </div>
 
     <!-- NavDocuments (Matches official nav-documents.tsx) -->

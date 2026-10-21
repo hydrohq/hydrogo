@@ -1,0 +1,30 @@
+id: sales_orders
+label: Sales orders
+description: Orders from customers. Subtotal and tax are totalled from the order lines by the server.
+group: ERP
+icon: shopping-cart
+title_field: number
+revisions: true
+period_lock: {field: order_date, closings: period_closings, through: closed_through}
+states:
+  field: status
+  initial: draft
+  transitions:
+    - {from: draft, to: confirmed, when: "total > 0", message: "An order needs a total above zero before it is confirmed"}
+    - {from: confirmed, to: fulfilled, permission: erp.orders.fulfil}
+    - {from: draft, to: cancelled}
+    - {from: confirmed, to: cancelled, permission: erp.orders.cancel}
+rules:
+  - {when: "status == 'fulfilled' || status == 'cancelled'", readonly: true, message: "Closed orders cannot be changed"}
+  - {assert: "discount >= 0", message: "The discount cannot be negative"}
+fields:
+  - {id: number, label: Number, kind: text, list: true, searchable: true, sequence: {prefix: "SO-{yyyy}-", pad: 5}}
+  - {id: account, label: Customer, kind: relation, to: accounts, required: true, list: true, filterable: true}
+  - {id: status, label: Status, kind: select, options: [draft, confirmed, fulfilled, cancelled], list: true, filterable: true}
+  - {id: order_date, label: Order date, kind: date, list: true, filterable: true}
+  - {id: warehouse, label: Warehouse, kind: relation, to: warehouses, filterable: true}
+  - {id: subtotal, label: Subtotal, kind: number, decimals: 2, rollup: {from: order_lines, via: order, sum: line_total}}
+  - {id: discount, label: Discount, kind: number, decimals: 2, min: 0}
+  - {id: tax, label: Tax, kind: number, decimals: 2, rollup: {from: order_lines, via: order, sum: vat_amount}}
+  - {id: total, label: Total, kind: number, decimals: 2, list: true, computed: "subtotal - discount + tax"}
+  - {id: notes, label: Notes, kind: textarea}

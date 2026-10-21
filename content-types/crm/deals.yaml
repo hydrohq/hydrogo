@@ -1,0 +1,19 @@
+id: deals
+label: Deals
+description: Sales opportunities moving through stages.
+group: CRM
+icon: handshake
+title_field: name
+revisions: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, list: true, searchable: true}
+  - {id: company, label: Company, kind: relation, to: companies, required: true, list: true, filterable: true}
+  - {id: contact, label: Contact, kind: relation, to: contacts, filterable: true}
+  - {id: stage, label: Stage, kind: select, options: [lead, qualified, proposal, negotiation, won, lost], required: true, list: true, filterable: true}
+  - {id: amount, label: Amount, kind: number, min: 0, list: true, filterable: true}
+  - {id: currency, label: Currency, kind: select, options: [TRY, USD, EUR], filterable: true}
+  - {id: expected_close, label: Expected close, kind: date, list: true, filterable: true}
+  - {id: probability, label: Probability (%), kind: number, min: 0, max: 100}
+  - {id: owner, label: Owner, kind: text, list: true, filterable: true}
+  - {id: lost_reason, label: Lost reason, kind: select, options: [price, competitor, timing, no_budget, other]}
+  - {id: notes, label: Notes, kind: richtext}

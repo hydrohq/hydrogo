@@ -32,8 +32,17 @@ type Config struct {
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
+	Hooks           []SyncHook       `yaml:"hooks"`
 	Backup          Backup           `yaml:"backup"`
 	Audit           Audit            `yaml:"audit"`
+	Limits          Limits           `yaml:"limits"`
+}
+
+// Limits holds operator-tunable resource caps.
+type Limits struct {
+	// RecordsPerType caps the records of one content type per tenant. Zero
+	// keeps the built-in default; a negative value removes the cap.
+	RecordsPerType int `yaml:"records_per_type"`
 }
 
 // Audit configures the optional detail recorded in the audit trail.
@@ -41,6 +50,9 @@ type Audit struct {
 	// LogRequestBodies records the redacted, size-capped JSON body of every
 	// state-changing admin API request, so the audit trail shows what was sent.
 	LogRequestBodies bool `yaml:"log_request_bodies"`
+	// Chain links every new audit event into a per-tenant hash chain so
+	// tampering is detectable (hydro audit head | verify).
+	Chain bool `yaml:"chain"`
 }
 
 type Backup struct {
@@ -82,6 +94,29 @@ type Webhook struct {
 	Secret   string   `yaml:"-"`
 	Topics   []string `yaml:"topics"`
 	AllowPII bool     `yaml:"allow_pii"`
+}
+
+// SyncHook is a side service the content types may consult before a change
+// (see contenttypes hooks). The URL comes from the operator's config, never
+// from a content type, so it may point at a service on the same host or
+// network. SecretEnv names the environment variable holding the signing
+// secret.
+type SyncHook struct {
+	ID        string `yaml:"id"`
+	URL       string `yaml:"url"`
+	SecretEnv string `yaml:"secret_env"`
+	Secret    string `yaml:"-"`
+	// Timeout caps one call (default 5s, at most 10s).
+	Timeout string `yaml:"timeout"`
+	// Schedules call the service on a clock: a signed request with topic
+	// hook.schedule.<name> at every matching minute (UTC).
+	Schedules []HookSchedule `yaml:"schedules"`
+}
+
+// HookSchedule fires the event Name at the five-field cron expression Cron.
+type HookSchedule struct {
+	Name string `yaml:"name"`
+	Cron string `yaml:"cron"`
 }
 
 type HTTP struct {

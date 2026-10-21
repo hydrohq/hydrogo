@@ -130,6 +130,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return migrationCommand(args[1:], stdout, stderr)
 	case "upgrade":
 		return upgrade(args[1:], stdout, stderr)
+	case "audit":
+		return auditCommand(args[1:], stdout, stderr)
+	case "service-account":
+		return serviceAccountCommand(args[1:], stdout, stderr)
 	case "create-admin":
 		return createAdmin(args[1:], stdin, stdout, stderr)
 	case "seed-demo":

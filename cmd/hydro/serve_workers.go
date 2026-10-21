@@ -121,6 +121,9 @@ func (a *serveApp) startWorkers() {
 			go linkcheck.RunMonthly(ctx, a.linkScanManager, tenantKeys, a.linkScanOrigin, func(err error) { logger.WarnContext(ctx, "scheduled link audit could not start", "error", err) })
 		}
 	}
+	if !cfg.SafeMode && !cgiMode {
+		go runHookSchedules(ctx, cfg, syncHookCaller(cfg), time.Now, logger)
+	}
 	if !cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
 		go database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance)
 	}

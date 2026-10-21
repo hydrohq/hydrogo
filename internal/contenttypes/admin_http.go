@@ -22,12 +22,13 @@ const AdminAPIPath = "/api/v1/admin/content"
 // Routes lists the admin content API. Every route is protected; reads need
 // Authorize(r, false) and mutations Authorize(r, true).
 //
-//	GET    /api/v1/admin/content/{type}?limit&offset&sort&search&filter[f]=&status=&locale=
+//	GET    /api/v1/admin/content/{type}?limit&offset&sort&search&filter[f]=&status=&locale=&expand=
 //	POST   /api/v1/admin/content/{type}                     -> 201 record
 //	GET    /api/v1/admin/content/{type}/{id}?locale=
 //	PUT    /api/v1/admin/content/{type}/{id}   {version, fields...}
 //	DELETE /api/v1/admin/content/{type}/{id}                -> 204
 //	POST   .../{id}/workflow                   {target, version}
+//	POST   .../{id}/state                      {to, version} (types with states)
 //	GET    .../{id}/revisions?limit=
 //	GET    .../{id}/revisions/{version}
 //	POST   .../{id}/revisions/{version}/restore {version}
@@ -38,6 +39,10 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	POST   .../{id}/presence                   heartbeat
 //	GET    .../{id}/presence                   active editors
 //	DELETE .../{id}/presence                   leave
+//	GET    .../_aggregate?group_by=&sum=       counts and exact sums, per group
+//	GET    .../_export                         CSV of the matching records
+//	POST   .../_import[?dry_run=1]             CSV body, one atomic transaction
+//	POST   /api/v1/admin/content/_batch        {operations:[{op,type,id,version,fields}]} atomic
 func (a AdminAPI) Routes() []router.Route {
 	base := AdminAPIPath + "/{type}"
 	record := base + "/{id}"
@@ -46,11 +51,15 @@ func (a AdminAPI) Routes() []router.Route {
 		handler http.HandlerFunc
 	}{
 		{"GET " + base, a.list},
+		{"GET " + base + AggregatePath, a.aggregate},
+		{"GET " + base + "/_export", a.export},
+		{"POST " + base + "/_import", a.importCSV},
 		{"POST " + base, a.create},
 		{"GET " + record, a.get},
 		{"PUT " + record, a.update},
 		{"DELETE " + record, a.delete},
 		{"POST " + record + "/workflow", a.workflow},
+		{"POST " + record + "/state", a.state},
 		{"GET " + record + "/revisions", a.revisions},
 		{"GET " + record + "/revisions/{version}", a.revision},
 		{"POST " + record + "/revisions/{version}/restore", a.restore},
@@ -59,7 +68,8 @@ func (a AdminAPI) Routes() []router.Route {
 		{"PUT " + record + "/locale/{locale}", a.saveLocale},
 		{"POST " + record + "/locale/{locale}/copy", a.copyLocale},
 	}
-	routes := make([]router.Route, 0, len(handlers)+3)
+	routes := make([]router.Route, 0, len(handlers)+4)
+	routes = append(routes, router.Route{Pattern: "POST " + BatchPath, Access: router.Protected, Handler: http.HandlerFunc(a.batch)})
 	for _, entry := range handlers {
 		routes = append(routes, router.Route{Pattern: entry.pattern, Access: router.Protected, Handler: entry.handler})
 	}
@@ -76,16 +86,42 @@ func (a AdminAPI) Routes() []router.Route {
 // resolve authorizes the request and looks up the type in the path. It
 // answers 403 or 404 itself and reports false.
 func (a AdminAPI) resolve(w http.ResponseWriter, r *http.Request, write bool) (Definition, adminstudio.Collection, bool) {
-	if a.Authorize == nil || !a.Authorize(r, write) {
+	definition, ok := definitionByID(a.types(), r.PathValue("type"))
+	if !a.allowed(r, definition, ok, write) {
 		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
 		return Definition{}, adminstudio.Collection{}, false
 	}
-	definition, ok := definitionByID(a.types(), r.PathValue("type"))
 	if !ok {
 		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
 		return Definition{}, adminstudio.Collection{}, false
 	}
+	if id := r.PathValue("id"); id != "" {
+		if write {
+			// Every change to a stored record (edit, delete, state step,
+			// publish, restore, translation) stops at a closed period.
+			if err := a.guardPeriod(r, definition, id, nil); err != nil {
+				writeServiceError(w, r, err, collections.Schema{})
+				return Definition{}, adminstudio.Collection{}, false
+			}
+		}
+		if subject, restricted := a.restriction(r, definition); restricted && !a.owns(r.Context(), definition, subject, id) {
+			api.WriteError(w, r, http.StatusNotFound, "not found", nil)
+			return Definition{}, adminstudio.Collection{}, false
+		}
+	}
 	return definition, AdminCollections([]Definition{definition}, a.Locales.Enabled())[0], true
+}
+
+// allowed decides access to one type. A type with its own permissions
+// (Definition.Permissions) is governed by those alone; any other type, and an
+// unknown one, by the generic content permissions behind Authorize.
+func (a AdminAPI) allowed(r *http.Request, definition Definition, known, write bool) bool {
+	if known {
+		if permission := definition.Permissions.For(write); permission != "" {
+			return a.Can != nil && a.Can(r, permission)
+		}
+	}
+	return a.Authorize != nil && a.Authorize(r, write)
 }
 
 // listLocale resolves ?locale= for lists and reads: empty means the default
@@ -102,6 +138,18 @@ func (a AdminAPI) listLocale(values url.Values, definition Definition) (string, 
 	return locale, a.translatable(definition.ID, locale), true
 }
 
+// expansion loads related records for ?expand=.
+func (a AdminAPI) expansion(r *http.Request) expansion {
+	return expansion{
+		visible: a.visibleTo(r),
+		service: a.Service,
+		target:  func(id string) (Definition, bool) { return definitionByID(a.types(), id) },
+		present: func(definition Definition, record collections.Record) map[string]any {
+			return a.present(r, definition.ID, Flatten(record))
+		},
+	}
+}
+
 func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 	definition, collection, ok := a.resolve(w, r, false)
 	if !ok {
@@ -109,6 +157,11 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 	}
 	values := r.URL.Query()
 	query, err := parsePublicQuery(values, definition)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	expand, err := a.expansion(r).parse(values, definition)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
@@ -128,6 +181,17 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "unsupported locale", nil)
 		return
 	}
+	if err := a.checkFilters(r, definition, query); err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	if subject, restricted := a.restriction(r, definition); restricted {
+		if subject == "" {
+			api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+			return
+		}
+		query.Where = append(query.Where, collections.Condition{Field: definition.Access.Owner, Op: collections.Equals, Value: subject})
+	}
 	records, hasMore, err := a.page(r, definition.ID, query)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
@@ -144,20 +208,32 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	expanded, err := a.expansion(r).load(r.Context(), expand, records)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	items := make([]map[string]any, 0, len(records))
 	for _, record := range records {
-		item := a.present(definition.ID, Flatten(record))
+		item := a.present(r, definition.ID, Flatten(record))
 		if translation, ok := translations[record.ID]; ok {
 			item = withFallback(item, translation)
 		}
+		if related, ok := expanded[record.ID]; ok {
+			item["expanded"] = related
+		}
 		items = append(items, item)
 	}
-	api.WriteList(w, items, api.PaginationMeta{Limit: query.Limit, Offset: query.Offset, HasMore: hasMore})
+	meta := api.PaginationMeta{Limit: query.Limit, Offset: query.Offset, HasMore: hasMore}
+	if hasMore && len(records) > 0 {
+		meta.NextCursor = collections.NextCursor(query, records[len(records)-1])
+	}
+	api.WriteList(w, items, meta)
 }
 
 // page fetches one record past the page to learn whether more follow. At
 // the query limit's maximum the extra record cannot be requested, so a full
-// last page reports no more.
+// page reports more (the following page may then be empty).
 func (a AdminAPI) page(r *http.Request, typeID string, query collections.Query) ([]collections.Record, bool, error) {
 	limit := query.Limit
 	if limit < 100 {
@@ -170,6 +246,11 @@ func (a AdminAPI) page(r *http.Request, typeID string, query collections.Query) 
 	hasMore := len(records) > limit
 	if hasMore {
 		records = records[:limit]
+	}
+	if limit >= 100 && len(records) == limit {
+		// No room to fetch one more: a full page may be followed by another,
+		// so offer the cursor (the next page can come back empty).
+		hasMore = true
 	}
 	return records, hasMore, nil
 }
@@ -185,12 +266,25 @@ func (a AdminAPI) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
+	expand, err := a.expansion(r).parse(r.URL.Query(), definition)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	record, err := a.Service.GetRecord(r.Context(), definition.ID, id)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	item := a.present(definition.ID, Flatten(record))
+	item := a.present(r, definition.ID, Flatten(record))
+	expanded, err := a.expansion(r).load(r.Context(), expand, []collections.Record{record})
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	if related, ok := expanded[record.ID]; ok {
+		item["expanded"] = related
+	}
 	if translate {
 		translations, err := a.ListLocalized(r, collection, []string{id}, locale)
 		if err != nil {
@@ -244,6 +338,9 @@ func (a AdminAPI) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = a.withActor(r)
+	if !a.hookGuard(w, r, definition, HookEvent{On: "delete", ID: r.PathValue("id")}) {
+		return
+	}
 	if err := a.Service.DeleteRecord(r.Context(), definition.ID, r.PathValue("id")); err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
@@ -258,7 +355,7 @@ func (a AdminAPI) current(w http.ResponseWriter, r *http.Request, typeID, id str
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	api.WriteData(w, http.StatusOK, a.present(typeID, Flatten(record)), nil)
+	api.WriteData(w, http.StatusOK, a.present(r, typeID, Flatten(record)), nil)
 }
 
 func (a AdminAPI) workflow(w http.ResponseWriter, r *http.Request) {
@@ -515,4 +612,43 @@ func (a AdminAPI) presenceLeave(w http.ResponseWriter, r *http.Request) {
 	resource := "content:" + r.PathValue("type") + ":" + r.PathValue("id")
 	a.Presence.Leave(tenantID, resource, user.ID)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// state moves a record along its type's state machine.
+func (a AdminAPI) state(w http.ResponseWriter, r *http.Request) {
+	definition, _, ok := a.resolve(w, r, true)
+	if !ok {
+		return
+	}
+	var input struct {
+		To      string `json:"to"`
+		Version int    `json:"version"`
+	}
+	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+		return
+	}
+	r = a.withActor(r)
+	can := func(permission string) bool { return a.Can != nil && a.Can(r, permission) }
+	id := r.PathValue("id")
+	schema, _ := a.Service.GetSchema(r.Context(), definition.ID)
+	if definition.States == nil {
+		writeServiceError(w, r, collections.ErrNoStates, schema)
+		return
+	}
+	if len(definition.Hooks) > 0 {
+		current, err := a.Service.GetRecord(r.Context(), definition.ID, id)
+		if err != nil {
+			writeServiceError(w, r, err, schema)
+			return
+		}
+		from, _ := current.Data[definition.States.Field].(string)
+		if !a.hookGuard(w, r, definition, HookEvent{On: "transition", ID: id, From: from, To: input.To}) {
+			return
+		}
+	}
+	if _, err := a.Service.Transition(r.Context(), definition.ID, id, input.To, input.Version, can); err != nil {
+		writeServiceError(w, r, err, schema)
+		return
+	}
+	a.current(w, r, definition.ID, id)
 }

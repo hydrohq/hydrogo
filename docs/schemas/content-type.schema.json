@@ -15,6 +15,12 @@
     "title_field": {"type": "string", "description": "Field id shown as the record title."},
     "public": {"type": "boolean", "description": "Serve published records at /api/v1/content/<id>."},
     "drafts": {"type": "boolean", "description": "Records have a draft/published status; the public API returns only published ones."},
+    "permissions": {"type": "object", "additionalProperties": false, "description": "Guard this type with its own permissions instead of admin.content.read/write. Admins hold every permission; others get a named one through a per-user override.", "properties": {"read": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}, "write": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}}},
+    "access": {"type": "object", "additionalProperties": false, "required": ["owner", "all"], "description": "Row access in the admin API: users without the all permission see and change only records whose owner text field holds their e-mail address; they become the owner of what they create. Public reads are unaffected.", "properties": {"owner": {"type": "string"}, "all": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}}},
+    "hooks": {"type": "array", "maxItems": 10, "description": "Ask a side service (configured under hooks: in the server config) before a change is saved. 2xx allows, 4xx rejects with its message, anything else rejects unless fail_open.", "items": {"type": "object", "additionalProperties": false, "required": ["on", "service"], "properties": {"on": {"enum": ["create", "update", "delete", "transition"]}, "from": {"type": "string"}, "to": {"type": "string"}, "service": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,39}$"}, "fail_open": {"type": "boolean"}}}},
+    "period_lock": {"type": "object", "additionalProperties": false, "required": ["field", "closings", "through"], "description": "Refuse changes to records dated on or before the latest closing date (kept in records of the closings type).", "properties": {"field": {"type": "string"}, "closings": {"type": "string"}, "through": {"type": "string"}}},
+    "rules": {"type": "array", "maxItems": 20, "description": "Validation and lock rules; conditions use the expression language (comparisons, && || !, 'text', true, false, empty(field), arithmetic).", "items": {"type": "object", "additionalProperties": false, "properties": {"when": {"type": "string"}, "assert": {"type": "string", "description": "Every saved record (for which when holds) must satisfy it."}, "readonly": {"type": "boolean", "description": "A stored record for which when holds cannot be edited or deleted."}, "message": {"type": "string", "maxLength": 200}}}},
+    "states": {"type": "object", "additionalProperties": false, "description": "State machine on a select field: new records start in initial and move only through transitions (POST .../{id}/state).", "required": ["field", "initial", "transitions"], "properties": {"field": {"type": "string"}, "initial": {"type": "string"}, "transitions": {"type": "array", "maxItems": 50, "items": {"type": "object", "additionalProperties": false, "required": ["from", "to"], "properties": {"from": {"type": "string"}, "to": {"type": "string"}, "when": {"type": "string"}, "permission": {"type": "string", "description": "Permission the caller needs, e.g. invoice.approve (admins have every permission)."}, "message": {"type": "string", "maxLength": 200}}}}}},
     "revisions": {"type": "boolean", "description": "Keep the last 50 saved versions of each record. Required when any field is localized."},
     "fields": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/field"}}
   },
@@ -32,12 +38,17 @@
         "list": {"type": "boolean", "description": "Show as a sortable column in the admin list."},
         "options": {"type": "array", "items": {"type": "string"}, "description": "Choices of a select field."},
         "to": {"type": "string", "description": "Target content type id of a relation field."},
+        "rollup": {"type": "object", "additionalProperties": false, "required": ["from", "via"], "description": "Server-kept total of the records of type from whose relation field via points at this record: sum of the number field sum, or their count when sum is omitted. Needs decimals; read-only.", "properties": {"from": {"type": "string"}, "via": {"type": "string"}, "sum": {"type": "string"}}},
         "many": {"type": "boolean", "description": "A relation field holding several records."},
+        "permission": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", "description": "Only holders of this permission see or change the field (admins always do). Not with required, unique, searchable, localized or sequence; the type cannot be public."},
         "min": {"type": "number"},
         "max": {"type": "number"},
         "searchable": {"type": "boolean", "description": "text, textarea, richtext, select."},
-        "filterable": {"type": "boolean", "description": "text, textarea, select, number."},
-        "localized": {"type": "boolean", "description": "One value per site locale (text, textarea, richtext, media)."}
+        "filterable": {"type": "boolean", "description": "text, textarea, select, number, boolean, date, datetime and single relation fields."},
+        "localized": {"type": "boolean", "description": "One value per site locale (text, textarea, richtext, media)."},
+        "decimals": {"type": "integer", "minimum": 0, "maximum": 8, "description": "Number fields: fixed decimal places (money: 2). Values with more places are rejected, never rounded."},
+        "computed": {"type": "string", "maxLength": 256, "description": "Number fields with decimals: an expression over number fields declared earlier, calculated on every save (+ - * /, parentheses, abs, min, max, round(x, places))."},
+        "sequence": {"type": "object", "additionalProperties": false, "description": "Text fields: number new records without gaps.", "properties": {"prefix": {"type": "string", "maxLength": 32, "description": "May contain {yyyy}, {yy} and {mm}; the counter restarts when the expanded prefix changes."}, "pad": {"type": "integer", "minimum": 0, "maximum": 12}}}
       },
       "allOf": [
         {"if": {"properties": {"kind": {"const": "relation"}}, "required": ["kind"]}, "then": {"required": ["to"]}},

@@ -98,6 +98,12 @@ export interface CollectionPermissions {
   delete?: string;
 }
 
+export interface CollectionStateMachine {
+  field: string;
+  initial: string;
+  transitions: { from: string; to: string; permission?: string }[];
+}
+
 export interface Collection {
   id: string;
   label: string;
@@ -114,6 +120,7 @@ export interface Collection {
   drafts?: boolean;
   localization?: boolean;
   workflow?: CollectionWorkflow;
+  state_machine?: CollectionStateMachine;
   fields: Field[];
   permissions?: CollectionPermissions;
 }
