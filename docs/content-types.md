@@ -237,6 +237,11 @@ businesses: `products`, `warehouses`, `accounts` (customers and suppliers),
 
 Order and invoice subtotals and taxes are totalled from their lines by the
 server (`rollup`), and the lines of a posted invoice are locked with it.
+Books are closed by adding a `period_closings` record (needs
+`erp.periods.close`): orders, invoices and payments dated on or before the
+latest closing date can no longer be created, changed, moved on a state step
+or deleted, and closings themselves cannot be edited or removed.
+
 What it deliberately leaves to you or to a side service: there is no stock
 ledger or accounting journal. Add those as a service that is called
 through `hooks` (for example `on: transition, to: posted`) and works through
@@ -265,3 +270,20 @@ PostgreSQL concurrent writes to the lines of one parent queue on the parent
 row; MySQL's default isolation may leave a total briefly stale if two lines of
 one parent are written at the same moment, and the next line change corrects
 it (MySQL is not exercised by the test suite here).
+
+## Period lock
+
+```yaml
+period_lock: {field: issue_date, closings: period_closings, through: closed_through}
+```
+
+Records whose `field` (a date) is on or before the latest `through` date in
+the `closings` type can no longer be created, changed, moved on a state step
+(including voiding) or deleted, and a date cannot be edited into a closed
+period. Closing a period is adding a record to the closings type, so who may
+close is that type's `permissions`; make it append-only with
+`rules: [{when: "true", readonly: true}]` (see `content-types/erp/`). Startup
+fails if `field` is not a date field of the type or `closings`/`through`
+do not exist. Totals the server rewrites on a parent because a line changed
+(rollups) are not checked against the period: lock the parent with a readonly
+rule too.

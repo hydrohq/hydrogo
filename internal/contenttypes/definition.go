@@ -170,6 +170,8 @@ type Definition struct {
 	// changes (see the package documentation).
 	// Permissions names the permissions that guard this type in the admin API
 	// instead of the generic content permissions.
+	// PeriodLock refuses changes to records dated in a closed period.
+	PeriodLock *PeriodLock `json:"period_lock,omitempty" yaml:"period_lock"`
 	// Hooks consult side services before changes (see Hook).
 	Hooks       []Hook                    `json:"hooks,omitempty" yaml:"hooks"`
 	Access      *Access                   `json:"access,omitempty" yaml:"access"`
@@ -268,7 +270,7 @@ func LoadDir(dir string) ([]Definition, error) {
 		seen[definition.ID] = path
 		definitions = append(definitions, definition)
 	}
-	return definitions, nil
+	return definitions, CheckPeriodLocks(definitions)
 }
 
 // Validate checks the definition and that both derived shapes are valid.

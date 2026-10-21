@@ -1,0 +1,12 @@
+id: period_closings
+label: Period closings
+description: Closes the books up to a date. Records dated on or before the latest closing can no longer be created, changed or deleted. Closings cannot be edited or removed.
+group: ERP
+icon: lock
+title_field: closed_through
+permissions: {write: erp.periods.close}
+rules:
+  - {when: "true", readonly: true, message: "A closing cannot be changed or removed"}
+fields:
+  - {id: closed_through, label: Closed through, kind: date, required: true, list: true}
+  - {id: note, label: Note, kind: textarea}

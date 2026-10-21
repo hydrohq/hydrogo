@@ -76,6 +76,9 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 		if err := a.keepHidden(r, definition, id, payload); err != nil {
 			return nil, err
 		}
+		if err := a.guardPeriod(r, definition, id, payload); err != nil {
+			return nil, err
+		}
 		if !a.hooksDone {
 			on := "create"
 			if id != "" {

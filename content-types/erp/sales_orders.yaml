@@ -5,6 +5,7 @@ group: ERP
 icon: shopping-cart
 title_field: number
 revisions: true
+period_lock: {field: order_date, closings: period_closings, through: closed_through}
 states:
   field: status
   initial: draft
