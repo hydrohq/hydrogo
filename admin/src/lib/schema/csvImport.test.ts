@@ -16,7 +16,8 @@ describe('csvImport', () => {
     });
     const created = await importCsvFile('/api/v1/admin/content/faq', new File(['question\nA\nB\n'], 'faq.csv'));
     expect(created).toBe(2);
-    const [url, options] = (globalThis.fetch as any).mock.calls[0];
+    const calls = (globalThis.fetch as any).mock.calls;
+    const [url, options] = calls[calls.length - 1];
     expect(url).toContain('/api/v1/admin/content/faq/_import');
     expect(options.method).toBe('POST');
     expect(options.headers.get('Content-Type')).toBe('text/csv');
