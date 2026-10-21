@@ -53,3 +53,11 @@ updates:
     labels:
       - dependencies
       - javascript
+  - package-ecosystem: npm
+    directory: "/examples/crm-starter"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - javascript
