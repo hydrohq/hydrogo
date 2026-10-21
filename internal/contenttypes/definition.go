@@ -129,6 +129,9 @@ func PermissionNames(definitions []Definition) []string {
 		if d.Access != nil {
 			declared = append(declared, d.Access.All)
 		}
+		for _, field := range d.Fields {
+			declared = append(declared, field.Permission)
+		}
 		if d.States != nil {
 			for _, step := range d.States.Transitions {
 				declared = append(declared, step.Permission)
@@ -202,8 +205,13 @@ type Field struct {
 	Options  []string `json:"options,omitempty" yaml:"options"`
 	To       string   `json:"to,omitempty" yaml:"to"`
 	Many     bool     `json:"many,omitempty" yaml:"many"`
-	Min      *float64 `json:"min,omitempty" yaml:"min"`
-	Max      *float64 `json:"max,omitempty" yaml:"max"`
+	// Permission hides the field from everyone without it: it is left out of
+	// admin reads, ignored on writes (stored values stay), and cannot be
+	// filtered, sorted, grouped or summed. Not allowed on required, unique,
+	// searchable or localized fields.
+	Permission string   `json:"permission,omitempty" yaml:"permission"`
+	Min        *float64 `json:"min,omitempty" yaml:"min"`
+	Max        *float64 `json:"max,omitempty" yaml:"max"`
 	// Decimals fixes the decimal places of a number field (money: 2);
 	// values with more places are rejected, never rounded.
 	Decimals *int `json:"decimals,omitempty" yaml:"decimals"`
@@ -292,6 +300,17 @@ func (d Definition) Validate() error {
 		}
 		if field.Sequence != nil && (field.Kind != "text" || field.Required || field.Localized) {
 			return fmt.Errorf("%w: sequence field %q must be a plain text field (not required or localized)", ErrInvalidDefinition, field.ID)
+		}
+		if field.Permission != "" {
+			if !permissionName.MatchString(field.Permission) || strings.HasPrefix(field.Permission, "admin.") {
+				return fmt.Errorf("%w: field %q permission %q must look like crm.margin.read", ErrInvalidDefinition, field.ID, field.Permission)
+			}
+			if d.Public {
+				return fmt.Errorf("%w: a public type cannot have field permissions (field %q); the public API has no users", ErrInvalidDefinition, field.ID)
+			}
+			if field.Required || field.Unique || field.Searchable || field.Localized || field.Sequence != nil {
+				return fmt.Errorf("%w: field %q has a permission, so it cannot be required, unique, searchable, localized or a sequence", ErrInvalidDefinition, field.ID)
+			}
 		}
 		if field.Localized && (field.Unique || field.Searchable || field.Filterable) {
 			return fmt.Errorf("%w: localized field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)

@@ -37,6 +37,7 @@
         "options": {"type": "array", "items": {"type": "string"}, "description": "Choices of a select field."},
         "to": {"type": "string", "description": "Target content type id of a relation field."},
         "many": {"type": "boolean", "description": "A relation field holding several records."},
+        "permission": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$", "description": "Only holders of this permission see or change the field (admins always do). Not with required, unique, searchable, localized or sequence; the type cannot be public."},
         "min": {"type": "number"},
         "max": {"type": "number"},
         "searchable": {"type": "boolean", "description": "text, textarea, richtext, select."},

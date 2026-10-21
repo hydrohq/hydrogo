@@ -90,3 +90,30 @@ as the owner (a value sent for `owner` is replaced). Admins and holders of
 the permission see everything. The permission joins the catalog (grant it per
 user). The public API (`/api/v1/content/...`) has no users and is not
 affected, so a type with `access` cannot be `public`.
+
+## Field permissions
+
+```yaml
+- {id: margin, label: Margin, kind: number, decimals: 2, permission: deals.margin}
+```
+
+Users without the permission (admins always have it) do not get the field in
+admin reads, anything they send for it is ignored and the stored value stays
+when they save, and filtering, sorting, grouping or summing by it answers 400.
+The field cannot be `required`, `unique`, `searchable`, `localized` or a
+sequence, and a type with such fields cannot be `public`. The admin forms
+still list the field.
+
+## Aggregation
+
+```
+GET /api/v1/admin/content/deals/_aggregate?group_by=stage&sum=amount&filter[owner]=ann@x.test
+```
+
+returns `{data: {total: {count, sums}, groups: [{key, count, sums}]}}`.
+`group_by` takes a text, select, boolean, date or single relation field,
+`sum` up to ten number fields; sums are exact decimals (strings, with the
+field's `decimals`). The list filters, `search` and `status` apply, as do row
+access and field permissions. The server totals the matching records itself,
+so a request that matches more than 20,000 records or forms more than 1,000
+groups is answered 422: narrow it with filters.
