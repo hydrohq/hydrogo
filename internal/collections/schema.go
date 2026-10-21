@@ -62,6 +62,10 @@ type Field struct {
 	// in the record, the others as translations (see Service.SaveTranslation).
 	// Only text, rich text, media and select fields can be localized.
 	Localized bool `json:"localized,omitempty"`
+	// Indexed asks the store for a database index that serves filters and
+	// lookups on this field. Only PostgreSQL builds them today; the flag is
+	// a hint and never changes results.
+	Indexed bool `json:"indexed,omitempty"`
 }
 
 type Schema struct {
