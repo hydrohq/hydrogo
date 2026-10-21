@@ -33,6 +33,7 @@ Usage:
   Content and users
   hydro content-type new ID [--dir content-types]
   hydro content-type validate [--dir content-types]
+  hydro service-account create|revoke --name NAME [--permissions a,b] [--expires-days N] [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
   hydro clean --demo [--target demo|staging|production] [--force-prod] [runtime flags]

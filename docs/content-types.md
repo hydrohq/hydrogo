@@ -134,3 +134,24 @@ relation lists are converted. The whole file is one transaction: the first
 bad row answers 422 with `rows[i].<field>` codes and nothing is saved. Add
 `?dry_run=1` to validate without saving. Limits: 1,000 rows and 5 MB;
 write access, row access and rules apply as for single saves.
+
+## Service accounts
+
+A side service (accounting, an importer, a nightly job) should not borrow a
+person's login. Create it its own identity:
+
+```bash
+hydro service-account create --name ledger --permissions invoices.read,invoices.write --expires-days 90 --config config.yaml
+```
+
+It prints a bearer token once. The account is a viewer that nobody can sign
+in as (random, unseen password) with exactly the permissions you listed on
+top; the token expires (default 90 days, at most 365) and is sent as
+`Authorization: Bearer <token>` to `/api/v1/admin/...`. Audit entries and
+revisions name it `service+ledger@hydrogo.invalid`. Permissions that no
+content type declares (type `permissions`, `access.all`, field `permission`,
+state-step `permission`) are ignored by the server, so a typo fails closed.
+Note that, as a viewer, it can still read types that use the generic content
+permissions. Rotate by creating a new account name; end one with
+`hydro service-account revoke --name ledger` (tokens revoked, account
+disabled).
