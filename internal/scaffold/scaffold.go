@@ -51,6 +51,12 @@ var presets = []Preset{
 		ContentTypes: []string{"site_settings", "site_navigation", "homepage_sections", "masthead", "columnists", "official_announcements", "ads", "polls", "videos", "galleries", "comments"},
 	},
 	{
+		Name:         "crm",
+		Description:  "customer relationship management: companies, contacts, deals and activities",
+		Modules:      []string{"core", "auth", "media", "collections"},
+		ContentTypes: []string{"crm/companies", "crm/contacts", "crm/deals", "crm/activities"},
+	},
+	{
 		Name:         "docs",
 		Description:  "documentation site: pages, FAQ and navigation",
 		Modules:      []string{"core", "auth", "pages", "media", "site", "collections"},
@@ -156,6 +162,7 @@ func Create(opts Options) (Preset, error) {
 	}
 	for _, id := range preset.ContentTypes {
 		data, readErr := fs.ReadFile(contenttypedata.FS, id+".yaml")
+		id = filepath.Base(id)
 		if readErr != nil {
 			return Preset{}, fmt.Errorf("preset %s: content type %s: %w", preset.Name, id, readErr)
 		}
