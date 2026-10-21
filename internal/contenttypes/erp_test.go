@@ -1,6 +1,7 @@
 package contenttypes
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -210,4 +211,42 @@ func TestPeriodClosingLocksDatedRecords(t *testing.T) {
 type httptestRecorder struct {
 	code int
 	body map[string]any
+}
+
+func TestPeriodLockAndHooksCoverPublishing(t *testing.T) {
+	const posts = `id: posts
+label: Posts
+drafts: true
+period_lock: {field: day, closings: closes, through: upto}
+hooks:
+  - {on: update, service: gate}
+fields:
+  - {id: day, label: Day, kind: date}
+`
+	const closes = `id: closes
+label: Closes
+fields:
+  - {id: upto, label: Upto, kind: date}
+`
+	service, types := newServiceFor(t, posts, closes)
+	veto := false
+	hook := func(context.Context, string, HookEvent) (int, string, error) {
+		if veto {
+			return http.StatusUnprocessableEntity, "vetoed", nil
+		}
+		return http.StatusOK, "", nil
+	}
+	admin := adminMux(AdminAPI{Service: service, Types: types, Authorize: allowAll, Hook: hook})
+	root := AdminAPIPath
+	_, body := call(t, admin, http.MethodPost, root+"/posts", `{"day":"2026-09-01"}`)
+	id := data(t, body)["id"].(string)
+	veto = true
+	if r, _ := call(t, admin, http.MethodPost, root+"/posts/"+id+"/workflow", `{"target":"published","version":1}`); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("publish past a vetoing hook: %d %s", r.Code, r.Body)
+	}
+	veto = false
+	call(t, admin, http.MethodPost, root+"/closes", `{"upto":"2026-09-30"}`)
+	if r, _ := call(t, admin, http.MethodPost, root+"/posts/"+id+"/workflow", `{"target":"published","version":1}`); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("publish in a closed period: %d %s", r.Code, r.Body)
+	}
 }

@@ -3,7 +3,6 @@ package collections
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"strconv"
 )
@@ -18,17 +17,17 @@ import (
 // A line cannot be changed while its parent is locked by a readonly rule
 // (a posted invoice), because that would change the parent's total.
 //
-// Limits: at most MaxRollupRecords children per parent; MySQL's default
-// isolation can leave a total stale when two lines of one parent are written
-// at the same moment (the next change to a line corrects it).
+// The totals are kept incrementally (each write adds or subtracts the
+// record's contribution), so they cost two parent reads per write however
+// many lines there are. Concurrent writes to one parent are serialised by the
+// parent's version: the loser re-reads it and retries (three times, then
+// ErrVersionConflict). Changing lines directly in the database leaves the
+// total as it was.
 type Rollup struct {
 	From string `json:"from"`
 	Via  string `json:"via"`
 	Sum  string `json:"sum,omitempty"`
 }
-
-// MaxRollupRecords bounds how many child records one total may cover.
-const MaxRollupRecords = 20000
 
 func (r *Rollup) validate() error {
 	if !identifier.MatchString(r.From) || !identifier.MatchString(r.Via) || (r.Sum != "" && !identifier.MatchString(r.Sum)) {
@@ -66,38 +65,20 @@ func (s Schema) carryRollups(clean map[string]any, stored *Record) error {
 }
 
 // withRollups runs a change of one child record (id empty for a create) and
-// then recalculates the totals of the parents it touched, all in one
-// transaction. The parents are those the record pointed at before and after.
+// then adjusts the totals of the parents it touched, all in one transaction.
+// The adjustment is the difference between what the record contributed before
+// and after (a create adds, a delete subtracts, a move changes two parents),
+// so a write costs two parent reads however many lines a parent has.
 func (s Service) withRollups(ctx context.Context, child Schema, id string, change func(Service) (Record, error)) (Record, error) {
 	var result Record
 	err := s.InTransaction(ctx, func(tx Service) error {
-		before := map[string]map[string]bool{} // parent type -> parent ids
-		note := func(data map[string]any, parents map[string]map[string]bool) error {
-			for _, parentType := range child.RollupParents {
-				parent, err := tx.Repository.GetSchema(ctx, parentType)
-				if err != nil {
-					return err
-				}
-				for _, field := range parent.rollupFields() {
-					if field.Rollup.From != child.ID {
-						continue
-					}
-					if parentID, _ := data[field.Rollup.Via].(string); parentID != "" {
-						if parents[parentType] == nil {
-							parents[parentType] = map[string]bool{}
-						}
-						parents[parentType][parentID] = true
-					}
-				}
-			}
-			return nil
-		}
+		deltas := map[rollupKey]*big.Rat{}
 		if id != "" {
 			stored, err := tx.Repository.GetRecord(ctx, child.ID, id)
 			if err != nil {
 				return err
 			}
-			if err := note(stored.Data, before); err != nil {
+			if err := tx.addContribution(ctx, child, stored.Data, -1, deltas); err != nil {
 				return err
 			}
 		}
@@ -108,20 +89,18 @@ func (s Service) withRollups(ctx context.Context, child Schema, id string, chang
 		result = record
 		if record.ID != "" {
 			if saved, err := tx.Repository.GetRecord(ctx, child.ID, record.ID); err == nil {
-				if err := note(saved.Data, before); err != nil {
+				if err := tx.addContribution(ctx, child, saved.Data, 1, deltas); err != nil {
 					return err
 				}
 			}
 		}
-		for parentType, ids := range before {
-			parent, err := tx.Repository.GetSchema(ctx, parentType)
-			if err != nil {
+		parents := map[rollupParent]bool{}
+		for key := range deltas {
+			parents[key.rollupParent] = true
+		}
+		for parent := range parents {
+			if err := tx.adjustParent(ctx, parent, deltas); err != nil {
 				return err
-			}
-			for parentID := range ids {
-				if err := tx.recomputeRollups(ctx, parent, parentID); err != nil {
-					return err
-				}
 			}
 		}
 		return nil
@@ -129,76 +108,106 @@ func (s Service) withRollups(ctx context.Context, child Schema, id string, chang
 	return result, err
 }
 
-// recomputeRollups totals every rollup field of one parent record from its
-// current children and saves the parent (and the computed fields that use the
-// totals). A parent that a readonly rule locks refuses the change.
-func (s Service) recomputeRollups(ctx context.Context, parent Schema, parentID string) error {
-	stored, err := s.Repository.GetRecord(ctx, parent.ID, parentID)
-	if err != nil {
-		return err
-	}
-	if err := parent.checkReadonly(stored.Data); err != nil {
-		return err
-	}
-	// Writing the parent first takes its row lock, so concurrent changes to
-	// its lines queue up and each total sees the earlier ones (PostgreSQL).
-	unique := parent.uniqueFields(stored.Data)
-	if _, err := s.Repository.SaveRecord(ctx, parent.ID, parentID, stored.Data, unique, 0); err != nil {
-		return err
-	}
-	data := make(map[string]any, len(stored.Data))
-	for key, value := range stored.Data {
-		data[key] = value
-	}
-	for _, field := range parent.rollupFields() {
-		total, err := s.totalChildren(ctx, field, parentID)
+type rollupParent struct{ typeID, id string }
+
+type rollupKey struct {
+	rollupParent
+	field string
+}
+
+// addContribution adds sign times what a child record contributes to each
+// parent total it feeds. Parents are recorded even when the amount is zero, so
+// a locked parent still refuses the change.
+func (s Service) addContribution(ctx context.Context, child Schema, data map[string]any, sign int64, deltas map[rollupKey]*big.Rat) error {
+	for _, parentType := range child.RollupParents {
+		parent, err := s.Repository.GetSchema(ctx, parentType)
 		if err != nil {
 			return err
 		}
-		value, err := strconv.ParseFloat(RoundHalfUp(total, *field.Decimals).FloatString(*field.Decimals), 64)
-		if err != nil || !fitsDecimals(value, *field.Decimals) {
-			return fieldError(field.ID)
+		for _, field := range parent.rollupFields() {
+			if field.Rollup.From != child.ID {
+				continue
+			}
+			parentID, _ := data[field.Rollup.Via].(string)
+			if parentID == "" {
+				continue
+			}
+			amount := big.NewRat(1, 1)
+			if field.Rollup.Sum != "" {
+				number, ok := ExactNumber(data[field.Rollup.Sum])
+				if !ok {
+					number = new(big.Rat)
+				}
+				amount = number
+			}
+			key := rollupKey{rollupParent{parentType, parentID}, field.ID}
+			if deltas[key] == nil {
+				deltas[key] = new(big.Rat)
+			}
+			deltas[key].Add(deltas[key], new(big.Rat).Mul(amount, big.NewRat(sign, 1)))
 		}
-		data[field.ID] = value
 	}
-	if err := parent.applyComputed(data); err != nil {
-		return err
-	}
-	if err := parent.checkAsserts(data); err != nil {
-		return err
-	}
-	_, err = s.Repository.SaveRecord(ctx, parent.ID, parentID, data, unique, 0)
-	return err
+	return nil
 }
 
-func (s Service) totalChildren(ctx context.Context, field Field, parentID string) (*big.Rat, error) {
-	total := new(big.Rat)
-	query := Query{Limit: 100, Where: []Condition{{Field: field.Rollup.Via, Op: Equals, Value: parentID}}}
-	seen := 0
-	for {
-		records, err := s.QueryRecords(ctx, field.Rollup.From, query)
-		if err != nil {
-			return nil, err
-		}
-		for _, record := range records {
-			if seen++; seen > MaxRollupRecords {
-				return nil, fmt.Errorf("%w: more than %d records to total", ErrInvalidRecord, MaxRollupRecords)
-			}
-			if field.Rollup.Sum == "" {
-				total.Add(total, big.NewRat(1, 1))
-			} else if number, ok := ExactNumber(record.Data[field.Rollup.Sum]); ok {
-				total.Add(total, number)
-			}
-		}
-		if len(records) < query.Limit {
-			return total, nil
-		}
-		cursor, err := DecodeCursor(NextCursor(query, records[len(records)-1]))
-		if err != nil {
-			return nil, errors.New("rollup paging failed")
-		}
-		query.After = &cursor
+// rollupAttempts bounds the retries when a parent changed under us.
+const rollupAttempts = 3
+
+// adjustParent applies the deltas to one parent record and recalculates the
+// computed fields that read the totals. A parent that a readonly rule locks
+// refuses the change. The save checks the parent's version, so two writers
+// never overwrite each other's totals; on a conflict the parent is read again.
+func (s Service) adjustParent(ctx context.Context, target rollupParent, deltas map[rollupKey]*big.Rat) error {
+	schema, err := s.Repository.GetSchema(ctx, target.typeID)
+	if err != nil {
+		return err
 	}
+	for attempt := 0; attempt < rollupAttempts; attempt++ {
+		stored, err := s.Repository.GetRecord(ctx, target.typeID, target.id)
+		if err != nil {
+			return err
+		}
+		if err := schema.checkReadonly(stored.Data); err != nil {
+			return err
+		}
+		data := make(map[string]any, len(stored.Data))
+		for key, value := range stored.Data {
+			data[key] = value
+		}
+		changed := false
+		for _, field := range schema.rollupFields() {
+			delta, ok := deltas[rollupKey{target, field.ID}]
+			if !ok || delta.Sign() == 0 {
+				continue
+			}
+			current, _ := ExactNumber(data[field.ID])
+			if current == nil {
+				current = new(big.Rat)
+			}
+			total := new(big.Rat).Add(current, delta)
+			value, err := strconv.ParseFloat(RoundHalfUp(total, *field.Decimals).FloatString(*field.Decimals), 64)
+			if err != nil || !fitsDecimals(value, *field.Decimals) {
+				return fieldError(field.ID)
+			}
+			data[field.ID] = value
+			changed = true
+		}
+		if !changed {
+			return nil
+		}
+		if err := schema.applyComputed(data); err != nil {
+			return err
+		}
+		if err := schema.checkAsserts(data); err != nil {
+			return err
+		}
+		_, err = s.Repository.SaveRecord(ctx, target.typeID, target.id, data, schema.uniqueFields(data), stored.Version)
+		if errors.Is(err, ErrVersionConflict) {
+			continue
+		}
+		return err
+	}
+	return ErrVersionConflict
 }
 
 // uniqueFields lists the unique or numbered fields present in data, as the

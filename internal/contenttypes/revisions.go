@@ -111,6 +111,9 @@ func (a AdminAPI) RestoreRevision(r *http.Request, collection adminstudio.Collec
 		if err := a.keepHidden(r, definition, id, data); err != nil {
 			return err
 		}
+		if err := a.runHooks(r, definition, HookEvent{On: "update", ID: id, Fields: data}); err != nil {
+			return err
+		}
 	}
 	_, err = a.Service.UpdateRecordVersion(r.Context(), collection.ID, id, data, int(expectedVersion))
 	return err

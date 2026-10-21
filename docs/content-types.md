@@ -82,7 +82,8 @@ fields:
 ```
 
 In the admin API, a user without `deals.read_all` only sees records whose
-`owner` equals their e-mail address. Lists are filtered in the database (so
+`owner` equals their e-mail address (compared exactly; accounts keep it in
+lower case, so write owners in lower case). Lists are filtered in the database (so
 paging and totals stay right), reading, editing, deleting, revisions, state
 steps and `_batch` on someone else's record answer 404, `expand` leaves out
 related records they do not own, and whatever they create or save gets them
@@ -264,8 +265,7 @@ stale. Declare rollups before the computed fields that use them.
 
 A line cannot be changed while its parent is locked by a readonly rule (a
 posted invoice): that would change the parent's total, so the change is
-refused like any edit of the locked parent. Limits: 20,000 lines per parent;
-every line write also rewrites its parent (its version goes up). On
+refused like any edit of the locked parent. every line write also rewrites its parent (its version goes up). On
 PostgreSQL concurrent writes to the lines of one parent queue on the parent
 row; MySQL's default isolation may leave a total briefly stale if two lines of
 one parent are written at the same moment, and the next line change corrects
