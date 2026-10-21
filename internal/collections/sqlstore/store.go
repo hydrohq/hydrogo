@@ -68,7 +68,13 @@ func (s Store) p(n int) string {
 }
 func (s Store) within(ctx context.Context, fn func(Store) error) error {
 	if db, ok := s.DB.(*sql.DB); ok {
-		return database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error { next := s; next.DB = tx; return fn(next) })
+		err := database.NewTenantTransactor(db, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error { next := s; next.DB = tx; return fn(next) })
+		if isRetryable(err) {
+			// The database rolled this transaction back to resolve a lock
+			// cycle: nothing was saved, and retrying the request will work.
+			return collections.ErrVersionConflict
+		}
+		return err
 	}
 	return fn(s)
 }
@@ -418,6 +424,23 @@ func mapNoRows(err, target error) error {
 	}
 	return err
 }
+
+// isRetryable recognises the errors a database raises when it aborts a
+// transaction that lost a lock race (deadlock, lock wait timeout,
+// serialization failure) on MySQL and PostgreSQL.
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	text := strings.ToLower(err.Error())
+	for _, marker := range []string{"deadlock", "error 1213", "error 1205", "lock wait timeout", "40001", "40p01", "could not serialize"} {
+		if strings.Contains(text, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func isConflict(err error) bool {
 	if err == nil {
 		return false
