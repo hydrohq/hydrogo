@@ -193,3 +193,26 @@ reachable. Hooks run before the change and outside its transaction, so the
 service judges what was submitted; versions still guard the save. In a
 `_batch` all hooks run first, before the transaction (with `$ref:N` values
 unresolved). Keep the service fast and idempotent: a change may be retried.
+
+### Schedules
+
+A hook service can also be called on a clock, to run nightly checks or
+close periods. Add `schedules` to the service in `config.yaml`:
+
+```yaml
+hooks:
+  - id: ledger
+    url: http://127.0.0.1:9100/hydro
+    secret_env: LEDGER_HOOK_SECRET
+    schedules:
+      - {name: overdue-check, cron: "0 2 * * *"}   # every day at 02:00 UTC
+```
+
+At each matching minute (five-field cron, UTC) HydroGo sends the service a
+signed request with `X-Hydro-Event: hook.schedule.<name>` and
+`{"data": {"type": "schedule", "on": "<name>", "fields": {"at": "<minute>"}}}`.
+The service then does its work, typically by calling the admin API with its
+service-account token. A call that is still running is not started again,
+minutes missed while the server was down are not caught up, and every server
+instance fires its own calls, so run one instance per schedule (or make the
+service idempotent per `at`). Failures are logged as warnings.

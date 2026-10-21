@@ -105,6 +105,15 @@ type SyncHook struct {
 	Secret    string `yaml:"-"`
 	// Timeout caps one call (default 5s, at most 10s).
 	Timeout string `yaml:"timeout"`
+	// Schedules call the service on a clock: a signed request with topic
+	// hook.schedule.<name> at every matching minute (UTC).
+	Schedules []HookSchedule `yaml:"schedules"`
+}
+
+// HookSchedule fires the event Name at the five-field cron expression Cron.
+type HookSchedule struct {
+	Name string `yaml:"name"`
+	Cron string `yaml:"cron"`
 }
 
 type HTTP struct {
