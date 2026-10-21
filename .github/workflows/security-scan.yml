@@ -1,0 +1,30 @@
+name: Security scan
+
+# Weekly scan of the release branch for known vulnerabilities in Go and npm
+# dependencies, so nobody has to remember to run it. A failing run emails the
+# repository watchers; fix it with a patch release (see docs/upgrading.md).
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          check-latest: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.14.0'
+      - name: Scan Go and npm dependencies
+        run: go run ./tools/check -short -audit
