@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 ### Added
 - `GET /api/v1/admin/branding` (public): admin name, logo, accent colour and default language, so the sign-in page is branded and in the project's language.

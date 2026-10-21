@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	contenttypedata "github.com/ardaozyildirim/hydrogo/content-types"
+	crmstarter "github.com/ardaozyildirim/hydrogo/examples/crm-starter"
 	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
 )
 
@@ -99,17 +100,23 @@ type Options struct {
 }
 
 // Starters lists the frontend starters Create can copy into a project.
-func Starters() []string { return []string{"sveltekit"} }
+func Starters() []string { return []string{"sveltekit", "crm"} }
 
-// copyStarter writes the embedded SvelteKit starter into dir.
+// copyStarter writes the embedded frontend starter into dir.
 func copyStarter(name, dir string) error {
-	if name != "sveltekit" {
+	var source fs.FS
+	switch name {
+	case "sveltekit":
+		source = sveltekitstarter.FS
+	case "crm":
+		source = crmstarter.FS
+	default:
 		return fmt.Errorf("unknown starter %q (available: %s)", name, strings.Join(Starters(), ", "))
 	}
 	if _, err := os.Stat(dir); err == nil {
 		return fmt.Errorf("%s already exists; refusing to overwrite", dir)
 	}
-	return fs.WalkDir(sveltekitstarter.FS, ".", func(path string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(source, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -117,7 +124,7 @@ func copyStarter(name, dir string) error {
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		data, readErr := fs.ReadFile(sveltekitstarter.FS, path)
+		data, readErr := fs.ReadFile(source, path)
 		if readErr != nil {
 			return readErr
 		}

@@ -96,7 +96,7 @@ func auditSteps() []step {
 	if _, err := exec.LookPath(npm); err != nil {
 		return steps
 	}
-	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter"} {
+	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter"} {
 		steps = append(steps, step{name: "npm audit " + dir, dir: dir, args: []string{npm, "audit", "--omit=dev", "--audit-level=high"}})
 	}
 	return steps
