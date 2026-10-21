@@ -233,7 +233,7 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 
 // page fetches one record past the page to learn whether more follow. At
 // the query limit's maximum the extra record cannot be requested, so a full
-// last page reports no more.
+// page reports more (the following page may then be empty).
 func (a AdminAPI) page(r *http.Request, typeID string, query collections.Query) ([]collections.Record, bool, error) {
 	limit := query.Limit
 	if limit < 100 {
@@ -246,6 +246,11 @@ func (a AdminAPI) page(r *http.Request, typeID string, query collections.Query) 
 	hasMore := len(records) > limit
 	if hasMore {
 		records = records[:limit]
+	}
+	if limit >= 100 && len(records) == limit {
+		// No room to fetch one more: a full page may be followed by another,
+		// so offer the cursor (the next page can come back empty).
+		hasMore = true
 	}
 	return records, hasMore, nil
 }
@@ -626,6 +631,10 @@ func (a AdminAPI) state(w http.ResponseWriter, r *http.Request) {
 	can := func(permission string) bool { return a.Can != nil && a.Can(r, permission) }
 	id := r.PathValue("id")
 	schema, _ := a.Service.GetSchema(r.Context(), definition.ID)
+	if definition.States == nil {
+		writeServiceError(w, r, collections.ErrNoStates, schema)
+		return
+	}
 	if len(definition.Hooks) > 0 {
 		current, err := a.Service.GetRecord(r.Context(), definition.ID, id)
 		if err != nil {

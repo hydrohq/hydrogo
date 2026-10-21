@@ -134,6 +134,9 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if hasMore {
 		records = records[:limit]
 	}
+	if limit >= 100 && len(records) == limit {
+		hasMore = true // see AdminAPI.page
+	}
 	expanded, err := p.expansion().load(r.Context(), expand, records)
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 )
@@ -62,6 +63,17 @@ const (
 	maxHooks   = 10
 	maxMessage = 200
 )
+
+// maxHookBudget bounds all the hook calls one batch or import makes before
+// its transaction: calls after it runs out fail (closed, unless fail_open).
+const maxHookBudget = 30 * time.Second
+
+// hookBudget returns the request with a deadline for the hook calls of a bulk
+// operation, and the function that releases it.
+func (a AdminAPI) hookBudget(r *http.Request) (*http.Request, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(r.Context(), maxHookBudget)
+	return r.WithContext(ctx), cancel
+}
 
 // runHooks consults every hook of the type that matches the event.
 func (a AdminAPI) runHooks(r *http.Request, definition Definition, event HookEvent) error {

@@ -202,3 +202,50 @@ FROM audit_chain c LEFT JOIN audit_events e ON e.id = c.event_id WHERE c.tenant_
 	}
 	return report, nil
 }
+
+// Relink appends audit events written after the chain began that never got a
+// link (the chain was switched off for a while) to the end of the tenant's
+// chain, oldest first. It returns how many it linked. Events from before the
+// chain began stay outside it, and relinking vouches only for what the
+// database holds now: those events were unprotected while they were unlinked.
+func (s Store) Relink(ctx context.Context, db *sql.DB, tenantID string) (int, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var first sql.NullString
+	if err := tx.QueryRowContext(ctx, "SELECT MIN(e.created_at) FROM audit_chain c JOIN audit_events e ON e.id = c.event_id WHERE c.tenant_id = "+s.placeholder(1), tenantID).Scan(&first); err != nil {
+		return 0, err
+	}
+	if !first.Valid {
+		return 0, nil
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT e.id, e.action, e.target_id, e.request_id, e.actor_id, e.resource_type, e.created_at, e.before_json, e.after_json FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at >= "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id) ORDER BY e.created_at, e.id", tenantID, first.String)
+	if err != nil {
+		return 0, err
+	}
+	var events []chainedEvent
+	for rows.Next() {
+		var e chainedEvent
+		var target, request, actor, resource, before, after sql.NullString
+		if err := rows.Scan(&e.ID, &e.Action, &target, &request, &actor, &resource, &e.CreatedAt, &before, &after); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		e.TargetID, e.RequestID, e.ActorID, e.ResourceType, e.Before, e.After = target.String, request.String, actor.String, resource.String, before.String, after.String
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	rows.Close()
+	previous := chainEnabled.Swap(true)
+	defer chainEnabled.Store(previous)
+	for _, e := range events {
+		if err := s.appendChain(ctx, tx, tenantID, e); err != nil {
+			return 0, err
+		}
+	}
+	return len(events), tx.Commit()
+}

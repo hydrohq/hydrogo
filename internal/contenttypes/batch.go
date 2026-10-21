@@ -65,10 +65,12 @@ func (a AdminAPI) batch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = a.withActor(r)
+	hookRequest, cancelHooks := a.hookBudget(r)
+	defer cancelHooks()
 	for index, operation := range input.Operations {
 		if definition, ok := definitionByID(a.types(), operation.Type); ok && len(definition.Hooks) > 0 && a.allowed(r, definition, true, true) {
 			on := operation.Op
-			if err := a.runHooks(r, definition, HookEvent{On: on, ID: operation.ID, Fields: operation.Fields}); err != nil {
+			if err := a.runHooks(hookRequest, definition, HookEvent{On: on, ID: operation.ID, Fields: operation.Fields}); err != nil {
 				status, message, _ := serviceFailure(err, collections.Schema{})
 				api.WriteError(w, r, status, fmt.Sprintf("operation %d failed: %s", index, message), map[string]string{fmt.Sprintf("operations[%d]", index): message})
 				return

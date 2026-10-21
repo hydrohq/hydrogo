@@ -65,6 +65,11 @@ func (a AdminAPI) scopePayload(r *http.Request, definition Definition, id string
 
 func (a AdminAPI) visibleTo(r *http.Request) func(Definition, collections.Record) bool {
 	return func(definition Definition, record collections.Record) bool {
+		// A related type has its own permissions: expanding into it must not
+		// show what a direct read would refuse.
+		if !a.allowed(r, definition, true, false) {
+			return false
+		}
 		subject, restricted := a.restriction(r, definition)
 		if !restricted {
 			return true
