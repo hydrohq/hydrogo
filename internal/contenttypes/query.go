@@ -88,7 +88,7 @@ func pagingValues(values url.Values) (int, int, error) {
 	}
 	if raw := values.Get("offset"); raw != "" {
 		value, err := strconv.Atoi(raw)
-		if err != nil || value < 0 || value > collections.MaxCollectionRecords {
+		if err != nil || value < 0 || value > collections.MaxListOffset {
 			return 0, 0, fmt.Errorf("%w: invalid offset", collections.ErrInvalidQuery)
 		}
 		offset = value

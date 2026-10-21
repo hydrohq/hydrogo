@@ -79,7 +79,7 @@ func ParseSort(raw string) *Sort {
 // condition values. Storage adapters only accept validated queries, so field
 // IDs reaching SQL are always known schema identifiers.
 func (s Schema) ValidateQuery(q Query) (Query, error) {
-	if q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > MaxCollectionRecords {
+	if q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > MaxListOffset {
 		return Query{}, fmt.Errorf("%w: limit or offset out of range", ErrInvalidQuery)
 	}
 	if len(q.Where)+len(q.AnyOf) > MaxQueryConditions {

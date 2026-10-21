@@ -34,6 +34,14 @@ type Config struct {
 	Webhooks        []Webhook        `yaml:"webhooks"`
 	Backup          Backup           `yaml:"backup"`
 	Audit           Audit            `yaml:"audit"`
+	Limits          Limits           `yaml:"limits"`
+}
+
+// Limits holds operator-tunable resource caps.
+type Limits struct {
+	// RecordsPerType caps the records of one content type per tenant. Zero
+	// keeps the built-in default; a negative value removes the cap.
+	RecordsPerType int `yaml:"records_per_type"`
 }
 
 // Audit configures the optional detail recorded in the audit trail.

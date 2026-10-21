@@ -110,7 +110,7 @@ func (s Service) DeleteSchema(ctx context.Context, id string) error {
 }
 
 func (s Service) ListRecords(ctx context.Context, collectionID string, limit, offset int) ([]Record, error) {
-	if limit < 1 || limit > 100 || offset < 0 || offset > MaxCollectionRecords {
+	if limit < 1 || limit > 100 || offset < 0 || offset > MaxListOffset {
 		return nil, ErrInvalidRecord
 	}
 	return s.QueryRecords(ctx, collectionID, Query{Limit: limit, Offset: offset})

@@ -22,11 +22,15 @@ var (
 )
 
 const (
-	MaxCollections       = 100
-	MaxFields            = 64
-	MaxCollectionRecords = 10000
-	MaxRecordBytes       = 64 << 10
-	MaxFieldTextBytes    = 16 << 10
+	MaxCollections    = 100
+	MaxFields         = 64
+	MaxRecordBytes    = 64 << 10
+	MaxFieldTextBytes = 16 << 10
+	// DefaultMaxRecords is the per-type, per-tenant record cap used when the
+	// store has no configured limit (limits.records_per_type).
+	DefaultMaxRecords = 100000
+	// MaxListOffset bounds ?offset= so deep paging stays cheap.
+	MaxListOffset = 10000
 )
 
 type FieldKind string
