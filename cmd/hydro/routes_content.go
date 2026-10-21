@@ -34,13 +34,16 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
-	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, func() []contenttypes.Definition {
+	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, syncHookCaller(cfg), func() []contenttypes.Definition {
 		return a.contentTypes
 	})
 	if err != nil {
 		return nil, err
 	}
 	a.contentTypes = definitions
+	if err := checkHookServices(cfg.Hooks, definitions); err != nil {
+		return nil, err
+	}
 	if names := contenttypes.PermissionNames(definitions); len(names) > 0 && a.authSvc != nil {
 		catalog, err := auth.NewPermissionCatalog(names...)
 		if err != nil {

@@ -169,6 +169,8 @@ type Definition struct {
 	// changes (see the package documentation).
 	// Permissions names the permissions that guard this type in the admin API
 	// instead of the generic content permissions.
+	// Hooks consult side services before changes (see Hook).
+	Hooks       []Hook                    `json:"hooks,omitempty" yaml:"hooks"`
 	Access      *Access                   `json:"access,omitempty" yaml:"access"`
 	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions"`
 	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
@@ -337,6 +339,9 @@ func (d Definition) Validate() error {
 		if !permissionName.MatchString(d.Access.All) || strings.HasPrefix(d.Access.All, "admin.") {
 			return fmt.Errorf("%w: access.all needs a permission such as deals.read_all", ErrInvalidDefinition)
 		}
+	}
+	if err := d.validateHooks(); err != nil {
+		return err
 	}
 	if d.Localized() && !d.Revisions {
 		return fmt.Errorf("%w: a type with localized fields needs revisions: true", ErrInvalidDefinition)

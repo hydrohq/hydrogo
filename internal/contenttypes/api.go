@@ -34,6 +34,13 @@ type AdminAPI struct {
 	// Subject names the signed-in user as record owners are written (their
 	// e-mail address); used by Definition.Access.
 	Subject func(r *http.Request) string
+	// Hook calls a configured hook service for Definition.Hooks; nil means
+	// none is configured.
+	Hook HookCaller
+
+	// hooksDone is set on the copy that runs a batch, whose hooks were
+	// consulted before the transaction began.
+	hooksDone bool
 	// Presence tracks active editors in process memory.
 	Presence *realtime.Presence
 }
@@ -68,6 +75,15 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 		}
 		if err := a.keepHidden(r, definition, id, payload); err != nil {
 			return nil, err
+		}
+		if !a.hooksDone {
+			on := "create"
+			if id != "" {
+				on = "update"
+			}
+			if err := a.runHooks(r, definition, HookEvent{On: on, ID: id, Fields: toStorage(schema, payload)}); err != nil {
+				return nil, err
+			}
 		}
 	}
 	data := toStorage(schema, payload)
@@ -181,6 +197,10 @@ func serviceFailure(err error, schema collections.Schema) (int, string, map[stri
 	var submitted *saveError
 	if errors.As(err, &submitted) {
 		data = submitted.data
+	}
+	var rejected *hookError
+	if errors.As(err, &rejected) {
+		return rejected.status, rejected.message, nil
 	}
 	switch {
 	case errors.Is(err, collections.ErrCollectionNotFound), errors.Is(err, collections.ErrRecordNotFound),

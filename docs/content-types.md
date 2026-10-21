@@ -155,3 +155,41 @@ Note that, as a viewer, it can still read types that use the generic content
 permissions. Rotate by creating a new account name; end one with
 `hydro service-account revoke --name ledger` (tokens revoked, account
 disabled).
+
+## Hooks: ask a side service first
+
+Domain logic (posting to a ledger, a credit check, e-invoicing) lives in a
+side service, not in HydroGo. A type can make a change wait for it:
+
+```yaml
+hooks:
+  - {on: transition, to: posted, service: ledger}    # state steps (from/to optional)
+  - {on: create, service: credit-check, fail_open: true}
+  - {on: delete, service: ledger}                    # also: update
+```
+
+The services are defined by the operator, never by a content type, so a
+content-type author cannot make the server call arbitrary URLs. In
+`config.yaml`:
+
+```yaml
+hooks:
+  - id: ledger
+    url: http://127.0.0.1:9100/hydro      # may be a private address
+    secret_env: LEDGER_HOOK_SECRET        # at least 16 characters
+    timeout: 5s                           # 100ms to 10s
+```
+
+HydroGo refuses to start when a type names a service that is not defined.
+Before the change is saved it sends one POST with the webhook signature
+headers (`X-Hydro-Signature`, `X-Hydro-Timestamp`, `Idempotency-Key`,
+`X-Hydro-Event: hook.<type>.<on>`) and the body
+`{"data": {"type", "on", "id", "from", "to", "actor", "fields"}}`.
+The answer decides: 2xx saves; 4xx rejects the change with 422 and the
+service's `{"message": "..."}`; a timeout, a redirect, a 5xx or an
+unreachable service rejects it with 503 (fail closed), except for
+`fail_open: true`, which lets the change through. In safe mode no hook is
+reachable. Hooks run before the change and outside its transaction, so the
+service judges what was submitted; versions still guard the save. In a
+`_batch` all hooks run first, before the transaction (with `$ref:N` values
+unresolved). Keep the service fast and idempotent: a change may be retried.

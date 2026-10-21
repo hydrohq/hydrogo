@@ -7,12 +7,15 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
 )
+
+var hookID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,39}$`)
 
 func (c Config) Validate() error {
 	if !validTokenTTL(c.Security.PasswordResetTTL, []time.Duration{15 * time.Minute, time.Hour, 24 * time.Hour}) || !validTokenTTL(c.Security.InvitationTTL, []time.Duration{24 * time.Hour, 72 * time.Hour, 7 * 24 * time.Hour}) {
@@ -99,6 +102,25 @@ func (c Config) Validate() error {
 			}
 		}
 		c.Tenancy.RequireHost = true
+	}
+	seenHooks := map[string]bool{}
+	for _, hook := range c.Hooks {
+		if !hookID.MatchString(hook.ID) || seenHooks[hook.ID] {
+			return fmt.Errorf("hook id %q must be unique lowercase letters, digits, dashes or underscores", hook.ID)
+		}
+		seenHooks[hook.ID] = true
+		parsed, err := url.Parse(strings.TrimSpace(hook.URL))
+		if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Opaque != "" || parsed.Fragment != "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+			return fmt.Errorf("invalid URL for hook %q", hook.ID)
+		}
+		if strings.TrimSpace(hook.SecretEnv) == "" || len(hook.Secret) < 16 {
+			return fmt.Errorf("hook %q needs secret_env naming an environment variable with a secret of at least 16 characters", hook.ID)
+		}
+		if hook.Timeout != "" {
+			if timeout, err := time.ParseDuration(hook.Timeout); err != nil || timeout < 100*time.Millisecond || timeout > 10*time.Second {
+				return fmt.Errorf("hook %q timeout must be between 100ms and 10s", hook.ID)
+			}
+		}
 	}
 	for _, webhook := range c.Webhooks {
 		if strings.TrimSpace(webhook.ID) == "" || strings.TrimSpace(webhook.URL) == "" || strings.TrimSpace(webhook.Secret) == "" {
