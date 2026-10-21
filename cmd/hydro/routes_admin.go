@@ -53,6 +53,9 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("GET /api/v1/admin/system/health", a.adminSystemHealthHandler(a.readiness)),
 		protected("POST /api/v1/admin/client-errors", a.adminClientErrorHandler(a.newRateLimiter(10, time.Minute))),
 	}
+	if len(a.cfg.Hooks) > 0 {
+		routes = append(routes, protected("GET /api/v1/admin/system/services", a.adminServicesHandler))
+	}
 	if a.modules["pages"] {
 		routes = append(routes, protected("GET /api/v1/admin/audit", a.adminAuditHandler))
 	}
