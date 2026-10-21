@@ -281,8 +281,8 @@
           {/if}
 
           <!-- Search & Add CTA -->
-          <div class="flex items-center gap-2">
-            <div class="relative w-48 sm:w-64">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative w-full sm:w-64">
               <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
