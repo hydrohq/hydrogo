@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { schema } from '$lib/stores/schema.svelte';
   import { i18n, t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -43,6 +44,10 @@
   let loadingCategories = $state(true);
 
   onMount(async () => {
+    if (schema.schema && schema.modules.news !== true) {
+      loadingCategories = false;
+      return;
+    }
     try {
       const res = await api.get<ApiResponse<any[]>>('/api/v1/admin/news', {
         params: { limit: 100 },

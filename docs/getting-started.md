@@ -53,6 +53,8 @@ Presets (`hydro new --list-presets`):
 | `corporate` | company site | + team, testimonials, FAQ |
 | `news` | news portal | + homepage sections, masthead, columnists, announcements, ads, polls, videos |
 | `docs` | documentation site | + FAQ |
+| `crm` | sales (no website: pages and news are off) | companies, contacts, deals, activities; `--starter crm` adds a sales panel |
+| `erp-lite` | light ERP back office (no website) | products, warehouses, accounts, sales orders and lines, invoices and lines, payments |
 
 `hydro init` does the same in the current directory. Without `--admin-email`, `hydro new` only writes files and prints the next commands.
 

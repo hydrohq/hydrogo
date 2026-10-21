@@ -1,0 +1,17 @@
+id: companies
+label: Companies
+description: Organisations you sell to or work with.
+group: CRM
+icon: building
+title_field: name
+revisions: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, unique: true, list: true, searchable: true}
+  - {id: website, label: Website, kind: text}
+  - {id: phone, label: Phone, kind: text}
+  - {id: email, label: Email, kind: text, searchable: true}
+  - {id: industry, label: Industry, kind: select, options: [software, manufacturing, retail, services, other], list: true, filterable: true}
+  - {id: size, label: Size, kind: select, options: ["1-10", "11-50", "51-200", "201+"], filterable: true}
+  - {id: owner, label: Owner, kind: text, list: true, filterable: true}
+  - {id: address, label: Address, kind: textarea}
+  - {id: notes, label: Notes, kind: richtext}

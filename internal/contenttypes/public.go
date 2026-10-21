@@ -9,13 +9,15 @@ import (
 
 // PublicAPI serves read-only JSON for content types marked `public: true`:
 //
-//	GET /api/v1/content/{type}?limit=&offset=&sort=&search=&filter[field]=
+//	GET /api/v1/content/{type}?limit=&offset=&after=&sort=&search=&filter[field]=&expand=
 //	    -> {"data": [...], "metadata": {"limit": n, "offset": n, "has_more": b, "locale": "tr"}}
 //	GET /api/v1/content/{type}/{id} -> {"data": record}
 //
 // sort takes a field ID (or created_at, updated_at), prefixed with "-" for
 // descending order; filter[field] matches fields marked filterable exactly;
-// search matches fields marked searchable. See parsePublicQuery.
+// search matches fields marked searchable. See parsePublicQuery. expand=a,b
+// adds the records that relation fields a and b point to under "expanded"
+// (see expansion); only relations to public types can be expanded.
 //
 // Both accept ?locale= (a configured site locale, default: the default
 // locale). Localized fields then carry that locale's values, falling back
@@ -79,6 +81,18 @@ func (p PublicAPI) definition(id string) (Definition, bool) {
 	return Definition{}, false
 }
 
+// expansion loads related records for ?expand=; only public types qualify.
+func (p PublicAPI) expansion() expansion {
+	return expansion{
+		service:       p.Service,
+		target:        p.definition,
+		publishedOnly: true,
+		present: func(definition Definition, record collections.Record) map[string]any {
+			return p.present(definition.ID, "", record)
+		},
+	}
+}
+
 func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	typeID := r.PathValue("type")
 	definition, ok := p.definition(typeID)
@@ -92,6 +106,11 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query, err := parsePublicQuery(r.URL.Query(), definition)
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
+		return
+	}
+	expand, err := p.expansion().parse(r.URL.Query(), definition)
 	if err != nil {
 		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
 		return
@@ -115,11 +134,27 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if hasMore {
 		records = records[:limit]
 	}
+	if limit >= 100 && len(records) == limit {
+		hasMore = true // see AdminAPI.page
+	}
+	expanded, err := p.expansion().load(r.Context(), expand, records)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	items := make([]map[string]any, 0, len(records))
 	for _, record := range records {
-		items = append(items, p.present(typeID, locale, record))
+		item := p.present(typeID, locale, record)
+		if related, ok := expanded[record.ID]; ok {
+			item["expanded"] = related
+		}
+		items = append(items, item)
 	}
-	api.WriteData(w, http.StatusOK, items, publicPage{PaginationMeta: api.PaginationMeta{Limit: limit, Offset: query.Offset, HasMore: hasMore}, Locale: locale})
+	page := api.PaginationMeta{Limit: limit, Offset: query.Offset, HasMore: hasMore}
+	if hasMore && len(records) > 0 {
+		page.NextCursor = collections.NextCursor(query, records[len(records)-1])
+	}
+	api.WriteData(w, http.StatusOK, items, publicPage{PaginationMeta: page, Locale: locale})
 }
 
 func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
@@ -132,6 +167,11 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 	locale, ok := p.publicLocale(r)
 	if !ok {
 		api.WriteError(w, r, http.StatusBadRequest, "unsupported locale", nil)
+		return
+	}
+	expand, err := p.expansion().parse(r.URL.Query(), definition)
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid query", nil)
 		return
 	}
 	record, err := p.Service.GetRecord(r.Context(), typeID, r.PathValue("id"))
@@ -148,5 +188,14 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	api.WriteData(w, http.StatusOK, p.present(typeID, locale, record), nil)
+	item := p.present(typeID, locale, record)
+	expanded, err := p.expansion().load(r.Context(), expand, []collections.Record{record})
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	if related, ok := expanded[record.ID]; ok {
+		item["expanded"] = related
+	}
+	api.WriteData(w, http.StatusOK, item, nil)
 }

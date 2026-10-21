@@ -67,6 +67,11 @@ func (a AdminAPI) Transition(r *http.Request, collection adminstudio.Collection,
 		data[key] = value
 	}
 	data[StatusField] = string(target)
+	if definition, ok := definitionByID(a.types(), collection.ID); ok {
+		if err := a.runHooks(r, definition, HookEvent{On: "update", ID: id, Fields: data}); err != nil {
+			return err
+		}
+	}
 	_, err = a.Service.UpdateRecordVersion(r.Context(), collection.ID, id, data, int(expectedVersion))
 	return err
 }

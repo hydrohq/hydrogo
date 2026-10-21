@@ -28,6 +28,7 @@ type step struct {
 
 func main() {
 	short := flag.Bool("short", false, "skip the test suite")
+	audit := flag.Bool("audit", false, "also scan Go and npm dependencies for known vulnerabilities (needs network access)")
 	flag.Parse()
 
 	steps := []step{
@@ -44,7 +45,8 @@ func main() {
 		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json"}},
 	}
 	if !*short {
-		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}})
+		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}},
+			step{name: "side-service example", dir: "examples/side-service", args: []string{"go", "test", "./...", "-count=1"}})
 
 		npm := "npm"
 		if runtime.GOOS == "windows" {
@@ -57,6 +59,10 @@ func main() {
 				step{name: "admin build", dir: "admin", args: []string{npm, "run", "build"}},
 			)
 		}
+	}
+
+	if *audit {
+		steps = append(steps, auditSteps()...)
 	}
 
 	started := time.Now()
@@ -77,4 +83,22 @@ func main() {
 		}
 	}
 	fmt.Printf("PASS: all checks passed in %s\n", time.Since(started).Round(time.Second))
+}
+
+// auditSteps scans for known vulnerabilities. It needs network access to the
+// Go vulnerability database and the npm registry, so it is opt-in (-audit);
+// the scheduled security workflow runs the same commands.
+func auditSteps() []step {
+	steps := []step{{name: "govulncheck", args: []string{"go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.8.0", "./..."}}}
+	npm := "npm"
+	if runtime.GOOS == "windows" {
+		npm = "npm.cmd"
+	}
+	if _, err := exec.LookPath(npm); err != nil {
+		return steps
+	}
+	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter"} {
+		steps = append(steps, step{name: "npm audit " + dir, dir: dir, args: []string{npm, "audit", "--omit=dev", "--audit-level=high"}})
+	}
+	return steps
 }

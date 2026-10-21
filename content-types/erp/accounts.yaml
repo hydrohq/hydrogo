@@ -1,0 +1,17 @@
+id: accounts
+label: Accounts
+description: Customers and suppliers (trade accounts).
+group: ERP
+icon: briefcase
+title_field: name
+revisions: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, unique: true, list: true, searchable: true}
+  - {id: kind, label: Kind, kind: select, options: [customer, supplier, both], required: true, list: true, filterable: true}
+  - {id: tax_id, label: Tax ID, kind: text, searchable: true}
+  - {id: email, label: Email, kind: text}
+  - {id: phone, label: Phone, kind: text}
+  - {id: currency, label: Currency, kind: select, options: [TRY, USD, EUR], filterable: true}
+  - {id: payment_terms_days, label: Payment terms (days), kind: number, min: 0, max: 365}
+  - {id: address, label: Address, kind: textarea}
+  - {id: active, label: Active, kind: boolean, list: true, filterable: true}

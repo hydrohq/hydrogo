@@ -17,7 +17,7 @@ Usage:
   Run and develop
   hydro serve [--cgi | --fastcgi --fastcgi-address 127.0.0.1:9001] [--dev] [runtime flags]
   hydro run [--address ADDR] [--app-address ADDR] [--database-dsn DSN] [--redis-url URL] [--dependencies auto|none|required] [--poll DUR]
-  hydro dev [same options]  (alias for hydro run)
+  hydro dev [--service NAME=COMMAND ...] [serve options]  (in a project: server + side services in one terminal; in a checkout: alias for hydro run)
   hydro version [--json]
   hydro healthcheck
 
@@ -33,6 +33,8 @@ Usage:
   Content and users
   hydro content-type new ID [--dir content-types]
   hydro content-type validate [--dir content-types]
+  hydro audit head|verify [--anchor TENANT:SEQ:HASH] [runtime flags]
+  hydro service-account create|revoke --name NAME [--permissions a,b] [--expires-days N] [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
   hydro clean --demo [--target demo|staging|production] [--force-prod] [runtime flags]

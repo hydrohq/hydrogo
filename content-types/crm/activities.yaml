@@ -1,0 +1,17 @@
+id: activities
+label: Activities
+description: Calls, meetings, emails, tasks and notes on deals, companies and contacts.
+group: CRM
+icon: calendar-check
+title_field: subject
+revisions: true
+fields:
+  - {id: subject, label: Subject, kind: text, required: true, list: true, searchable: true}
+  - {id: kind, label: Kind, kind: select, options: [call, meeting, email, task, note], required: true, list: true, filterable: true}
+  - {id: due, label: Due, kind: datetime, list: true, filterable: true}
+  - {id: done, label: Done, kind: boolean, list: true, filterable: true}
+  - {id: deal, label: Deal, kind: relation, to: deals, filterable: true}
+  - {id: company, label: Company, kind: relation, to: companies, filterable: true}
+  - {id: contact, label: Contact, kind: relation, to: contacts, filterable: true}
+  - {id: owner, label: Owner, kind: text, filterable: true}
+  - {id: body, label: Details, kind: richtext}

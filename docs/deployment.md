@@ -39,3 +39,35 @@ SQLite (default) for small sites; PostgreSQL or MySQL/MariaDB for more traffic o
 ## Frontend
 
 Deploy your frontend separately and point it at the API. The SvelteKit starter runs as a Node server (`npm run build && npm start`) next to HydroGo.
+
+## Tamper-evident audit log
+
+Audit events are already immutable in the database (triggers reject updates
+and deletes). For businesses that must show the log was not altered, turn on
+the audit chain:
+
+```yaml
+audit:
+  chain: true          # on by default in projects made with --preset erp-lite
+```
+
+Every new audit event then gets a link: its position per tenant and a SHA-256
+over the previous link and the event's fields. Writers queue on the tenant's
+head row (one extra row lock per audit write: audited writes of a tenant are serialized), so the chain never forks.
+Events written before the chain was switched on stay outside it.
+
+```bash
+hydro audit verify --config config.yaml    # recomputes every link; exit 1 if anything is off
+hydro audit head   --config config.yaml    # JSON: the latest position and hash per tenant
+hydro audit relink --config config.yaml   # link events written while audit.chain was off
+hydro audit verify --anchor :1520:9f2c…    # TENANT:SEQ:HASH, a head you saved earlier
+```
+
+`verify` reports a changed event, a missing event or link, a moved head and
+events that were written after the chain began but are not in it. Someone
+who can write to the database (and lifts the triggers) could rebuild the
+entire chain consistently, so save the output of `hydro audit head` outside
+the database now and then (a ticket, a mailbox, WORM storage) and pass it as
+`--anchor`: verification then proves that the exact link you saved is still
+in the chain. MySQL is covered by statement tests only; PostgreSQL and
+SQLite are exercised with concurrent writers.

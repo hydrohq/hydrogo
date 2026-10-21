@@ -24,6 +24,17 @@ type Store struct {
 	DB                 database.Executor
 	Dialect            database.Dialect
 	RequireTenantScope bool
+	// MaxRecords caps the records of one type per tenant. Zero means
+	// collections.DefaultMaxRecords; a negative value removes the cap and
+	// with it the per-insert COUNT(*).
+	MaxRecords int
+}
+
+func (s Store) recordCap() int {
+	if s.MaxRecords == 0 {
+		return collections.DefaultMaxRecords
+	}
+	return s.MaxRecords
 }
 
 func (s Store) scope(ctx context.Context) (string, error) {
@@ -241,12 +252,12 @@ func (s Store) saveRecord(ctx context.Context, collectionID, id string, data map
 	if err != nil || len(encoded) > collections.MaxRecordBytes {
 		return collections.ErrInvalidRecord
 	}
-	if creating {
+	if limit := s.recordCap(); creating && limit > 0 {
 		var count int
 		if err := s.row(ctx, `SELECT COUNT(*) FROM hydro_collection_records WHERE tenant_id=`+s.p(1)+` AND collection_id=`+s.p(2), tenantID, collectionID).Scan(&count); err != nil {
 			return err
 		}
-		if count >= collections.MaxCollectionRecords {
+		if count >= limit {
 			return collections.ErrInvalidRecord
 		}
 	}
