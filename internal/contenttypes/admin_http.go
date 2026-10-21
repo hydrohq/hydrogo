@@ -38,6 +38,7 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	POST   .../{id}/presence                   heartbeat
 //	GET    .../{id}/presence                   active editors
 //	DELETE .../{id}/presence                   leave
+//	POST   /api/v1/admin/content/_batch        {operations:[{op,type,id,version,fields}]} atomic
 func (a AdminAPI) Routes() []router.Route {
 	base := AdminAPIPath + "/{type}"
 	record := base + "/{id}"
@@ -59,7 +60,8 @@ func (a AdminAPI) Routes() []router.Route {
 		{"PUT " + record + "/locale/{locale}", a.saveLocale},
 		{"POST " + record + "/locale/{locale}/copy", a.copyLocale},
 	}
-	routes := make([]router.Route, 0, len(handlers)+3)
+	routes := make([]router.Route, 0, len(handlers)+4)
+	routes = append(routes, router.Route{Pattern: "POST " + BatchPath, Access: router.Protected, Handler: http.HandlerFunc(a.batch)})
 	for _, entry := range handlers {
 		routes = append(routes, router.Route{Pattern: entry.pattern, Access: router.Protected, Handler: entry.handler})
 	}
