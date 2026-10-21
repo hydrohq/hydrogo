@@ -15,7 +15,7 @@ ADR 0001 made HydroGo a single-binary CMS and ADR 0007 limited extension to YAML
 4. A capability that is not used in a project's YAML changes nothing for it (no routes, tables or work), as with modules.
 5. Rule 12 stays: nothing here may require a rebuild on publish.
 6. Presets (`crm`, `erp-lite`) choose modules and stock content types; their frontends are separate starters.
-7. Rules, computed fields and row-level access use one small, side-effect-free expression language. Proposed: CEL (typed, bounded cost, no I/O). The choice is part of the first PR that needs it.
+7. Rules, computed fields and row-level access use one small, side-effect-free expression language. Chosen in the first PR that needed it: a small in-house language (`internal/collections/expr.go`) instead of CEL. It has exact decimal arithmetic (`big.Rat`), comparisons, `&& || !`, text, `empty()`, `abs/min/max/round`, no loops, no user functions and no I/O, and is bounded in length (256 bytes), nesting and node count. That keeps the dependency list unchanged and money exact. Row-level access conditions can reuse it; if they need more than it offers, revisit CEL then.
 8. PostgreSQL is the recommended database for ERP-lite; every capability still works on SQLite, PostgreSQL and MySQL and is tested on all three.
 
 Rough order: foundations and queries first, then the CRM preset, then data integrity (batch, numbering, rules, state machines), permissions and reports, side-service support, and the ERP-lite preset. The detailed plan is tracked outside the repository (rule 7).

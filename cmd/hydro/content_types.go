@@ -51,7 +51,7 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		provider = typesProvider[0]
 	}
 	public := contenttypes.PublicAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales}
-	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Authorize: contentTypeAccess}
+	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Authorize: contentTypeAccess, Can: contentTypeCan}
 	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.List)},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Get)},
@@ -75,4 +75,9 @@ func contentTypeActor(r *http.Request) string {
 		return user.Email
 	}
 	return ""
+}
+
+// contentTypeCan answers permission checks of state transitions.
+func contentTypeCan(r *http.Request, permission string) bool {
+	return auth.Can(auth.UserFromContext(r.Context()), permission)
 }

@@ -25,6 +25,9 @@ type AdminAPI struct {
 	Actor func(*http.Request) string
 	// Locales are the site's content locales (see localization.go).
 	Locales Locales
+	// Can reports whether the request's user holds a named permission, used by
+	// state transitions that need one. Nil denies every permissioned step.
+	Can func(r *http.Request, permission string) bool
 	// Authorize reports whether the request may read (write false) or change
 	// (write true) content. Nil denies every request.
 	Authorize func(r *http.Request, write bool) bool
@@ -169,6 +172,16 @@ func serviceFailure(err error, schema collections.Schema) (int, string, map[stri
 	case errors.Is(err, collections.ErrCollectionNotFound), errors.Is(err, collections.ErrRecordNotFound),
 		errors.Is(err, collections.ErrRevisionNotFound), errors.Is(err, collections.ErrNotLocalized),
 		errors.Is(err, errNoRevisions), errors.Is(err, errLocale):
+		return http.StatusNotFound, "not found", nil
+	case errors.Is(err, collections.ErrRuleViolated):
+		_, text, _ := strings.Cut(err.Error(), ": ")
+		return http.StatusUnprocessableEntity, text, map[string]string{"_rule": text}
+	case errors.Is(err, collections.ErrTransitionForbidden):
+		return http.StatusForbidden, "forbidden", nil
+	case errors.Is(err, collections.ErrTransitionNotAllowed):
+		_, text, _ := strings.Cut(err.Error(), ": ")
+		return http.StatusUnprocessableEntity, "transition not allowed: " + text, map[string]string{"_state": text}
+	case errors.Is(err, collections.ErrNoStates):
 		return http.StatusNotFound, "not found", nil
 	case errors.Is(err, errBatchOperation):
 		return http.StatusBadRequest, "invalid operation", nil

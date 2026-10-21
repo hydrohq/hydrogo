@@ -7,15 +7,23 @@ import (
 	"strings"
 )
 
-// Expr is a small arithmetic expression over a record's number fields, used by
-// computed fields: "quantity * unit_price * (1 + tax_rate)". It is evaluated
-// with exact decimal arithmetic (big.Rat), never floats, and cannot call
-// anything except the built-in functions round, abs, min and max.
+// Expr is a small, side-effect free expression over a record's fields, used by
+// computed fields ("quantity * unit_price"), rules ("total > 0 && status !=
+// 'void'") and state transitions. Numbers use exact decimal arithmetic
+// (big.Rat), never floats. An expression can call nothing except the built-in
+// functions abs, min, max, round and empty.
 //
-//	expr    = term { ("+" | "-") term }
+//	or      = and { "||" and }
+//	and     = not { "&&" not }
+//	not     = "!" not | compare
+//	compare = sum [ ("==" | "!=" | "<" | "<=" | ">" | ">=") sum ]
+//	sum     = term { ("+" | "-") term }
 //	term    = unary { ("*" | "/") unary }
 //	unary   = [ "-" ] primary
-//	primary = number | field | func "(" expr { "," expr } ")" | "(" expr ")"
+//	primary = number | 'text' | true | false | field | func "(" args ")" | "(" or ")"
+//
+// A value is nil (field not set), a bool, a string or a number (*big.Rat). In
+// arithmetic a missing value is 0; in comparisons it equals "", 0 and false.
 type Expr struct {
 	root   exprNode
 	fields []string
@@ -29,16 +37,20 @@ const (
 
 var ErrInvalidExpression = errors.New("invalid expression")
 
+// Value is what an expression evaluates to.
+type Value = any
+
 type exprNode interface {
-	eval(vars func(string) *big.Rat) (*big.Rat, error)
+	eval(vars func(string) Value) (Value, error)
 }
 
 type (
-	numberNode struct{ value *big.Rat }
-	fieldNode  struct{ name string }
-	negNode    struct{ operand exprNode }
-	binaryNode struct {
-		op          byte
+	literalNode struct{ value Value }
+	fieldNode   struct{ name string }
+	negNode     struct{ operand exprNode }
+	notNode     struct{ operand exprNode }
+	binaryNode  struct {
+		op          string
 		left, right exprNode
 	}
 	callNode struct {
@@ -50,54 +62,194 @@ type (
 // Fields lists the field names the expression reads.
 func (e *Expr) Fields() []string { return append([]string(nil), e.fields...) }
 
-// Eval computes the expression. vars returns a field's value (nil counts as
-// 0). Division by zero is an error.
-func (e *Expr) Eval(vars func(string) *big.Rat) (*big.Rat, error) { return e.root.eval(vars) }
+// Eval computes the expression. vars returns a field's value: nil, bool,
+// string or *big.Rat.
+func (e *Expr) Eval(vars func(string) Value) (Value, error) { return e.root.eval(vars) }
 
-func (n numberNode) eval(func(string) *big.Rat) (*big.Rat, error) { return n.value, nil }
-
-func (n fieldNode) eval(vars func(string) *big.Rat) (*big.Rat, error) {
-	if value := vars(n.name); value != nil {
-		return value, nil
+// EvalBool evaluates a condition; anything but a bool is an error.
+func (e *Expr) EvalBool(vars func(string) Value) (bool, error) {
+	value, err := e.root.eval(vars)
+	if err != nil {
+		return false, err
 	}
-	return new(big.Rat), nil
+	result, ok := value.(bool)
+	if !ok {
+		return false, errors.New("condition is not true or false")
+	}
+	return result, nil
 }
 
-func (n negNode) eval(vars func(string) *big.Rat) (*big.Rat, error) {
+// EvalNumber evaluates a numeric expression.
+func (e *Expr) EvalNumber(vars func(string) Value) (*big.Rat, error) {
+	value, err := e.root.eval(vars)
+	if err != nil {
+		return nil, err
+	}
+	return asNumber(value)
+}
+
+var errNotNumber = errors.New("expected a number")
+
+func asNumber(value Value) (*big.Rat, error) {
+	switch typed := value.(type) {
+	case *big.Rat:
+		return typed, nil
+	case nil:
+		return new(big.Rat), nil
+	default:
+		return nil, errNotNumber
+	}
+}
+
+func (n literalNode) eval(func(string) Value) (Value, error) { return n.value, nil }
+
+func (n fieldNode) eval(vars func(string) Value) (Value, error) { return vars(n.name), nil }
+
+func (n negNode) eval(vars func(string) Value) (Value, error) {
 	value, err := n.operand.eval(vars)
 	if err != nil {
 		return nil, err
 	}
-	return new(big.Rat).Neg(value), nil
+	number, err := asNumber(value)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Rat).Neg(number), nil
 }
 
-func (n binaryNode) eval(vars func(string) *big.Rat) (*big.Rat, error) {
+func (n notNode) eval(vars func(string) Value) (Value, error) {
+	value, err := n.operand.eval(vars)
+	if err != nil {
+		return nil, err
+	}
+	flag, ok := value.(bool)
+	if !ok {
+		return nil, errors.New("! needs a true or false value")
+	}
+	return !flag, nil
+}
+
+func (n binaryNode) eval(vars func(string) Value) (Value, error) {
 	left, err := n.left.eval(vars)
 	if err != nil {
 		return nil, err
+	}
+	// && and || only evaluate the right side when needed.
+	if n.op == "&&" || n.op == "||" {
+		l, ok := left.(bool)
+		if !ok {
+			return nil, errors.New(n.op + " needs true or false values")
+		}
+		if (n.op == "&&" && !l) || (n.op == "||" && l) {
+			return l, nil
+		}
+		right, err := n.right.eval(vars)
+		if err != nil {
+			return nil, err
+		}
+		r, ok := right.(bool)
+		if !ok {
+			return nil, errors.New(n.op + " needs true or false values")
+		}
+		return r, nil
 	}
 	right, err := n.right.eval(vars)
 	if err != nil {
 		return nil, err
 	}
+	switch n.op {
+	case "==", "!=", "<", "<=", ">", ">=":
+		return compareValues(n.op, left, right)
+	}
+	l, err := asNumber(left)
+	if err != nil {
+		return nil, err
+	}
+	r, err := asNumber(right)
+	if err != nil {
+		return nil, err
+	}
 	out := new(big.Rat)
 	switch n.op {
-	case '+':
-		return out.Add(left, right), nil
-	case '-':
-		return out.Sub(left, right), nil
-	case '*':
-		return out.Mul(left, right), nil
+	case "+":
+		return out.Add(l, r), nil
+	case "-":
+		return out.Sub(l, r), nil
+	case "*":
+		return out.Mul(l, r), nil
 	default:
-		if right.Sign() == 0 {
+		if r.Sign() == 0 {
 			return nil, errors.New("division by zero")
 		}
-		return out.Quo(left, right), nil
+		return out.Quo(l, r), nil
 	}
 }
 
-func (n callNode) eval(vars func(string) *big.Rat) (*big.Rat, error) {
-	values := make([]*big.Rat, len(n.args))
+// compareValues compares two values of the same kind; nil takes the zero value
+// of the other side.
+func compareValues(op string, left, right Value) (Value, error) {
+	if left == nil {
+		left = zeroLike(right)
+	}
+	if right == nil {
+		right = zeroLike(left)
+	}
+	var order int
+	switch l := left.(type) {
+	case *big.Rat:
+		r, ok := right.(*big.Rat)
+		if !ok {
+			return nil, errors.New("cannot compare a number with another kind of value")
+		}
+		order = l.Cmp(r)
+	case string:
+		r, ok := right.(string)
+		if !ok {
+			return nil, errors.New("cannot compare text with another kind of value")
+		}
+		order = strings.Compare(l, r)
+	case bool:
+		r, ok := right.(bool)
+		if !ok || (op != "==" && op != "!=") {
+			return nil, errors.New("true or false values can only be compared with == and !=")
+		}
+		if l != r {
+			order = 1
+		}
+	default:
+		order = 0
+	}
+	switch op {
+	case "==":
+		return order == 0, nil
+	case "!=":
+		return order != 0, nil
+	case "<":
+		return order < 0, nil
+	case "<=":
+		return order <= 0, nil
+	case ">":
+		return order > 0, nil
+	default:
+		return order >= 0, nil
+	}
+}
+
+func zeroLike(other Value) Value {
+	switch other.(type) {
+	case *big.Rat:
+		return new(big.Rat)
+	case string:
+		return ""
+	case bool:
+		return false
+	default:
+		return nil
+	}
+}
+
+func (n callNode) eval(vars func(string) Value) (Value, error) {
+	values := make([]Value, len(n.args))
 	for i, arg := range n.args {
 		value, err := arg.eval(vars)
 		if err != nil {
@@ -105,25 +257,43 @@ func (n callNode) eval(vars func(string) *big.Rat) (*big.Rat, error) {
 		}
 		values[i] = value
 	}
+	if n.name == "empty" {
+		switch typed := values[0].(type) {
+		case nil:
+			return true, nil
+		case string:
+			return typed == "", nil
+		default:
+			return false, nil
+		}
+	}
+	numbers := make([]*big.Rat, len(values))
+	for i, value := range values {
+		number, err := asNumber(value)
+		if err != nil {
+			return nil, err
+		}
+		numbers[i] = number
+	}
 	switch n.name {
 	case "abs":
-		return new(big.Rat).Abs(values[0]), nil
+		return new(big.Rat).Abs(numbers[0]), nil
 	case "min":
-		if values[0].Cmp(values[1]) <= 0 {
-			return values[0], nil
+		if numbers[0].Cmp(numbers[1]) <= 0 {
+			return numbers[0], nil
 		}
-		return values[1], nil
+		return numbers[1], nil
 	case "max":
-		if values[0].Cmp(values[1]) >= 0 {
-			return values[0], nil
+		if numbers[0].Cmp(numbers[1]) >= 0 {
+			return numbers[0], nil
 		}
-		return values[1], nil
+		return numbers[1], nil
 	default: // round(x, places)
-		places := values[1]
+		places := numbers[1]
 		if !places.IsInt() || places.Sign() < 0 || places.Num().Cmp(big.NewInt(MaxDecimals)) > 0 {
 			return nil, errors.New("round needs 0 to 8 places")
 		}
-		return RoundHalfUp(values[0], int(places.Num().Int64())), nil
+		return RoundHalfUp(numbers[0], int(places.Num().Int64())), nil
 	}
 }
 
@@ -142,7 +312,7 @@ func RoundHalfUp(x *big.Rat, places int) *big.Rat {
 	return new(big.Rat).SetFrac(whole, scale)
 }
 
-var exprFunctions = map[string]int{"abs": 1, "min": 2, "max": 2, "round": 2}
+var exprFunctions = map[string]int{"abs": 1, "min": 2, "max": 2, "round": 2, "empty": 1}
 
 // ParseExpr parses an expression. The result is safe to evaluate for any
 // field values: its size and nesting are bounded.
@@ -151,7 +321,7 @@ func ParseExpr(source string) (*Expr, error) {
 		return nil, ErrInvalidExpression
 	}
 	p := &exprParser{src: source}
-	root, err := p.expr(0)
+	root, err := p.or(0)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +353,16 @@ func (p *exprParser) peek() byte {
 	return 0
 }
 
+// take consumes op when the input continues with it.
+func (p *exprParser) take(op string) bool {
+	p.skip()
+	if strings.HasPrefix(p.src[p.pos:], op) {
+		p.pos += len(op)
+		return true
+	}
+	return false
+}
+
 func (p *exprParser) node() error {
 	p.nodes++
 	if p.nodes > maxExprNodes {
@@ -191,10 +371,87 @@ func (p *exprParser) node() error {
 	return nil
 }
 
-func (p *exprParser) expr(depth int) (exprNode, error) {
+func (p *exprParser) binary(op string, left, right exprNode) (exprNode, error) {
+	if err := p.node(); err != nil {
+		return nil, err
+	}
+	return binaryNode{op: op, left: left, right: right}, nil
+}
+
+func (p *exprParser) or(depth int) (exprNode, error) {
 	if depth > maxExprDepth {
 		return nil, fmt.Errorf("%w: too deep", ErrInvalidExpression)
 	}
+	left, err := p.and(depth)
+	if err != nil {
+		return nil, err
+	}
+	for p.take("||") {
+		right, err := p.and(depth)
+		if err != nil {
+			return nil, err
+		}
+		if left, err = p.binary("||", left, right); err != nil {
+			return nil, err
+		}
+	}
+	return left, nil
+}
+
+func (p *exprParser) and(depth int) (exprNode, error) {
+	left, err := p.not(depth)
+	if err != nil {
+		return nil, err
+	}
+	for p.take("&&") {
+		right, err := p.not(depth)
+		if err != nil {
+			return nil, err
+		}
+		if left, err = p.binary("&&", left, right); err != nil {
+			return nil, err
+		}
+	}
+	return left, nil
+}
+
+func (p *exprParser) not(depth int) (exprNode, error) {
+	p.skip()
+	if p.pos < len(p.src) && p.src[p.pos] == '!' && !strings.HasPrefix(p.src[p.pos:], "!=") {
+		p.pos++
+		if depth > maxExprDepth {
+			return nil, fmt.Errorf("%w: too deep", ErrInvalidExpression)
+		}
+		operand, err := p.not(depth + 1)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.node(); err != nil {
+			return nil, err
+		}
+		return notNode{operand}, nil
+	}
+	return p.compare(depth)
+}
+
+func (p *exprParser) compare(depth int) (exprNode, error) {
+	left, err := p.sum(depth)
+	if err != nil {
+		return nil, err
+	}
+	for _, op := range []string{"==", "!=", "<=", ">=", "<", ">"} {
+		if p.take(op) {
+			right, err := p.sum(depth)
+			if err != nil {
+				return nil, err
+			}
+			return p.binary(op, left, right)
+		}
+	}
+	return left, nil
+}
+
+func (p *exprParser) sum(depth int) (exprNode, error) {
 	left, err := p.term(depth)
 	if err != nil {
 		return nil, err
@@ -205,10 +462,9 @@ func (p *exprParser) expr(depth int) (exprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := p.node(); err != nil {
+		if left, err = p.binary(string(c), left, right); err != nil {
 			return nil, err
 		}
-		left = binaryNode{op: c, left: left, right: right}
 	}
 	return left, nil
 }
@@ -224,10 +480,9 @@ func (p *exprParser) term(depth int) (exprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := p.node(); err != nil {
+		if left, err = p.binary(string(c), left, right); err != nil {
 			return nil, err
 		}
-		left = binaryNode{op: c, left: left, right: right}
 	}
 	return left, nil
 }
@@ -235,6 +490,9 @@ func (p *exprParser) term(depth int) (exprNode, error) {
 func (p *exprParser) unary(depth int) (exprNode, error) {
 	if p.peek() == '-' {
 		p.pos++
+		if depth > maxExprDepth {
+			return nil, fmt.Errorf("%w: too deep", ErrInvalidExpression)
+		}
 		operand, err := p.unary(depth + 1)
 		if err != nil {
 			return nil, err
@@ -255,7 +513,7 @@ func (p *exprParser) primary(depth int) (exprNode, error) {
 	switch {
 	case c == '(':
 		p.pos++
-		inner, err := p.expr(depth + 1)
+		inner, err := p.or(depth + 1)
 		if err != nil {
 			return nil, err
 		}
@@ -264,6 +522,14 @@ func (p *exprParser) primary(depth int) (exprNode, error) {
 		}
 		p.pos++
 		return inner, nil
+	case c == '\'':
+		end := strings.IndexByte(p.src[p.pos+1:], '\'')
+		if end < 0 {
+			return nil, fmt.Errorf("%w: unterminated text", ErrInvalidExpression)
+		}
+		text := p.src[p.pos+1 : p.pos+1+end]
+		p.pos += end + 2
+		return literalNode{text}, nil
 	case c >= '0' && c <= '9' || c == '.':
 		start := p.pos
 		for p.pos < len(p.src) && (p.src[p.pos] >= '0' && p.src[p.pos] <= '9' || p.src[p.pos] == '.') {
@@ -273,7 +539,7 @@ func (p *exprParser) primary(depth int) (exprNode, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w: bad number %q", ErrInvalidExpression, p.src[start:p.pos])
 		}
-		return numberNode{value}, nil
+		return literalNode{value}, nil
 	case c >= 'a' && c <= 'z':
 		start := p.pos
 		for p.pos < len(p.src) && (p.src[p.pos] >= 'a' && p.src[p.pos] <= 'z' || p.src[p.pos] >= '0' && p.src[p.pos] <= '9' || p.src[p.pos] == '_') {
@@ -281,6 +547,12 @@ func (p *exprParser) primary(depth int) (exprNode, error) {
 		}
 		name := p.src[start:p.pos]
 		if p.peek() != '(' {
+			switch name {
+			case "true":
+				return literalNode{true}, nil
+			case "false":
+				return literalNode{false}, nil
+			}
 			p.fields = append(p.fields, name)
 			return fieldNode{name}, nil
 		}
@@ -291,7 +563,7 @@ func (p *exprParser) primary(depth int) (exprNode, error) {
 		p.pos++
 		var args []exprNode
 		for {
-			arg, err := p.expr(depth + 1)
+			arg, err := p.or(depth + 1)
 			if err != nil {
 				return nil, err
 			}

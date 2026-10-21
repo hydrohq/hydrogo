@@ -11,7 +11,7 @@ func evalExpr(t *testing.T, source string, vars map[string]string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	result, err := expr.Eval(func(name string) *big.Rat {
+	result, err := expr.EvalNumber(func(name string) Value {
 		if text, ok := vars[name]; ok {
 			value, _ := new(big.Rat).SetString(text)
 			return value
@@ -50,7 +50,7 @@ func TestExpressionsUseExactDecimalArithmetic(t *testing.T) {
 }
 
 func TestExpressionsRejectBadInput(t *testing.T) {
-	for _, source := range []string{"", "1 +", "a b", "(1", "1)", "foo(1)", "round(1)", "min(1,2,3)", "1 $ 2", "a.b", "1..2", "'x'", "a; b"} {
+	for _, source := range []string{"", "1 +", "a b", "(1", "1)", "foo(1)", "round(1)", "min(1,2,3)", "1 $ 2", "a.b", "1..2", "a; b", "'open"} {
 		if _, err := ParseExpr(source); err == nil {
 			t.Errorf("%q accepted", source)
 		}
@@ -130,5 +130,91 @@ func TestComputedOverflowAndDivisionFailTheSave(t *testing.T) {
 	}
 	if _, err := schema.ValidateRecord(map[string]any{"a": 1e12, "b": 1e-3}); err == nil {
 		t.Error("overflowing result saved")
+	}
+}
+
+func evalCondition(t *testing.T, source string, vars map[string]Value) (bool, error) {
+	t.Helper()
+	expr, err := ParseExpr(source)
+	if err != nil {
+		return false, err
+	}
+	return expr.EvalBool(func(name string) Value { return vars[name] })
+}
+
+func TestConditions(t *testing.T) {
+	num := func(text string) Value { value, _ := new(big.Rat).SetString(text); return value }
+	vars := map[string]Value{"status": "posted", "total": num("118.5"), "paid": true, "note": ""}
+	cases := map[string]bool{
+		"status == 'posted'":                 true,
+		"status != 'posted'":                 false,
+		"total > 100 && paid":                true,
+		"total <= 100 || status == 'void'":   false,
+		"!paid":                              false,
+		"total * 2 == 237":                   true,
+		"empty(note) && !empty(status)":      true,
+		"missing == ''":                      true,
+		"missing == 0":                       true,
+		"(total > 1) == true":                true,
+		"status == 'a' || total > 1 && paid": true,
+		"false && 1 / 0 > 1":                 false, // right side is not evaluated
+		"status < 'q'":                       true,
+		"status >= 'p'":                      true,
+	}
+	for source, want := range cases {
+		got, err := evalCondition(t, source, vars)
+		if err != nil || got != want {
+			t.Errorf("%s = %v, %v; want %v", source, got, err, want)
+		}
+	}
+	for _, source := range []string{"total > 'x'", "status + 1", "paid > true", "total", "!total", "paid && 1"} {
+		if _, err := evalCondition(t, source, vars); err == nil {
+			t.Errorf("%q evaluated without error", source)
+		}
+	}
+}
+
+func TestRuleAndStateSchemaValidation(t *testing.T) {
+	good := func() Schema {
+		return Schema{ID: "x", Label: "X", Fields: []Field{
+			{ID: "status", Label: "S", Kind: Select, Options: []string{"a", "b"}},
+			{ID: "n", Label: "N", Kind: Number},
+		}}
+	}
+	ok := good()
+	ok.Rules = []Rule{{Assert: "n > 0"}, {When: "status == 'b'", Readonly: true}}
+	ok.States = &StateMachine{Field: "status", Initial: "a", Transitions: []Transition{{From: "a", To: "b", When: "n > 0", Permission: "x.approve"}}}
+	if err := ok.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	mutations := map[string]func(*Schema){
+		"rule without assert or readonly": func(s *Schema) { s.Rules = []Rule{{When: "n > 0"}} },
+		"readonly without when":           func(s *Schema) { s.Rules = []Rule{{Readonly: true}} },
+		"readonly with assert":            func(s *Schema) { s.Rules = []Rule{{When: "n > 0", Readonly: true, Assert: "n > 1"}} },
+		"unknown field in assert":         func(s *Schema) { s.Rules = []Rule{{Assert: "nope > 0"}} },
+		"syntax error":                    func(s *Schema) { s.Rules = []Rule{{Assert: "n >"}} },
+		"state field not a select": func(s *Schema) {
+			s.States = &StateMachine{Field: "n", Initial: "a", Transitions: []Transition{{From: "a", To: "b"}}}
+		},
+		"unknown initial": func(s *Schema) {
+			s.States = &StateMachine{Field: "status", Initial: "z", Transitions: []Transition{{From: "a", To: "b"}}}
+		},
+		"unknown target": func(s *Schema) {
+			s.States = &StateMachine{Field: "status", Initial: "a", Transitions: []Transition{{From: "a", To: "z"}}}
+		},
+		"no transitions": func(s *Schema) { s.States = &StateMachine{Field: "status", Initial: "a"} },
+		"duplicate transition": func(s *Schema) {
+			s.States = &StateMachine{Field: "status", Initial: "a", Transitions: []Transition{{From: "a", To: "b"}, {From: "a", To: "b"}}}
+		},
+		"bad permission": func(s *Schema) {
+			s.States = &StateMachine{Field: "status", Initial: "a", Transitions: []Transition{{From: "a", To: "b", Permission: "Not Valid"}}}
+		},
+	}
+	for name, mutate := range mutations {
+		schema := good()
+		mutate(&schema)
+		if schema.Validate() == nil {
+			t.Errorf("%s accepted", name)
+		}
 	}
 }
