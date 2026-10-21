@@ -72,9 +72,11 @@
     }
   }
 
-  // Load as soon as the schema says the module is on (and again if it changes).
+  // Load once the schema says the module is on. The derived boolean keeps a
+  // schema reload (new object, same answer) from fetching again.
+  const notificationsOn = $derived(!!schema.schema && schema.modules.pages === true);
   $effect(() => {
-    if (schema.schema && schema.modules.pages === true) loadNotifications();
+    if (notificationsOn) loadNotifications();
   });
 
   onMount(() => {
