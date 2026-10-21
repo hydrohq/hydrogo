@@ -28,7 +28,7 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	if !a.modules["collections"] {
 		return nil, nil
 	}
-	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, MaxRecords: cfg.Limits.RecordsPerType}
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
