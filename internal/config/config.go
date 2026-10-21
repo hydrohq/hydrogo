@@ -50,6 +50,9 @@ type Audit struct {
 	// LogRequestBodies records the redacted, size-capped JSON body of every
 	// state-changing admin API request, so the audit trail shows what was sent.
 	LogRequestBodies bool `yaml:"log_request_bodies"`
+	// Chain links every new audit event into a per-tenant hash chain so
+	// tampering is detectable (hydro audit head | verify).
+	Chain bool `yaml:"chain"`
 }
 
 type Backup struct {
