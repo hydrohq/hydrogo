@@ -75,3 +75,10 @@ func valueOf(value any) Value {
 	}
 	return rat
 }
+
+// ExactNumber reads a stored number as an exact decimal, the way computed
+// fields do (0.1 is one tenth), so sums never pick up binary rounding.
+func ExactNumber(value any) (*big.Rat, bool) {
+	rat, ok := valueOf(value).(*big.Rat)
+	return rat, ok
+}

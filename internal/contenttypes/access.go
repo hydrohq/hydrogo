@@ -73,3 +73,66 @@ func (a AdminAPI) visibleTo(r *http.Request) func(Definition, collections.Record
 		return subject != "" && owner == subject
 	}
 }
+
+// fieldReadable reports whether the caller may see a field.
+func (a AdminAPI) fieldReadable(r *http.Request, field Field) bool {
+	return field.Permission == "" || (a.Can != nil && a.Can(r, field.Permission))
+}
+
+// hiddenFields lists the fields of definition the caller may not see.
+func (a AdminAPI) hiddenFields(r *http.Request, definition Definition) []Field {
+	var hidden []Field
+	for _, field := range definition.Fields {
+		if !a.fieldReadable(r, field) {
+			hidden = append(hidden, field)
+		}
+	}
+	return hidden
+}
+
+// keepHidden makes a write leave fields the caller may not see alone: values
+// they send are dropped and, for an existing record, the stored values carry
+// over (a save replaces the whole record).
+func (a AdminAPI) keepHidden(r *http.Request, definition Definition, id string, payload map[string]any) error {
+	hidden := a.hiddenFields(r, definition)
+	if len(hidden) == 0 {
+		return nil
+	}
+	var stored map[string]any
+	if id != "" {
+		record, err := a.Service.GetRecord(r.Context(), definition.ID, id)
+		if err != nil {
+			return err
+		}
+		stored = record.Data
+	}
+	for _, field := range hidden {
+		delete(payload, field.ID)
+		if value, ok := stored[field.ID]; ok {
+			payload[field.ID] = value
+		}
+	}
+	return nil
+}
+
+// checkFilters rejects filters and sorts on fields the caller may not see,
+// which would otherwise reveal their values by inference.
+func (a AdminAPI) checkFilters(r *http.Request, definition Definition, query collections.Query) error {
+	hidden := map[string]bool{}
+	for _, field := range a.hiddenFields(r, definition) {
+		hidden[field.ID] = true
+	}
+	if len(hidden) == 0 {
+		return nil
+	}
+	conditions := append(append([]collections.Condition{}, query.Where...), query.AnyOf...)
+	for _, condition := range conditions {
+		if hidden[condition.Field] {
+			return collections.ErrInvalidQuery
+		}
+	}
+	if query.Sort != nil && hidden[query.Sort.Field] {
+		return collections.ErrInvalidQuery
+	}
+	return nil
+}

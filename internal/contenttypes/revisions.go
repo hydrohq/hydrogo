@@ -62,7 +62,7 @@ func (a AdminAPI) GetRevision(r *http.Request, collection adminstudio.Collection
 	for key, value := range revision.Data {
 		record[key] = value
 	}
-	record = a.present(collection.ID, record)
+	record = a.present(r, collection.ID, record)
 	fields := make(map[string]string, len(collection.Fields))
 	for _, field := range collection.Fields {
 		if !field.ReadOnly {
@@ -106,6 +106,11 @@ func (a AdminAPI) RestoreRevision(r *http.Request, collection adminstudio.Collec
 	}
 	if err := a.keepStatus(r, collection.ID, id, data); err != nil {
 		return err
+	}
+	if definition, ok := definitionByID(a.types(), collection.ID); ok {
+		if err := a.keepHidden(r, definition, id, data); err != nil {
+			return err
+		}
 	}
 	_, err = a.Service.UpdateRecordVersion(r.Context(), collection.ID, id, data, int(expectedVersion))
 	return err

@@ -66,6 +66,9 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 		if err := a.scopePayload(r, definition, id, payload); err != nil {
 			return nil, err
 		}
+		if err := a.keepHidden(r, definition, id, payload); err != nil {
+			return nil, err
+		}
 	}
 	data := toStorage(schema, payload)
 	if err := a.keepStatus(r, schema.ID, id, data); err != nil {
@@ -81,7 +84,7 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 	if err != nil {
 		return nil, &saveError{err: err, data: data}
 	}
-	return a.present(schema.ID, Flatten(record)), nil
+	return a.present(r, schema.ID, Flatten(record)), nil
 }
 
 // saveError carries the submitted data so validation failures can name the
@@ -111,7 +114,7 @@ func Flatten(record collections.Record) map[string]any {
 // present rewrites stored RFC 3339 dates into the value format of the
 // matching input (date or datetime-local) and adds the status of a drafts
 // type, so a record reads back exactly as a client submits it.
-func (a AdminAPI) present(typeID string, record map[string]any) map[string]any {
+func (a AdminAPI) present(r *http.Request, typeID string, record map[string]any) map[string]any {
 	for _, definition := range a.types() {
 		if definition.ID != typeID {
 			continue
@@ -132,6 +135,9 @@ func (a AdminAPI) present(typeID string, record map[string]any) map[string]any {
 					record[field.ID] = parsed.UTC().Format(layout)
 				}
 			}
+		}
+		for _, field := range a.hiddenFields(r, definition) {
+			delete(record, field.ID)
 		}
 	}
 	return record

@@ -39,6 +39,7 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	POST   .../{id}/presence                   heartbeat
 //	GET    .../{id}/presence                   active editors
 //	DELETE .../{id}/presence                   leave
+//	GET    .../_aggregate?group_by=&sum=       counts and exact sums, per group
 //	POST   /api/v1/admin/content/_batch        {operations:[{op,type,id,version,fields}]} atomic
 func (a AdminAPI) Routes() []router.Route {
 	base := AdminAPIPath + "/{type}"
@@ -48,6 +49,7 @@ func (a AdminAPI) Routes() []router.Route {
 		handler http.HandlerFunc
 	}{
 		{"GET " + base, a.list},
+		{"GET " + base + AggregatePath, a.aggregate},
 		{"POST " + base, a.create},
 		{"GET " + record, a.get},
 		{"PUT " + record, a.update},
@@ -131,7 +133,7 @@ func (a AdminAPI) expansion(r *http.Request) expansion {
 		service: a.Service,
 		target:  func(id string) (Definition, bool) { return definitionByID(a.types(), id) },
 		present: func(definition Definition, record collections.Record) map[string]any {
-			return a.present(definition.ID, Flatten(record))
+			return a.present(r, definition.ID, Flatten(record))
 		},
 	}
 }
@@ -167,6 +169,10 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "unsupported locale", nil)
 		return
 	}
+	if err := a.checkFilters(r, definition, query); err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
 	if subject, restricted := a.restriction(r, definition); restricted {
 		if subject == "" {
 			api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
@@ -197,7 +203,7 @@ func (a AdminAPI) list(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(records))
 	for _, record := range records {
-		item := a.present(definition.ID, Flatten(record))
+		item := a.present(r, definition.ID, Flatten(record))
 		if translation, ok := translations[record.ID]; ok {
 			item = withFallback(item, translation)
 		}
@@ -253,7 +259,7 @@ func (a AdminAPI) get(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	item := a.present(definition.ID, Flatten(record))
+	item := a.present(r, definition.ID, Flatten(record))
 	expanded, err := a.expansion(r).load(r.Context(), expand, []collections.Record{record})
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
@@ -329,7 +335,7 @@ func (a AdminAPI) current(w http.ResponseWriter, r *http.Request, typeID, id str
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	api.WriteData(w, http.StatusOK, a.present(typeID, Flatten(record)), nil)
+	api.WriteData(w, http.StatusOK, a.present(r, typeID, Flatten(record)), nil)
 }
 
 func (a AdminAPI) workflow(w http.ResponseWriter, r *http.Request) {
