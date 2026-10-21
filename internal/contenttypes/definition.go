@@ -39,6 +39,12 @@
 //     the API accepts filter[field][ne|gt|gte|lt|lte|in|null]=value; gt, gte,
 //     lt and lte need a number or date field, in takes a comma separated
 //     list (at most 50 values) and null takes true or false.
+//   - sequence: {prefix: "INV-{yyyy}-", pad: 5}: number new records
+//     without gaps ("INV-2026-00001", "INV-2026-00002", ...). The counter
+//     restarts when the expanded prefix changes ({yyyy}, {yy} and {mm} are
+//     replaced by the current UTC year and month). Text fields only; the
+//     server sets the value on create, it never changes, and a value sent
+//     by a client is ignored. The field is unique and read-only in the admin.
 //   - localized: keep one value per site locale (text, textarea, richtext,
 //     media; not together with unique, searchable or filterable). A type
 //     with localized fields needs revisions: true. The record holds the
@@ -118,6 +124,9 @@ type Field struct {
 	// Localized fields (text, textarea, richtext, media) have a value per
 	// site locale; see the package documentation.
 	Localized bool `json:"localized" yaml:"localized"`
+	// Sequence numbers new records on the server (text fields only): see
+	// collections.Sequence. The field is read-only in the admin.
+	Sequence *collections.Sequence `json:"sequence,omitempty" yaml:"sequence"`
 }
 
 // LoadDir reads every *.yaml file in dir. A missing directory yields no
@@ -183,6 +192,9 @@ func (d Definition) Validate() error {
 		if field.Localized && !oneOf(field.Kind, "text", "textarea", "richtext", "media") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be localized", ErrInvalidDefinition, field.ID, field.Kind)
 		}
+		if field.Sequence != nil && (field.Kind != "text" || field.Required || field.Localized) {
+			return fmt.Errorf("%w: sequence field %q must be a plain text field (not required or localized)", ErrInvalidDefinition, field.ID)
+		}
 		if field.Localized && (field.Unique || field.Searchable || field.Filterable) {
 			return fmt.Errorf("%w: localized field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
 		}
@@ -214,7 +226,7 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
-			Localized: field.Localized, Indexed: field.Filterable,
+			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence,
 		})
 	}
 	if d.Drafts {
@@ -285,7 +297,7 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
 			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
-			Localized: field.Localized,
+			Localized: field.Localized, ReadOnly: field.Sequence != nil,
 		}
 		switch field.Kind {
 		case "text":

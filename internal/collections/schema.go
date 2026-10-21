@@ -66,6 +66,9 @@ type Field struct {
 	// lookups on this field. Only PostgreSQL builds them today; the flag is
 	// a hint and never changes results.
 	Indexed bool `json:"indexed,omitempty"`
+	// Sequence makes the server number new records (see Sequence). The value
+	// is assigned on create, never changes, and any client value is ignored.
+	Sequence *Sequence `json:"sequence,omitempty"`
 }
 
 type Schema struct {
@@ -103,6 +106,9 @@ func (s Schema) Validate() error {
 				return ErrInvalidSchema
 			}
 		default:
+			return ErrInvalidSchema
+		}
+		if field.Sequence != nil && (field.Kind != Text || field.Localized || field.Sequence.validate() != nil) {
 			return ErrInvalidSchema
 		}
 		if field.Localized && (field.Unique || !localizable(field.Kind)) {
@@ -147,6 +153,10 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 	}
 	clean := make(map[string]any, len(data))
 	for _, field := range s.Fields {
+		if field.Sequence != nil {
+			// Numbered by the server on create; see Service.saveRecord.
+			continue
+		}
 		value, present := data[field.ID]
 		if !present || value == nil || value == "" {
 			if field.Required {

@@ -18,7 +18,9 @@ Making `collections` create the outbox with its own migration would collide with
 
 ## First slice (done)
 
-The audit tables and their five migrations (`202609060001`, `202609090017`, `202609190004`, `202609280004`, `202609291001`) now belong to `core`: only the `module:` and `requires_modules:` lines changed, SQL and checksums did not. Databases that already applied them are unaffected, and a project without `pages` (the `crm` preset) gets `audit_events`; without it sign-in failed.
+Core migration `202610210002_core_audit_events` creates `audit_events` in its final shape (columns, indexes, immutability triggers and, on PostgreSQL, the tenant policy) when it does not exist, so a project without `pages` (the `crm` preset) can sign in and keep an audit trail. Every statement is a no-op where the pages migrations already built the table, so existing databases are unchanged. The released `pages` migrations were not touched: moving the first one to `core` would also create an empty `pages` table without `tenant_id`, which breaks the PostgreSQL tenant policy migration.
+
+Known limit: enabling `pages` later on a database that was created without it fails at the first pages migration (the audit table already exists). The baseline below removes that.
 
 ## Consequences
 

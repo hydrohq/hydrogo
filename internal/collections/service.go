@@ -169,13 +169,26 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 	if err != nil {
 		return Record{}, err
 	}
+	sequences := schema.sequenceFields()
+	if len(sequences) > 0 && id != "" {
+		// Numbers never change: keep the stored ones.
+		stored, err := s.Repository.GetRecord(ctx, collectionID, id)
+		if err != nil {
+			return Record{}, err
+		}
+		for _, field := range sequences {
+			if value, ok := stored.Data[field.ID]; ok {
+				clean[field.ID] = value
+			}
+		}
+	}
 	unique := make([]Field, 0)
 	for _, field := range schema.Fields {
 		value, present := clean[field.ID]
 		if !present {
 			continue
 		}
-		if field.Unique {
+		if field.Unique || field.Sequence != nil {
 			unique = append(unique, field)
 		}
 		if field.Kind != Relation && field.Kind != RelationMany {
@@ -199,7 +212,35 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 			}
 		}
 	}
+	if len(sequences) > 0 && id == "" {
+		return s.createNumbered(ctx, collectionID, clean, unique, sequences)
+	}
 	return s.Repository.SaveRecord(ctx, collectionID, id, clean, unique, expectedVersion)
+}
+
+// createNumbered takes the next number of every sequence field and saves the
+// record in one transaction, so a failed save leaves no gap.
+func (s Service) createNumbered(ctx context.Context, collectionID string, clean map[string]any, unique []Field, sequences []Field) (Record, error) {
+	var record Record
+	err := s.InTransaction(ctx, func(tx Service) error {
+		numbers, ok := tx.Repository.(SequenceRepository)
+		if !ok {
+			return ErrNoTransactions
+		}
+		now := time.Now()
+		for _, field := range sequences {
+			scope := field.Sequence.Scope(now)
+			n, err := numbers.NextSequence(ctx, collectionID, field.ID, scope)
+			if err != nil {
+				return err
+			}
+			clean[field.ID] = field.Sequence.Format(scope, n)
+		}
+		var err error
+		record, err = tx.Repository.SaveRecord(ctx, collectionID, "", clean, append(unique, sequences...), 0)
+		return err
+	})
+	return record, err
 }
 
 func (s Service) DeleteRecord(ctx context.Context, collectionID, id string) error {

@@ -75,6 +75,7 @@ func TestPostgresStaticStoreSupportsSchemasUniqueValuesRelationsAndCRUD(t *testi
 	runRevisionContract(t, db, database.Postgres)
 	runTranslationContract(t, db, database.Postgres)
 	runFilterContract(t, db, database.Postgres)
+	runSequenceContract(t, db, database.Postgres)
 	runIndexContract(t, db)
 }
 
