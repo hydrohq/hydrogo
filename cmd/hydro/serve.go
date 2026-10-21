@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
@@ -83,6 +84,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			return err
 		}
 	}
+	auditstore.SetChain(cfg.Audit.Chain)
 	routes, err := app.routes()
 	if err != nil {
 		return err

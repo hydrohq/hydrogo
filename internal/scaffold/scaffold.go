@@ -24,6 +24,8 @@ type Preset struct {
 	Description  string
 	Modules      []string
 	ContentTypes []string
+	// Config is extra YAML appended to the generated config.yaml.
+	Config string
 }
 
 var presets = []Preset{
@@ -62,6 +64,7 @@ var presets = []Preset{
 		Description:  "light ERP: products, warehouses, accounts, sales orders, invoices and payments",
 		Modules:      []string{"core", "auth", "media", "collections"},
 		ContentTypes: []string{"erp/products", "erp/warehouses", "erp/accounts", "erp/sales_orders", "erp/order_lines", "erp/invoices", "erp/invoice_lines", "erp/payments", "erp/period_closings"},
+		Config:       "audit:\n  # Tamper evidence: every audit event is chained; check it with hydro audit verify.\n  chain: true\n  log_request_bodies: true\n",
 	},
 	{
 		Name:         "docs",
@@ -225,7 +228,7 @@ security:
   # Turn both on when the site is served over HTTPS.
   secure_cookies: false
   enable_hsts: false
-`, preset.Name, strings.Join(preset.Modules, ", "))
+%s`, preset.Name, strings.Join(preset.Modules, ", "), preset.Config)
 }
 
 func renderReadme(name string, preset Preset) string {

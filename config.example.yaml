@@ -45,6 +45,9 @@ audit:
   # Record the (redacted, size-capped) JSON body of admin API writes in the audit
   # log so reviewers can see what was requested. Off by default.
   log_request_bodies: false
+  # Chain new audit events with SHA-256 links so tampering is detectable:
+  # hydro audit head, hydro audit verify. Off by default.
+  chain: false
 security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
