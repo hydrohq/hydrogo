@@ -170,6 +170,11 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 			result.I18N.Locales = locales
 		}
 	}
+	for index := range result.Hooks {
+		if name := strings.TrimSpace(result.Hooks[index].SecretEnv); name != "" {
+			result.Hooks[index].Secret, _ = lookup(name)
+		}
+	}
 	if value, ok := lookup("HYDRO_WEBHOOK_URL"); ok && value != "" {
 		if len(result.Webhooks) == 0 {
 			result.Webhooks = []Webhook{{ID: "default", URL: value}}

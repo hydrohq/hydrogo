@@ -32,6 +32,7 @@ type Config struct {
 	Redis           Redis            `yaml:"redis"`
 	License         License          `yaml:"license"`
 	Webhooks        []Webhook        `yaml:"webhooks"`
+	Hooks           []SyncHook       `yaml:"hooks"`
 	Backup          Backup           `yaml:"backup"`
 	Audit           Audit            `yaml:"audit"`
 	Limits          Limits           `yaml:"limits"`
@@ -90,6 +91,20 @@ type Webhook struct {
 	Secret   string   `yaml:"-"`
 	Topics   []string `yaml:"topics"`
 	AllowPII bool     `yaml:"allow_pii"`
+}
+
+// SyncHook is a side service the content types may consult before a change
+// (see contenttypes hooks). The URL comes from the operator's config, never
+// from a content type, so it may point at a service on the same host or
+// network. SecretEnv names the environment variable holding the signing
+// secret.
+type SyncHook struct {
+	ID        string `yaml:"id"`
+	URL       string `yaml:"url"`
+	SecretEnv string `yaml:"secret_env"`
+	Secret    string `yaml:"-"`
+	// Timeout caps one call (default 5s, at most 10s).
+	Timeout string `yaml:"timeout"`
 }
 
 type HTTP struct {
