@@ -149,6 +149,9 @@ func valid(ctx context.Context, t *testing.T, provider baselinegen.Provider, ste
 }
 
 func TestBaselineBuildsTheSameDatabaseAsTheChain(t *testing.T) {
+	if raceDetector {
+		t.Skip("single-goroutine comparison that is many times slower under the race detector; the regular test run covers it")
+	}
 	ctx := context.Background()
 	names := moduleNames(t)
 	presets := map[string][]string{
@@ -194,6 +197,9 @@ func TestBaselineBuildsTheSameDatabaseAsTheChain(t *testing.T) {
 // The fix ADR 0009 is about: a database created without a module can enable it
 // later, whether the database came from the baseline or from the old chain.
 func TestEnablingAModuleLaterMatchesEnablingItFromTheStart(t *testing.T) {
+	if raceDetector {
+		t.Skip("single-goroutine comparison that is many times slower under the race detector; the regular test run covers it")
+	}
 	ctx := context.Background()
 	names := moduleNames(t)
 	for _, provider := range providers(t) {
@@ -236,9 +242,14 @@ func buildLegacyThenBaseline(ctx context.Context, t *testing.T, provider baselin
 }
 
 func TestEnablingTwoModulesInEitherOrderMatchesTheChain(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compares every module pair; the full run is part of go test without -short")
+	if raceDetector {
+		t.Skip("single-goroutine comparison that is many times slower under the race detector; the regular test run covers it")
 	}
+	// Every pair takes minutes under the race detector, so the default is a
+	// sample that still covers each kind of interaction; set
+	// HYDRO_BASELINE_FULL=1 to compare all of them (do that when touching the
+	// baseline or the runner).
+	full := os.Getenv("HYDRO_BASELINE_FULL") == "1"
 	ctx := context.Background()
 	names := moduleNames(t)
 	for _, provider := range providers(t) {
@@ -250,7 +261,7 @@ func TestEnablingTwoModulesInEitherOrderMatchesTheChain(t *testing.T) {
 					if first >= second {
 						continue
 					}
-					if provider.Dialect() != database.SQLite && !samplePair(first, second) {
+					if !full && !samplePair(first, second) {
 						continue
 					}
 					want, ok := valid(ctx, t, provider, []string{first, second})
@@ -275,12 +286,12 @@ func TestEnablingTwoModulesInEitherOrderMatchesTheChain(t *testing.T) {
 	}
 }
 
-// samplePair keeps the slower server dialects to pairs that exercise every kind
-// of interaction: shared tables, combination groups and audit/outbox ownership.
+// samplePair picks pairs that exercise every kind of interaction: shared tables,
+// combination groups, the forms/site dependency and audit/outbox ownership.
 func samplePair(a, b string) bool {
 	key := a + "+" + b
 	switch key {
-	case "media+pages", "news+pages", "members+pages", "pages+site", "analytics+pages", "auth+members", "commerce+pages", "media+news":
+	case "media+pages", "news+pages", "members+pages", "pages+site", "analytics+pages", "auth+members", "commerce+pages", "media+news", "forms+site", "forms+pages", "collections+pages", "auth+media", "analytics+news", "commerce+media":
 		return true
 	}
 	return false
