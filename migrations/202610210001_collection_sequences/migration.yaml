@@ -11,7 +11,7 @@ transactional:
 checksum_sha256:
   sqlite: "c889fccd7ea2c796cb5722c46797a8f4334a978f14d4dd0a67b41470e67d30b8"
   postgres: "b9b922048f74c84de8a24fef612e0a76ec12ac3b6456f003015bdb2332a15078"
-  mysql: "1eec57c45af638086f99afa00b62a86b11fd79782db4d69fef83f49a98a631aa"
+  mysql: "dfe39f8b372fa43205f44f323084af1b0d1c71849a0b332472909b39993322f8"
 dependencies:
   - "202610140002_collection_translations"
 schema:

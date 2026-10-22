@@ -22,7 +22,8 @@ func discoverMigrations(migrationFS fs.FS) ([]string, error) {
 	}
 	var dirs []string
 	for _, e := range entries {
-		if e.IsDir() {
+		// "baseline" is the reserved directory of the schema baseline, never a migration.
+		if e.IsDir() && e.Name() != "baseline" {
 			dirs = append(dirs, e.Name())
 		}
 	}
@@ -114,6 +115,7 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 		rows.Close()
 	}
 	var pending []string
+	pendingChecksums := make(map[string]string)
 	for _, migrationID := range migrations {
 		content, err := fs.ReadFile(migrationFS, fmt.Sprintf("%s/%s.sql", migrationID, dialect))
 		if err != nil {
@@ -130,6 +132,11 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 			continue
 		}
 		pending = append(pending, migrationID)
+		pendingChecksums[migrationID] = checksum
+	}
+	pending, err = applyBaselineGroups(ctx, conn, dialect, migrationFS, enabled, pending, pendingChecksums, existingMap)
+	if err != nil {
+		return err
 	}
 	if err := rejectPagesOnCoreCreatedDatabase(pending, existingMap); err != nil {
 		return err
