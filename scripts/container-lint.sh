@@ -4,7 +4,7 @@ set -euo pipefail
 dockerfile="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/Dockerfile"
 test -f "$dockerfile"
 for marker in \
-  'FROM golang:' 'ARG TARGETARCH=amd64' 'CGO_ENABLED=0' 'go build -trimpath' \
+  'FROM --platform=$BUILDPLATFORM golang:' 'ARG TARGETARCH=amd64' 'CGO_ENABLED=0' 'go build -trimpath' \
   'adduser -S -G hydro' 'USER hydro' \
   'COPY --from=build /src/hydrogo.lock' \
   'ENTRYPOINT ["/app/hydro"]' 'CMD ["serve", "--config", "/app/config.yaml"]' \

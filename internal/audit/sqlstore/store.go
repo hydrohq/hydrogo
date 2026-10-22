@@ -67,7 +67,7 @@ func (s Store) recordChange(ctx context.Context, tx database.Executor, id, actio
 	if value := security.RequestIDFromContext(ctx); value != "" {
 		requestID = value
 	}
-	event := chainedEvent{ID: id, Action: action, TargetID: targetID, ActorID: actorID(ctx, action, targetID), ResourceType: resourceType(action), CreatedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z"), Before: string(before), After: string(after)}
+	event := chainedEvent{ID: id, Action: action, TargetID: targetID, ActorID: actorID(ctx, action, targetID), ResourceType: resourceType(action), CreatedAt: nowUTC().Format("2006-01-02T15:04:05.000000000Z"), Before: string(before), After: string(after)}
 	if requestID != nil {
 		event.RequestID = requestID.(string)
 	}
@@ -94,7 +94,7 @@ func (s Store) recordScoped(ctx context.Context, tx database.Executor, id, actio
 	if value := security.RequestIDFromContext(ctx); value != "" {
 		requestID = value
 	}
-	event := chainedEvent{ID: id, Action: action, TargetID: targetID, ActorID: actorID(ctx, action, targetID), ResourceType: resourceType(action), CreatedAt: time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z"), Before: string(before), After: string(after)}
+	event := chainedEvent{ID: id, Action: action, TargetID: targetID, ActorID: actorID(ctx, action, targetID), ResourceType: resourceType(action), CreatedAt: nowUTC().Format("2006-01-02T15:04:05.000000000Z"), Before: string(before), After: string(after)}
 	if requestID != nil {
 		event.RequestID = requestID.(string)
 	}
@@ -128,3 +128,7 @@ func (s Store) placeholder(position int) string {
 	}
 	return "?"
 }
+
+// nowUTC is the clock for audit timestamps. It is a variable so a test can
+// freeze it: on Windows consecutive events can share a timestamp.
+var nowUTC = func() time.Time { return time.Now().UTC() }
