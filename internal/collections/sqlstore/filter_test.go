@@ -103,8 +103,15 @@ func runFilterContract(t *testing.T, db database.Executor, dialect database.Dial
 		})
 	}
 
-	// Cursor paging walks every record once, newest first.
-	var seen []string
+	// Cursor paging walks every record exactly once, newest first and, among
+	// records with the same timestamp, by id. A coarse clock (Windows) gives
+	// consecutive records one timestamp, so the order is not the insert order.
+	type walked struct {
+		name string
+		at   time.Time
+		id   string
+	}
+	var seen []walked
 	query := collections.Query{Limit: 2}
 	for page := 0; page < 5; page++ {
 		checked, err := deals.ValidateQuery(query)
@@ -116,7 +123,7 @@ func runFilterContract(t *testing.T, db database.Executor, dialect database.Dial
 			t.Fatal(err)
 		}
 		for _, record := range records {
-			seen = append(seen, record.Data["name"].(string))
+			seen = append(seen, walked{record.Data["name"].(string), record.UpdatedAt, record.ID})
 		}
 		if len(records) < 2 {
 			break
@@ -124,8 +131,18 @@ func runFilterContract(t *testing.T, db database.Executor, dialect database.Dial
 		last := records[len(records)-1]
 		query.After = &collections.Cursor{Field: collections.SortUpdatedAt, Desc: true, Value: last.UpdatedAt.UTC().Format(time.RFC3339Nano), ID: last.ID}
 	}
-	if strings.Join(seen, "") != "dcba" {
-		t.Fatalf("cursor paging saw %v, want d c b a", seen)
+	visits := map[string]int{}
+	for _, item := range seen {
+		visits[item.name]++
+	}
+	if len(seen) != 4 || visits["a"] != 1 || visits["b"] != 1 || visits["c"] != 1 || visits["d"] != 1 {
+		t.Fatalf("cursor paging must visit each record once, saw %+v", seen)
+	}
+	for i := 1; i < len(seen); i++ {
+		previous, current := seen[i-1], seen[i]
+		if current.at.After(previous.at) || (current.at.Equal(previous.at) && current.id < previous.id) {
+			t.Fatalf("cursor paging out of order at %d: %+v then %+v", i, previous, current)
+		}
 	}
 
 	// IDs load exactly the named records.
