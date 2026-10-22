@@ -51,7 +51,7 @@ func auditCommand(args []string, stdout, stderr io.Writer) error {
 		}
 		anchor = &auditstore.ChainHead{TenantID: parts[0], Seq: seq, Hash: parts[2]}
 	}
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}

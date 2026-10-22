@@ -376,7 +376,7 @@ func jobsCommand(args []string, stdout, stderr io.Writer) error {
 }
 
 func openJobsDatabase(flags *flag.FlagSet, values runtimeFlags) (config.Config, capacity.Budget, *sql.DB, error) {
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return config.Config{}, capacity.Budget{}, nil, err
 	}
@@ -427,7 +427,7 @@ func ipBanCommand(args []string, remove bool, stdout, stderr io.Writer) error {
 	if *duration < 0 || *duration > 365*24*time.Hour {
 		return errors.New("ban duration must be between zero and 365 days")
 	}
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}

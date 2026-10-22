@@ -50,7 +50,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
-		cfg, err := loadRuntimeConfig(flags, values)
+		cfg, err := loadMaintenanceConfig(flags, values)
 		if err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 			_, err = fmt.Fprintf(stdout, "portable-import-valid path=%s tables=%d\n", *path, len(document.Tables))
 			return err
 		}
-		cfg, err := loadRuntimeConfig(flags, values)
+		cfg, err := loadMaintenanceConfig(flags, values)
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if strings.TrimSpace(*destination) == "" {
 		return errors.New("--destination is required")
 	}
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ func restoreCommand(args []string, stdout, stderr io.Writer) error {
 		if strings.TrimSpace(*snapshot) == "" || strings.TrimSpace(*destination) == "" {
 			return errors.New("--snapshot and --destination are required")
 		}
-		cfg, err := loadRuntimeConfig(flags, values)
+		cfg, err := loadMaintenanceConfig(flags, values)
 		if err != nil {
 			return err
 		}

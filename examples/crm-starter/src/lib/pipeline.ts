@@ -33,7 +33,8 @@ export function totals(deals: DealLike[]): Record<string, number> {
 
 export function formatMoney(sums: Record<string, number>, lang: string): string {
   const parts = Object.entries(sums).map(([currency, value]) =>
-    new Intl.NumberFormat(lang, { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
+    // Whole amounts stay compact; cents are shown when there are any.
+    new Intl.NumberFormat(lang, { style: 'currency', currency, minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: Number.isInteger(value) ? 0 : 2 }).format(value)
   );
   return parts.length ? parts.join(' · ') : '–';
 }

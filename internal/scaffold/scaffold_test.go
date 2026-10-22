@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
@@ -84,6 +85,17 @@ func TestCreateCopiesCRMStarter(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
 			t.Errorf("missing %s: %v", rel, err)
 		}
+	}
+}
+
+func TestCRMPresetLogsAdminWrites(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "crm")
+	if _, err := Create(Options{Dir: dir, Preset: "crm"}); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, "config.yaml"))
+	if err != nil || !strings.Contains(string(body), "log_request_bodies: true") {
+		t.Fatalf("the crm config must log admin writes: %v\n%s", err, body)
 	}
 }
 
