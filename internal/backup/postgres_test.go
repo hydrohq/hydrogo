@@ -47,6 +47,26 @@ func TestPostgresDumpRestoreContract(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	// pg_dump copies every schema of a database, so the source must be a database
+	// of its own: another contract's schema on the shared one (with forced row
+	// security) would fail the dump.
+	adminDSN, err := postgresAdminDSN(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin, err := database.Open(ctx, database.Postgres, adminDSN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close()
+	sourceDB := "hydro_dump_source_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	if _, err := admin.ExecContext(ctx, "CREATE DATABASE "+sourceDB); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_, _ = admin.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+sourceDB+" WITH (FORCE)")
+	}()
+	dsn = replacePostgresDatabase(t, dsn, sourceDB)
 	source, err := database.Open(ctx, database.Postgres, dsn)
 	if err != nil {
 		t.Fatal(err)
@@ -92,22 +112,12 @@ func TestPostgresDumpRestoreContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adminDSN, err := postgresAdminDSN(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	admin, err := database.Open(ctx, database.Postgres, adminDSN)
-	if err != nil {
-		t.Fatal(err)
-	}
 	targetDB := "hydro_restore_" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	if _, err := admin.ExecContext(ctx, "CREATE DATABASE "+targetDB); err != nil {
-		admin.Close()
 		t.Fatal(err)
 	}
 	defer func() {
-		_, _ = admin.ExecContext(context.Background(), "DROP DATABASE "+targetDB)
-		_ = admin.Close()
+		_, _ = admin.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+targetDB+" WITH (FORCE)")
 	}()
 	targetURL := replacePostgresDatabase(t, dsn, targetDB)
 	staging := filepath.Join(t.TempDir(), "staging")
