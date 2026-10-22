@@ -44,3 +44,8 @@ minutes.
 Add a directory `migrations/<YYYYMMDDNNNN>_<name>/` with `migration.yaml`,
 `sqlite.sql`, `postgres.sql` and `mysql.sql`. Look at a recent one for the
 metadata format. Never edit or delete a migration that has been released.
+
+## Migrations and the baseline
+
+New databases are built from `migrations/baseline/` instead of replaying every migration (ADR 0009); migrations added after it still run from the chain. Never edit the baseline by hand: `go run ./tools/baselinegen` regenerates it and needs a PostgreSQL and a MySQL 8 account that may create databases (`HYDRO_BASELINE_POSTGRES_URL`, `HYDRO_BASELINE_MYSQL_URL`). Only regenerate when deliberately replacing it. `go test ./internal/database/...` proves it matches the chain on SQLite; set `HYDRO_TEST_POSTGRES_URL` and `HYDRO_TEST_MYSQL_URL` to include those dialects (the PostgreSQL role must not be a superuser for the tenant RLS contract).
+
