@@ -45,6 +45,25 @@ func TestMigrationAPIsNormalizeNilContext(t *testing.T) {
 	}
 }
 
+func TestCompatibilityCheckNamesTheMigrationThatIsStillPending(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "pending.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "DELETE FROM schema_migrations WHERE id = '202610210001_collection_sequences'"); err != nil {
+		t.Fatal(err)
+	}
+	err = database.CheckCompatibility(ctx, db, database.SQLite, migrations.FS)
+	if err == nil || !strings.Contains(err.Error(), "202610210001_collection_sequences has not been applied yet") || strings.Contains(err.Error(), "no rows") {
+		t.Fatalf("a pending migration must be named in plain words, got %v", err)
+	}
+}
+
 func TestSQLiteMigrationRestartAndCompatibilityContract(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "hydro.sqlite")

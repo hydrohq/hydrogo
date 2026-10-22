@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +61,20 @@ func TestTokenHandlerReusesExistingCookie(t *testing.T) {
 	}
 	if body.Token != "existing-token" {
 		t.Fatalf("expected the JSON token to echo the existing cookie, got %q", body.Token)
+	}
+}
+
+func TestCSRFRejectionUsesTheErrorEnvelope(t *testing.T) {
+	handler := CSRFMiddleware(false, nil)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("a write without a CSRF token reached the handler")
+	}))
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/admin/content/companies", nil))
+	if recorder.Code != http.StatusForbidden || !strings.HasPrefix(recorder.Header().Get("Content-Type"), "application/json") {
+		t.Fatalf("status %d, content type %q", recorder.Code, recorder.Header().Get("Content-Type"))
+	}
+	var body ErrorResponse
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil || body.Code == "" || body.Message == "" {
+		t.Fatalf("not an error envelope: %v %q", err, recorder.Body)
 	}
 }
