@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	_ "net/http/pprof"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -119,7 +118,7 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	mediaMode = fmt.Sprintf("%04o", info.Mode().Perm())
 	if *fix {
 		if info.Mode().Perm() != 0o750 {
-			if err := os.Chmod(cfg.Media.Dir, 0o750); err != nil {
+			if err := os.Chmod(cfg.Media.Dir, 0o750); err != nil { // #nosec G302 -- a directory needs the execute bit; 0750 is the access doctor --fix restores
 				return fmt.Errorf("media directory permissions: %w", err)
 			}
 			fixes = append(fixes, "media_directory_mode_0750")
@@ -247,7 +246,7 @@ func testCommand(args []string, stdout, stderr io.Writer) error {
 	commandArgs = append(commandArgs, *packagePattern)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	command := exec.CommandContext(ctx, "go", commandArgs...)
+	command := exec.CommandContext(ctx, "go", commandArgs...) // #nosec G204 -- fixed program (go); the arguments are this command's own flags, no shell
 	command.Stdout = stdout
 	command.Stderr = stderr
 	if err := command.Run(); err != nil {
@@ -594,7 +593,7 @@ func readVerifiedReleaseManifest(manifestPath, publicKeyPath string) (release.Ma
 }
 
 func readBoundedFile(path string, limit int64) ([]byte, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- operator-supplied path, read through a size limit
 	if err != nil {
 		return nil, err
 	}

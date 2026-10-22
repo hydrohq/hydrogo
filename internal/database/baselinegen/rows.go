@@ -84,7 +84,7 @@ func isBinaryColumn(dialect database.Dialect, columnType string) bool {
 
 // tableRows returns the column names and the sorted value tuples of a table.
 func tableRows(ctx context.Context, db *sql.DB, dialect database.Dialect, table string) ([]string, []string, error) {
-	rows, err := db.QueryContext(ctx, "SELECT * FROM "+quoteIdent(dialect, table))
+	rows, err := db.QueryContext(ctx, "SELECT * FROM "+quoteIdent(dialect, table)) // #nosec G202 -- the table name comes from the database catalog and is quoted
 	if err != nil {
 		return nil, nil, fmt.Errorf("read rows of %s: %w", table, err)
 	}

@@ -193,7 +193,7 @@ func (h Handler) adminImportRedirects(w http.ResponseWriter, r *http.Request) {
 		inputs = payload.Rules
 	} else {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
+		if err := r.ParseMultipartForm(1 << 20); err != nil { // #nosec G120 -- the body is capped by MaxBytesReader above
 			api.WriteError(w, r, http.StatusBadRequest, "invalid CSV upload", nil)
 			return
 		}

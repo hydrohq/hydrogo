@@ -196,5 +196,5 @@ func writeSitemap(w http.ResponseWriter, entries []site.SitemapEntry) {
 func writeSitemapData(w http.ResponseWriter, data []byte) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=300")
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) // #nosec G705 -- sitemap XML the server generated and escaped, sent as application/xml
 }

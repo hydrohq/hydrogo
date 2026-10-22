@@ -145,7 +145,7 @@ func prepare(ctx context.Context, conn *sql.Conn, migrationID string, spec Shado
 		if err := createMirrorTriggers(ctx, conn, migrationID, spec, shadowTable, sourceRowID, shadowRowID); err != nil {
 			return err
 		}
-		_, err = conn.ExecContext(ctx, `INSERT INTO `+quote(shadowStateTable)+` (migration_id, source_table, shadow_table, descriptor_checksum, phase) VALUES (?, ?, ?, ?, 'copy')`, migrationID, spec.Table, shadowTable, descriptorChecksum)
+		_, err = conn.ExecContext(ctx, `INSERT INTO `+quote(shadowStateTable)+` (migration_id, source_table, shadow_table, descriptor_checksum, phase) VALUES (?, ?, ?, ?, 'copy')`, migrationID, spec.Table, shadowTable, descriptorChecksum) // #nosec G202 -- identifiers come from the checksummed migration descriptor and are quoted; values are bound
 		return err
 	})
 }
@@ -175,7 +175,7 @@ func copyBatches(ctx context.Context, conn *sql.Conn, migrationID string, spec S
 			if err != nil {
 				return err
 			}
-			query := `SELECT ` + quote(rowID) + ` FROM ` + quote(spec.Table)
+			query := `SELECT ` + quote(rowID) + ` FROM ` + quote(spec.Table) // #nosec G202 -- identifiers come from the checksummed migration descriptor and are quoted; values are bound
 			args := []any{}
 			if hasCursor != 0 {
 				query += ` WHERE ` + quote(rowID) + `>?`
@@ -191,7 +191,7 @@ func copyBatches(ctx context.Context, conn *sql.Conn, migrationID string, spec S
 			for rows.Next() {
 				var value int64
 				if err := rows.Scan(&value); err != nil {
-					rows.Close()
+					_ = rows.Close()
 					return err
 				}
 				batch = append(batch, value)
@@ -202,14 +202,14 @@ func copyBatches(ctx context.Context, conn *sql.Conn, migrationID string, spec S
 				return rowsErr
 			}
 			if len(batch) == 0 {
-				_, err := conn.ExecContext(ctx, `UPDATE `+quote(shadowStateTable)+` SET phase='cutover' WHERE migration_id=?`, migrationID)
+				_, err := conn.ExecContext(ctx, `UPDATE `+quote(shadowStateTable)+` SET phase='cutover' WHERE migration_id=?`, migrationID) // #nosec G202 -- identifiers come from the checksummed migration descriptor and are quoted; values are bound
 				done = err == nil
 				return err
 			}
 			if err := copyBatch(ctx, conn, spec, shadowTable, rowID, shadowRowID, batch[0], batch[len(batch)-1]); err != nil {
 				return err
 			}
-			_, err = conn.ExecContext(ctx, `UPDATE `+quote(shadowStateTable)+` SET cursor_value=?, has_cursor=1 WHERE migration_id=?`, batch[len(batch)-1], migrationID)
+			_, err = conn.ExecContext(ctx, `UPDATE `+quote(shadowStateTable)+` SET cursor_value=?, has_cursor=1 WHERE migration_id=?`, batch[len(batch)-1], migrationID) // #nosec G202 -- identifiers come from the checksummed migration descriptor and are quoted; values are bound
 			return err
 		})
 		if err != nil {
@@ -234,7 +234,7 @@ func copyBatch(ctx context.Context, conn *sql.Conn, spec ShadowMigration, shadow
 	for _, column := range spec.Columns {
 		assignments = append(assignments, quote(column.Name)+"=excluded."+quote(column.Name))
 	}
-	q := `INSERT INTO ` + quote(shadowTable) + ` (` + strings.Join(columns, ",") + `) SELECT ` + strings.Join(expressions, ",") + ` FROM ` + quote(spec.Table) + ` WHERE ` + quote(sourceRowID) + ` BETWEEN ? AND ? ORDER BY ` + quote(sourceRowID) + ` ON CONFLICT(` + quote(shadowRowID) + `) DO UPDATE SET ` + strings.Join(assignments, ",")
+	q := `INSERT INTO ` + quote(shadowTable) + ` (` + strings.Join(columns, ",") + `) SELECT ` + strings.Join(expressions, ",") + ` FROM ` + quote(spec.Table) + ` WHERE ` + quote(sourceRowID) + ` BETWEEN ? AND ? ORDER BY ` + quote(sourceRowID) + ` ON CONFLICT(` + quote(shadowRowID) + `) DO UPDATE SET ` + strings.Join(assignments, ",") // #nosec G202 -- identifiers come from the checksummed migration descriptor and are quoted; values are bound
 	_, err := conn.ExecContext(ctx, q, low, high)
 	return err
 }
@@ -280,7 +280,7 @@ func cutover(ctx context.Context, conn *sql.Conn, migrationID string, spec Shado
 		if err := record(ctx, conn); err != nil {
 			return err
 		}
-		_, err = conn.ExecContext(ctx, `DELETE FROM `+quote(shadowStateTable)+` WHERE migration_id=?`, migrationID)
+		_, err = conn.ExecContext(ctx, `DELETE FROM `+quote(shadowStateTable)+` WHERE migration_id=?`, migrationID) // #nosec G202 -- identifiers come from the checksummed migration descriptor and are quoted; values are bound
 		return err
 	})
 }

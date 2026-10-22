@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +45,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if err := validatePortableOutputPath(*path); err != nil {
 			return err
 		}
-		if _, err := os.Stat(*path); err == nil {
+		if _, err := os.Stat(*path); err == nil { // #nosec G703 -- operator-supplied path from the command line, checked for symlinked directories
 			return fmt.Errorf("portable export destination already exists: %s", *path)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return err
@@ -82,17 +81,17 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		temporaryPath := temporary.Name()
 		defer os.Remove(temporaryPath)
 		if err := temporary.Chmod(0o640); err != nil {
-			temporary.Close()
+			_ = temporary.Close()
 			return fmt.Errorf("protect portable export temp file: %w", err)
 		}
 		if _, err := temporary.Write(append(data, '\n')); err != nil {
-			temporary.Close()
+			_ = temporary.Close()
 			return fmt.Errorf("write portable export: %w", err)
 		}
 		if err := temporary.Close(); err != nil {
 			return fmt.Errorf("close portable export: %w", err)
 		}
-		if err := os.Rename(temporaryPath, *path); err != nil {
+		if err := os.Rename(temporaryPath, *path); err != nil { // #nosec G703 -- operator-supplied path from the command line, checked for symlinked directories
 			return fmt.Errorf("publish portable export: %w", err)
 		}
 		_, err = fmt.Fprintf(stdout, "portable-exported path=%s tables=%d\n", *path, len(document.Tables))
@@ -107,7 +106,7 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if !*confirm && !*dryRun {
 			return errors.New("portable import requires --confirm, or use --dry-run")
 		}
-		file, err := os.Open(*path)
+		file, err := os.Open(*path) // #nosec G703 -- operator-supplied path from the command line, checked for symlinked directories
 		if err != nil {
 			return fmt.Errorf("read portable document: %w", err)
 		}
@@ -149,7 +148,7 @@ func validatePortableOutputPath(path string) error {
 	if err := pathguard.RejectSymlinkComponents(filepath.Dir(path)); err != nil {
 		return fmt.Errorf("portable export destination: %w", err)
 	}
-	if info, err := os.Lstat(path); err == nil {
+	if info, err := os.Lstat(path); err == nil { // #nosec G703 -- operator-supplied path from the command line, checked for symlinked directories
 		if info.Mode()&os.ModeSymlink != 0 {
 			return errors.New("portable export destination cannot be a symlink")
 		}
@@ -163,7 +162,7 @@ func validatePortableInputPath(path string) error {
 	if err := pathguard.RejectSymlinkComponents(filepath.Dir(path)); err != nil {
 		return fmt.Errorf("portable import source: %w", err)
 	}
-	info, err := os.Lstat(path)
+	info, err := os.Lstat(path) // #nosec G703 -- operator-supplied path from the command line, checked for symlinked directories
 	if err != nil {
 		return err
 	}
@@ -455,7 +454,7 @@ func validateSQLiteFile(path string) error {
 }
 
 func copyRegularFile(source, destination string) error {
-	input, err := os.Open(source)
+	input, err := os.Open(source) // #nosec G304 -- operator-supplied snapshot path from the backup command
 	if err != nil {
 		return err
 	}
@@ -464,7 +463,7 @@ func copyRegularFile(source, destination string) error {
 	if err != nil || !info.Mode().IsRegular() {
 		return errors.New("snapshot must be a regular file")
 	}
-	output, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	output, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) // #nosec G304 -- operator-supplied snapshot path from the backup command
 	if err != nil {
 		return err
 	}

@@ -119,7 +119,11 @@ func brandedHTML(content string, branding EmailBranding, origin string) string {
 	if name == "" {
 		name = "HydroGo"
 	}
-	header := renderEmailTemplate("header", emailHeaderData{LogoURL: logoURL, LogoAlt: branding.LegalName, Name: name, Color: template.CSS(branding.PrimaryColor)})
+	color := branding.PrimaryColor
+	if !emailColorPattern.MatchString(color) {
+		color = "#2563eb" // the value reaches an inline style, so never trust it unchecked
+	}
+	header := renderEmailTemplate("header", emailHeaderData{LogoURL: logoURL, LogoAlt: branding.LegalName, Name: name, Color: template.CSS(color)}) // #nosec G203 -- color matched emailColorPattern (six-digit hex) just above
 	lines := make([]string, 0, 4)
 	for _, value := range []string{branding.LegalName, branding.PhysicalAddress, branding.FooterText, branding.FooterNotice} {
 		if value = strings.TrimSpace(value); value != "" {

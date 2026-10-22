@@ -179,7 +179,7 @@ func (h Handler) openGraphImage(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) // #nosec G705 -- PNG bytes rendered by the server and sent as image/png (nosniff is set)
 }
 
 // writePageError maps service errors onto the API envelope: 422 with field

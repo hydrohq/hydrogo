@@ -51,7 +51,7 @@ func main() {
 }
 
 func readDependencies(path string) (map[string]map[string]bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- developer tool reading the module files it walked
 	if err != nil {
 		return nil, fmt.Errorf("read module dependencies %s: %w", path, err)
 	}

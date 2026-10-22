@@ -177,7 +177,9 @@ func (h Handler) adminImport(w http.ResponseWriter, r *http.Request) {
 		writeForbidden(w, r)
 		return
 	}
-	if err := r.ParseMultipartForm(6 << 20); err != nil {
+	// 6 MiB stay in memory; the whole upload is capped so the rest cannot fill the disk.
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<20)
+	if err := r.ParseMultipartForm(6 << 20); err != nil { // #nosec G120 -- the body is capped by MaxBytesReader above
 		api.WriteValidation(w, r, map[string]string{"file": "invalid"})
 		return
 	}

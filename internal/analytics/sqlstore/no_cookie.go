@@ -38,7 +38,7 @@ func (s Store) RecordNoCookieVisit(ctx context.Context, visit analytics.NoCookie
 		return false, err
 	}
 	defer tx.Rollback()
-	visitorQuery := `INSERT INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `) ON CONFLICT(day,tenant_id,visitor_key) DO NOTHING`
+	visitorQuery := `INSERT INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `) ON CONFLICT(day,tenant_id,visitor_key) DO NOTHING` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if s.Dialect == database.MySQL {
 		visitorQuery = `INSERT IGNORE INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (?,?,?)`
 	}
@@ -62,7 +62,7 @@ func (s Store) RecordNoCookieVisit(ctx context.Context, visit analytics.NoCookie
 		values = append(values, "("+placeholder(s.Dialect, start)+","+placeholder(s.Dialect, start+1)+","+placeholder(s.Dialect, start+2)+","+placeholder(s.Dialect, start+3)+",1)")
 		args = append(args, visit.Day, visit.TenantID, row[0], row[1])
 	}
-	query := `INSERT INTO analytics_daily_stats(day,tenant_id,metric,dimension,event_count) VALUES ` + strings.Join(values, ",") + ` ON CONFLICT(day,tenant_id,metric,dimension) DO UPDATE SET event_count=analytics_daily_stats.event_count+EXCLUDED.event_count`
+	query := `INSERT INTO analytics_daily_stats(day,tenant_id,metric,dimension,event_count) VALUES ` + strings.Join(values, ",") + ` ON CONFLICT(day,tenant_id,metric,dimension) DO UPDATE SET event_count=analytics_daily_stats.event_count+EXCLUDED.event_count` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if s.Dialect == database.SQLite {
 		query = `INSERT INTO analytics_daily_stats(day,tenant_id,metric,dimension,event_count) VALUES ` + strings.Join(values, ",") + ` ON CONFLICT(day,tenant_id,metric,dimension) DO UPDATE SET event_count=event_count+excluded.event_count`
 	} else if s.Dialect == database.MySQL {
@@ -102,16 +102,16 @@ func (s Store) PurgeNoCookieBefore(ctx context.Context, day, visitorDay string) 
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_daily_visitors WHERE day < "+placeholder(s.Dialect, 1), visitorDay); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_daily_visitors WHERE day < "+placeholder(s.Dialect, 1), visitorDay); err != nil { // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_daily_stats WHERE day < "+placeholder(s.Dialect, 1), day); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_daily_stats WHERE day < "+placeholder(s.Dialect, 1), day); err != nil { // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_form_visitors WHERE day < "+placeholder(s.Dialect, 1), visitorDay); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_form_visitors WHERE day < "+placeholder(s.Dialect, 1), visitorDay); err != nil { // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_form_daily WHERE day < "+placeholder(s.Dialect, 1), day); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_form_daily WHERE day < "+placeholder(s.Dialect, 1), day); err != nil { // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 		return err
 	}
 	return tx.Commit()

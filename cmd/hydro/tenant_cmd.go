@@ -241,7 +241,7 @@ func tenantListCommand(args []string, stdout, stderr io.Writer) error {
 
 	// Query distinct tenants in pages, users, members
 	for _, table := range []string{"pages", "users", "members"} {
-		rows, err := db.QueryContext(ctx, "SELECT DISTINCT tenant_id FROM "+table+" WHERE tenant_id <> ''")
+		rows, err := db.QueryContext(ctx, "SELECT DISTINCT tenant_id FROM "+table+" WHERE tenant_id <> ''") // #nosec G202 -- the table is one of three fixed names
 		if err != nil {
 			continue
 		}
@@ -251,7 +251,7 @@ func tenantListCommand(args []string, stdout, stderr io.Writer) error {
 				tenantsFound[tID] = true
 			}
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 
 	sortedTenants := make([]string, 0, len(tenantsFound))

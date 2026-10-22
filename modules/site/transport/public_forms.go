@@ -132,7 +132,7 @@ func (h Handler) readSubmission(w http.ResponseWriter, r *http.Request, form for
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	var parseErr error
 	if hasDocuments && strings.HasPrefix(contentType, "multipart/form-data") {
-		parseErr = r.ParseMultipartForm(1 << 20)
+		parseErr = r.ParseMultipartForm(1 << 20) // #nosec G120 -- the body is capped by MaxBytesReader above
 	} else {
 		parseErr = r.ParseForm()
 	}

@@ -170,7 +170,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 			response, err := client.Do(request)
 			if err == nil {
 				_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
-				response.Body.Close()
+				_ = response.Body.Close()
 				if response.StatusCode >= 200 && response.StatusCode < 300 {
 					delivered = true
 					break

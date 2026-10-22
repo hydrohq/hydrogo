@@ -54,7 +54,7 @@ func coreDevCommand(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
 	commandArgs := append([]string{"run", "./tools/devserver"}, args...)
-	command := exec.Command("go", commandArgs...)
+	command := exec.Command("go", commandArgs...) // #nosec G204 ,G702-- hydro dev runs go run ./tools/devserver with the developer's own flags, no shell
 	command.Stdout, command.Stderr = stdout, stderr
 	command.Dir, _ = os.Getwd()
 	return command.Run()

@@ -234,7 +234,7 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	db.SetMaxOpenConns(options.MaxOpenConns)
 	db.SetMaxIdleConns(options.MaxIdleConns)
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	switch dialect {

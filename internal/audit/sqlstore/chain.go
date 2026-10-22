@@ -135,6 +135,7 @@ type ChainReport struct {
 // that was rebuilt consistently.
 func (s Store) VerifyChain(ctx context.Context, db *sql.DB, tenantID string, anchor *ChainHead) (ChainReport, error) {
 	report := ChainReport{TenantID: tenantID}
+	// #nosec G202 -- only placeholders are concatenated; every value is bound
 	rows, err := db.QueryContext(ctx, `SELECT c.seq, c.prev_hash, c.chain_hash, c.event_id, e.id, e.action, e.target_id, e.request_id, e.actor_id, e.resource_type, e.created_at, e.before_json, e.after_json
 FROM audit_chain c LEFT JOIN audit_events e ON e.id = c.event_id WHERE c.tenant_id = `+s.placeholder(1)+` ORDER BY c.seq`, tenantID)
 	if err != nil {
@@ -184,7 +185,7 @@ FROM audit_chain c LEFT JOIN audit_events e ON e.id = c.event_id WHERE c.tenant_
 	if err := rows.Err(); err != nil {
 		return report, err
 	}
-	rows.Close()
+	_ = rows.Close()
 	var headSeq int64
 	var headHash string
 	err = db.QueryRowContext(ctx, "SELECT seq, last_hash FROM audit_chain_heads WHERE tenant_id = "+s.placeholder(1), tenantID).Scan(&headSeq, &headHash)
@@ -237,7 +238,7 @@ func (s Store) Relink(ctx context.Context, db *sql.DB, tenantID string) (int, er
 	if !first.Valid {
 		return 0, nil
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT e.id, e.action, e.target_id, e.request_id, e.actor_id, e.resource_type, e.created_at, e.before_json, e.after_json FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at >= "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id) ORDER BY e.created_at, e.id", tenantID, first.String)
+	rows, err := tx.QueryContext(ctx, "SELECT e.id, e.action, e.target_id, e.request_id, e.actor_id, e.resource_type, e.created_at, e.before_json, e.after_json FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at >= "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id) ORDER BY e.created_at, e.id", tenantID, first.String) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if err != nil {
 		return 0, err
 	}
@@ -246,7 +247,7 @@ func (s Store) Relink(ctx context.Context, db *sql.DB, tenantID string) (int, er
 		var e chainedEvent
 		var target, request, actor, resource, before, after sql.NullString
 		if err := rows.Scan(&e.ID, &e.Action, &target, &request, &actor, &resource, &e.CreatedAt, &before, &after); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return 0, err
 		}
 		e.TargetID, e.RequestID, e.ActorID, e.ResourceType, e.Before, e.After = target.String, request.String, actor.String, resource.String, before.String, after.String
@@ -255,7 +256,7 @@ func (s Store) Relink(ctx context.Context, db *sql.DB, tenantID string) (int, er
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}
-	rows.Close()
+	_ = rows.Close()
 	previous := chainEnabled.Swap(true)
 	defer chainEnabled.Store(previous)
 	for _, e := range events {

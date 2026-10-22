@@ -54,7 +54,7 @@ func main() {
 	}
 	var failures []string
 	for id := range known {
-		data, err := os.ReadFile(filepath.Join(*root, id, "migration.yaml"))
+		data, err := os.ReadFile(filepath.Join(*root, id, "migration.yaml")) // #nosec G304 -- developer tool reading the migration directory it was pointed at
 		if err != nil {
 			failures = append(failures, fmt.Sprintf("%s: metadata: %v", id, err))
 			continue

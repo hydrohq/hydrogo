@@ -397,7 +397,7 @@ func (s MobileAuthService) revoke(ctx context.Context, field string, values ...s
 	}
 	if len(values) == 2 {
 		q = `UPDATE member_mobile_device_sessions SET revoked_at = ` + s.ph(1) + ` WHERE member_id = ` + s.ph(2) + ` AND device_id = ` + s.ph(3) + ` AND revoked_at IS NULL`
-		args = append(args, values[1])
+		args = append(args, values[1]) // #nosec G602 -- guarded by len(values) == 2
 	}
 	if s.RequireTenantScope {
 		q += ` AND tenant_id = ` + s.ph(len(args)+1)

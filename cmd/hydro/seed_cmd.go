@@ -15,7 +15,6 @@ import (
 	"image/png"
 	"io"
 	"math"
-	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -575,16 +574,16 @@ func cleanDemoData(ctx context.Context, db *sql.DB, dialect database.Dialect, me
 	for rows.Next() {
 		var key string
 		if err := rows.Scan(&key); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return err
 		}
 		keys = append(keys, key)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return err
 	}
-	rows.Close()
+	_ = rows.Close()
 	for _, key := range keys {
 		if filepath.Base(key) != key {
 			return errors.New("unsafe demo media storage key")

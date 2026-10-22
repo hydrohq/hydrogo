@@ -112,7 +112,7 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 				existingMap[id] = checksum
 			}
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	var pending []string
 	pendingChecksums := make(map[string]string)
@@ -235,16 +235,16 @@ func PendingMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrati
 	for rows.Next() {
 		var id, checksum string
 		if err := rows.Scan(&id, &checksum); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		applied[id] = checksum
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 	pending := make([]string, 0)
 	for _, id := range selected {
 		content, err := fs.ReadFile(migrationFS, fmt.Sprintf("%s/%s.sql", id, dialect))
