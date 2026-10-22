@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
+	"github.com/ardaozyildirim/hydrogo/internal/testpostgres"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 )
 
@@ -139,15 +139,7 @@ func TestMySQLNoCookieDailyStatsContract(t *testing.T) {
 }
 
 func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
-	dsn := os.Getenv("HYDRO_TEST_POSTGRES_URL")
-	if dsn == "" {
-		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
-	}
-	db, err := database.Open(context.Background(), database.Postgres, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := testpostgres.Open(t)
 	if err := database.ApplyMigrations(context.Background(), db, database.Postgres, migrations.FS); err != nil {
 		t.Fatal(err)
 	}
