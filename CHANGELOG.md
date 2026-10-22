@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 ### Fixed
+- The Dependency review workflow pinned `actions/setup-go` to a commit that does not exist (one wrong character) and could not start; `tools/actionguard` now also rejects one action version pinned to two different commits.
+- `.dockerignore` skips `.cache`, so a local `docker build` no longer sends gigabytes of cached bundles.
 - PostgreSQL: webhooks and any other outbox delivery never went out; the worker could not read back the timestamps it had stored (TEXT column, Go's `String()` form). Outbox lease tests now also run on PostgreSQL and MySQL.
 - `hydro backup/restore postgres` failing on the forced row-level security of the audit tables now says to set `HYDRO_PG_PRIVILEGED_ROLE`; `docs/deployment.md` describes what that role needs.
 - Maintenance commands (migrate, rollback, db, upgrade check, backup, restore, audit, create-admin, service-account, tenant, jobs, ban) no longer need the hook and webhook secrets in their environment; `serve`, `doctor` and `validate` still do.

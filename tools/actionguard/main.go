@@ -1,5 +1,7 @@
 // Command actionguard rejects mutable GitHub Actions references in repository
-// workflows. External actions must use a full 40-character commit SHA.
+// workflows. External actions must use a full 40-character commit SHA, and the
+// same action at the same version comment must use the same SHA everywhere (a
+// one-character typo in a pin otherwise only shows when that workflow runs).
 package main
 
 import (
@@ -26,18 +28,21 @@ func checkWorkflows(root string) error {
 	if err != nil {
 		return err
 	}
+	pins := map[string]string{}
 	for _, entry := range entries {
 		if entry.IsDir() || (filepath.Ext(entry.Name()) != ".yml" && filepath.Ext(entry.Name()) != ".yaml") {
 			continue
 		}
-		if err := checkFile(filepath.Join(root, entry.Name())); err != nil {
+		if err := checkFile(filepath.Join(root, entry.Name()), pins); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkFile(path string) error {
+// checkFile validates one workflow. pins remembers, per "action # version
+// comment", the SHA and place first seen, so a differing SHA elsewhere is caught.
+func checkFile(path string, pins map[string]string) error {
 	file, err := os.Open(path) // #nosec G304 ,G703-- developer tool reading the workflow files it walked
 	if err != nil {
 		return err
@@ -64,12 +69,23 @@ func checkFile(path string) error {
 		if strings.HasPrefix(value, "./") {
 			continue
 		}
+		version := ""
 		if comment := strings.IndexByte(value, '#'); comment >= 0 {
+			version = strings.TrimSpace(value[comment+1:])
 			value = strings.TrimSpace(value[:comment])
 		}
 		at := strings.LastIndexByte(value, '@')
 		if at <= 0 || !isFullSHA(value[at+1:]) {
 			return fmt.Errorf("%s:%d: external action must use a full 40-character commit SHA", path, lineNumber)
+		}
+		if version != "" {
+			key := value[:at] + " # " + version
+			here := fmt.Sprintf("%s@%s (%s:%d)", value[:at], value[at+1:], path, lineNumber)
+			if first, seen := pins[key]; !seen {
+				pins[key] = here
+			} else if !strings.HasPrefix(first, value[:at]+"@"+value[at+1:]+" ") {
+				return fmt.Errorf("%s:%d: %s is pinned to a different commit than %s", path, lineNumber, key, first)
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
