@@ -104,6 +104,21 @@ func (a AdminAPI) runHooks(r *http.Request, definition Definition, event HookEve
 	return nil
 }
 
+// storedFields returns the stored record a delete or a state step acts on, so
+// the hook service can judge what is really being changed (a total, a status)
+// instead of only an id. It is nil when the record cannot be read; the change
+// itself then fails with its own error.
+func (a AdminAPI) storedFields(r *http.Request, definition Definition, id string) map[string]any {
+	if id == "" {
+		return nil
+	}
+	record, err := a.Service.GetRecord(r.Context(), definition.ID, id)
+	if err != nil {
+		return nil
+	}
+	return record.Data
+}
+
 func (a AdminAPI) actorOf(r *http.Request) string {
 	if a.Actor == nil {
 		return ""

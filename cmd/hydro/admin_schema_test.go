@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
 )
 
@@ -84,6 +85,14 @@ func TestAdminSchemaListsContentTypesAndModules(t *testing.T) {
 	}
 	if len(schema.Permissions) == 0 {
 		t.Fatal("permission catalog missing")
+	}
+	// The admin asks for hook services only when some are configured.
+	if schema.Modules["hooks"] {
+		t.Fatal("hooks listed without any configured")
+	}
+	app.cfg.Hooks = []config.SyncHook{{ID: "ledger"}}
+	if !app.buildAdminSchema().Modules["hooks"] {
+		t.Fatal("configured hook services are not announced to the admin")
 	}
 }
 

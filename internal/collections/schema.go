@@ -20,6 +20,8 @@ var (
 	ErrCollectionNotFound = errors.New("collection not found")
 	ErrRecordNotFound     = errors.New("record not found")
 	ErrVersionConflict    = errors.New("record was changed since it was loaded")
+	// ErrRecordInUse means other records still point at the record, so it cannot be deleted.
+	ErrRecordInUse = errors.New("record is referenced by other records")
 )
 
 const (

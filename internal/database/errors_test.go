@@ -41,3 +41,24 @@ func TestIsUniqueViolationRejectsUnrelatedErrors(t *testing.T) {
 		t.Fatal("unrelated error was classified as unique violation")
 	}
 }
+
+func TestIsForeignKeyViolationRecognizesEachDatabase(t *testing.T) {
+	for name, err := range map[string]error{
+		"PostgreSQL SQLSTATE": &pgconn.PgError{Code: "23503"},
+		"PostgreSQL RESTRICT": &pgconn.PgError{Code: "23001"},
+		"PostgreSQL message":  errors.New(`ERROR: update or delete on table "t" violates foreign key constraint "fk" on table "u"`),
+		"MySQL parent row":    errors.New("Error 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`db`.`t`, CONSTRAINT `fk`)"),
+		"MySQL child row":     errors.New("Error 1452 (23000): Cannot add or update a child row: a foreign key constraint fails"),
+		"SQLite":              errors.New("constraint failed: FOREIGN KEY constraint failed (787)"),
+	} {
+		if !IsForeignKeyViolation(err) {
+			t.Errorf("%s was not recognized as a foreign key violation", name)
+		}
+		if IsUniqueViolation(err) {
+			t.Errorf("%s was taken for a unique violation", name)
+		}
+	}
+	if IsForeignKeyViolation(errors.New("UNIQUE constraint failed: members.email")) || IsForeignKeyViolation(nil) {
+		t.Fatal("a unique failure or nil is not a foreign key violation")
+	}
+}

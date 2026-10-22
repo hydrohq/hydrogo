@@ -76,6 +76,18 @@ func TestHooksGateChanges(t *testing.T) {
 	if len(seen) != 1 || seen[0].From != "draft" || seen[0].To != "posted" || seen[0].ID != id {
 		t.Fatalf("transition event = %+v", seen)
 	}
+	// A state step and a delete are judged on the stored record, not on an id alone.
+	if seen[0].Fields["total"] != 5.0 {
+		t.Fatalf("the transition event must carry the stored record, got fields %v", seen[0].Fields)
+	}
+	seen = nil
+	answer = func(string) (int, error) { return http.StatusUnprocessableEntity, nil }
+	call(t, admin, http.MethodDelete, base+"/"+id, "")
+	call(t, admin, http.MethodPost, BatchPath, `{"operations":[{"op":"delete","type":"invoices","id":"`+id+`"}]}`)
+	if len(seen) != 2 || seen[0].On != "delete" || seen[0].Fields["total"] != 5.0 || seen[1].Fields["total"] != 5.0 {
+		t.Fatalf("delete events must carry the stored record (single and batch), got %+v", seen)
+	}
+	answer = func(string) (int, error) { return http.StatusOK, nil }
 	// No caller configured: the required hook fails closed.
 	bare := adminMux(AdminAPI{Service: service, Types: types, Authorize: allowAll})
 	if r, _ := call(t, bare, http.MethodDelete, base+"/"+id, ""); r.Code != http.StatusServiceUnavailable {

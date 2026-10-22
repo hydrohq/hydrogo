@@ -338,7 +338,7 @@ func (a AdminAPI) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r = a.withActor(r)
-	if !a.hookGuard(w, r, definition, HookEvent{On: "delete", ID: r.PathValue("id")}) {
+	if !a.hookGuard(w, r, definition, HookEvent{On: "delete", ID: r.PathValue("id"), Fields: a.storedFields(r, definition, r.PathValue("id"))}) {
 		return
 	}
 	if err := a.Service.DeleteRecord(r.Context(), definition.ID, r.PathValue("id")); err != nil {
@@ -642,7 +642,7 @@ func (a AdminAPI) state(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		from, _ := current.Data[definition.States.Field].(string)
-		if !a.hookGuard(w, r, definition, HookEvent{On: "transition", ID: id, From: from, To: input.To}) {
+		if !a.hookGuard(w, r, definition, HookEvent{On: "transition", ID: id, From: from, To: input.To, Fields: current.Data}) {
 			return
 		}
 	}
