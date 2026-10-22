@@ -207,13 +207,13 @@ FROM audit_chain c LEFT JOIN audit_events e ON e.id = c.event_id WHERE c.tenant_
 	}
 	if firstCreated != "" {
 		var unchained int64
-		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at >= "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id)", tenantID, firstCreated).Scan(&unchained); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at > "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id)", tenantID, firstCreated).Scan(&unchained); err != nil {
 			return report, err
 		}
 		if unchained > 0 {
 			problem("%d audit events written after the chain began are not in it", unchained)
 		}
-		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at < "+s.placeholder(2), tenantID, firstCreated).Scan(&report.Legacy); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at <= "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id)", tenantID, firstCreated).Scan(&report.Legacy); err != nil {
 			return report, err
 		}
 	}
@@ -238,7 +238,7 @@ func (s Store) Relink(ctx context.Context, db *sql.DB, tenantID string) (int, er
 	if !first.Valid {
 		return 0, nil
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT e.id, e.action, e.target_id, e.request_id, e.actor_id, e.resource_type, e.created_at, e.before_json, e.after_json FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at >= "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id) ORDER BY e.created_at, e.id", tenantID, first.String) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
+	rows, err := tx.QueryContext(ctx, "SELECT e.id, e.action, e.target_id, e.request_id, e.actor_id, e.resource_type, e.created_at, e.before_json, e.after_json FROM audit_events e WHERE e.tenant_id = "+s.placeholder(1)+" AND e.created_at > "+s.placeholder(2)+" AND NOT EXISTS (SELECT 1 FROM audit_chain c WHERE c.event_id = e.id) ORDER BY e.created_at, e.id", tenantID, first.String) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if err != nil {
 		return 0, err
 	}
