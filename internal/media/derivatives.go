@@ -223,7 +223,7 @@ func renderPDFCover(ctx context.Context, input, id string) (result transformResu
 			err = errors.New("PDF renderer rejected malformed input")
 		}
 	}()
-	file, err := os.Open(input)
+	file, err := os.Open(input) // #nosec G304 -- path of a stored or temporary media file the pipeline passes in, never a client file name
 	if err != nil {
 		return transformResult{}, err
 	}
@@ -292,7 +292,7 @@ func (t ffmpegTransformer) Transform(ctx context.Context, asset Asset, kind, id 
 	args = append(args, "-t", "30", "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-deadline", "good", "-cpu-used", "4", "-c:a", "libopus", "-b:a", "96k")
 	out := filepath.Join(t.storageDir, id+ext)
 	args = append(args, out)
-	if err := exec.CommandContext(ctx, t.path, args...).Run(); err != nil {
+	if err := exec.CommandContext(ctx, t.path, args...).Run(); err != nil { // #nosec G204 -- the transformer binary is the operator-configured ffmpeg; arguments are fixed flags plus stored paths, no shell
 		return transformResult{}, fmt.Errorf("media transform failed: %w", err)
 	}
 	info, err := os.Stat(out)
@@ -303,7 +303,7 @@ func (t ffmpegTransformer) Transform(ctx context.Context, asset Asset, kind, id 
 }
 
 func (t ffmpegTransformer) transformImage(ctx context.Context, input, id string) (transformResult, error) {
-	file, err := os.Open(input)
+	file, err := os.Open(input) // #nosec G304 -- path of a stored or temporary media file the pipeline passes in, never a client file name
 	if err != nil {
 		return transformResult{}, err
 	}

@@ -33,20 +33,20 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		var t table
 		var kind, persistence string
 		if err := tableRowsQuery.Scan(&t.oid, &t.name, &kind, &persistence); err != nil {
-			tableRowsQuery.Close()
+			_ = tableRowsQuery.Close()
 			return nil, err
 		}
 		if kind != "r" || persistence != "p" {
-			tableRowsQuery.Close()
+			_ = tableRowsQuery.Close()
 			return nil, fmt.Errorf("unsupported PostgreSQL relation %s (kind %s, persistence %s)", t.name, kind, persistence)
 		}
 		tables = append(tables, t)
 	}
 	if err := tableRowsQuery.Err(); err != nil {
-		tableRowsQuery.Close()
+		_ = tableRowsQuery.Close()
 		return nil, err
 	}
-	tableRowsQuery.Close()
+	_ = tableRowsQuery.Close()
 
 	var dataTables []string
 	for _, t := range tables {
@@ -59,11 +59,11 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 			var name, dataType, defaultExpr, identity, generated string
 			var notNull, customCollation bool
 			if err := columnRows.Scan(&name, &dataType, &notNull, &defaultExpr, &identity, &generated, &customCollation); err != nil {
-				columnRows.Close()
+				_ = columnRows.Close()
 				return nil, err
 			}
 			if customCollation {
-				columnRows.Close()
+				_ = columnRows.Close()
 				return nil, fmt.Errorf("%s.%s has a non-default collation; the baseline does not render it", t.name, name)
 			}
 			definition := q(name) + " " + dataType
@@ -83,10 +83,10 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 			definitions = append(definitions, definition)
 		}
 		if err := columnRows.Err(); err != nil {
-			columnRows.Close()
+			_ = columnRows.Close()
 			return nil, err
 		}
-		columnRows.Close()
+		_ = columnRows.Close()
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "table", Name: t.name, Table: t.name, SQL: "CREATE TABLE " + q(t.name) + " (\n    " + strings.Join(definitions, ",\n    ") + "\n);"})
 		dataTables = append(dataTables, t.name)
 	}
@@ -99,7 +99,7 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 	for constraintRows.Next() {
 		var tableName, name, kind, definition string
 		if err := constraintRows.Scan(&tableName, &name, &kind, &definition); err != nil {
-			constraintRows.Close()
+			_ = constraintRows.Close()
 			return nil, err
 		}
 		objectKind := "constraint"
@@ -109,10 +109,10 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: objectKind, Name: tableName + "." + name, Table: tableName, SQL: "ALTER TABLE " + q(tableName) + " ADD CONSTRAINT " + q(name) + " " + strip(definition) + ";"})
 	}
 	if err := constraintRows.Err(); err != nil {
-		constraintRows.Close()
+		_ = constraintRows.Close()
 		return nil, err
 	}
-	constraintRows.Close()
+	_ = constraintRows.Close()
 
 	// Indexes that do not back a constraint.
 	indexRows, err := db.QueryContext(ctx, `SELECT t.relname, i.relname, pg_get_indexdef(i.oid) FROM pg_index x JOIN pg_class i ON i.oid=x.indexrelid JOIN pg_class t ON t.oid=x.indrelid JOIN pg_namespace n ON n.oid=t.relnamespace WHERE n.nspname=current_schema() AND t.relname <> 'schema_migrations' AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid=x.indexrelid AND c.contype IN ('p','u','x')) ORDER BY t.relname, i.relname`)
@@ -122,16 +122,16 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 	for indexRows.Next() {
 		var tableName, name, definition string
 		if err := indexRows.Scan(&tableName, &name, &definition); err != nil {
-			indexRows.Close()
+			_ = indexRows.Close()
 			return nil, err
 		}
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "index", Name: tableName + "." + name, Table: tableName, SQL: strip(definition) + ";"})
 	}
 	if err := indexRows.Err(); err != nil {
-		indexRows.Close()
+		_ = indexRows.Close()
 		return nil, err
 	}
-	indexRows.Close()
+	_ = indexRows.Close()
 
 	// Functions.
 	functionRows, err := db.QueryContext(ctx, `SELECT p.proname, pg_get_function_identity_arguments(p.oid), pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema() AND p.prokind='f' ORDER BY p.proname, p.oid`)
@@ -141,16 +141,16 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 	for functionRows.Next() {
 		var name, args, definition string
 		if err := functionRows.Scan(&name, &args, &definition); err != nil {
-			functionRows.Close()
+			_ = functionRows.Close()
 			return nil, err
 		}
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "function", Name: name + "(" + args + ")", SQL: strings.TrimRight(strip(definition), "\n ") + ";"})
 	}
 	if err := functionRows.Err(); err != nil {
-		functionRows.Close()
+		_ = functionRows.Close()
 		return nil, err
 	}
-	functionRows.Close()
+	_ = functionRows.Close()
 
 	// Triggers.
 	triggerRows, err := db.QueryContext(ctx, `SELECT c.relname, t.tgname, pg_get_triggerdef(t.oid) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE NOT t.tgisinternal AND n.nspname=current_schema() ORDER BY c.relname, t.tgname`)
@@ -160,16 +160,16 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 	for triggerRows.Next() {
 		var tableName, name, definition string
 		if err := triggerRows.Scan(&tableName, &name, &definition); err != nil {
-			triggerRows.Close()
+			_ = triggerRows.Close()
 			return nil, err
 		}
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "trigger", Name: tableName + "." + name, Table: tableName, SQL: strip(definition) + ";"})
 	}
 	if err := triggerRows.Err(); err != nil {
-		triggerRows.Close()
+		_ = triggerRows.Close()
 		return nil, err
 	}
-	triggerRows.Close()
+	_ = triggerRows.Close()
 
 	// Row level security and its policies.
 	rlsRows, err := db.QueryContext(ctx, `SELECT c.relname, c.relforcerowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() AND c.relrowsecurity ORDER BY c.relname`)
@@ -180,7 +180,7 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		var tableName string
 		var force bool
 		if err := rlsRows.Scan(&tableName, &force); err != nil {
-			rlsRows.Close()
+			_ = rlsRows.Close()
 			return nil, err
 		}
 		statement := "ALTER TABLE " + q(tableName) + " ENABLE ROW LEVEL SECURITY;"
@@ -190,10 +190,10 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "rls", Name: tableName, Table: tableName, SQL: statement})
 	}
 	if err := rlsRows.Err(); err != nil {
-		rlsRows.Close()
+		_ = rlsRows.Close()
 		return nil, err
 	}
-	rlsRows.Close()
+	_ = rlsRows.Close()
 
 	policyRows, err := db.QueryContext(ctx, `SELECT c.relname, p.polname, p.polcmd, p.polpermissive, ARRAY_TO_STRING(ARRAY(SELECT quote_ident(r.rolname) FROM pg_roles r WHERE r.oid = ANY(p.polroles) ORDER BY r.rolname), ','), COALESCE(pg_get_expr(p.polqual,p.polrelid),''), COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),'') FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() ORDER BY c.relname, p.polname`)
 	if err != nil {
@@ -204,7 +204,7 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		var tableName, name, command, roles, using, check string
 		var permissive bool
 		if err := policyRows.Scan(&tableName, &name, &command, &permissive, &roles, &using, &check); err != nil {
-			policyRows.Close()
+			_ = policyRows.Close()
 			return nil, err
 		}
 		statement := "CREATE POLICY " + q(name) + " ON " + q(tableName)
@@ -226,10 +226,10 @@ func takePostgres(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "policy", Name: tableName + "." + name, Table: tableName, SQL: statement + ";"})
 	}
 	if err := policyRows.Err(); err != nil {
-		policyRows.Close()
+		_ = policyRows.Close()
 		return nil, err
 	}
-	policyRows.Close()
+	_ = policyRows.Close()
 
 	if err := collectRows(ctx, db, database.Postgres, dataTables, snapshot); err != nil {
 		return nil, err

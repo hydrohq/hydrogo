@@ -14,7 +14,7 @@ func stripImageMetadata(sourcePath, directory, mimeType string) (string, bool, e
 	if mimeType != "image/jpeg" && mimeType != "image/webp" {
 		return "", false, nil
 	}
-	source, err := os.Open(sourcePath)
+	source, err := os.Open(sourcePath) // #nosec G304 -- path of the temporary upload file the caller created
 	if err != nil {
 		return "", false, err
 	}

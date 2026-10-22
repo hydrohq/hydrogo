@@ -76,7 +76,7 @@ func ActivateStagingMedia(staging, active, rollback string) error {
 		_ = rollbackActivation(active, rollback, hadActive)
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(active, "RESTORE_ACTIVE.json"), append(data, '\n'), 0o640); err != nil {
+	if err := os.WriteFile(filepath.Join(active, "RESTORE_ACTIVE.json"), append(data, '\n'), 0o600); err != nil {
 		_ = rollbackActivation(active, rollback, hadActive)
 		return err
 	}
@@ -119,7 +119,7 @@ func absoluteActivationPaths(staging, active, rollback string) (string, string, 
 }
 
 func readRestoreMarker(root string) (RestoreMarker, error) {
-	file, err := os.Open(filepath.Join(root, "RESTORE_QUARANTINED.json"))
+	file, err := os.Open(filepath.Join(root, "RESTORE_QUARANTINED.json")) // #nosec G304 -- fixed file name inside the restore directory
 	if err != nil {
 		return RestoreMarker{}, fmt.Errorf("restore quarantine marker: %w", err)
 	}

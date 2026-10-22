@@ -474,7 +474,7 @@ func (s *AuthService) permissionKnown(permission string) bool {
 }
 
 func SetSessionCookie(w http.ResponseWriter, rawToken string, expiresAt time.Time, secure bool) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 		Name:     SessionCookieName,
 		Value:    rawToken,
 		Path:     "/",
@@ -486,7 +486,7 @@ func SetSessionCookie(w http.ResponseWriter, rawToken string, expiresAt time.Tim
 }
 
 func ClearSessionCookie(w http.ResponseWriter, secure bool) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 		Name:     SessionCookieName,
 		Value:    "",
 		Path:     "/",

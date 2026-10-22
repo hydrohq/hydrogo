@@ -32,7 +32,7 @@ func (s Store) RecordFormView(ctx context.Context, tenantID, formID, visitorKey 
 	}
 	defer tx.Rollback()
 	dayValue := day.UTC().Format("2006-01-02")
-	visitorQuery := `INSERT INTO analytics_form_visitors(day,tenant_id,form_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `,` + placeholder(s.Dialect, 4) + `) ON CONFLICT(day,tenant_id,form_id,visitor_key) DO NOTHING`
+	visitorQuery := `INSERT INTO analytics_form_visitors(day,tenant_id,form_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `,` + placeholder(s.Dialect, 4) + `) ON CONFLICT(day,tenant_id,form_id,visitor_key) DO NOTHING` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if s.Dialect == database.MySQL {
 		visitorQuery = `INSERT IGNORE INTO analytics_form_visitors(day,tenant_id,form_id,visitor_key) VALUES (?,?,?,?)`
 	}
@@ -50,7 +50,7 @@ func (s Store) RecordFormView(ctx context.Context, tenantID, formID, visitorKey 
 		}
 		return false, nil
 	}
-	viewQuery := `INSERT INTO analytics_form_daily(day,tenant_id,form_id,view_count,submission_count) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `,1,0) ON CONFLICT(day,tenant_id,form_id) DO UPDATE SET view_count=analytics_form_daily.view_count+1`
+	viewQuery := `INSERT INTO analytics_form_daily(day,tenant_id,form_id,view_count,submission_count) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `,1,0) ON CONFLICT(day,tenant_id,form_id) DO UPDATE SET view_count=analytics_form_daily.view_count+1` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if s.Dialect == database.SQLite {
 		viewQuery = `INSERT INTO analytics_form_daily(day,tenant_id,form_id,view_count,submission_count) VALUES (?,?,?,1,0) ON CONFLICT(day,tenant_id,form_id) DO UPDATE SET view_count=view_count+1`
 	} else if s.Dialect == database.MySQL {

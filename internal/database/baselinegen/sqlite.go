@@ -23,7 +23,7 @@ func takeSQLite(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 	for rows.Next() {
 		var e entry
 		if err := rows.Scan(&e.kind, &e.name, &e.table, &e.sql); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		if e.kind == "table" && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(e.sql)), "CREATE VIRTUAL TABLE") {
@@ -32,10 +32,10 @@ func takeSQLite(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 		entries = append(entries, e)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	isShadow := func(name string) bool {
 		for table := range virtual {

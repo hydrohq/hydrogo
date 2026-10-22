@@ -109,7 +109,7 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 	if strings.TrimSpace(specPath) == "" || strings.TrimSpace(out) == "" {
 		return nil, errors.New("OpenAPI input and output directory are required")
 	}
-	file, err := os.Open(specPath)
+	file, err := os.Open(specPath) // #nosec G304 -- operator-supplied OpenAPI document path
 	if err != nil {
 		return nil, fmt.Errorf("read OpenAPI document: %w", err)
 	}
@@ -168,13 +168,13 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 		files["dart/pubspec.yaml"] = []byte("name: hydro_sdk_client\nversion: " + sdkPackageVersion(doc.Info.Version) + "\nenvironment:\n  sdk: '>=3.2.0 <4.0.0'\n\n# Uses dart:io and the Dart standard library; no package dependencies.\n")
 	}
 	files["README.md"] = []byte("# HydroGo generated SDKs\n\nClients generated from an OpenAPI 3.1 JSON document. TypeScript uses the Fetch API; Dart includes a standard-library `dart:io` transport for Flutter native and Dart server applications. Both allow a custom transport.\n\n- TypeScript: `typescript/client.ts`\n- Dart: `dart/lib/hydro_client.dart`\n- Source contract: supplied with `--openapi`\n\nGenerated files are deterministic for a given contract and generator version.\n")
-	if err := os.MkdirAll(out, 0o755); err != nil {
+	if err := os.MkdirAll(out, 0o750); err != nil {
 		return nil, err
 	}
 	written := make([]string, 0, len(files))
 	for name, body := range files {
 		path := filepath.Join(out, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return nil, err
 		}
 		if err := writeSDKFile(path, body); err != nil {
@@ -196,7 +196,7 @@ func sdkPackageVersion(value string) string {
 }
 
 func writeSDKFile(path string, body []byte) error {
-	if err := os.WriteFile(path, body, 0o644); err != nil {
+	if err := os.WriteFile(path, body, 0o600); err != nil {
 		return err
 	}
 	return nil

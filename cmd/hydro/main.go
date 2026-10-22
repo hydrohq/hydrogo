@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"regexp"
 	"runtime"
@@ -79,11 +78,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil) // #nosec G704 -- the healthcheck URL is the operator's own (HYDRO_HEALTHCHECK_URL)
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req) // #nosec G704 -- the healthcheck URL is the operator's own (HYDRO_HEALTHCHECK_URL)
 		if err != nil {
 			return err
 		}

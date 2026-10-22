@@ -231,7 +231,7 @@ func (a *serveApp) initSite() error {
 			if openErr != nil {
 				return fmt.Errorf("open form geolocation database: %w", openErr)
 			}
-			a.onClose(func() error { geoDB.Close(); return nil })
+			a.onClose(func() error { _ = geoDB.Close(); return nil })
 			resolver.Database = geoDB
 		}
 		siteHTTP.GeoResolver = resolver

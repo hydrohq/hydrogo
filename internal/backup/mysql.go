@@ -118,10 +118,10 @@ func (t MySQLTools) run(ctx context.Context, dsn, path string, dump bool) error 
 	} else {
 		args = append(args, cfg.DBName)
 	}
-	command := exec.CommandContext(ctx, binary, args...)
+	command := exec.CommandContext(ctx, binary, args...) // #nosec G204 -- binary is the MySQL client tool located by LocateMySQLTools (HYDRO_MYSQLDUMP / HYDRO_MYSQL override); arguments are built here, no shell
 	var source *os.File
 	if !dump {
-		source, err = os.Open(absolutePath)
+		source, err = os.Open(absolutePath) // #nosec G304 -- operator-supplied dump path, made absolute above
 		if err != nil {
 			return err
 		}

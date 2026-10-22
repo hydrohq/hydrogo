@@ -251,7 +251,7 @@ func LoadDir(dir string) ([]Definition, error) {
 	definitions := make([]Definition, 0, len(paths))
 	seen := map[string]string{}
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G304 -- files found by listing the operator's content-types directory
 		if err != nil {
 			return nil, err
 		}

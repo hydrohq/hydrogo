@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/http/cgi"
+	"net/http/cgi" // #nosec G504 -- Go 1.6.3 and later ignore the Proxy request header (httpoxy); CGI is how shared hosting runs the binary
 	"net/http/fcgi"
 	"time"
 )

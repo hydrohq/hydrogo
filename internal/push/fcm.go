@@ -91,12 +91,12 @@ func (s *FCMSender) accessToken(ctx context.Context) (string, error) {
 		return "", err
 	}
 	form := url.Values{"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"}, "assertion": {assertion}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.account.TokenURI, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.account.TokenURI, strings.NewReader(form.Encode())) // #nosec G704 -- the token URI and endpoint come from the operator's service-account file and push configuration
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := s.client.Do(req)
+	response, err := s.client.Do(req) // #nosec G704 -- the token URI and endpoint come from the operator's service-account file and push configuration
 	if err != nil {
 		return "", err
 	}
@@ -125,13 +125,13 @@ func (s *FCMSender) Send(ctx context.Context, sub Subscription, message Message)
 	if endpoint == "" {
 		endpoint = "https://fcm.googleapis.com/v1"
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(endpoint, "/")+"/projects/"+url.PathEscape(s.account.ProjectID)+"/messages:send", strings.NewReader(string(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(endpoint, "/")+"/projects/"+url.PathEscape(s.account.ProjectID)+"/messages:send", strings.NewReader(string(body))) // #nosec G704 -- the token URI and endpoint come from the operator's service-account file and push configuration
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
-	response, err := s.client.Do(req)
+	response, err := s.client.Do(req) // #nosec G704 -- the token URI and endpoint come from the operator's service-account file and push configuration
 	if err != nil {
 		return err
 	}
