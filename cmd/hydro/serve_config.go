@@ -198,10 +198,20 @@ func addRuntimeFlags(flags *flag.FlagSet) runtimeFlags {
 	}
 }
 
+// loadMaintenanceConfig is loadRuntimeConfig for commands that never deliver to
+// a hook or webhook, so they do not need those secrets in their environment.
+func loadMaintenanceConfig(flags *flag.FlagSet, values runtimeFlags) (config.Config, error) {
+	return loadConfig(flags, values, true)
+}
+
 func loadRuntimeConfig(flags *flag.FlagSet, values runtimeFlags) (config.Config, error) {
+	return loadConfig(flags, values, false)
+}
+
+func loadConfig(flags *flag.FlagSet, values runtimeFlags, skipDeliverySecrets bool) (config.Config, error) {
 	set := make(map[string]bool)
 	flags.Visit(func(item *flag.Flag) { set[item.Name] = true })
-	overrides := config.Overrides{}
+	overrides := config.Overrides{SkipDeliverySecrets: skipDeliverySecrets}
 	if set["capacity-profile"] {
 		overrides.CapacityProfile = values.capacityProfile
 	}

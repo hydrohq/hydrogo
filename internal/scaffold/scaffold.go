@@ -58,6 +58,7 @@ var presets = []Preset{
 		Description:  "customer relationship management: companies, contacts, deals and activities",
 		Modules:      []string{"core", "auth", "media", "collections"},
 		ContentTypes: []string{"crm/companies", "crm/contacts", "crm/deals", "crm/activities"},
+		Config:       "audit:\n  # Who changed what: every admin write is logged with its redacted body (see the Audit screen).\n  log_request_bodies: true\n",
 	},
 	{
 		Name:         "erp-lite",
