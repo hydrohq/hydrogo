@@ -71,3 +71,8 @@ the database now and then (a ticket, a mailbox, WORM storage) and pass it as
 `--anchor`: verification then proves that the exact link you saved is still
 in the chain. MySQL is covered by statement tests only; PostgreSQL and
 SQLite are exercised with concurrent writers.
+
+## Backing up MySQL
+
+`hydro backup mysql` runs the client tools of the same family as the server: MySQL's `mysqldump` and `mysql` for a MySQL server. MariaDB's tools write the values of generated columns, which a MySQL server refuses on restore, so a backup made that way could not be restored; HydroGo stops before writing it and says so. Install the MySQL client, or point `HYDRO_MYSQLDUMP` and `HYDRO_MYSQL` at it. MariaDB tools against a MariaDB server are fine.
+

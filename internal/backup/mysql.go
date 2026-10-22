@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +29,9 @@ func SnapshotMySQL(ctx context.Context, tools MySQLTools, dsn, mediaDir, destina
 func RestoreMySQLToStaging(ctx context.Context, tools MySQLTools, dsn, source, destination string, manifest Manifest, controls RestoreControls) error {
 	return restoreDatabaseToStaging(ctx, tools, "mysql", dsn, source, destination, manifest, controls)
 }
+
+// ErrMySQLClientMismatch reports MariaDB client tools pointed at a MySQL server.
+var ErrMySQLClientMismatch = errors.New("MariaDB client tools cannot back up a MySQL server")
 
 func LocateMySQLTools() (MySQLTools, error) {
 	dump := os.Getenv("HYDRO_MYSQLDUMP")
@@ -98,6 +102,11 @@ func (t MySQLTools) run(ctx context.Context, dsn, path string, dump bool) error 
 		return err
 	}
 	defer os.Remove(optionFile)
+	if dump {
+		if err := checkMySQLClientFlavor(ctx, binary, cfg); err != nil {
+			return err
+		}
+	}
 	args := []string{"--defaults-extra-file=" + optionFile}
 	tlsArgs, err := mysqlTLSArgs(ctx, binary, cfg)
 	if err != nil {
@@ -132,19 +141,62 @@ func (t MySQLTools) run(ctx context.Context, dsn, path string, dump bool) error 
 	return nil
 }
 
-func mysqlTLSArgs(ctx context.Context, binary string, cfg *mysql.Config) ([]string, error) {
-	if cfg.TLS != nil {
-		return nil, errors.New("MySQL backup CLI cannot represent a custom TLS configuration")
-	}
+// mysqlClientVersion returns what the client binary prints for --version.
+func mysqlClientVersion(ctx context.Context, binary string) (string, error) {
 	command := exec.CommandContext(ctx, binary, "--version")
 	var output boundedCommandOutput
 	output.remaining = 1024
 	command.Stdout = &output
 	command.Stderr = &output
 	if err := command.Run(); err != nil {
-		return nil, fmt.Errorf("inspect MySQL client version: %w", err)
+		return "", fmt.Errorf("inspect MySQL client version: %w", err)
 	}
-	mariaDB := strings.Contains(strings.ToLower(output.String()), "mariadb")
+	return output.String(), nil
+}
+
+// checkMySQLClientFlavor refuses a dump that could not be restored: the MariaDB
+// dump tool writes the values of generated columns, which a MySQL server
+// rejects on restore, so the backup would look fine and fail when it is needed.
+// If the server cannot be reached the check passes and the dump reports why.
+func checkMySQLClientFlavor(ctx context.Context, binary string, cfg *mysql.Config) error {
+	clientVersion, err := mysqlClientVersion(ctx, binary)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(strings.ToLower(clientVersion), "mariadb") {
+		return nil
+	}
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return nil
+	}
+	db := sql.OpenDB(connector)
+	defer db.Close()
+	var serverVersion string
+	if err := db.QueryRowContext(ctx, "SELECT VERSION()").Scan(&serverVersion); err != nil {
+		return nil
+	}
+	return mysqlFlavorProblem(clientVersion, serverVersion)
+}
+
+func mysqlFlavorProblem(clientVersion, serverVersion string) error {
+	clientMaria := strings.Contains(strings.ToLower(clientVersion), "mariadb")
+	serverMaria := strings.Contains(strings.ToLower(serverVersion), "mariadb")
+	if clientMaria && !serverMaria {
+		return fmt.Errorf("%w: the server is MySQL %s but the client is MariaDB's; install the MySQL client tools (mysqldump) or point HYDRO_MYSQLDUMP and HYDRO_MYSQL at them", ErrMySQLClientMismatch, strings.TrimSpace(serverVersion))
+	}
+	return nil
+}
+
+func mysqlTLSArgs(ctx context.Context, binary string, cfg *mysql.Config) ([]string, error) {
+	if cfg.TLS != nil {
+		return nil, errors.New("MySQL backup CLI cannot represent a custom TLS configuration")
+	}
+	version, err := mysqlClientVersion(ctx, binary)
+	if err != nil {
+		return nil, err
+	}
+	mariaDB := strings.Contains(strings.ToLower(version), "mariadb")
 	if cfg.TLSConfig == "false" || cfg.TLSConfig == "" {
 		if mariaDB {
 			return []string{"--skip-ssl"}, nil
