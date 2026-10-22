@@ -8,6 +8,7 @@
   import BackupsSecurityTab from './tabs/BackupsSecurityTab.svelte';
   import ServicesTab from './tabs/ServicesTab.svelte';
   import { loadHookServices, type HookService } from './services';
+  import { schema } from '$lib/stores/schema.svelte';
 
   interface SystemInfo {
     version: string;
@@ -114,7 +115,7 @@
 
   async function loadData() {
     loading = true;
-    void loadHookServices().then((list) => (services = list));
+    if (schema.modules.hooks) void loadHookServices().then((list) => (services = list));
     try {
       const [infoRes, healthRes, metricsRes] = await Promise.allSettled([
         api.get<ApiResponse<SystemInfo>>('/api/v1/admin/system/info'),

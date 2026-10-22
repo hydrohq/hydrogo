@@ -9,6 +9,8 @@
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
   import JsonFieldEditor from '$lib/components/editor/JsonFieldEditor.svelte';
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
+  import RelationField from './RelationField.svelte';
+  import { isManyRelation, isRelation, relationTarget } from './relations';
 
   interface Props {
     open: boolean;
@@ -61,7 +63,10 @@
         } else if (field.kind === 'boolean') {
           initialized[key] = false;
         } else if (field.kind === 'number') {
-          initialized[key] = 0;
+          // Empty, not 0: a record whose number is unset must stay unset when saved.
+          initialized[key] = '';
+        } else if (isManyRelation(field)) {
+          initialized[key] = [];
         } else {
           initialized[key] = '';
         }
@@ -120,8 +125,10 @@
       await loadItem();
       onsaved();
     } catch (err) {
+      // The server repeats a rule's text in the message and in fields; show it once.
+      const detail = (text?: string) => (text && !(err instanceof ApiClientError && err.message.includes(text)) ? `: ${text}` : '');
       errorMessage = err instanceof ApiClientError
-        ? `${err.message}${err.fields?._rule ? `: ${err.fields._rule}` : ''}${err.fields?._state ? `: ${err.fields._state}` : ''}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`
+        ? `${err.message}${detail(err.fields?._rule)}${detail(err.fields?._state)}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`
         : t('schema.err.saveItem');
     } finally {
       saving = false;
@@ -142,10 +149,14 @@
       if (collection.fields) {
         for (const f of collection.fields) {
           const key = getFieldKey(f);
-          if (f.kind === 'number' && payload[key] !== undefined && payload[key] !== '') {
-            payload[key] = Number(payload[key]);
+          if (f.kind === 'number') {
+            if (payload[key] === '' || payload[key] === null || payload[key] === undefined) delete payload[key];
+            else payload[key] = Number(payload[key]);
           } else if (f.kind === 'boolean') {
             payload[key] = Boolean(payload[key]);
+          } else if (isRelation(f)) {
+            // Ids stay ids: a single relation is a string, a many relation a list.
+            if (payload[key] === '' || payload[key] === null || payload[key] === undefined) delete payload[key];
           } else if (typeof payload[key] === 'object' && payload[key] !== null) {
             payload[key] = JSON.stringify(payload[key]);
           }
@@ -224,6 +235,15 @@
             <div class="h-8 flex items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground" data-readonly-field={key}>
               {formData[key] === undefined || formData[key] === null || formData[key] === '' ? (isNew ? t('schema.setByServer') : '—') : String(formData[key])}
             </div>
+          {:else if isRelation(field) && relationTarget(field)}
+            <RelationField
+              id={key}
+              label={field.label || key}
+              target={relationTarget(field)}
+              many={isManyRelation(field)}
+              required={field.required}
+              bind:value={formData[key]}
+            />
           {:else if isJsonField(field, key, formData[key])}
             <JsonFieldEditor
               label={field.label || key}

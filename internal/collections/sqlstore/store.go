@@ -384,6 +384,9 @@ func (s Store) DeleteRecord(ctx context.Context, collectionID, id string) error 
 		}
 		result, err := tx.exec(ctx, `DELETE FROM hydro_collection_records WHERE tenant_id=`+tx.p(1)+` AND collection_id=`+tx.p(2)+` AND id=`+tx.p(3), tenantID, collectionID, id)
 		if err != nil {
+			if database.IsForeignKeyViolation(err) {
+				return collections.ErrRecordInUse
+			}
 			return err
 		}
 		if n, _ := result.RowsAffected(); n == 0 {

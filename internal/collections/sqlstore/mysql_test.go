@@ -12,6 +12,7 @@ func TestMySQLStaticStoreSupportsQueriesRevisionsAndTranslations(t *testing.T) {
 	testmysql.MigrateAll(t, db)
 	runStaticStoreContract(t, db, database.MySQL)
 	runQueryContract(t, db, database.MySQL)
+	runReferenceContract(t, db, database.MySQL)
 	runRevisionContract(t, db, database.MySQL)
 	runTranslationContract(t, db, database.MySQL)
 	runFilterContract(t, db, database.MySQL)
