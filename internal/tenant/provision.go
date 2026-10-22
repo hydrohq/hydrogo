@@ -219,7 +219,7 @@ func placeholder(dialect string, n int) string {
 }
 
 func upsertTenant(ctx context.Context, tx *sql.Tx, dialect string, id, locale, timezone string, now time.Time) error {
-	query := `INSERT INTO tenants (tenant_id, state, default_locale, timezone, created_at, updated_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `, ` + placeholder(dialect, 5) + `, ` + placeholder(dialect, 6) + `) ON CONFLICT(tenant_id) DO UPDATE SET updated_at = excluded.updated_at`
+	query := `INSERT INTO tenants (tenant_id, state, default_locale, timezone, created_at, updated_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `, ` + placeholder(dialect, 5) + `, ` + placeholder(dialect, 6) + `) ON CONFLICT(tenant_id) DO UPDATE SET updated_at = excluded.updated_at` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if dialect == "mysql" {
 		query = `INSERT INTO tenants (tenant_id, state, default_locale, timezone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 	}
@@ -228,7 +228,7 @@ func upsertTenant(ctx context.Context, tx *sql.Tx, dialect string, id, locale, t
 	return err
 }
 func setTenantState(ctx context.Context, tx *sql.Tx, dialect string, id, state string, now time.Time) error {
-	_, err := tx.ExecContext(ctx, `UPDATE tenants SET state = `+placeholder(dialect, 1)+`, updated_at = `+placeholder(dialect, 2)+` WHERE tenant_id = `+placeholder(dialect, 3), state, dbTime(dialect, now), id)
+	_, err := tx.ExecContext(ctx, `UPDATE tenants SET state = `+placeholder(dialect, 1)+`, updated_at = `+placeholder(dialect, 2)+` WHERE tenant_id = `+placeholder(dialect, 3), state, dbTime(dialect, now), id) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	return err
 }
 func dbTime(dialect string, value time.Time) any {
@@ -246,7 +246,7 @@ func ensureDefaults(ctx context.Context, tx *sql.Tx, dialect string, tenantID, l
 	defaults[0].Value, defaults[1].Value = locale, timezone
 	inserted := 0
 	for _, item := range defaults {
-		query := `INSERT INTO site_settings (tenant_id, key, value, is_public, updated_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `, ` + placeholder(dialect, 5) + `) ON CONFLICT(tenant_id, key) DO NOTHING`
+		query := `INSERT INTO site_settings (tenant_id, key, value, is_public, updated_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `, ` + placeholder(dialect, 5) + `) ON CONFLICT(tenant_id, key) DO NOTHING` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 		if dialect == "mysql" {
 			query = "INSERT IGNORE INTO site_settings (tenant_id, `key`, `value`, is_public, updated_at) VALUES (?, ?, ?, ?, ?)"
 		}
@@ -273,7 +273,7 @@ func ensureDefaults(ctx context.Context, tx *sql.Tx, dialect string, tenantID, l
 
 func ensureAdmin(ctx context.Context, tx *sql.Tx, dialect string, request ProvisionRequest, now time.Time) (bool, error) {
 	var count int
-	query := `SELECT COUNT(*) FROM users WHERE tenant_id = ` + placeholder(dialect, 1) + ` AND email = ` + placeholder(dialect, 2)
+	query := `SELECT COUNT(*) FROM users WHERE tenant_id = ` + placeholder(dialect, 1) + ` AND email = ` + placeholder(dialect, 2) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if err := tx.QueryRowContext(ctx, query, request.TenantID, request.AdminEmail).Scan(&count); err != nil {
 		return false, err
 	}
@@ -298,7 +298,7 @@ func recordSystemAudit(ctx context.Context, db *sql.DB, dialect string, tenantID
 	if err != nil {
 		return err
 	}
-	query := `INSERT INTO tenant_system_audit (id, tenant_id, action, created_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `)`
+	query := `INSERT INTO tenant_system_audit (id, tenant_id, action, created_at) VALUES (` + placeholder(dialect, 1) + `, ` + placeholder(dialect, 2) + `, ` + placeholder(dialect, 3) + `, ` + placeholder(dialect, 4) + `)` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	_, err = db.ExecContext(ctx, query, id, tenantID, action, dbTime(dialect, time.Now().UTC()))
 	return err
 }
@@ -327,13 +327,13 @@ func BackfillActiveTenants(ctx context.Context, db *sql.DB, dialect string, dryR
 	for rows.Next() {
 		var current activeTenant
 		if err := rows.Scan(&current.id, &current.locale, &current.timezone); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		active = append(active, current)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
 	if err := rows.Close(); err != nil {

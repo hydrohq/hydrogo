@@ -109,7 +109,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if client == nil {
 		client = http.DefaultClient
 	}
-	response, err := client.Do(coreRequest)
+	response, err := client.Do(coreRequest) // #nosec G704 -- the upstream is the operator-configured core address; only the request path is forwarded
 	if err != nil {
 		http.Error(w, "upstream unavailable", http.StatusBadGateway)
 		return

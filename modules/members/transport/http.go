@@ -254,7 +254,7 @@ func (h Handler) issueSession(w http.ResponseWriter, r *http.Request, m *members
 		http.Error(w, "authentication unavailable", 503)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: token, Path: "/", Expires: s.ExpiresAt, HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: token, Path: "/", Expires: s.ExpiresAt, HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	w.Header().Set("Cache-Control", "no-store")
 
 	if returnTo == "" {
@@ -266,7 +266,7 @@ func (h Handler) issueSession(w http.ResponseWriter, r *http.Request, m *members
 	returnTo = security.SafeReturnPath(returnTo, "/member/account")
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"authenticated": true,
 		"redirect":      returnTo,
 		"member":        map[string]any{"id": m.ID, "email": m.Email},
@@ -278,7 +278,7 @@ func (h Handler) logout(w http.ResponseWriter, r *http.Request) {
 	if cookie != nil {
 		_ = h.Service.Revoke(r.Context(), cookie.Value)
 	}
-	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -293,7 +293,7 @@ func (h Handler) me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", 401)
 		return
 	}
-	json.NewEncoder(w).Encode(m)
+	_ = json.NewEncoder(w).Encode(m)
 }
 
 func (h Handler) verifyMemberEmail(w http.ResponseWriter, r *http.Request) {

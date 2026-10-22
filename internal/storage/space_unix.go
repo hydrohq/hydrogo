@@ -11,5 +11,5 @@ func AvailableBytes(path string) (uint64, error) {
 	if err := unix.Statfs(path, &stat); err != nil {
 		return 0, err
 	}
-	return stat.Bavail * uint64(stat.Bsize), nil
+	return stat.Bavail * uint64(stat.Bsize), nil // #nosec G115 -- a filesystem block size is positive
 }

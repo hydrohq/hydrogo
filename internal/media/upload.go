@@ -215,7 +215,7 @@ func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilenam
 		return nil, fmt.Errorf("failed to create temp upload file: %w", err)
 	}
 	defer func() {
-		tempFile.Close()
+		_ = tempFile.Close()
 		_ = os.Remove(tempFile.Name()) // remove if not renamed
 	}()
 
@@ -256,7 +256,7 @@ func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilenam
 			_ = os.Remove(sanitizedPath)
 			return nil, err
 		}
-		tempFile, err = os.OpenFile(originalPath, os.O_RDWR, 0)
+		tempFile, err = os.OpenFile(originalPath, os.O_RDWR, 0) // #nosec G304 -- path of a temporary file this upload created (os.CreateTemp) or just stored
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilenam
 				_ = os.Remove(sanitizedPath)
 				return nil, err
 			}
-			tempFile, err = os.OpenFile(originalPath, os.O_RDWR, 0)
+			tempFile, err = os.OpenFile(originalPath, os.O_RDWR, 0) // #nosec G304 -- path of a temporary file this upload created (os.CreateTemp) or just stored
 			if err != nil {
 				return nil, err
 			}
@@ -438,7 +438,7 @@ func validateImageDimensions(width, height int, maxPixels int64) error {
 }
 
 func fileSHA256(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- path of a temporary file this upload created (os.CreateTemp) or just stored
 	if err != nil {
 		return "", err
 	}

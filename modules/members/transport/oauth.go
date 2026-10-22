@@ -50,10 +50,10 @@ func (h OAuthHandler) callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "social login could not be completed", http.StatusInternalServerError)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: token, Path: "/", Expires: session.ExpiresAt, HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: token, Path: "/", Expires: session.ExpiresAt, HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	w.Header().Set("Cache-Control", "no-store")
 	if h.Audit != nil {
 		_ = h.Audit.Record(r.Context(), "member.oauth.login", member.ID)
 	}
-	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+	http.Redirect(w, r, returnTo, http.StatusSeeOther) // #nosec G710 -- returnTo was cleaned by safeOAuthReturnTo and travels in the HMAC-signed state cookie
 }

@@ -53,7 +53,7 @@ func (r *OGRenderer) Render(input OGInput) ([]byte, error) {
 		return data, nil
 	}
 	if r.CacheDir != "" {
-		if data, err := os.ReadFile(filepath.Join(r.CacheDir, name+".png")); err == nil && len(data) <= 2<<20 {
+		if data, err := os.ReadFile(filepath.Join(r.CacheDir, name+".png")); err == nil && len(data) <= 2<<20 { // #nosec G304 -- name is the hex SHA-256 of the input, so it cannot contain a path
 			r.remember(name, data)
 			return data, nil
 		}
@@ -204,7 +204,7 @@ func boundedText(value string, max int) string {
 func utf8Valid(value string) bool { return strings.ToValidUTF8(value, "") == value }
 
 func writeCacheFile(dir, name string, data []byte) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	temporary, err := os.CreateTemp(dir, ".og-*.tmp")

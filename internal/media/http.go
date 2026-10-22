@@ -135,7 +135,7 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 		defer object.Close()
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Content-Type", mimeType)
-		io.Copy(w, object)
+		_, _ = io.Copy(w, object)
 		return
 	}
 	path := filepath.Join(h.Service.Uploader.StorageDir, filepath.Base(storageKey))

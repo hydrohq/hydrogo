@@ -48,13 +48,13 @@ func MaintenanceMiddleware(config MaintenanceConfig) func(http.Handler) http.Han
 			if enabled && config.PreviewKey != nil {
 				key := r.URL.Query().Get("preview_key")
 				if config.PreviewKey(r, key) && key != "" {
-					http.SetCookie(w, &http.Cookie{Name: maintenancePreviewCookie, Value: key, Path: "/", HttpOnly: true, Secure: config.SecureCookie, SameSite: http.SameSiteStrictMode, Expires: time.Now().Add(4 * time.Hour), MaxAge: 4 * 60 * 60})
+					http.SetCookie(w, &http.Cookie{Name: maintenancePreviewCookie, Value: key, Path: "/", HttpOnly: true, Secure: config.SecureCookie, SameSite: http.SameSiteStrictMode, Expires: time.Now().Add(4 * time.Hour), MaxAge: 4 * 60 * 60}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 					cleanURL := *r.URL
 					query := cleanURL.Query()
 					query.Del("preview_key")
 					cleanURL.RawQuery = query.Encode()
 					w.Header().Set("Cache-Control", "no-store")
-					http.Redirect(w, r, cleanURL.String(), http.StatusSeeOther)
+					http.Redirect(w, r, cleanURL.String(), http.StatusSeeOther) // #nosec G710 -- redirects to the request's own path and query with preview_key removed
 					return
 				}
 				if cookie, err := r.Cookie(maintenancePreviewCookie); err == nil && config.PreviewKey(r, cookie.Value) {

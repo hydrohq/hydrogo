@@ -274,7 +274,7 @@ func (l *Log) validatePath() error {
 }
 
 func readRecords(path string) ([]record, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- path of the erasure log the operator configured
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}

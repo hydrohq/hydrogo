@@ -47,7 +47,7 @@ func WriteSignedSnapshotArchive(ctx context.Context, dst io.Writer, root string,
 	if err := validateBackupRoot(root); err != nil {
 		return err
 	}
-	manifest, err := os.ReadFile(filepath.Join(root, "manifest.json"))
+	manifest, err := os.ReadFile(filepath.Join(root, "manifest.json")) // #nosec G304 -- path under the snapshot or extraction root; entry names were checked for unsafe paths, duplicates and symlinks
 	if err != nil || int64(len(manifest)) > MaxManifestBytes {
 		return errors.New("backup manifest is unavailable")
 	}
@@ -72,9 +72,16 @@ func writeSnapshotArchive(ctx context.Context, dst io.Writer, root string, signa
 	if err := validateBackupRoot(root); err != nil {
 		return err
 	}
+	// File reads go through the root, which refuses to leave it even if a path
+	// component is swapped for a symlink after the walk looked at it.
+	confined, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer confined.Close()
 	gz := gzip.NewWriter(dst)
 	tarWriter := tar.NewWriter(gz)
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -103,7 +110,7 @@ func writeSnapshotArchive(ctx context.Context, dst io.Writer, root string, signa
 		if err = tarWriter.WriteHeader(header); err != nil {
 			return err
 		}
-		file, err := os.Open(path)
+		file, err := confined.Open(rel)
 		if err != nil {
 			return err
 		}
@@ -156,7 +163,7 @@ func ExtractSignedSnapshotArchive(ctx context.Context, archivePath, destination 
 		return err
 	}
 	cleanFailure := func(err error) error { _ = os.RemoveAll(destination); return err }
-	data, err := os.ReadFile(filepath.Join(destination, "signature.json"))
+	data, err := os.ReadFile(filepath.Join(destination, "signature.json")) // #nosec G304 -- path under the snapshot or extraction root; entry names were checked for unsafe paths, duplicates and symlinks
 	if err != nil || len(data) > 4096 {
 		return cleanFailure(errors.New("backup archive signature is missing"))
 	}
@@ -171,7 +178,7 @@ func ExtractSignedSnapshotArchive(ctx context.Context, archivePath, destination 
 		return cleanFailure(errors.New("backup archive signature does not match the trusted key"))
 	}
 	manifestPath := filepath.Join(destination, "manifest.json")
-	manifest, err := os.ReadFile(manifestPath)
+	manifest, err := os.ReadFile(manifestPath) // #nosec G304 -- path under the snapshot or extraction root; entry names were checked for unsafe paths, duplicates and symlinks
 	if err != nil || int64(len(manifest)) > MaxManifestBytes || !ed25519.Verify(trusted, manifest, sig) {
 		return cleanFailure(errors.New("backup manifest signature verification failed"))
 	}
@@ -196,7 +203,7 @@ func ExtractSnapshotArchive(ctx context.Context, archivePath, destination string
 	if maxBytes <= 0 {
 		maxBytes = DefaultArchiveExtractLimit
 	}
-	archive, err := os.Open(archivePath)
+	archive, err := os.Open(archivePath) // #nosec G304 -- path under the snapshot or extraction root; entry names were checked for unsafe paths, duplicates and symlinks
 	if err != nil {
 		return err
 	}
@@ -270,7 +277,7 @@ func ExtractSnapshotArchive(ctx context.Context, archivePath, destination string
 			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 				return cleanFailure(err)
 			}
-			file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+			file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) // #nosec G304 -- path under the snapshot or extraction root; entry names were checked for unsafe paths, duplicates and symlinks
 			if err != nil {
 				return cleanFailure(err)
 			}

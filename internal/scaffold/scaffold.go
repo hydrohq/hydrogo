@@ -131,13 +131,13 @@ func copyStarter(name, dir string) error {
 		}
 		target := filepath.Join(dir, filepath.FromSlash(path))
 		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return os.MkdirAll(target, 0o755) // #nosec G301 -- project directory; the service account may differ from the author
 		}
 		data, readErr := fs.ReadFile(source, path)
 		if readErr != nil {
 			return readErr
 		}
-		return os.WriteFile(target, data, 0o644)
+		return os.WriteFile(target, data, 0o644) // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
 	})
 }
 
@@ -170,10 +170,10 @@ func Create(opts Options) (Preset, error) {
 			return Preset{}, fmt.Errorf("%s already exists in %s; refusing to overwrite", existing, opts.Dir)
 		}
 	}
-	if err := os.MkdirAll(filepath.Join(opts.Dir, "content-types"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(opts.Dir, "content-types"), 0o755); err != nil { // #nosec G301 -- project directory; the service account may differ from the author
 		return Preset{}, err
 	}
-	if err := os.MkdirAll(filepath.Join(opts.Dir, "data"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(opts.Dir, "data"), 0o755); err != nil { // #nosec G301 -- project directory; the service account may differ from the author
 		return Preset{}, err
 	}
 	for _, id := range preset.ContentTypes {
@@ -182,7 +182,7 @@ func Create(opts Options) (Preset, error) {
 		if readErr != nil {
 			return Preset{}, fmt.Errorf("preset %s: content type %s: %w", preset.Name, id, readErr)
 		}
-		if err := os.WriteFile(filepath.Join(opts.Dir, "content-types", id+".yaml"), data, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(opts.Dir, "content-types", id+".yaml"), data, 0o644); err != nil { // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
 			return Preset{}, err
 		}
 	}
@@ -196,7 +196,7 @@ func Create(opts Options) (Preset, error) {
 		if _, statErr := os.Stat(path); statErr == nil && name != "config.yaml" {
 			continue // keep an existing README / .gitignore
 		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil { // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
 			return Preset{}, err
 		}
 	}

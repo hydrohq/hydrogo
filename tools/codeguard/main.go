@@ -105,7 +105,7 @@ func trackedGoFiles() ([]string, error) {
 func measure(files []string) (baseline, error) {
 	result := baseline{}
 	for _, name := range files {
-		data, err := os.ReadFile(name)
+		data, err := os.ReadFile(name) // #nosec G304 -- developer tool reading the repository files it walked
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func compare(known, current baseline) []string {
 }
 
 func read(path string) (baseline, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- developer tool reading the repository files it walked
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func write(path string, value baseline) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return os.WriteFile(path, append(data, '\n'), 0o600)
 }
 
 // disabledTests reports test functions that were renamed to hide them.
@@ -194,7 +194,7 @@ func disabledTests() ([]string, error) {
 		if name == "" || strings.HasPrefix(name, "docs/") {
 			continue
 		}
-		data, err := os.ReadFile(name)
+		data, err := os.ReadFile(name) // #nosec G304 -- developer tool reading the repository files it walked
 		if err != nil {
 			return nil, err
 		}

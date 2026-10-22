@@ -116,10 +116,10 @@ func ConsentHandler(store ConsentStore, secure bool) http.Handler {
 			return
 		}
 		w.Header().Set("Cache-Control", "private, no-store")
-		http.SetCookie(w, &http.Cookie{Name: ConsentCookie, Value: id, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
-		http.SetCookie(w, &http.Cookie{Name: PurposeCookie, Value: DefaultPurpose, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})
+		http.SetCookie(w, &http.Cookie{Name: ConsentCookie, Value: id, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000})             // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
+		http.SetCookie(w, &http.Cookie{Name: PurposeCookie, Value: DefaultPurpose, Path: "/", HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode, MaxAge: 31536000}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 		if returnTo := safeConsentReturnPath(r.FormValue("return_to")); returnTo != "" {
-			http.Redirect(w, r, returnTo, http.StatusSeeOther)
+			http.Redirect(w, r, returnTo, http.StatusSeeOther) // #nosec G710 -- return_to passes safeConsentReturnPath: a same-site absolute path only
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

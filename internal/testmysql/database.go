@@ -41,7 +41,7 @@ func Open(t *testing.T) *sql.DB {
 	}
 	quoted := "`" + databaseName + "`"
 	if _, err := admin.ExecContext(context.Background(), "CREATE DATABASE "+quoted+" CHARACTER SET utf8mb4"); err != nil {
-		admin.Close()
+		_ = admin.Close()
 		t.Fatalf("create MySQL test database: %v", err)
 	}
 	t.Cleanup(func() {

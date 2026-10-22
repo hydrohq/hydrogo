@@ -112,7 +112,7 @@ func projectDevCommand(args []string, stdout, stderr io.Writer) error {
 	processes = append(processes, services...)
 	results := make(chan error, len(processes))
 	for _, process := range processes {
-		command := exec.CommandContext(ctx, process.argv[0], process.argv[1:]...)
+		command := exec.CommandContext(ctx, process.argv[0], process.argv[1:]...) // #nosec G204 -- the processes are the ones the developer named with hydro dev --service, no shell
 		command.Stdout = &prefixWriter{mu: &mu, out: stdout, prefix: "[" + process.name + "]"}
 		command.Stderr = &prefixWriter{mu: &mu, out: stderr, prefix: "[" + process.name + "]"}
 		command.Cancel = func() error {

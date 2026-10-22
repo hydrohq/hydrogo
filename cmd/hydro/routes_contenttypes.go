@@ -102,13 +102,13 @@ func (a *serveApp) adminCreateContentType(w http.ResponseWriter, r *http.Request
 	if dir == "" {
 		dir = "content-types"
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- content-types directory of the project
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to prepare content types directory", nil)
 		return
 	}
 
 	filePath := filepath.Join(dir, def.ID+".yaml")
-	if err := os.WriteFile(filePath, yamlBytes, 0o644); err != nil {
+	if err := os.WriteFile(filePath, yamlBytes, 0o644); err != nil { // #nosec G306 -- content type definition: a project source file with no secrets
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to write definition file", nil)
 		return
 	}
@@ -152,7 +152,7 @@ func (a *serveApp) adminDeleteContentType(w http.ResponseWriter, r *http.Request
 		dir = "content-types"
 	}
 	filePath := filepath.Join(dir, id+".yaml")
-	if err := os.Remove(filePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := os.Remove(filePath); err != nil && !errors.Is(err, os.ErrNotExist) { // #nosec G703 -- id equals the ID of an already loaded content type
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to delete definition file", nil)
 		return
 	}

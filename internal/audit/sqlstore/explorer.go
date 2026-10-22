@@ -50,7 +50,7 @@ func (s Store) Explore(ctx context.Context, filter ExplorerFilter) (ExplorerResu
 	}
 	limitArg := next
 	offsetArg := next + 1
-	query := "SELECT a.id, a.actor_id, COALESCE(u.email, ''), a.action, a.target_id, a.resource_type, a.created_at, COALESCE(a.request_id, ''), a.before_json, a.after_json FROM audit_events a LEFT JOIN users u ON u.id = a.actor_id" + where + " ORDER BY a.created_at DESC, a.id DESC LIMIT " + s.placeholder(limitArg) + " OFFSET " + s.placeholder(offsetArg)
+	query := "SELECT a.id, a.actor_id, COALESCE(u.email, ''), a.action, a.target_id, a.resource_type, a.created_at, COALESCE(a.request_id, ''), a.before_json, a.after_json FROM audit_events a LEFT JOIN users u ON u.id = a.actor_id" + where + " ORDER BY a.created_at DESC, a.id DESC LIMIT " + s.placeholder(limitArg) + " OFFSET " + s.placeholder(offsetArg) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	queryArgs := append(append([]any(nil), args...), filter.Limit, filter.Offset)
 	rows, err := s.DB.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
