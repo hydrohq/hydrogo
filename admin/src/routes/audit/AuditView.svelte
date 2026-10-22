@@ -2,6 +2,7 @@
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
+  import { schema } from '$lib/stores/schema.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
@@ -121,6 +122,8 @@
   }
 
   async function loadNotFound() {
+    // The 404 log belongs to the site module; without it there is nothing to ask.
+    if (!schema.modules.site) return;
     notFoundLoading = true;
     try {
       const res = await api.get<ApiResponse<NotFoundHit[]>>('/api/v1/admin/site/not-found?limit=200');
