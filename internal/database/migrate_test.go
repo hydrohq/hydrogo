@@ -349,7 +349,9 @@ func sqlFSReadDir(fsys fs.ReadDirFS) ([]fs.DirEntry, error) {
 	return fsys.ReadDir(".")
 }
 
-func TestEnablingPagesOnACoreCreatedDatabaseIsRejectedBeforeAnySQL(t *testing.T) {
+// Without the baseline (the chain alone) the pages migrations collide with the
+// audit and outbox tables core created, and the runner says so before any SQL.
+func TestEnablingPagesOnACoreCreatedDatabaseWithTheChainAloneIsRejectedBeforeAnySQL(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-then-pages.sqlite"))
 	if err != nil {
@@ -363,7 +365,7 @@ func TestEnablingPagesOnACoreCreatedDatabaseIsRejectedBeforeAnySQL(t *testing.T)
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&before); err != nil {
 		t.Fatal(err)
 	}
-	err = database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"pages": true})
+	err = database.ApplyMigrationsForModules(ctx, db, database.SQLite, database.ChainOnly(migrations.FS), map[string]bool{"pages": true})
 	if !errors.Is(err, database.ErrPagesNeedsFreshDatabase) {
 		t.Fatalf("err = %v, want ErrPagesNeedsFreshDatabase", err)
 	}
@@ -388,5 +390,28 @@ func TestEnablingPagesOnAFreshDatabaseStillWorks(t *testing.T) {
 	}
 	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"pages": true}); err != nil {
 		t.Fatalf("second run must be a no-op: %v", err)
+	}
+}
+
+// With the baseline the same step works: the pages group is applied as a unit.
+func TestEnablingPagesOnACoreCreatedDatabaseWorksWithTheBaseline(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-then-pages-baseline.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"pages": true}); err != nil {
+		t.Fatalf("enabling pages later: %v", err)
+	}
+	var tables int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pages'").Scan(&tables); err != nil {
+		t.Fatal(err)
+	}
+	if tables != 1 {
+		t.Fatal("the pages table was not created")
 	}
 }
