@@ -62,6 +62,8 @@ export interface SelectOption {
 
 export interface FieldRelation {
   collection: string;
+  /** "one" or "many", as the server sends it. */
+  cardinality?: 'one' | 'many';
   many?: boolean;
 }
 

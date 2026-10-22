@@ -232,6 +232,8 @@ func serviceFailure(err error, schema collections.Schema) (int, string, map[stri
 		return http.StatusBadRequest, "transition not allowed", nil
 	case errors.Is(err, collections.ErrVersionConflict):
 		return http.StatusConflict, "the record was changed by someone else", nil
+	case errors.Is(err, collections.ErrRecordInUse):
+		return http.StatusConflict, "other records still refer to this one; remove or change them first", nil
 	case errors.Is(err, collections.ErrUniqueValue):
 		fields := map[string]string{}
 		for _, field := range schema.Fields {
