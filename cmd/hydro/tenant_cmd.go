@@ -48,7 +48,7 @@ func tenantValidateCommand(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
 
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		if strings.Contains(err.Error(), "database DSN is required") && (values.configPath == nil || *values.configPath == "") {
 			if *jsonOutput {
@@ -147,7 +147,7 @@ func tenantBackfillCommand(args []string, stdout, stderr io.Writer) error {
 		return errors.New("tenant backfill requires either --dry-run or --confirm")
 	}
 
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func tenantListCommand(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
 
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}

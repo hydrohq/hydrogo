@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messages } from '$lib/i18n';
+  import { dealCount, messages } from '$lib/i18n';
   import { formatMoney, isOverdue } from '$lib/pipeline';
   let { data } = $props();
   const t = $derived(messages[data.lang]);
@@ -10,8 +10,8 @@
 <main class="page">
   <h1>{t.dashboard}</h1>
   <div class="cards">
-    <div class="card"><div class="muted">{t.openPipeline}</div><div class="big">{formatMoney(data.openTotals, data.lang)}</div><div class="muted">{data.openCount} {t.deals.toLowerCase()}</div></div>
-    <div class="card"><div class="muted">{t.wonThisPeriod}</div><div class="big">{formatMoney(data.wonTotals, data.lang)}</div><div class="muted">{data.wonCount} {t.deals.toLowerCase()}</div></div>
+    <div class="card"><div class="muted">{t.openPipeline}</div><div class="big">{formatMoney(data.openTotals, data.lang)}</div><div class="muted">{dealCount(t, data.openCount)}</div></div>
+    <div class="card"><div class="muted">{t.wonThisPeriod}</div><div class="big">{formatMoney(data.wonTotals, data.lang)}</div><div class="muted">{dealCount(t, data.wonCount)}</div></div>
   </div>
   <h2>{t.dueToday}</h2>
   {#if data.due.length === 0}

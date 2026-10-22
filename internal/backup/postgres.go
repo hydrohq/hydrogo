@@ -308,9 +308,23 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 	command.Stderr = &output
 	err = command.Run()
 	if err != nil {
-		return fmt.Errorf("%s failed: %w: %s", operation, err, strings.TrimSpace(output.String()))
+		return fmt.Errorf("%s failed: %w: %s%s", operation, err, strings.TrimSpace(output.String()), privilegeHint(output.String(), t.PrivilegedRole))
 	}
 	return nil
+}
+
+// privilegeHint explains the usual cause when pg_dump or pg_restore is refused:
+// the audit tables use forced row-level security, so a plain application role
+// can neither dump nor restore them.
+func privilegeHint(output, role string) string {
+	if strings.TrimSpace(role) != "" {
+		return ""
+	}
+	lower := strings.ToLower(output)
+	if !strings.Contains(lower, "row-level security") && !strings.Contains(lower, "permission denied") {
+		return ""
+	}
+	return "\nhint: set HYDRO_PG_PRIVILEGED_ROLE to a role the database user may SET ROLE to, one that bypasses row-level security and can read (backup) or create and write (restore) every table, e.g. a role with BYPASSRLS plus pg_read_all_data for backups"
 }
 
 func escapePGPassField(field string) (string, error) {

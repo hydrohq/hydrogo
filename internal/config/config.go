@@ -233,6 +233,10 @@ type Overrides struct {
 	DatabaseDialect *string
 	DatabaseDSN     *string
 	SafeMode        *bool
+	// SkipDeliverySecrets lets commands that never call a hook or webhook
+	// (migrate, backup, create-admin, ...) run without the secrets those
+	// integrations read from the environment.
+	SkipDeliverySecrets bool
 }
 
 func (c Config) PasswordResetDuration() time.Duration {

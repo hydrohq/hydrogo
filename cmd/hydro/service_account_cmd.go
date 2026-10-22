@@ -55,7 +55,7 @@ func serviceAccountCommand(args []string, stdout, stderr io.Writer) error {
 	if *expiresDays < 1 || *expiresDays > 365 {
 		return errors.New("--expires-days must be between 1 and 365")
 	}
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}

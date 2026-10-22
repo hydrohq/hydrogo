@@ -56,7 +56,7 @@ func tenantProvisionCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 		return fmt.Errorf("hash initial administrator password: %w", err)
 	}
 
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}

@@ -78,3 +78,20 @@ func TestCSRFRejectionUsesTheErrorEnvelope(t *testing.T) {
 		t.Fatalf("not an error envelope: %v %q", err, recorder.Body)
 	}
 }
+
+func TestCSRFRefusesWritesThatAnotherSiteStarted(t *testing.T) {
+	handler := CSRFMiddleware(false, nil)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	for site, want := range map[string]int{"cross-site": http.StatusForbidden, "same-origin": http.StatusNoContent, "same-site": http.StatusNoContent, "none": http.StatusNoContent, "": http.StatusNoContent} {
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/content/companies", nil)
+		request.AddCookie(&http.Cookie{Name: CSRFCookieName, Value: "token-value"})
+		request.Header.Set(CSRFHeaderName, "token-value")
+		if site != "" {
+			request.Header.Set("Sec-Fetch-Site", site)
+		}
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != want {
+			t.Fatalf("Sec-Fetch-Site %q with a valid token: %d, want %d", site, recorder.Code, want)
+		}
+	}
+}

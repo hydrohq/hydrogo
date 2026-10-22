@@ -39,7 +39,7 @@ func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error
 		return errors.New("admin password cannot be empty")
 	}
 
-	cfg, err := loadRuntimeConfig(flags, values)
+	cfg, err := loadMaintenanceConfig(flags, values)
 	if err != nil {
 		return err
 	}
