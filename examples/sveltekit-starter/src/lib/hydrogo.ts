@@ -21,8 +21,13 @@ export class HydroGoError extends Error {
   }
 }
 
-export type ContentQuery = { limit?: number; offset?: number; sort?: string; search?: string; locale?: string; filter?: Record<string, string> };
-export type ContentList<T> = { data: T[]; metadata: { limit: number; has_more: boolean; locale?: string } };
+// A filter value is an exact match, or {op: value} with op one of ne, gt, gte, lt, lte, in, null.
+export type FilterOp = "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "null";
+export type FilterValue = string | Partial<Record<FilterOp, string>>;
+// after is the next_cursor of the previous page (keyset paging; use it instead of offset on big lists).
+// expand names relation fields whose records come back under "expanded".
+export type ContentQuery = { limit?: number; offset?: number; after?: string; sort?: string; search?: string; locale?: string; expand?: string[]; filter?: Record<string, FilterValue> };
+export type ContentList<T> = { data: T[]; metadata: { limit: number; has_more: boolean; locale?: string; next_cursor?: string } };
 export type HydroGoRequestOptions = { signal?: AbortSignal };
 export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
 
@@ -118,10 +123,15 @@ export class HydroGoClient {
       params.set("limit", String(query.limit));
     }
     if (query.offset !== undefined) params.set("offset", String(query.offset));
+    if (query.after) params.set("after", query.after);
+    if (query.expand?.length) params.set("expand", query.expand.join(","));
     if (query.sort) params.set("sort", query.sort);
     if (query.search) params.set("search", query.search);
     if (query.locale) params.set("locale", query.locale);
-    for (const [field, value] of Object.entries(query.filter ?? {})) params.set(`filter[${field}]`, value);
+    for (const [field, value] of Object.entries(query.filter ?? {})) {
+      if (typeof value === "string") params.set(`filter[${field}]`, value);
+      else for (const [op, operand] of Object.entries(value)) if (operand !== undefined) params.set(`filter[${field}][${op}]`, operand);
+    }
     const suffix = params.size > 0 ? `?${params}` : "";
     return this.request<ContentList<T>>(`/api/v1/content/${encodeURIComponent(type)}${suffix}`, {}, options);
   }

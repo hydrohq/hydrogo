@@ -12,8 +12,15 @@ const page = await context.newPage();
 await page.goto("/admin/#/login");
 await page.locator('input[type="email"], input[name="email"]').fill(email);
 await page.locator('input[type="password"], input[name="password"]').fill(password);
-await page.locator('button[type="submit"]').click();
-await page.waitForURL(/\/admin/);
+// The sign-in page itself lives under /admin, so waiting for an /admin URL
+// returns at once and closing the browser cancels the request. Wait for the
+// login response and for the SPA to leave the sign-in page.
+const [login] = await Promise.all([
+  page.waitForResponse((response) => response.url().includes("/auth/login") && response.request().method() === "POST"),
+  page.locator('button[type="submit"]').click(),
+]);
+if (!login.ok()) throw new Error(`sign-in failed with HTTP ${login.status()}`);
+await page.waitForURL((url) => !url.href.includes("login"));
 // Persist the onboarding-tour dismissal so admin journeys interact with the
 // editor instead of the first-run dialog — same as a returning admin who
 // clicked "Bu rehberi bir daha gösterme" (plain key + role-scoped key).

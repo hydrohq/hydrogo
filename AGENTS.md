@@ -110,6 +110,7 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 ```bash
 go run ./tools/devserver   # Go rebuilds + Vite HMR + demo data, http://127.0.0.1:8090
 go run ./tools/check       # everything CI checks that runs fast locally (or: make check)
+go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; runs weekly in CI)
 make generate              # OpenAPI → admin/src/lib/api/types.ts
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests

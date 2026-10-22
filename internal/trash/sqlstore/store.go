@@ -73,7 +73,7 @@ func (s Store) List(ctx context.Context, limit int) ([]trash.Entry, error) {
 				var deleted any
 				item.Kind, item.Trashed = source.kind, trashed
 				if err := rows.Scan(&item.ID, &item.Label, &deleted); err != nil {
-					rows.Close()
+					_ = rows.Close()
 					return nil, err
 				}
 				item.Label = safeLabel(source.kind, item.Label)
@@ -81,10 +81,10 @@ func (s Store) List(ctx context.Context, limit int) ([]trash.Entry, error) {
 				items = append(items, item)
 			}
 			if err := rows.Err(); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
-			rows.Close()
+			_ = rows.Close()
 		}
 	}
 	sort.Slice(items, func(i, j int) bool {

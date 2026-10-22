@@ -403,7 +403,7 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 		defer func() {
 			elapsed := time.Since(started)
 			m.latencyCount.Add(1)
-			m.latencyNanos.Add(uint64(elapsed.Nanoseconds()))
+			m.latencyNanos.Add(uint64(elapsed.Nanoseconds())) // #nosec G115 -- elapsed time and written byte counts are never negative
 			for i, bucket := range latencyBuckets {
 				if elapsed <= bucket {
 					m.latency[i].Add(1)
@@ -444,7 +444,7 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration,
 	}
 	stats.Path = path
 	stats.Requests++
-	stats.TotalMS += uint64(elapsed.Milliseconds())
+	stats.TotalMS += uint64(elapsed.Milliseconds()) // #nosec G115 -- elapsed time and written byte counts are never negative
 	stats.BytesIn += bytesIn
 	stats.BytesOut += bytesOut
 	switch status / 100 {
@@ -471,7 +471,7 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration,
 	}
 	m.paths[path] = stats
 	samples := m.pathSamples[path]
-	latencyMS := uint64(elapsed.Milliseconds())
+	latencyMS := uint64(elapsed.Milliseconds()) // #nosec G115 -- elapsed time and written byte counts are never negative
 	if len(samples) < 128 {
 		samples = append(samples, latencyMS)
 	} else {
@@ -487,7 +487,7 @@ func (m *Metrics) recordPath(r *http.Request, status int, elapsed time.Duration,
 			dim = DimensionStats{TenantID: dimensionTenant(r), Module: routeModule(path)}
 		}
 		dim.Requests++
-		dim.TotalMS += uint64(elapsed.Milliseconds())
+		dim.TotalMS += uint64(elapsed.Milliseconds()) // #nosec G115 -- elapsed time and written byte counts are never negative
 		if status >= 400 {
 			dim.Errors++
 		}
@@ -671,7 +671,7 @@ func (r *responseRecorder) Write(body []byte) (int, error) {
 		r.WriteHeader(http.StatusOK)
 	}
 	n, err := r.ResponseWriter.Write(body)
-	r.bytes += uint64(n)
+	r.bytes += uint64(n) // #nosec G115 -- elapsed time and written byte counts are never negative
 	return n, err
 }
 

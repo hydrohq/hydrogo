@@ -115,13 +115,13 @@ func (h AutocompleteHandler) suggest(ctx context.Context, term, locale, tenantID
 			var row publicSuggestion
 			row.kind = source.kind
 			if err := rows.Scan(&row.id, &row.locale, &row.title, &row.slug); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
 			out = append(out, row)
 		}
 		err = rows.Err()
-		rows.Close()
+		_ = rows.Close()
 		if err != nil {
 			return nil, err
 		}

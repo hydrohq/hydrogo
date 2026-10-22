@@ -11,14 +11,17 @@ import (
 )
 
 // devCommand runs the tools/devserver-based development loop from a HydroGo
-// checkout.
+// checkout, or the server plus side services of a project (config.yaml).
 func devCommand(args []string, stdout, stderr io.Writer) error {
 	root, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 	if !isCoreCheckout(root) {
-		return fmt.Errorf("hydro dev: %q is not a HydroGo checkout (go.mod + tools/devserver)", root)
+		if _, err := os.Stat(filepath.Join(root, "config.yaml")); err != nil {
+			return fmt.Errorf("hydro dev: %q is neither a HydroGo checkout nor a project with a config.yaml", root)
+		}
+		return projectDevCommand(args, stdout, stderr)
 	}
 	return coreDevCommand(args, stdout, stderr)
 }
@@ -51,7 +54,7 @@ func coreDevCommand(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
 	commandArgs := append([]string{"run", "./tools/devserver"}, args...)
-	command := exec.Command("go", commandArgs...)
+	command := exec.Command("go", commandArgs...) // #nosec G204 ,G702-- hydro dev runs go run ./tools/devserver with the developer's own flags, no shell
 	command.Stdout, command.Stderr = stdout, stderr
 	command.Dir, _ = os.Getwd()
 	return command.Run()

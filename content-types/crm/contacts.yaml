@@ -1,0 +1,16 @@
+id: contacts
+label: Contacts
+description: People at the companies you work with.
+group: CRM
+icon: users
+title_field: full_name
+revisions: true
+fields:
+  - {id: full_name, label: Name, kind: text, required: true, list: true, searchable: true}
+  - {id: email, label: Email, kind: text, unique: true, list: true, searchable: true}
+  - {id: phone, label: Phone, kind: text}
+  - {id: company, label: Company, kind: relation, to: companies, list: true, filterable: true}
+  - {id: job_title, label: Job title, kind: text}
+  - {id: owner, label: Owner, kind: text, filterable: true}
+  - {id: status, label: Status, kind: select, options: [active, inactive], list: true, filterable: true}
+  - {id: notes, label: Notes, kind: richtext}

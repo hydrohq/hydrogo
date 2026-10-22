@@ -35,13 +35,13 @@ func NumberCents(locale string, cents int64) string {
 	negative := cents < 0
 	var absolute uint64
 	if negative {
-		absolute = uint64(-(cents + 1)) + 1
+		absolute = uint64(-(cents + 1)) + 1 // #nosec G115 -- sign handled explicitly; the quotient of a uint64 by 100 fits int64
 	} else {
 		absolute = uint64(cents)
 	}
 	whole := absolute / 100
 	minor := absolute % 100
-	return formatCentsNumber(locale, int64(whole), minor, negative)
+	return formatCentsNumber(locale, int64(whole), minor, negative) // #nosec G115 -- sign handled explicitly; the quotient of a uint64 by 100 fits int64
 }
 
 func formatCentsNumber(locale string, whole int64, minor uint64, negative bool) string {

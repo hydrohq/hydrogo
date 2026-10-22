@@ -54,16 +54,16 @@ func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor,
 		for pages.Next() {
 			var item adminstudio.PageCount
 			if err := pages.Scan(&item.Path, &item.Count); err != nil {
-				pages.Close()
+				_ = pages.Close()
 				return stats, err
 			}
 			stats.TopPages = append(stats.TopPages, item)
 		}
 		if err := pages.Err(); err != nil {
-			pages.Close()
+			_ = pages.Close()
 			return stats, err
 		}
-		pages.Close()
+		_ = pages.Close()
 		rows, err := db.QueryContext(ctx, "SELECT dimension,SUM(event_count) FROM analytics_daily_stats WHERE tenant_id="+s.p(1)+" AND metric='referrer' AND day>="+s.p(2)+" AND day<"+s.p(3)+" GROUP BY dimension ORDER BY SUM(event_count) DESC,dimension LIMIT 5", tenantID, start.Format("2006-01-02"), end.Format("2006-01-02"))
 		if err != nil {
 			return stats, err

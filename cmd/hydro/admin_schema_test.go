@@ -86,3 +86,23 @@ func TestAdminSchemaListsContentTypesAndModules(t *testing.T) {
 		t.Fatal("permission catalog missing")
 	}
 }
+
+func TestAdminBrandingIsPublicAndEmptyWithoutTheSiteModule(t *testing.T) {
+	app := &serveApp{modules: map[string]bool{"pages": true}}
+	recorder := httptest.NewRecorder()
+	app.adminBrandingHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/admin/branding", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("branding: %d %s", recorder.Code, recorder.Body)
+	}
+	var body struct {
+		Data map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"name", "logo_url", "color", "default_locale"} {
+		if value, ok := body.Data[key]; !ok || value != "" {
+			t.Errorf("%s = %q (present %v), want empty", key, value, ok)
+		}
+	}
+}

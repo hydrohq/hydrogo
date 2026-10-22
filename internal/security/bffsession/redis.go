@@ -87,7 +87,7 @@ func (s *RedisStore) Create(ctx context.Context, w http.ResponseWriter, coreCook
 		return "", err
 	}
 	if w != nil {
-		http.SetCookie(w, &http.Cookie{Name: s.config.CookieName, Value: sessionID, Path: "/", HttpOnly: true, Secure: s.config.Secure, SameSite: s.config.SameSite, MaxAge: int(s.config.TTL / time.Second)})
+		http.SetCookie(w, &http.Cookie{Name: s.config.CookieName, Value: sessionID, Path: "/", HttpOnly: true, Secure: s.config.Secure, SameSite: s.config.SameSite, MaxAge: int(s.config.TTL / time.Second)}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	}
 	return csrfToken, nil
 }
@@ -127,7 +127,7 @@ func (s *RedisStore) Revoke(ctx context.Context, w http.ResponseWriter, r *http.
 		cancel()
 	}
 	if w != nil {
-		http.SetCookie(w, &http.Cookie{Name: s.config.CookieName, Value: "", Path: "/", HttpOnly: true, Secure: s.config.Secure, SameSite: s.config.SameSite, MaxAge: -1})
+		http.SetCookie(w, &http.Cookie{Name: s.config.CookieName, Value: "", Path: "/", HttpOnly: true, Secure: s.config.Secure, SameSite: s.config.SameSite, MaxAge: -1}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	}
 }
 

@@ -37,7 +37,13 @@ try {
     # keeps the password bytes identical between create-admin and setup-auth.
     $passwordFile = Join-Path $root "e2e-admin-password.txt"
     [System.IO.File]::WriteAllText($passwordFile, $env:HYDRO_E2E_ADMIN_PASSWORD + "`n", [System.Text.UTF8Encoding]::new($false))
-    $createAdmin = Start-Process -FilePath $bin -ArgumentList @("create-admin", "--email", $env:HYDRO_E2E_ADMIN_EMAIL, "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", $db) -RedirectStandardInput $passwordFile -NoNewWindow -Wait -PassThru
+    # Start-Process -Wait -PassThru can fail with "the process has exited" when the
+    # child finishes before PowerShell looks at it (Windows PowerShell waits on a
+    # job object for the whole process tree). So it is started without -Wait and
+    # awaited here; reading .Handle first keeps the exit code available.
+    $createAdmin = Start-Process -FilePath $bin -ArgumentList @("create-admin", "--email", $env:HYDRO_E2E_ADMIN_EMAIL, "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", $db) -RedirectStandardInput $passwordFile -NoNewWindow -PassThru
+    $createAdminHandle = $createAdmin.Handle
+    $createAdmin.WaitForExit()
     if ($createAdmin.ExitCode -ne 0) { throw "create-admin failed with exit code $($createAdmin.ExitCode)" }
     $process = Start-Process -FilePath $bin -ArgumentList @("serve", "--database-dialect", "sqlite", "--database-dsn", $db, "--address", "127.0.0.1:$port") -WorkingDirectory $repo -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
     $env:HYDRO_E2E_BASE_URL = $baseURL
@@ -58,8 +64,6 @@ try {
         } finally { Pop-Location }
         npm run setup-auth
         if ($LASTEXITCODE -ne 0) { throw "E2E auth setup failed with exit code $LASTEXITCODE" }
-        npm run generate
-        if ($LASTEXITCODE -ne 0) { throw "E2E generation failed with exit code $LASTEXITCODE" }
         if ($env:HYDRO_E2E_UPDATE_SNAPSHOTS -eq "1") {
             npm test -- --workers=1 --update-snapshots
         } else {
@@ -67,7 +71,7 @@ try {
         }
         if ($LASTEXITCODE -ne 0) { throw "Playwright E2E failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
-    Write-Host "PASS: generated Admin Studio and frontend E2E completed"
+    Write-Host "PASS: Admin Studio and frontend E2E completed"
 } finally {
 	if ($null -eq $previousRedisURL) { Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue } else { $env:HYDRO_REDIS_URL = $previousRedisURL }
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }

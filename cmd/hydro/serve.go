@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 )
 
@@ -83,12 +84,18 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			return err
 		}
 	}
+	auditstore.SetChain(cfg.Audit.Chain)
 	routes, err := app.routes()
 	if err != nil {
 		return err
 	}
 	app.initMetrics()
 	app.logger = newServeLogger(stderr)
+	if !cfg.Audit.Chain {
+		if heads, err := (auditstore.Store{Dialect: cfg.Database.Dialect}).ChainHeads(context.Background(), app.db); err == nil && len(heads) > 0 {
+			app.logger.Warn("audit.chain is off but a chain exists: new events are not linked; turn it on or run 'hydro audit relink' after the gap")
+		}
+	}
 	app.startWorkers()
 	return app.listen(routes)
 }

@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,6 +45,9 @@ func TestMySQLDumpRestoreContract(t *testing.T) {
 	}
 	snapshot := filepath.Join(t.TempDir(), "snapshot")
 	manifest, err := SnapshotMySQL(ctx, tools, cfg.FormatDSN(), mediaDir, snapshot)
+	if errors.Is(err, ErrMySQLClientMismatch) {
+		t.Skipf("this host has MariaDB client tools and the test server is MySQL; set HYDRO_MYSQLDUMP and HYDRO_MYSQL to MySQL's: %v", err)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,5 +131,53 @@ func TestMySQLClientOptionFileProtectsCredentials(t *testing.T) {
 		if !strings.Contains(string(data), value) {
 			t.Fatalf("option file missing %q: %s", value, data)
 		}
+	}
+}
+
+func TestMySQLFlavorProblem(t *testing.T) {
+	mariaClient := "mysqldump from 11.4.2-MariaDB, client 10.19 for linux-systemd (x86_64)"
+	mysqlClient := "mysqldump  Ver 8.4.11 for Linux on x86_64 (MySQL Community Server - GPL)"
+	for _, test := range []struct {
+		name, client, server string
+		refused              bool
+	}{
+		{"MariaDB client, MySQL server", mariaClient, "8.4.11", true},
+		{"MariaDB client, MariaDB server", mariaClient, "11.4.2-MariaDB", false},
+		{"MySQL client, MySQL server", mysqlClient, "8.4.11", false},
+		{"MySQL client, MariaDB server", mysqlClient, "11.4.2-MariaDB", false},
+	} {
+		err := mysqlFlavorProblem(test.client, test.server)
+		if test.refused != errors.Is(err, ErrMySQLClientMismatch) {
+			t.Errorf("%s: err = %v, refused should be %v", test.name, err, test.refused)
+		}
+	}
+}
+
+// A dump the restore could not read is refused up front, before anything is written.
+func TestMySQLBackupRefusesMariaDBClientAgainstMySQLServer(t *testing.T) {
+	source := testmysql.Open(t)
+	var version string
+	if err := source.QueryRow("SELECT VERSION()").Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(strings.ToLower(version), "mariadb") {
+		t.Skip("the test server is MariaDB; the mismatch only exists against MySQL")
+	}
+	client := filepath.Join(t.TempDir(), "mysqldump")
+	if err := os.WriteFile(client, []byte("#!/bin/sh\necho 'mysqldump from 11.4.2-MariaDB, client 10.19'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := mysql.ParseDSN(os.Getenv("HYDRO_TEST_MYSQL_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := source.QueryRow("SELECT DATABASE()").Scan(&cfg.DBName); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(t.TempDir(), "snapshot")
+	tools := MySQLTools{DumpBinary: client, RestoreBinary: client}
+	_, err = SnapshotMySQL(context.Background(), tools, cfg.FormatDSN(), t.TempDir(), destination)
+	if !errors.Is(err, ErrMySQLClientMismatch) {
+		t.Fatalf("err = %v, want ErrMySQLClientMismatch", err)
 	}
 }

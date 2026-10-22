@@ -75,6 +75,18 @@ func TestCreateCopiesFrontendStarter(t *testing.T) {
 	}
 }
 
+func TestCreateCopiesCRMStarter(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "crm")
+	if _, err := Create(Options{Dir: dir, Preset: "crm", Starter: "crm"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"frontend/package.json", "frontend/src/hooks.server.ts", "frontend/src/routes/deals/+page.svelte", "frontend/scripts/seed.mjs", "frontend/.env.example"} {
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("missing %s: %v", rel, err)
+		}
+	}
+}
+
 // The starter vendors packages/client so it installs without a registry; the
 // two copies must not drift.
 func TestStarterVendoredClientMatchesPackage(t *testing.T) {

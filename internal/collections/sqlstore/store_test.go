@@ -28,6 +28,7 @@ func TestStaticStoreSupportsSchemasUniqueValuesRelationsAndCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 	runStaticStoreContract(t, db, database.SQLite)
+	runRollupContract(t, db, database.SQLite)
 	runTenantIsolationContract(t, db, database.SQLite)
 	runQueryContract(t, db, database.SQLite)
 	runRevisionContract(t, db, database.SQLite)
@@ -74,6 +75,12 @@ func TestPostgresStaticStoreSupportsSchemasUniqueValuesRelationsAndCRUD(t *testi
 	runQueryContract(t, db, database.Postgres)
 	runRevisionContract(t, db, database.Postgres)
 	runTranslationContract(t, db, database.Postgres)
+	runFilterContract(t, db, database.Postgres)
+	runSequenceContract(t, db, database.Postgres)
+	runRulesContract(t, db, database.Postgres)
+	runRollupContract(t, db, database.Postgres)
+	runRollupConcurrencyContract(t, db, database.Postgres)
+	runIndexContract(t, db)
 }
 
 func runStaticStoreContract(t *testing.T, db database.Executor, dialect database.Dialect) {

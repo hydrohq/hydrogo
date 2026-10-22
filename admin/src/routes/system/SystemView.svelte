@@ -6,6 +6,8 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import BackupsSecurityTab from './tabs/BackupsSecurityTab.svelte';
+  import ServicesTab from './tabs/ServicesTab.svelte';
+  import { loadHookServices, type HookService } from './services';
 
   interface SystemInfo {
     version: string;
@@ -107,10 +109,12 @@
   let loading = $state(true);
   let autoRefresh = $state(false);
   let refreshTimer: any = null;
-  let activeTab = $state<'overview' | 'memory' | 'database' | 'jobs' | 'paths' | 'backups'>('overview');
+  let activeTab = $state<'overview' | 'memory' | 'database' | 'jobs' | 'paths' | 'backups' | 'services'>('overview');
+  let services = $state<HookService[]>([]);
 
   async function loadData() {
     loading = true;
+    void loadHookServices().then((list) => (services = list));
     try {
       const [infoRes, healthRes, metricsRes] = await Promise.allSettled([
         api.get<ApiResponse<SystemInfo>>('/api/v1/admin/system/info'),
@@ -324,6 +328,15 @@
       >
         {t('system.tab.backups')}
       </button>
+      {#if services.length > 0}
+        <button
+          type="button"
+          onclick={() => (activeTab = 'services')}
+          class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'services' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+        >
+          {t('system.tab.services', { count: services.length })}
+        </button>
+      {/if}
     </div>
 
     <!-- Tab 1: Engine Overview -->
@@ -520,6 +533,8 @@
       </div>
     {:else if activeTab === 'backups'}
       <BackupsSecurityTab />
+    {:else if activeTab === 'services'}
+      <ServicesTab {services} />
     {/if}
   </div>
 </div>

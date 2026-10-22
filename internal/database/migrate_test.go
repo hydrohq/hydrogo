@@ -229,7 +229,7 @@ func TestSQLiteSectoralModulesCreateSchemaOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
-func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
+func TestSQLiteCoreOnlyMigrationSetOwnsAuditEvents(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-only.sqlite"))
 	if err != nil {
@@ -245,8 +245,8 @@ func TestSQLiteCoreOnlyMigrationSetDoesNotAssumeOptionalTables(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM pragma_table_info('audit_events') WHERE name = 'request_id'").Scan(&auditColumns); err != nil {
 		t.Fatal(err)
 	}
-	if auditColumns != 0 {
-		t.Fatal("core-only migration set altered the optional audit_events table")
+	if auditColumns != 1 {
+		t.Fatal("core-only migration set must create audit_events with request_id: audit does not depend on pages")
 	}
 }
 
@@ -347,4 +347,71 @@ func migrationCount(t *testing.T) int {
 
 func sqlFSReadDir(fsys fs.ReadDirFS) ([]fs.DirEntry, error) {
 	return fsys.ReadDir(".")
+}
+
+// Without the baseline (the chain alone) the pages migrations collide with the
+// audit and outbox tables core created, and the runner says so before any SQL.
+func TestEnablingPagesOnACoreCreatedDatabaseWithTheChainAloneIsRejectedBeforeAnySQL(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-then-pages.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{}); err != nil {
+		t.Fatal(err)
+	}
+	var before int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	err = database.ApplyMigrationsForModules(ctx, db, database.SQLite, database.ChainOnly(migrations.FS), map[string]bool{"pages": true})
+	if !errors.Is(err, database.ErrPagesNeedsFreshDatabase) {
+		t.Fatalf("err = %v, want ErrPagesNeedsFreshDatabase", err)
+	}
+	var after int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after != before {
+		t.Fatalf("ledger changed from %d to %d rows: nothing may run before the rejection", before, after)
+	}
+}
+
+func TestEnablingPagesOnAFreshDatabaseStillWorks(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "pages-first.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"pages": true}); err != nil {
+		t.Fatalf("fresh database with pages: %v", err)
+	}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"pages": true}); err != nil {
+		t.Fatalf("second run must be a no-op: %v", err)
+	}
+}
+
+// With the baseline the same step works: the pages group is applied as a unit.
+func TestEnablingPagesOnACoreCreatedDatabaseWorksWithTheBaseline(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "core-then-pages-baseline.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.ApplyMigrationsForModules(ctx, db, database.SQLite, migrations.FS, map[string]bool{"pages": true}); err != nil {
+		t.Fatalf("enabling pages later: %v", err)
+	}
+	var tables int
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pages'").Scan(&tables); err != nil {
+		t.Fatal(err)
+	}
+	if tables != 1 {
+		t.Fatal("the pages table was not created")
+	}
 }

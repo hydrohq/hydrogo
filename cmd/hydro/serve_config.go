@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"sort"
 	"strings"
@@ -139,7 +140,15 @@ func startDebugPprof() (func(), error) {
 	if host, _, splitErr := net.SplitHostPort(addr); splitErr != nil || (host != "127.0.0.1" && host != "localhost") {
 		return nil, errors.New("HYDRO_DEBUG_PPROF_ADDR must bind to 127.0.0.1 or localhost")
 	}
-	pprofSrv := &http.Server{Addr: addr, ReadHeaderTimeout: 5 * time.Second}
+	// Its own mux, so the profiling endpoints exist only on this loopback
+	// listener and never on http.DefaultServeMux.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	pprofSrv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = pprofSrv.ListenAndServe() }()
 	return func() { _ = pprofSrv.Close() }, nil
 }

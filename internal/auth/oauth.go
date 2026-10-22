@@ -97,11 +97,11 @@ type oauthTokenResponse struct {
 func DefaultOAuthProvider(name, clientID, clientSecret, redirectURL string) (OAuthProviderConfig, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "google":
-		return OAuthProviderConfig{Name: "google", ClientID: clientID, ClientSecret: clientSecret, RedirectURL: redirectURL, AuthorizationURL: "https://accounts.google.com/o/oauth2/v2/auth", TokenURL: "https://oauth2.googleapis.com/token", UserInfoURL: "https://openidconnect.googleapis.com/v1/userinfo", Scopes: []string{"openid", "email", "profile"}}, nil
+		return OAuthProviderConfig{Name: "google", ClientID: clientID, ClientSecret: clientSecret, RedirectURL: redirectURL, AuthorizationURL: "https://accounts.google.com/o/oauth2/v2/auth", TokenURL: "https://oauth2.googleapis.com/token", UserInfoURL: "https://openidconnect.googleapis.com/v1/userinfo", Scopes: []string{"openid", "email", "profile"}}, nil // #nosec G101 -- provider endpoint URLs, not credentials
 	case "github":
-		return OAuthProviderConfig{Name: "github", ClientID: clientID, ClientSecret: clientSecret, RedirectURL: redirectURL, AuthorizationURL: "https://github.com/login/oauth/authorize", TokenURL: "https://github.com/login/oauth/access_token", UserInfoURL: "https://api.github.com/user", Scopes: []string{"read:user", "user:email"}}, nil
+		return OAuthProviderConfig{Name: "github", ClientID: clientID, ClientSecret: clientSecret, RedirectURL: redirectURL, AuthorizationURL: "https://github.com/login/oauth/authorize", TokenURL: "https://github.com/login/oauth/access_token", UserInfoURL: "https://api.github.com/user", Scopes: []string{"read:user", "user:email"}}, nil // #nosec G101 -- provider endpoint URLs, not credentials
 	case "apple":
-		return OAuthProviderConfig{Name: "apple", ClientID: clientID, ClientSecret: clientSecret, RedirectURL: redirectURL, AuthorizationURL: "https://appleid.apple.com/auth/authorize", TokenURL: "https://appleid.apple.com/auth/token", JWKSURL: "https://appleid.apple.com/auth/keys", Scopes: []string{"openid", "email", "name"}, Apple: true}, nil
+		return OAuthProviderConfig{Name: "apple", ClientID: clientID, ClientSecret: clientSecret, RedirectURL: redirectURL, AuthorizationURL: "https://appleid.apple.com/auth/authorize", TokenURL: "https://appleid.apple.com/auth/token", JWKSURL: "https://appleid.apple.com/auth/keys", Scopes: []string{"openid", "email", "name"}, Apple: true}, nil // #nosec G101 -- provider endpoint URLs, not credentials
 	default:
 		return OAuthProviderConfig{}, errors.New("unsupported social provider")
 	}
@@ -143,7 +143,7 @@ func (h SocialOAuthHandler) callback(w http.ResponseWriter, r *http.Request) {
 	if h.Audit != nil {
 		_ = h.Audit.Record(r.Context(), "auth.oauth.login", user.ID)
 	}
-	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+	http.Redirect(w, r, returnTo, http.StatusSeeOther) // #nosec G710 -- returnTo was cleaned by safeOAuthReturnTo and travels in the HMAC-signed state cookie
 }
 
 // Start begins a provider's authorization-code + PKCE flow: it validates the
@@ -182,7 +182,7 @@ func (f OAuthFlow) Start(w http.ResponseWriter, r *http.Request) {
 	mac := hmac.New(sha256.New, f.StateKey)
 	_, _ = mac.Write([]byte(encoded))
 	value := encoded + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	http.SetCookie(w, &http.Cookie{Name: f.cookieName(), Value: value, Path: f.cookiePath(), MaxAge: 600, HttpOnly: true, Secure: f.Secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: f.cookieName(), Value: value, Path: f.cookiePath(), MaxAge: 600, HttpOnly: true, Secure: f.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	u, _ := url.Parse(provider.AuthorizationURL)
 	query := u.Query()
 	query.Set("response_type", "code")
@@ -455,7 +455,7 @@ func (f OAuthFlow) now() time.Time {
 	return time.Now()
 }
 func clearOAuthCookie(w http.ResponseWriter, secure bool, name, path string) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: path, MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: path, MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 }
 func randomOAuthValue(size int) (string, error) {
 	data := make([]byte, size)

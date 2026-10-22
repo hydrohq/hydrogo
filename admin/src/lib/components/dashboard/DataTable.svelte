@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { schema } from '$lib/stores/schema.svelte';
   import { t } from '$lib/i18n/index.svelte';
+  import { statusLabel } from '$lib/i18n/labels';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
@@ -41,7 +43,10 @@
     loading = true;
     const combined: DashboardTableItem[] = [];
 
+    const on = (m: string) => !schema.schema || schema.modules[m] === true;
+
     try {
+      if (!on('pages')) throw new Error('skip');
       // 1. Fetch Pages
       const pagesRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/pages', {
         params: { limit: 50 },
@@ -61,10 +66,11 @@
         }
       }
     } catch (e) {
-      console.warn('Failed to load pages for dashboard:', e);
+      if (on('pages')) console.warn('Failed to load pages for dashboard:', e);
     }
 
     try {
+      if (!on('news')) throw new Error('skip');
       // 2. Fetch News
       const newsRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/news', {
         params: { limit: 50 },
@@ -84,7 +90,7 @@
         }
       }
     } catch (e) {
-      console.warn('Failed to load news for dashboard:', e);
+      if (on('news')) console.warn('Failed to load news for dashboard:', e);
     }
 
     // Sort by most recent first
@@ -376,7 +382,7 @@
                       size="sm"
                       class="capitalize"
                     >
-                      {item.status}
+                      {statusLabel(item.status)}
                     </Badge>
                   </td>
                 {/if}

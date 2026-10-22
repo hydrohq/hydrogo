@@ -24,7 +24,7 @@ func NewAPITokenStore(db *sql.DB, dialect database.Dialect) *APITokenStore {
 	return &APITokenStore{db: db, dialect: dialect}
 }
 
-const apiTokenColumns = `id, user_id, name, kind, token_hash, token_prefix, scopes, expires_at, last_used_at, created_at, revoked_at`
+const apiTokenColumns = `id, user_id, name, kind, token_hash, token_prefix, scopes, expires_at, last_used_at, created_at, revoked_at` // #nosec G101 -- SQL column list, not a credential
 
 func (s *APITokenStore) tenant(ctx context.Context) (string, error) {
 	if !s.RequireTenantScope {

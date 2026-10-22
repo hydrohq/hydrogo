@@ -1,0 +1,28 @@
+id: "202610210003_audit_chain"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "e04739c2acf79526efba925445aed8628218d7f5ca733fea151257aff901b771"
+  postgres: "086970fb7bc85fabd421c716ff3f602acfbd880ce7a411c11d90660d09698e90"
+  mysql: "e0dd74c2dce81ff685928cc3b2a9a6d794b5445c3b1f204f31acce5188063d54"
+dependencies:
+  - "202610210002_core_audit_events"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "None; adds two empty tables beside the audit log"
+lock_timeout: "bounded by the migration runner deadline"
+disk_estimate: "Two empty tables; one chain row per audit event once audit.chain is enabled"
+compatibility: "Nothing reads or writes the tables until audit.chain is enabled; existing audit events stay unchained and are reported as such by hydro audit verify"
+smoke:
+  - "A core-only database has audit_chain and audit_chain_heads and rejects updates and deletes of chain rows"
+restart: "Safe to rerun; every statement is idempotent and the ledger verifies checksums"
+rollback: "Forward-only; the tables are harmless when unused"

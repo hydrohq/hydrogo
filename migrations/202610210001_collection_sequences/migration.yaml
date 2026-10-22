@@ -1,0 +1,28 @@
+id: "202610210001_collection_sequences"
+module: "collections"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "c889fccd7ea2c796cb5722c46797a8f4334a978f14d4dd0a67b41470e67d30b8"
+  postgres: "b9b922048f74c84de8a24fef612e0a76ec12ac3b6456f003015bdb2332a15078"
+  mysql: "dfe39f8b372fa43205f44f323084af1b0d1c71849a0b332472909b39993322f8"
+dependencies:
+  - "202610140002_collection_translations"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "The dynamic collections tables are installed"
+lock_timeout: "bounded by the migration runner deadline"
+disk_estimate: "One row per tenant, content type, sequence field and period; a few bytes each"
+compatibility: "Adds an empty table; existing records and reads are unchanged"
+smoke:
+  - "Creating records of a type with a sequence field numbers them 1, 2, 3 per period and a rolled-back create does not use up a number"
+restart: "Safe to rerun; the migration ledger verifies checksums before no-op"
+rollback: "No production down migration; the table can be dropped after removing sequence fields, or restore/forward migrate"

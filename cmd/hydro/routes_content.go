@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -9,9 +10,11 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	adminsearch "github.com/ardaozyildirim/hydrogo/internal/search"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
@@ -28,17 +31,30 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	if !a.modules["collections"] {
 		return nil, nil
 	}
-	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+	collectionDB := collectionstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, MaxRecords: cfg.Limits.RecordsPerType}
+	collectionDB.Events = contentEvents(cfg, outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope})
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
-	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, func() []contenttypes.Definition {
+	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, a.hookCaller(), func() []contenttypes.Definition {
 		return a.contentTypes
 	})
 	if err != nil {
 		return nil, err
 	}
 	a.contentTypes = definitions
+	if err := checkHookServices(cfg.Hooks, definitions); err != nil {
+		return nil, err
+	}
+	if names := contenttypes.PermissionNames(definitions); len(names) > 0 && a.authSvc != nil {
+		catalog, err := auth.NewPermissionCatalog(names...)
+		if err != nil {
+			return nil, fmt.Errorf("content types: permissions: %w", err)
+		}
+		if err := a.authSvc.SetPermissionCatalog(catalog); err != nil {
+			return nil, err
+		}
+	}
 	return contentRoutes, nil
 }
 

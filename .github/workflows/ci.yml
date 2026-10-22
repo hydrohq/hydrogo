@@ -34,6 +34,11 @@ jobs:
         run: bash scripts/container-lint.sh
       - name: Scan tracked files for high-confidence credentials
         run: bash scripts/secret-lint.sh
+      - name: Register emulation for the target architecture
+        if: matrix.arch != 'amd64'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: ${{ matrix.arch }}
       - name: Build reproducible OCI image (no push)
         run: docker build --pull --platform linux/${{ matrix.arch }} --build-arg TARGETARCH=${{ matrix.arch }} --tag hydrogo:ci-${{ matrix.arch }} .
 
@@ -44,7 +49,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           check-latest: false
       - name: Install, scaffold and serve like a new user
         run: |
@@ -62,6 +67,38 @@ jobs:
           curl -fsS http://127.0.0.1:8080/api/v1/content/faq
           curl -fsS http://127.0.0.1:8080/admin/ >/dev/null
           kill $pid || true
+
+  sveltekit-starter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Check, build and smoke-test the SvelteKit starter
+        working-directory: examples/sveltekit-starter
+        run: |
+          npm ci
+          npm run check
+          npm run build
+          npm run smoke
+
+  crm-starter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Check, build and smoke-test the CRM panel
+        working-directory: examples/crm-starter
+        run: |
+          npm ci
+          npm run check
+          npm run build
+          npm test
 
   go:
     runs-on: ubuntu-latest
@@ -101,7 +138,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         timeout-minutes: 3
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           check-latest: false
       - name: Verify workflow action pins
         run: go run ./tools/actionguard
@@ -136,7 +173,10 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       - run: test -z "$(gofmt -l .)"
       - name: Run GoSec security scanner
-        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-dir=.tmp ./...
+        run: |
+          mkdir -p .tmp
+          go build -C tools/gosec -o ../../.tmp/gosec github.com/securego/gosec/v2/cmd/gosec
+          .tmp/gosec -quiet -exclude-dir=.tmp ./...
       - run: go vet ./...
       - run: go test ./... -count=1 -p 1 -timeout=5m
       - name: Run PostgreSQL adapter contract matrix
@@ -199,7 +239,8 @@ jobs:
 
   windows-go:
     runs-on: windows-latest
-    timeout-minutes: 15
+    # Two full test passes (plain and shuffled) take about 9 minutes each on a Windows runner.
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -207,20 +248,32 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         timeout-minutes: 3
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           check-latest: false
       - name: Verify format, vet, tests and build
         shell: pwsh
         run: |
+          # Only the last native command sets a PowerShell step's exit code, so each
+          # one is checked here: a failing test must not be hidden by the final build.
           git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $formatted = gofmt -l .
           if ($formatted) { Write-Error "gofmt required: $formatted" }
           go mod verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
-          go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-dir=.tmp ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force .tmp | Out-Null
+          go build -C tools/gosec -o ../../.tmp/gosec.exe github.com/securego/gosec/v2/cmd/gosec
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .tmp/gosec.exe -quiet -exclude-dir=.tmp ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./... -count=1 -p 1 -timeout=5m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go build -ldflags "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3
@@ -248,7 +301,6 @@ jobs:
           if ($testExit -ne 0) { exit $testExit }
           go test -tags hydro_compact,hydro_no_otlp,hydro_no_s3,hydro_no_redis ./cmd/hydro ./internal/config ./internal/database ./internal/tenant ./internal/observability ./internal/media ./internal/cache ./internal/security ./internal/security/bffsession ./internal/server -count=1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Lint theme token references
       - name: Check ADR index drift
         shell: pwsh
         run: ./scripts/adr-drift-check.ps1
@@ -263,7 +315,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         timeout-minutes: 3
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           check-latest: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -281,7 +333,7 @@ jobs:
       - name: Run generated browser journeys against an isolated SQLite server
         shell: pwsh
         env:
-          HYDRO_E2E_ADMIN_PASSWORD: ci-only-e2e-password
+          HYDRO_E2E_ADMIN_PASSWORD: ci-only-e2e-quartz-7-ember-31
         run: powershell -ExecutionPolicy Bypass -File .\scripts\run-e2e.ps1
       - name: Upload browser failure artifacts
         if: always()
@@ -320,7 +372,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         timeout-minutes: 3
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           check-latest: false
       - name: Install PostgreSQL client tools
         timeout-minutes: 4

@@ -84,7 +84,7 @@ func PlanBackfill(ctx context.Context, db *sql.DB, dialect string, targetTenantI
 	}
 	for _, table := range BackfillTables {
 		var count int64
-		query := fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id = '' OR tenant_id IS NULL", table)
+		query := fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id = '' OR tenant_id IS NULL", table) // #nosec G201 -- the table comes from the fixed BackfillTables list
 		if err := db.QueryRowContext(ctx, query).Scan(&count); err != nil {
 			if isMissingTableError(err) {
 				// Table does not exist in this database profile (optional module inactive)

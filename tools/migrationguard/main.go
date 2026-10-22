@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ardaozyildirim/hydrogo/internal/database/baselinegen"
 	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
 	"gopkg.in/yaml.v3"
 )
@@ -47,13 +48,13 @@ func main() {
 	}
 	known := map[string]bool{}
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() && entry.Name() != "baseline" {
 			known[entry.Name()] = true
 		}
 	}
 	var failures []string
 	for id := range known {
-		data, err := os.ReadFile(filepath.Join(*root, id, "migration.yaml"))
+		data, err := os.ReadFile(filepath.Join(*root, id, "migration.yaml")) // #nosec G304 -- developer tool reading the migration directory it was pointed at
 		if err != nil {
 			failures = append(failures, fmt.Sprintf("%s: metadata: %v", id, err))
 			continue
@@ -106,6 +107,11 @@ func main() {
 			if !known[dep] {
 				failures = append(failures, fmt.Sprintf("%s: unknown dependency %q", id, dep))
 			}
+		}
+	}
+	if _, err := os.Stat(filepath.Join(*root, "baseline")); err == nil {
+		for _, problem := range baselinegen.VerifyManifest(os.DirFS(*root), os.DirFS(filepath.Join(*root, "baseline"))) {
+			failures = append(failures, "baseline: "+problem)
 		}
 	}
 	sort.Strings(failures)

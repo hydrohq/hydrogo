@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
-  import { api } from '$lib/api/client';
+  import { api, ApiClientError } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -105,6 +105,29 @@
     }
   });
 
+  // State machine: the steps allowed from the record's current state.
+  const machine = $derived(collection?.state_machine);
+  const currentState = $derived(machine ? String(formData[machine.field] || machine.initial) : '');
+  const steps = $derived(machine && !isNew ? machine.transitions.filter((step) => step.from === currentState) : []);
+
+  async function changeState(to: string) {
+    if (!collection || !itemId) return;
+    saving = true;
+    errorMessage = null;
+    try {
+      const endpoint = collection.api_path || `/api/v1/admin/content/${type}`;
+      await api.post(`${endpoint}/${itemId}/state`, { to, version: Number(formData.version) || 0 });
+      await loadItem();
+      onsaved();
+    } catch (err) {
+      errorMessage = err instanceof ApiClientError
+        ? `${err.message}${err.fields?._rule ? `: ${err.fields._rule}` : ''}${err.fields?._state ? `: ${err.fields._state}` : ''}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`
+        : t('schema.err.saveItem');
+    } finally {
+      saving = false;
+    }
+  }
+
   async function handleSave(statusToSet?: string) {
     if (!collection) return;
     saving = true;
@@ -195,7 +218,13 @@
       {#each collection.fields as field (getFieldKey(field))}
         {@const key = getFieldKey(field)}
         <div class="flex flex-col gap-1.5">
-          {#if isJsonField(field, key, formData[key])}
+          {#if field.read_only}
+            <!-- Set by the server (sequence numbers, computed values, states): shown, never edited. -->
+            <span class="text-xs font-medium text-foreground">{field.label || key}</span>
+            <div class="h-8 flex items-center rounded-md border border-input bg-muted/40 px-3 text-xs text-muted-foreground" data-readonly-field={key}>
+              {formData[key] === undefined || formData[key] === null || formData[key] === '' ? (isNew ? t('schema.setByServer') : '—') : String(formData[key])}
+            </div>
+          {:else if isJsonField(field, key, formData[key])}
             <JsonFieldEditor
               label={field.label || key}
               bind:value={formData[key]}
@@ -314,6 +343,11 @@
     <Button variant="ghost" size="sm" onclick={onclose}>
       {t('common.cancel')}
     </Button>
+    {#each steps as step (step.to)}
+      <Button variant="secondary" size="sm" disabled={saving || loading} onclick={() => changeState(step.to)}>
+        {t('schema.moveTo', { state: step.to })}
+      </Button>
+    {/each}
     {#if collection?.workflow?.enabled || collection?.drafts}
       <Button
         variant="secondary"

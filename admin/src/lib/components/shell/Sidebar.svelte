@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { roleLabel } from '$lib/i18n/labels';
   import { t } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
@@ -6,6 +7,10 @@
   import { sidebar } from '$lib/stores/sidebar.svelte';
   import { theme } from '$lib/stores/theme.svelte';
   import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
+
+  // A module that is not enabled adds no navigation. Until the schema has
+  // loaded everything shows, so the menu does not flash empty.
+  const moduleOn = (name: string) => !schema.schema || schema.modules[name] === true;
 
   const currentPath = $derived(router.path);
   let showQuickCreate = $state(false);
@@ -49,7 +54,7 @@
     type="button"
     class="fixed inset-0 z-40 bg-black/80 backdrop-blur-xs md:hidden"
     onclick={() => sidebar.closeMobile()}
-    aria-label="Close sidebar overlay"
+    aria-label={t('nav.closeOverlay')}
   ></button>
 {/if}
 
@@ -75,7 +80,7 @@
         type="button"
         onclick={() => { showQuickCreate = !showQuickCreate; }}
         class="flex flex-1 items-center justify-center gap-2 h-9 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors shadow-xs cursor-pointer px-3 {sidebar.open ? '' : 'justify-center !px-0'}"
-        title="Quick Create"
+        title={t('nav.quickCreate')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
@@ -108,6 +113,7 @@
           <div class="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             {t('nav.createNew')}
           </div>
+          {#if moduleOn('pages')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -116,6 +122,8 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
             <span>{t('nav.newPage')}</span>
           </button>
+          {/if}
+          {#if moduleOn('news')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -124,6 +132,8 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path></svg>
             <span>{t('nav.newArticle')}</span>
           </button>
+          {/if}
+          {#if moduleOn('media')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -132,6 +142,7 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></svg>
             <span>{t('nav.uploadMedia')}</span>
           </button>
+          {/if}
           {#each schema.collections as col}
             <button
               type="button"
@@ -139,7 +150,7 @@
               onclick={() => handleNavigate(`/content/${col.id}/new`)}
             >
               <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-              <span>New {col.label}</span>
+              <span>{t('nav.newOf', { label: col.label })}</span>
             </button>
           {/each}
         </div>
@@ -153,7 +164,7 @@
         href="/admin/dashboard"
         onclick={() => handleNavigate('/dashboard')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/dashboard') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Dashboard"
+        title={t('nav.dashboard')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="7" height="9" x="3" y="3" rx="1"></rect>
@@ -166,12 +177,13 @@
         {/if}
       </a>
 
+      {#if moduleOn('pages')}
       <!-- Pages -->
       <a
         href="/admin/pages"
         onclick={() => handleNavigate('/pages')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/pages') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Pages"
+        title={t('nav.pages')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
@@ -180,13 +192,15 @@
           <span class="truncate">{t('nav.pages')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if moduleOn('news')}
       <!-- News -->
       <a
         href="/admin/news"
         onclick={() => handleNavigate('/news')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/news') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="News"
+        title={t('nav.news')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
@@ -199,13 +213,15 @@
           <span class="truncate">{t('nav.news')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if moduleOn('media')}
       <!-- Media -->
       <a
         href="/admin/media"
         onclick={() => handleNavigate('/media')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/media') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Media Library"
+        title={t('nav.media')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
@@ -216,13 +232,15 @@
           <span class="truncate">{t('nav.media')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if moduleOn('members')}
       <!-- Members -->
       <a
         href="/admin/members"
         onclick={() => handleNavigate('/members')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/members') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Members"
+        title={t('nav.members')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -234,6 +252,7 @@
           <span class="truncate">{t('nav.members')}</span>
         {/if}
       </a>
+      {/if}
     </div>
 
     <!-- NavDocuments (Matches official nav-documents.tsx) -->
@@ -245,7 +264,7 @@
             type="button"
             onclick={() => handleNavigate('/content-types')}
             class="size-5 rounded hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:rotate-90 transition-all duration-200 cursor-pointer"
-            title="Content Types & Object Builder"
+            title={t('nav.contentTypes')}
           >
             <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -281,7 +300,7 @@
                     activeDocDropdown = activeDocDropdown === collection.id ? null : collection.id;
                   }}
                   class="absolute right-1 size-6 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground transition-all duration-150"
-                  title="Options"
+                  title={t('nav.options')}
                 >
                   <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="1"></circle>
@@ -322,7 +341,7 @@
         href="/admin/site"
         onclick={() => handleNavigate('/site')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/site') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Settings"
+        title={t('nav.settings')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
@@ -337,7 +356,7 @@
         href="/admin/users"
         onclick={() => handleNavigate('/users')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Users & Roles"
+        title={t('nav.users')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
@@ -351,7 +370,7 @@
         href="/admin/system"
         onclick={() => handleNavigate('/system')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/system') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Telemetry"
+        title={t('nav.telemetry')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -378,7 +397,7 @@
       {#if sidebar.open}
         <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
           <span class="truncate font-medium text-foreground">{auth.user?.email || 'admin'}</span>
-          <span class="truncate text-muted-foreground capitalize">{auth.user?.role || 'admin'}</span>
+          <span class="truncate text-muted-foreground capitalize">{roleLabel(auth.user?.role || 'admin')}</span>
         </div>
         <svg class="size-4 text-muted-foreground ml-auto shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="1"></circle>
@@ -397,7 +416,7 @@
           </div>
           <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
             <span class="truncate font-medium text-foreground">{auth.user?.email || 'admin'}</span>
-            <span class="truncate text-muted-foreground capitalize">{auth.user?.role || 'admin'}</span>
+            <span class="truncate text-muted-foreground capitalize">{roleLabel(auth.user?.role || 'admin')}</span>
           </div>
         </div>
         <div class="py-1">

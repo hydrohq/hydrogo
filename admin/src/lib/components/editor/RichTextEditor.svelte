@@ -8,6 +8,7 @@
   import BubbleMenu from './BubbleMenu.svelte';
   import SlashCommandMenu, { type SlashItem } from './SlashCommandMenu.svelte';
   import { normalizeRichText } from './deltaToHtml';
+  import { t, type MessageKey } from '$lib/i18n/index.svelte';
 
   interface Props {
     value?: string;
@@ -20,7 +21,7 @@
     value = $bindable(),
     label,
     error,
-    placeholder = "Type '/' for commands, or start writing...",
+    placeholder,
   }: Props = $props();
 
   let element: HTMLDivElement | null = $state(null);
@@ -29,7 +30,7 @@
   // Status counters
   let wordCount = $state(0);
   let charCount = $state(0);
-  let currentBlockType = $state('Paragraph');
+  let currentBlockType = $state<MessageKey>('editor.paragraphShort');
 
   // Floating Slash Command Palette state
   let showSlashMenu = $state(false);
@@ -41,71 +42,71 @@
   let showBubbleMenu = $state(false);
   let bubbleMenuPos = $state<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  const rawSlashCommands: Array<Omit<SlashItem, 'action'> & { action: (ed: Editor) => void }> = [
+  const rawSlashCommands = $derived<Array<Omit<SlashItem, 'action'> & { action: (ed: Editor) => void }>>([
     {
       id: 'text',
-      title: 'Text',
-      description: 'Just start writing with plain text.',
+      title: t('slash.text'),
+      description: t('slash.textDesc'),
       badge: 'P',
       action: (ed) => ed.chain().focus().setParagraph().run(),
     },
     {
       id: 'h1',
-      title: 'Heading 1',
-      description: 'Big section heading.',
+      title: t('slash.h1'),
+      description: t('slash.h1Desc'),
       badge: 'H1',
       action: (ed) => ed.chain().focus().toggleHeading({ level: 1 }).run(),
     },
     {
       id: 'h2',
-      title: 'Heading 2',
-      description: 'Medium section heading.',
+      title: t('slash.h2'),
+      description: t('slash.h2Desc'),
       badge: 'H2',
       action: (ed) => ed.chain().focus().toggleHeading({ level: 2 }).run(),
     },
     {
       id: 'h3',
-      title: 'Heading 3',
-      description: 'Small section heading.',
+      title: t('slash.h3'),
+      description: t('slash.h3Desc'),
       badge: 'H3',
       action: (ed) => ed.chain().focus().toggleHeading({ level: 3 }).run(),
     },
     {
       id: 'bullet',
-      title: 'Bulleted List',
-      description: 'Create a simple bulleted list.',
+      title: t('slash.bullet'),
+      description: t('slash.bulletDesc'),
       badge: 'List',
       action: (ed) => ed.chain().focus().toggleBulletList().run(),
     },
     {
       id: 'number',
-      title: 'Numbered List',
-      description: 'Create a list with numbering.',
+      title: t('slash.numbered'),
+      description: t('slash.numberedDesc'),
       badge: '1.',
       action: (ed) => ed.chain().focus().toggleOrderedList().run(),
     },
     {
       id: 'quote',
-      title: 'Quote',
-      description: 'Capture a quote or prominent callout.',
+      title: t('slash.quote'),
+      description: t('slash.quoteDesc'),
       badge: 'Quote',
       action: (ed) => ed.chain().focus().toggleBlockquote().run(),
     },
     {
       id: 'code',
-      title: 'Code Block',
-      description: 'Capture a code snippet with formatting.',
+      title: t('slash.code'),
+      description: t('slash.codeDesc'),
       badge: '</>',
       action: (ed) => ed.chain().focus().toggleCodeBlock().run(),
     },
     {
       id: 'divider',
-      title: 'Divider',
-      description: 'Visually divide sections with a clean line.',
+      title: t('slash.divider'),
+      description: t('slash.dividerDesc'),
       badge: 'HR',
       action: (ed) => ed.chain().focus().setHorizontalRule().run(),
     },
-  ];
+  ]);
 
   const filteredSlashCommands = $derived.by(() => {
     if (!editor) return [];
@@ -131,21 +132,21 @@
     wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
     if (ed.isActive('heading', { level: 1 })) {
-      currentBlockType = 'Heading 1';
+      currentBlockType = 'editor.h1';
     } else if (ed.isActive('heading', { level: 2 })) {
-      currentBlockType = 'Heading 2';
+      currentBlockType = 'editor.h2';
     } else if (ed.isActive('heading', { level: 3 })) {
-      currentBlockType = 'Heading 3';
+      currentBlockType = 'editor.h3';
     } else if (ed.isActive('blockquote')) {
-      currentBlockType = 'Blockquote';
+      currentBlockType = 'editor.quote';
     } else if (ed.isActive('codeBlock')) {
-      currentBlockType = 'Code Block';
+      currentBlockType = 'editor.codeBlock';
     } else if (ed.isActive('bulletList')) {
-      currentBlockType = 'Bullet List';
+      currentBlockType = 'editor.bulletList';
     } else if (ed.isActive('orderedList')) {
-      currentBlockType = 'Numbered List';
+      currentBlockType = 'editor.numberedList';
     } else {
-      currentBlockType = 'Paragraph';
+      currentBlockType = 'editor.paragraphShort';
     }
   }
 
@@ -261,7 +262,7 @@
             if (node.type.name === 'blockquote') {
               return 'Empty quote...';
             }
-            return placeholder;
+            return placeholder ?? t('editor.placeholder');
           },
         }),
       ],
@@ -346,7 +347,7 @@
           <kbd class="font-bold">/</kbd> for commands
         </span>
         <span class="text-[11px] text-muted-foreground font-mono">
-          {currentBlockType}
+          {t(currentBlockType)}
         </span>
       </div>
     </div>
@@ -403,15 +404,15 @@
       class="flex items-center justify-between px-3 py-1.5 border-t border-border bg-muted/20 text-[11px] text-muted-foreground font-mono"
     >
       <div class="flex items-center gap-3">
-        <span>{wordCount} words</span>
+        <span>{t('editor.words', { count: wordCount })}</span>
         <span>•</span>
-        <span>{charCount} characters</span>
+        <span>{t('editor.chars', { count: charCount })}</span>
       </div>
 
       <div class="flex items-center gap-2">
-        <span class="hidden sm:inline text-muted-foreground/70">Tip: Type '#' for H1, '>' for quote, '-' for list</span>
+        <span class="hidden sm:inline text-muted-foreground/70">{t('editor.tip')}</span>
         <span class="hidden sm:inline">•</span>
-        <span>~{Math.max(1, Math.ceil(wordCount / 200))} min read</span>
+        <span>{t('editor.minRead', { minutes: Math.max(1, Math.ceil(wordCount / 200)) })}</span>
       </div>
     </div>
   </div>

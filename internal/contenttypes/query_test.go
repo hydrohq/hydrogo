@@ -35,6 +35,60 @@ func TestParsePublicQueryOnlyFiltersFilterableFields(t *testing.T) {
 	}
 }
 
+func TestParsePublicQueryReadsFilterOperators(t *testing.T) {
+	definition := Definition{ID: "deals", Fields: []Field{
+		{ID: "amount", Kind: "number", Filterable: true},
+		{ID: "closes", Kind: "date", Filterable: true},
+		{ID: "stage", Kind: "select", Filterable: true, Options: []string{"lead", "won"}},
+		{ID: "company", Kind: "relation", To: "companies", Filterable: true},
+		{ID: "open", Kind: "boolean", Filterable: true},
+		{ID: "notes", Kind: "text"},
+	}}
+	values, _ := url.ParseQuery("filter[amount][gte]=100&filter[amount][lt]=900&filter[closes][lte]=2026-12-31&filter[stage][in]=lead,won&filter[company][ne]=c1&filter[open]=true&filter[stage][null]=false")
+	query, err := parsePublicQuery(values, definition)
+	if err != nil || len(query.Where) != 7 {
+		t.Fatalf("query=%+v err=%v", query, err)
+	}
+	ops := map[string]collections.Operator{}
+	for _, condition := range query.Where {
+		ops[condition.Field+"/"+condition.Value] = condition.Op
+	}
+	for key, want := range map[string]collections.Operator{
+		"amount/100": collections.GreaterOrEqual, "amount/900": collections.LessThan, "closes/2026-12-31": collections.LessOrEqual,
+		"stage/lead,won": collections.In, "company/c1": collections.NotEquals, "open/true": collections.Equals, "stage/false": collections.IsNull,
+	} {
+		if ops[key] != want {
+			t.Errorf("%s: op=%q, want %q", key, ops[key], want)
+		}
+	}
+	for _, raw := range []string{"filter[amount][between]=1", "filter[notes][gt]=a", "filter[amount][gt][x]=1", "filter[amount][]=1", "filter[a[b]=1"} {
+		values, _ := url.ParseQuery(raw)
+		if _, err := parsePublicQuery(values, definition); !errors.Is(err, collections.ErrInvalidQuery) {
+			t.Errorf("%s: err=%v", raw, err)
+		}
+	}
+}
+
+func TestDefinitionFilterableKinds(t *testing.T) {
+	for kind, ok := range map[string]bool{"text": true, "number": true, "boolean": true, "date": true, "datetime": true, "relation": true, "richtext": false, "media": false} {
+		field := Field{ID: "f", Label: "F", Kind: kind, Filterable: true}
+		if kind == "relation" {
+			field.To = "other"
+		}
+		err := Definition{ID: "t", Label: "T", Fields: []Field{field}}.Validate()
+		if ok && err != nil {
+			t.Errorf("%s should be filterable: %v", kind, err)
+		}
+		if !ok && !errors.Is(err, ErrInvalidDefinition) {
+			t.Errorf("%s must not be filterable: %v", kind, err)
+		}
+	}
+	many := Field{ID: "f", Label: "F", Kind: "relation", To: "other", Many: true, Filterable: true}
+	if err := (Definition{ID: "t", Label: "T", Fields: []Field{many}}).Validate(); !errors.Is(err, ErrInvalidDefinition) {
+		t.Errorf("many relation must not be filterable: %v", err)
+	}
+}
+
 const searchableFAQ = `id: faq
 label: FAQ
 title_field: question

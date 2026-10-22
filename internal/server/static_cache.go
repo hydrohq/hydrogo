@@ -163,7 +163,7 @@ func writeCachedFileForHostLimit(baseDir, host, urlPath string, content []byte, 
 	}
 
 	targetDir := filepath.Dir(targetFile)
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G301 -- read directly by the web server on shared hosting (deploy/hosting/.htaccess)
 		return err
 	}
 	if err := pathguard.RejectSymlinkComponents(targetDir); err != nil {
@@ -356,7 +356,7 @@ func sameCookieHeaders(a, b []string) bool {
 }
 
 func evictStaticCache(baseDir, target string, newBytes int64, maxEntries int, maxTotal int64) error {
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o755); err != nil { // #nosec G301 -- read directly by the web server on shared hosting (deploy/hosting/.htaccess)
 		return err
 	}
 	type cacheFile struct {

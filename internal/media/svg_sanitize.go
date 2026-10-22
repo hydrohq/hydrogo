@@ -174,7 +174,7 @@ func hasXMLAttribute(attrs []xml.Attr, name string) bool {
 }
 
 func sanitizeSVGFile(originalPath, directory string, maxBytes int64) (string, error) {
-	source, err := os.Open(originalPath)
+	source, err := os.Open(originalPath) // #nosec G304 -- path of the temporary upload file the caller created
 	if err != nil {
 		return "", err
 	}

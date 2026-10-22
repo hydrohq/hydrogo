@@ -227,7 +227,8 @@ func TestAdminMeAndTokenEndpoints(t *testing.T) {
 	}
 	var meBody struct {
 		Data struct {
-			User struct {
+			Locale *string `json:"locale"`
+			User   struct {
 				ID    string `json:"id"`
 				Email string `json:"email"`
 				Role  string `json:"role"`
@@ -244,6 +245,22 @@ func TestAdminMeAndTokenEndpoints(t *testing.T) {
 	}
 	if meBody.Data.User.ID != "u1" || meBody.Data.User.Role != "admin" || meBody.Data.Principal.Kind != "session" || len(meBody.Data.PermissionCatalog) == 0 || len(meBody.Data.Permissions) != len(meBody.Data.PermissionCatalog) {
 		t.Fatalf("me body = %s", me.Body.String())
+	}
+
+	if meBody.Data.Locale != nil {
+		t.Fatalf("me locale without a saved choice = %q, want null", *meBody.Data.Locale)
+	}
+	withLocale := httptest.NewRequest(http.MethodGet, "/api/v1/admin/me", nil)
+	withLocale.AddCookie(&http.Cookie{Name: "hydro_admin_locale", Value: "en"})
+	meLocale := httptest.NewRecorder()
+	mux.ServeHTTP(meLocale, asSession(withLocale))
+	var localeBody struct {
+		Data struct {
+			Locale *string `json:"locale"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(meLocale.Body.Bytes(), &localeBody); err != nil || localeBody.Data.Locale == nil || *localeBody.Data.Locale != "en" {
+		t.Fatalf("me locale with cookie = %s", meLocale.Body.String())
 	}
 
 	created := httptest.NewRecorder()

@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { statusLabel } from '$lib/i18n/labels';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -240,7 +241,7 @@
                           variant={item.status === 'published' ? 'success' : item.status === 'scheduled' ? 'secondary' : item.status === 'retracted' ? 'destructive' : 'outline'}
                           size="sm"
                         >
-                          {item.status}
+                          {statusLabel(item.status)}
                         </Badge>
                       </td>
                       <td class="px-4 py-3 text-xs text-muted-foreground">

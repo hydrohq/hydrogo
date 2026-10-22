@@ -32,7 +32,7 @@ func SQLiteSchemaDiff(ctx context.Context, live *sql.DB, migrations fs.FS, enabl
 	}
 	reference.SetMaxOpenConns(1)
 	defer reference.Close()
-	if err := ApplyMigrationsForModules(ctx, reference, SQLite, migrations, enabled); err != nil {
+	if err := ApplyMigrationsForModules(ctx, reference, SQLite, ChainOnly(migrations), enabled); err != nil {
 		return nil, fmt.Errorf("build migration reference schema: %w", err)
 	}
 	want, err := sqliteCatalog(ctx, reference)
@@ -174,16 +174,16 @@ func mysqlCatalog(ctx context.Context, db interface {
 	for rows.Next() {
 		var name, kind string
 		if err := rows.Scan(&name, &kind); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		result[strings.ToLower(kind)+":"+name] = kind
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	rows, err = db.QueryContext(ctx, `SELECT table_name,column_name,column_type,is_nullable,COALESCE(column_default,''),extra,ordinal_position FROM information_schema.columns WHERE table_schema=DATABASE() ORDER BY table_name,ordinal_position`)
 	if err != nil {
@@ -193,16 +193,16 @@ func mysqlCatalog(ctx context.Context, db interface {
 		var table, name, columnType, nullable, defaultValue, extra string
 		var position int64
 		if err := rows.Scan(&table, &name, &columnType, &nullable, &defaultValue, &extra, &position); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
-		result["column:"+table+"."+name] = fmt.Sprintf("%s|%s|%s|%s|%d", strings.ToLower(columnType), nullable, defaultValue, extra, position)
+		result["column:"+table+"."+name] = fmt.Sprintf("%s|%s|%s|%s", strings.ToLower(columnType), nullable, defaultValue, extra) // not the position: baseline and chain place columns differently
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	rows, err = db.QueryContext(ctx, `SELECT table_name,index_name,non_unique,seq_in_index,column_name,COALESCE(sub_part,0),index_type FROM information_schema.statistics WHERE table_schema=DATABASE() ORDER BY table_name,index_name,seq_in_index`)
 	if err != nil {
@@ -212,7 +212,7 @@ func mysqlCatalog(ctx context.Context, db interface {
 		var table, name, column, indexType string
 		var nonUnique, position, prefix int64
 		if err := rows.Scan(&table, &name, &nonUnique, &position, &column, &prefix, &indexType); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		key := "index:" + table + "." + name
@@ -220,10 +220,10 @@ func mysqlCatalog(ctx context.Context, db interface {
 		result[key] = result[key] + ";" + entry
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	rows, err = db.QueryContext(ctx, `SELECT k.table_name,k.constraint_name,k.column_name,k.referenced_table_name,k.referenced_column_name,k.ordinal_position,r.update_rule,r.delete_rule FROM information_schema.key_column_usage k JOIN information_schema.referential_constraints r ON r.constraint_schema=k.constraint_schema AND r.constraint_name=k.constraint_name AND r.table_name=k.table_name WHERE k.table_schema=DATABASE() AND k.referenced_table_name IS NOT NULL ORDER BY k.table_name,k.constraint_name,k.ordinal_position`)
 	if err != nil {
@@ -233,7 +233,7 @@ func mysqlCatalog(ctx context.Context, db interface {
 		var table, name, column, refTable, refColumn, updateRule, deleteRule string
 		var position int64
 		if err := rows.Scan(&table, &name, &column, &refTable, &refColumn, &position, &updateRule, &deleteRule); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		key := "constraint:" + table + "." + name
@@ -241,10 +241,10 @@ func mysqlCatalog(ctx context.Context, db interface {
 		result[key] = result[key] + ";" + entry
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 	return result, nil
 }
 
@@ -281,16 +281,16 @@ func postgresCatalog(ctx context.Context, db interface {
 	for rows.Next() {
 		var name, kind string
 		if err := rows.Scan(&name, &kind); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		result[strings.ToLower(kind)+":"+name] = kind
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	rows, err = db.QueryContext(ctx, `SELECT table_name,column_name,data_type,udt_name,is_nullable,COALESCE(column_default,''),COALESCE(character_maximum_length,0),COALESCE(numeric_precision,0),COALESCE(numeric_scale,0),ordinal_position FROM information_schema.columns WHERE table_schema=current_schema() ORDER BY table_name,ordinal_position`)
 	if err != nil {
@@ -300,18 +300,18 @@ func postgresCatalog(ctx context.Context, db interface {
 		var table, name, dataType, udt, nullable, defaultValue string
 		var charLength, precision, scale, position int64
 		if err := rows.Scan(&table, &name, &dataType, &udt, &nullable, &defaultValue, &charLength, &precision, &scale, &position); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		defaultValue = strings.ReplaceAll(defaultValue, currentSchema+".", "")
-		value := fmt.Sprintf("%s|%s|%s|%s|%d|%d|%d|%d", dataType, udt, nullable, defaultValue, charLength, precision, scale, position)
+		value := fmt.Sprintf("%s|%s|%s|%s|%d|%d|%d", dataType, udt, nullable, defaultValue, charLength, precision, scale) // not the position: baseline and chain place columns differently
 		result["column:"+table+"."+name] = value
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	rows, err = db.QueryContext(ctx, `SELECT tablename,indexname,indexdef FROM pg_indexes WHERE schemaname=current_schema() ORDER BY tablename,indexname`)
 	if err != nil {
@@ -320,17 +320,17 @@ func postgresCatalog(ctx context.Context, db interface {
 	for rows.Next() {
 		var table, name, definition string
 		if err := rows.Scan(&table, &name, &definition); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		definition = strings.ReplaceAll(definition, currentSchema+".", "")
 		result["index:"+table+"."+name] = normalizeSchemaSQL(definition)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	rows, err = db.QueryContext(ctx, `SELECT r.relname,c.conname,c.contype,pg_get_constraintdef(c.oid) FROM pg_constraint c JOIN pg_class r ON r.oid=c.conrelid JOIN pg_namespace n ON n.oid=r.relnamespace WHERE n.nspname=current_schema() AND c.contype IN ('f','p','u','c') ORDER BY r.relname,c.conname`)
 	if err != nil {
@@ -339,16 +339,16 @@ func postgresCatalog(ctx context.Context, db interface {
 	for rows.Next() {
 		var table, name, kind, definition string
 		if err := rows.Scan(&table, &name, &kind, &definition); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		result["constraint:"+table+"."+name] = kind + "|" + normalizeSchemaSQL(definition)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 	return result, nil
 }
 
@@ -359,7 +359,7 @@ func compareSchemaCatalogs(want, got map[string]string) []SchemaChange {
 		kind, name, _ := strings.Cut(key, ":")
 		if !ok {
 			changes = append(changes, SchemaChange{Kind: "missing", Object: kind, Name: name})
-		} else if normalizeSchemaSQL(actual) != normalizeSchemaSQL(expected) {
+		} else if CanonicalSchemaSQL(kind, actual) != CanonicalSchemaSQL(kind, expected) {
 			changes = append(changes, SchemaChange{Kind: "definition_mismatch", Object: kind, Name: name})
 		}
 	}
@@ -373,7 +373,7 @@ func compareSchemaCatalogs(want, got map[string]string) []SchemaChange {
 	return changes
 }
 
-func normalizeSchemaSQL(value string) string { return strings.Join(strings.Fields(value), " ") }
+func normalizeSchemaSQL(value string) string { return NormalizeSchemaSQL(value) }
 
 func sortSchemaChanges(changes []SchemaChange) {
 	sort.Slice(changes, func(i, j int) bool {
