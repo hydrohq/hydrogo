@@ -37,8 +37,21 @@ try {
     # keeps the password bytes identical between create-admin and setup-auth.
     $passwordFile = Join-Path $root "e2e-admin-password.txt"
     [System.IO.File]::WriteAllText($passwordFile, $env:HYDRO_E2E_ADMIN_PASSWORD + "`n", [System.Text.UTF8Encoding]::new($false))
-    $createAdmin = Start-Process -FilePath $bin -ArgumentList @("create-admin", "--email", $env:HYDRO_E2E_ADMIN_EMAIL, "--password-stdin", "--database-dialect", "sqlite", "--database-dsn", $db) -RedirectStandardInput $passwordFile -NoNewWindow -Wait -PassThru
-    if ($createAdmin.ExitCode -ne 0) { throw "create-admin failed with exit code $($createAdmin.ExitCode)" }
+    # Start-Process -Wait -PassThru can fail with "the process has exited" when the
+    # child finishes before PowerShell looks at it, so the process is started and
+    # awaited directly, with the password file's bytes written to its stdin.
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $bin
+    $startInfo.Arguments = 'create-admin --email "' + $env:HYDRO_E2E_ADMIN_EMAIL + '" --password-stdin --database-dialect sqlite --database-dsn "' + $db + '"'
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardInput = $true
+    $createAdmin = [System.Diagnostics.Process]::Start($startInfo)
+    $passwordBytes = [System.IO.File]::ReadAllBytes($passwordFile)
+    $createAdmin.StandardInput.BaseStream.Write($passwordBytes, 0, $passwordBytes.Length)
+    $createAdmin.StandardInput.Close()
+    $createAdmin.WaitForExit()
+    $createAdminExit = $createAdmin.ExitCode
+    if ($createAdminExit -ne 0) { throw "create-admin failed with exit code $createAdminExit" }
     $process = Start-Process -FilePath $bin -ArgumentList @("serve", "--database-dialect", "sqlite", "--database-dsn", $db, "--address", "127.0.0.1:$port") -WorkingDirectory $repo -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
     $env:HYDRO_E2E_BASE_URL = $baseURL
     $env:HYDRO_E2E_STORAGE_STATE = $state

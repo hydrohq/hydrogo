@@ -165,17 +165,22 @@ func TestAuditChainRelinkAfterGap(t *testing.T) {
 	}
 }
 
-// On Windows consecutive events can carry the same timestamp. An event that
-// shares the first link's instant cannot be proven to come after the chain
-// began, so it counts as written before it, not as a missing link; an event
-// that is really later and unlinked is still reported.
-func TestAuditChainIsIntactWhenEventsShareOneTimestamp(t *testing.T) {
+// On Windows consecutive events used to carry the same timestamp, and the last
+// event before chaining then looked like a missing link. Stamps are strictly
+// increasing even when the clock does not move, so with a frozen clock an intact
+// chain verifies, and a really later unlinked event is still reported.
+func TestAuditChainIsIntactWhenTheClockDoesNotMove(t *testing.T) {
 	ctx := context.Background()
-	db := chainDB(t, "audit-chain-same-instant")
+	db := chainDB(t, "audit-chain-frozen-clock")
 	store := Store{Dialect: database.SQLite}
 	instant := time.Date(2026, 10, 22, 10, 0, 0, 0, time.UTC)
-	nowUTC = func() time.Time { return instant }
-	t.Cleanup(func() { nowUTC = func() time.Time { return time.Now().UTC() } })
+	wallClock = func() time.Time { return instant }
+	t.Cleanup(func() { wallClock = time.Now })
+
+	first, second := nowUTC(), nowUTC()
+	if !second.After(first) {
+		t.Fatalf("two stamps from a frozen clock must differ: %v %v", first, second)
+	}
 
 	SetChain(false)
 	if err := store.Record(ctx, db, "legacy", "auth.login", "u1"); err != nil {
@@ -189,10 +194,9 @@ func TestAuditChainIsIntactWhenEventsShareOneTimestamp(t *testing.T) {
 	}
 	report, err := store.VerifyChain(ctx, db, "", nil)
 	if err != nil || len(report.Problems) != 0 || report.Links != 2 || report.Legacy != 1 {
-		t.Fatalf("one shared timestamp: %+v err=%v", report, err)
+		t.Fatalf("frozen clock: %+v err=%v", report, err)
 	}
 
-	nowUTC = func() time.Time { return instant.Add(time.Second) }
 	SetChain(false)
 	if err := store.Record(ctx, db, "late", "auth.login", "u1"); err != nil {
 		t.Fatal(err)
