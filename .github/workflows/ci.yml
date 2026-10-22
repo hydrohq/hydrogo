@@ -34,6 +34,11 @@ jobs:
         run: bash scripts/container-lint.sh
       - name: Scan tracked files for high-confidence credentials
         run: bash scripts/secret-lint.sh
+      - name: Register emulation for the target architecture
+        if: matrix.arch != 'amd64'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: ${{ matrix.arch }}
       - name: Build reproducible OCI image (no push)
         run: docker build --pull --platform linux/${{ matrix.arch }} --build-arg TARGETARCH=${{ matrix.arch }} --tag hydrogo:ci-${{ matrix.arch }} .
 
@@ -312,7 +317,7 @@ jobs:
       - name: Run generated browser journeys against an isolated SQLite server
         shell: pwsh
         env:
-          HYDRO_E2E_ADMIN_PASSWORD: ci-only-e2e-password
+          HYDRO_E2E_ADMIN_PASSWORD: ci-only-e2e-quartz-7-ember-31
         run: powershell -ExecutionPolicy Bypass -File .\scripts\run-e2e.ps1
       - name: Upload browser failure artifacts
         if: always()
