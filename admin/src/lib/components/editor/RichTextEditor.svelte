@@ -238,6 +238,9 @@
 
     editor = new Editor({
       element: element,
+      // The page's content security policy refuses a style element added at
+      // runtime, so ProseMirror's core rules live in app.css instead.
+      injectCSS: false,
       extensions: [
         StarterKit.configure({
           heading: {

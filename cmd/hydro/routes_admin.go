@@ -56,9 +56,10 @@ func (a *serveApp) adminRoutes() []router.Route {
 	if len(a.cfg.Hooks) > 0 {
 		routes = append(routes, protected("GET /api/v1/admin/system/services", a.adminServicesHandler))
 	}
-	if a.modules["pages"] {
-		routes = append(routes, protected("GET /api/v1/admin/audit", a.adminAuditHandler))
-	}
+	// The audit log is the core's (audit_events is created by core, and every
+	// admin write is recorded whichever modules are on), so its explorer must not
+	// wait for pages: crm and erp-lite have none and still show the Audit button.
+	routes = append(routes, protected("GET /api/v1/admin/audit", a.adminAuditHandler))
 	return routes
 }
 
@@ -184,6 +185,11 @@ func (a *serveApp) buildAdminSchema() adminSchema {
 		if enabled {
 			schema.Modules[module] = true
 		}
+	}
+	// Not a module: it tells the admin that hook services are configured, so it
+	// asks for them (the endpoint does not exist otherwise) instead of getting a 404.
+	if len(a.cfg.Hooks) > 0 {
+		schema.Modules["hooks"] = true
 	}
 	return schema
 }

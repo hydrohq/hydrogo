@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 ### Fixed
+- Deleting a record that other records still point to answers 409 ("other records still refer to this one") on SQLite, PostgreSQL and MySQL, instead of 500.
+- The audit screen works in projects without the pages module (crm, erp-lite); the route was only registered with pages.
+- Hook events for a state step and a delete carry the stored record's fields, so a service rule such as `total > 0` sees the data instead of rejecting every step.
+- Admin: relation fields are searchable pickers that show names (also in lists) instead of raw id boxes; editing a record no longer saves unset numbers as 0; lists page and search on the server, so every record is reachable beyond the first 25; the System and Audit screens stop calling endpoints their project does not have; the rich-text editor no longer trips the content security policy; a refused state step shows the rule's message once.
 - MySQL: concurrent audited writes no longer deadlock on the audit chain head (found by running the new SQL on a real server), and a transaction the database aborts for a lock race (deadlock, lock wait timeout, serialization failure) now answers 409 so the request can be retried, instead of 500.
 
 ### Added
