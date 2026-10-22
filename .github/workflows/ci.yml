@@ -239,7 +239,8 @@ jobs:
 
   windows-go:
     runs-on: windows-latest
-    timeout-minutes: 15
+    # Two full test passes (plain and shuffled) take about 9 minutes each on a Windows runner.
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -252,19 +253,27 @@ jobs:
       - name: Verify format, vet, tests and build
         shell: pwsh
         run: |
+          # Only the last native command sets a PowerShell step's exit code, so each
+          # one is checked here: a failing test must not be hidden by the final build.
           git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $formatted = gofmt -l .
           if ($formatted) { Write-Error "gofmt required: $formatted" }
           go mod verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force .tmp | Out-Null
           go build -C tools/gosec -o ../../.tmp/gosec.exe github.com/securego/gosec/v2/cmd/gosec
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .tmp/gosec.exe -quiet -exclude-dir=.tmp ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./... -count=1 -p 1 -timeout=5m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./... -shuffle=on -count=1 -p 1 -timeout=5m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go build -ldflags "-X main.buildCommit=$env:GITHUB_SHA -X main.buildTime=ci" ./cmd/hydro
       - name: Verify reproducible hydro build
         timeout-minutes: 3

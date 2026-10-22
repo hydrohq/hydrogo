@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -161,5 +162,44 @@ func TestAuditChainRelinkAfterGap(t *testing.T) {
 	}
 	if !ChainEnabled() {
 		t.Fatal("relink left chaining switched off")
+	}
+}
+
+// On Windows consecutive events can carry the same timestamp. An event that
+// shares the first link's instant cannot be proven to come after the chain
+// began, so it counts as written before it, not as a missing link; an event
+// that is really later and unlinked is still reported.
+func TestAuditChainIsIntactWhenEventsShareOneTimestamp(t *testing.T) {
+	ctx := context.Background()
+	db := chainDB(t, "audit-chain-same-instant")
+	store := Store{Dialect: database.SQLite}
+	instant := time.Date(2026, 10, 22, 10, 0, 0, 0, time.UTC)
+	nowUTC = func() time.Time { return instant }
+	t.Cleanup(func() { nowUTC = func() time.Time { return time.Now().UTC() } })
+
+	SetChain(false)
+	if err := store.Record(ctx, db, "legacy", "auth.login", "u1"); err != nil {
+		t.Fatal(err)
+	}
+	SetChain(true)
+	for i := 1; i <= 2; i++ {
+		if err := store.RecordChange(ctx, db, fmt.Sprintf("e%d", i), "content.updated", "r1", []byte(`{"v":1}`), []byte(`{"v":2}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report, err := store.VerifyChain(ctx, db, "", nil)
+	if err != nil || len(report.Problems) != 0 || report.Links != 2 || report.Legacy != 1 {
+		t.Fatalf("one shared timestamp: %+v err=%v", report, err)
+	}
+
+	nowUTC = func() time.Time { return instant.Add(time.Second) }
+	SetChain(false)
+	if err := store.Record(ctx, db, "late", "auth.login", "u1"); err != nil {
+		t.Fatal(err)
+	}
+	SetChain(true)
+	report, err = store.VerifyChain(ctx, db, "", nil)
+	if err != nil || len(report.Problems) != 1 || !strings.Contains(report.Problems[0], "not in it") {
+		t.Fatalf("a later unlinked event must be reported: %+v err=%v", report, err)
 	}
 }
