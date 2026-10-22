@@ -1,6 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("HydroGo Admin SPA", () => {
+  // The suite shares a signed-in session (HYDRO_E2E_STORAGE_STATE); these
+  // journeys start at the sign-in page, so they begin without it.
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test("loads admin shell and redirects unauthenticated visitor to login", async ({ page }) => {
     await page.goto("/admin");
     // Should show the SPA title and login form
@@ -22,6 +26,7 @@ test.describe("HydroGo Admin SPA", () => {
 
     // Verify successful dashboard landing
     await expect(page.locator("aside")).toBeVisible();
-    await expect(page.getByText("Dashboard")).toBeVisible();
+    // "Dashboard" is both the sidebar entry and the page heading.
+    await expect(page.locator("aside").getByText("Dashboard")).toBeVisible();
   });
 });

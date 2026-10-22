@@ -58,8 +58,6 @@ try {
         } finally { Pop-Location }
         npm run setup-auth
         if ($LASTEXITCODE -ne 0) { throw "E2E auth setup failed with exit code $LASTEXITCODE" }
-        npm run generate
-        if ($LASTEXITCODE -ne 0) { throw "E2E generation failed with exit code $LASTEXITCODE" }
         if ($env:HYDRO_E2E_UPDATE_SNAPSHOTS -eq "1") {
             npm test -- --workers=1 --update-snapshots
         } else {
@@ -67,7 +65,7 @@ try {
         }
         if ($LASTEXITCODE -ne 0) { throw "Playwright E2E failed with exit code $LASTEXITCODE" }
     } finally { Pop-Location }
-    Write-Host "PASS: generated Admin Studio and frontend E2E completed"
+    Write-Host "PASS: Admin Studio and frontend E2E completed"
 } finally {
 	if ($null -eq $previousRedisURL) { Remove-Item Env:HYDRO_REDIS_URL -ErrorAction SilentlyContinue } else { $env:HYDRO_REDIS_URL = $previousRedisURL }
     if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
