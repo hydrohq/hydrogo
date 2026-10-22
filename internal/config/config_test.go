@@ -483,6 +483,25 @@ func TestLoadSyncHooksNeedASecretFromTheEnvironment(t *testing.T) {
 	}
 }
 
+func TestMaintenanceCommandsLoadWithoutDeliverySecrets(t *testing.T) {
+	body := "hooks:\n  - id: ledger\n    url: http://127.0.0.1:9100/hydro\n    secret_env: LEDGER_SECRET\n"
+	env := map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}
+	if _, err := Load(writeConfig(t, body), lookup(env), Overrides{SkipDeliverySecrets: true}); err != nil {
+		t.Fatalf("a command that never calls the hook must not need its secret: %v", err)
+	}
+	// Everything else is still checked.
+	bad := strings.Replace(body, "http://127.0.0.1:9100/hydro", "not a url", 1)
+	if _, err := Load(writeConfig(t, bad), lookup(env), Overrides{SkipDeliverySecrets: true}); err == nil {
+		t.Fatal("an invalid hook URL was accepted")
+	}
+	// A real secret is kept, not replaced by the placeholder.
+	env["LEDGER_SECRET"] = "0123456789abcdef"
+	cfg, err := Load(writeConfig(t, body), lookup(env), Overrides{SkipDeliverySecrets: true})
+	if err != nil || cfg.Hooks[0].Secret != "0123456789abcdef" {
+		t.Fatalf("hooks = %#v err=%v", cfg.Hooks, err)
+	}
+}
+
 func TestLoadHookSchedulesNeedValidCronExpressions(t *testing.T) {
 	env := map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite", "LEDGER_SECRET": "0123456789abcdef"}
 	head := "hooks:\n  - id: ledger\n    url: http://127.0.0.1:9100/hydro\n    secret_env: LEDGER_SECRET\n    schedules:\n"
