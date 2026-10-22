@@ -13,8 +13,10 @@ import (
 // parsePublicQuery reads the public API's list parameters:
 //
 //	filter[field]=v  exact match on a field marked filterable
+//	filter[field][op]=v  op is ne, gt, gte, lt, lte, in (comma separated) or null (true/false)
 //	search=q         substring match on any field marked searchable
 //	sort=field | sort=-field (also created_at, updated_at)
+//	after=cursor     continue after metadata.next_cursor (default or created_at/updated_at sort; no offset)
 //	limit=n&offset=n
 //
 // Other parameters are ignored.
@@ -39,7 +41,7 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 	for _, key := range keys {
 		entries := values[key]
 		switch {
-		case key == "sort" || key == "search" || strings.HasPrefix(key, "filter["):
+		case key == "sort" || key == "search" || key == "after" || strings.HasPrefix(key, "filter["):
 			if len(entries) != 1 {
 				return collections.Query{}, fmt.Errorf("%w: repeated parameter %q", collections.ErrInvalidQuery, key)
 			}
@@ -50,6 +52,12 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 		switch {
 		case key == "sort":
 			query.Sort = collections.ParseSort(value)
+		case key == "after":
+			cursor, err := collections.DecodeCursor(value)
+			if err != nil {
+				return collections.Query{}, err
+			}
+			query.After = &cursor
 		case key == "search":
 			if strings.TrimSpace(value) == "" {
 				continue
@@ -61,11 +69,14 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 				query.AnyOf = append(query.AnyOf, collections.Condition{Field: field, Op: collections.Contains, Value: strings.TrimSpace(value)})
 			}
 		case strings.HasSuffix(key, "]"):
-			field := key[len("filter[") : len(key)-1]
+			field, op, err := parseFilterKey(key)
+			if err != nil {
+				return collections.Query{}, err
+			}
 			if !filterable[field] {
 				return collections.Query{}, fmt.Errorf("%w: %q is not filterable", collections.ErrInvalidQuery, field)
 			}
-			query.Where = append(query.Where, collections.Condition{Field: field, Op: collections.Equals, Value: value})
+			query.Where = append(query.Where, collections.Condition{Field: field, Op: op, Value: value})
 		default:
 			return collections.Query{}, fmt.Errorf("%w: unsupported parameter %q", collections.ErrInvalidQuery, key)
 		}
@@ -75,6 +86,29 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 		return collections.Query{}, fmt.Errorf("%w: too many conditions", collections.ErrInvalidQuery)
 	}
 	return query, nil
+}
+
+// filterOperators maps the operator suffix of filter[field][op] to its
+// collections operator.
+var filterOperators = map[string]collections.Operator{
+	"eq": collections.Equals, "ne": collections.NotEquals,
+	"gt": collections.GreaterThan, "gte": collections.GreaterOrEqual,
+	"lt": collections.LessThan, "lte": collections.LessOrEqual,
+	"in": collections.In, "null": collections.IsNull,
+}
+
+// parseFilterKey splits "filter[field]" or "filter[field][op]".
+func parseFilterKey(key string) (string, collections.Operator, error) {
+	inner := key[len("filter[") : len(key)-1]
+	field, name := inner, "eq"
+	if i := strings.Index(inner, "]["); i >= 0 {
+		field, name = inner[:i], inner[i+2:]
+	}
+	op, ok := filterOperators[name]
+	if !ok || strings.ContainsAny(field, "[]") {
+		return "", "", fmt.Errorf("%w: unsupported filter %q", collections.ErrInvalidQuery, key)
+	}
+	return field, op, nil
 }
 
 func pagingValues(values url.Values) (int, int, error) {
@@ -88,7 +122,7 @@ func pagingValues(values url.Values) (int, int, error) {
 	}
 	if raw := values.Get("offset"); raw != "" {
 		value, err := strconv.Atoi(raw)
-		if err != nil || value < 0 || value > collections.MaxCollectionRecords {
+		if err != nil || value < 0 || value > collections.MaxListOffset {
 			return 0, 0, fmt.Errorf("%w: invalid offset", collections.ErrInvalidQuery)
 		}
 		offset = value

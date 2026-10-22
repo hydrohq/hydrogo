@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
@@ -34,11 +35,18 @@ func (h HTTPHandler) adminMe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	principal := PrincipalFromContext(r.Context())
+	// The language saved through PUT /api/v1/admin/account/locale; null until
+	// the user has chosen one, so the SPA can fall back to the project default.
+	var locale any
+	if cookie, err := r.Cookie(i18n.AdminLocaleCookieName); err == nil && i18n.IsSupportedCatalogLocale(cookie.Value) {
+		locale = i18n.ResolveCatalogLocale(cookie.Value)
+	}
 	api.WriteData(w, http.StatusOK, map[string]any{
 		"user": map[string]any{
 			"id": user.ID, "email": user.Email, "role": user.Role, "active": user.Active,
 			"email_verified_at": user.EmailVerifiedAt, "last_login_at": user.LastLoginAt, "mfa_enabled": mfaEnabled,
 		},
+		"locale":             locale,
 		"permissions":        granted,
 		"permission_catalog": catalog,
 		"principal":          principal,

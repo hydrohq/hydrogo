@@ -198,7 +198,7 @@ func (s MediaReferences) ReferencedMediaIDs(ctx context.Context, db database.Exe
 				dest[i] = &values[i]
 			}
 			if err := rows.Scan(dest...); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
 			for _, value := range values {
@@ -208,7 +208,7 @@ func (s MediaReferences) ReferencedMediaIDs(ctx context.Context, db database.Exe
 			}
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		_ = rows.Close()

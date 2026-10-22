@@ -3,6 +3,8 @@ package collections
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -110,7 +112,7 @@ func (s Service) DeleteSchema(ctx context.Context, id string) error {
 }
 
 func (s Service) ListRecords(ctx context.Context, collectionID string, limit, offset int) ([]Record, error) {
-	if limit < 1 || limit > 100 || offset < 0 || offset > MaxCollectionRecords {
+	if limit < 1 || limit > 100 || offset < 0 || offset > MaxListOffset {
 		return nil, ErrInvalidRecord
 	}
 	return s.QueryRecords(ctx, collectionID, Query{Limit: limit, Offset: offset})
@@ -165,8 +167,62 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 	if err != nil {
 		return Record{}, err
 	}
+	if len(schema.RollupParents) == 0 {
+		return s.saveChecked(ctx, schema, id, data, expectedVersion)
+	}
+	return s.withRollups(ctx, schema, id, func(tx Service) (Record, error) {
+		return tx.saveChecked(ctx, schema, id, data, expectedVersion)
+	})
+}
+
+// saveChecked validates and saves one record of schema.
+func (s Service) saveChecked(ctx context.Context, schema Schema, id string, data map[string]any, expectedVersion int) (Record, error) {
+	collectionID := schema.ID
 	clean, err := schema.ValidateRecord(data)
 	if err != nil {
+		return Record{}, err
+	}
+	var stored *Record
+	if id != "" && (len(schema.sequenceFields()) > 0 || schema.States != nil || schema.hasReadonlyRules() || len(schema.rollupFields()) > 0) {
+		record, err := s.Repository.GetRecord(ctx, collectionID, id)
+		if err != nil {
+			return Record{}, err
+		}
+		stored = &record
+		if err := schema.checkReadonly(record.Data); err != nil {
+			return Record{}, err
+		}
+	}
+	if machine := schema.States; machine != nil {
+		// The state is never taken from the client: new records start in
+		// the initial state, updates keep the stored one (see Transition).
+		clean[machine.Field] = machine.Initial
+		if stored != nil {
+			if value, ok := stored.Data[machine.Field]; ok {
+				clean[machine.Field] = value
+			}
+		}
+	}
+	return s.persist(ctx, schema, id, clean, stored, expectedVersion)
+}
+
+// persist runs the asserts and writes a validated record: sequence numbers
+// (kept on update), unique values, related records and the save itself.
+func (s Service) persist(ctx context.Context, schema Schema, id string, clean map[string]any, stored *Record, expectedVersion int) (Record, error) {
+	collectionID := schema.ID
+	sequences := schema.sequenceFields()
+	if stored != nil {
+		// Numbers never change: keep the stored ones.
+		for _, field := range sequences {
+			if value, ok := stored.Data[field.ID]; ok {
+				clean[field.ID] = value
+			}
+		}
+	}
+	if err := schema.carryRollups(clean, stored); err != nil {
+		return Record{}, err
+	}
+	if err := schema.checkAsserts(clean); err != nil {
 		return Record{}, err
 	}
 	unique := make([]Field, 0)
@@ -175,19 +231,19 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 		if !present {
 			continue
 		}
-		if field.Unique {
+		if field.Unique || field.Sequence != nil {
 			unique = append(unique, field)
 		}
 		if field.Kind != Relation && field.Kind != RelationMany {
 			continue
 		}
-		relationIDs := []string{value.(string)}
+		var relationIDs []string
 		if field.Kind == RelationMany {
-			items := value.([]any)
-			relationIDs = relationIDs[:0]
-			for _, item := range items {
+			for _, item := range value.([]any) {
 				relationIDs = append(relationIDs, item.(string))
 			}
+		} else {
+			relationIDs = []string{value.(string)}
 		}
 		for _, relatedID := range relationIDs {
 			exists, err := s.Repository.RecordExists(ctx, field.Relation, relatedID)
@@ -199,7 +255,95 @@ func (s Service) saveRecord(ctx context.Context, collectionID, id string, data m
 			}
 		}
 	}
+	if len(sequences) > 0 && id == "" {
+		return s.createNumbered(ctx, collectionID, clean, unique, sequences)
+	}
 	return s.Repository.SaveRecord(ctx, collectionID, id, clean, unique, expectedVersion)
+}
+
+// Transition moves a record to another state of the type's state machine. It
+// fails with ErrTransitionNotAllowed when the machine has no such step from
+// the current state or the step's condition does not hold, and with
+// ErrTransitionForbidden when the step needs a permission can does not grant.
+// A readonly rule does not block a transition, so a locked record can still be
+// moved on (for example voided); the asserts apply to the record as it will be.
+func (s Service) Transition(ctx context.Context, collectionID, id, to string, expectedVersion int, can func(permission string) bool) (Record, error) {
+	if s.Repository == nil {
+		return Record{}, ErrCollectionNotFound
+	}
+	schema, err := s.Repository.GetSchema(ctx, collectionID)
+	if err != nil {
+		return Record{}, err
+	}
+	machine := schema.States
+	if machine == nil {
+		return Record{}, ErrNoStates
+	}
+	stored, err := s.Repository.GetRecord(ctx, collectionID, id)
+	if err != nil {
+		return Record{}, err
+	}
+	from, _ := stored.Data[machine.Field].(string)
+	if from == "" {
+		from = machine.Initial
+	}
+	var step *Transition
+	for i := range machine.Transitions {
+		if machine.Transitions[i].From == from && machine.Transitions[i].To == to {
+			step = &machine.Transitions[i]
+		}
+	}
+	if step == nil {
+		return Record{}, fmt.Errorf("%w: %s to %s", ErrTransitionNotAllowed, from, to)
+	}
+	if step.Permission != "" && (can == nil || !can(step.Permission)) {
+		return Record{}, ErrTransitionForbidden
+	}
+	if step.When != "" {
+		ok, err := holds(step.When, stored.Data)
+		if err != nil || !ok {
+			message := strings.TrimSpace(step.Message)
+			if message == "" {
+				message = from + " to " + to + " is not possible yet"
+			}
+			return Record{}, fmt.Errorf("%w: %s", ErrTransitionNotAllowed, message)
+		}
+	}
+	data := make(map[string]any, len(stored.Data))
+	for key, value := range stored.Data {
+		data[key] = value
+	}
+	clean, err := schema.ValidateRecord(data)
+	if err != nil {
+		return Record{}, err
+	}
+	clean[machine.Field] = to
+	return s.persist(ctx, schema, id, clean, &stored, expectedVersion)
+}
+
+// createNumbered takes the next number of every sequence field and saves the
+// record in one transaction, so a failed save leaves no gap.
+func (s Service) createNumbered(ctx context.Context, collectionID string, clean map[string]any, unique []Field, sequences []Field) (Record, error) {
+	var record Record
+	err := s.InTransaction(ctx, func(tx Service) error {
+		numbers, ok := tx.Repository.(SequenceRepository)
+		if !ok {
+			return ErrNoTransactions
+		}
+		now := time.Now()
+		for _, field := range sequences {
+			scope := field.Sequence.Scope(now)
+			n, err := numbers.NextSequence(ctx, collectionID, field.ID, scope)
+			if err != nil {
+				return err
+			}
+			clean[field.ID] = field.Sequence.Format(scope, n)
+		}
+		var err error
+		record, err = tx.Repository.SaveRecord(ctx, collectionID, "", clean, append(unique, sequences...), 0)
+		return err
+	})
+	return record, err
 }
 
 func (s Service) DeleteRecord(ctx context.Context, collectionID, id string) error {
@@ -208,6 +352,25 @@ func (s Service) DeleteRecord(ctx context.Context, collectionID, id string) erro
 	}
 	if id == "" {
 		return errors.New("record id is required")
+	}
+	if schema, err := s.Repository.GetSchema(ctx, collectionID); err == nil && len(schema.RollupParents) > 0 {
+		_, err := s.withRollups(ctx, schema, id, func(tx Service) (Record, error) {
+			return Record{}, tx.deleteChecked(ctx, collectionID, id)
+		})
+		return err
+	}
+	return s.deleteChecked(ctx, collectionID, id)
+}
+
+func (s Service) deleteChecked(ctx context.Context, collectionID, id string) error {
+	if schema, err := s.Repository.GetSchema(ctx, collectionID); err == nil && schema.hasReadonlyRules() {
+		stored, err := s.Repository.GetRecord(ctx, collectionID, id)
+		if err != nil {
+			return err
+		}
+		if err := schema.checkReadonly(stored.Data); err != nil {
+			return err
+		}
 	}
 	return s.Repository.DeleteRecord(ctx, collectionID, id)
 }

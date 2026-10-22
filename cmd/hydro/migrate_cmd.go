@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -224,13 +223,13 @@ func migrationCommand(args []string, stdout, stderr io.Writer) error {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- migration source directory meant to be committed
 		return err
 	}
 	metadata := fmt.Sprintf("id: %q\nmodule: %q\nclass:\n  sqlite: \"expand\"\n  postgres: \"expand\"\ntransactional:\n  sqlite: true\n  postgres: true\ndependencies: []\nchecksum_sha256:\n  sqlite: \"REPLACE_AFTER_REVIEW\"\n  postgres: \"REPLACE_AFTER_REVIEW\"\nschema:\n  readable_epoch: 1\n  writable_epoch: 1\ncompatibility: \"Describe additive/compatibility behavior before merge.\"\nrollback: \"No production down migration; restore or forward migration only.\"\n", *id, strings.TrimSpace(*module))
 	files := map[string]string{"migration.yaml": metadata, "sqlite.sql": "-- Write the SQLite migration after review.\n", "postgres.sql": "-- Write the PostgreSQL migration after review.\n"}
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil { // #nosec G306 -- migration source file meant to be committed
 			return err
 		}
 	}

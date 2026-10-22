@@ -41,11 +41,11 @@ func contentTypeCommand(args []string, stdout, stderr io.Writer) error {
 		if !contentTypeID.MatchString(id) {
 			return fmt.Errorf("content type id %q must be lowercase letters, digits and underscores, starting with a letter", id)
 		}
-		if err := os.MkdirAll(*dir, 0o755); err != nil {
+		if err := os.MkdirAll(*dir, 0o755); err != nil { // #nosec G301 ,G703-- content-types directory of the project
 			return err
 		}
 		path := filepath.Join(*dir, id+".yaml")
-		if _, err := os.Stat(path); err == nil {
+		if _, err := os.Stat(path); err == nil { // #nosec G703 -- id matches contentTypeID; the directory is the operator's flag
 			return fmt.Errorf("%s already exists", path)
 		}
 		skeleton := fmt.Sprintf(`# yaml-language-server: $schema=https://raw.githubusercontent.com/ozyildirims/hydrogo/main/docs/schemas/content-type.schema.json
@@ -59,7 +59,7 @@ fields:
   - {id: title, label: Title, kind: text, required: true, list: true, searchable: true}
   - {id: body, label: Body, kind: richtext}
 `, id, id)
-		if err := os.WriteFile(path, []byte(skeleton), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(skeleton), 0o644); err != nil { // #nosec G306 ,G703-- content type definition: a project source file with no secrets
 			return err
 		}
 		fmt.Fprintf(stdout, "Created %s. Restart hydro serve to see /admin/content/%s and /api/v1/content/%s.\n", path, id, id)

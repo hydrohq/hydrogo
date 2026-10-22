@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
-  import { api } from '$lib/api/client';
+  import { api, ApiClientError } from '$lib/api/client';
+  import { importCsvFile, importErrorMessage } from './csvImport';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import type { ContentItem, ApiResponse, Field } from '$lib/api/types';
@@ -55,6 +56,69 @@
     }
     return list;
   });
+
+  // Bulk selection. Content types delete the selection in one atomic batch
+  // request; other resources have no batch endpoint yet.
+  const bulkEnabled = $derived(!!collection && collection.api_path?.startsWith('/api/v1/admin/content/'));
+  let selected = $state<Record<string, boolean>>({});
+  const selectedIds = $derived(Object.keys(selected).filter((id) => selected[id]));
+  let bulkDeleteOpen = $state(false);
+  let bulkLoading = $state(false);
+  let bulkError = $state('');
+
+  const allShownSelected = $derived(filteredItems.length > 0 && filteredItems.every((item) => selected[item.id]));
+
+  function toggleAll() {
+    const next = !allShownSelected;
+    const map: Record<string, boolean> = { ...selected };
+    for (const item of filteredItems) map[item.id] = next;
+    selected = map;
+  }
+
+  async function confirmBulkDelete() {
+    if (!collection) return;
+    bulkLoading = true;
+    bulkError = '';
+    try {
+      await api.post('/api/v1/admin/content/_batch', {
+        operations: selectedIds.map((id) => ({ op: 'delete', type, id })),
+      });
+      bulkDeleteOpen = false;
+      selected = {};
+      await loadItems();
+    } catch (err) {
+      // The batch is atomic: nothing was deleted. Show why, with the request id.
+      bulkError = err instanceof ApiClientError
+        ? `${err.message}${err.requestId ? ` (${t('schema.requestId')}: ${err.requestId})` : ''}`
+        : t('schema.bulkFailed');
+      bulkDeleteOpen = false;
+    } finally {
+      bulkLoading = false;
+    }
+  }
+
+  // CSV transfer (content types only): export downloads the list through the
+  // browser session; import sends the file as the request body.
+  const csvBase = $derived(collection?.api_path || `/api/v1/admin/content/${type}`);
+  let importInput = $state<HTMLInputElement | null>(null);
+  let importMessage = $state('');
+  let importFailed = $state(false);
+
+  async function importCsv(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    importMessage = '';
+    importFailed = false;
+    try {
+      importMessage = t('schema.importDone', { count: await importCsvFile(csvBase, file) });
+      await loadItems();
+    } catch (err) {
+      importFailed = true;
+      importMessage = importErrorMessage(err, t('schema.requestId'), t('schema.importFailed'));
+    }
+  }
 
   async function loadItems() {
     if (!collection) return;
@@ -121,6 +185,8 @@
       page = 1;
       statusFilter = '';
       search = '';
+      selected = {};
+      bulkError = '';
       loadItems();
     }
   });
@@ -152,10 +218,19 @@
   oncancel={() => { deleteTargetId = null; }}
 />
 
+<ConfirmDialog
+  open={bulkDeleteOpen}
+  title={t('schema.bulkDeleteTitle', { count: selectedIds.length })}
+  description={t('schema.bulkDeleteDescription')}
+  loading={bulkLoading}
+  onconfirm={confirmBulkDelete}
+  oncancel={() => { bulkDeleteOpen = false; }}
+/>
+
 {#if schema.isLoading}
   <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
     <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-    <span>Loading {type} schema...</span>
+    <span>{t('schema.loadingSchema', { type })}</span>
   </div>
 {:else if !collection}
   <div class="p-12 text-center text-xs text-muted-foreground">
@@ -206,8 +281,8 @@
           {/if}
 
           <!-- Search & Add CTA -->
-          <div class="flex items-center gap-2">
-            <div class="relative w-48 sm:w-64">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative w-full sm:w-64">
               <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -219,6 +294,20 @@
                 class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               />
             </div>
+
+            {#if bulkEnabled}
+              <a
+                href="{csvBase}/_export"
+                download
+                class="inline-flex items-center h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium shadow-xs shrink-0"
+              >{t('schema.exportCsv')}</a>
+              <button
+                type="button"
+                class="inline-flex items-center h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium shadow-xs cursor-pointer shrink-0"
+                onclick={() => importInput?.click()}
+              >{t('schema.importCsv')}</button>
+              <input bind:this={importInput} type="file" accept=".csv,text/csv" class="hidden" onchange={importCsv} />
+            {/if}
 
             <button
               type="button"
@@ -234,12 +323,28 @@
           </div>
         </div>
 
+        {#if bulkEnabled && selectedIds.length > 0}
+          <div class="mx-4 lg:mx-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 px-4 py-2 text-xs">
+            <span>{t('schema.selected', { count: selectedIds.length })}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent cursor-pointer" onclick={() => { selected = {}; }}>{t('schema.clearSelection')}</button>
+              <button type="button" class="h-7 px-2.5 rounded-md bg-destructive text-white hover:bg-destructive/90 cursor-pointer" onclick={() => { bulkDeleteOpen = true; }}>{t('schema.bulkDelete')}</button>
+            </div>
+          </div>
+        {/if}
+        {#if importMessage}
+          <p class="mx-4 lg:mx-6 text-xs {importFailed ? 'text-destructive' : 'text-muted-foreground'}" role={importFailed ? 'alert' : 'status'}>{importMessage}</p>
+        {/if}
+        {#if bulkError}
+          <p class="mx-4 lg:mx-6 text-xs text-destructive" role="alert">{bulkError}</p>
+        {/if}
+
         <!-- Table Container -->
         <div class="px-4 lg:px-6">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
               <div class="p-12 text-center text-xs text-muted-foreground">
-                Loading {(collection.plural || collection.label || type).toLowerCase()}...
+                {t('schema.loadingItems', { name: (collection.plural || collection.label || type).toLowerCase() })}
               </div>
             {:else if filteredItems.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-3">
@@ -257,6 +362,9 @@
                 <table class="w-full text-left text-sm text-foreground caption-bottom">
                   <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
                     <tr>
+                      {#if bulkEnabled}
+                        <th class="h-10 w-10 px-4"><input type="checkbox" checked={allShownSelected} onchange={toggleAll} aria-label={t('schema.selectAll')} /></th>
+                      {/if}
                       {#each listFields as field}
                         <th class="h-10 px-4 font-medium">{field.label || getFieldKey(field)}</th>
                       {/each}
@@ -272,6 +380,11 @@
                         class="hover:bg-muted/50 transition-colors cursor-pointer"
                         onclick={() => openEdit(item.id)}
                       >
+                        {#if bulkEnabled}
+                          <td class="w-10 px-4 py-3" onclick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" bind:checked={selected[item.id]} aria-label={t('schema.selectRow')} />
+                          </td>
+                        {/if}
                         {#each listFields as field}
                           {@const key = getFieldKey(field)}
                           <td class="px-4 py-3 text-xs text-foreground max-w-xs truncate">

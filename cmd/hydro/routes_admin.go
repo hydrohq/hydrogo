@@ -23,6 +23,8 @@ func (a *serveApp) adminStudioRoutes() []router.Route {
 		routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/search", Access: router.Protected, Handler: adminsearch.AdminSearchHandler{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope, Modules: modules}})
 	}
 	routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/schema", Access: router.Protected, Handler: http.HandlerFunc(a.adminSchema)})
+	// The sign-in screen needs the project's name, logo and colour before anyone is signed in.
+	routes = append(routes, router.Route{Pattern: "GET /api/v1/admin/branding", Access: router.Public, Handler: http.HandlerFunc(a.adminBrandingHandler)})
 	return routes
 }
 
@@ -50,6 +52,9 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("GET /api/v1/admin/system/metrics", a.adminSystemMetricsHandler),
 		protected("GET /api/v1/admin/system/health", a.adminSystemHealthHandler(a.readiness)),
 		protected("POST /api/v1/admin/client-errors", a.adminClientErrorHandler(a.newRateLimiter(10, time.Minute))),
+	}
+	if len(a.cfg.Hooks) > 0 {
+		routes = append(routes, protected("GET /api/v1/admin/system/services", a.adminServicesHandler))
 	}
 	if a.modules["pages"] {
 		routes = append(routes, protected("GET /api/v1/admin/audit", a.adminAuditHandler))
@@ -109,6 +114,7 @@ func (a *serveApp) adminSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	schema := a.buildAdminSchema()
+	schema.Resources = contenttypes.HideUnreadableFields(schema.Resources, a.contentTypes, func(permission string) bool { return contentTypeCan(r, permission) })
 	schema.Locales.AdminDefault = a.adminDefaultLocale(r.Context())
 	schema.Branding = a.adminBranding(r.Context())
 	api.WriteData(w, http.StatusOK, schema, nil)
@@ -125,6 +131,16 @@ func (a *serveApp) adminDefaultLocale(ctx context.Context) string {
 		return ""
 	}
 	return setting.Value
+}
+
+// adminBrandingHandler serves the branding and default language without
+// authentication; both are already public site settings.
+func (a *serveApp) adminBrandingHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache")
+	api.WriteData(w, http.StatusOK, struct {
+		adminBranding
+		DefaultLocale string `json:"default_locale"`
+	}{a.adminBranding(r.Context()), a.adminDefaultLocale(r.Context())}, nil)
 }
 
 func (a *serveApp) adminBranding(ctx context.Context) adminBranding {

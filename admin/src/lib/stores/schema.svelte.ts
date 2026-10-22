@@ -30,8 +30,19 @@ class SchemaState {
     return this.resources.find(r => r.id === id);
   }
 
-  async loadSchema(force = false): Promise<void> {
-    if (this.schema && !this.error && !force) return;
+  private inflight: Promise<void> | null = null;
+
+  /** Concurrent callers (sign-in and the app shell both ask right after login) share one request. */
+  loadSchema(force = false): Promise<void> {
+    if (this.inflight) return this.inflight;
+    if (this.schema && !this.error && !force) return Promise.resolve();
+    this.inflight = this.fetchSchema().finally(() => {
+      this.inflight = null;
+    });
+    return this.inflight;
+  }
+
+  private async fetchSchema(): Promise<void> {
     this.isLoading = true;
     this.error = null;
     try {

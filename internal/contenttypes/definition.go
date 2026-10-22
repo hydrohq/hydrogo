@@ -34,7 +34,27 @@
 //   - searchable: include the field in the admin list search and the public
 //     API's ?search= (text, textarea, richtext, select).
 //   - filterable: add a filter for the field to the admin list and allow
-//     ?filter[field]= on the public API (text, textarea, select, number).
+//     ?filter[field]= on the public API (text, textarea, select, number,
+//     boolean, date, datetime and single relation fields). Beyond equality
+//     the API accepts filter[field][ne|gt|gte|lt|lte|in|null]=value; gt, gte,
+//     lt and lte need a number or date field, in takes a comma separated
+//     list (at most 50 values) and null takes true or false.
+//   - decimals: 2 fixes the decimal places of a number field (money). A
+//     value with more places, or too large to be held exactly (more than 15
+//     digits including the places), is rejected, never rounded.
+//   - computed: "quantity * unit_price" calculates a number field on the
+//     server on every save, with exact decimal arithmetic. It needs
+//     decimals (the result is rounded half away from zero to that many
+//     places), reads only number fields declared before it, and supports
+//   - - * /, parentheses and abs, min, max and round(x, places). The
+//     stored value is returned like any field, a client value is ignored,
+//     and the field is read-only in the admin.
+//   - sequence: {prefix: "INV-{yyyy}-", pad: 5}: number new records
+//     without gaps ("INV-2026-00001", "INV-2026-00002", ...). The counter
+//     restarts when the expanded prefix changes ({yyyy}, {yy} and {mm} are
+//     replaced by the current UTC year and month). Text fields only; the
+//     server sets the value on create, it never changes, and a value sent
+//     by a client is ignored. The field is unique and read-only in the admin.
 //   - localized: keep one value per site locale (text, textarea, richtext,
 //     media; not together with unique, searchable or filterable). A type
 //     with localized fields needs revisions: true. The record holds the
@@ -43,6 +63,33 @@
 //     back to the default locale per field. Localization is active only
 //     when the site has i18n enabled with more than one locale; otherwise
 //     the flag changes nothing.
+//
+// Rules and states (type level, next to fields):
+//
+//	rules:
+//	  - assert: "quantity > 0"                 # every saved record must satisfy it
+//	    message: "Quantity must be positive"
+//	  - when: "status == 'posted'"             # ...only while the record is posted
+//	    assert: "total > 0"
+//	  - when: "status == 'posted'"             # a stored record matching it is locked:
+//	    readonly: true                         # no edits, no delete
+//	    message: "Posted invoices are locked"
+//	states:
+//	  field: status                            # a select field; read-only in the admin
+//	  initial: draft                           # new records start here
+//	  transitions:
+//	    - {from: draft, to: approved, permission: invoice.approve}
+//	    - {from: approved, to: posted, when: "total > 0", message: "Nothing to post"}
+//	    - {from: posted, to: void}
+//
+// Conditions use the expression language of computed fields plus comparisons
+// (== != < <= > >=), && || !, 'text', true, false and empty(field); they may
+// only read fields of the type. A save can never change the state field: it
+// moves along transitions with POST /api/v1/admin/content/{type}/{id}/state
+// {"to": "approved", "version": n}, which needs the transition's permission
+// (admins have every permission) and runs the asserts on the resulting
+// record. Readonly rules do not block transitions, so a locked record can
+// still be voided.
 //
 // The public API also accepts ?sort=field or ?sort=-field on any field and
 // on created_at and updated_at.
@@ -55,6 +102,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -69,6 +117,36 @@ var ErrInvalidDefinition = errors.New("invalid content type definition")
 // reserved field IDs are added by the storage layer to every record.
 // "locale" is added to public API responses.
 var reserved = map[string]bool{"id": true, "version": true, "created_at": true, "updated_at": true, "locale": true}
+
+var permissionName = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
+
+// PermissionNames lists the custom permissions the definitions declare, for
+// the permission catalog (type permissions and state-step permissions).
+func PermissionNames(definitions []Definition) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, d := range definitions {
+		declared := []string{d.Permissions.Read, d.Permissions.Write}
+		if d.Access != nil {
+			declared = append(declared, d.Access.All)
+		}
+		for _, field := range d.Fields {
+			declared = append(declared, field.Permission)
+		}
+		if d.States != nil {
+			for _, step := range d.States.Transitions {
+				declared = append(declared, step.Permission)
+			}
+		}
+		for _, name := range declared {
+			if name != "" && !seen[name] {
+				seen[name] = true
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 
@@ -87,8 +165,37 @@ type Definition struct {
 	Drafts bool `json:"drafts" yaml:"drafts"`
 	// Revisions keeps the last collections.MaxRevisionsPerRecord saved
 	// versions of each record; the admin can view and restore them.
-	Revisions bool    `json:"revisions" yaml:"revisions"`
-	Fields    []Field `json:"fields" yaml:"fields"`
+	Revisions bool `json:"revisions" yaml:"revisions"`
+	// Rules validate and lock records; States restricts how a select field
+	// changes (see the package documentation).
+	// Permissions names the permissions that guard this type in the admin API
+	// instead of the generic content permissions.
+	// PeriodLock refuses changes to records dated in a closed period.
+	PeriodLock *PeriodLock `json:"period_lock,omitempty" yaml:"period_lock"`
+	// Hooks consult side services before changes (see Hook).
+	Hooks       []Hook                    `json:"hooks,omitempty" yaml:"hooks"`
+	Access      *Access                   `json:"access,omitempty" yaml:"access"`
+	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions"`
+	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
+	States      *collections.StateMachine `json:"states,omitempty" yaml:"states"`
+	Fields      []Field                   `json:"fields" yaml:"fields"`
+}
+
+// Permissions guards one content type: Read for lists and reads, Write for
+// creating, changing, deleting and state steps. An empty name keeps the
+// generic admin.content.read / admin.content.write for that direction. Admins
+// hold every permission; others get a named one from a per-user override.
+type Permissions struct {
+	Read  string `json:"read,omitempty" yaml:"read"`
+	Write string `json:"write,omitempty" yaml:"write"`
+}
+
+// For returns the permission that guards reads or writes ("" = generic).
+func (p Permissions) For(write bool) string {
+	if write {
+		return p.Write
+	}
+	return p.Read
 }
 
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
@@ -103,17 +210,34 @@ type Field struct {
 	Options  []string `json:"options,omitempty" yaml:"options"`
 	To       string   `json:"to,omitempty" yaml:"to"`
 	Many     bool     `json:"many,omitempty" yaml:"many"`
-	Min      *float64 `json:"min,omitempty" yaml:"min"`
-	Max      *float64 `json:"max,omitempty" yaml:"max"`
+	// Permission hides the field from everyone without it: it is left out of
+	// admin reads, ignored on writes (stored values stay), and cannot be
+	// filtered, sorted, grouped or summed. Not allowed on required, unique,
+	// searchable or localized fields.
+	Permission string   `json:"permission,omitempty" yaml:"permission"`
+	Min        *float64 `json:"min,omitempty" yaml:"min"`
+	Max        *float64 `json:"max,omitempty" yaml:"max"`
+	// Decimals fixes the decimal places of a number field (money: 2);
+	// values with more places are rejected, never rounded.
+	Decimals *int `json:"decimals,omitempty" yaml:"decimals"`
+	// Computed calculates a number field on the server from other number
+	// fields declared before it; see collections.Expr.
+	Computed string `json:"computed,omitempty" yaml:"computed"`
+	// Rollup totals the records of another type that point at this one
+	// (see collections.Rollup); the field is read-only.
+	Rollup *collections.Rollup `json:"rollup,omitempty" yaml:"rollup"`
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
 	Searchable bool `json:"searchable" yaml:"searchable"`
-	// Filterable fields (text, textarea, select, number) get a filter in
+	// Filterable fields (see the package documentation) get a filter in
 	// the admin list and accept filter[field]= on the public API.
 	Filterable bool `json:"filterable" yaml:"filterable"`
 	// Localized fields (text, textarea, richtext, media) have a value per
 	// site locale; see the package documentation.
 	Localized bool `json:"localized" yaml:"localized"`
+	// Sequence numbers new records on the server (text fields only): see
+	// collections.Sequence. The field is read-only in the admin.
+	Sequence *collections.Sequence `json:"sequence,omitempty" yaml:"sequence"`
 }
 
 // LoadDir reads every *.yaml file in dir. A missing directory yields no
@@ -127,7 +251,7 @@ func LoadDir(dir string) ([]Definition, error) {
 	definitions := make([]Definition, 0, len(paths))
 	seen := map[string]string{}
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G304 -- files found by listing the operator's content-types directory
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +270,7 @@ func LoadDir(dir string) ([]Definition, error) {
 		seen[definition.ID] = path
 		definitions = append(definitions, definition)
 	}
-	return definitions, nil
+	return definitions, CheckPeriodLocks(definitions)
 }
 
 // Validate checks the definition and that both derived shapes are valid.
@@ -173,15 +297,57 @@ func (d Definition) Validate() error {
 		if field.Searchable && !oneOf(field.Kind, "text", "textarea", "richtext", "select") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be searchable", ErrInvalidDefinition, field.ID, field.Kind)
 		}
-		if field.Filterable && !oneOf(field.Kind, "text", "textarea", "select", "number") {
+		if field.Filterable && (!oneOf(field.Kind, "text", "textarea", "select", "number", "boolean", "date", "datetime", "relation") || field.Many) {
 			return fmt.Errorf("%w: field %q of kind %s cannot be filterable", ErrInvalidDefinition, field.ID, field.Kind)
 		}
 		if field.Localized && !oneOf(field.Kind, "text", "textarea", "richtext", "media") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be localized", ErrInvalidDefinition, field.ID, field.Kind)
 		}
+		if field.Decimals != nil && (field.Kind != "number" || *field.Decimals < 0 || *field.Decimals > collections.MaxDecimals) {
+			return fmt.Errorf("%w: decimals needs a number field and 0 to %d places (field %q)", ErrInvalidDefinition, collections.MaxDecimals, field.ID)
+		}
+		if field.Sequence != nil && (field.Kind != "text" || field.Required || field.Localized) {
+			return fmt.Errorf("%w: sequence field %q must be a plain text field (not required or localized)", ErrInvalidDefinition, field.ID)
+		}
+		if field.Permission != "" {
+			if !permissionName.MatchString(field.Permission) || strings.HasPrefix(field.Permission, "admin.") {
+				return fmt.Errorf("%w: field %q permission %q must look like crm.margin.read", ErrInvalidDefinition, field.ID, field.Permission)
+			}
+			if d.Public {
+				return fmt.Errorf("%w: a public type cannot have field permissions (field %q); the public API has no users", ErrInvalidDefinition, field.ID)
+			}
+			if field.Required || field.Unique || field.Searchable || field.Localized || field.Sequence != nil {
+				return fmt.Errorf("%w: field %q has a permission, so it cannot be required, unique, searchable, localized or a sequence", ErrInvalidDefinition, field.ID)
+			}
+		}
 		if field.Localized && (field.Unique || field.Searchable || field.Filterable) {
 			return fmt.Errorf("%w: localized field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
 		}
+	}
+	for _, name := range []string{d.Permissions.Read, d.Permissions.Write} {
+		if name != "" && (!permissionName.MatchString(name) || strings.HasPrefix(name, "admin.")) {
+			return fmt.Errorf("%w: permission %q must look like crm.deals.read and not start with admin.", ErrInvalidDefinition, name)
+		}
+	}
+	if d.Access != nil {
+		owner, found := Field{}, false
+		for _, field := range d.Fields {
+			if field.ID == d.Access.Owner {
+				owner, found = field, true
+			}
+		}
+		if d.Public {
+			return fmt.Errorf("%w: a type with access rules cannot be public", ErrInvalidDefinition)
+		}
+		if !found || owner.Kind != "text" || owner.Localized {
+			return fmt.Errorf("%w: access.owner must name a plain text field", ErrInvalidDefinition)
+		}
+		if !permissionName.MatchString(d.Access.All) || strings.HasPrefix(d.Access.All, "admin.") {
+			return fmt.Errorf("%w: access.all needs a permission such as deals.read_all", ErrInvalidDefinition)
+		}
+	}
+	if err := d.validateHooks(); err != nil {
+		return err
 	}
 	if d.Localized() && !d.Revisions {
 		return fmt.Errorf("%w: a type with localized fields needs revisions: true", ErrInvalidDefinition)
@@ -201,7 +367,7 @@ func (d Definition) Validate() error {
 
 // Schema returns the storage schema.
 func (d Definition) Schema() (collections.Schema, error) {
-	schema := collections.Schema{ID: d.ID, Label: d.Label, Description: d.Description, Revisions: d.Revisions}
+	schema := collections.Schema{ID: d.ID, Label: d.Label, Description: d.Description, Revisions: d.Revisions, Rules: d.Rules, States: d.States}
 	for _, field := range d.Fields {
 		kind, err := storageKind(field)
 		if err != nil {
@@ -210,13 +376,13 @@ func (d Definition) Schema() (collections.Schema, error) {
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
-			Localized: field.Localized,
+			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence, Decimals: field.Decimals, Computed: field.Computed, Rollup: field.Rollup,
 		})
 	}
 	if d.Drafts {
 		// Not required: records written before drafts were enabled have no
 		// status and count as drafts (see recordStatus).
-		schema.Fields = append(schema.Fields, collections.Field{ID: StatusField, Label: "Status", Kind: collections.Select, Options: []string{StatusDraft, StatusPublished}})
+		schema.Fields = append(schema.Fields, collections.Field{ID: StatusField, Label: "Status", Kind: collections.Select, Options: []string{StatusDraft, StatusPublished}, Indexed: true})
 	}
 	return schema, nil
 }
@@ -277,11 +443,18 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 	if collection.Group == "" {
 		collection.Group = "Content"
 	}
+	if d.States != nil {
+		machine := &adminstudio.StateMachine{Field: d.States.Field, Initial: d.States.Initial}
+		for _, step := range d.States.Transitions {
+			machine.Transitions = append(machine.Transitions, adminstudio.StateTransition{From: step.From, To: step.To, Permission: step.Permission})
+		}
+		collection.StateMachine = machine
+	}
 	for _, field := range d.Fields {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
 			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
-			Localized: field.Localized,
+			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "" || field.Rollup != nil || (d.States != nil && d.States.Field == field.ID),
 		}
 		switch field.Kind {
 		case "text":
@@ -341,7 +514,50 @@ func Schemas(definitions []Definition) ([]collections.Schema, error) {
 		}
 		result = append(result, schema)
 	}
-	return result, nil
+	return result, linkRollups(result)
+}
+
+// linkRollups checks every rollup against the types it totals and tells those
+// types which parents depend on them.
+func linkRollups(schemas []collections.Schema) error {
+	byID := make(map[string]int, len(schemas))
+	for index, schema := range schemas {
+		byID[schema.ID] = index
+	}
+	for _, parent := range schemas {
+		for _, field := range parent.Fields {
+			if field.Rollup == nil {
+				continue
+			}
+			index, ok := byID[field.Rollup.From]
+			if !ok {
+				return fmt.Errorf("%w: %s.%s totals unknown type %q", ErrInvalidDefinition, parent.ID, field.ID, field.Rollup.From)
+			}
+			child := schemas[index]
+			via, found := schemaField(child, field.Rollup.Via)
+			if !found || via.Kind != collections.Relation || via.Relation != parent.ID {
+				return fmt.Errorf("%w: %s.%s needs %s.%s to be a relation to %s", ErrInvalidDefinition, parent.ID, field.ID, child.ID, field.Rollup.Via, parent.ID)
+			}
+			if field.Rollup.Sum != "" {
+				if sum, found := schemaField(child, field.Rollup.Sum); !found || sum.Kind != collections.Number {
+					return fmt.Errorf("%w: %s.%s sums %s.%s, which is not a number field", ErrInvalidDefinition, parent.ID, field.ID, child.ID, field.Rollup.Sum)
+				}
+			}
+			if !slices.Contains(schemas[index].RollupParents, parent.ID) {
+				schemas[index].RollupParents = append(schemas[index].RollupParents, parent.ID)
+			}
+		}
+	}
+	return nil
+}
+
+func schemaField(schema collections.Schema, id string) (collections.Field, bool) {
+	for _, field := range schema.Fields {
+		if field.ID == id {
+			return field, true
+		}
+	}
+	return collections.Field{}, false
 }
 
 // AdminCollections converts the definitions for the admin. With localize

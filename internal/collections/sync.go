@@ -8,6 +8,12 @@ import (
 	"sort"
 )
 
+// IndexSyncer is implemented by stores that can build database indexes for
+// the fields a schema marks Indexed (see Field.Indexed).
+type IndexSyncer interface {
+	SyncIndexes(ctx context.Context, schemas []Schema) error
+}
+
 // SyncSchemas makes the stored schemas match the given definitions: missing
 // schemas are created and changed ones replaced. Stored schemas that are not
 // in the list are left alone. A change may add, remove or relabel fields and
@@ -32,6 +38,11 @@ func (s Service) SyncSchemas(ctx context.Context, schemas []Schema) error {
 			if err := s.ReplaceSchema(ctx, existing, schema); err != nil {
 				return fmt.Errorf("update %s: %w", schema.ID, err)
 			}
+		}
+	}
+	if syncer, ok := s.Repository.(IndexSyncer); ok {
+		if err := syncer.SyncIndexes(ctx, ordered); err != nil {
+			return fmt.Errorf("sync indexes: %w", err)
 		}
 	}
 	return nil

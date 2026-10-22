@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	contenttypedata "github.com/ardaozyildirim/hydrogo/content-types"
+	crmstarter "github.com/ardaozyildirim/hydrogo/examples/crm-starter"
 	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
 )
 
@@ -23,6 +24,8 @@ type Preset struct {
 	Description  string
 	Modules      []string
 	ContentTypes []string
+	// Config is extra YAML appended to the generated config.yaml.
+	Config string
 }
 
 var presets = []Preset{
@@ -49,6 +52,19 @@ var presets = []Preset{
 		Description:  "news portal: homepage sections, columnists, polls, videos, ads",
 		Modules:      []string{"core", "auth", "members", "pages", "media", "site", "news", "collections", "analytics"},
 		ContentTypes: []string{"site_settings", "site_navigation", "homepage_sections", "masthead", "columnists", "official_announcements", "ads", "polls", "videos", "galleries", "comments"},
+	},
+	{
+		Name:         "crm",
+		Description:  "customer relationship management: companies, contacts, deals and activities",
+		Modules:      []string{"core", "auth", "media", "collections"},
+		ContentTypes: []string{"crm/companies", "crm/contacts", "crm/deals", "crm/activities"},
+	},
+	{
+		Name:         "erp-lite",
+		Description:  "light ERP: products, warehouses, accounts, sales orders, invoices and payments",
+		Modules:      []string{"core", "auth", "media", "collections"},
+		ContentTypes: []string{"erp/products", "erp/warehouses", "erp/accounts", "erp/sales_orders", "erp/order_lines", "erp/invoices", "erp/invoice_lines", "erp/payments", "erp/period_closings"},
+		Config:       "audit:\n  # Tamper evidence: every audit event is chained; check it with hydro audit verify.\n  chain: true\n  log_request_bodies: true\n",
 	},
 	{
 		Name:         "docs",
@@ -93,29 +109,35 @@ type Options struct {
 }
 
 // Starters lists the frontend starters Create can copy into a project.
-func Starters() []string { return []string{"sveltekit"} }
+func Starters() []string { return []string{"sveltekit", "crm"} }
 
-// copyStarter writes the embedded SvelteKit starter into dir.
+// copyStarter writes the embedded frontend starter into dir.
 func copyStarter(name, dir string) error {
-	if name != "sveltekit" {
+	var source fs.FS
+	switch name {
+	case "sveltekit":
+		source = sveltekitstarter.FS
+	case "crm":
+		source = crmstarter.FS
+	default:
 		return fmt.Errorf("unknown starter %q (available: %s)", name, strings.Join(Starters(), ", "))
 	}
 	if _, err := os.Stat(dir); err == nil {
 		return fmt.Errorf("%s already exists; refusing to overwrite", dir)
 	}
-	return fs.WalkDir(sveltekitstarter.FS, ".", func(path string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(source, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		target := filepath.Join(dir, filepath.FromSlash(path))
 		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return os.MkdirAll(target, 0o755) // #nosec G301 -- project directory; the service account may differ from the author
 		}
-		data, readErr := fs.ReadFile(sveltekitstarter.FS, path)
+		data, readErr := fs.ReadFile(source, path)
 		if readErr != nil {
 			return readErr
 		}
-		return os.WriteFile(target, data, 0o644)
+		return os.WriteFile(target, data, 0o644) // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
 	})
 }
 
@@ -148,18 +170,19 @@ func Create(opts Options) (Preset, error) {
 			return Preset{}, fmt.Errorf("%s already exists in %s; refusing to overwrite", existing, opts.Dir)
 		}
 	}
-	if err := os.MkdirAll(filepath.Join(opts.Dir, "content-types"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(opts.Dir, "content-types"), 0o755); err != nil { // #nosec G301 -- project directory; the service account may differ from the author
 		return Preset{}, err
 	}
-	if err := os.MkdirAll(filepath.Join(opts.Dir, "data"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(opts.Dir, "data"), 0o755); err != nil { // #nosec G301 -- project directory; the service account may differ from the author
 		return Preset{}, err
 	}
 	for _, id := range preset.ContentTypes {
 		data, readErr := fs.ReadFile(contenttypedata.FS, id+".yaml")
+		id = filepath.Base(id)
 		if readErr != nil {
 			return Preset{}, fmt.Errorf("preset %s: content type %s: %w", preset.Name, id, readErr)
 		}
-		if err := os.WriteFile(filepath.Join(opts.Dir, "content-types", id+".yaml"), data, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(opts.Dir, "content-types", id+".yaml"), data, 0o644); err != nil { // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
 			return Preset{}, err
 		}
 	}
@@ -173,7 +196,7 @@ func Create(opts Options) (Preset, error) {
 		if _, statErr := os.Stat(path); statErr == nil && name != "config.yaml" {
 			continue // keep an existing README / .gitignore
 		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil { // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
 			return Preset{}, err
 		}
 	}
@@ -205,7 +228,7 @@ security:
   # Turn both on when the site is served over HTTPS.
   secure_cookies: false
   enable_hsts: false
-`, preset.Name, strings.Join(preset.Modules, ", "))
+%s`, preset.Name, strings.Join(preset.Modules, ", "), preset.Config)
 }
 
 func renderReadme(name string, preset Preset) string {

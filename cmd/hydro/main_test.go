@@ -180,7 +180,7 @@ func TestPrintUsageIncludesExamplesAndRemediation(t *testing.T) {
 	for _, want := range []string{
 		"Examples:",
 		"hydro run [--address ADDR]",
-		"hydro dev [same options]",
+		"hydro dev [--service NAME=COMMAND ...]",
 		"hydro validate --config config.yaml",
 		"hydro migrate --config config.yaml",
 		"Failure remediation:",

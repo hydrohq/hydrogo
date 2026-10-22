@@ -34,7 +34,7 @@ func GenerateIconPack(source io.Reader, outputDir string) error {
 	if bounds.Dx() < 1 || bounds.Dy() < 1 || bounds.Dx() > 8192 || bounds.Dy() > 8192 || int64(bounds.Dx())*int64(bounds.Dy()) > 24_000_000 {
 		return ErrInvalidIconSource
 	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil { // #nosec G301 -- public static asset directory
 		return err
 	}
 	for _, size := range []int{180, 192, 512, 32} {
@@ -51,7 +51,7 @@ func GenerateIconPack(source io.Reader, outputDir string) error {
 			}
 			continue
 		}
-		if err := os.WriteFile(filepath.Join(outputDir, name), encoded.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(outputDir, name), encoded.Bytes(), 0o644); err != nil { // #nosec G306 -- public static asset served to browsers
 			return err
 		}
 	}
@@ -66,7 +66,7 @@ func GenerateIconPack(source io.Reader, outputDir string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(outputDir, "manifest.webmanifest"), manifestData, 0o644)
+	return os.WriteFile(filepath.Join(outputDir, "manifest.webmanifest"), manifestData, 0o644) // #nosec G306 -- public static asset served to browsers
 }
 
 func writeICO(path string, pngData []byte) error {
@@ -75,8 +75,8 @@ func writeICO(path string, pngData []byte) error {
 	}
 	var ico bytes.Buffer
 	_, _ = ico.Write([]byte{0, 0, 1, 0, 1, 0, 32, 32, 0, 0, 1, 0, 32, 0})
-	_ = binary.Write(&ico, binary.LittleEndian, uint32(len(pngData)))
+	_ = binary.Write(&ico, binary.LittleEndian, uint32(len(pngData))) // #nosec G115 -- a PNG of a 32x32 icon is far below 4 GiB
 	_ = binary.Write(&ico, binary.LittleEndian, uint32(22))
 	_, _ = ico.Write(pngData)
-	return os.WriteFile(path, ico.Bytes(), 0o644)
+	return os.WriteFile(path, ico.Bytes(), 0o644) // #nosec G306 -- public static asset served to browsers
 }

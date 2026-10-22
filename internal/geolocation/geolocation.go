@@ -118,7 +118,7 @@ func CountryFlag(code string) string {
 	if code == "" {
 		return ""
 	}
-	return string([]rune{rune(0x1F1E6 + uint32(code[0]-'A')), rune(0x1F1E6 + uint32(code[1]-'A'))})
+	return string([]rune{rune(0x1F1E6 + uint32(code[0]-'A')), rune(0x1F1E6 + uint32(code[1]-'A'))}) // #nosec G115 -- code was checked to be two letters A-Z, so the offset is 0 to 25
 }
 
 type MaxMindDatabase struct{ reader *maxminddb.Reader }

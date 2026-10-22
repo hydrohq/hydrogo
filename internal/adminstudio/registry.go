@@ -99,10 +99,29 @@ type Collection struct {
 	Drafts       bool      `json:"drafts,omitempty"`
 	Localization bool      `json:"localization,omitempty"`
 	Workflow     *Workflow `json:"workflow,omitempty"`
-	Fields       []Field   `json:"fields"`
-	Actions      []Action  `json:"actions,omitempty"`
-	BulkActions  []Action  `json:"bulk_actions,omitempty"`
-	Kits         []Kit     `json:"kits,omitempty"`
+	// StateMachine describes a state machine on one select field; the admin
+	// offers the allowed steps as buttons (POST <api_path>/<id>/state).
+	StateMachine *StateMachine `json:"state_machine,omitempty"`
+	Fields       []Field       `json:"fields"`
+	Actions      []Action      `json:"actions,omitempty"`
+	BulkActions  []Action      `json:"bulk_actions,omitempty"`
+	Kits         []Kit         `json:"kits,omitempty"`
+}
+
+// StateMachine is the admin's view of a type's states: the select field that
+// holds the state, where records start, and the steps between states.
+type StateMachine struct {
+	Field       string            `json:"field"`
+	Initial     string            `json:"initial"`
+	Transitions []StateTransition `json:"transitions"`
+}
+
+// StateTransition is one allowed step. Permission is informational: the
+// server decides whether the caller may take it.
+type StateTransition struct {
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Permission string `json:"permission,omitempty"`
 }
 
 type Registry struct {

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	_ "net/http/pprof"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/release"

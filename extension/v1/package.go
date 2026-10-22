@@ -154,7 +154,7 @@ func WriteArchive(destination string, signed SignedPackage, assets map[string][]
 	if err := signed.Package.VerifyAssets(assets); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- operator-chosen package paths; the destination is created exclusively (O_EXCL), assets are regular files from the named directory
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,14 @@ func writeZipEntry(archive *zip.Writer, name string, data []byte) error {
 // archive paths. Symlinks are rejected so a package cannot escape its root.
 func LoadAssets(root string) (map[string][]byte, error) {
 	assets := make(map[string][]byte)
-	err := filepath.WalkDir(root, func(name string, entry fs.DirEntry, walkErr error) error {
+	// Reads go through the root, which refuses to leave it even if a path
+	// component is swapped for a symlink after the walk looked at it.
+	confined, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer confined.Close()
+	err = filepath.WalkDir(root, func(name string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -258,11 +265,11 @@ func LoadAssets(root string) (map[string][]byte, error) {
 		if !entry.Type().IsRegular() {
 			return fmt.Errorf("%w: non-regular asset", ErrInvalidExtensionPackage)
 		}
-		data, err := os.ReadFile(name)
+		rel, err := filepath.Rel(root, name)
 		if err != nil {
 			return err
 		}
-		rel, err := filepath.Rel(root, name)
+		data, err := confined.ReadFile(rel)
 		if err != nil {
 			return err
 		}

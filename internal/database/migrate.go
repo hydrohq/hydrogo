@@ -22,7 +22,8 @@ func discoverMigrations(migrationFS fs.FS) ([]string, error) {
 	}
 	var dirs []string
 	for _, e := range entries {
-		if e.IsDir() {
+		// "baseline" is the reserved directory of the schema baseline, never a migration.
+		if e.IsDir() && e.Name() != "baseline" {
 			dirs = append(dirs, e.Name())
 		}
 	}
@@ -111,9 +112,10 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 				existingMap[id] = checksum
 			}
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	var pending []string
+	pendingChecksums := make(map[string]string)
 	for _, migrationID := range migrations {
 		content, err := fs.ReadFile(migrationFS, fmt.Sprintf("%s/%s.sql", migrationID, dialect))
 		if err != nil {
@@ -130,6 +132,14 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 			continue
 		}
 		pending = append(pending, migrationID)
+		pendingChecksums[migrationID] = checksum
+	}
+	pending, err = applyBaselineGroups(ctx, conn, dialect, migrationFS, enabled, pending, pendingChecksums, existingMap)
+	if err != nil {
+		return err
+	}
+	if err := rejectPagesOnCoreCreatedDatabase(pending, existingMap); err != nil {
+		return err
 	}
 	migrations = pending
 	for index := 0; index < len(migrations); {
@@ -225,16 +235,16 @@ func PendingMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrati
 	for rows.Next() {
 		var id, checksum string
 		if err := rows.Scan(&id, &checksum); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		applied[id] = checksum
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 	pending := make([]string, 0)
 	for _, id := range selected {
 		content, err := fs.ReadFile(migrationFS, fmt.Sprintf("%s/%s.sql", id, dialect))
@@ -269,6 +279,10 @@ func canonicalEnabledModules(enabled map[string]bool) map[string]bool {
 	}
 	return canonical
 }
+
+// ErrPagesNeedsFreshDatabase reports that a database created without the pages
+// module cannot enable it yet (ADR 0009, known limit).
+var ErrPagesNeedsFreshDatabase = errors.New("the pages module cannot be enabled on a database that was created without it")
 
 var ErrUnknownMigration = errors.New("database contains a migration unknown to this binary")
 
@@ -654,4 +668,30 @@ func placeholder(dialect Dialect, position int) string {
 
 func isNoRows(err error) bool {
 	return err == sql.ErrNoRows
+}
+
+const (
+	pagesFirstMigration   = "202609060001_transaction_contract"
+	coreAuditEventsMarker = "202610210002_core_audit_events"
+)
+
+// rejectPagesOnCoreCreatedDatabase stops before any SQL runs when the pages
+// chain would start on a database whose audit/outbox tables core already
+// created: the first pages migration creates them again and fails, and on
+// MySQL (no transactional DDL) the earlier statements would stay applied.
+// Published migrations cannot be edited, so the fix is the baseline of ADR 0009;
+// until then the operator gets the reason instead of a raw SQL error.
+func rejectPagesOnCoreCreatedDatabase(pending []string, applied map[string]string) error {
+	if _, ok := applied[coreAuditEventsMarker]; !ok {
+		return nil
+	}
+	if _, ok := applied[pagesFirstMigration]; ok {
+		return nil
+	}
+	for _, id := range pending {
+		if id == pagesFirstMigration {
+			return fmt.Errorf("%w: its audit and outbox tables already exist from core (ADR 0009); create the project with pages enabled from the start, or migrate the content into a new database", ErrPagesNeedsFreshDatabase)
+		}
+	}
+	return nil
 }

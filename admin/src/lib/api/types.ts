@@ -39,6 +39,8 @@ export interface MeResponse {
   permissions: string[];
   csrf_token: string;
   locales?: string[];
+  /** Admin language saved on the server; null until the user chose one. */
+  locale?: string | null;
 }
 
 export type FieldKind =
@@ -96,6 +98,12 @@ export interface CollectionPermissions {
   delete?: string;
 }
 
+export interface CollectionStateMachine {
+  field: string;
+  initial: string;
+  transitions: { from: string; to: string; permission?: string }[];
+}
+
 export interface Collection {
   id: string;
   label: string;
@@ -112,6 +120,7 @@ export interface Collection {
   drafts?: boolean;
   localization?: boolean;
   workflow?: CollectionWorkflow;
+  state_machine?: CollectionStateMachine;
   fields: Field[];
   permissions?: CollectionPermissions;
 }

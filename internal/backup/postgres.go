@@ -181,7 +181,7 @@ func restoreDatabaseToStaging(ctx context.Context, tools interface {
 		_ = os.RemoveAll(destination)
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o640); err != nil {
+	if err := os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o600); err != nil {
 		_ = os.RemoveAll(destination)
 		return err
 	}
@@ -246,7 +246,7 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 	passPath := passFile.Name()
 	defer os.Remove(passPath)
 	if err := passFile.Chmod(0o600); err != nil {
-		passFile.Close()
+		_ = passFile.Close()
 		return err
 	}
 	if hasPassword {
@@ -260,14 +260,14 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 		for i, field := range fields {
 			escaped, err := escapePGPassField(field)
 			if err != nil {
-				passFile.Close()
+				_ = passFile.Close()
 				return err
 			}
 			fields[i] = escaped
 		}
 		line := strings.Join(fields, ":") + "\n"
 		if _, err := passFile.WriteString(line); err != nil {
-			passFile.Close()
+			_ = passFile.Close()
 			return err
 		}
 	}
@@ -300,7 +300,7 @@ func (t PostgresTools) run(ctx context.Context, binary, operation, dsn, path str
 		}
 		args = append(args, "--dbname", redactedDSN, absolutePath)
 	}
-	command := exec.CommandContext(ctx, binary, args...)
+	command := exec.CommandContext(ctx, binary, args...) // #nosec G204 -- binary is the PostgreSQL tool located by LocatePostgresTools (HYDRO_PG_DUMP / HYDRO_PG_RESTORE override); arguments are built here, no shell
 	command.Env = append(os.Environ(), "PGPASSFILE="+passPath)
 	var output boundedCommandOutput
 	output.remaining = maxPostgresCommandOutput

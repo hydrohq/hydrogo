@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-  import { schema } from '$lib/stores/schema.svelte';
+  import { brandingStore } from '$lib/stores/branding.svelte';
   interface Props {
     size?: 'sm' | 'md' | 'lg' | 'xl';
     showIcon?: boolean;
@@ -9,7 +9,7 @@
 
   let { size = 'md', showIcon = true, showText = true, class: className = '' }: Props = $props();
 
-  const brand = $derived(schema.schema?.branding);
+  const brand = $derived(brandingStore.branding);
   const brandName = $derived(brand?.name || 'HydroGo');
 
   const iconSizes = {

@@ -25,9 +25,22 @@ type AdminAPI struct {
 	Actor func(*http.Request) string
 	// Locales are the site's content locales (see localization.go).
 	Locales Locales
+	// Can reports whether the request's user holds a named permission, used by
+	// state transitions that need one. Nil denies every permissioned step.
+	Can func(r *http.Request, permission string) bool
 	// Authorize reports whether the request may read (write false) or change
 	// (write true) content. Nil denies every request.
 	Authorize func(r *http.Request, write bool) bool
+	// Subject names the signed-in user as record owners are written (their
+	// e-mail address); used by Definition.Access.
+	Subject func(r *http.Request) string
+	// Hook calls a configured hook service for Definition.Hooks; nil means
+	// none is configured.
+	Hook HookCaller
+
+	// hooksDone is set on the copy that runs a batch, whose hooks were
+	// consulted before the transaction began.
+	hooksDone bool
 	// Presence tracks active editors in process memory.
 	Presence *realtime.Presence
 }
@@ -56,6 +69,26 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 	if version, ok := payload["version"].(float64); ok {
 		expectedVersion = int(version)
 	}
+	if definition, ok := definitionByID(a.types(), schema.ID); ok {
+		if err := a.scopePayload(r, definition, id, payload); err != nil {
+			return nil, err
+		}
+		if err := a.keepHidden(r, definition, id, payload); err != nil {
+			return nil, err
+		}
+		if err := a.guardPeriod(r, definition, id, payload); err != nil {
+			return nil, err
+		}
+		if !a.hooksDone {
+			on := "create"
+			if id != "" {
+				on = "update"
+			}
+			if err := a.runHooks(r, definition, HookEvent{On: on, ID: id, Fields: toStorage(schema, payload)}); err != nil {
+				return nil, err
+			}
+		}
+	}
 	data := toStorage(schema, payload)
 	if err := a.keepStatus(r, schema.ID, id, data); err != nil {
 		return nil, err
@@ -70,7 +103,7 @@ func (a AdminAPI) save(r *http.Request, schema collections.Schema, id string, pa
 	if err != nil {
 		return nil, &saveError{err: err, data: data}
 	}
-	return a.present(schema.ID, Flatten(record)), nil
+	return a.present(r, schema.ID, Flatten(record)), nil
 }
 
 // saveError carries the submitted data so validation failures can name the
@@ -100,7 +133,7 @@ func Flatten(record collections.Record) map[string]any {
 // present rewrites stored RFC 3339 dates into the value format of the
 // matching input (date or datetime-local) and adds the status of a drafts
 // type, so a record reads back exactly as a client submits it.
-func (a AdminAPI) present(typeID string, record map[string]any) map[string]any {
+func (a AdminAPI) present(r *http.Request, typeID string, record map[string]any) map[string]any {
 	for _, definition := range a.types() {
 		if definition.ID != typeID {
 			continue
@@ -121,6 +154,9 @@ func (a AdminAPI) present(typeID string, record map[string]any) map[string]any {
 					record[field.ID] = parsed.UTC().Format(layout)
 				}
 			}
+		}
+		for _, field := range a.hiddenFields(r, definition) {
+			delete(record, field.ID)
 		}
 	}
 	return record
@@ -153,24 +189,49 @@ func toStorage(schema collections.Schema, payload map[string]any) map[string]any
 // transitions; 409 for a stale version; 422 with per-field codes for
 // validation and uniqueness failures.
 func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema collections.Schema) {
+	status, message, fields := serviceFailure(err, schema)
+	api.WriteError(w, r, status, message, fields)
+}
+
+// serviceFailure maps a service error to the HTTP status, message and field
+// codes of its error response.
+func serviceFailure(err error, schema collections.Schema) (int, string, map[string]string) {
 	var data map[string]any
 	var submitted *saveError
 	if errors.As(err, &submitted) {
 		data = submitted.data
 	}
+	var rejected *hookError
+	if errors.As(err, &rejected) {
+		return rejected.status, rejected.message, nil
+	}
 	switch {
 	case errors.Is(err, collections.ErrCollectionNotFound), errors.Is(err, collections.ErrRecordNotFound),
 		errors.Is(err, collections.ErrRevisionNotFound), errors.Is(err, collections.ErrNotLocalized),
 		errors.Is(err, errNoRevisions), errors.Is(err, errLocale):
-		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
+		return http.StatusNotFound, "not found", nil
+	case errors.Is(err, errBatchForbidden):
+		return http.StatusForbidden, "forbidden", nil
+	case errors.Is(err, collections.ErrRuleViolated):
+		_, text, _ := strings.Cut(err.Error(), ": ")
+		return http.StatusUnprocessableEntity, text, map[string]string{"_rule": text}
+	case errors.Is(err, collections.ErrTransitionForbidden):
+		return http.StatusForbidden, "forbidden", nil
+	case errors.Is(err, collections.ErrTransitionNotAllowed):
+		_, text, _ := strings.Cut(err.Error(), ": ")
+		return http.StatusUnprocessableEntity, "transition not allowed: " + text, map[string]string{"_state": text}
+	case errors.Is(err, collections.ErrNoStates):
+		return http.StatusNotFound, "not found", nil
+	case errors.Is(err, errBatchOperation):
+		return http.StatusBadRequest, "invalid operation", nil
 	case errors.Is(err, collections.ErrInvalidQuery):
-		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
+		return http.StatusBadRequest, "invalid list query", nil
 	case errors.Is(err, collections.ErrInvalidLocale):
-		api.WriteError(w, r, http.StatusBadRequest, "unsupported locale", nil)
+		return http.StatusBadRequest, "unsupported locale", nil
 	case errors.Is(err, errTransition):
-		api.WriteError(w, r, http.StatusBadRequest, "transition not allowed", nil)
+		return http.StatusBadRequest, "transition not allowed", nil
 	case errors.Is(err, collections.ErrVersionConflict):
-		api.WriteError(w, r, http.StatusConflict, "the record was changed by someone else", nil)
+		return http.StatusConflict, "the record was changed by someone else", nil
 	case errors.Is(err, collections.ErrUniqueValue):
 		fields := map[string]string{}
 		for _, field := range schema.Fields {
@@ -178,7 +239,7 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema
 				fields[field.ID] = "taken"
 			}
 		}
-		api.WriteValidation(w, r, fields)
+		return http.StatusUnprocessableEntity, "validation failed", fields
 	case errors.Is(err, collections.ErrInvalidRecord):
 		fields := map[string]string{}
 		if _, id, found := strings.Cut(err.Error(), ": "); found {
@@ -188,8 +249,8 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error, schema
 			}
 			fields[id] = code
 		}
-		api.WriteValidation(w, r, fields)
+		return http.StatusUnprocessableEntity, "validation failed", fields
 	default:
-		api.WriteError(w, r, http.StatusInternalServerError, "request could not be completed", nil)
+		return http.StatusInternalServerError, "request could not be completed", nil
 	}
 }

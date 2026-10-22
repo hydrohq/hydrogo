@@ -45,6 +45,9 @@ audit:
   # Record the (redacted, size-capped) JSON body of admin API writes in the audit
   # log so reviewers can see what was requested. Off by default.
   log_request_bodies: false
+  # Chain new audit events with SHA-256 links so tampering is detectable:
+  # hydro audit head, hydro audit verify. Off by default.
+  chain: false
 security:
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
@@ -57,3 +60,7 @@ security:
   # Optional explicit allowlist for credential-free published /api/v1 reads.
   # Browser writes remain same-site or BFF-only; wildcard origins are not supported.
   public_api_origins: []
+limits:
+  # Most records one content type may hold per tenant. 0 keeps the built-in
+  # default (100000); a negative value removes the cap.
+  records_per_type: 0

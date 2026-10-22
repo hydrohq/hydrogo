@@ -65,7 +65,7 @@ func startLocalDependencies(root, mode, composeFile string) (func(), string, err
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(root, path)
 	}
-	command := exec.Command("docker", "compose", "-f", path, "up", "-d", "--wait", "redis", "minio")
+	command := exec.Command("docker", "compose", "-f", path, "up", "-d", "--wait", "redis", "minio") // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -75,7 +75,7 @@ func startLocalDependencies(root, mode, composeFile string) (func(), string, err
 		return func() {}, "", nil
 	}
 	cleanup := func() {
-		down := exec.Command("docker", "compose", "-f", path, "down")
+		down := exec.Command("docker", "compose", "-f", path, "down") // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 		down.Dir = root
 		_ = down.Run()
 	}
@@ -92,7 +92,7 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 			_ = copyFile(s.binary, previousBinary)
 		}
 		s.state.set("building", 20, "Compiling changes…", "")
-		command := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-o", s.binary, "./cmd/hydro")
+		command := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-o", s.binary, "./cmd/hydro") // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 		command.Dir = s.root
 		var output bytes.Buffer
 		command.Stdout, command.Stderr = &output, &output
@@ -105,7 +105,7 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 	// Keep the local database schema aligned with the binary before restarting.
 	// A failed migration must not take down the currently running child.
 	s.state.set("migrating", 48, "Running database migrations…", "")
-	migration := exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN)
+	migration := exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN) // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 	migration.Dir = s.root
 	var migrationOutput bytes.Buffer
 	migration.Stdout, migration.Stderr = &migrationOutput, &migrationOutput
@@ -115,7 +115,7 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 		// working version remains available.
 		s.stopChild()
 		migrationOutput.Reset()
-		migration = exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN)
+		migration = exec.CommandContext(ctx, s.binary, "migrate", "--database-dsn", s.databaseDSN) // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 		migration.Dir = s.root
 		migration.Stdout, migration.Stderr = &migrationOutput, &migrationOutput
 		if retryErr := migration.Run(); retryErr != nil {
@@ -205,7 +205,7 @@ func (s *supervisor) stopChild() {
 func (s *supervisor) startChild(binary string) error {
 	var lastErr error
 	for attempt := 0; attempt < 5; attempt++ {
-		child := exec.Command(binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN)
+		child := exec.Command(binary, "serve", "--address", s.appAddress, "--database-dsn", s.databaseDSN) // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 		child.Dir = s.root
 		env := make([]string, 0, len(os.Environ())+1)
 		for _, kv := range os.Environ() {
@@ -265,12 +265,12 @@ func shorten(value string, limit int) string {
 }
 
 func copyFile(source, destination string) error {
-	in, err := os.Open(source)
+	in, err := os.Open(source) // #nosec G304 -- developer tool copying its own build output
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.Create(destination)
+	out, err := os.Create(destination) // #nosec G304 -- developer tool copying its own build output
 	if err != nil {
 		return err
 	}

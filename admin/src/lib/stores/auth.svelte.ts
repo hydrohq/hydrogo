@@ -5,6 +5,8 @@ import type { User, MeResponse, ApiResponse } from '$lib/api/types';
 class AuthState {
   user = $state<User | null>(null);
   permissions = $state<string[]>([]);
+  /** The admin language saved server-side (from /me); null when none. */
+  serverLocale = $state<string | null>(null);
   isLoading = $state(true);
   error = $state<string | null>(null);
 
@@ -26,6 +28,7 @@ class AuthState {
       if (res && res.data) {
         this.user = res.data.user;
         this.permissions = res.data.permissions || [];
+        this.serverLocale = res.data.locale ?? null;
         if (res.data.csrf_token) {
           setCsrfToken(res.data.csrf_token);
         }
@@ -35,6 +38,7 @@ class AuthState {
     } catch (err: any) {
       this.user = null;
       this.permissions = [];
+      this.serverLocale = null;
       this.error = err.message;
     } finally {
       this.isLoading = false;
@@ -71,6 +75,7 @@ class AuthState {
     } finally {
       this.user = null;
       this.permissions = [];
+      this.serverLocale = null;
       router.navigate('/login');
     }
   }

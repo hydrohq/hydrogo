@@ -65,8 +65,8 @@
         type="button"
         onclick={handleToggleSidebar}
         class="-ml-1 flex size-7 items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-        title="Toggle Sidebar"
-        aria-label="Toggle Sidebar"
+        title={t('header.toggleSidebar')}
+        aria-label={t('header.toggleSidebar')}
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="3" rx="2"></rect>
@@ -86,13 +86,13 @@
         type="button"
         onclick={() => (showSearchModal = true)}
         class="hidden sm:flex items-center gap-2 h-8 w-44 lg:w-56 rounded-md bg-muted/40 border border-input px-2.5 text-xs text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
-        title="Quick search (⌘K or Ctrl+K)"
+        title={t('header.searchTip')}
       >
         <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <span class="truncate flex-1 text-left">Search...</span>
+        <span class="truncate flex-1 text-left">{t('header.search')}</span>
         <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-background text-muted-foreground border border-border rounded">Ctrl K</kbd>
       </button>
 
@@ -101,8 +101,8 @@
         type="button"
         onclick={() => (showSearchModal = true)}
         class="flex sm:hidden size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-        title="Quick search"
-        aria-label="Quick search"
+        title={t('header.quickSearch')}
+        aria-label={t('header.quickSearch')}
       >
         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
@@ -122,7 +122,7 @@
         rel="noopener noreferrer"
         class="group inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:border-primary/40 transition-all duration-150 shadow-xs active:scale-95"
       >
-        <span>Live</span>
+        <span>{t('header.live')}</span>
         <svg class="size-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
           <polyline points="15 3 21 3 21 9"></polyline>
@@ -138,8 +138,8 @@
         type="button"
         onclick={() => theme.toggle()}
         class="flex size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer shadow-xs active:scale-90 hover:rotate-12"
-        title={theme.isDark ? "Switch to light mode" : "Switch to dark mode"}
-        aria-label="Toggle theme"
+        title={theme.isDark ? t('header.toLight') : t('header.toDark')}
+        aria-label={t('header.toggleTheme')}
       >
         {#if theme.isDark}
           <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -165,7 +165,7 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full size-2 bg-emerald-500 pulse-dot"></span>
         </span>
-        <span class="text-[11px] text-muted-foreground font-medium hidden md:inline">Online</span>
+        <span class="text-[11px] text-muted-foreground font-medium hidden md:inline">{t('header.online')}</span>
       </div>
     </div>
   </div>

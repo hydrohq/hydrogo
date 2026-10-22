@@ -92,7 +92,7 @@ func SnapshotSQLiteFile(ctx context.Context, db *sql.DB, destination string) err
 	if _, err := db.ExecContext(ctx, "VACUUM INTO ?", destination); err != nil {
 		return fmt.Errorf("sqlite pre-migration snapshot: %w", err)
 	}
-	file, err := os.OpenFile(destination, os.O_RDWR, 0)
+	file, err := os.OpenFile(destination, os.O_RDWR, 0) // #nosec G304 -- operator-supplied backup path, or a path this function just wrote or walked
 	if err != nil {
 		_ = os.Remove(destination)
 		return err
@@ -274,7 +274,7 @@ func WriteManifest(path string, manifest Manifest) error {
 }
 
 func ReadManifest(path string) (Manifest, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- operator-supplied backup path, or a path this function just wrote or walked
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -455,7 +455,7 @@ func RestoreToStaging(source, destination string, manifest Manifest, controls Re
 		_ = os.RemoveAll(destination)
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o640); err != nil {
+	if err := os.WriteFile(filepath.Join(destination, "RESTORE_QUARANTINED.json"), append(data, '\n'), 0o600); err != nil {
 		_ = os.RemoveAll(destination)
 		return err
 	}
@@ -510,7 +510,7 @@ func digestTree(root string) ([]FileDigest, error) {
 }
 
 func digestFile(path, manifestPath string) (FileDigest, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- operator-supplied backup path, or a path this function just wrote or walked
 	if err != nil {
 		return FileDigest{}, err
 	}
@@ -524,12 +524,12 @@ func digestFile(path, manifestPath string) (FileDigest, error) {
 }
 
 func copyFile(source, destination string) error {
-	in, err := os.Open(source)
+	in, err := os.Open(source) // #nosec G304 -- operator-supplied backup path, or a path this function just wrote or walked
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o640)
+	out, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o600) // #nosec G304 -- operator-supplied backup path, or a path this function just wrote or walked
 	if err != nil {
 		return err
 	}

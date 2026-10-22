@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { roleLabel } from '$lib/i18n/labels';
   import { t, i18n } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { auth } from '$lib/stores/auth.svelte';
@@ -283,10 +284,10 @@
 
       <div class="flex items-center gap-2">
         <Badge variant="outline" class="font-mono text-xs uppercase">
-          Role: {auth.user?.role || 'admin'}
+          {t('account.roleBadge', { role: roleLabel(auth.user?.role || 'admin') })}
         </Badge>
         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <span class="size-1.5 rounded-full bg-emerald-500"></span> Active Staff
+          <span class="size-1.5 rounded-full bg-emerald-500"></span> {t('account.activeStaff')}
         </span>
       </div>
     </div>
@@ -361,7 +362,7 @@
           <div>
             <span class="block text-xs font-medium text-muted-foreground mb-1">{t('account.role')}</span>
             <div class="p-2.5 rounded-lg border border-border bg-muted/30 text-xs text-foreground capitalize">
-              {auth.user?.role || 'admin'}
+              {roleLabel(auth.user?.role || 'admin')}
             </div>
           </div>
         </div>
@@ -421,12 +422,12 @@
 
           <div>
             <label for="new-pwd" class="block text-xs font-medium text-foreground mb-1">{t('account.newPassword')}</label>
-            <Input id="new-pwd" type="password" bind:value={newPassword} required minlength={8} placeholder="At least 8 characters" />
+            <Input id="new-pwd" type="password" bind:value={newPassword} required minlength={8} placeholder={t('account.pwdMin')} />
           </div>
 
           <div>
             <label for="confirm-pwd" class="block text-xs font-medium text-foreground mb-1">{t('account.confirmPassword')}</label>
-            <Input id="confirm-pwd" type="password" bind:value={confirmPassword} required minlength={8} placeholder="Repeat new password" />
+            <Input id="confirm-pwd" type="password" bind:value={confirmPassword} required minlength={8} placeholder={t('account.pwdRepeat')} />
           </div>
 
           <div class="pt-2">
@@ -441,8 +442,8 @@
     {:else if activeTab === 'mfa'}
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs max-w-xl space-y-5">
         <div>
-          <h3 class="text-sm font-semibold text-foreground">Two-Factor Authentication (TOTP)</h3>
-          <p class="text-xs text-muted-foreground mt-0.5">Protect your account using standard TOTP authenticator apps (1Password, Google Authenticator, Authy).</p>
+          <h3 class="text-sm font-semibold text-foreground">{t('account.totpTitle')}</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">{t('account.totpHelp')}</p>
         </div>
 
         {#if mfaSuccess}
@@ -460,8 +461,8 @@
         {#if !mfaEnrolling}
           <div class="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
             <div>
-              <p class="text-xs font-medium text-foreground">Authenticator App</p>
-              <p class="text-[11px] text-muted-foreground mt-0.5">Use a mobile authenticator to generate one-time codes on login.</p>
+              <p class="text-xs font-medium text-foreground">{t('account.mfaApp')}</p>
+              <p class="text-[11px] text-muted-foreground mt-0.5">{t('account.mfaAppHelp')}</p>
             </div>
             <Button variant="outline" onclick={handleStartMFAEnroll} disabled={mfaLoading}>
               {mfaLoading ? 'Loading...' : 'Setup Authenticator'}
@@ -470,25 +471,25 @@
 
           <!-- Disable Form -->
           <div class="pt-4 border-t border-border">
-            <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Disable 2FA</h4>
+            <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t('account.disable2fa')}</h4>
             <form onsubmit={handleDisableMFA} class="space-y-3">
               <div>
-                <label for="mfa-disable-pwd" class="block text-xs font-medium text-foreground mb-1">Confirm Password</label>
-                <Input id="mfa-disable-pwd" type="password" bind:value={mfaDisablePassword} placeholder="Your current password" required />
+                <label for="mfa-disable-pwd" class="block text-xs font-medium text-foreground mb-1">{t('account.confirmPwdLabel')}</label>
+                <Input id="mfa-disable-pwd" type="password" bind:value={mfaDisablePassword} placeholder={t('account.currentPwdPlaceholder')} required />
               </div>
               <div>
-                <label for="mfa-disable-code" class="block text-xs font-medium text-foreground mb-1">Current 6-digit Code</label>
+                <label for="mfa-disable-code" class="block text-xs font-medium text-foreground mb-1">{t('account.currentCode')}</label>
                 <Input id="mfa-disable-code" type="text" bind:value={mfaDisableCode} placeholder="123456" maxlength={6} required />
               </div>
               <Button type="submit" variant="danger" disabled={mfaLoading}>
-                Disable 2FA
+                {t('account.disable2fa')}
               </Button>
             </form>
           </div>
         {:else}
           <!-- Enrollment Flow -->
           <div class="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-4">
-            <h4 class="text-xs font-semibold text-foreground">1. Scan QR Code or Enter Secret</h4>
+            <h4 class="text-xs font-semibold text-foreground">{t('account.mfaStep1')}</h4>
             {#if mfaQrData}
               <div class="p-3 bg-white rounded-lg inline-block shadow-xs">
                 {#if mfaQrData.startsWith('<svg')}
@@ -501,16 +502,16 @@
             {/if}
             {#if mfaSecret}
               <div>
-                <span class="block text-[11px] font-medium text-muted-foreground mb-1">Manual Secret Key</span>
+                <span class="block text-[11px] font-medium text-muted-foreground mb-1">{t('account.mfaSecret')}</span>
                 <code class="px-2.5 py-1 rounded bg-muted border border-border font-mono text-xs select-all text-foreground">{mfaSecret}</code>
               </div>
             {/if}
 
-            <h4 class="text-xs font-semibold text-foreground pt-2">2. Enter 6-digit Verification Code</h4>
+            <h4 class="text-xs font-semibold text-foreground pt-2">{t('account.mfaStep2')}</h4>
             <form onsubmit={handleConfirmMFAEnable} class="space-y-3">
               <Input type="text" bind:value={mfaCode} placeholder="000000" maxlength={6} class="font-mono tracking-widest text-base text-center w-40" required />
               <div class="flex items-center gap-2">
-                <Button type="submit" disabled={mfaLoading}>Verify & Activate</Button>
+                <Button type="submit" disabled={mfaLoading}>{t('account.mfaVerify')}</Button>
                 <Button type="button" variant="outline" onclick={() => { mfaEnrolling = false; }}>{t('account.cancel')}</Button>
               </div>
             </form>
@@ -539,9 +540,9 @@
 
         <div class="divide-y divide-border border border-border rounded-lg overflow-hidden">
           {#if loadingSessions}
-            <div class="p-6 text-center text-xs text-muted-foreground">Loading sessions...</div>
+            <div class="p-6 text-center text-xs text-muted-foreground">{t('account.loadingSessions')}</div>
           {:else if sessions.length === 0}
-            <div class="p-6 text-center text-xs text-muted-foreground">No session history available.</div>
+            <div class="p-6 text-center text-xs text-muted-foreground">{t('account.noSessions')}</div>
           {:else}
             {#each sessions as s}
               <div class="p-4 flex items-center justify-between gap-4 bg-card hover:bg-muted/30 transition-colors">
@@ -574,15 +575,15 @@
             <p class="text-xs text-muted-foreground mt-0.5">{t('account.tokensHelp')}</p>
           </div>
           <Button onclick={() => { tokenModalOpen = true; newTokenName = ''; issuedTokenValue = null; }}>
-            Generate New Token
+            {t('account.newToken')}
           </Button>
         </div>
 
         <div class="divide-y divide-border border border-border rounded-lg overflow-hidden">
           {#if loadingTokens}
-            <div class="p-6 text-center text-xs text-muted-foreground">Loading tokens...</div>
+            <div class="p-6 text-center text-xs text-muted-foreground">{t('account.loadingTokens')}</div>
           {:else if tokens.length === 0}
-            <div class="p-6 text-center text-xs text-muted-foreground">No personal access tokens generated yet.</div>
+            <div class="p-6 text-center text-xs text-muted-foreground">{t('account.noTokens')}</div>
           {:else}
             {#each tokens as tok}
               <div class="p-4 flex items-center justify-between gap-4 bg-card hover:bg-muted/30 transition-colors">
@@ -591,7 +592,7 @@
                     <span class="text-xs font-semibold text-foreground">{tok.name}</span>
                     <code class="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border font-mono">{tok.prefix}...</code>
                   </div>
-                  <span class="text-[11px] text-muted-foreground mt-0.5">Created: {new Date(tok.created_at).toLocaleDateString()} {tok.expires_at ? `• Expires: ${new Date(tok.expires_at).toLocaleDateString()}` : ''}</span>
+                  <span class="text-[11px] text-muted-foreground mt-0.5">{t('account.tokenCreated', { date: new Date(tok.created_at).toLocaleDateString(i18n.locale) })} {tok.expires_at ? `• ${t('account.tokenExpires', { date: new Date(tok.expires_at).toLocaleDateString(i18n.locale) })}` : ''}</span>
                 </div>
                 <Button variant="danger" onclick={() => (deleteTokenTarget = tok)}>{t('account.revoke')}</Button>
               </div>
@@ -604,8 +605,8 @@
     {:else if activeTab === 'export'}
       <div class="rounded-xl border border-border bg-card p-6 shadow-xs max-w-xl space-y-4">
         <div>
-          <h3 class="text-sm font-semibold text-foreground">GDPR & Account Data Archive</h3>
-          <p class="text-xs text-muted-foreground mt-0.5">Download a complete machine-readable JSON archive of your personal profile, activity logs, and authorization data.</p>
+          <h3 class="text-sm font-semibold text-foreground">{t('account.gdprTitle')}</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">{t('account.gdprHelp')}</p>
         </div>
 
         <div class="pt-2">
@@ -619,11 +620,11 @@
 </div>
 
 <!-- Modal: New Token -->
-<Modal bind:open={tokenModalOpen} title="Generate Personal Access Token" onclose={() => (tokenModalOpen = false)}>
+<Modal bind:open={tokenModalOpen} title={t('account.tokenModalTitle')} onclose={() => (tokenModalOpen = false)}>
   {#if issuedTokenValue}
     <div class="space-y-4">
       <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
-        Make sure to copy your new personal access token now. You won't be able to see it again!
+        {t('account.tokenCopyNow')}
       </div>
       <div class="flex items-center gap-2">
         <Input type="text" readonly value={issuedTokenValue} class="font-mono text-xs select-all" />
@@ -650,16 +651,16 @@
         </div>
       {/if}
       <div>
-        <label for="tok-name" class="block text-xs font-medium text-foreground mb-1">Token Name</label>
-        <Input id="tok-name" type="text" bind:value={newTokenName} placeholder="e.g. CLI Sync, CI Deploy" required />
+        <label for="tok-name" class="block text-xs font-medium text-foreground mb-1">{t('account.tokenName')}</label>
+        <Input id="tok-name" type="text" bind:value={newTokenName} placeholder={t('account.tokenNamePlaceholder')} required />
       </div>
       <div>
-        <label for="tok-days" class="block text-xs font-medium text-foreground mb-1">Expiration (Days)</label>
+        <label for="tok-days" class="block text-xs font-medium text-foreground mb-1">{t('account.tokenExpiry')}</label>
         <Input id="tok-days" type="number" bind:value={newTokenDays} min={1} max={365} required />
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onclick={() => (tokenModalOpen = false)}>{t('account.cancel')}</Button>
-        <Button type="submit" disabled={creatingToken}>Generate Token</Button>
+        <Button type="submit" disabled={creatingToken}>{t('account.tokenGenerate')}</Button>
       </div>
     </form>
   {/if}
@@ -668,9 +669,9 @@
 <!-- Modal: Revoke Token Confirm -->
 <ConfirmDialog
   open={!!deleteTokenTarget}
-  title="Revoke Personal Access Token"
-  description="Are you sure you want to revoke the token '{deleteTokenTarget?.name}'? Any automation or client relying on it will immediately stop working."
-  confirmLabel="Revoke Token"
+  title={t('account.revokeTitle')}
+  description={t('account.revokeDescription', { name: deleteTokenTarget?.name ?? '' })}
+  confirmLabel={t('account.revokeConfirm')}
   loading={revokingToken}
   onconfirm={handleRevokeToken}
   oncancel={() => (deleteTokenTarget = null)}
