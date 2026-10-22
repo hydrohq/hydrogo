@@ -189,7 +189,7 @@ HydroGo refuses to start when a type names a service that is not defined.
 Before the change is saved it sends one POST with the webhook signature
 headers (`X-Hydro-Signature`, `X-Hydro-Timestamp`, `Idempotency-Key`,
 `X-Hydro-Event: hook.<type>.<on>`) and the body
-`{"data": {"type", "on", "id", "from", "to", "actor", "fields"}}`.
+`{"data": {"type", "on", "id", "from", "to", "actor", "fields"}}`. `fields` is the submitted record on create and update, and the stored record on a state step and on delete, so the service can judge what is being changed.
 The answer decides: 2xx saves; 4xx rejects the change with 422 and the
 service's `{"message": "..."}`; a timeout, a redirect, a 5xx or an
 unreachable service rejects it with 503 (fail closed), except for

@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import { untrack } from 'svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { importCsvFile, importErrorMessage } from './csvImport';
@@ -8,6 +9,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import GenericItemModal from './GenericItemModal.svelte';
+  import { expandParam, relationCell } from './relations';
 
   interface Props {
     type: string;
@@ -21,7 +23,9 @@
   let loading = $state(true);
   let search = $state('');
   let page = $state(1);
-  let total = $state(0);
+  let hasMore = $state(false);
+  // The server pages, searches and filters; the list never holds more than one page.
+  const PAGE_SIZE = 25;
   let statusFilter = $state('');
 
   // Item Modal State (Create / Edit)
@@ -43,19 +47,7 @@
     return f.id || f.name || '';
   }
 
-  const filteredItems = $derived.by(() => {
-    let list = items;
-    if (statusFilter && collection?.workflow?.enabled) {
-      list = list.filter((i) => i.status === statusFilter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((i) => {
-        return Object.values(i).some((v) => String(v).toLowerCase().includes(q));
-      });
-    }
-    return list;
-  });
+  const filteredItems = $derived(items);
 
   // Bulk selection. Content types delete the selection in one atomic batch
   // request; other resources have no batch endpoint yet.
@@ -120,19 +112,23 @@
     }
   }
 
+  let loadedKey = '';
+  const queryKey = () => `${type}|${statusFilter}|${search.trim()}`;
+
   async function loadItems() {
     if (!collection) return;
     loading = true;
+    loadedKey = queryKey();
     try {
-      const res = await api.get<ApiResponse<ContentItem[]>>(collection.api_path || `/api/v1/admin/content/${type}`, {
-        params: {
-          page,
-          per_page: 50,
-        },
-      });
+      const params: Record<string, string | number> = { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE };
+      if (search.trim()) params.search = search.trim();
+      if (statusFilter && collection.workflow?.enabled) params.status = statusFilter;
+      const expand = expandParam(listFields);
+      if (expand) params.expand = expand;
+      const res = await api.get<ApiResponse<ContentItem[]>>(collection.api_path || `/api/v1/admin/content/${type}`, { params });
       if (res && res.data) {
         items = Array.isArray(res.data) ? res.data : [];
-        total = res.metadata?.total ?? res.meta?.total ?? items.length;
+        hasMore = Boolean((res.metadata as { has_more?: boolean } | undefined)?.has_more);
       }
     } catch (e) {
       console.warn('Failed to load items:', e);
@@ -180,15 +176,31 @@
     }
   }
 
+  // Opening another type starts over. Only the type is tracked: loadItems reads
+  // page, search and the filter, and an effect that depended on them would
+  // reset the page it was just asked to change.
   $effect(() => {
     if (type) {
-      page = 1;
-      statusFilter = '';
-      search = '';
-      selected = {};
-      bulkError = '';
-      loadItems();
+      untrack(() => {
+        page = 1;
+        statusFilter = '';
+        search = '';
+        selected = {};
+        bulkError = '';
+        void loadItems();
+      });
     }
+  });
+
+  // A changed search or status filter asks the server again, from the first page.
+  $effect(() => {
+    const key = `${type}|${statusFilter}|${search.trim()}`;
+    if (key === loadedKey) return;
+    const timer = setTimeout(() => {
+      page = 1;
+      void loadItems();
+    }, search.trim() ? 300 : 0);
+    return () => clearTimeout(timer);
   });
 
   $effect(() => {
@@ -405,6 +417,10 @@
                               {:else}
                                 <span class="font-mono text-muted-foreground">—</span>
                               {/if}
+                            {:else if field.kind === 'relation'}
+                              <span class="font-medium text-foreground">
+                                {relationCell(item, field, (name) => schema.getCollection(name)?.title_field)}
+                              </span>
                             {:else}
                               <span class="font-medium text-foreground">
                                 {String(item[key] ?? '—')}
@@ -452,7 +468,7 @@
 
               <!-- Footer Pagination / Stats -->
               <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-                <span>{t('schema.showing', { shown: filteredItems.length, total: total || items.length })}</span>
+                <span>{filteredItems.length === 0 ? t('schema.showing', { shown: 0, total: 0 }) : t('schema.showingRange', { from: (page - 1) * PAGE_SIZE + 1, to: (page - 1) * PAGE_SIZE + filteredItems.length })}</span>
                 <div class="flex items-center gap-2">
                   <button
                     type="button"
@@ -464,7 +480,7 @@
                   </button>
                   <button
                     type="button"
-                    disabled={items.length < 50}
+                    disabled={!hasMore}
                     onclick={() => { page++; loadItems(); }}
                     class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors cursor-pointer"
                   >
