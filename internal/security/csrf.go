@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -140,11 +141,24 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 			}
 
 			if providedToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(providedToken)) != 1 {
-				http.Error(w, "invalid or missing csrf token", http.StatusForbidden)
+				writeCSRFRejection(w, r)
 				return
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// writeCSRFRejection answers 403 in the API error envelope, with the request
+// id, so a client can show and report it like any other failure.
+func writeCSRFRejection(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
+		Code:      ErrorCode(http.StatusForbidden),
+		Message:   "invalid or missing csrf token",
+		RequestID: RequestIDFromContext(r.Context()),
+	})
 }

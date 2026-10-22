@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 ### Fixed
+- A missing or wrong CSRF token answers 403 in the API error envelope (with the request id) instead of plain text.
+- `hydro upgrade check` on a database that still has pending migrations says which one and to run `hydro migrate`, instead of "sql: no rows in result set".
+- `hydro help` lists the `crm` and `erp-lite` presets and the `--starter` option.
 - Deleting a record that other records still point to answers 409 ("other records still refer to this one") on SQLite, PostgreSQL and MySQL, instead of 500.
 - The audit screen works in projects without the pages module (crm, erp-lite); the route was only registered with pages.
 - Hook events for a state step and a delete carry the stored record's fields, so a service rule such as `total > 0` sees the data instead of rejecting every step.
