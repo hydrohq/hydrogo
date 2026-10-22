@@ -29,3 +29,8 @@ Releases are published only to this repository: GitHub Releases for the binaries
 2. `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. `.github/workflows/release.yml` builds binaries for Linux, macOS and Windows (amd64, arm64), the Windows `Setup.exe`, `SHA256SUMS` and the container image, and creates the GitHub release with that changelog section. Tags with a hyphen (`v0.2.0-rc.1`) publish as pre-releases and do not move the `latest` image tag.
 4. If the public API changed, update `packages/client` and copy `packages/client/src/hydrogo.ts` to `examples/sveltekit-starter/src/lib/hydrogo.ts` (a test fails when they differ). Nothing is published to npm.
+
+## Enabling a module later
+
+Add the module to `modules:` and run `hydro migrate`. The module's schema is applied as one unit from the schema baseline (ADR 0009), so this works on databases created without it, including ones created by earlier releases. Databases created before the baseline keep their migration history unchanged; only the module that is new to them runs from its baseline script. A module that depends on another (for example `forms` needs `site`) must be enabled together with it.
+
