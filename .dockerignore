@@ -1,6 +1,7 @@
 .git
 .github
 .tmp
+.cache
 .codex
 .agents
 bin

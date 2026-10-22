@@ -51,3 +51,21 @@ func TestCheckWorkflowsIgnoresUsesTextInOtherFields(t *testing.T) {
 		t.Fatalf("non-action uses text was rejected: %v", err)
 	}
 }
+
+func TestCheckWorkflowsRejectsTheSameActionPinnedToTwoCommits(t *testing.T) {
+	workflowDir := filepath.Join(t.TempDir(), ".github", "workflows")
+	if err := os.MkdirAll(workflowDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pin := func(sha string) string {
+		return "jobs:\n  build:\n    steps:\n      - uses: actions/setup-go@" + sha + " # v7.0.0\n"
+	}
+	for name, sha := range map[string]string{"a.yml": "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "b.yml": "b7ad1dad31d06c5925ef5d2fc7ad053ef454303e"} {
+		if err := os.WriteFile(filepath.Join(workflowDir, name), []byte(pin(sha)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := checkWorkflows(workflowDir); err == nil || !strings.Contains(err.Error(), "different commit") {
+		t.Fatalf("two commits for one action version were accepted: %v", err)
+	}
+}
