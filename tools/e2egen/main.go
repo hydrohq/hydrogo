@@ -93,10 +93,10 @@ func main() {
 	if err := validate(m); err != nil {
 		fail(err)
 	}
-	if err := os.MkdirAll(filepath.Dir(*output), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(*output), 0o750); err != nil {
 		fail(err)
 	}
-	if err := os.WriteFile(*output, []byte(render(m)), 0o644); err != nil {
+	if err := os.WriteFile(*output, []byte(render(m)), 0o600); err != nil {
 		fail(err)
 	}
 	fmt.Printf("generated %s\n", *output)

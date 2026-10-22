@@ -29,7 +29,7 @@ func (s Store) ListPublishedRoutes(ctx context.Context, db *sql.DB) ([]pages.Pag
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes)
+	query := `SELECT id, published_locale, published_slug, published_title, status, revision, publication_generation, updated_at FROM pages WHERE published_revision IS NOT NULL AND deleted_at IS NULL` + filter + ` ORDER BY published_locale, published_slug, id LIMIT ` + fmt.Sprint(maxSitemapRoutes) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	args := []any{}
 	if filter != "" {
 		args = append(args, scopeID)

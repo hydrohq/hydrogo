@@ -103,7 +103,7 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 					return
 				}
 				token = tok
-				http.SetCookie(w, &http.Cookie{
+				http.SetCookie(w, &http.Cookie{ // #nosec G124 -- double-submit CSRF token: the admin SPA reads it to send X-CSRF-Token, it grants no access by itself and is SameSite=Strict
 					Name:     CSRFCookieName,
 					Value:    token,
 					Path:     "/",
@@ -131,7 +131,7 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 				if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") || (strings.HasPrefix(contentType, "multipart/form-data") && r.ContentLength >= 0 && r.ContentLength <= maxCSRFFormBytes) {
 					r.Body = http.MaxBytesReader(w, r.Body, maxCSRFFormBytes)
 					if strings.HasPrefix(contentType, "multipart/form-data") {
-						_ = r.ParseMultipartForm(2 << 20)
+						_ = r.ParseMultipartForm(2 << 20) // #nosec G120 -- the body is capped by MaxBytesReader above
 					} else {
 						_ = r.ParseForm()
 					}

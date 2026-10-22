@@ -38,7 +38,7 @@ func checkWorkflows(root string) error {
 }
 
 func checkFile(path string) error {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 ,G703-- developer tool reading the workflow files it walked
 	if err != nil {
 		return err
 	}

@@ -50,7 +50,7 @@ func ReleaseRestoreQuarantine(ctx context.Context, db *sql.DB, dialect database.
 	if err := validateDialect(dialect); err != nil {
 		return err
 	}
-	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET egress_quarantined = 0 WHERE id = "+p(dialect, 1), 1)
+	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET egress_quarantined = 0 WHERE id = "+p(dialect, 1), 1) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func ReleaseRestoreWrites(ctx context.Context, db *sql.DB, dialect database.Dial
 	if err := validateDialect(dialect); err != nil {
 		return err
 	}
-	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET old_writes_blocked = 0 WHERE id = "+p(dialect, 1)+" AND egress_quarantined = 0", 1)
+	result, err := db.ExecContext(ctx, "UPDATE restore_controls SET old_writes_blocked = 0 WHERE id = "+p(dialect, 1)+" AND egress_quarantined = 0", 1) // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if err != nil {
 		return err
 	}

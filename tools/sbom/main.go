@@ -84,7 +84,7 @@ func main() {
 		fail(err)
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(*output, data, 0o644); err != nil {
+	if err := os.WriteFile(*output, data, 0o600); err != nil {
 		fail(fmt.Errorf("write %s: %w", *output, err))
 	}
 }

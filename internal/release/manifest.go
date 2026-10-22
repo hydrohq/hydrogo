@@ -501,7 +501,7 @@ func ensureContained(root, target string, allowMissing bool) error {
 }
 
 func verifyArtifact(path string, expected Artifact) error {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- operator-supplied release file paths
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func verifyArtifact(path string, expected Artifact) error {
 }
 
 func digestArtifact(path string) (int64, string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- operator-supplied release file paths
 	if err != nil {
 		return 0, "", err
 	}
@@ -524,7 +524,7 @@ func digestArtifact(path string) (int64, string, error) {
 }
 
 func copyVerifiedArtifact(source string, destination io.Writer, expected Artifact) error {
-	file, err := os.Open(source)
+	file, err := os.Open(source) // #nosec G304 -- operator-supplied release file paths
 	if err != nil {
 		return err
 	}

@@ -199,8 +199,8 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 		return false, ErrInvalidHash
 	}
 
-	keyLen := uint32(len(decodedHash))
-	params.SaltLength = uint32(len(salt))
+	keyLen := uint32(len(decodedHash))    // #nosec G115 -- the encoded hash is capped at maxEncodedPasswordHashBytes
+	params.SaltLength = uint32(len(salt)) // #nosec G115 -- the encoded hash is capped at maxEncodedPasswordHashBytes
 	params.KeyLength = keyLen
 	if err := validateArgon2Params(params); err != nil {
 		return false, ErrInvalidHash

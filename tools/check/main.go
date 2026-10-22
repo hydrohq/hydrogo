@@ -68,7 +68,7 @@ func main() {
 	started := time.Now()
 	for _, s := range steps {
 		fmt.Printf("==> %s\n", s.name)
-		cmd := exec.Command(s.args[0], s.args[1:]...)
+		cmd := exec.Command(s.args[0], s.args[1:]...) // #nosec G204 -- developer tool running the project's own checks, no shell
 		if s.dir != "" {
 			cmd.Dir = s.dir
 		}
@@ -77,7 +77,7 @@ func main() {
 			err = s.check(string(output))
 		}
 		if err != nil {
-			os.Stdout.Write(output)
+			_, _ = os.Stdout.Write(output)
 			fmt.Fprintf(os.Stderr, "FAIL: %s: %v\n", s.name, err)
 			os.Exit(1)
 		}

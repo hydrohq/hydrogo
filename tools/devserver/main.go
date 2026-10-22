@@ -78,7 +78,7 @@ func main() {
 	supervisor.rebuild(ctx, "initial build complete", true)
 	if *seedDemo {
 		status.set("seeding", 88, "Preparing demo data…", "")
-		seed := exec.CommandContext(ctx, binary, "seed-demo", "--confirm-demo", "--database-dsn", *databaseDSN)
+		seed := exec.CommandContext(ctx, binary, "seed-demo", "--confirm-demo", "--database-dsn", *databaseDSN) // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 		seed.Dir = root
 		var seedOutput bytes.Buffer
 		seed.Stdout, seed.Stderr = &seedOutput, &seedOutput
@@ -402,7 +402,7 @@ func startAdminFrontend(ctx context.Context, root string) func() {
 	return func() {
 		if cmd != nil && cmd.Process != nil {
 			if runtime.GOOS == "windows" {
-				_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+				_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run() // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 			} else {
 				_ = cmd.Process.Kill()
 			}
@@ -447,7 +447,7 @@ func startStarterFrontend(ctx context.Context, root string) func() {
 	return func() {
 		if cmd != nil && cmd.Process != nil {
 			if runtime.GOOS == "windows" {
-				_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+				_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid)).Run() // #nosec G204 -- developer tool; the commands are fixed and the arguments come from its own flags, no shell
 			} else {
 				_ = cmd.Process.Kill()
 			}

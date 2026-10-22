@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	_ "net/http/pprof"
 	"strings"
 	"sync"
 	"time"

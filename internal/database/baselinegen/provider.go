@@ -89,7 +89,7 @@ func (p *serverProvider) New(ctx context.Context) (*sql.DB, func(), error) {
 	case database.Postgres:
 		parsed, err := url.Parse(p.adminDSN)
 		if err != nil {
-			admin.Close()
+			_ = admin.Close()
 			return nil, nil, err
 		}
 		parsed.Path = "/" + name
@@ -99,7 +99,7 @@ func (p *serverProvider) New(ctx context.Context) (*sql.DB, func(), error) {
 	default:
 		config, err := mysql.ParseDSN(p.adminDSN)
 		if err != nil {
-			admin.Close()
+			_ = admin.Close()
 			return nil, nil, err
 		}
 		config.DBName = name
@@ -108,13 +108,13 @@ func (p *serverProvider) New(ctx context.Context) (*sql.DB, func(), error) {
 		drop = "DROP DATABASE IF EXISTS `" + name + "`"
 	}
 	if _, err := admin.ExecContext(ctx, create); err != nil {
-		admin.Close()
+		_ = admin.Close()
 		return nil, nil, fmt.Errorf("create %s database: %w", p.dialect, err)
 	}
 	db, err := database.Open(ctx, p.dialect, dsn)
 	if err != nil {
 		_, _ = admin.ExecContext(ctx, drop)
-		admin.Close()
+		_ = admin.Close()
 		return nil, nil, err
 	}
 	return db, func() {

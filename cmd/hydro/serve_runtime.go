@@ -125,7 +125,7 @@ func (a *serveApp) initAuth() error {
 		}
 	}
 	a.redisClient = redisClient
-	a.onClose(func() error { redisClient.Close(); return nil })
+	a.onClose(func() error { _ = redisClient.Close(); return nil })
 	newRateLimiter := a.newRateLimiter
 	auditRecorder := newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)
 	var socialOAuth *auth.SocialOAuthHandler
@@ -178,7 +178,7 @@ func (a *serveApp) initOptionalModules() error {
 			dispatcher.Web = pushservice.WebPushSender{Public: vapidPublic, Private: vapidPrivate, Subject: vapidSubject}
 		}
 		if credentialsPath := os.Getenv("HYDRO_PUSH_FCM_CREDENTIALS"); credentialsPath != "" {
-			credentials, readErr := os.ReadFile(credentialsPath)
+			credentials, readErr := os.ReadFile(credentialsPath) // #nosec G304 ,G703-- operator-configured credentials path (HYDRO_PUSH_FCM_CREDENTIALS)
 			if readErr != nil {
 				return fmt.Errorf("read FCM credentials: %w", readErr)
 			}
@@ -338,7 +338,7 @@ func (a *serveApp) initPublicCaches() error {
 		if err != nil {
 			return fmt.Errorf("open sqlite cache monitor connection: %w", err)
 		}
-		a.onClose(func() error { sqliteCacheConn.Close(); return nil })
+		a.onClose(func() error { _ = sqliteCacheConn.Close(); return nil })
 		monitor := cache.NewSQLiteDataVersionMonitor(db)
 		monitor.ReadVersion = func(readCtx context.Context) (int64, error) {
 			var version int64
