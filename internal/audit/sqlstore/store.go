@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -129,6 +130,27 @@ func (s Store) placeholder(position int) string {
 	return "?"
 }
 
-// nowUTC is the clock for audit timestamps. It is a variable so a test can
-// freeze it: on Windows consecutive events can share a timestamp.
-var nowUTC = func() time.Time { return time.Now().UTC() }
+// wallClock is the time source for audit timestamps; a test freezes it to
+// stand in for a coarse clock.
+var wallClock = time.Now
+
+var (
+	stampMu   sync.Mutex
+	lastStamp time.Time
+)
+
+// nowUTC returns the time for an audit event, strictly later than the one before
+// it in this process. The chain tells earlier from later events by timestamp, so
+// two events must never share one: a Windows clock ticks coarsely enough that
+// consecutive events otherwise do, and the last event written before chaining
+// began would look like a missing link (or a missing link like a legacy event).
+func nowUTC() time.Time {
+	stampMu.Lock()
+	defer stampMu.Unlock()
+	now := wallClock().UTC()
+	if !now.After(lastStamp) {
+		now = lastStamp.Add(time.Nanosecond)
+	}
+	lastStamp = now
+	return now
+}
