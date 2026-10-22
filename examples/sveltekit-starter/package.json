@@ -20,5 +20,8 @@
     "typescript": "^5.7.3",
     "vite": "^6.2.0"
   },
-  "description": "Server-rendered HydroGo site starter (SvelteKit)"
+  "description": "Server-rendered HydroGo site starter (SvelteKit)",
+  "overrides": {
+    "cookie": "^0.7.2"
+  }
 }
