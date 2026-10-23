@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -155,10 +157,51 @@ func (s MFAService) Verify(ctx context.Context, db database.Executor, userID, co
 		return ErrMFAInvalidCode
 	}
 	secret, err := decryptMFA(s.MasterKey, ciphertext)
-	if err != nil || !totp.Validate(strings.TrimSpace(code), string(secret)) {
+	if err != nil {
 		return ErrMFAInvalidCode
 	}
+	step, ok := matchTOTPStep(string(secret), strings.TrimSpace(code), time.Now())
+	if !ok {
+		return ErrMFAInvalidCode
+	}
+	if claimer, ok := s.Store.(TOTPStepClaimer); ok {
+		fresh, err := claimer.ClaimTOTPStep(ctx, db, userID, step)
+		if err != nil {
+			return err
+		}
+		if !fresh {
+			return ErrMFAInvalidCode
+		}
+	}
 	return nil
+}
+
+// TOTPStepClaimer records the last TOTP time step accepted for a user, so a
+// code cannot be used twice within its validity window. ClaimTOTPStep
+// returns false when step is not newer than the last one accepted.
+type TOTPStepClaimer interface {
+	ClaimTOTPStep(ctx context.Context, db database.Executor, userID string, step int64) (bool, error)
+}
+
+const totpPeriod = 30
+
+// matchTOTPStep returns the 30-second step the code belongs to, allowing
+// one step of clock skew either side (the same window as totp.Validate).
+func matchTOTPStep(secret, code string, now time.Time) (int64, bool) {
+	if len(code) != 6 {
+		return 0, false
+	}
+	for _, skew := range []int64{0, -1, 1} {
+		at := now.Add(time.Duration(skew*totpPeriod) * time.Second)
+		expected, err := totp.GenerateCodeCustom(secret, at, totp.ValidateOpts{Period: totpPeriod, Digits: otp.DigitsSix, Algorithm: otp.AlgorithmSHA1})
+		if err != nil {
+			return 0, false
+		}
+		if subtle.ConstantTimeCompare([]byte(expected), []byte(code)) == 1 {
+			return at.Unix() / totpPeriod, true
+		}
+	}
+	return 0, false
 }
 
 func (s MFAService) ConsumeRecoveryCode(ctx context.Context, tx database.Executor, userID, code string) error {

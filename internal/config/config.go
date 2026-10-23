@@ -242,6 +242,10 @@ type HTTP struct {
 	AutoTLS      bool   `yaml:"auto_tls"`
 	Domain       string `yaml:"domain"`
 	BehindProxy  bool   `yaml:"behind_proxy"`
+	// TrustedProxies lists the proxy addresses (CIDR or bare IP) whose
+	// X-Forwarded-For is believed. Empty with behind_proxy means a proxy on
+	// the same host (loopback). Every other peer is taken at face value.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 type Database struct {
