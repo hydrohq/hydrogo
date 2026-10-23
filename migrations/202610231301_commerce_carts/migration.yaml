@@ -1,0 +1,29 @@
+id: "202610231301_commerce_carts"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "2109302e8fe84a76000c2f9a7b1f993e0cfe99faa3bf144627e01c44c159afe0"
+  postgres: "01fc9d847f6da8acdf37e6a8edbd49c319c4b9a08cef35f9c64649cd28a5bae7"
+  mysql: "b4b6c16eca606e147293eb82d8f3dd888ecf42d4da10e0936a3ee488c6e34c49"
+dependencies:
+  - "202609200003_postgres_tenant_rls"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; two small table creations"
+disk_estimate: "One row per open cart plus one row per distinct item in it"
+compatibility: "New tables, additive only; no existing reader or writer is affected."
+smoke:
+  - "A cart with member_id and anonymous_token both set, or both null, is rejected by the CHECK constraint"
+  - "Two carts for the same tenant with the same anonymous_token are rejected by the unique index"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."
