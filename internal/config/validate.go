@@ -84,9 +84,6 @@ func (c Config) Validate() error {
 		if module == "" {
 			return errors.New("module name cannot be empty")
 		}
-		if module == "commerce" {
-			return errors.New("commerce is deferred and cannot be enabled in this release")
-		}
 		if _, exists := seenModules[module]; exists {
 			return fmt.Errorf("module %q is configured more than once", module)
 		}
