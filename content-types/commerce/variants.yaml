@@ -1,0 +1,16 @@
+id: variants
+label: Product variants
+description: One size/color combination of a product. Stock and reservations
+  are not stored here — they live in modules/commerce's own table, keyed by
+  this record's id, because selling the last unit needs an atomic database
+  update that a generic content-type record can't give (see
+  docs/decisions for the commerce module).
+group: Commerce
+title_field: sku
+public: true
+fields:
+  - {id: product, label: Product, kind: relation, to: products, required: true, list: true, filterable: true}
+  - {id: sku, label: SKU, kind: text, required: true, unique: true, list: true, searchable: true}
+  - {id: size, label: Size, kind: text, list: true, filterable: true}
+  - {id: color, label: Color, kind: text, list: true, filterable: true}
+  - {id: price_override, label: Price override, kind: number, min: 0, decimals: 2}
