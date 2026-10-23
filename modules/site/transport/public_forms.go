@@ -317,11 +317,7 @@ func formNotificationsAt(form forms.Form, values map[string]string, submissionID
 	if len(form.NotificationRecipients) == 0 && !form.Autoresponder {
 		return nil
 	}
-	variables := make(map[string]string, len(values)+1)
-	for key, value := range values {
-		variables[key] = value
-	}
-	variables["ticket_code"] = strings.ToUpper(strings.TrimPrefix(submissionID, "form-"))
+	ticketCode := strings.ToUpper(strings.TrimPrefix(submissionID, "form-"))
 	var summary strings.Builder
 	fmt.Fprintf(&summary, "New submission: %s\n\n", form.Title)
 	for _, field := range form.Fields {
@@ -350,6 +346,14 @@ func formNotificationsAt(form forms.Form, values map[string]string, submissionID
 		if body == "" {
 			body = "Thank you for contacting us. We have received your message. Your reference is {{ticket_code}}."
 		}
+		// Only ticket_code and the submitter's own bounded-choice answers
+		// (select/checkbox/cascading_select, whose values the admin defined
+		// in Options/CascadeOptions) are available to the template. A free-
+		// text field (text/textarea/email/phone/number) is never
+		// interpolated: the autoresponder's To address is the submitter's
+		// own claimed e-mail, so the site's mail server would otherwise be
+		// an open relay for attacker-written content to any inbox.
+		variables := autoresponderVariables(form, values, ticketCode)
 		subject = expandEmailTemplate(subject, variables)
 		body = expandEmailTemplate(body, variables)
 		htmlBody, err := mailer.RenderAutoresponderHTML(subject, body)
@@ -365,6 +369,22 @@ func expandEmailTemplate(value string, variables map[string]string) string {
 		value = strings.ReplaceAll(value, "{{"+key+"}}", replacement)
 	}
 	return value
+}
+
+// autoresponderVariables is the allowlist of template placeholders the
+// autoresponder's subject/body may reference: the server-generated
+// ticket_code, and any field whose possible values the admin fixed ahead of
+// time (select/checkbox/cascading_select), never free text a submitter
+// typed. See formNotificationsAt's own comment for why.
+func autoresponderVariables(form forms.Form, values map[string]string, ticketCode string) map[string]string {
+	variables := map[string]string{"ticket_code": ticketCode}
+	for _, field := range form.Fields {
+		switch field.Type {
+		case forms.Select, forms.Checkbox, forms.CascadingSelect:
+			variables[field.ID] = values[field.ID]
+		}
+	}
+	return variables
 }
 
 func formSourcePath(value string) string {
