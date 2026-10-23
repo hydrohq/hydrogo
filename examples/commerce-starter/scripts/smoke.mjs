@@ -69,7 +69,12 @@ try {
   assert.ok(home.headers.get('set-cookie'), 'the root layout warms the cart/CSRF cookies on first load');
 
   assert.equal((await get('/urun/does-not-exist')).status, 404, 'unknown product is a 404');
+  assert.equal((await get('/kategori/does-not-exist')).status, 404, 'unknown category is a 404');
   assert.equal((await get('/sepet')).status, 200, 'an empty cart page renders');
+
+  const search = await get('/arama?q=kemer');
+  assert.equal(search.status, 200, 'search page renders with no matches');
+  assert.match(search.body, /bulunamadı/, 'empty search results show the empty state');
 
   api.close();
   api.closeAllConnections();

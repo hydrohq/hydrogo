@@ -2,7 +2,9 @@ import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { hydro, toHttpError } from '$lib/server/hydro';
 import { addToCart, getStock } from '$lib/server/commerce';
-import type { Product, Variant } from '$lib/catalog';
+import type { Product, ProductImage, Variant } from '$lib/catalog';
+
+const RELATED_LIMIT = 4;
 
 export const load: PageServerLoad = async ({ params }) => {
   try {
@@ -10,10 +12,17 @@ export const load: PageServerLoad = async ({ params }) => {
     const product = products.data[0];
     if (!product) error(404, 'Ürün bulunamadı');
 
-    const variants = await hydro.listContent<Variant>('variants', { limit: 100, filter: { product: product.id } });
+    const [variants, gallery, related] = await Promise.all([
+      hydro.listContent<Variant>('variants', { limit: 100, filter: { product: product.id } }),
+      hydro.listContent<ProductImage>('product_images', { limit: 20, sort: 'sort_order', filter: { product: product.id } }),
+      product.category
+        ? hydro.listContent<Product>('products', { limit: RELATED_LIMIT + 1, sort: '-created_at', filter: { category: product.category } })
+        : Promise.resolve({ data: [] as Product[], metadata: { limit: 0, has_more: false } })
+    ]);
     const stockByVariant = Object.fromEntries(await Promise.all(variants.data.map(async (variant) => [variant.id, await getStock(variant.id)] as const)));
+    const relatedProducts = related.data.filter((candidate) => candidate.id !== product.id).slice(0, RELATED_LIMIT);
 
-    return { product, variants: variants.data, stockByVariant };
+    return { product, variants: variants.data, stockByVariant, gallery: gallery.data, relatedProducts };
   } catch (err) {
     toHttpError(err);
   }

@@ -14,3 +14,6 @@ fields:
   - {id: size, label: Size, kind: text, list: true, filterable: true}
   - {id: color, label: Color, kind: text, list: true, filterable: true}
   - {id: price_override, label: Price override, kind: number, min: 0, decimals: 2}
+  # Overrides the product's cover image when this variant (e.g. a colour) is
+  # selected; falls back to the product's cover image when empty.
+  - {id: image, label: Image, kind: media}

@@ -12,9 +12,12 @@
   <a class="brand" href="/">Deri Atölyesi</a>
   <nav>
     {#each data.categories as category (category.id)}
-      <a href={`/?kategori=${encodeURIComponent(category.slug)}`}>{category.name}</a>
+      <a href={`/kategori/${category.slug}`}>{category.name}</a>
     {/each}
   </nav>
+  <form class="search-form" action="/arama" method="GET">
+    <input type="search" name="q" placeholder="Ürün ara…" aria-label="Ürün ara" />
+  </form>
   <a class="cart-link" href="/sepet">
     Sepet
     {#if data.cartItemCount > 0}<span class="count">{data.cartItemCount}</span>{/if}
