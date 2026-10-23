@@ -10,4 +10,4 @@
 <h1>Arama sonuçları</h1>
 <p class="meta">"{data.query}" için {data.products.length} sonuç bulundu.</p>
 
-<ProductGrid products={data.products} emptyMessage="Aramanızla eşleşen ürün bulunamadı." />
+<ProductGrid products={data.products} emptyMessage="Aramanızla eşleşen ürün bulunamadı." displayCurrency={data.displayCurrency} currencies={data.currencies} />

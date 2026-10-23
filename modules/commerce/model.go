@@ -94,18 +94,29 @@ type CartItem struct {
 // more than once (a retried client request, a double click) and must
 // produce exactly one order -- see repository/sqlstore's Checkout.
 type Order struct {
-	ID                string            `json:"id"`
-	MemberID          string            `json:"member_id,omitempty"`
-	GuestName         string            `json:"guest_name,omitempty"`
-	GuestEmail        string            `json:"guest_email,omitempty"`
-	GuestPhone        string            `json:"guest_phone,omitempty"`
-	GuestAddress      string            `json:"guest_address,omitempty"`
-	GuestCity         string            `json:"guest_city,omitempty"`
-	GuestCountry      string            `json:"guest_country,omitempty"`
-	GuestPostalCode   string            `json:"guest_postal_code,omitempty"`
-	IdempotencyKey    string            `json:"-"`
-	IdempotencyHash   string            `json:"-"`
-	Currency          string            `json:"currency"`
+	ID              string `json:"id"`
+	MemberID        string `json:"member_id,omitempty"`
+	GuestName       string `json:"guest_name,omitempty"`
+	GuestEmail      string `json:"guest_email,omitempty"`
+	GuestPhone      string `json:"guest_phone,omitempty"`
+	GuestAddress    string `json:"guest_address,omitempty"`
+	GuestCity       string `json:"guest_city,omitempty"`
+	GuestCountry    string `json:"guest_country,omitempty"`
+	GuestPostalCode string `json:"guest_postal_code,omitempty"`
+	IdempotencyKey  string `json:"-"`
+	IdempotencyHash string `json:"-"`
+	Currency        string `json:"currency"`
+	// SubtotalCents is the sum of line items, before any discount, tax or
+	// shipping. DiscountCents comes off it; TaxCents and ShippingCents add
+	// on top (TaxCents is informational only when tax is price-inclusive --
+	// see Service.Pricing's own doc comment -- the rate is already baked
+	// into SubtotalCents in that mode). TotalCents is what actually gets
+	// charged and is the only field StartPayment ever reads.
+	SubtotalCents     int64             `json:"subtotal_cents"`
+	DiscountCode      string            `json:"discount_code,omitempty"`
+	DiscountCents     int64             `json:"discount_cents"`
+	TaxCents          int64             `json:"tax_cents"`
+	ShippingCents     int64             `json:"shipping_cents"`
 	TotalCents        int64             `json:"total_cents"`
 	PaymentStatus     PaymentStatus     `json:"payment_status"`
 	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status"`

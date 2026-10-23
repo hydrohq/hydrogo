@@ -16,6 +16,7 @@
 | [0014](0014-commerce-paytr-provider.md) | PayTR as a `commerce.PaymentProvider` | Accepted (Phase 3 of 4) |
 | [0015](0015-commerce-starter.md) | `examples/commerce-starter` | Accepted (Phase 4 of 4) |
 | [0016](0016-commerce-starter-catalog-sections.md) | Commerce starter catalog sections (category pages, search, galleries) | Accepted |
+| [0017](0017-commerce-tax-shipping-discounts-currencies.md) | Tax, shipping, discount codes and display currencies | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.

@@ -26,8 +26,22 @@
 <dl class="order-summary">
   <dt>Sipariş numarası</dt>
   <dd>{data.order.id}</dd>
+  <dt>Ara toplam</dt>
+  <dd>{formatPrice(data.order.subtotal_cents, data.order.currency)}</dd>
+  {#if data.order.discount_cents > 0}
+    <dt>İndirim {data.order.discount_code ? `(${data.order.discount_code})` : ''}</dt>
+    <dd>-{formatPrice(data.order.discount_cents, data.order.currency)}</dd>
+  {/if}
+  {#if data.order.tax_cents > 0}
+    <dt>KDV</dt>
+    <dd>{formatPrice(data.order.tax_cents, data.order.currency)}</dd>
+  {/if}
+  {#if data.order.shipping_cents > 0}
+    <dt>Kargo</dt>
+    <dd>{formatPrice(data.order.shipping_cents, data.order.currency)}</dd>
+  {/if}
   <dt>Toplam</dt>
-  <dd>{formatPrice(data.order.total_cents, data.order.currency)}</dd>
+  <dd><strong>{formatPrice(data.order.total_cents, data.order.currency)}</strong></dd>
 </dl>
 
 {#if data.order.items?.length}

@@ -336,3 +336,88 @@ func TestConfirmPaymentEmitsOrderPaidOnlyWhenTheTransitionApplies(t *testing.T) 
 		t.Fatalf("expected exactly one order.paid event for %s, got %+v", order.ID, paidEvents)
 	}
 }
+
+func TestCheckoutAppliesConfiguredTaxAndShipping(t *testing.T) {
+	svc, db := newTestService(t)
+	svc.Pricing = commerce.PricingConfig{TaxRate: 0.20, ShippingFlatRateCents: 500}
+	ctx := context.Background()
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-pricing", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-pricing", 1, 10000)
+
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-pricing-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.SubtotalCents != 10000 {
+		t.Fatalf("subtotal = %d, want 10000", order.SubtotalCents)
+	}
+	if order.TaxCents != 2000 {
+		t.Fatalf("tax = %d, want 2000 (20%%)", order.TaxCents)
+	}
+	if order.ShippingCents != 500 {
+		t.Fatalf("shipping = %d, want 500", order.ShippingCents)
+	}
+	if order.TotalCents != 12500 {
+		t.Fatalf("total = %d, want 12500 (10000 + 2000 tax + 500 shipping)", order.TotalCents)
+	}
+}
+
+func TestCheckoutAppliesAValidDiscountCodeAndRedeemsItExactlyOnce(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-discount", 5); err != nil {
+		t.Fatal(err)
+	}
+	store := sqlstore.Store{Dialect: database.SQLite}
+	if err := store.CreateDiscountCode(ctx, db, commerce.DiscountCode{
+		ID: "disc-checkout-1", Code: "SAVE10", Kind: commerce.DiscountPercent, Value: 10, Active: true, MaxRedemptions: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-discount", 1, 10000)
+
+	req := commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-discount-1", DiscountCode: "SAVE10"}
+	order, err := svc.Checkout(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.DiscountCode != "SAVE10" || order.DiscountCents != 1000 || order.TotalCents != 9000 {
+		t.Fatalf("unexpected order: %+v", order)
+	}
+
+	// A retried checkout (same idempotency key) must not redeem the code a
+	// second time -- it's the same order being returned, not a new one.
+	if _, err := svc.Checkout(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+	code, err := store.GetDiscountCodeByCode(ctx, db, "SAVE10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code.RedeemedCount != 1 {
+		t.Fatalf("redeemed_count = %d, want 1 (one real checkout, one idempotent retry)", code.RedeemedCount)
+	}
+}
+
+func TestCheckoutRejectsAnInvalidDiscountCodeWithoutCreatingAnOrder(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-baddiscount", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-baddiscount", 1, 10000)
+
+	_, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-baddiscount-1", DiscountCode: "DOES-NOT-EXIST"})
+	if !errors.Is(err, commerce.ErrDiscountCodeInvalid) {
+		t.Fatalf("expected ErrDiscountCodeInvalid, got %v", err)
+	}
+	stock, err := svc.Repository.GetStock(ctx, db, "variant-baddiscount")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stock.Available != 5 || stock.Reserved != 0 {
+		t.Fatalf("a rejected discount code must leave stock untouched (rolled back), got %+v", stock)
+	}
+}

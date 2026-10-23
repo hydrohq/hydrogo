@@ -42,6 +42,20 @@ func (c Config) Validate() error {
 	if c.Commerce.PayTR.Enabled() && (c.Commerce.PayTR.MerchantKey == "" || c.Commerce.PayTR.MerchantSalt == "") {
 		return errors.New("PayTR requires a merchant key and salt once a merchant id is configured")
 	}
+	if c.Commerce.Tax.Rate < 0 || c.Commerce.Tax.Rate >= 1 {
+		return errors.New("commerce tax rate must be 0 (disabled) or a fraction below 1")
+	}
+	if c.Commerce.Shipping.FlatRateCents < 0 || c.Commerce.Shipping.FreeAboveCents < 0 {
+		return errors.New("commerce shipping rates cannot be negative")
+	}
+	for _, currency := range c.Commerce.Currencies.Display {
+		if c.Commerce.Currencies.Default == "" {
+			return errors.New("commerce display currencies require a default currency")
+		}
+		if rate, ok := c.Commerce.Currencies.Rates[currency]; !ok || rate <= 0 {
+			return fmt.Errorf("commerce display currency %q needs a positive rate", currency)
+		}
+	}
 	if c.Backup.SigningSeed != "" {
 		seed, err := hex.DecodeString(strings.TrimSpace(c.Backup.SigningSeed))
 		if err != nil || len(seed) != 32 {

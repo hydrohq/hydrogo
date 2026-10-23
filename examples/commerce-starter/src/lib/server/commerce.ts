@@ -1,6 +1,7 @@
 import type { Cookies } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
+import type { CurrenciesConfig } from '$lib/catalog';
 
 const API_ORIGIN = (env.HYDRO_API_ORIGIN ?? 'http://127.0.0.1:8080').replace(/\/$/, '');
 export const SECURE_COOKIES = publicEnv.PUBLIC_SECURE_COOKIES === 'true';
@@ -80,6 +81,11 @@ export type Order = {
   guest_name?: string;
   guest_email?: string;
   currency: string;
+  subtotal_cents: number;
+  discount_code?: string;
+  discount_cents: number;
+  tax_cents: number;
+  shipping_cents: number;
   total_cents: number;
   payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
   fulfillment_status: string;
@@ -118,6 +124,9 @@ export type CheckoutInput = {
   guestCity: string;
   guestCountry: string;
   guestPostalCode: string;
+  discountCode?: string;
+  itemTitles?: Record<string, string>;
+  itemSKUs?: Record<string, string>;
 };
 
 export async function checkout(cookies: Cookies, input: CheckoutInput): Promise<CheckoutResult> {
@@ -132,7 +141,10 @@ export async function checkout(cookies: Cookies, input: CheckoutInput): Promise<
       guest_address: input.guestAddress,
       guest_city: input.guestCity,
       guest_country: input.guestCountry,
-      guest_postal_code: input.guestPostalCode
+      guest_postal_code: input.guestPostalCode,
+      discount_code: input.discountCode ?? '',
+      item_titles: input.itemTitles ?? {},
+      item_skus: input.itemSKUs ?? {}
     })
   });
 }
@@ -157,4 +169,38 @@ export async function getOrder(orderId: string): Promise<Order | null> {
 
 export async function startOrderPayment(cookies: Cookies, orderId: string): Promise<PaymentStart> {
   return commerceRequest<PaymentStart>(cookies, `/api/v1/commerce/orders/${encodeURIComponent(orderId)}/payment`, { method: 'POST' });
+}
+
+export type CheckoutConfig = { tax_rate: number; tax_inclusive: boolean; shipping_flat_rate_cents: number; shipping_free_above_cents: number };
+const DEFAULT_CHECKOUT_CONFIG: CheckoutConfig = { tax_rate: 0, tax_inclusive: false, shipping_flat_rate_cents: 0, shipping_free_above_cents: 0 };
+
+/** Tax/shipping terms, for an upfront estimate before the real checkout
+ * (which alone is authoritative) -- see modules/commerce/transport's
+ * getCheckoutConfig doc comment. */
+// Used from the root layout, so every page depends on this never throwing:
+// a commerce API outage must degrade to "no tax, no shipping shown", not
+// take the whole site down with it.
+export async function getCheckoutConfig(): Promise<CheckoutConfig> {
+  try {
+    const response = await fetch(`${API_ORIGIN}/api/v1/commerce/checkout-config`);
+    if (!response.ok) return DEFAULT_CHECKOUT_CONFIG;
+    const body = (await response.json()) as { data?: CheckoutConfig };
+    return body.data ?? DEFAULT_CHECKOUT_CONFIG;
+  } catch {
+    return DEFAULT_CHECKOUT_CONFIG;
+  }
+}
+
+const DEFAULT_CURRENCIES_CONFIG: CurrenciesConfig = { default: 'TRY', display: [], rates: {} };
+
+// Also used from the root layout -- same reasoning as getCheckoutConfig.
+export async function getCurrencies(): Promise<CurrenciesConfig> {
+  try {
+    const response = await fetch(`${API_ORIGIN}/api/v1/commerce/currencies`);
+    if (!response.ok) return DEFAULT_CURRENCIES_CONFIG;
+    const body = (await response.json()) as { data?: CurrenciesConfig };
+    return body.data ?? DEFAULT_CURRENCIES_CONFIG;
+  } catch {
+    return DEFAULT_CURRENCIES_CONFIG;
+  }
 }
