@@ -36,6 +36,8 @@ SQLite (default) for small sites; PostgreSQL or MySQL/MariaDB for more traffic o
 
 `hydro backup sqlite --destination backups/ --media-dir data/media` (or `postgres`), and test `hydro restore` on a scratch copy before you need it. Run it from cron or a systemd timer.
 
+On PostgreSQL the audit tables use forced row-level security, so the application's own database user cannot dump or restore them. Set `HYDRO_PG_PRIVILEGED_ROLE` to a role that user may `SET ROLE` to: for backups, one with `BYPASSRLS` and `pg_read_all_data`; for `hydro restore postgres` into an empty database, one that can also create objects there. Without it the command stops with a hint instead of writing an incomplete backup.
+
 ## Frontend
 
 Deploy your frontend separately and point it at the API. The SvelteKit starter runs as a Node server (`npm run build && npm start`) next to HydroGo.

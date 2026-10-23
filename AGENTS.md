@@ -9,9 +9,10 @@ change does not serve that, don't make it. Background:
 
 ## Branches
 
-`main` is the release branch (tags `vX.Y.Z` are cut from it; GitHub CI runs for
-pull requests into it). Work happens on `development`, which has no GitHub CI,
-so the local check below is the only gate there.
+`main` is the only long-lived branch (tags `vX.Y.Z` are cut from it). Work on a
+short-lived branch and open a pull request into `main`; GitHub CI runs for it.
+Delete the branch once it is merged. The local check below is still the first
+gate, since CI is slower and only runs once the PR exists.
 
 ## Before you finish any task
 

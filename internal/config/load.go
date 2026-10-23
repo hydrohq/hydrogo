@@ -362,6 +362,19 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if result.Tenancy.Enabled {
 		result.Tenancy.RequireHost = true
 	}
+	if overrides.SkipDeliverySecrets {
+		const unused = "unused-by-this-command"
+		for index := range result.Hooks {
+			if result.Hooks[index].Secret == "" {
+				result.Hooks[index].Secret = unused
+			}
+		}
+		for index := range result.Webhooks {
+			if result.Webhooks[index].Secret == "" {
+				result.Webhooks[index].Secret = unused
+			}
+		}
+	}
 	if err := result.Validate(); err != nil {
 		return Config{}, err
 	}

@@ -496,6 +496,9 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 
 		var got string
 		if err := db.QueryRowContext(ctx, "SELECT checksum FROM schema_migrations WHERE id = "+placeholder(dialect, 1), migrationID).Scan(&got); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("migration %s has not been applied yet; run \"hydro migrate\" first", migrationID)
+			}
 			return fmt.Errorf("schema is not ready for migration %s: %w", migrationID, err)
 		}
 		if got != want {

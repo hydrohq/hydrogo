@@ -14,6 +14,8 @@ export const messages = {
     unavailable: 'The CRM server is not reachable. Try again shortly.',
     dashboard: 'Dashboard',
     deals: 'Deals',
+    dealOne: 'deal',
+    dealMany: 'deals',
     companies: 'Companies',
     contacts: 'Contacts',
     tasks: 'My tasks',
@@ -67,6 +69,8 @@ export const messages = {
     unavailable: 'CRM sunucusuna ulaşılamıyor. Biraz sonra tekrar deneyin.',
     dashboard: 'Özet',
     deals: 'Fırsatlar',
+    dealOne: 'fırsat',
+    dealMany: 'fırsat',
     companies: 'Şirketler',
     contacts: 'Kişiler',
     tasks: 'Görevlerim',
@@ -108,6 +112,9 @@ export const messages = {
     kinds: { call: 'Arama', meeting: 'Toplantı', email: 'E-posta', task: 'Görev', note: 'Not' }
   }
 } satisfies Record<Lang, Record<string, unknown>>;
+
+/** "1 deal", "3 deals" (Turkish keeps the singular after a number). */
+export const dealCount = (t: Messages, count: number): string => `${count} ${count === 1 ? t.dealOne : t.dealMany}`;
 
 export type Messages = (typeof messages)['en'];
 

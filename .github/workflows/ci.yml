@@ -3,8 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-  # Only changes headed for the release branch run CI on GitHub. Work on
-  # `development` is checked locally with `go run ./tools/check`.
+  # Every change reaches `main` through a pull request, which runs CI.
   pull_request:
     branches: [main]
   workflow_dispatch:

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -122,6 +123,15 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 				return
 			}
 
+			// Browsers label every request with Sec-Fetch-Site and a page cannot
+			// forge it. A write that another site's page started is refused even
+			// if it somehow carries a valid token (defence in depth on top of the
+			// SameSite cookie and the double-submit token).
+			if strings.EqualFold(r.Header.Get("Sec-Fetch-Site"), "cross-site") {
+				writeCSRFRejection(w, r, "cross-site request refused")
+				return
+			}
+
 			// Validate state-changing methods
 			providedToken := r.Header.Get(CSRFHeaderName)
 			if providedToken == "" {
@@ -140,11 +150,24 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 			}
 
 			if providedToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(providedToken)) != 1 {
-				http.Error(w, "invalid or missing csrf token", http.StatusForbidden)
+				writeCSRFRejection(w, r, "invalid or missing csrf token")
 				return
 			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// writeCSRFRejection answers 403 in the API error envelope, with the request
+// id, so a client can show and report it like any other failure.
+func writeCSRFRejection(w http.ResponseWriter, r *http.Request, message string) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
+		Code:      ErrorCode(http.StatusForbidden),
+		Message:   message,
+		RequestID: RequestIDFromContext(r.Context()),
+	})
 }

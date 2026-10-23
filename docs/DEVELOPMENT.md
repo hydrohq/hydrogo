@@ -19,6 +19,15 @@ go run ./tools/check          # or: make check
 go run ./tools/check -short   # skip tests
 ```
 
+To run the GitHub CI jobs themselves on this machine (Docker and [act](https://github.com/nektos/act) needed):
+
+```bash
+scripts/ci-local.sh                   # go, first-run, sveltekit-starter, crm-starter
+scripts/ci-local.sh go                # one job
+```
+
+The script moves the PostgreSQL and Redis service ports away from 5432 and 6379 and skips artifact uploads. The container image build, the Windows jobs and CodeQL cannot run this way.
+
 `check` runs build, vet, gofmt, the repository guards and the test suite. The
 pre-push hook runs it; install hooks with `sh scripts/install-git-hooks.sh`.
 CI runs more (PostgreSQL/MySQL contracts, browser e2e, CodeQL);

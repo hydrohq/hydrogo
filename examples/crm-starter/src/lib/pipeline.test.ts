@@ -16,6 +16,7 @@ describe('pipeline', () => {
   it('formats an empty total as a dash', () => {
     expect(formatMoney({}, 'en')).toBe('–');
     expect(formatMoney({ USD: 1500 }, 'en')).toContain('1,500');
+    expect(formatMoney({ TRY: 1234.5 }, 'en')).toContain('1,234.50');
   });
 
   it('detects overdue activities', () => {
