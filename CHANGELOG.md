@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `hydro new --preset commerce`: a storefront catalog (categories, products, variants; `content-types/commerce/`), public and searchable/filterable by category and product relation. Phase 1 of bringing e-commerce back into core (see `docs/decisions/0012-commerce-catalog-as-content-types.md`); cart, checkout and payments are not part of this preset yet.
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 - `scripts/ci-local.sh` runs the CI jobs on a developer machine with act.
