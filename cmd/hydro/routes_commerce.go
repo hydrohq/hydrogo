@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -17,6 +18,17 @@ import (
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
+
+// commercePaymentProviderName names the configured payment provider for
+// Service.Reconcile's NotifiedButNotPaid check -- "" when none is
+// configured, which correctly skips that check rather than flagging every
+// unconfirmed order as an anomaly.
+func (a *serveApp) commercePaymentProviderName() string {
+	if a.cfg.Commerce.PayTR.Enabled() {
+		return "paytr"
+	}
+	return ""
+}
 
 // commerceCSRFExemptPaths names the routes a payment provider calls
 // directly, with no browser session to carry the CSRF cookie -- see
@@ -131,6 +143,40 @@ func runCommerceReservationSweeper(ctx context.Context, worker commerce.Worker, 
 	for {
 		if _, err := worker.ExpireDue(ctx, db, time.Now().UTC()); err != nil && ctx.Err() == nil {
 			_, _ = fmt.Fprintf(stderr, "hydro commerce reservation sweep: %v\n", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// runCommerceReconciliationAlert is Service.Reconcile run on a schedule, so
+// drift gets noticed without an operator remembering to run
+// `hydro commerce reconcile` by hand. A plain ticker, like the sweeper
+// above: this is read-only and idempotent to call repeatedly, so a crash
+// between ticks just means the next tick reports the same thing again,
+// never silently misses it. Every non-clean report is logged at Warn (not
+// Error -- Reconcile finding something is the alert itself, not this
+// job malfunctioning) with enough structure for an operator's existing log
+// pipeline to turn into a real alert; see
+// docs/decisions/0018-commerce-reconciliation.md.
+func runCommerceReconciliationAlert(ctx context.Context, service commerce.Service, db database.Executor, provider string, logger *slog.Logger, stderr io.Writer) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		report, err := service.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, provider, 100)
+		if err != nil {
+			if ctx.Err() == nil {
+				_, _ = fmt.Fprintf(stderr, "hydro commerce reconcile: %v\n", err)
+			}
+		} else if !report.Clean() && logger != nil {
+			logger.WarnContext(ctx, "commerce reconciliation found drift",
+				"stale_pending_orders", len(report.StalePendingOrders),
+				"notified_but_not_paid", len(report.NotifiedButNotPaid),
+				"reservation_drift", len(report.ReservationDrift),
+			)
 		}
 		select {
 		case <-ctx.Done():

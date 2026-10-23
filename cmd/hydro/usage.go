@@ -57,6 +57,7 @@ Usage:
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
+  hydro commerce reconcile [--provider paytr] [--hold 30m] [--stale-after 15m] [--limit N] [--json] [runtime flags]
   hydro tenant validate|list [runtime flags]
   hydro tenant provision --tenant-id ID --admin-email EMAIL --admin-password-stdin [runtime flags]
   hydro tenant backfill (--tenant-id ID|--active) [--dry-run|--confirm] [runtime flags]
