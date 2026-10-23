@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { PageData, ActionData } from './$types';
-  import { formatPrice, variantPriceCents, type Variant } from '$lib/catalog';
+  import { convertDisplayPrice, formatPrice, variantPriceCents, type Variant } from '$lib/catalog';
   import { mediaUrl } from '$lib/media';
   import ProductGrid from '$lib/components/ProductGrid.svelte';
 
@@ -21,6 +21,10 @@
   const outOfStock = $derived(hasVariants && availableStock <= 0);
 
   const thumbnails = $derived([data.product.cover_image, ...data.gallery.map((img) => img.image)]);
+  // priceCents stays in the catalog's own base currency and is what the
+  // hidden unit_price_cents form field sends -- only the visible <p.price>
+  // text below ever shows the converted display currency.
+  const shownPrice = $derived(convertDisplayPrice(priceCents, data.displayCurrency, data.currencies));
 
   function selectVariant(id: string) {
     selectedVariantId = id;
@@ -48,7 +52,7 @@
   </div>
   <div>
     <h1>{data.product.name}</h1>
-    <p class="price">{formatPrice(priceCents, data.product.currency)}</p>
+    <p class="price">{formatPrice(shownPrice.cents, shownPrice.currency)}</p>
     {#if data.product.description}
       <div class="description">{@html data.product.description}</div>
     {/if}
@@ -91,5 +95,5 @@
 
 {#if data.relatedProducts.length > 0}
   <h2 class="section-title">Benzer ürünler</h2>
-  <ProductGrid products={data.relatedProducts} />
+  <ProductGrid products={data.relatedProducts} displayCurrency={data.displayCurrency} currencies={data.currencies} />
 {/if}

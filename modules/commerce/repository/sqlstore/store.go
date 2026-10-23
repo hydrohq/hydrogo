@@ -402,13 +402,13 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 		return commerce.Order{}, false, err
 	}
 	memberID := nullable(order.MemberID)
-	query := `INSERT INTO commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, total_cents, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `)`
+	query := `INSERT INTO commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `)`
 	_, err = db.ExecContext(ctx, query, order.ID, memberID, order.GuestName, order.GuestEmail, order.GuestPhone, order.GuestAddress, order.GuestCity, order.GuestCountry, order.GuestPostalCode,
-		order.IdempotencyKey, order.IdempotencyHash, order.Currency, order.TotalCents, string(order.PaymentStatus), string(order.FulfillmentStatus), s.dbTime(order.CreatedAt), s.dbTime(order.UpdatedAt), tenantID)
+		order.IdempotencyKey, order.IdempotencyHash, order.Currency, order.SubtotalCents, order.DiscountCode, order.DiscountCents, order.TaxCents, order.ShippingCents, order.TotalCents, string(order.PaymentStatus), string(order.FulfillmentStatus), s.dbTime(order.CreatedAt), s.dbTime(order.UpdatedAt), tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			existing, found, getErr := s.getOrderByIdempotencyKey(ctx, db, order.IdempotencyKey)
+			existing, found, getErr := s.GetOrderByIdempotencyKey(ctx, db, order.IdempotencyKey)
 			if getErr != nil {
 				return commerce.Order{}, false, getErr
 			}
@@ -428,7 +428,7 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 	return order, true, nil
 }
 
-func (s Store) getOrderByIdempotencyKey(ctx context.Context, db database.Executor, key string) (commerce.Order, bool, error) {
+func (s Store) GetOrderByIdempotencyKey(ctx context.Context, db database.Executor, key string) (commerce.Order, bool, error) {
 	filter, filterArg, err := s.tenantFilter(ctx, 2)
 	if err != nil {
 		return commerce.Order{}, false, err
@@ -437,7 +437,7 @@ func (s Store) getOrderByIdempotencyKey(ctx context.Context, db database.Executo
 	if filterArg != nil {
 		args = append(args, filterArg)
 	}
-	row := db.QueryRowContext(ctx, `SELECT id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, total_cents, payment_status, fulfillment_status, created_at, updated_at FROM commerce_customer_orders WHERE idempotency_key = `+s.p(1)+filter, args...)
+	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE idempotency_key = `+s.p(1)+filter, args...)
 	return s.scanOrder(row)
 }
 
@@ -451,7 +451,7 @@ func (s Store) GetOrder(ctx context.Context, db database.Executor, id string) (c
 	if filterArg != nil {
 		args = append(args, filterArg)
 	}
-	row := db.QueryRowContext(ctx, `SELECT id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, total_cents, payment_status, fulfillment_status, created_at, updated_at FROM commerce_customer_orders WHERE id = `+s.p(1)+filter, args...)
+	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE id = `+s.p(1)+filter, args...)
 	order, found, err := s.scanOrder(row)
 	if err != nil {
 		return commerce.Order{}, err
@@ -491,29 +491,46 @@ func (s Store) ListOrderItems(ctx context.Context, db database.Executor, orderID
 	return items, rows.Err()
 }
 
-func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
+// orderScanner is satisfied by both *sql.Row and *sql.Rows, so the single
+// order-column list below (id through updated_at) is written once and
+// shared by every reader instead of duplicated per query.
+type orderScanner interface {
+	Scan(dest ...any) error
+}
+
+func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	var order commerce.Order
 	var paymentStatus, fulfillmentStatus string
 	var created, updated any
-	err := row.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestCountry, &order.GuestPostalCode,
-		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.TotalCents, &paymentStatus, &fulfillmentStatus, &created, &updated)
+	if err := scanner.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestCountry, &order.GuestPostalCode,
+		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.SubtotalCents, &order.DiscountCode, &order.DiscountCents, &order.TaxCents, &order.ShippingCents, &order.TotalCents,
+		&paymentStatus, &fulfillmentStatus, &created, &updated); err != nil {
+		return commerce.Order{}, err
+	}
+	order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
+	order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
+	var parseErr error
+	if order.CreatedAt, parseErr = s.parseTime(created); parseErr != nil {
+		return commerce.Order{}, parseErr
+	}
+	if order.UpdatedAt, parseErr = s.parseTime(updated); parseErr != nil {
+		return commerce.Order{}, parseErr
+	}
+	return order, nil
+}
+
+func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
+	order, err := s.scanOrderRow(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return commerce.Order{}, false, nil
 		}
 		return commerce.Order{}, false, err
 	}
-	order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
-	order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
-	var parseErr error
-	if order.CreatedAt, parseErr = s.parseTime(created); parseErr != nil {
-		return commerce.Order{}, false, parseErr
-	}
-	if order.UpdatedAt, parseErr = s.parseTime(updated); parseErr != nil {
-		return commerce.Order{}, false, parseErr
-	}
 	return order, true, nil
 }
+
+const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_status, fulfillment_status, created_at, updated_at`
 
 // ListPendingOrdersOlderThan returns orders still awaiting payment whose
 // hold should have expired by now -- worker.go's sweep calls this, then
@@ -539,26 +556,15 @@ func (s Store) ListPendingOrdersOlderThan(ctx context.Context, db database.Execu
 	if filterArg != nil {
 		args = append(args, filterArg)
 	}
-	rows, err := queryer.QueryContext(ctx, `SELECT id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, total_cents, payment_status, fulfillment_status, created_at, updated_at FROM commerce_customer_orders WHERE payment_status = 'pending' AND created_at < `+s.p(1)+filter+` ORDER BY created_at LIMIT `+fmt.Sprintf("%d", limit), args...)
+	rows, err := queryer.QueryContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE payment_status = 'pending' AND created_at < `+s.p(1)+filter+` ORDER BY created_at LIMIT `+fmt.Sprintf("%d", limit), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var orders []commerce.Order
 	for rows.Next() {
-		var order commerce.Order
-		var paymentStatus, fulfillmentStatus string
-		var created, updated any
-		if err := rows.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestCountry, &order.GuestPostalCode,
-			&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.TotalCents, &paymentStatus, &fulfillmentStatus, &created, &updated); err != nil {
-			return nil, err
-		}
-		order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
-		order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
-		if order.CreatedAt, err = s.parseTime(created); err != nil {
-			return nil, err
-		}
-		if order.UpdatedAt, err = s.parseTime(updated); err != nil {
+		order, err := s.scanOrderRow(rows)
+		if err != nil {
 			return nil, err
 		}
 		orders = append(orders, order)
@@ -590,26 +596,15 @@ func (s Store) ListOrdersByMemberID(ctx context.Context, db database.Executor, m
 	if filterArg != nil {
 		args = append(args, filterArg)
 	}
-	rows, err := queryer.QueryContext(ctx, `SELECT id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, total_cents, payment_status, fulfillment_status, created_at, updated_at FROM commerce_customer_orders WHERE member_id = `+s.p(1)+filter+` ORDER BY created_at DESC LIMIT `+fmt.Sprintf("%d", limit), args...)
+	rows, err := queryer.QueryContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE member_id = `+s.p(1)+filter+` ORDER BY created_at DESC LIMIT `+fmt.Sprintf("%d", limit), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var orders []commerce.Order
 	for rows.Next() {
-		var order commerce.Order
-		var paymentStatus, fulfillmentStatus string
-		var created, updated any
-		if err := rows.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestCountry, &order.GuestPostalCode,
-			&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.TotalCents, &paymentStatus, &fulfillmentStatus, &created, &updated); err != nil {
-			return nil, err
-		}
-		order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
-		order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
-		if order.CreatedAt, err = s.parseTime(created); err != nil {
-			return nil, err
-		}
-		if order.UpdatedAt, err = s.parseTime(updated); err != nil {
+		order, err := s.scanOrderRow(rows)
+		if err != nil {
 			return nil, err
 		}
 		orders = append(orders, order)
@@ -629,7 +624,7 @@ func (s Store) GetOrderByMemberID(ctx context.Context, db database.Executor, mem
 	if filterArg != nil {
 		args = append(args, filterArg)
 	}
-	row := db.QueryRowContext(ctx, `SELECT id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, total_cents, payment_status, fulfillment_status, created_at, updated_at FROM commerce_customer_orders WHERE id = `+s.p(1)+` AND member_id = `+s.p(2)+filter, args...)
+	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE id = `+s.p(1)+` AND member_id = `+s.p(2)+filter, args...)
 	order, found, err := s.scanOrder(row)
 	if err != nil {
 		return commerce.Order{}, err

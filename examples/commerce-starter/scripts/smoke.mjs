@@ -25,6 +25,14 @@ const api = createServer((req, res) => {
     res.end(JSON.stringify({ data: [], metadata: { limit: 48, has_more: false } }));
     return;
   }
+  if (req.url.startsWith('/api/v1/commerce/currencies')) {
+    res.end(JSON.stringify({ data: { default: 'TRY', display: [], rates: {} } }));
+    return;
+  }
+  if (req.url.startsWith('/api/v1/commerce/checkout-config')) {
+    res.end(JSON.stringify({ data: { tax_rate: 0, tax_inclusive: false, shipping_flat_rate_cents: 0, shipping_free_above_cents: 0 } }));
+    return;
+  }
   res.end(JSON.stringify({ data: [], metadata: { limit: 50, has_more: false } }));
 });
 const apiPort = await listen(api);

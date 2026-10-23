@@ -52,6 +52,12 @@ type Handler struct {
 	// exists -- the response simply has no payment field, matching the
 	// generic-add-to-cart-then-pay flow.
 	PaymentProvider commerce.PaymentProvider
+	// DisplayCurrencies/CurrencyRates back GET .../currencies, a
+	// storefront's currency switcher. Display-only: changing them never
+	// changes what checkout actually charges (always DefaultCurrency) --
+	// see config.Currencies' own doc comment for why.
+	DisplayCurrencies []string
+	CurrencyRates     map[string]float64
 }
 
 func (h Handler) defaultCurrency() string {
@@ -129,9 +135,12 @@ func (h Handler) Routes() []Route {
 		{Pattern: "DELETE /api/v1/commerce/cart/items/{id}", Handler: http.HandlerFunc(h.removeItem)},
 		{Pattern: "POST /api/v1/commerce/checkout", Handler: http.HandlerFunc(h.checkout)},
 		{Pattern: "GET /api/v1/commerce/stock/{variantID}", Handler: http.HandlerFunc(h.getStock)},
+		{Pattern: "GET /api/v1/commerce/currencies", Handler: http.HandlerFunc(h.getCurrencies)},
+		{Pattern: "GET /api/v1/commerce/checkout-config", Handler: http.HandlerFunc(h.getCheckoutConfig)},
 		{Pattern: "GET /api/v1/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder)},
 		{Pattern: "POST /api/v1/commerce/orders/{id}/payment", Handler: http.HandlerFunc(h.startOrderPayment)},
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true},
+		{Pattern: "POST /api/v1/admin/commerce/discount-codes", Handler: http.HandlerFunc(h.createDiscountCode), Protected: true},
 	}
 }
 
@@ -237,6 +246,14 @@ type checkoutRequest struct {
 	GuestCountry    string `json:"guest_country"`
 	GuestPostalCode string `json:"guest_postal_code"`
 	IdempotencyKey  string `json:"idempotency_key"`
+	DiscountCode    string `json:"discount_code"`
+	// ItemTitles/ItemSKUs are keyed by variant_id: cart items only carry
+	// variant_id/quantity/price (commerce has no access to the
+	// content-type catalog records), so the caller -- the storefront,
+	// which already resolved these for its own cart display -- supplies
+	// them here for the order receipt.
+	ItemTitles map[string]string `json:"item_titles"`
+	ItemSKUs   map[string]string `json:"item_skus"`
 }
 
 func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
@@ -269,11 +286,16 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		CartID: cart.ID, MemberID: memberID,
 		GuestName: input.GuestName, GuestEmail: input.GuestEmail, GuestPhone: input.GuestPhone,
 		GuestAddress: input.GuestAddress, GuestCity: input.GuestCity, GuestCountry: input.GuestCountry, GuestPostalCode: input.GuestPostalCode,
-		IdempotencyKey: input.IdempotencyKey,
+		IdempotencyKey: input.IdempotencyKey, DiscountCode: input.DiscountCode,
+		ItemTitles: input.ItemTitles, ItemSKUs: input.ItemSKUs,
 	})
 	if err != nil {
 		if errors.Is(err, commerce.ErrOutOfStock) {
 			api.WriteError(w, r, http.StatusConflict, "one or more items in your cart are no longer available in the requested quantity", nil)
+			return
+		}
+		if errors.Is(err, commerce.ErrDiscountCodeInvalid) {
+			api.WriteError(w, r, http.StatusUnprocessableEntity, "this discount code cannot be applied to your order", map[string]string{"discount_code": "invalid"})
 			return
 		}
 		api.WriteError(w, r, http.StatusUnprocessableEntity, err.Error(), nil)
@@ -387,6 +409,32 @@ func (h Handler) getStock(w http.ResponseWriter, r *http.Request) {
 	api.WriteData(w, http.StatusOK, map[string]any{"variant_id": stock.VariantID, "available": stock.Available}, nil)
 }
 
+// getCurrencies is a public, static (no DB read) config echo: a storefront
+// needs this to render a currency switcher, and HydroGo's own config is
+// the single source of truth for it rather than duplicating it in the
+// storefront's own environment, which would drift.
+func (h Handler) getCurrencies(w http.ResponseWriter, r *http.Request) {
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"default": h.defaultCurrency(),
+		"display": h.DisplayCurrencies,
+		"rates":   h.CurrencyRates,
+	}, nil)
+}
+
+// getCheckoutConfig is a public, static config echo (no DB read) so a
+// storefront can show its tax/shipping terms, and estimate a total, before
+// the shopper submits the real checkout -- the authoritative breakdown is
+// always whatever the real checkout response says, this is display only.
+func (h Handler) getCheckoutConfig(w http.ResponseWriter, r *http.Request) {
+	pricing := h.Service.Pricing
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"tax_rate":                  pricing.TaxRate,
+		"tax_inclusive":             pricing.TaxInclusive,
+		"shipping_flat_rate_cents":  pricing.ShippingFlatRateCents,
+		"shipping_free_above_cents": pricing.ShippingFreeAboveCents,
+	}, nil)
+}
+
 type setStockRequest struct {
 	VariantID string `json:"variant_id"`
 	Available int    `json:"available"`
@@ -411,4 +459,65 @@ func (h Handler) setStock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteData(w, http.StatusOK, stock, nil)
+}
+
+type createDiscountCodeRequest struct {
+	Code             string `json:"code"`
+	Kind             string `json:"kind"` // "percent" or "fixed"
+	Value            int64  `json:"value"`
+	MinSubtotalCents int64  `json:"min_subtotal_cents"`
+	MaxRedemptions   int    `json:"max_redemptions"`
+	Active           *bool  `json:"active"`
+	StartsAt         string `json:"starts_at"` // RFC3339; empty = no restriction
+	EndsAt           string `json:"ends_at"`
+}
+
+func (h Handler) createDiscountCode(w http.ResponseWriter, r *http.Request) {
+	var input createDiscountCodeRequest
+	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+		return
+	}
+	code := strings.TrimSpace(input.Code)
+	kind := commerce.DiscountKind(input.Kind)
+	if code == "" || (kind != commerce.DiscountPercent && kind != commerce.DiscountFixed) || input.Value <= 0 {
+		api.WriteError(w, r, http.StatusUnprocessableEntity, "code, a kind of percent or fixed, and a positive value are required", nil)
+		return
+	}
+	if kind == commerce.DiscountPercent && input.Value > 100 {
+		api.WriteError(w, r, http.StatusUnprocessableEntity, "a percent discount cannot exceed 100", nil)
+		return
+	}
+	active := true
+	if input.Active != nil {
+		active = *input.Active
+	}
+	var startsAt, endsAt time.Time
+	var err error
+	if input.StartsAt != "" {
+		if startsAt, err = time.Parse(time.RFC3339, input.StartsAt); err != nil {
+			api.WriteError(w, r, http.StatusUnprocessableEntity, "starts_at must be RFC3339", nil)
+			return
+		}
+	}
+	if input.EndsAt != "" {
+		if endsAt, err = time.Parse(time.RFC3339, input.EndsAt); err != nil {
+			api.WriteError(w, r, http.StatusUnprocessableEntity, "ends_at must be RFC3339", nil)
+			return
+		}
+	}
+	token, err := randomToken()
+	if err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	id := "disc_" + token
+	record := commerce.DiscountCode{
+		ID: id, Code: code, Kind: kind, Value: input.Value, MinSubtotalCents: input.MinSubtotalCents,
+		MaxRedemptions: input.MaxRedemptions, Active: active, StartsAt: startsAt, EndsAt: endsAt,
+	}
+	if err := h.Service.Repository.CreateDiscountCode(r.Context(), h.DB, record); err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	api.WriteData(w, http.StatusCreated, record, nil)
 }

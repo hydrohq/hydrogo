@@ -51,6 +51,18 @@ export function variantPriceCents(variant: Variant, product: Product): number {
   return Math.round(price * 100);
 }
 
+export type CurrenciesConfig = { default: string; display: string[]; rates: Record<string, number> };
+
+/** Converts a base-currency amount to a display currency using the
+ * configured static rate -- presentation only, never what checkout
+ * actually charges. See config.Currencies' own doc comment (internal/config). */
+export function convertDisplayPrice(cents: number, targetCurrency: string, currencies: CurrenciesConfig): { cents: number; currency: string } {
+  if (targetCurrency === currencies.default) return { cents, currency: currencies.default };
+  const rate = currencies.rates[targetCurrency];
+  if (!rate) return { cents, currency: currencies.default };
+  return { cents: Math.round(cents * rate), currency: targetCurrency };
+}
+
 export function formatPrice(cents: number, currency: string): string {
   const amount = (cents / 100).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const symbol = currency === 'TRY' ? '₺' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency + ' ';
