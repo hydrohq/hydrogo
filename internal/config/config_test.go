@@ -206,6 +206,25 @@ func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	}
 }
 
+func TestPayTRConfigurationRequiresKeyAndSaltWhenEnabled(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:paytr.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.PayTR = PayTR{MerchantID: "merchant-1"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("PayTR merchant id without key and salt accepted")
+	}
+	cfg.Commerce.PayTR = PayTR{MerchantID: "merchant-1", MerchantKey: "key", MerchantSalt: "salt"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid PayTR config: %v", err)
+	}
+	cfg.Commerce.PayTR = PayTR{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("PayTR left unconfigured must stay valid: %v", err)
+	}
+}
+
 func TestGeoIPConfigurationBoundsTrustedProxyRanges(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:geoip.sqlite"}), Overrides{})
 	if err != nil {

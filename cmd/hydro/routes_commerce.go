@@ -7,14 +7,42 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/paytr"
 	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
+
+// commerceCSRFExemptPaths names the routes a payment provider calls
+// directly, with no browser session to carry the CSRF cookie -- see
+// security.CSRFMiddleware's own doc comment for why these need full
+// exemption, not just a relaxed check.
+func commerceCSRFExemptPaths(modules map[string]bool, cfg config.Commerce) []string {
+	if !modules["commerce"] || !cfg.PayTR.Enabled() {
+		return nil
+	}
+	return []string{paytr.CallbackPath}
+}
+
+// commercePaymentProvider builds the configured payment provider, or nil
+// when none is set up -- a project with no provider configured still gets
+// a fully working cart/checkout, just no hosted payment redirect.
+func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
+	cfg := a.cfg.Commerce.PayTR
+	if !cfg.Enabled() {
+		return nil
+	}
+	return paytr.Provider{Config: paytr.Config{
+		MerchantID: cfg.MerchantID, MerchantKey: cfg.MerchantKey, MerchantSalt: cfg.MerchantSalt,
+		TestMode: cfg.TestMode, NoInstallment: cfg.NoInstallment, MaxInstallment: cfg.MaxInstallment,
+		OKURL: cfg.OKURL, FailURL: cfg.FailURL,
+	}}
+}
 
 // commerceService builds the commerce module's service, independent of the
 // route registration below so serve_workers.go's reservation-expiry sweep
@@ -46,8 +74,16 @@ func (a *serveApp) commerceRoutes() []router.Route {
 	if a.modules["members"] {
 		handler.MemberID = commerceMemberIDResolver(a.memberService)
 	}
-	routes := make([]router.Route, 0, 5)
-	for _, route := range handler.Routes() {
+	provider := a.commercePaymentProvider()
+	handler.PaymentProvider = provider
+
+	transportRoutes := handler.Routes()
+	if paytrProvider, ok := provider.(paytr.Provider); ok {
+		callbackHandler := paytr.Handler{Service: handler.Service, DB: a.db, Provider: paytrProvider, Logger: a.logger}
+		transportRoutes = append(transportRoutes, callbackHandler.Routes()...)
+	}
+	routes := make([]router.Route, 0, len(transportRoutes))
+	for _, route := range transportRoutes {
 		access := router.Protected
 		if !route.Protected {
 			access = router.Public
