@@ -29,4 +29,14 @@ describe('resolveTenant', () => {
     expect(resolveTenant('other.example.com')).toBeNull();
     expect(resolveTenant(null)).toBeNull();
   });
+
+  it('throws a clear, descriptive error for malformed JSON instead of crashing opaquely per-request', () => {
+    mockEnv.CRM_TENANTS = '[{"slug":"acme"';
+    expect(() => resolveTenant('anything')).toThrow(/CRM_TENANTS is not valid JSON/);
+  });
+
+  it('throws a clear error for a tenant missing a required field', () => {
+    mockEnv.CRM_TENANTS = JSON.stringify([{ slug: 'acme', host: 'acme.crm.example.com' }]);
+    expect(() => resolveTenant('anything')).toThrow(/CRM_TENANTS\[0\]\.hydroOrigin/);
+  });
 });
