@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"math"
 	"regexp"
 	"strconv"
@@ -204,7 +205,7 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 		if err := validateValue(field, value); err != nil {
 			return nil, fieldError(field.ID)
 		}
-		clean[field.ID] = value
+		clean[field.ID] = storedValue(field, value)
 	}
 	if err := s.applyComputed(clean); err != nil {
 		return nil, err
@@ -321,4 +322,17 @@ func contains(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+// storedValue is what is persisted for an already validated value. Rich text
+// is sanitized on every write path (create, update, batch, CSV import,
+// translations) so a public API consumer that renders it with innerHTML
+// cannot be handed a script.
+func storedValue(field Field, value any) any {
+	if field.Kind == RichText {
+		if text, ok := value.(string); ok {
+			return richtext.Clean(text)
+		}
+	}
+	return value
 }

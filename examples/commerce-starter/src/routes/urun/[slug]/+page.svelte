@@ -3,6 +3,7 @@
   import type { PageData, ActionData } from './$types';
   import { convertDisplayPrice, formatPrice, variantPriceCents, type Variant } from '$lib/catalog';
   import { mediaUrl } from '$lib/media';
+  import { sanitizeHtml } from '$lib/sanitizeHtml';
   import ProductGrid from '$lib/components/ProductGrid.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -54,7 +55,7 @@
     <h1>{data.product.name}</h1>
     <p class="price">{formatPrice(shownPrice.cents, shownPrice.currency)}</p>
     {#if data.product.description}
-      <div class="description">{@html data.product.description}</div>
+      <div class="description">{@html sanitizeHtml(data.product.description)}</div>
     {/if}
 
     <form method="POST" action="?/addToCart" use:enhance>

