@@ -229,6 +229,29 @@ func TestTelegramNotificationsRequireBothBotTokenAndChatID(t *testing.T) {
 	}
 }
 
+func TestYurticiKargoRequiresBothUsernameAndPassword(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:yurtici.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("ws username without password accepted")
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSPassword: "pass-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("ws password without username accepted")
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid yurtici kargo config: %v", err)
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unconfigured yurtici kargo must stay valid: %v", err)
+	}
+}
+
 func TestPayTRConfigurationRequiresKeyAndSaltWhenEnabled(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:paytr.sqlite"}), Overrides{})
 	if err != nil {

@@ -40,7 +40,7 @@ func (s Store) ListNotifiedOrdersNotPaid(ctx context.Context, db database.Execut
 	if err != nil {
 		return nil, err
 	}
-	qualifiedColumns := `o.id, COALESCE(o.member_id,''), o.guest_name, o.guest_email, o.guest_phone, o.guest_address, o.guest_city, o.guest_country, o.guest_postal_code, o.idempotency_key, o.idempotency_hash, o.currency, o.subtotal_cents, o.discount_code, o.discount_cents, o.tax_cents, o.shipping_cents, o.total_cents, o.payment_status, o.fulfillment_status, o.created_at, o.updated_at`
+	qualifiedColumns := `o.id, COALESCE(o.member_id,''), o.guest_name, o.guest_email, o.guest_phone, o.guest_address, o.guest_city, o.guest_country, o.guest_postal_code, o.idempotency_key, o.idempotency_hash, o.currency, o.subtotal_cents, o.discount_code, o.discount_cents, o.tax_cents, o.shipping_cents, o.total_cents, o.payment_status, o.fulfillment_status, o.shipping_carrier, o.shipping_tracking_number, o.shipping_tracking_url, o.shipped_at, o.created_at, o.updated_at`
 	query := `SELECT ` + qualifiedColumns + ` FROM commerce_customer_orders o` +
 		` JOIN commerce_payment_notifications n ON n.provider_event_id = o.id AND n.provider = ` + s.p(1) +
 		` WHERE o.payment_status != 'paid'`
