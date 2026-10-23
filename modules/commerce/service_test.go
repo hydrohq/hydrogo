@@ -24,7 +24,7 @@ func newTestService(t *testing.T) (commerce.Service, database.Executor) {
 		t.Fatal(err)
 	}
 	store := sqlstore.Store{Dialect: database.SQLite}
-	svc := commerce.Service{Transactions: database.NewTransactor(db), Repository: store}
+	svc := commerce.Service{Transactions: database.NewTransactor(db), Repository: store, Prices: commerce.StaticPrices{}}
 	return svc, db
 }
 
@@ -35,7 +35,7 @@ func seedCartWithItem(t *testing.T, svc commerce.Service, db database.Executor, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.AddItem(ctx, db, cart.ID, variantID, quantity, unitPriceCents); err != nil {
+	if err := addPriced(svc, ctx, db, cart, variantID, quantity, unitPriceCents); err != nil {
 		t.Fatal(err)
 	}
 	return cart
@@ -90,10 +90,10 @@ func TestCheckoutRollsBackWhenAnyItemIsOutOfStock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.AddItem(ctx, db, cart.ID, "variant-plenty", 1, 5000); err != nil {
+	if err := addPriced(svc, ctx, db, cart, "variant-plenty", 1, 5000); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.AddItem(ctx, db, cart.ID, "variant-soldout", 1, 5000); err != nil {
+	if err := addPriced(svc, ctx, db, cart, "variant-soldout", 1, 5000); err != nil {
 		t.Fatal(err)
 	}
 
@@ -156,7 +156,7 @@ func TestConfirmPaymentCommitsReservationExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	applied, err := svc.ConfirmPayment(ctx, db, "paytr", "evt-1", order.ID)
+	applied, err := pay(svc, ctx, "paytr", "evt-1", order.ID)
 	if err != nil || !applied {
 		t.Fatalf("applied=%v err=%v", applied, err)
 	}
@@ -169,7 +169,7 @@ func TestConfirmPaymentCommitsReservationExactlyOnce(t *testing.T) {
 	}
 
 	// A redelivered webhook for the same event must not commit twice.
-	appliedAgain, err := svc.ConfirmPayment(ctx, db, "paytr", "evt-1", order.ID)
+	appliedAgain, err := pay(svc, ctx, "paytr", "evt-1", order.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestExpireOrderReleasesStockAndIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expired, err := svc.ExpireOrder(ctx, db, order.ID)
+	expired, err := svc.ExpireOrder(ctx, order.ID)
 	if err != nil || !expired {
 		t.Fatalf("expired=%v err=%v", expired, err)
 	}
@@ -211,7 +211,7 @@ func TestExpireOrderReleasesStockAndIsIdempotent(t *testing.T) {
 		t.Fatalf("stock after expiry = %+v, want available=5 reserved=0", stock)
 	}
 
-	expiredAgain, err := svc.ExpireOrder(ctx, db, order.ID)
+	expiredAgain, err := svc.ExpireOrder(ctx, order.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,13 +240,13 @@ func TestExpireOrderDoesNotUndoACompletedPayment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.ConfirmPayment(ctx, db, "paytr", "evt-paid-1", order.ID); err != nil {
+	if _, err := pay(svc, ctx, "paytr", "evt-paid-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
 	// The expiry worker sweeping in after payment already succeeded (a slow
 	// sweep, a race with the webhook) must find nothing to expire.
-	expired, err := svc.ExpireOrder(ctx, db, order.ID)
+	expired, err := svc.ExpireOrder(ctx, order.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,11 +318,11 @@ func TestConfirmPaymentEmitsOrderPaidOnlyWhenTheTransitionApplies(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	if _, err := svc.ConfirmPayment(ctx, db, "paytr", "evt-event-1", order.ID); err != nil {
+	if _, err := pay(svc, ctx, "paytr", "evt-event-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 	// A redelivered webhook must not emit a second order.paid event.
-	if _, err := svc.ConfirmPayment(ctx, db, "paytr", "evt-event-1", order.ID); err != nil {
+	if _, err := pay(svc, ctx, "paytr", "evt-event-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -440,7 +440,7 @@ func (f *fakeShippingProvider) CreateShipment(ctx context.Context, order commerc
 
 func payOrder(t *testing.T, svc commerce.Service, db database.Executor, orderID string) {
 	t.Helper()
-	if _, err := svc.ConfirmPayment(context.Background(), db, "paytr", "evt-"+orderID, orderID); err != nil {
+	if _, err := pay(svc, context.Background(), "paytr", "evt-"+orderID, orderID); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -460,7 +460,7 @@ func TestCreateShipmentRecordsTrackingAndMovesOrderToShipped(t *testing.T) {
 	payOrder(t, svc, db, order.ID)
 
 	provider := &fakeShippingProvider{name: "yurtici-kargo"}
-	shipped, err := svc.CreateShipment(ctx, db, provider, order.ID)
+	shipped, err := svc.CreateShipment(ctx, provider, order.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -489,7 +489,7 @@ func TestCreateShipmentRejectsAnUnpaidOrder(t *testing.T) {
 	}
 
 	provider := &fakeShippingProvider{name: "yurtici-kargo"}
-	_, err = svc.CreateShipment(ctx, db, provider, order.ID)
+	_, err = svc.CreateShipment(ctx, provider, order.ID)
 	if !errors.Is(err, commerce.ErrOrderNotShippable) {
 		t.Fatalf("expected ErrOrderNotShippable, got %v", err)
 	}
@@ -520,14 +520,14 @@ func TestCreateShipmentRejectsAnAlreadyShippedOrderWithoutCallingTheCarrierAgain
 	payOrder(t, svc, db, order.ID)
 
 	provider := &fakeShippingProvider{name: "yurtici-kargo"}
-	if _, err := svc.CreateShipment(ctx, db, provider, order.ID); err != nil {
+	if _, err := svc.CreateShipment(ctx, provider, order.ID); err != nil {
 		t.Fatal(err)
 	}
 	if provider.calls != 1 {
 		t.Fatalf("provider called %d times after the first shipment, want 1", provider.calls)
 	}
 
-	_, err = svc.CreateShipment(ctx, db, provider, order.ID)
+	_, err = svc.CreateShipment(ctx, provider, order.ID)
 	if !errors.Is(err, commerce.ErrOrderNotShippable) {
 		t.Fatalf("expected ErrOrderNotShippable on a retry, got %v", err)
 	}

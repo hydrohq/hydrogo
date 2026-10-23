@@ -9,11 +9,9 @@ import (
 
 // Worker is the reservation-expiry sweep: an order whose payment never
 // completed within Hold is expired, releasing its stock back to available.
-// This is a periodic SQL sweep (mirrors modules/news's own worker, which
-// scans for due scheduled items the same way), not a job-queue consumer --
-// there is one thing to do (expire stale pending orders), not a stream of
-// discrete one-shot tasks, so internal/jobs's lease/ack queue (built for
-// the latter) does not fit here.
+// This is a periodic SQL sweep (mirrors modules/news's own worker), not a
+// job-queue consumer: there is one recurring thing to do, not a stream of
+// discrete one-shot tasks.
 type Worker struct {
 	Service Service
 	// Hold is how long an order may stay payment_status=pending before its
@@ -29,19 +27,23 @@ func (w Worker) hold() time.Duration {
 	return w.Hold
 }
 
-// ExpireDue finds pending orders older than Hold and expires each one,
-// returning how many were actually expired (a concurrent payment
-// confirmation racing the sweep is not counted -- see Service.ExpireOrder's
-// own idempotent guard).
-func (w Worker) ExpireDue(ctx context.Context, db database.Executor, now time.Time) (int, error) {
+// ExpireDue finds pending orders older than Hold and expires each one in
+// its own transaction, returning how many were actually expired (a payment
+// that won the race is not counted -- see Service.ExpireOrder).
+func (w Worker) ExpireDue(ctx context.Context, now time.Time) (int, error) {
 	cutoff := now.Add(-w.hold())
-	due, err := w.Service.Repository.ListPendingOrdersOlderThan(ctx, db, cutoff, 100)
+	var due []Order
+	err := w.Service.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		due, err = w.Service.Repository.ListPendingOrdersOlderThan(ctx, tx, cutoff, 100)
+		return err
+	})
 	if err != nil {
 		return 0, err
 	}
 	expired := 0
 	for _, order := range due {
-		ok, err := w.Service.ExpireOrder(ctx, db, order.ID)
+		ok, err := w.Service.ExpireOrder(ctx, order.ID)
 		if err != nil {
 			return expired, err
 		}

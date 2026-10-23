@@ -45,13 +45,10 @@ func nullableTime(s Store, t time.Time) any {
 // exact) code. Service.resolveDiscount normalizes casing before calling
 // this, not the repository.
 func (s Store) GetDiscountCodeByCode(ctx context.Context, db database.Executor, code string) (commerce.DiscountCode, error) {
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{code}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return commerce.DiscountCode{}, err
-	}
-	args := []any{code}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	row := db.QueryRowContext(ctx, `SELECT id, code, kind, value, min_subtotal_cents, max_redemptions, redeemed_count, active, starts_at, ends_at, created_at, updated_at FROM commerce_discount_codes WHERE code = `+s.p(1)+filter, args...)
 	discount, found, err := s.scanDiscountCode(row)
@@ -108,21 +105,14 @@ func (s Store) RedeemDiscountCode(ctx context.Context, db database.Executor, id 
 	if err := database.RequireExecutor(db); err != nil {
 		return false, err
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 5)
+	// maxRedemptions is bound twice (positions 3 and 4): SQLite's "?" has no
+	// numbering, so one placeholder cannot be reused the way Postgres' $3 can.
+	filter, args, err := s.scope(ctx, []any{s.dbTime(s.now()), id, maxRedemptions, maxRedemptions})
 	if err != nil {
 		return false, err
 	}
-	// maxRedemptions is bound twice (positions 3 and 4): each placeholder
-	// is its own positional arg on every dialect this store supports
-	// (SQLite's "?" has no numbering to let $3 safely repeat the way
-	// Postgres' does), so reusing one placeholder number for both
-	// comparisons would silently misalign the argument list on SQLite.
-	args := []any{s.dbTime(s.now()), id, maxRedemptions, maxRedemptions}
 	query := `UPDATE commerce_discount_codes SET redeemed_count = redeemed_count + 1, updated_at = ` + s.p(1) +
 		` WHERE id = ` + s.p(2) + ` AND (` + s.p(3) + ` = 0 OR redeemed_count < ` + s.p(4) + `)` + filter
-	if filterArg != nil {
-		args = append(args, filterArg)
-	}
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return false, err

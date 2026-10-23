@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -27,6 +26,7 @@ type Repository interface {
 	AddOrUpdateItem(ctx context.Context, db database.Executor, item CartItem) error
 	RemoveItem(ctx context.Context, db database.Executor, cartID, itemID string) error
 	ListItems(ctx context.Context, db database.Executor, cartID string) ([]CartItem, error)
+	ClearCart(ctx context.Context, db database.Executor, cartID string) error
 
 	CreateOrder(ctx context.Context, db database.Executor, order Order, items []OrderItem) (Order, bool, error)
 	GetOrder(ctx context.Context, db database.Executor, id string) (Order, error)
@@ -52,11 +52,15 @@ type Repository interface {
 	// interface setStock already uses for EnsureStock.
 	CreateDiscountCode(ctx context.Context, db database.Executor, code DiscountCode) error
 
-	// RecordShipment backs Service.CreateShipment: a conditional UPDATE
-	// guarded by fulfillment_status, the same atomic-transition pattern as
-	// UpdatePaymentStatus, so calling it twice for the same order (an
-	// operator double-clicking "ship") only ever calls the carrier and
-	// writes these columns once.
+	// ClaimShipment, ReleaseShipmentClaim and RecordShipment are
+	// Service.CreateShipment's three guarded steps: claim a paid,
+	// unfulfilled order (unfulfilled -> preparing) before calling the
+	// carrier, give the claim back if the carrier refuses, and record the
+	// tracking details (preparing -> shipped). A claim older than
+	// staleBefore can be taken again, so a crash mid-call does not strand
+	// the order.
+	ClaimShipment(ctx context.Context, db database.Executor, orderID string, staleBefore time.Time) (bool, error)
+	ReleaseShipmentClaim(ctx context.Context, db database.Executor, orderID string) error
 	RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error)
 }
 
@@ -84,6 +88,9 @@ type Service struct {
 	// no tax and no shipping, exactly reproducing the total-is-just-the-
 	// subtotal behaviour this module had before Pricing existed.
 	Pricing PricingConfig
+	// Prices is the authoritative unit price for every cart line; see
+	// PriceSource. Checkout fails with ErrNoPriceSource when it is nil.
+	Prices PriceSource
 }
 
 // emit enqueues one order lifecycle event, deterministically keyed so a
@@ -146,301 +153,31 @@ func (s Service) GetOrCreateCart(ctx context.Context, db database.Executor, memb
 	return cart, nil
 }
 
-// AddItem adds or updates a line item's desired quantity. Stock is not
-// reserved here -- only at Checkout -- so browsing and adding to cart never
-// contends with other shoppers' purchases; only the actual purchase attempt
-// does.
-func (s Service) AddItem(ctx context.Context, db database.Executor, cartID, variantID string, quantity int, unitPriceCents int64) error {
+// AddItem adds or updates a line item's desired quantity, priced from
+// Service.Prices (never from the caller). Stock is not reserved here --
+// only at Checkout. The stored price is for display; Checkout prices every
+// line again, so a price change between add and pay is honoured.
+//
+// Do not call AddItem inside a transaction when Prices reads the database:
+// with a one-connection pool the lookup waits for the connection the
+// transaction holds. AddToCart prices first, then opens its transaction.
+func (s Service) AddItem(ctx context.Context, db database.Executor, cart Cart, variantID string, quantity int) error {
+	if quantity <= 0 {
+		return errors.New("quantity must be positive")
+	}
+	unitPrice, err := s.unitPrice(ctx, variantID, cart.Currency)
+	if err != nil {
+		return err
+	}
+	return s.addLine(ctx, db, cart, variantID, quantity, unitPrice)
+}
+
+func (s Service) addLine(ctx context.Context, db database.Executor, cart Cart, variantID string, quantity int, unitPrice int64) error {
 	id, err := newID("item_")
 	if err != nil {
 		return err
 	}
 	now := time.Now().UTC()
-	item := CartItem{ID: id, CartID: cartID, VariantID: variantID, Quantity: quantity, UnitPriceCents: unitPriceCents, CreatedAt: now, UpdatedAt: now}
+	item := CartItem{ID: id, CartID: cart.ID, VariantID: variantID, Quantity: quantity, UnitPriceCents: unitPrice, CreatedAt: now, UpdatedAt: now}
 	return s.Repository.AddOrUpdateItem(ctx, db, item)
-}
-
-// CheckoutRequest carries what Checkout needs beyond the cart itself.
-type CheckoutRequest struct {
-	CartID          string
-	MemberID        string
-	GuestName       string
-	GuestEmail      string
-	GuestPhone      string
-	GuestAddress    string
-	GuestCity       string
-	GuestDistrict   string
-	GuestCountry    string
-	GuestPostalCode string
-	IdempotencyKey  string
-	// ItemTitles/SKUs let the caller supply catalog data (from the
-	// content-type record) for each cart item, keyed by variant id -- the
-	// service has no direct access to content-type records.
-	ItemTitles map[string]string
-	ItemSKUs   map[string]string
-	// DiscountCode is optional; an invalid, expired, exhausted or
-	// below-minimum code returns ErrDiscountCodeInvalid rather than
-	// silently checking out at full price, so the storefront can show the
-	// shopper why it didn't apply.
-	DiscountCode string
-}
-
-// ErrDiscountCodeInvalid wraps whichever specific discount error
-// DiscountCode.DiscountFor returned, so transport can tell "this code is
-// bad" apart from every other checkout failure without matching on the
-// exact underlying reason.
-var ErrDiscountCodeInvalid = errors.New("discount code cannot be applied to this order")
-
-// Checkout reserves stock for every item in the cart and creates the order,
-// all inside one transaction: if ANY item can't be reserved (someone else
-// bought the last one first), the whole attempt rolls back -- nothing is
-// reserved, no order is created, and the caller gets ErrOutOfStock naming
-// which item. A retried request with the same IdempotencyKey returns the
-// original order instead of reserving stock twice (CreateOrder's own
-// idempotency, inherited here).
-func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, error) {
-	if req.IdempotencyKey == "" {
-		return Order{}, errors.New("checkout requires an idempotency key")
-	}
-	var result Order
-	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
-		// A retried request (the same idempotency key) returns the
-		// original order outright, without re-validating anything --
-		// re-checking the discount code here would otherwise see its own
-		// first successful redemption as "exhausted" and incorrectly fail
-		// a retry that should just succeed again with the same result.
-		if existing, found, err := s.Repository.GetOrderByIdempotencyKey(ctx, tx, req.IdempotencyKey); err != nil {
-			return err
-		} else if found {
-			result = existing
-			return nil
-		}
-
-		items, err := s.Repository.ListItems(ctx, tx, req.CartID)
-		if err != nil {
-			return err
-		}
-		if len(items) == 0 {
-			return errors.New("cart is empty")
-		}
-
-		orderID, err := newID("order_")
-		if err != nil {
-			return err
-		}
-		now := time.Now().UTC()
-		var subtotal int64
-		orderItems := make([]OrderItem, 0, len(items))
-		for _, item := range items {
-			ok, err := s.Repository.ReserveStock(ctx, tx, item.VariantID, item.Quantity)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return ErrOutOfStock
-			}
-			lineTotal := item.UnitPriceCents * int64(item.Quantity)
-			subtotal += lineTotal
-			itemID, err := newID("oi_")
-			if err != nil {
-				return err
-			}
-			orderItems = append(orderItems, OrderItem{
-				ID: itemID, OrderID: orderID, VariantID: item.VariantID,
-				SKU: req.ItemSKUs[item.VariantID], Title: req.ItemTitles[item.VariantID],
-				Quantity: item.Quantity, UnitPriceCents: item.UnitPriceCents, TotalCents: lineTotal,
-			})
-		}
-
-		var discountCode DiscountCode
-		var hasDiscountCode bool
-		if strings.TrimSpace(req.DiscountCode) != "" {
-			discountCode, err = s.Repository.GetDiscountCodeByCode(ctx, tx, req.DiscountCode)
-			if err != nil {
-				if errors.Is(err, ErrDiscountCodeNotFound) {
-					return ErrDiscountCodeInvalid
-				}
-				return err
-			}
-			if _, discountErr := discountCode.DiscountFor(subtotal, now); discountErr != nil {
-				return ErrDiscountCodeInvalid
-			}
-			hasDiscountCode = true
-		}
-		var discountCents int64
-		if hasDiscountCode {
-			discountCents, _ = discountCode.DiscountFor(subtotal, now)
-		}
-		breakdown := s.Pricing.Price(subtotal, discountCents)
-
-		order := Order{
-			ID: orderID, MemberID: req.MemberID,
-			GuestName: req.GuestName, GuestEmail: req.GuestEmail, GuestPhone: req.GuestPhone,
-			GuestAddress: req.GuestAddress, GuestCity: req.GuestCity, GuestDistrict: req.GuestDistrict, GuestCountry: req.GuestCountry, GuestPostalCode: req.GuestPostalCode,
-			IdempotencyKey: req.IdempotencyKey, IdempotencyHash: req.IdempotencyKey,
-			SubtotalCents: breakdown.SubtotalCents, DiscountCents: breakdown.DiscountCents, TaxCents: breakdown.TaxCents, ShippingCents: breakdown.ShippingCents, TotalCents: breakdown.TotalCents,
-			PaymentStatus: PaymentPending, FulfillmentStatus: FulfillmentUnfulfilled,
-			CreatedAt: now, UpdatedAt: now,
-		}
-		if hasDiscountCode {
-			order.DiscountCode = discountCode.Code
-		}
-		if order.Currency == "" {
-			order.Currency = "TRY"
-		}
-		created, isNew, err := s.Repository.CreateOrder(ctx, tx, order, orderItems)
-		if err != nil {
-			return err
-		}
-		if isNew && hasDiscountCode {
-			if _, err := s.Repository.RedeemDiscountCode(ctx, tx, discountCode.ID, discountCode.MaxRedemptions); err != nil {
-				return err
-			}
-		}
-		if isNew {
-			if err := s.emit(ctx, tx, "order.created", created.ID); err != nil {
-				return err
-			}
-		} else {
-			// A retried request: the reservations made above in THIS
-			// transaction are rolled back automatically (the order already
-			// exists from the original attempt, which did its own
-			// reservation) -- returning the existing order is correct, but
-			// we must not keep this attempt's redundant reservations.
-			for _, item := range items {
-				if err := s.Repository.ReleaseReservation(ctx, tx, item.VariantID, item.Quantity); err != nil {
-					return err
-				}
-			}
-		}
-		result = created
-		return nil
-	})
-	if err != nil {
-		return Order{}, err
-	}
-	return result, nil
-}
-
-// ConfirmPayment is called once a payment provider's callback is verified
-// (see modules/commerce/providers in Phase 3). It is itself idempotent: a
-// redelivered notification (provider, providerEventID) is recorded at most
-// once (RecordPaymentNotification), and the payment_status transition only
-// applies once (UpdatePaymentStatus's conditional UPDATE) -- so calling this
-// twice for the same event is safe and does not double-commit stock or send
-// a second confirmation.
-func (s Service) ConfirmPayment(ctx context.Context, db database.Executor, provider, providerEventID, orderID string) (bool, error) {
-	isNewEvent, err := s.Repository.RecordPaymentNotification(ctx, db, provider, providerEventID)
-	if err != nil {
-		return false, err
-	}
-	if !isNewEvent {
-		return false, nil
-	}
-	applied, err := s.Repository.UpdatePaymentStatus(ctx, db, orderID, PaymentPending, PaymentPaid)
-	if err != nil {
-		return false, err
-	}
-	if !applied {
-		return false, nil
-	}
-	items, err := s.Repository.ListOrderItems(ctx, db, orderID)
-	if err != nil {
-		return false, err
-	}
-	for _, item := range items {
-		if err := s.Repository.CommitReservation(ctx, db, item.VariantID, item.Quantity); err != nil {
-			return false, err
-		}
-	}
-	if err := s.emit(ctx, db, "order.paid", orderID); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// ErrOrderNotShippable is returned when CreateShipment is asked to ship an
-// order that has not been paid yet, or that has already been shipped (or
-// moved past shipped) -- handing an unpaid order to a carrier would commit
-// a real shipping cost against a sale that may never settle, and calling
-// the carrier again for an already-shipped order would create a second
-// real-world shipment, not just a harmless duplicate write.
-var ErrOrderNotShippable = errors.New("order is not paid and unshipped, so it cannot be shipped")
-
-// CreateShipment hands a paid order to the given carrier and records the
-// tracking details it returns. It is deliberately not wired into
-// ConfirmPayment: shipping is a separate, usually manual (an operator
-// packs the order, or a schedule batches several) step from payment, not
-// an automatic consequence of it, so Checkout's transport calls this only
-// when an operator (or a future auto-fulfillment job) explicitly asks for
-// it -- see transport/http.go's createShipment handler.
-//
-// Unlike ConfirmPayment (which dedups a payment webhook that already
-// happened out in the world before it ever calls this service), the
-// carrier call here IS the real-world side effect, so the eligibility
-// check happens before calling the carrier, not only at the final write:
-// a retried request against an order that is no longer unfulfilled/
-// preparing is rejected without ever touching the carrier again.
-func (s Service) CreateShipment(ctx context.Context, db database.Executor, provider ShippingProvider, orderID string) (Order, error) {
-	order, err := s.Repository.GetOrder(ctx, db, orderID)
-	if err != nil {
-		return Order{}, err
-	}
-	if order.PaymentStatus != PaymentPaid || (order.FulfillmentStatus != FulfillmentUnfulfilled && order.FulfillmentStatus != FulfillmentPreparing) {
-		return Order{}, ErrOrderNotShippable
-	}
-	items, err := s.Repository.ListOrderItems(ctx, db, orderID)
-	if err != nil {
-		return Order{}, err
-	}
-	result, err := provider.CreateShipment(ctx, order, items)
-	if err != nil {
-		return Order{}, err
-	}
-	shippedAt := time.Now().UTC()
-	applied, err := s.Repository.RecordShipment(ctx, db, orderID, provider.Name(), result.TrackingNumber, result.TrackingURL, shippedAt)
-	if err != nil {
-		return Order{}, err
-	}
-	if applied {
-		if err := s.emit(ctx, db, "order.fulfilled", orderID); err != nil {
-			return Order{}, err
-		}
-	}
-	return s.Repository.GetOrder(ctx, db, orderID)
-}
-
-// ExpireOrder is worker.go's reservation-expiry job, one order at a time: an
-// order whose payment never completed within the hold window is moved from
-// pending to failed and its items' stock reservations are released back to
-// available. Reservations belong to the ORDER's items (made atomically at
-// Checkout), not the cart's current contents -- the cart may have changed
-// or emptied since checkout, so releasing by cart would release the wrong
-// quantities.
-//
-// Guarded the same way ConfirmPayment is: the payment_status transition
-// only applies once (pending -> failed), so calling this twice for the same
-// order (the worker re-scanning before the first pass's effects are
-// visible, or being re-run after a crash) releases stock exactly once, not
-// per call. If the order was already paid in the meantime, the transition
-// fails to apply and nothing is released -- a payment can never be
-// silently undone by an expiry sweep that was simply too slow.
-func (s Service) ExpireOrder(ctx context.Context, db database.Executor, orderID string) (bool, error) {
-	applied, err := s.Repository.UpdatePaymentStatus(ctx, db, orderID, PaymentPending, PaymentFailed)
-	if err != nil {
-		return false, err
-	}
-	if !applied {
-		return false, nil
-	}
-	items, err := s.Repository.ListOrderItems(ctx, db, orderID)
-	if err != nil {
-		return false, err
-	}
-	for _, item := range items {
-		if err := s.Repository.ReleaseReservation(ctx, db, item.VariantID, item.Quantity); err != nil {
-			return false, err
-		}
-	}
-	return true, nil
 }

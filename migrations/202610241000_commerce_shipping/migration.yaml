@@ -11,7 +11,7 @@ transactional:
 checksum_sha256:
   sqlite: "6c702f9beb745aa0fb15e006f6242385fc9f37fbeb7daefb56182d424b0b27d7"
   postgres: "14f84695d2ae06c64a1729fb5d69bd80c52d4a5cfb7e1fa575be037a31f3a0f1"
-  mysql: "9514b6919c388f2ab5e772bc887dde7273ba88e6178a3ab00c1ec9a580604f8b"
+  mysql: "d3264fe78d1c01aa8f112f754ad4caf3cec585a97e6c0fd3fa7c079c50021581"
 dependencies:
   - "202610231302_commerce_orders"
 schema:

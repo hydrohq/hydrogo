@@ -33,12 +33,11 @@ export const actions: Actions = {
     const form = await request.formData();
     const variantId = String(form.get('variant_id') ?? '').trim();
     const quantity = Number(form.get('quantity') ?? 1);
-    const unitPriceCents = Number(form.get('unit_price_cents') ?? 0);
     if (!variantId || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
       return fail(400, { message: 'Lütfen bir seçenek ve geçerli bir adet belirtin.' });
     }
     try {
-      await addToCart(cookies, variantId, quantity, unitPriceCents);
+      await addToCart(cookies, variantId, quantity);
     } catch {
       return fail(502, { message: 'Ürün sepete eklenemedi, lütfen tekrar deneyin.' });
     }

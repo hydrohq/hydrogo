@@ -174,7 +174,7 @@
         feedback = { type: 'success', text: t('commerce.order.shipmentDone', { tracking: res.data.shipping_tracking_number ?? '' }) };
       }
     } catch (err) {
-      if (err instanceof ApiClientError && err.status === 501) {
+      if (err instanceof ApiClientError && err.status === 503) {
         feedback = { type: 'error', text: t('commerce.order.shipmentNoProvider') };
       } else if (err instanceof ApiClientError && err.status === 409) {
         feedback = { type: 'error', text: `${t('commerce.order.notShippableUnpaid')}${err.requestId ? ` (${t('commerce.requestId')}: ${err.requestId})` : ''}` };

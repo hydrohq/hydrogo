@@ -83,6 +83,21 @@ func (s Store) tenantFilter(ctx context.Context, position int) (string, any, err
 	return " AND tenant_id = " + s.p(position), id, nil
 }
 
+// scope returns the tenant condition bound to the placeholder right after
+// args, and args with the tenant id appended. Callers must not pick the
+// position by hand: a hardcoded number that collides with an earlier
+// placeholder is silently wrong on Postgres ($n) and fine on SQLite (?).
+func (s Store) scope(ctx context.Context, args []any) (string, []any, error) {
+	filter, arg, err := s.tenantFilter(ctx, len(args)+1)
+	if err != nil {
+		return "", nil, err
+	}
+	if arg != nil {
+		args = append(args, arg)
+	}
+	return filter, args, nil
+}
+
 func newID(prefix string) (string, error) {
 	raw := make([]byte, 15)
 	if _, err := rand.Read(raw); err != nil {
@@ -109,13 +124,9 @@ func (s Store) EnsureStock(ctx context.Context, db database.Executor, variantID 
 	}
 	_, err = s.GetStock(ctx, db, variantID)
 	if err == nil {
-		filter, filterArg, filterErr := s.tenantFilter(ctx, 3)
+		filter, args, filterErr := s.scope(ctx, []any{available, s.dbTime(s.now()), variantID})
 		if filterErr != nil {
 			return filterErr
-		}
-		args := []any{available, s.dbTime(s.now()), variantID}
-		if filterArg != nil {
-			args = append(args, filterArg)
 		}
 		_, err = db.ExecContext(ctx, `UPDATE commerce_stock SET available = `+s.p(1)+`, updated_at = `+s.p(2)+` WHERE variant_id = `+s.p(3)+filter, args...)
 		return err
@@ -139,13 +150,10 @@ func (s Store) GetStock(ctx context.Context, db database.Executor, variantID str
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.Stock{}, err
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{variantID}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return commerce.Stock{}, err
-	}
-	args := []any{variantID}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	row := db.QueryRowContext(ctx, `SELECT id, variant_id, available, reserved, created_at, updated_at FROM commerce_stock WHERE variant_id = `+s.p(1)+filter, args...)
 	var stock commerce.Stock
@@ -178,19 +186,12 @@ func (s Store) ReserveStock(ctx context.Context, db database.Executor, variantID
 	if quantity <= 0 {
 		return false, errors.New("reservation quantity must be positive")
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 4)
+	filter, args, err := s.scope(ctx, []any{quantity, quantity, s.dbTime(s.now()), variantID, quantity})
 	if err != nil {
 		return false, err
 	}
-	args := []any{quantity, quantity, s.dbTime(s.now()), variantID, quantity}
-	// updated_at placeholder sits before variant_id/quantity in the SET
-	// clause; renumber positions explicitly per dialect below instead of
-	// relying on args order matching s.p(n) call order.
 	query := `UPDATE commerce_stock SET available = available - ` + s.p(1) + `, reserved = reserved + ` + s.p(2) + `, updated_at = ` + s.p(3) +
 		` WHERE variant_id = ` + s.p(4) + ` AND available >= ` + s.p(5) + filter
-	if filterArg != nil {
-		args = append(args, filterArg)
-	}
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return false, err
@@ -213,13 +214,10 @@ func (s Store) ReleaseReservation(ctx context.Context, db database.Executor, var
 	if quantity <= 0 {
 		return errors.New("release quantity must be positive")
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 4)
+	args := []any{quantity, quantity, s.dbTime(s.now()), variantID}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return err
-	}
-	args := []any{quantity, quantity, s.dbTime(s.now()), variantID}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	query := `UPDATE commerce_stock SET available = available + ` + s.p(1) + `, reserved = reserved - ` + s.p(2) + `, updated_at = ` + s.p(3) +
 		` WHERE variant_id = ` + s.p(4) + filter
@@ -237,13 +235,10 @@ func (s Store) CommitReservation(ctx context.Context, db database.Executor, vari
 	if quantity <= 0 {
 		return errors.New("commit quantity must be positive")
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 3)
+	args := []any{quantity, s.dbTime(s.now()), variantID}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return err
-	}
-	args := []any{quantity, s.dbTime(s.now()), variantID}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	query := `UPDATE commerce_stock SET reserved = reserved - ` + s.p(1) + `, updated_at = ` + s.p(2) + ` WHERE variant_id = ` + s.p(3) + filter
 	_, err = db.ExecContext(ctx, query, args...)
@@ -274,13 +269,10 @@ func (s Store) getCartBy(ctx context.Context, db database.Executor, column, valu
 	if err := database.RequireExecutor(db); err != nil {
 		return commerce.Cart{}, false, err
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{value}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return commerce.Cart{}, false, err
-	}
-	args := []any{value}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	row := db.QueryRowContext(ctx, `SELECT id, COALESCE(member_id, ''), COALESCE(anonymous_token, ''), currency, created_at, updated_at, expires_at FROM commerce_shopping_carts WHERE `+column+` = `+s.p(1)+filter, args...)
 	var cart commerce.Cart
@@ -347,7 +339,24 @@ func (s Store) RemoveItem(ctx context.Context, db database.Executor, cartID, ite
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
-	_, err := db.ExecContext(ctx, `DELETE FROM commerce_shopping_cart_items WHERE id = `+s.p(1)+` AND cart_id = `+s.p(2), itemID, cartID)
+	filter, args, err := s.scope(ctx, []any{itemID, cartID})
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `DELETE FROM commerce_shopping_cart_items WHERE id = `+s.p(1)+` AND cart_id = `+s.p(2)+filter, args...)
+	return err
+}
+
+// ClearCart empties a cart once its contents became an order.
+func (s Store) ClearCart(ctx context.Context, db database.Executor, cartID string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	filter, args, err := s.scope(ctx, []any{cartID})
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `DELETE FROM commerce_shopping_cart_items WHERE cart_id = `+s.p(1)+filter, args...)
 	return err
 }
 
@@ -361,7 +370,11 @@ func (s Store) ListItems(ctx context.Context, db database.Executor, cartID strin
 	if !ok {
 		return nil, errors.New("database executor does not support row queries")
 	}
-	rows, err := queryer.QueryContext(ctx, `SELECT id, cart_id, variant_id, quantity, unit_price_cents, created_at, updated_at FROM commerce_shopping_cart_items WHERE cart_id = `+s.p(1)+` ORDER BY id`, cartID)
+	filter, args, err := s.scope(ctx, []any{cartID})
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT id, cart_id, variant_id, quantity, unit_price_cents, created_at, updated_at FROM commerce_shopping_cart_items WHERE cart_id = `+s.p(1)+filter+` ORDER BY id`, args...)
 	if err != nil {
 		return nil, err
 	}
