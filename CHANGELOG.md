@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MySQL: concurrent audited writes no longer deadlock on the audit chain head (found by running the new SQL on a real server), and a transaction the database aborts for a lock race (deadlock, lock wait timeout, serialization failure) now answers 409 so the request can be retried, instead of 500.
 
 ### Added
+- `examples/crm-starter`: sessions can be shared across panel instances (`REDIS_URL`/`SESSION_SECRET`); it can serve several tenants from one deployment, resolved by Host header like HydroGo's own `cfg.Tenancy.Hosts` (`CRM_TENANTS`); it can email a notification on deal/task create/update/delete by receiving HydroGo's existing `content.*` webhooks (`/api/webhooks/hydrogo/<slug>`, `WEBHOOK_SECRET`/SMTP env vars); and its dashboard now shows win rate, a pipeline-by-stage breakdown, overdue task count and recent activity.
 - Admin: a "Services" tab under System lists the configured hook services (host, calls and failures since start, last call, content types using them, schedules). It appears only when `hooks:` is configured; `GET /api/v1/admin/system/services`.
 - The admin schema leaves out fields whose `permission` the signed-in user lacks, so forms and lists no longer show a label for a value the API never sends.
 - `@hydrogo/client`: `listContent` takes `after` (cursor paging), `expand` and filter operators (`{amount: {gte: "100"}}`), and the list metadata types `next_cursor`.

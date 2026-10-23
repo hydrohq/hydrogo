@@ -42,3 +42,9 @@ export function formatMoney(sums: Record<string, number>, lang: string): string 
 export function isOverdue(due: unknown, now = new Date()): boolean {
   return typeof due === 'string' && !Number.isNaN(Date.parse(due)) && new Date(due) <= now;
 }
+
+/** Share of closed deals that were won; null with nothing closed yet to divide by. */
+export function winRate(wonCount: number, lostCount: number): number | null {
+  const closed = wonCount + lostCount;
+  return closed > 0 ? wonCount / closed : null;
+}
