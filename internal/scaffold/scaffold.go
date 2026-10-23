@@ -166,7 +166,7 @@ func Create(opts Options) (Preset, error) {
 	if opts.Starter != "" && !slices.Contains(Starters(), opts.Starter) {
 		return Preset{}, fmt.Errorf("unknown starter %q (available: %s)", opts.Starter, strings.Join(Starters(), ", "))
 	}
-	for _, existing := range []string{"config.yaml", "content-types", "frontend"} {
+	for _, existing := range []string{"config.yaml", "content-types", "frontend", "e2e"} {
 		if _, statErr := os.Stat(filepath.Join(opts.Dir, existing)); statErr == nil {
 			return Preset{}, fmt.Errorf("%s already exists in %s; refusing to overwrite", existing, opts.Dir)
 		}
@@ -206,8 +206,140 @@ func Create(opts Options) (Preset, error) {
 			return Preset{}, err
 		}
 	}
+	if err := writeE2EHarness(opts.Dir); err != nil {
+		return Preset{}, err
+	}
 	return preset, nil
 }
+
+// writeE2EHarness sets up a Playwright E2E directory for the project: a
+// config, dependencies, and the generated-vs-hand-written split "hydro
+// generate tests" and project authors both rely on. It is always written
+// (not gated by --starter), since role-permission tests target the admin
+// API, which every project has.
+func writeE2EHarness(dir string) error {
+	e2eDir := filepath.Join(dir, "e2e")
+	for _, sub := range []string{filepath.Join(e2eDir, "generated", "content"), filepath.Join(e2eDir, "custom")} {
+		if err := os.MkdirAll(sub, 0o755); err != nil { // #nosec G301 -- project directory; the service account may differ from the author
+			return err
+		}
+	}
+	files := map[string]string{
+		filepath.Join(e2eDir, "package.json"):                     e2ePackageJSON,
+		filepath.Join(e2eDir, "playwright.config.ts"):             e2ePlaywrightConfig,
+		filepath.Join(e2eDir, "global-setup.ts"):                  e2eGlobalSetup,
+		filepath.Join(e2eDir, ".gitignore"):                       "/.auth/\n/artifacts/\n",
+		filepath.Join(e2eDir, "README.md"):                        e2eReadme,
+		filepath.Join(e2eDir, "generated", "content", ".gitkeep"): "",
+		filepath.Join(e2eDir, "custom", ".gitkeep"):               "",
+	}
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil { // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
+			return err
+		}
+	}
+	return nil
+}
+
+const e2ePackageJSON = `{
+  "name": "e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}
+`
+
+const e2ePlaywrightConfig = `import { defineConfig, devices } from "@playwright/test";
+
+export default defineConfig({
+  testDir: ".",
+  outputDir: "./artifacts",
+  timeout: 30_000,
+  // global-setup.ts logs in once per role and saves the session for every
+  // test to reuse — HydroGo's own login rate limit (5/minute per IP) is easy
+  // to trip if each test logs in on its own, especially with fullyParallel.
+  globalSetup: "./global-setup.ts",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  reporter: process.env.CI ? "line" : "list",
+  use: {
+    baseURL: process.env.HYDRO_E2E_BASE_URL ?? "http://127.0.0.1:8080",
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+});
+`
+
+const e2eGlobalSetup = `import { request } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+
+// Logs in once per seeded role (see "hydro seed-test-users") before any
+// generated or hand-written test runs, and saves each session to .auth/ for
+// _helpers.ts's login() to reuse. A role whose HYDRO_E2E_<ROLE>_EMAIL /
+// _PASSWORD aren't set is skipped: a project may only seed the roles it
+// actually tests.
+const BASE_URL = process.env.HYDRO_E2E_BASE_URL ?? "http://127.0.0.1:8080";
+const ROLES = ["admin", "editor", "viewer"] as const;
+
+export default async function globalSetup(): Promise<void> {
+  mkdirSync(".auth", { recursive: true });
+  for (const role of ROLES) {
+    const prefix = ` + "`HYDRO_E2E_${role.toUpperCase()}`" + `;
+    const email = process.env[` + "`${prefix}_EMAIL`" + `];
+    const password = process.env[` + "`${prefix}_PASSWORD`" + `];
+    if (!email || !password) continue;
+
+    const ctx = await request.newContext({ baseURL: BASE_URL });
+    const csrfRes = await ctx.get("/csrf-token");
+    const { token } = (await csrfRes.json()) as { token: string };
+    const loginRes = await ctx.post("/auth/login", {
+      headers: { "x-csrf-token": token },
+      form: { email, password },
+    });
+    if (!loginRes.ok()) {
+      throw new Error(` + "`global-setup: login as ${role} failed with status ${loginRes.status()}`" + `);
+    }
+    await ctx.storageState({ path: ` + "`.auth/${role}.json`" + ` });
+    // storageState only carries cookies; the CSRF header value is separate.
+    writeFileSync(` + "`.auth/${role}.csrf`" + `, token);
+    await ctx.dispose();
+  }
+}
+`
+
+const e2eReadme = `# Tests for this project
+
+` + "`hydro generate tests`" + ` regenerates ` + "`generated/content/*.spec.ts`" + ` from
+` + "`content-types/*.yaml`" + `: for every content type, one test per admin role
+proving it gets exactly the read/write access the type's permissions declare.
+Run it again any time a content type changes; the generated files start with
+"DO NOT EDIT" and are safe to overwrite.
+
+Hand-written journeys (anything the generator can't know — business flows,
+UI screenshots, multi-step scenarios) belong in ` + "`custom/`" + ` and are never
+touched by the generator.
+
+Setup, once:
+
+` + "```" + `
+hydro serve --config ../config.yaml &
+hydro seed-test-users --config ../config.yaml   # prints HYDRO_E2E_*_EMAIL/PASSWORD
+npm install
+npx playwright install chromium
+` + "```" + `
+
+Then set the printed env vars and run:
+
+` + "```" + `
+hydro generate tests --config ../config.yaml
+npm test
+` + "```" + `
+`
 
 func renderConfig(preset Preset) string {
 	return fmt.Sprintf(`# HydroGo configuration (preset: %s).

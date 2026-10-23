@@ -38,6 +38,38 @@ func TestEveryPresetScaffoldsAValidProject(t *testing.T) {
 	}
 }
 
+func TestCreateWritesAnE2EHarness(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "site")
+	if _, err := Create(Options{Dir: dir}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		filepath.Join(dir, "e2e", "package.json"),
+		filepath.Join(dir, "e2e", "playwright.config.ts"),
+		filepath.Join(dir, "e2e", "README.md"),
+		filepath.Join(dir, "e2e", "generated", "content", ".gitkeep"),
+		filepath.Join(dir, "e2e", "custom", ".gitkeep"),
+	} {
+		if _, err := os.Stat(want); err != nil {
+			t.Fatalf("expected %s to exist: %v", want, err)
+		}
+	}
+	pkg, err := os.ReadFile(filepath.Join(dir, "e2e", "package.json"))
+	if err != nil || !strings.Contains(string(pkg), "@playwright/test") {
+		t.Fatalf("e2e/package.json missing @playwright/test: %v", err)
+	}
+}
+
+func TestCreateRefusesToOverwriteExistingE2EDir(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "e2e"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Create(Options{Dir: dir}); err == nil {
+		t.Fatal("expected an error when e2e/ already exists")
+	}
+}
+
 func TestCreateRefusesToOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := Create(Options{Dir: dir}); err != nil {
