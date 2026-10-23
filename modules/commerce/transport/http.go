@@ -128,6 +128,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/commerce/cart/items", Handler: http.HandlerFunc(h.addItem)},
 		{Pattern: "DELETE /api/v1/commerce/cart/items/{id}", Handler: http.HandlerFunc(h.removeItem)},
 		{Pattern: "POST /api/v1/commerce/checkout", Handler: http.HandlerFunc(h.checkout)},
+		{Pattern: "GET /api/v1/commerce/stock/{variantID}", Handler: http.HandlerFunc(h.getStock)},
+		{Pattern: "GET /api/v1/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder)},
 		{Pattern: "POST /api/v1/commerce/orders/{id}/payment", Handler: http.HandlerFunc(h.startOrderPayment)},
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true},
 	}
@@ -294,6 +296,42 @@ type checkoutResponse struct {
 	Payment *commerce.PaymentStart `json:"payment,omitempty"`
 }
 
+type orderItemView struct {
+	VariantID      string `json:"variant_id"`
+	SKU            string `json:"sku"`
+	Title          string `json:"title"`
+	Quantity       int    `json:"quantity"`
+	UnitPriceCents int64  `json:"unit_price_cents"`
+	TotalCents     int64  `json:"total_cents"`
+}
+
+type orderView struct {
+	commerce.Order
+	Items []orderItemView `json:"items"`
+}
+
+// getOrder is an order confirmation/status read: a guest checkout has no
+// account to log into, so knowing the order id is the only access check,
+// the same trust model startOrderPayment already relies on.
+func (h Handler) getOrder(w http.ResponseWriter, r *http.Request) {
+	order, err := h.Service.Repository.GetOrder(r.Context(), h.DB, r.PathValue("id"))
+	if err != nil {
+		api.WriteError(w, r, http.StatusNotFound, "order not found", nil)
+		return
+	}
+	items, err := h.Service.Repository.ListOrderItems(r.Context(), h.DB, order.ID)
+	if err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	views := make([]orderItemView, 0, len(items))
+	for _, item := range items {
+		views = append(views, orderItemView{VariantID: item.VariantID, SKU: item.SKU, Title: item.Title, Quantity: item.Quantity, UnitPriceCents: item.UnitPriceCents, TotalCents: item.TotalCents})
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteData(w, http.StatusOK, orderView{Order: order, Items: views}, nil)
+}
+
 // startOrderPayment (re)starts a payment with the configured provider for
 // an existing order -- for when StartPayment at checkout time failed (a
 // network blip to the provider) and the shopper needs another chance to
@@ -328,6 +366,25 @@ func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteData(w, http.StatusOK, start, nil)
+}
+
+// getStock is a public, unauthenticated read of how many units of a
+// variant can still be added to a cart -- a storefront's product page
+// needs this to show "in stock"/"sold out" without the admin-only
+// reserved count, which is internal checkout bookkeeping, not a shopper
+// fact. A variant nobody has stocked yet reads as zero, not an error: to a
+// shopper "never stocked" and "sold out" look the same.
+func (h Handler) getStock(w http.ResponseWriter, r *http.Request) {
+	stock, err := h.Service.Repository.GetStock(r.Context(), h.DB, r.PathValue("variantID"))
+	if err != nil {
+		if errors.Is(err, commerce.ErrItemNotFound) {
+			api.WriteData(w, http.StatusOK, map[string]any{"variant_id": r.PathValue("variantID"), "available": 0}, nil)
+			return
+		}
+		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	api.WriteData(w, http.StatusOK, map[string]any{"variant_id": stock.VariantID, "available": stock.Available}, nil)
 }
 
 type setStockRequest struct {

@@ -185,6 +185,52 @@ func TestSetStockEndpointUpsertsAvailable(t *testing.T) {
 	}
 }
 
+func TestGetStockReturnsAvailableButNotReservedCount(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-public-stock", 5); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := h.Service.Repository.ReserveStock(ctx, db, "variant-public-stock", 2); err != nil || !ok {
+		t.Fatalf("reserve: ok=%v err=%v", ok, err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/commerce/stock/variant-public-stock", nil)
+	req.SetPathValue("variantID", "variant-public-stock")
+	rec := httptest.NewRecorder()
+	h.getStock(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get stock: %d %s", rec.Code, rec.Body)
+	}
+	var envelope struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if _, hasReserved := envelope.Data["reserved"]; hasReserved {
+		t.Fatalf("public stock read must not expose the reserved count, got %s", rec.Body.String())
+	}
+	var available int
+	if err := json.Unmarshal(envelope.Data["available"], &available); err != nil {
+		t.Fatal(err)
+	}
+	if available != 3 {
+		t.Fatalf("available = %d, want 3 (5 - 2 reserved)", available)
+	}
+}
+
+func TestGetStockReturnsZeroForAnUnknownVariantInsteadOfAnError(t *testing.T) {
+	h, _ := newTestHandler(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/commerce/stock/variant-never-stocked", nil)
+	req.SetPathValue("variantID", "variant-never-stocked")
+	rec := httptest.NewRecorder()
+	h.getStock(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get stock: %d %s", rec.Code, rec.Body)
+	}
+}
+
 type fakePaymentProvider struct {
 	err   error
 	start commerce.PaymentStart
@@ -324,6 +370,62 @@ func TestStartOrderPaymentRejectsAnAlreadyPaidOrder(t *testing.T) {
 	h.startOrderPayment(rec, req)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409 for an already-paid order, got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestGetOrderReturnsTheOrderAndItsItemsByID(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-get-order", 3); err != nil {
+		t.Fatal(err)
+	}
+	cart, err := h.Service.GetOrCreateCart(ctx, db, "", "anon-get-order", "TRY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-get-order", 2, 1500); err != nil {
+		t.Fatal(err)
+	}
+	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{
+		CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "get-order-idem-1",
+		ItemTitles: map[string]string{"variant-http-get-order": "Cüzdan"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/commerce/orders/"+order.ID, nil)
+	req.SetPathValue("id", order.ID)
+	rec := httptest.NewRecorder()
+	h.getOrder(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get order: %d %s", rec.Code, rec.Body)
+	}
+	var envelope struct {
+		Data struct {
+			ID    string `json:"id"`
+			Items []struct {
+				Title    string `json:"title"`
+				Quantity int    `json:"quantity"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if envelope.Data.ID != order.ID || len(envelope.Data.Items) != 1 || envelope.Data.Items[0].Title != "Cüzdan" || envelope.Data.Items[0].Quantity != 2 {
+		t.Fatalf("unexpected order view: %+v", envelope.Data)
+	}
+}
+
+func TestGetOrderReturns404ForAnUnknownID(t *testing.T) {
+	h, _ := newTestHandler(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/commerce/orders/does-not-exist", nil)
+	req.SetPathValue("id", "does-not-exist")
+	rec := httptest.NewRecorder()
+	h.getOrder(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d %s", rec.Code, rec.Body)
 	}
 }
 
