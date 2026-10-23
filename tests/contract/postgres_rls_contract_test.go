@@ -31,14 +31,13 @@ var expectedRLSTables = []string{
 	"members",
 	"member_sessions",
 	"member_mobile_device_sessions",
-	"commerce_products",
-	"commerce_product_variants",
-	"commerce_orders",
-	"commerce_order_items",
-	"commerce_carts",
-	"commerce_cart_items",
-	"commerce_payment_transactions",
-	"commerce_payment_webhook_events",
+	"commerce_stock",
+	"commerce_shopping_carts",
+	"commerce_shopping_cart_items",
+	"commerce_customer_orders",
+	"commerce_customer_order_items",
+	"commerce_payment_charges",
+	"commerce_payment_notifications",
 	"hydro_forms",
 }
 
@@ -146,11 +145,11 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 			return fmt.Errorf("insert alpha media_asset: %w", err)
 		}
 
-		// Insert Commerce Product
-		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO commerce_products (id, sku, title, price_cents, currency, stock, status, tenant_id, created_at, updated_at)
-			VALUES ('product-alpha', 'SKU-ALPHA', 'Alpha Product', 9900, 'USD', 10, 'published', 'tenant-alpha', NOW(), NOW())`)
+		// Insert Commerce Stock
+		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO commerce_stock (id, variant_id, available, reserved, tenant_id, created_at, updated_at)
+			VALUES ('stock-alpha', 'variant-alpha', 10, 0, 'tenant-alpha', NOW(), NOW())`)
 		if err != nil {
-			return fmt.Errorf("insert alpha commerce_product: %w", err)
+			return fmt.Errorf("insert alpha commerce_stock: %w", err)
 		}
 
 		// Insert Audit Event
@@ -184,7 +183,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM media_assets WHERE id = 'media-alpha'`).Scan(&mediaCount); err != nil {
 			return err
 		}
-		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM commerce_products WHERE id = 'product-alpha'`).Scan(&productCount); err != nil {
+		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM commerce_stock WHERE id = 'stock-alpha'`).Scan(&productCount); err != nil {
 			return err
 		}
 		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM audit_events WHERE id = 'audit-alpha'`).Scan(&auditCount); err != nil {
@@ -218,7 +217,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM media_assets WHERE id = 'media-alpha'`).Scan(&mediaCount); err != nil {
 			return err
 		}
-		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM commerce_products WHERE id = 'product-alpha'`).Scan(&productCount); err != nil {
+		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM commerce_stock WHERE id = 'stock-alpha'`).Scan(&productCount); err != nil {
 			return err
 		}
 		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM audit_events WHERE id = 'audit-alpha'`).Scan(&auditCount); err != nil {

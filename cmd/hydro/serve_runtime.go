@@ -33,6 +33,8 @@ import (
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -227,6 +229,9 @@ func (a *serveApp) initOptionalModules() error {
 	}
 	if modules["members"] {
 		a.memberHTTP = membertransport.Handler{Service: a.memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale, Push: pushDispatcher}
+		if modules["commerce"] {
+			a.memberHTTP.Orders = commerce.MemberOrdersReader{Repository: commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+		}
 		if !cfg.SafeMode {
 			memberOAuth, err := configuredMemberSocialOAuth(db, cfg.Database.Dialect, a.memberService, newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), cfg.Security.SecureCookies, requireTenantScope)
 			if err != nil {
