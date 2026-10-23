@@ -206,6 +206,29 @@ func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	}
 }
 
+func TestTelegramNotificationsRequireBothBotTokenAndChatID(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:telegram.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{BotToken: "token-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("bot token without chat id accepted")
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{ChatID: "chat-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("chat id without bot token accepted")
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{BotToken: "token", ChatID: "chat"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid telegram config: %v", err)
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unconfigured telegram must stay valid: %v", err)
+	}
+}
+
 func TestPayTRConfigurationRequiresKeyAndSaltWhenEnabled(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:paytr.sqlite"}), Overrides{})
 	if err != nil {

@@ -37,7 +37,28 @@ type Config struct {
 	Audit           Audit            `yaml:"audit"`
 	Limits          Limits           `yaml:"limits"`
 	Commerce        Commerce         `yaml:"commerce"`
+	Notifications   Notifications    `yaml:"notifications"`
 }
+
+// Notifications configures operational chat alerts (a new commerce order,
+// a reconciliation drift finding) -- cross-cutting, not commerce-specific,
+// so it lives at the top level rather than nested under Commerce, even
+// though commerce is its first and only user today. Empty is valid: no
+// project has to configure this to work, it just gets no alerts.
+type Notifications struct {
+	Telegram TelegramNotifications `yaml:"telegram"`
+}
+
+// TelegramNotifications holds one bot's credentials. BotToken is a secret:
+// set it in a protected, untracked config file or the deployment
+// environment, never in a committed preset.
+type TelegramNotifications struct {
+	BotToken string `yaml:"bot_token"`
+	ChatID   string `yaml:"chat_id"`
+}
+
+// Enabled reports whether enough configuration is present to send.
+func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.ChatID != "" }
 
 // Commerce configures the optional payment providers modules/commerce can
 // start a checkout against. Empty is a valid, fully functional
