@@ -10,6 +10,8 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	"github.com/ardaozyildirim/hydrogo/internal/notify"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
@@ -56,6 +58,18 @@ func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
 	}}
 }
 
+// commerceNotifier builds the configured operational chat alert sender, or
+// nil when Notifications.Telegram is not set up -- a project with no
+// notification channel configured just gets no alerts, cart/checkout and
+// reconciliation both still work fully without it.
+func (a *serveApp) commerceNotifier() notify.Sender {
+	cfg := a.cfg.Notifications.Telegram
+	if !cfg.Enabled() {
+		return nil
+	}
+	return notify.Telegram{BotToken: cfg.BotToken, ChatID: cfg.ChatID}
+}
+
 // commerceService builds the commerce module's service, independent of the
 // route registration below so serve_workers.go's reservation-expiry sweep
 // can use the same Service without going through HTTP.
@@ -90,6 +104,10 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		DefaultCurrency:    a.cfg.Commerce.Currencies.Default,
 		DisplayCurrencies:  a.cfg.Commerce.Currencies.Display,
 		CurrencyRates:      a.cfg.Commerce.Currencies.Rates,
+		Notifier:           a.commerceNotifier(),
+	}
+	if a.smtpSender != nil {
+		handler.Mailer = mailer.NotificationSender{Sender: a.smtpSender}
 	}
 	if a.modules["members"] {
 		handler.MemberID = commerceMemberIDResolver(a.memberService)
@@ -161,8 +179,11 @@ func runCommerceReservationSweeper(ctx context.Context, worker commerce.Worker, 
 // Error -- Reconcile finding something is the alert itself, not this
 // job malfunctioning) with enough structure for an operator's existing log
 // pipeline to turn into a real alert; see
-// docs/decisions/0018-commerce-reconciliation.md.
-func runCommerceReconciliationAlert(ctx context.Context, service commerce.Service, db database.Executor, provider string, logger *slog.Logger, stderr io.Writer) {
+// docs/decisions/0018-commerce-reconciliation.md. notifier is optional
+// (nil when Notifications.Telegram is not configured): a non-clean report
+// always logs at Warn regardless, notifier is an additional, best-effort
+// push so an operator does not have to be watching the logs.
+func runCommerceReconciliationAlert(ctx context.Context, service commerce.Service, db database.Executor, provider string, notifier notify.Sender, logger *slog.Logger, stderr io.Writer) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	for {
@@ -171,12 +192,21 @@ func runCommerceReconciliationAlert(ctx context.Context, service commerce.Servic
 			if ctx.Err() == nil {
 				_, _ = fmt.Fprintf(stderr, "hydro commerce reconcile: %v\n", err)
 			}
-		} else if !report.Clean() && logger != nil {
-			logger.WarnContext(ctx, "commerce reconciliation found drift",
-				"stale_pending_orders", len(report.StalePendingOrders),
-				"notified_but_not_paid", len(report.NotifiedButNotPaid),
-				"reservation_drift", len(report.ReservationDrift),
-			)
+		} else if !report.Clean() {
+			if logger != nil {
+				logger.WarnContext(ctx, "commerce reconciliation found drift",
+					"stale_pending_orders", len(report.StalePendingOrders),
+					"notified_but_not_paid", len(report.NotifiedButNotPaid),
+					"reservation_drift", len(report.ReservationDrift),
+				)
+			}
+			if notifier != nil {
+				_ = notifier.Send(ctx, notify.Message{
+					Title: "Mutabakat uyarısı",
+					Body: fmt.Sprintf("Bekleyen eski sipariş: %d, bildirimi gelip ödenmemiş: %d, stok tutarsızlığı: %d",
+						len(report.StalePendingOrders), len(report.NotifiedButNotPaid), len(report.ReservationDrift)),
+				})
+			}
 		}
 		select {
 		case <-ctx.Done():

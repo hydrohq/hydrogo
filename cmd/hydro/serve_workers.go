@@ -109,7 +109,7 @@ func (a *serveApp) startWorkers() {
 	}
 	if modules["commerce"] && !cgiMode && !cfg.SafeMode {
 		go runCommerceReservationSweeper(ctx, commerce.Worker{Service: a.commerceService()}, db, stderr)
-		go runCommerceReconciliationAlert(ctx, a.commerceService(), db, a.commercePaymentProviderName(), logger, stderr)
+		go runCommerceReconciliationAlert(ctx, a.commerceService(), db, a.commercePaymentProviderName(), a.commerceNotifier(), logger, stderr)
 	}
 	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)

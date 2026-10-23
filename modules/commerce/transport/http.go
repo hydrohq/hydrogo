@@ -6,15 +6,19 @@
 package transport
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	"github.com/ardaozyildirim/hydrogo/internal/notify"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
@@ -58,6 +62,20 @@ type Handler struct {
 	// see config.Currencies' own doc comment for why.
 	DisplayCurrencies []string
 	CurrencyRates     map[string]float64
+	// Mailer and Notifier are both optional and both best-effort: a
+	// checkout that already succeeded must never fail because an email or
+	// a chat ping did. OrderMailer is satisfied by
+	// mailer.NotificationSender directly (same method shape), no adapter
+	// needed.
+	Mailer   OrderMailer
+	Notifier notify.Sender
+}
+
+// OrderMailer sends a customer-facing order receipt. Defined here, not in
+// internal/mailer, because the order/currency formatting is commerce's
+// concern -- mailer.NotificationSender satisfies this interface as-is.
+type OrderMailer interface {
+	SendOrderConfirmation(ctx context.Context, email, orderID, total string, items []mailer.OrderConfirmationItem) error
 }
 
 func (h Handler) defaultCurrency() string {
@@ -302,15 +320,40 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response := checkoutResponse{Order: order}
-	if h.PaymentProvider != nil {
-		if items, itemsErr := h.Service.Repository.ListOrderItems(r.Context(), h.DB, order.ID); itemsErr == nil {
+	items, itemsErr := h.Service.Repository.ListOrderItems(r.Context(), h.DB, order.ID)
+	if itemsErr == nil {
+		if h.PaymentProvider != nil {
 			paymentCtx := commerce.WithClientIP(r.Context(), clientIP(r))
 			if start, startErr := h.PaymentProvider.StartPayment(paymentCtx, order, items); startErr == nil {
 				response.Payment = &start
 			}
 		}
+		h.notifyNewOrder(r.Context(), order, items)
 	}
 	api.WriteData(w, http.StatusCreated, response, nil)
+}
+
+// notifyNewOrder sends the customer's receipt and the operator's chat
+// alert. Both best-effort: a checkout that already succeeded must never
+// fail because an email or a chat ping did, so every error here is
+// swallowed, never surfaced to the shopper -- the same contract
+// PaymentProvider.StartPayment above already has.
+func (h Handler) notifyNewOrder(ctx context.Context, order commerce.Order, items []commerce.OrderItem) {
+	total := formatMoney(order.TotalCents, order.Currency)
+	if h.Mailer != nil && order.GuestEmail != "" {
+		mailItems := make([]mailer.OrderConfirmationItem, 0, len(items))
+		for _, item := range items {
+			mailItems = append(mailItems, mailer.OrderConfirmationItem{Title: item.Title, Quantity: item.Quantity, Total: formatMoney(item.TotalCents, order.Currency)})
+		}
+		_ = h.Mailer.SendOrderConfirmation(ctx, order.GuestEmail, order.ID, total, mailItems)
+	}
+	if h.Notifier != nil {
+		_ = h.Notifier.Send(ctx, notify.Message{Title: "Yeni sipariş", Body: fmt.Sprintf("%s — %s", order.ID, total)})
+	}
+}
+
+func formatMoney(cents int64, currency string) string {
+	return fmt.Sprintf("%.2f %s", float64(cents)/100, currency)
 }
 
 type checkoutResponse struct {
