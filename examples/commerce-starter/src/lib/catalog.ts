@@ -32,7 +32,17 @@ export type Variant = {
   size?: string;
   color?: string;
   price_override?: number;
+  // Overrides the product's cover image when this variant is selected
+  // (e.g. a colour with its own photo); falls back to cover_image when empty.
+  image?: string;
   expanded?: { product?: Product };
+};
+
+export type ProductImage = {
+  id: string;
+  product: string;
+  image: string;
+  sort_order?: number;
 };
 
 /** A variant's effective price: its own override, or the product's base price. */
