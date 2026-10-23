@@ -3,6 +3,7 @@
   import type { PageData, ActionData } from './$types';
   import { formatPrice, variantPriceCents, type Variant } from '$lib/catalog';
   import { mediaUrl } from '$lib/media';
+  import ProductGrid from '$lib/components/ProductGrid.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -11,12 +12,21 @@
   // each distinct [slug], so there is no "later data update" to react to.
   let selectedVariantId = $state(data.variants[0]?.id ?? '');
   let quantity = $state(1);
+  let activeImage = $state(data.variants[0]?.image ?? data.product.cover_image);
 
   const hasVariants = $derived(data.variants.length > 0);
   const selectedVariant = $derived(data.variants.find((v: Variant) => v.id === selectedVariantId));
   const priceCents = $derived(selectedVariant ? variantPriceCents(selectedVariant, data.product) : Math.round(data.product.base_price * 100));
   const availableStock = $derived(selectedVariant ? data.stockByVariant[selectedVariant.id] ?? 0 : 1);
   const outOfStock = $derived(hasVariants && availableStock <= 0);
+
+  const thumbnails = $derived([data.product.cover_image, ...data.gallery.map((img) => img.image)]);
+
+  function selectVariant(id: string) {
+    selectedVariantId = id;
+    const variant = data.variants.find((v: Variant) => v.id === id);
+    activeImage = variant?.image ?? data.product.cover_image;
+  }
 </script>
 
 <svelte:head><title>{data.product.seo_title || data.product.name}</title></svelte:head>
@@ -25,7 +35,16 @@
 
 <div class="product-detail">
   <div class="gallery">
-    <img src={mediaUrl(data.product.cover_image)} alt={data.product.name} />
+    <img src={mediaUrl(activeImage)} alt={data.product.name} />
+    {#if thumbnails.length > 1}
+      <div class="gallery-thumbs">
+        {#each thumbnails as thumb (thumb)}
+          <button type="button" class="thumb" class:active={thumb === activeImage} onclick={() => (activeImage = thumb)}>
+            <img src={mediaUrl(thumb)} alt="" />
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
   <div>
     <h1>{data.product.name}</h1>
@@ -38,7 +57,7 @@
       {#if hasVariants}
         <div class="variant-picker">
           <label for="variant">Seçenek</label>
-          <select id="variant" name="variant_id" bind:value={selectedVariantId}>
+          <select id="variant" name="variant_id" value={selectedVariantId} onchange={(e) => selectVariant(e.currentTarget.value)}>
             {#each data.variants as variant (variant.id)}
               <option value={variant.id}>{[variant.size, variant.color].filter(Boolean).join(' / ') || variant.sku}</option>
             {/each}
@@ -69,3 +88,8 @@
     </form>
   </div>
 </div>
+
+{#if data.relatedProducts.length > 0}
+  <h2 class="section-title">Benzer ürünler</h2>
+  <ProductGrid products={data.relatedProducts} />
+{/if}

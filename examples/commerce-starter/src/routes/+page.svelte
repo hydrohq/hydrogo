@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { formatPrice } from '$lib/catalog';
-  import { mediaUrl } from '$lib/media';
+  import ProductGrid from '$lib/components/ProductGrid.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
@@ -11,21 +10,19 @@
   <p>Kemer, cüzdan ve çanta koleksiyonumuza göz atın.</p>
 </section>
 
-{#if data.products.length === 0}
-  <p class="empty-state">Henüz ürün eklenmemiş.</p>
+<div class="notice">
+  <p>🚚 500 ₺ ve üzeri siparişlerde kargo ücretsiz.</p>
+</div>
+
+{#if data.sections.length > 0}
+  {#each data.sections as section (section.category.id)}
+    <div class="section-heading">
+      <h2>{section.category.name}</h2>
+      <a href={`/kategori/${section.category.slug}`}>Tümünü gör →</a>
+    </div>
+    <ProductGrid products={section.products} />
+  {/each}
 {:else}
-  <div class="product-grid">
-    {#each data.products as product (product.id)}
-      <article class="product-card">
-        <a href={`/urun/${product.slug}`}>
-          <img src={mediaUrl(product.cover_image)} alt={product.name} loading="lazy" />
-        </a>
-        <div class="body">
-          {#if product.expanded?.category}<p class="meta">{product.expanded.category.name}</p>{/if}
-          <h2><a href={`/urun/${product.slug}`}>{product.name}</a></h2>
-          <p class="price">{formatPrice(Math.round(product.base_price * 100), product.currency)}</p>
-        </div>
-      </article>
-    {/each}
-  </div>
+  <h2 class="section-title">Yeni ürünler</h2>
+  <ProductGrid products={data.latest} emptyMessage="Henüz ürün eklenmemiş." />
 {/if}

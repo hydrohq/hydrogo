@@ -21,6 +21,13 @@ site's own public URL -- its CSRF protection compares every write's
 `Origin` header against it, and without it, form submissions behind a
 reverse proxy can be refused.
 
+## Pages
+
+`/` (per-category sections), `/kategori/[slug]` (category landing, with a
+sort switcher), `/arama?q=` (search), `/urun/[slug]` (product detail:
+gallery, variant image swap, related products), `/sepet`, `/odeme`,
+`/siparis/[id]`, `/odeme/sonuc` (PayTR redirect landing).
+
 ## How it talks to HydroGo
 
 - The product catalog (`src/lib/server/hydro.ts`, a trimmed copy of
@@ -40,8 +47,11 @@ reverse proxy can be refused.
 
 ## What this is not
 
-Not a production storefront: no search, no multi-currency, no member
-accounts, no inventory beyond what `modules/commerce` already tracks. It is
+Not a production storefront: no multi-currency, no member accounts, no
+inventory beyond what `modules/commerce` already tracks, no drag-and-drop
+theme editor (and none is planned for this starter specifically -- if
+HydroGo ever gets a visual page editor it belongs at the project level,
+see `docs/decisions/0016-commerce-starter-catalog-sections.md`). It is
 a starting point, designed for this module rather than copied from
 `examples/sveltekit-starter` or `examples/hydropost-news-starter` (see the
 root `AGENTS.md`).
