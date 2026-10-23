@@ -55,7 +55,7 @@
   </div>
   <div>
     <label for="guest_email">E-posta</label>
-    <input id="guest_email" name="guest_email" type="email" required value={form?.guestEmail ?? ''} />
+    <input id="guest_email" name="guest_email" type="email" required value={form?.guestEmail ?? data.memberEmail} />
   </div>
   <div>
     <label for="guest_phone">Telefon</label>
