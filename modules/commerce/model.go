@@ -63,6 +63,17 @@ type Stock struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// ReservationDrift is one variant whose commerce_stock.reserved count does
+// not match what currently-pending orders actually account for -- see
+// Service.Reconcile. Expected is always what Checkout/ExpireOrder/
+// ConfirmPayment should have left behind; it never matching Reserved means
+// a release or a commit ran twice, or never ran at all.
+type ReservationDrift struct {
+	VariantID string `json:"variant_id"`
+	Reserved  int    `json:"reserved"`
+	Expected  int    `json:"expected"`
+}
+
 // Cart belongs to exactly one of a logged-in member or an anonymous
 // visitor, never both, never neither -- enforced by both the migration's
 // CHECK constraint and Validate below.

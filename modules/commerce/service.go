@@ -35,6 +35,11 @@ type Repository interface {
 	ListPendingOrdersOlderThan(ctx context.Context, db database.Executor, cutoff time.Time, limit int) ([]Order, error)
 	UpdatePaymentStatus(ctx context.Context, db database.Executor, orderID string, from, to PaymentStatus) (bool, error)
 	RecordPaymentNotification(ctx context.Context, db database.Executor, provider, eventID string) (bool, error)
+	// ListNotifiedOrdersNotPaid and StockReservationDrift back
+	// Service.Reconcile -- a read-only consistency sweep, not part of the
+	// checkout/payment path itself. See reconcile.go.
+	ListNotifiedOrdersNotPaid(ctx context.Context, db database.Executor, provider string, limit int) ([]Order, error)
+	StockReservationDrift(ctx context.Context, db database.Executor, limit int) ([]ReservationDrift, error)
 
 	GetDiscountCodeByCode(ctx context.Context, db database.Executor, code string) (DiscountCode, error)
 	RedeemDiscountCode(ctx context.Context, db database.Executor, id string, maxRedemptions int) (bool, error)
