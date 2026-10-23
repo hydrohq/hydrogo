@@ -501,15 +501,20 @@ type orderScanner interface {
 func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	var order commerce.Order
 	var paymentStatus, fulfillmentStatus string
-	var created, updated any
+	var shippedAt, created, updated any
 	if err := scanner.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestCountry, &order.GuestPostalCode,
 		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.SubtotalCents, &order.DiscountCode, &order.DiscountCents, &order.TaxCents, &order.ShippingCents, &order.TotalCents,
-		&paymentStatus, &fulfillmentStatus, &created, &updated); err != nil {
+		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &shippedAt, &created, &updated); err != nil {
 		return commerce.Order{}, err
 	}
 	order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
 	order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
 	var parseErr error
+	if shippedAt != nil {
+		if order.ShippedAt, parseErr = s.parseTime(shippedAt); parseErr != nil {
+			return commerce.Order{}, parseErr
+		}
+	}
 	if order.CreatedAt, parseErr = s.parseTime(created); parseErr != nil {
 		return commerce.Order{}, parseErr
 	}
@@ -530,7 +535,7 @@ func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
 	return order, true, nil
 }
 
-const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_status, fulfillment_status, created_at, updated_at`
+const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipped_at, created_at, updated_at`
 
 // ListPendingOrdersOlderThan returns orders still awaiting payment whose
 // hold should have expired by now -- worker.go's sweep calls this, then
@@ -655,6 +660,38 @@ func (s Store) UpdatePaymentStatus(ctx context.Context, db database.Executor, or
 	}
 	query := `UPDATE commerce_customer_orders SET payment_status = ` + s.p(1) + `, updated_at = ` + s.p(2) +
 		` WHERE id = ` + s.p(3) + ` AND payment_status = ` + s.p(4) + filter
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
+}
+
+// RecordShipment is Service.CreateShipment's atomic write: guarded by
+// fulfillment_status the same way UpdatePaymentStatus is guarded by
+// payment_status, so calling it twice for the same order (an operator
+// double-clicking "ship," or a retried request) only ever writes the
+// carrier's tracking details once and never re-ships an order that has
+// already moved on to delivered or cancelled.
+func (s Store) RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return false, err
+	}
+	filter, filterArg, err := s.tenantFilter(ctx, 8)
+	if err != nil {
+		return false, err
+	}
+	args := []any{string(commerce.FulfillmentShipped), carrier, trackingNumber, trackingURL, s.dbTime(shippedAt), s.dbTime(s.now()), orderID}
+	if filterArg != nil {
+		args = append(args, filterArg)
+	}
+	query := `UPDATE commerce_customer_orders SET fulfillment_status = ` + s.p(1) + `, shipping_carrier = ` + s.p(2) +
+		`, shipping_tracking_number = ` + s.p(3) + `, shipping_tracking_url = ` + s.p(4) + `, shipped_at = ` + s.p(5) + `, updated_at = ` + s.p(6) +
+		` WHERE id = ` + s.p(7) + ` AND fulfillment_status IN ('` + string(commerce.FulfillmentUnfulfilled) + `', '` + string(commerce.FulfillmentPreparing) + `')` + filter
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return false, err

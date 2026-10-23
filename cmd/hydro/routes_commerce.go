@@ -16,6 +16,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/paytr"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/yurticikargo"
 	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
@@ -56,6 +57,20 @@ func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
 		TestMode: cfg.TestMode, NoInstallment: cfg.NoInstallment, MaxInstallment: cfg.MaxInstallment,
 		OKURL: cfg.OKURL, FailURL: cfg.FailURL,
 	}}
+}
+
+// commerceShippingProvider builds the configured carrier integration, or
+// nil when none is set up -- an order can always be paid and fulfilled by
+// hand (no admin shipment-creation endpoint call) without one. Yurtiçi
+// Kargo is the only carrier wired in today; ShippingProvider's job is to
+// let a second one (Aras, MNG, ...) be added here later as its own
+// provider package, without touching Service or transport.
+func (a *serveApp) commerceShippingProvider() commerce.ShippingProvider {
+	cfg := a.cfg.Commerce.YurticiKargo
+	if !cfg.Enabled() {
+		return nil
+	}
+	return yurticikargo.Provider{Config: yurticikargo.Config{WSUserName: cfg.WSUserName, WSPassword: cfg.WSPassword}}
 }
 
 // commerceNotifier builds the configured operational chat alert sender, or
@@ -114,6 +129,7 @@ func (a *serveApp) commerceRoutes() []router.Route {
 	}
 	provider := a.commercePaymentProvider()
 	handler.PaymentProvider = provider
+	handler.ShippingProvider = a.commerceShippingProvider()
 
 	transportRoutes := handler.Routes()
 	if paytrProvider, ok := provider.(paytr.Provider); ok {

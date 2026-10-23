@@ -1,0 +1,29 @@
+id: "202610241000_commerce_shipping"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "6c702f9beb745aa0fb15e006f6242385fc9f37fbeb7daefb56182d424b0b27d7"
+  postgres: "14f84695d2ae06c64a1729fb5d69bd80c52d4a5cfb7e1fa575be037a31f3a0f1"
+  mysql: "9514b6919c388f2ab5e772bc887dde7273ba88e6178a3ab00c1ec9a580604f8b"
+dependencies:
+  - "202610231302_commerce_orders"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding four nullable/defaulted columns"
+disk_estimate: "Four small columns per existing order row"
+compatibility: "Additive only. The new commerce_customer_orders columns default to ''/NULL; a pre-existing order read back has an empty shipping_carrier (never shipped through a provider) until a shipment is created for it, which is fine since nothing treats these columns as authoritative until Service.CreateShipment sets them."
+smoke:
+  - "An order created before this migration still reads back without error, with the new shipping columns at their defaults"
+  - "Service.CreateShipment is called twice for the same order and only writes the shipment columns once (guarded by fulfillment_status, the same pattern as UpdatePaymentStatus)"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

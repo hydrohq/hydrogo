@@ -421,3 +421,117 @@ func TestCheckoutRejectsAnInvalidDiscountCodeWithoutCreatingAnOrder(t *testing.T
 		t.Fatalf("a rejected discount code must leave stock untouched (rolled back), got %+v", stock)
 	}
 }
+
+type fakeShippingProvider struct {
+	name  string
+	calls int
+	err   error
+}
+
+func (f *fakeShippingProvider) Name() string { return f.name }
+
+func (f *fakeShippingProvider) CreateShipment(ctx context.Context, order commerce.Order, items []commerce.OrderItem) (commerce.ShipmentResult, error) {
+	f.calls++
+	if f.err != nil {
+		return commerce.ShipmentResult{}, f.err
+	}
+	return commerce.ShipmentResult{TrackingNumber: "TRK-" + order.ID, TrackingURL: "https://example.com/track/" + order.ID}, nil
+}
+
+func payOrder(t *testing.T, svc commerce.Service, db database.Executor, orderID string) {
+	t.Helper()
+	if _, err := svc.ConfirmPayment(context.Background(), db, "paytr", "evt-"+orderID, orderID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateShipmentRecordsTrackingAndMovesOrderToShipped(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-ship", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-ship", 1, 10000)
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-ship-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payOrder(t, svc, db, order.ID)
+
+	provider := &fakeShippingProvider{name: "yurtici-kargo"}
+	shipped, err := svc.CreateShipment(ctx, db, provider, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shipped.FulfillmentStatus != commerce.FulfillmentShipped {
+		t.Fatalf("fulfillment_status = %q, want shipped", shipped.FulfillmentStatus)
+	}
+	if shipped.ShippingCarrier != "yurtici-kargo" || shipped.ShippingTrackingNumber != "TRK-"+order.ID {
+		t.Fatalf("unexpected shipping fields: %+v", shipped)
+	}
+	if provider.calls != 1 {
+		t.Fatalf("provider called %d times, want 1", provider.calls)
+	}
+}
+
+func TestCreateShipmentRejectsAnUnpaidOrder(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-unpaid", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-unpaid", 1, 10000)
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-unpaid-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	provider := &fakeShippingProvider{name: "yurtici-kargo"}
+	_, err = svc.CreateShipment(ctx, db, provider, order.ID)
+	if !errors.Is(err, commerce.ErrOrderNotShippable) {
+		t.Fatalf("expected ErrOrderNotShippable, got %v", err)
+	}
+	if provider.calls != 0 {
+		t.Fatal("the carrier must never be called for an unpaid order")
+	}
+}
+
+// TestCreateShipmentRejectsAnAlreadyShippedOrderWithoutCallingTheCarrierAgain
+// is the real-world-side-effect-safe version of
+// TestConfirmPaymentCommitsReservationExactlyOnce's guard proof: unlike a
+// payment webhook dedup (which protects a write after an external event
+// already happened), the carrier call here IS the external event, so a
+// retried request must never reach the carrier a second time, not just
+// avoid a second database write.
+func TestCreateShipmentRejectsAnAlreadyShippedOrderWithoutCallingTheCarrierAgain(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-reship", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-reship", 1, 10000)
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-reship-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payOrder(t, svc, db, order.ID)
+
+	provider := &fakeShippingProvider{name: "yurtici-kargo"}
+	if _, err := svc.CreateShipment(ctx, db, provider, order.ID); err != nil {
+		t.Fatal(err)
+	}
+	if provider.calls != 1 {
+		t.Fatalf("provider called %d times after the first shipment, want 1", provider.calls)
+	}
+
+	_, err = svc.CreateShipment(ctx, db, provider, order.ID)
+	if !errors.Is(err, commerce.ErrOrderNotShippable) {
+		t.Fatalf("expected ErrOrderNotShippable on a retry, got %v", err)
+	}
+	if provider.calls != 1 {
+		t.Fatalf("provider called %d times after a retry, want 1 (the carrier must never be called twice for the same order)", provider.calls)
+	}
+}

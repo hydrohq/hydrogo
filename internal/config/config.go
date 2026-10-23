@@ -66,10 +66,11 @@ func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.Cha
 // configured, a project just has no way to redirect a shopper to a hosted
 // payment page yet.
 type Commerce struct {
-	PayTR      PayTR      `yaml:"paytr"`
-	Tax        Tax        `yaml:"tax"`
-	Shipping   Shipping   `yaml:"shipping"`
-	Currencies Currencies `yaml:"currencies"`
+	PayTR        PayTR        `yaml:"paytr"`
+	Tax          Tax          `yaml:"tax"`
+	Shipping     Shipping     `yaml:"shipping"`
+	Currencies   Currencies   `yaml:"currencies"`
+	YurticiKargo YurticiKargo `yaml:"yurtici_kargo"`
 }
 
 // Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds
@@ -122,6 +123,20 @@ type PayTR struct {
 // the provider; it is intentionally cheap to check from cmd/hydro's route
 // wiring without importing modules/commerce/providers/paytr there.
 func (p PayTR) Enabled() bool { return p.MerchantID != "" }
+
+// YurticiKargo holds one account's Yurtiçi Kargo web service credentials --
+// see modules/commerce/providers/yurticikargo's package doc comment for
+// this integration's unverified status. WSUserName/WSPassword are secrets:
+// set them in a protected, untracked config file or through the deployment
+// environment, never in a committed preset.
+type YurticiKargo struct {
+	WSUserName string `yaml:"ws_username"`
+	WSPassword string `yaml:"ws_password"`
+}
+
+// Enabled reports whether enough configuration is present to start the
+// provider, the same cheap pre-import check PayTR.Enabled gives cmd/hydro.
+func (y YurticiKargo) Enabled() bool { return y.WSUserName != "" && y.WSPassword != "" }
 
 // Limits holds operator-tunable resource caps.
 type Limits struct {
