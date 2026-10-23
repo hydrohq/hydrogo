@@ -423,6 +423,58 @@ func TestListOrdersByMemberIDReturnsOnlyThatMembersOrdersNewestFirst(t *testing.
 	}
 }
 
+func TestListOrdersFiltersByStatusAndPaginatesNewestFirst(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	store := Store{Dialect: database.SQLite}
+	t0 := time.Now().UTC().Add(-3 * time.Hour)
+
+	seed := func(id string, payment commerce.PaymentStatus, offset time.Duration) {
+		when := t0.Add(offset)
+		order := commerce.Order{ID: id, MemberID: "member-list-" + id, IdempotencyKey: "idem-" + id, IdempotencyHash: "h", Currency: "TRY", PaymentStatus: payment, FulfillmentStatus: commerce.FulfillmentUnfulfilled, CreatedAt: when, UpdatedAt: when}
+		if _, _, err := store.CreateOrder(ctx, db, order, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seed("order-list-1", commerce.PaymentPending, time.Hour)
+	seed("order-list-2", commerce.PaymentPaid, 2*time.Hour)
+	seed("order-list-3", commerce.PaymentPaid, 3*time.Hour)
+
+	all, err := store.ListOrders(ctx, db, "", "", 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 3 || all[0].ID != "order-list-3" || all[2].ID != "order-list-1" {
+		t.Fatalf("expected newest first, got %+v", all)
+	}
+
+	paidOnly, err := store.ListOrders(ctx, db, commerce.PaymentPaid, "", 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paidOnly) != 2 {
+		t.Fatalf("expected 2 paid orders, got %d", len(paidOnly))
+	}
+
+	// limit+1 rows come back by design (the caller trims and uses the
+	// extra row only to know another page exists), so a limit of 1 on a
+	// 3-order table returns 2 rows, the first of which is the real page.
+	firstPage, err := store.ListOrders(ctx, db, "", "", 1, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(firstPage) != 2 || firstPage[0].ID != "order-list-3" {
+		t.Fatalf("expected [order-list-3, +1 lookahead], got %+v", firstPage)
+	}
+	lastPage, err := store.ListOrders(ctx, db, "", "", 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lastPage) != 1 || lastPage[0].ID != "order-list-1" {
+		t.Fatalf("expected the last page to be exactly [order-list-1] with no lookahead row, got %+v", lastPage)
+	}
+}
+
 func TestGetOrderByMemberIDRejectsAnotherMembersOrder(t *testing.T) {
 	db := newTestDB(t)
 	ctx := context.Background()

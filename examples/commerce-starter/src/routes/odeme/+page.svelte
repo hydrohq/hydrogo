@@ -71,9 +71,13 @@
       <input id="guest_city" name="guest_city" type="text" required value={form?.guestCity ?? ''} />
     </div>
     <div>
-      <label for="guest_postal_code">Posta kodu</label>
-      <input id="guest_postal_code" name="guest_postal_code" type="text" value={form?.guestPostalCode ?? ''} />
+      <label for="guest_district">İlçe</label>
+      <input id="guest_district" name="guest_district" type="text" required value={form?.guestDistrict ?? ''} />
     </div>
+  </div>
+  <div>
+    <label for="guest_postal_code">Posta kodu</label>
+    <input id="guest_postal_code" name="guest_postal_code" type="text" value={form?.guestPostalCode ?? ''} />
   </div>
   <div>
     <label for="guest_country">Ülke</label>

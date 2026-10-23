@@ -253,6 +253,25 @@
         {/if}
       </a>
       {/if}
+
+      {#if moduleOn('commerce')}
+      <!-- Commerce orders -->
+      <a
+        href="/admin/commerce"
+        onclick={() => handleNavigate('/commerce')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.orders')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+          <path d="M3 6h18"></path>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.orders')}</span>
+        {/if}
+      </a>
+      {/if}
     </div>
 
     <!-- NavDocuments (Matches official nav-documents.tsx) -->
