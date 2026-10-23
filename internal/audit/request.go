@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"io"
 	"net/http"
 	"strings"
@@ -72,7 +73,7 @@ func (l RequestLog) Middleware(next http.Handler) http.Handler {
 		if user == nil || !user.Active {
 			return
 		}
-		details := RequestDetails(r.Method, r.URL.Path, r.URL.RawQuery, recorder.status, r.RemoteAddr, r.UserAgent(), captured, oversize)
+		details := RequestDetails(r.Method, r.URL.Path, r.URL.RawQuery, recorder.status, requestmeta.ClientIP(r), r.UserAgent(), captured, oversize)
 		target := r.Method + " " + r.URL.Path
 		if len(target) > maxTargetLength {
 			target = target[:maxTargetLength]

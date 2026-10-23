@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -144,11 +142,7 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		if !route.Protected {
 			access = router.Public
 		}
-		handler := route.Handler
-		if route.Permission != "" {
-			handler = requireStaffPermission(route.Permission, handler)
-		}
-		routes = append(routes, router.Route{Pattern: route.Pattern, Access: access, Handler: handler})
+		routes = append(routes, router.Route{Pattern: route.Pattern, Access: access, Permission: route.Permission, Handler: route.Handler})
 	}
 	return routes
 }
@@ -236,16 +230,4 @@ func runCommerceReconciliationAlert(ctx context.Context, service commerce.Servic
 		case <-ticker.C:
 		}
 	}
-}
-
-// requireStaffPermission refuses a signed-in staff user who lacks the
-// permission. router.Protected only proves the caller is active staff.
-func requireStaffPermission(permission string, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !auth.Can(auth.UserFromContext(r.Context()), permission) {
-			api.WriteError(w, r, http.StatusForbidden, "permission required: "+permission, nil)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
