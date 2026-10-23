@@ -70,6 +70,12 @@ type Config struct {
 	// Requests beyond the cap fail fast with 503 instead of queuing behind
 	// already-admitted work (ADR-0333). Non-positive disables the limiter.
 	MaxInFlightRequests int
+	// CSRFExemptPaths skips CSRF validation entirely for the listed routes:
+	// an inbound third-party webhook (a payment provider's callback) has no
+	// browser session to carry the double-submit cookie, and its own
+	// request signature is the real security boundary. See
+	// security.CSRFMiddleware's own doc comment.
+	CSRFExemptPaths []string
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -241,7 +247,7 @@ func NewHandler(config Config) http.Handler {
 	// Individual pages and news articles always render a cookie-consent or
 	// helpful-feedback widget bound to the CSRF cookie, so they keep today's
 	// behavior unchanged.
-	handler = security.CSRFMiddleware(config.SecureCookie, publicContentCacheEligible)(handler)
+	handler = security.CSRFMiddleware(config.SecureCookie, publicContentCacheEligible, config.CSRFExemptPaths...)(handler)
 
 	if config.Maintenance.Enabled != nil {
 		handler = MaintenanceMiddleware(config.Maintenance)(handler)
