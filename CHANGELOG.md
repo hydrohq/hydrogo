@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Admin: a "Jobs" section under System → Async Workers & Jobs lists pending/leased and dead-lettered jobs for any project, with requeue and delete actions (`GET/POST/DELETE /api/v1/admin/jobs...`), reusing the core-owned job queue (ADR `0010-generic-reports-and-jobs.md`) that previously only had a CLI (`hydro jobs dead-letter`).
 - `examples/crm-starter`: a SvelteKit sales panel (deal board, companies, contacts, activities, tasks; English and Turkish) for `--preset crm` projects. HydroGo's session cookie stays on the panel server, the browser only gets an opaque cookie. `hydro new --starter crm` copies it into `frontend/`; CI runs its checks and tests.
 - `hydro new --preset crm`: a CRM backend with no pages or news (modules core, auth, media, collections) and four stock types, companies, contacts, deals and activities (`content-types/crm/`), linked by relations and filterable by stage, owner, due date and more.
 - `scripts/ci-local.sh` runs the CI jobs on a developer machine with act.
