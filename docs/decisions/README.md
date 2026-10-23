@@ -11,6 +11,7 @@
 | [0007](0007-template-cms-distribution.md) | Distribute HydroGo as a template CMS | Accepted |
 | [0008](0008-business-application-capabilities.md) | Business-application capabilities in core | Proposed |
 | [0009](0009-core-owned-event-outbox-and-migration-baseline.md) | Core-owned event outbox and a migration baseline for new databases | Accepted |
+| [0012](0012-commerce-catalog-as-content-types.md) | Commerce catalog as content types, not a new engine feature | Accepted (Phase 1 of 4) |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.
