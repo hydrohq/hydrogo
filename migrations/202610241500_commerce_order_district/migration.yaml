@@ -1,0 +1,28 @@
+id: "202610241500_commerce_order_district"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "21a3f1019bd9674440eeee616bc7e7091b988aa2153e72ff6c273cfdd161ff3e"
+  postgres: "1ee902e362eddc80f5ab87cf7eb095df6d5640ce5b8011eb5da7abc433a9a753"
+  mysql: "ae2e0e95dc5007fd7a085f0ee6496e1ec6180741dcff7c887725b43c767dbf42"
+dependencies:
+  - "202610231302_commerce_orders"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding one defaulted column"
+disk_estimate: "One small column per existing order row"
+compatibility: "Additive only. The new column defaults to '' for any pre-existing order; nothing treats it as authoritative until checkout starts sending it."
+smoke:
+  - "An order created before this migration still reads back without error, with guest_district at its default"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -166,6 +167,11 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true},
 		{Pattern: "POST /api/v1/admin/commerce/discount-codes", Handler: http.HandlerFunc(h.createDiscountCode), Protected: true},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true},
+		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true},
+		// Same handler as the public, guest-trust-model read above: an
+		// admin session is simply a second, stronger way to pass the same
+		// access check (knowing the order's id, or now, being an admin).
+		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true},
 	}
 }
 
@@ -268,6 +274,7 @@ type checkoutRequest struct {
 	GuestPhone      string `json:"guest_phone"`
 	GuestAddress    string `json:"guest_address"`
 	GuestCity       string `json:"guest_city"`
+	GuestDistrict   string `json:"guest_district"`
 	GuestCountry    string `json:"guest_country"`
 	GuestPostalCode string `json:"guest_postal_code"`
 	IdempotencyKey  string `json:"idempotency_key"`
@@ -310,7 +317,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	order, err := h.Service.Checkout(r.Context(), commerce.CheckoutRequest{
 		CartID: cart.ID, MemberID: memberID,
 		GuestName: input.GuestName, GuestEmail: input.GuestEmail, GuestPhone: input.GuestPhone,
-		GuestAddress: input.GuestAddress, GuestCity: input.GuestCity, GuestCountry: input.GuestCountry, GuestPostalCode: input.GuestPostalCode,
+		GuestAddress: input.GuestAddress, GuestCity: input.GuestCity, GuestDistrict: input.GuestDistrict, GuestCountry: input.GuestCountry, GuestPostalCode: input.GuestPostalCode,
 		IdempotencyKey: input.IdempotencyKey, DiscountCode: input.DiscountCode,
 		ItemTitles: input.ItemTitles, ItemSKUs: input.ItemSKUs,
 	})
@@ -595,4 +602,50 @@ func (h Handler) createShipment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteData(w, http.StatusOK, order, nil)
+}
+
+func intQueryParam(values map[string][]string, key string, fallback int) int {
+	raw := ""
+	if v, ok := values[key]; ok && len(v) > 0 {
+		raw = v[0]
+	}
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed < 0 {
+		return fallback
+	}
+	return parsed
+}
+
+// listOrdersAdmin is the order-browsing screen's data source: there is no
+// public equivalent (unlike getOrder, which a guest can reach by knowing
+// their own order id) -- seeing every order is operator-only.
+func (h Handler) listOrdersAdmin(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit := intQueryParam(query, "limit", 25)
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := intQueryParam(query, "offset", 0)
+	paymentStatus := commerce.PaymentStatus(strings.TrimSpace(query.Get("payment_status")))
+	fulfillmentStatus := commerce.FulfillmentStatus(strings.TrimSpace(query.Get("fulfillment_status")))
+
+	orders, err := h.Service.Repository.ListOrders(r.Context(), h.DB, paymentStatus, fulfillmentStatus, limit, offset)
+	if err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	hasMore := len(orders) > limit
+	if hasMore {
+		orders = orders[:limit]
+	}
+	if orders == nil {
+		orders = []commerce.Order{}
+	}
+	api.WriteList(w, orders, api.PaginationMeta{Limit: limit, Offset: offset, HasMore: hasMore})
 }

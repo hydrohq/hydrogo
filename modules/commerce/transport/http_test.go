@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -789,5 +790,106 @@ func TestCreateShipmentEndpointReturns409ForAnUnpaidOrder(t *testing.T) {
 	h.createShipment(rec, req)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestListOrdersAdminTrimsToLimitAndReportsHasMore(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	for i, key := range []string{"list-a", "list-b", "list-c"} {
+		variant := "variant-" + key
+		if err := h.Service.Repository.EnsureStock(ctx, db, variant, 3); err != nil {
+			t.Fatal(err)
+		}
+		cart, err := h.Service.GetOrCreateCart(ctx, db, "", "anon-"+key, "TRY")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := h.Service.AddItem(ctx, db, cart.ID, variant, 1, int64(1000*(i+1))); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-" + key}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/orders?limit=2", nil)
+	rec := httptest.NewRecorder()
+	h.listOrdersAdmin(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list orders: %d %s", rec.Code, rec.Body)
+	}
+	var envelope struct {
+		Data     []commerce.Order `json:"data"`
+		Metadata struct {
+			Limit   int  `json:"limit"`
+			HasMore bool `json:"has_more"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if len(envelope.Data) != 2 || !envelope.Metadata.HasMore || envelope.Metadata.Limit != 2 {
+		t.Fatalf("expected 2 orders and has_more=true, got %d orders, metadata %+v", len(envelope.Data), envelope.Metadata)
+	}
+
+	lastReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/orders?limit=2&offset=2", nil)
+	lastRec := httptest.NewRecorder()
+	h.listOrdersAdmin(lastRec, lastReq)
+	var last struct {
+		Data     []commerce.Order `json:"data"`
+		Metadata struct {
+			HasMore bool `json:"has_more"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal(lastRec.Body.Bytes(), &last); err != nil {
+		t.Fatalf("decode: %v (%s)", err, lastRec.Body.String())
+	}
+	if len(last.Data) != 1 || last.Metadata.HasMore {
+		t.Fatalf("expected the last page to have 1 order and has_more=false, got %d, %+v", len(last.Data), last.Metadata)
+	}
+}
+
+func TestListOrdersAdminReturnsAnEmptyArrayNotNull(t *testing.T) {
+	h, _ := newTestHandler(t)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/orders", nil)
+	rec := httptest.NewRecorder()
+	h.listOrdersAdmin(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list orders: %d %s", rec.Code, rec.Body)
+	}
+	if !strings.Contains(rec.Body.String(), `"data":[]`) {
+		t.Fatalf("an empty order list must serialize as [] so the admin can iterate it, got %s", rec.Body.String())
+	}
+}
+
+func TestCheckoutPersistsTheGuestDistrict(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-district", 3); err != nil {
+		t.Fatal(err)
+	}
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-district","quantity":1,"unit_price_cents":1000}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","guest_city":"İstanbul","guest_district":"Kadıköy","idempotency_key":"http-idem-district-1"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
+	var created commerce.Order
+	decodeBody(t, checkoutRec, &created)
+	stored, err := h.Service.Repository.GetOrder(ctx, db, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GuestDistrict != "Kadıköy" {
+		t.Fatalf("guest_district = %q, want Kadıköy", stored.GuestDistrict)
 	}
 }
