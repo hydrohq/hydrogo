@@ -15,6 +15,7 @@ import (
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
 // initMetrics creates the runtime metrics and their cache, job and database
@@ -105,6 +106,9 @@ func (a *serveApp) startWorkers() {
 	}
 	if modules["news"] && !cgiMode && !cfg.SafeMode {
 		go runNewsWorker(ctx, db, a.newsWorker, metrics, stderr, a.budget.WorkerConcurrency)
+	}
+	if modules["commerce"] && !cgiMode && !cfg.SafeMode {
+		go runCommerceReservationSweeper(ctx, commerce.Worker{Service: a.commerceService()}, db, stderr)
 	}
 	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
 		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)

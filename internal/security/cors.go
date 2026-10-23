@@ -38,11 +38,14 @@ func NewPublicReadCORSMiddleware(origins []string) (func(http.Handler) http.Hand
 	}, nil
 }
 
+// Catalog reads (products, variants, categories) go through the generic
+// content-type API, not a commerce-specific path -- see
+// content-types/commerce/*.yaml. The commerce module itself has no
+// published GET projection: its only GET (cart) is cookie-identity-scoped,
+// not meant for anonymous cross-origin reads, and every other commerce
+// endpoint is a write, already excluded by the GET/HEAD check above.
 func isPublicReadAPIPath(path string) bool {
-	if path == "/api/v1/pages" || path == "/api/v1/pages/by-slug" || path == "/api/v1/news" || path == "/api/v1/news/by-slug" || path == "/api/v1/commerce/products" {
-		return true
-	}
-	return strings.HasPrefix(path, "/api/v1/commerce/products/") && strings.HasSuffix(path, "/variants")
+	return path == "/api/v1/pages" || path == "/api/v1/pages/by-slug" || path == "/api/v1/news" || path == "/api/v1/news/by-slug"
 }
 
 func normalizeOrigin(value string) (string, error) {

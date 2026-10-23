@@ -1,0 +1,29 @@
+id: "202610231302_commerce_orders"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "2651633e19748677055bf5743c249f09680fe09932b73a7a3f1995ae2fa3e877"
+  postgres: "92799c82eb69f4219fdc02bed48fa759b97f16a85e96a69396c8e70a7fa14c46"
+  mysql: "9bba68262ba6d1d3bb31e1f5dd4090a3494e04dfef3fa77c0073882298a50868"
+dependencies:
+  - "202610231301_commerce_carts"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; two small table creations"
+disk_estimate: "One row per order plus one row per distinct line item"
+compatibility: "New tables, additive only; no existing reader or writer is affected."
+smoke:
+  - "Two checkout requests with the same tenant and idempotency_key produce exactly one order"
+  - "A guest order (member_id null) still enforces idempotency, since the unique index does not include member_id"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

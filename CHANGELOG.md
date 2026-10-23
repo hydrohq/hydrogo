@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MySQL: concurrent audited writes no longer deadlock on the audit chain head (found by running the new SQL on a real server), and a transaction the database aborts for a lock race (deadlock, lock wait timeout, serialization failure) now answers 409 so the request can be retried, instead of 500.
 
 ### Added
+- `modules/commerce` (Phase 2 of 4, see `docs/decisions/0013-commerce-cart-checkout-module.md`): stock, cart, checkout and order lifecycle with atomic last-unit stock reservation (`available >= ?`, no retry loop), idempotent guest/member checkout, idempotent payment webhook handling, and an anonymous visitor cart cookie. `config/presets/commerce.yaml`; `order.paid`/`order.fulfilled` added to the event catalog alongside the existing `order.created`. Members' `/member/orders` and `/api/v1/mobile/member/orders` work again against real orders.
 - Admin: a "Services" tab under System lists the configured hook services (host, calls and failures since start, last call, content types using them, schedules). It appears only when `hooks:` is configured; `GET /api/v1/admin/system/services`.
 - The admin schema leaves out fields whose `permission` the signed-in user lacks, so forms and lists no longer show a label for a value the API never sends.
 - `@hydrogo/client`: `listContent` takes `after` (cursor paging), `expand` and filter operators (`{amount: {gte: "100"}}`), and the list metadata types `next_cursor`.
