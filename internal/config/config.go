@@ -45,7 +45,42 @@ type Config struct {
 // configured, a project just has no way to redirect a shopper to a hosted
 // payment page yet.
 type Commerce struct {
-	PayTR PayTR `yaml:"paytr"`
+	PayTR      PayTR      `yaml:"paytr"`
+	Tax        Tax        `yaml:"tax"`
+	Shipping   Shipping   `yaml:"shipping"`
+	Currencies Currencies `yaml:"currencies"`
+}
+
+// Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds
+// no tax at all -- a project that has not decided its tax setup yet is
+// unaffected.
+type Tax struct {
+	// Rate is e.g. 0.20 for 20% KDV. Must be 0 (disabled) or in (0, 1).
+	Rate float64 `yaml:"rate"`
+	// Inclusive means catalog prices already include tax (common in
+	// Turkish retail): the rate is then used only to break the tax amount
+	// out for the receipt, never added on top of the price. False means
+	// catalog prices are pre-tax and the rate is added at checkout.
+	Inclusive bool `yaml:"inclusive"`
+}
+
+// Shipping configures a single flat shipping fee, optionally waived above
+// a subtotal threshold. The zero value adds no shipping fee.
+type Shipping struct {
+	FlatRateCents  int64 `yaml:"flat_rate_cents"`
+	FreeAboveCents int64 `yaml:"free_above_cents"`
+}
+
+// Currencies configures the storefront's display-currency switcher. This
+// never changes what is actually charged -- checkout and PayTR always use
+// Default; Display/Rates are presentation only, a static, operator-
+// maintained conversion a storefront can show a visitor without this
+// project taking on live FX risk or multi-currency settlement. The zero
+// value (no Display currencies) shows prices in Default only.
+type Currencies struct {
+	Default string             `yaml:"default"`
+	Display []string           `yaml:"display"`
+	Rates   map[string]float64 `yaml:"rates"`
 }
 
 // PayTR holds one merchant's PayTR credentials. MerchantKey and

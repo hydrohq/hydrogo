@@ -1,0 +1,29 @@
+id: "202610240001_commerce_checkout_pricing"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "f9cef470fe1cf35bd9081a07d9f4d456702f35b41cfd61f8b3eb5d2aac975b30"
+  postgres: "9290df046f4ff6cc449893eb76c5b3dead9c32e4c2aca489941ba54c675d8a29"
+  mysql: "c1f05e01c02b4cfc2596d908065e23647e5662731d1acc95de2894f6324734fa"
+dependencies:
+  - "202610231302_commerce_orders"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding five nullable/defaulted columns plus one new table"
+disk_estimate: "Five small columns per existing order row; one row per discount code"
+compatibility: "Additive only. The new commerce_customer_orders columns default to 0/''; a pre-existing order read back has subtotal_cents=0 until the next write recomputes it, which is fine since it is only ever read for display -- no code treats it as authoritative for an already-charged order."
+smoke:
+  - "An order created before this migration still reads back without error, with the new pricing columns at their defaults"
+  - "Redeeming a discount code twice concurrently for the same code never exceeds max_redemptions"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

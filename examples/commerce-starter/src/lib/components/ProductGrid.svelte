@@ -1,8 +1,13 @@
 <script lang="ts">
-  import type { Product } from '$lib/catalog';
+  import type { CurrenciesConfig, Product } from '$lib/catalog';
   import ProductCard from './ProductCard.svelte';
 
-  let { products, emptyMessage = 'Bu bölümde henüz ürün yok.' }: { products: Product[]; emptyMessage?: string } = $props();
+  let {
+    products,
+    emptyMessage = 'Bu bölümde henüz ürün yok.',
+    displayCurrency,
+    currencies
+  }: { products: Product[]; emptyMessage?: string; displayCurrency?: string; currencies?: CurrenciesConfig } = $props();
 </script>
 
 {#if products.length === 0}
@@ -10,7 +15,7 @@
 {:else}
   <div class="product-grid">
     {#each products as product (product.id)}
-      <ProductCard {product} />
+      <ProductCard {product} {displayCurrency} {currencies} />
     {/each}
   </div>
 {/if}

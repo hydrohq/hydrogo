@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -437,5 +438,119 @@ func TestGetOrderByMemberIDRejectsAnotherMembersOrder(t *testing.T) {
 	}
 	if _, err := store.GetOrderByMemberID(ctx, db, "member-b", "order-owned"); !errors.Is(err, commerce.ErrOrderNotFound) {
 		t.Fatalf("expected ErrOrderNotFound for a non-owning member, got %v", err)
+	}
+}
+
+func TestCreateOrderPersistsThePricingBreakdown(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	store := Store{Dialect: database.SQLite}
+
+	order := commerce.Order{
+		ID: "order-pricing", GuestEmail: "a@example.com", IdempotencyKey: "idem-pricing", IdempotencyHash: "h", Currency: "TRY",
+		SubtotalCents: 10000, DiscountCode: "SAVE10", DiscountCents: 1000, TaxCents: 1600, ShippingCents: 500, TotalCents: 11100,
+		PaymentStatus: commerce.PaymentPending, FulfillmentStatus: commerce.FulfillmentUnfulfilled, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+	}
+	if _, _, err := store.CreateOrder(ctx, db, order, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetOrder(ctx, db, "order-pricing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SubtotalCents != 10000 || got.DiscountCode != "SAVE10" || got.DiscountCents != 1000 || got.TaxCents != 1600 || got.ShippingCents != 500 || got.TotalCents != 11100 {
+		t.Fatalf("pricing breakdown did not round-trip, got %+v", got)
+	}
+}
+
+func TestCreateDiscountCodeThenGetByCode(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	store := Store{Dialect: database.SQLite}
+
+	code := commerce.DiscountCode{ID: "disc-1", Code: "SAVE10", Kind: commerce.DiscountPercent, Value: 10, Active: true, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	if err := store.CreateDiscountCode(ctx, db, code); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetDiscountCodeByCode(ctx, db, "SAVE10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "disc-1" || got.Kind != commerce.DiscountPercent || got.Value != 10 || !got.Active {
+		t.Fatalf("unexpected code: %+v", got)
+	}
+
+	if _, err := store.GetDiscountCodeByCode(ctx, db, "DOES-NOT-EXIST"); !errors.Is(err, commerce.ErrDiscountCodeNotFound) {
+		t.Fatalf("expected ErrDiscountCodeNotFound, got %v", err)
+	}
+}
+
+func TestRedeemDiscountCodeIsAtomicAtTheRedemptionLimit(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	store := Store{Dialect: database.SQLite}
+
+	code := commerce.DiscountCode{ID: "disc-limited", Code: "ONLYONE", Kind: commerce.DiscountFixed, Value: 500, Active: true, MaxRedemptions: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	if err := store.CreateDiscountCode(ctx, db, code); err != nil {
+		t.Fatal(err)
+	}
+
+	const attempts = 5
+	results := make(chan bool, attempts)
+	var wg sync.WaitGroup
+	for i := 0; i < attempts; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ok, err := store.RedeemDiscountCode(ctx, db, "disc-limited", 1)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			results <- ok
+		}()
+	}
+	wg.Wait()
+	close(results)
+	succeeded := 0
+	for ok := range results {
+		if ok {
+			succeeded++
+		}
+	}
+	if succeeded != 1 {
+		t.Fatalf("expected exactly 1 of %d concurrent redemptions to succeed when max_redemptions=1, got %d", attempts, succeeded)
+	}
+
+	got, err := store.GetDiscountCodeByCode(ctx, db, "ONLYONE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RedeemedCount != 1 {
+		t.Fatalf("redeemed_count = %d, want 1", got.RedeemedCount)
+	}
+}
+
+func TestRedeemDiscountCodeWithNoLimitAlwaysSucceeds(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	store := Store{Dialect: database.SQLite}
+
+	code := commerce.DiscountCode{ID: "disc-unlimited", Code: "ALWAYS", Kind: commerce.DiscountFixed, Value: 100, Active: true, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	if err := store.CreateDiscountCode(ctx, db, code); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		ok, err := store.RedeemDiscountCode(ctx, db, "disc-unlimited", 0)
+		if err != nil || !ok {
+			t.Fatalf("redemption %d: ok=%v err=%v", i, ok, err)
+		}
+	}
+	got, err := store.GetDiscountCodeByCode(ctx, db, "ALWAYS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RedeemedCount != 3 {
+		t.Fatalf("redeemed_count = %d, want 3", got.RedeemedCount)
 	}
 }

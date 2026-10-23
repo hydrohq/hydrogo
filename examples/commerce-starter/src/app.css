@@ -23,6 +23,10 @@ button, .btn { font: inherit; cursor: pointer; }
 .shell-header .cart-link { margin-left: .75rem; }
 .search-form input { border: 1px solid var(--line); border-radius: 999px; padding: .4rem .9rem; font: inherit; width: 12rem; background: var(--bg); color: var(--ink); }
 
+.currency-switch { display: flex; gap: .3rem; font-size: .85rem; }
+.currency-switch a { padding: .25rem .6rem; border: 1px solid var(--line); border-radius: 999px; color: var(--soft); }
+.currency-switch a[aria-current] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
 .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin: 2.5rem 0 1rem; }
 .section-heading h2 { margin: 0; font-size: 1.3rem; }
 .section-heading a { font-size: .9rem; white-space: nowrap; }

@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { hydro, toHttpError } from '$lib/server/hydro';
+import { getCheckoutConfig } from '$lib/server/commerce';
 import type { Category, Product } from '$lib/catalog';
 
 const PRODUCTS_PER_SECTION = 4;
@@ -8,7 +9,7 @@ export type CategorySection = { category: Category; products: Product[] };
 
 export const load: PageServerLoad = async () => {
   try {
-    const categories = await hydro.listContent<Category>('categories', { limit: 6, sort: 'name' });
+    const [categories, checkoutConfig] = await Promise.all([hydro.listContent<Category>('categories', { limit: 6, sort: 'name' }), getCheckoutConfig()]);
 
     const sections: CategorySection[] = [];
     for (const category of categories.data) {
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async () => {
       latest = products.data;
     }
 
-    return { sections, latest };
+    return { sections, latest, freeShippingAboveCents: checkoutConfig.shipping_free_above_cents };
   } catch (err) {
     toHttpError(err);
   }

@@ -25,8 +25,21 @@ reverse proxy can be refused.
 
 `/` (per-category sections), `/kategori/[slug]` (category landing, with a
 sort switcher), `/arama?q=` (search), `/urun/[slug]` (product detail:
-gallery, variant image swap, related products), `/sepet`, `/odeme`,
-`/siparis/[id]`, `/odeme/sonuc` (PayTR redirect landing).
+gallery, variant image swap, related products), `/sepet`, `/odeme` (with a
+discount code field and a tax/shipping estimate), `/siparis/[id]` (full
+subtotal/discount/tax/shipping/total receipt), `/odeme/sonuc` (PayTR
+redirect landing), `/para-birimi/[code]` (switches the display currency).
+
+## Tax, shipping, discount codes, currencies
+
+All four are configured on the HydroGo side (`commerce.tax`,
+`commerce.shipping`, `commerce.currencies`; discount codes via `POST
+/api/v1/admin/commerce/discount-codes`), not in this starter -- see
+`docs/decisions/0017-commerce-tax-shipping-discounts-currencies.md`. The
+currency switcher only changes how a price is *shown*
+(`convertDisplayPrice`, a static operator-set rate); what actually gets
+charged is always `commerce.currencies.default`, never the display
+currency.
 
 ## How it talks to HydroGo
 
@@ -47,8 +60,9 @@ gallery, variant image swap, related products), `/sepet`, `/odeme`,
 
 ## What this is not
 
-Not a production storefront: no multi-currency, no member accounts, no
-inventory beyond what `modules/commerce` already tracks, no drag-and-drop
+Not a production storefront: no real multi-currency settlement (display
+only, see above), no member accounts, no inventory beyond what
+`modules/commerce` already tracks, no drag-and-drop
 theme editor (and none is planned for this starter specifically -- if
 HydroGo ever gets a visual page editor it belongs at the project level,
 see `docs/decisions/0016-commerce-starter-catalog-sections.md`). It is

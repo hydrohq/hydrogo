@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -29,10 +30,18 @@ type Repository interface {
 
 	CreateOrder(ctx context.Context, db database.Executor, order Order, items []OrderItem) (Order, bool, error)
 	GetOrder(ctx context.Context, db database.Executor, id string) (Order, error)
+	GetOrderByIdempotencyKey(ctx context.Context, db database.Executor, key string) (Order, bool, error)
 	ListOrderItems(ctx context.Context, db database.Executor, orderID string) ([]OrderItem, error)
 	ListPendingOrdersOlderThan(ctx context.Context, db database.Executor, cutoff time.Time, limit int) ([]Order, error)
 	UpdatePaymentStatus(ctx context.Context, db database.Executor, orderID string, from, to PaymentStatus) (bool, error)
 	RecordPaymentNotification(ctx context.Context, db database.Executor, provider, eventID string) (bool, error)
+
+	GetDiscountCodeByCode(ctx context.Context, db database.Executor, code string) (DiscountCode, error)
+	RedeemDiscountCode(ctx context.Context, db database.Executor, id string, maxRedemptions int) (bool, error)
+	// CreateDiscountCode is not called by Checkout; it is here only so the
+	// admin transport handler can reach it through the same narrow
+	// interface setStock already uses for EnsureStock.
+	CreateDiscountCode(ctx context.Context, db database.Executor, code DiscountCode) error
 }
 
 // OutboxWriter is the subset of internal/outbox/sqlstore.Store the service
@@ -54,6 +63,11 @@ type Service struct {
 	// adds no events, and a project with no configured webhooks need not
 	// pay for enqueuing them.
 	Outbox OutboxWriter
+	// Pricing is operator-set tax/shipping configuration, applied to every
+	// checkout; see PricingConfig's own doc comment. The zero value adds
+	// no tax and no shipping, exactly reproducing the total-is-just-the-
+	// subtotal behaviour this module had before Pricing existed.
+	Pricing PricingConfig
 }
 
 // emit enqueues one order lifecycle event, deterministically keyed so a
@@ -147,7 +161,18 @@ type CheckoutRequest struct {
 	// service has no direct access to content-type records.
 	ItemTitles map[string]string
 	ItemSKUs   map[string]string
+	// DiscountCode is optional; an invalid, expired, exhausted or
+	// below-minimum code returns ErrDiscountCodeInvalid rather than
+	// silently checking out at full price, so the storefront can show the
+	// shopper why it didn't apply.
+	DiscountCode string
 }
+
+// ErrDiscountCodeInvalid wraps whichever specific discount error
+// DiscountCode.DiscountFor returned, so transport can tell "this code is
+// bad" apart from every other checkout failure without matching on the
+// exact underlying reason.
+var ErrDiscountCodeInvalid = errors.New("discount code cannot be applied to this order")
 
 // Checkout reserves stock for every item in the cart and creates the order,
 // all inside one transaction: if ANY item can't be reserved (someone else
@@ -162,6 +187,18 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 	}
 	var result Order
 	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		// A retried request (the same idempotency key) returns the
+		// original order outright, without re-validating anything --
+		// re-checking the discount code here would otherwise see its own
+		// first successful redemption as "exhausted" and incorrectly fail
+		// a retry that should just succeed again with the same result.
+		if existing, found, err := s.Repository.GetOrderByIdempotencyKey(ctx, tx, req.IdempotencyKey); err != nil {
+			return err
+		} else if found {
+			result = existing
+			return nil
+		}
+
 		items, err := s.Repository.ListItems(ctx, tx, req.CartID)
 		if err != nil {
 			return err
@@ -175,7 +212,7 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 			return err
 		}
 		now := time.Now().UTC()
-		var total int64
+		var subtotal int64
 		orderItems := make([]OrderItem, 0, len(items))
 		for _, item := range items {
 			ok, err := s.Repository.ReserveStock(ctx, tx, item.VariantID, item.Quantity)
@@ -186,7 +223,7 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 				return ErrOutOfStock
 			}
 			lineTotal := item.UnitPriceCents * int64(item.Quantity)
-			total += lineTotal
+			subtotal += lineTotal
 			itemID, err := newID("oi_")
 			if err != nil {
 				return err
@@ -198,13 +235,38 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 			})
 		}
 
+		var discountCode DiscountCode
+		var hasDiscountCode bool
+		if strings.TrimSpace(req.DiscountCode) != "" {
+			discountCode, err = s.Repository.GetDiscountCodeByCode(ctx, tx, req.DiscountCode)
+			if err != nil {
+				if errors.Is(err, ErrDiscountCodeNotFound) {
+					return ErrDiscountCodeInvalid
+				}
+				return err
+			}
+			if _, discountErr := discountCode.DiscountFor(subtotal, now); discountErr != nil {
+				return ErrDiscountCodeInvalid
+			}
+			hasDiscountCode = true
+		}
+		var discountCents int64
+		if hasDiscountCode {
+			discountCents, _ = discountCode.DiscountFor(subtotal, now)
+		}
+		breakdown := s.Pricing.Price(subtotal, discountCents)
+
 		order := Order{
 			ID: orderID, MemberID: req.MemberID,
 			GuestName: req.GuestName, GuestEmail: req.GuestEmail, GuestPhone: req.GuestPhone,
 			GuestAddress: req.GuestAddress, GuestCity: req.GuestCity, GuestCountry: req.GuestCountry, GuestPostalCode: req.GuestPostalCode,
 			IdempotencyKey: req.IdempotencyKey, IdempotencyHash: req.IdempotencyKey,
-			TotalCents: total, PaymentStatus: PaymentPending, FulfillmentStatus: FulfillmentUnfulfilled,
+			SubtotalCents: breakdown.SubtotalCents, DiscountCents: breakdown.DiscountCents, TaxCents: breakdown.TaxCents, ShippingCents: breakdown.ShippingCents, TotalCents: breakdown.TotalCents,
+			PaymentStatus: PaymentPending, FulfillmentStatus: FulfillmentUnfulfilled,
 			CreatedAt: now, UpdatedAt: now,
+		}
+		if hasDiscountCode {
+			order.DiscountCode = discountCode.Code
 		}
 		if order.Currency == "" {
 			order.Currency = "TRY"
@@ -212,6 +274,11 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 		created, isNew, err := s.Repository.CreateOrder(ctx, tx, order, orderItems)
 		if err != nil {
 			return err
+		}
+		if isNew && hasDiscountCode {
+			if _, err := s.Repository.RedeemDiscountCode(ctx, tx, discountCode.ID, discountCode.MaxRedemptions); err != nil {
+				return err
+			}
 		}
 		if isNew {
 			if err := s.emit(ctx, tx, "order.created", created.ID); err != nil {

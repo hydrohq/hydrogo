@@ -49,10 +49,15 @@ func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
 // can use the same Service without going through HTTP.
 func (a *serveApp) commerceService() commerce.Service {
 	store := commercestore.Store{Dialect: a.cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+	tax, shipping := a.cfg.Commerce.Tax, a.cfg.Commerce.Shipping
 	return commerce.Service{
 		Transactions: a.transactioner,
 		Repository:   store,
 		Outbox:       outboxstore.Store{Dialect: a.cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope},
+		Pricing: commerce.PricingConfig{
+			TaxRate: tax.Rate, TaxInclusive: tax.Inclusive,
+			ShippingFlatRateCents: shipping.FlatRateCents, ShippingFreeAboveCents: shipping.FreeAboveCents,
+		},
 	}
 }
 
@@ -70,6 +75,9 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		RequireTenantScope: a.requireTenantScope,
 		CartLimiter:        a.newRateLimiter(60, time.Minute), // generous for normal browsing, still bounded
 		CheckoutLimiter:    a.newRateLimiter(10, time.Minute),
+		DefaultCurrency:    a.cfg.Commerce.Currencies.Default,
+		DisplayCurrencies:  a.cfg.Commerce.Currencies.Display,
+		CurrencyRates:      a.cfg.Commerce.Currencies.Rates,
 	}
 	if a.modules["members"] {
 		handler.MemberID = commerceMemberIDResolver(a.memberService)

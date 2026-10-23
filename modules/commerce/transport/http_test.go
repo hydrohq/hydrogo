@@ -117,6 +117,47 @@ func TestAddItemThenCheckoutEndToEnd(t *testing.T) {
 	}
 }
 
+func TestCheckoutAcceptsItemTitlesAndSKUsSoTheOrderReceiptIsNotBlank(t *testing.T) {
+	h, db := newTestHandler(t)
+	store := h.Service.Repository
+	ctx := context.Background()
+	if err := store.EnsureStock(ctx, db, "variant-http-titled", 3); err != nil {
+		t.Fatal(err)
+	}
+
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-titled","quantity":1,"unit_price_cents":1500}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(
+		`{"guest_email":"guest@example.com","idempotency_key":"http-idem-titled-1","item_titles":{"variant-http-titled":"Deri Kemer"},"item_skus":{"variant-http-titled":"KMR-001"}}`,
+	))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
+	var envelope struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(checkoutRec.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	items, err := h.Service.Repository.ListOrderItems(ctx, db, envelope.Data.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Title != "Deri Kemer" || items[0].SKU != "KMR-001" {
+		t.Fatalf("expected the submitted title/sku to reach the order item, got %+v", items)
+	}
+}
+
 func TestCheckoutReturns409WhenOutOfStock(t *testing.T) {
 	h, db := newTestHandler(t)
 	store := h.Service.Repository
@@ -182,6 +223,58 @@ func TestSetStockEndpointUpsertsAvailable(t *testing.T) {
 	}
 	if stock.Available != 7 {
 		t.Fatalf("available = %d, want 7", stock.Available)
+	}
+}
+
+func TestGetCurrenciesReturnsTheConfiguredDisplayCurrenciesAndRates(t *testing.T) {
+	h, _ := newTestHandler(t)
+	h.DisplayCurrencies = []string{"USD", "EUR"}
+	h.CurrencyRates = map[string]float64{"USD": 0.03, "EUR": 0.028}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/commerce/currencies", nil)
+	rec := httptest.NewRecorder()
+	h.getCurrencies(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get currencies: %d %s", rec.Code, rec.Body)
+	}
+	var envelope struct {
+		Data struct {
+			Default string             `json:"default"`
+			Display []string           `json:"display"`
+			Rates   map[string]float64 `json:"rates"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if envelope.Data.Default != "TRY" || len(envelope.Data.Display) != 2 || envelope.Data.Rates["USD"] != 0.03 {
+		t.Fatalf("unexpected currencies response: %+v", envelope.Data)
+	}
+}
+
+func TestGetCheckoutConfigReturnsTheConfiguredTaxAndShipping(t *testing.T) {
+	h, _ := newTestHandler(t)
+	h.Service.Pricing = commerce.PricingConfig{TaxRate: 0.20, TaxInclusive: true, ShippingFlatRateCents: 500, ShippingFreeAboveCents: 50000}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/commerce/checkout-config", nil)
+	rec := httptest.NewRecorder()
+	h.getCheckoutConfig(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get checkout config: %d %s", rec.Code, rec.Body)
+	}
+	var envelope struct {
+		Data struct {
+			TaxRate                float64 `json:"tax_rate"`
+			TaxInclusive           bool    `json:"tax_inclusive"`
+			ShippingFlatRateCents  int64   `json:"shipping_flat_rate_cents"`
+			ShippingFreeAboveCents int64   `json:"shipping_free_above_cents"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if envelope.Data.TaxRate != 0.20 || !envelope.Data.TaxInclusive || envelope.Data.ShippingFlatRateCents != 500 || envelope.Data.ShippingFreeAboveCents != 50000 {
+		t.Fatalf("unexpected checkout config: %+v", envelope.Data)
 	}
 }
 
@@ -453,5 +546,71 @@ func TestStartOrderPaymentRequiresAConfiguredProvider(t *testing.T) {
 	h.startOrderPayment(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503 with no configured provider, got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateDiscountCodeThenUseItAtCheckout(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/discount-codes", bytes.NewBufferString(`{"code":"SAVE10","kind":"percent","value":10}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRec := httptest.NewRecorder()
+	h.createDiscountCode(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create discount code: %d %s", createRec.Code, createRec.Body)
+	}
+
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-discount", 3); err != nil {
+		t.Fatal(err)
+	}
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-discount","quantity":1,"unit_price_cents":10000}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","idempotency_key":"http-idem-discount-1","discount_code":"SAVE10"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
+	var envelope struct {
+		Data struct {
+			DiscountCode  string `json:"discount_code"`
+			DiscountCents int64  `json:"discount_cents"`
+			TotalCents    int64  `json:"total_cents"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(checkoutRec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode: %v (%s)", err, checkoutRec.Body.String())
+	}
+	if envelope.Data.DiscountCode != "SAVE10" || envelope.Data.DiscountCents != 1000 || envelope.Data.TotalCents != 9000 {
+		t.Fatalf("unexpected checkout response: %+v", envelope.Data)
+	}
+}
+
+func TestCheckoutReturns422ForAnInvalidDiscountCode(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-baddiscount", 3); err != nil {
+		t.Fatal(err)
+	}
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-baddiscount","quantity":1,"unit_price_cents":10000}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","idempotency_key":"http-idem-baddiscount-1","discount_code":"NOPE"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
 }

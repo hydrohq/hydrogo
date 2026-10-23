@@ -12,6 +12,7 @@ export type CartLine = {
   productName: string;
   productSlug: string;
   productImage: string;
+  productSKU: string;
   variantLabel: string;
 };
 
@@ -28,11 +29,27 @@ async function describeLine(variantId: string, quantity: number, unitPriceCents:
       productName: product.name,
       productSlug: product.slug,
       productImage: product.cover_image,
+      productSKU: variant.sku || product.sku || '',
       variantLabel: [variant.size, variant.color].filter(Boolean).join(' / ')
     };
   } catch {
     return null;
   }
+}
+
+/** variant_id -> title/sku maps, exactly what checkout()'s item_titles/
+ * item_skus expect -- commerce has no access to the catalog records that
+ * own this data, so whoever already resolved it for display (here) is
+ * who supplies it at checkout time. */
+export function itemCatalogData(lines: CartLine[]): { itemTitles: Record<string, string>; itemSKUs: Record<string, string> } {
+  const itemTitles: Record<string, string> = {};
+  const itemSKUs: Record<string, string> = {};
+  for (const line of lines) {
+    const label = line.variantLabel ? `${line.productName} (${line.variantLabel})` : line.productName;
+    itemTitles[line.variantId] = label;
+    itemSKUs[line.variantId] = line.productSKU;
+  }
+  return { itemTitles, itemSKUs };
 }
 
 /** The signed-in visitor's cart, with each line's catalog details resolved
