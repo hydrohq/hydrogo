@@ -297,8 +297,14 @@ func (s Store) placeholder(position int) string {
 
 func (s Store) dbTimeValue(t time.Time) any {
 	t = t.UTC()
-	if s.Dialect == database.SQLite {
+	switch s.Dialect {
+	case database.SQLite:
 		return t.Format(time.RFC3339Nano)
+	case database.Postgres:
+		// The PostgreSQL columns are TEXT: handing the driver a time.Time would
+		// store Go's String() form, which parseOutboxTime cannot read back. The
+		// fixed width keeps text order equal to time order.
+		return t.Format("2006-01-02T15:04:05.000000000Z")
 	}
 	return t
 }
