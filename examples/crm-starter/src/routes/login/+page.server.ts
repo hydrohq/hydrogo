@@ -9,7 +9,7 @@ export const load: PageServerLoad = ({ locals }) => {
 };
 
 export const actions: Actions = {
-  default: async ({ request, cookies }) => {
+  default: async ({ request, cookies, locals }) => {
     const form = await request.formData();
     const email = String(form.get('email') ?? '').trim();
     const password = String(form.get('password') ?? '');
@@ -17,12 +17,18 @@ export const actions: Actions = {
     if (!email || !password) return fail(400, { error: 'invalid', email, mfa: false });
     let result;
     try {
-      result = await login(email, password, mfa);
+      result = await login(locals.tenant.hydroOrigin, email, password, mfa);
     } catch {
       return fail(502, { error: 'unavailable', email, mfa: false });
     }
     if (!result.ok) return fail(result.mfaRequired ? 401 : 400, { error: result.message, email, mfa: !!result.mfaRequired });
-    const sid = createSession({ cookie: result.cookie, csrf: result.csrf, email });
+    const sid = await createSession({
+      cookie: result.cookie,
+      csrf: result.csrf,
+      email,
+      tenantId: locals.tenant.id,
+      hydroOrigin: locals.tenant.hydroOrigin
+    });
     cookies.set('crm_sid', sid, {
       path: '/',
       httpOnly: true,
