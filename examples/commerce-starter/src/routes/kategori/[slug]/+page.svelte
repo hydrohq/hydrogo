@@ -25,4 +25,4 @@
   {/each}
 </div>
 
-<ProductGrid products={data.products} emptyMessage="Bu kategoride henüz ürün yok." />
+<ProductGrid products={data.products} emptyMessage="Bu kategoride henüz ürün yok." displayCurrency={data.displayCurrency} currencies={data.currencies} />

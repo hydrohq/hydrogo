@@ -48,7 +48,7 @@ func NewPublicReadCORSMiddleware(origins []string) (func(http.Handler) http.Hand
 // cookie-identity-scoped and stays out: SameSite=Lax would not carry that
 // cookie cross-origin anyway.
 func isPublicReadAPIPath(path string) bool {
-	if path == "/api/v1/pages" || path == "/api/v1/pages/by-slug" || path == "/api/v1/news" || path == "/api/v1/news/by-slug" {
+	if path == "/api/v1/pages" || path == "/api/v1/pages/by-slug" || path == "/api/v1/news" || path == "/api/v1/news/by-slug" || path == "/api/v1/commerce/currencies" || path == "/api/v1/commerce/checkout-config" {
 		return true
 	}
 	return strings.HasPrefix(path, "/api/v1/commerce/stock/") || strings.HasPrefix(path, "/api/v1/commerce/orders/")

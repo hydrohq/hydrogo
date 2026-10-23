@@ -225,6 +225,71 @@ func TestPayTRConfigurationRequiresKeyAndSaltWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestTaxRateMustBeAFractionBelowOne(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:tax.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.Tax = Tax{Rate: 0}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("disabled tax (rate 0) must stay valid: %v", err)
+	}
+	cfg.Commerce.Tax = Tax{Rate: 0.20}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid tax rate: %v", err)
+	}
+	cfg.Commerce.Tax = Tax{Rate: -0.1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("negative tax rate accepted")
+	}
+	cfg.Commerce.Tax = Tax{Rate: 1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("100%+ tax rate accepted")
+	}
+}
+
+func TestShippingRatesMustBeNonNegative(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:shipping.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.Shipping = Shipping{FlatRateCents: -100}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("negative flat_rate_cents accepted")
+	}
+	cfg.Commerce.Shipping = Shipping{FlatRateCents: 500, FreeAboveCents: -1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("negative free_above_cents accepted")
+	}
+	cfg.Commerce.Shipping = Shipping{FlatRateCents: 500, FreeAboveCents: 10000}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid shipping config: %v", err)
+	}
+}
+
+func TestDisplayCurrenciesRequireARateAndADefault(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:currencies.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.Currencies = Currencies{Display: []string{"USD"}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("a display currency with no default and no rate accepted")
+	}
+	cfg.Commerce.Currencies = Currencies{Default: "TRY", Display: []string{"USD"}, Rates: map[string]float64{}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("a display currency with no rate accepted")
+	}
+	cfg.Commerce.Currencies = Currencies{Default: "TRY", Display: []string{"USD"}, Rates: map[string]float64{"USD": 0.03}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid currency config: %v", err)
+	}
+	cfg.Commerce.Currencies = Currencies{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("no display currencies must stay valid: %v", err)
+	}
+}
+
 func TestGeoIPConfigurationBoundsTrustedProxyRanges(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:geoip.sqlite"}), Overrides{})
 	if err != nil {

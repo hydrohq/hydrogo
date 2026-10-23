@@ -1,9 +1,18 @@
 <script lang="ts">
-  import type { Product } from '$lib/catalog';
-  import { formatPrice } from '$lib/catalog';
+  import type { CurrenciesConfig, Product } from '$lib/catalog';
+  import { convertDisplayPrice, formatPrice } from '$lib/catalog';
   import { mediaUrl } from '$lib/media';
 
-  let { product }: { product: Product } = $props();
+  let {
+    product,
+    displayCurrency,
+    currencies
+  }: { product: Product; displayCurrency?: string; currencies?: CurrenciesConfig } = $props();
+
+  const baseCents = $derived(Math.round(product.base_price * 100));
+  const shown = $derived(
+    displayCurrency && currencies ? convertDisplayPrice(baseCents, displayCurrency, currencies) : { cents: baseCents, currency: product.currency }
+  );
 </script>
 
 <article class="product-card">
@@ -13,6 +22,6 @@
   <div class="body">
     {#if product.expanded?.category}<p class="meta">{product.expanded.category.name}</p>{/if}
     <h2><a href={`/urun/${product.slug}`}>{product.name}</a></h2>
-    <p class="price">{formatPrice(Math.round(product.base_price * 100), product.currency)}</p>
+    <p class="price">{formatPrice(shown.cents, shown.currency)}</p>
   </div>
 </article>

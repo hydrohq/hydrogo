@@ -3,20 +3,48 @@
   import { formatPrice } from '$lib/catalog';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  const config = $derived(data.checkoutConfig);
+  // An estimate only, without a discount (that needs server validation) --
+  // the authoritative breakdown, discount included, is whatever the real
+  // checkout response/order confirmation says.
+  const estimate = $derived.by(() => {
+    const subtotal = data.totalCents;
+    let tax = 0;
+    let afterTax = subtotal;
+    if (config.tax_rate > 0) {
+      if (config.tax_inclusive) {
+        const preTax = Math.round(subtotal / (1 + config.tax_rate));
+        tax = subtotal - preTax;
+      } else {
+        tax = Math.round(subtotal * config.tax_rate);
+        afterTax = subtotal + tax;
+      }
+    }
+    const shipping = config.shipping_flat_rate_cents > 0 && (config.shipping_free_above_cents <= 0 || subtotal < config.shipping_free_above_cents) ? config.shipping_flat_rate_cents : 0;
+    return { subtotal, tax, taxInclusive: config.tax_inclusive, shipping, total: afterTax + shipping };
+  });
 </script>
 
 <svelte:head><title>Ödeme</title></svelte:head>
 
 <h1>Ödeme</h1>
 
-<div class="order-summary">
-  <dl>
-    <dt>Sepetinizdeki ürün sayısı</dt>
-    <dd>{data.lines.reduce((total, line) => total + line.quantity, 0)}</dd>
-    <dt>Toplam</dt>
-    <dd><strong>{formatPrice(data.totalCents, data.currency)}</strong></dd>
-  </dl>
-</div>
+<dl class="order-summary">
+  <dt>Ara toplam</dt>
+  <dd>{formatPrice(estimate.subtotal, data.currency)}</dd>
+  {#if config.tax_rate > 0}
+    <dt>KDV {estimate.taxInclusive ? '(fiyata dahil)' : ''}</dt>
+    <dd>{formatPrice(estimate.tax, data.currency)}</dd>
+  {/if}
+  {#if config.shipping_flat_rate_cents > 0}
+    <dt>Kargo</dt>
+    <dd>{estimate.shipping > 0 ? formatPrice(estimate.shipping, data.currency) : 'Ücretsiz'}</dd>
+  {/if}
+  <dt>Tahmini toplam</dt>
+  <dd><strong>{formatPrice(estimate.total, data.currency)}</strong></dd>
+</dl>
+<p class="meta">İndirim kodu girerseniz kesin tutar sipariş onayı sayfasında görünecektir.</p>
 
 {#if form?.message}<p class="form-error">{form.message}</p>{/if}
 
@@ -50,6 +78,10 @@
   <div>
     <label for="guest_country">Ülke</label>
     <input id="guest_country" name="guest_country" type="text" value={form?.guestCountry ?? 'Türkiye'} />
+  </div>
+  <div>
+    <label for="discount_code">İndirim kodu (opsiyonel)</label>
+    <input id="discount_code" name="discount_code" type="text" value={form?.discountCode ?? ''} />
   </div>
 
   <button class="btn-primary" type="submit">Siparişi tamamla</button>
