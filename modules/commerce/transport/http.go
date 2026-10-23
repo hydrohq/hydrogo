@@ -45,6 +45,13 @@ type Handler struct {
 	CheckoutLimiter    security.RateLimiter
 	RequireTenantScope bool
 	MemberID           func(*http.Request) (string, bool)
+	// PaymentProvider is optional: when set, a successful checkout also
+	// starts a payment with it (paytr.Provider, currently the only one) and
+	// the response carries wherever it says to send the shopper. A failed
+	// StartPayment never fails the checkout itself -- the order already
+	// exists -- the response simply has no payment field, matching the
+	// generic-add-to-cart-then-pay flow.
+	PaymentProvider commerce.PaymentProvider
 }
 
 func (h Handler) defaultCurrency() string {
@@ -121,6 +128,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/commerce/cart/items", Handler: http.HandlerFunc(h.addItem)},
 		{Pattern: "DELETE /api/v1/commerce/cart/items/{id}", Handler: http.HandlerFunc(h.removeItem)},
 		{Pattern: "POST /api/v1/commerce/checkout", Handler: http.HandlerFunc(h.checkout)},
+		{Pattern: "POST /api/v1/commerce/orders/{id}/payment", Handler: http.HandlerFunc(h.startOrderPayment)},
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true},
 	}
 }
@@ -269,7 +277,57 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusUnprocessableEntity, err.Error(), nil)
 		return
 	}
-	api.WriteData(w, http.StatusCreated, order, nil)
+	response := checkoutResponse{Order: order}
+	if h.PaymentProvider != nil {
+		if items, itemsErr := h.Service.Repository.ListOrderItems(r.Context(), h.DB, order.ID); itemsErr == nil {
+			paymentCtx := commerce.WithClientIP(r.Context(), clientIP(r))
+			if start, startErr := h.PaymentProvider.StartPayment(paymentCtx, order, items); startErr == nil {
+				response.Payment = &start
+			}
+		}
+	}
+	api.WriteData(w, http.StatusCreated, response, nil)
+}
+
+type checkoutResponse struct {
+	commerce.Order
+	Payment *commerce.PaymentStart `json:"payment,omitempty"`
+}
+
+// startOrderPayment (re)starts a payment with the configured provider for
+// an existing order -- for when StartPayment at checkout time failed (a
+// network blip to the provider) and the shopper needs another chance to
+// pay without the cart being re-emptied. Knowing the order id is the only
+// access check, the same trust model guest checkout's own confirmation
+// already relies on: the id is an unguessable, app-generated token, not a
+// sequential one.
+func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
+	if h.PaymentProvider == nil {
+		api.WriteError(w, r, http.StatusServiceUnavailable, "no payment provider is configured", nil)
+		return
+	}
+	orderID := r.PathValue("id")
+	order, err := h.Service.Repository.GetOrder(r.Context(), h.DB, orderID)
+	if err != nil {
+		api.WriteError(w, r, http.StatusNotFound, "order not found", nil)
+		return
+	}
+	if order.PaymentStatus != commerce.PaymentPending {
+		api.WriteError(w, r, http.StatusConflict, "this order is no longer awaiting payment", nil)
+		return
+	}
+	items, err := h.Service.Repository.ListOrderItems(r.Context(), h.DB, order.ID)
+	if err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	paymentCtx := commerce.WithClientIP(r.Context(), clientIP(r))
+	start, err := h.PaymentProvider.StartPayment(paymentCtx, order, items)
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadGateway, "could not start a payment with the configured provider", nil)
+		return
+	}
+	api.WriteData(w, http.StatusOK, start, nil)
 }
 
 type setStockRequest struct {

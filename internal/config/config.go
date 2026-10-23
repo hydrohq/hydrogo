@@ -36,7 +36,36 @@ type Config struct {
 	Backup          Backup           `yaml:"backup"`
 	Audit           Audit            `yaml:"audit"`
 	Limits          Limits           `yaml:"limits"`
+	Commerce        Commerce         `yaml:"commerce"`
 }
+
+// Commerce configures the optional payment providers modules/commerce can
+// start a checkout against. Empty is a valid, fully functional
+// configuration: Checkout and ConfirmPayment work without any provider
+// configured, a project just has no way to redirect a shopper to a hosted
+// payment page yet.
+type Commerce struct {
+	PayTR PayTR `yaml:"paytr"`
+}
+
+// PayTR holds one merchant's PayTR credentials. MerchantKey and
+// MerchantSalt are secrets: set them in a protected, untracked config file
+// or through the deployment environment, never in a committed preset.
+type PayTR struct {
+	MerchantID     string `yaml:"merchant_id"`
+	MerchantKey    string `yaml:"merchant_key"`
+	MerchantSalt   string `yaml:"merchant_salt"`
+	TestMode       bool   `yaml:"test_mode"`
+	NoInstallment  bool   `yaml:"no_installment"`
+	MaxInstallment int    `yaml:"max_installment"`
+	OKURL          string `yaml:"ok_url"`
+	FailURL        string `yaml:"fail_url"`
+}
+
+// Enabled reports whether enough PayTR configuration is present to start
+// the provider; it is intentionally cheap to check from cmd/hydro's route
+// wiring without importing modules/commerce/providers/paytr there.
+func (p PayTR) Enabled() bool { return p.MerchantID != "" }
 
 // Limits holds operator-tunable resource caps.
 type Limits struct {

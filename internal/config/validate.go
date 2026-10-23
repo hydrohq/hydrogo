@@ -39,6 +39,9 @@ func (c Config) Validate() error {
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
 	}
+	if c.Commerce.PayTR.Enabled() && (c.Commerce.PayTR.MerchantKey == "" || c.Commerce.PayTR.MerchantSalt == "") {
+		return errors.New("PayTR requires a merchant key and salt once a merchant id is configured")
+	}
 	if c.Backup.SigningSeed != "" {
 		seed, err := hex.DecodeString(strings.TrimSpace(c.Backup.SigningSeed))
 		if err != nil || len(seed) != 32 {
