@@ -31,8 +31,8 @@ func newTestHandler(t *testing.T) (Handler, database.Executor) {
 		t.Fatal(err)
 	}
 	store := sqlstore.Store{Dialect: database.SQLite}
-	svc := commerce.Service{Transactions: database.NewTransactor(db), Repository: store}
-	return Handler{Service: svc, DB: db}, db
+	svc := commerce.Service{Transactions: database.NewTransactor(db), Repository: store, Prices: commerce.StaticPrices{}}
+	return Handler{Service: svc}, db
 }
 
 func decodeBody(t *testing.T, recorder *httptest.ResponseRecorder, into any) {
@@ -93,6 +93,7 @@ func TestAddItemThenCheckoutEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-1"] = commerce.Price{Cents: 1500}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-1","quantity":2,"unit_price_cents":1500}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -128,6 +129,7 @@ func TestCheckoutAcceptsItemTitlesAndSKUsSoTheOrderReceiptIsNotBlank(t *testing.
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-titled"] = commerce.Price{Cents: 1500}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-titled","quantity":1,"unit_price_cents":1500}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -169,6 +171,7 @@ func TestCheckoutReturns409WhenOutOfStock(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-soldout"] = commerce.Price{Cents: 100}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-soldout","quantity":1,"unit_price_cents":100}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -193,6 +196,7 @@ func TestCheckoutRejectsGuestWithoutEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-noemail"] = commerce.Price{Cents: 100}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-noemail","quantity":1,"unit_price_cents":100}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -372,6 +376,7 @@ func TestCheckoutSendsOrderConfirmationEmailAndOperatorNotification(t *testing.T
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-notify"] = commerce.Price{Cents: 1500}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-notify","quantity":1,"unit_price_cents":1500}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -408,6 +413,7 @@ func TestCheckoutStillSucceedsWhenMailerFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-notify-fail"] = commerce.Price{Cents: 1500}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-notify-fail","quantity":1,"unit_price_cents":1500}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -432,6 +438,7 @@ func TestCheckoutIncludesThePaymentProvidersRedirectWhenOneIsConfigured(t *testi
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-pay"] = commerce.Price{Cents: 1500}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-pay","quantity":1,"unit_price_cents":1500}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -470,6 +477,7 @@ func TestCheckoutStillSucceedsWhenThePaymentProviderFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-pay-fail"] = commerce.Price{Cents: 1500}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-pay-fail","quantity":1,"unit_price_cents":1500}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -496,7 +504,7 @@ func TestStartOrderPaymentRetriesAfterAnEarlierProviderFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-retry", 1, 1500); err != nil {
+	if err := addPriced(h.Service, ctx, db, cart, "variant-http-retry", 1, 1500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "retry-idem-1"})
@@ -533,14 +541,14 @@ func TestStartOrderPaymentRejectsAnAlreadyPaidOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-paid", 1, 1500); err != nil {
+	if err := addPriced(h.Service, ctx, db, cart, "variant-http-paid", 1, 1500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "paid-idem-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Service.ConfirmPayment(ctx, db, "paytr", "evt-1", order.ID); err != nil {
+	if _, err := pay(h.Service, ctx, "paytr", "evt-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -564,7 +572,7 @@ func TestGetOrderReturnsTheOrderAndItsItemsByID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-get-order", 2, 1500); err != nil {
+	if err := addPriced(h.Service, ctx, db, cart, "variant-http-get-order", 2, 1500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{
@@ -620,7 +628,7 @@ func TestStartOrderPaymentRequiresAConfiguredProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-noprovider", 1, 1500); err != nil {
+	if err := addPriced(h.Service, ctx, db, cart, "variant-http-noprovider", 1, 1500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "noprovider-idem-1"})
@@ -652,6 +660,7 @@ func TestCreateDiscountCodeThenUseItAtCheckout(t *testing.T) {
 	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-discount", 3); err != nil {
 		t.Fatal(err)
 	}
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-discount"] = commerce.Price{Cents: 10000}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-discount","quantity":1,"unit_price_cents":10000}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -687,6 +696,7 @@ func TestCheckoutReturns422ForAnInvalidDiscountCode(t *testing.T) {
 	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-baddiscount", 3); err != nil {
 		t.Fatal(err)
 	}
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-baddiscount"] = commerce.Price{Cents: 10000}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-baddiscount","quantity":1,"unit_price_cents":10000}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -728,14 +738,14 @@ func TestCreateShipmentEndpointRecordsTracking(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-ship", 1, 1500); err != nil {
+	if err := addPriced(h.Service, ctx, db, cart, "variant-http-ship", 1, 1500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "ship-idem-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Service.ConfirmPayment(ctx, db, "paytr", "evt-ship-1", order.ID); err != nil {
+	if _, err := pay(h.Service, ctx, "paytr", "evt-ship-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -754,14 +764,14 @@ func TestCreateShipmentEndpointRecordsTracking(t *testing.T) {
 	}
 }
 
-func TestCreateShipmentEndpointReturns501WithNoProviderConfigured(t *testing.T) {
+func TestCreateShipmentEndpointReturns503WithNoProviderConfigured(t *testing.T) {
 	h, _ := newTestHandler(t)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/does-not-matter/shipment", nil)
 	req.SetPathValue("id", "does-not-matter")
 	rec := httptest.NewRecorder()
 	h.createShipment(rec, req)
-	if rec.Code != http.StatusNotImplemented {
-		t.Fatalf("expected 501, got %d %s", rec.Code, rec.Body)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d %s", rec.Code, rec.Body)
 	}
 }
 
@@ -775,7 +785,7 @@ func TestCreateShipmentEndpointReturns409ForAnUnpaidOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-unpaid-ship", 1, 1500); err != nil {
+	if err := addPriced(h.Service, ctx, db, cart, "variant-http-unpaid-ship", 1, 1500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "unpaid-ship-idem-1"})
@@ -805,7 +815,7 @@ func TestListOrdersAdminTrimsToLimitAndReportsHasMore(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := h.Service.AddItem(ctx, db, cart.ID, variant, 1, int64(1000*(i+1))); err != nil {
+		if err := addPriced(h.Service, ctx, db, cart, variant, 1, int64(1000*(i+1))); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-" + key}); err != nil {
@@ -869,6 +879,7 @@ func TestCheckoutPersistsTheGuestDistrict(t *testing.T) {
 	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-district", 3); err != nil {
 		t.Fatal(err)
 	}
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-district"] = commerce.Price{Cents: 1000}
 	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-district","quantity":1,"unit_price_cents":1000}`))
 	addReq.Header.Set("Content-Type", "application/json")
 	addRec := httptest.NewRecorder()
@@ -891,5 +902,72 @@ func TestCheckoutPersistsTheGuestDistrict(t *testing.T) {
 	}
 	if stored.GuestDistrict != "Kadıköy" {
 		t.Fatalf("guest_district = %q, want Kadıköy", stored.GuestDistrict)
+	}
+}
+
+func TestAClientSentUnitPriceIsIgnored(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-price", 3); err != nil {
+		t.Fatal(err)
+	}
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-price"] = commerce.Price{Cents: 49990}
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-price","quantity":1,"unit_price_cents":1}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	if addRec.Code != http.StatusOK {
+		t.Fatalf("add item: %d %s", addRec.Code, addRec.Body)
+	}
+	cookie := addRec.Result().Cookies()[0]
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","idempotency_key":"http-idem-price"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
+	var order commerce.Order
+	decodeBody(t, checkoutRec, &order)
+	if order.TotalCents != 49990 {
+		t.Fatalf("total = %d, want the catalog price 49990 (client sent 1)", order.TotalCents)
+	}
+}
+
+func TestARetriedCheckoutDoesNotSendASecondReceipt(t *testing.T) {
+	h, db := newTestHandler(t)
+	mail := &fakeMailer{}
+	h.Mailer = mail
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-once", 3); err != nil {
+		t.Fatal(err)
+	}
+	h.Service.Prices.(commerce.StaticPrices)["variant-http-once"] = commerce.Price{Cents: 1500}
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-once","quantity":1}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+	for attempt := 0; attempt < 2; attempt++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","idempotency_key":"http-idem-once"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+		h.checkout(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("attempt %d: %d %s", attempt, rec.Code, rec.Body)
+		}
+	}
+	if len(mail.calls) != 1 {
+		t.Fatalf("receipts sent = %d, want 1 for one order", len(mail.calls))
+	}
+}
+
+func TestAdminRoutesDeclareAPermission(t *testing.T) {
+	for _, route := range (Handler{}).Routes() {
+		if route.Protected && route.Permission == "" {
+			t.Errorf("%s is protected but declares no permission; any signed-in staff user could call it", route.Pattern)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
@@ -132,6 +133,22 @@ func (p PayTR) Enabled() bool { return p.MerchantID != "" }
 type YurticiKargo struct {
 	WSUserName string `yaml:"ws_username"`
 	WSPassword string `yaml:"ws_password"`
+	// Endpoint is the SOAP service URL. Empty means the publicly documented
+	// one, which is plain HTTP; any http:// endpoint sends the credentials
+	// unencrypted and therefore needs AllowInsecureEndpoint.
+	Endpoint              string `yaml:"endpoint"`
+	AllowInsecureEndpoint bool   `yaml:"allow_insecure_endpoint"`
+}
+
+// YurticiKargoDefaultEndpoint is the only endpoint Yurtiçi documents publicly.
+const YurticiKargoDefaultEndpoint = "http://webservices.yurticikargo.com:8080/KOPSWebServices/ShippingOrderDispatcherServices"
+
+// ResolvedEndpoint is Endpoint or the documented default.
+func (y YurticiKargo) ResolvedEndpoint() string {
+	if strings.TrimSpace(y.Endpoint) != "" {
+		return strings.TrimSpace(y.Endpoint)
+	}
+	return YurticiKargoDefaultEndpoint
 }
 
 // Enabled reports whether enough configuration is present to start the

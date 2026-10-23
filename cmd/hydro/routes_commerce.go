@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
@@ -70,7 +73,7 @@ func (a *serveApp) commerceShippingProvider() commerce.ShippingProvider {
 	if !cfg.Enabled() {
 		return nil
 	}
-	return yurticikargo.Provider{Config: yurticikargo.Config{WSUserName: cfg.WSUserName, WSPassword: cfg.WSPassword}}
+	return yurticikargo.Provider{Config: yurticikargo.Config{WSUserName: cfg.WSUserName, WSPassword: cfg.WSPassword, BaseURL: cfg.ResolvedEndpoint()}}
 }
 
 // commerceNotifier builds the configured operational chat alert sender, or
@@ -99,6 +102,7 @@ func (a *serveApp) commerceService() commerce.Service {
 			TaxRate: tax.Rate, TaxInclusive: tax.Inclusive,
 			ShippingFlatRateCents: shipping.FlatRateCents, ShippingFreeAboveCents: shipping.FreeAboveCents,
 		},
+		Prices: catalogPrices{records: func() collections.Service { return a.collectionService }},
 	}
 }
 
@@ -110,16 +114,14 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		return nil
 	}
 	handler := commercetransport.Handler{
-		Service:            a.commerceService(),
-		DB:                 a.db,
-		Secure:             a.cfg.Security.SecureCookies,
-		RequireTenantScope: a.requireTenantScope,
-		CartLimiter:        a.newRateLimiter(60, time.Minute), // generous for normal browsing, still bounded
-		CheckoutLimiter:    a.newRateLimiter(10, time.Minute),
-		DefaultCurrency:    a.cfg.Commerce.Currencies.Default,
-		DisplayCurrencies:  a.cfg.Commerce.Currencies.Display,
-		CurrencyRates:      a.cfg.Commerce.Currencies.Rates,
-		Notifier:           a.commerceNotifier(),
+		Service:           a.commerceService(),
+		Secure:            a.cfg.Security.SecureCookies,
+		CartLimiter:       a.newRateLimiter(60, time.Minute), // generous for normal browsing, still bounded
+		CheckoutLimiter:   a.newRateLimiter(10, time.Minute),
+		DefaultCurrency:   a.cfg.Commerce.Currencies.Default,
+		DisplayCurrencies: a.cfg.Commerce.Currencies.Display,
+		CurrencyRates:     a.cfg.Commerce.Currencies.Rates,
+		Notifier:          a.commerceNotifier(),
 	}
 	if a.smtpSender != nil {
 		handler.Mailer = mailer.NotificationSender{Sender: a.smtpSender}
@@ -133,7 +135,7 @@ func (a *serveApp) commerceRoutes() []router.Route {
 
 	transportRoutes := handler.Routes()
 	if paytrProvider, ok := provider.(paytr.Provider); ok {
-		callbackHandler := paytr.Handler{Service: handler.Service, DB: a.db, Provider: paytrProvider, Logger: a.logger}
+		callbackHandler := paytr.Handler{Service: handler.Service, Provider: paytrProvider, Logger: a.logger, Notifier: handler.Notifier}
 		transportRoutes = append(transportRoutes, callbackHandler.Routes()...)
 	}
 	routes := make([]router.Route, 0, len(transportRoutes))
@@ -142,7 +144,11 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		if !route.Protected {
 			access = router.Public
 		}
-		routes = append(routes, router.Route{Pattern: route.Pattern, Access: access, Handler: route.Handler})
+		handler := route.Handler
+		if route.Permission != "" {
+			handler = requireStaffPermission(route.Permission, handler)
+		}
+		routes = append(routes, router.Route{Pattern: route.Pattern, Access: access, Handler: handler})
 	}
 	return routes
 }
@@ -175,7 +181,7 @@ func runCommerceReservationSweeper(ctx context.Context, worker commerce.Worker, 
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
-		if _, err := worker.ExpireDue(ctx, db, time.Now().UTC()); err != nil && ctx.Err() == nil {
+		if _, err := worker.ExpireDue(ctx, time.Now().UTC()); err != nil && ctx.Err() == nil {
 			_, _ = fmt.Fprintf(stderr, "hydro commerce reservation sweep: %v\n", err)
 		}
 		select {
@@ -230,4 +236,16 @@ func runCommerceReconciliationAlert(ctx context.Context, service commerce.Servic
 		case <-ticker.C:
 		}
 	}
+}
+
+// requireStaffPermission refuses a signed-in staff user who lacks the
+// permission. router.Protected only proves the caller is active staff.
+func requireStaffPermission(permission string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !auth.Can(auth.UserFromContext(r.Context()), permission) {
+			api.WriteError(w, r, http.StatusForbidden, "permission required: "+permission, nil)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

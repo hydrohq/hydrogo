@@ -36,7 +36,6 @@
           <td>
             <form method="POST" action="?/updateQuantity" use:enhance class="qty-form">
               <input type="hidden" name="variant_id" value={line.variantId} />
-              <input type="hidden" name="unit_price_cents" value={line.unitPriceCents} />
               <input type="number" name="quantity" min="1" max="20" value={line.quantity} />
               <button class="btn-secondary" type="submit">Güncelle</button>
             </form>

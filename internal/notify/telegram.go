@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"time"
 )
 
 // Telegram sends a message through a Telegram bot's sendMessage API --
@@ -34,8 +36,11 @@ func (t Telegram) httpClient() *http.Client {
 	if t.HTTPClient != nil {
 		return t.HTTPClient
 	}
-	return http.DefaultClient
+	return defaultHTTPClient
 }
+
+// defaultHTTPClient bounds every call; http.DefaultClient has no timeout.
+var defaultHTTPClient = &http.Client{Timeout: 10 * time.Second}
 
 // Enabled reports whether enough configuration is present to send -- cheap
 // to check from wiring code before bothering to construct a Telegram at
@@ -58,6 +63,11 @@ func (t Telegram) Send(ctx context.Context, msg Message) error {
 
 	resp, err := t.httpClient().Do(req)
 	if err != nil {
+		// *url.Error embeds the request URL, which carries the bot token.
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			err = urlErr.Err
+		}
 		return fmt.Errorf("notify: telegram request failed: %w", err)
 	}
 	defer resp.Body.Close()
