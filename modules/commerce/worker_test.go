@@ -36,7 +36,7 @@ func TestWorkerExpireDueReleasesStaleReservationsOnly(t *testing.T) {
 	}
 
 	worker := commerce.Worker{Service: svc, Hold: 30 * time.Minute}
-	expired, err := worker.ExpireDue(ctx, db, time.Now().UTC())
+	expired, err := worker.ExpireDue(ctx, time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}

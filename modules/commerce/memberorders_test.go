@@ -22,7 +22,7 @@ func TestMemberOrdersReaderListsOnlyTheRequestingMembersOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.AddItem(ctx, db, cart.ID, "variant-wallet", 1, 500); err != nil {
+	if err := addPriced(svc, ctx, db, cart, "variant-wallet", 1, 500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, MemberID: "member-a", IdempotencyKey: "member-orders-1", ItemTitles: map[string]string{"variant-wallet": "Wallet"}, ItemSKUs: map[string]string{"variant-wallet": "SKU-WALLET"}})
@@ -65,7 +65,7 @@ func TestMemberOrdersReaderDetailRejectsAnotherMembersOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.AddItem(ctx, db, cart.ID, "variant-belt-detail", 1, 500); err != nil {
+	if err := addPriced(svc, ctx, db, cart, "variant-belt-detail", 1, 500); err != nil {
 		t.Fatal(err)
 	}
 	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, MemberID: "member-a", IdempotencyKey: "member-orders-2"})

@@ -48,6 +48,9 @@ func (c Config) Validate() error {
 	if (c.Commerce.YurticiKargo.WSUserName == "") != (c.Commerce.YurticiKargo.WSPassword == "") {
 		return errors.New("Yurtiçi Kargo requires both a web service username and password")
 	}
+	if c.Commerce.YurticiKargo.Enabled() && !strings.HasPrefix(strings.ToLower(c.Commerce.YurticiKargo.ResolvedEndpoint()), "https://") && !c.Commerce.YurticiKargo.AllowInsecureEndpoint {
+		return errors.New("Yurtiçi Kargo endpoint is plain HTTP, which sends the web service password unencrypted; set an https endpoint or allow_insecure_endpoint: true")
+	}
 	if c.Commerce.Tax.Rate < 0 || c.Commerce.Tax.Rate >= 1 {
 		return errors.New("commerce tax rate must be 0 (disabled) or a fraction below 1")
 	}

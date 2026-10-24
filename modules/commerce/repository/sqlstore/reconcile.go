@@ -46,8 +46,9 @@ func (s Store) ListNotifiedOrdersNotPaid(ctx context.Context, db database.Execut
 		` WHERE o.payment_status != 'paid'`
 	args := []any{provider}
 	if s.RequireTenantScope {
-		query += ` AND o.tenant_id = ` + s.p(2) + ` AND n.tenant_id = ` + s.p(2)
-		args = append(args, tenantID)
+		// Two placeholders, two args: a ?-dialect cannot reuse one bound value.
+		query += ` AND o.tenant_id = ` + s.p(2) + ` AND n.tenant_id = ` + s.p(3)
+		args = append(args, tenantID, tenantID)
 	}
 	query += ` ORDER BY o.created_at LIMIT ` + fmt.Sprintf("%d", limit)
 	rows, err := queryer.QueryContext(ctx, query, args...)

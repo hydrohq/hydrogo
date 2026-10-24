@@ -56,13 +56,10 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 }
 
 func (s Store) GetOrderByIdempotencyKey(ctx context.Context, db database.Executor, key string) (commerce.Order, bool, error) {
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{key}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return commerce.Order{}, false, err
-	}
-	args := []any{key}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE idempotency_key = `+s.p(1)+filter, args...)
 	return s.scanOrder(row)
@@ -70,13 +67,10 @@ func (s Store) GetOrderByIdempotencyKey(ctx context.Context, db database.Executo
 
 // GetOrder returns one order by id.
 func (s Store) GetOrder(ctx context.Context, db database.Executor, id string) (commerce.Order, error) {
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{id}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return commerce.Order{}, err
-	}
-	args := []any{id}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE id = `+s.p(1)+filter, args...)
 	order, found, err := s.scanOrder(row)
@@ -102,7 +96,11 @@ func (s Store) ListOrderItems(ctx context.Context, db database.Executor, orderID
 	if !ok {
 		return nil, errors.New("database executor does not support row queries")
 	}
-	rows, err := queryer.QueryContext(ctx, `SELECT id, order_id, variant_id, sku, title, quantity, unit_price_cents, total_cents FROM commerce_customer_order_items WHERE order_id = `+s.p(1)+` ORDER BY id`, orderID)
+	filter, args, err := s.scope(ctx, []any{orderID})
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT id, order_id, variant_id, sku, title, quantity, unit_price_cents, total_cents FROM commerce_customer_order_items WHERE order_id = `+s.p(1)+filter+` ORDER BY id`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -180,13 +178,10 @@ func (s Store) ListPendingOrdersOlderThan(ctx context.Context, db database.Execu
 	if !ok {
 		return nil, errors.New("database executor does not support row queries")
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{s.dbTime(cutoff)}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return nil, err
-	}
-	args := []any{s.dbTime(cutoff)}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	rows, err := queryer.QueryContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE payment_status = 'pending' AND created_at < `+s.p(1)+filter+` ORDER BY created_at LIMIT `+fmt.Sprintf("%d", limit), args...)
 	if err != nil {
@@ -220,13 +215,10 @@ func (s Store) ListOrdersByMemberID(ctx context.Context, db database.Executor, m
 	if !ok {
 		return nil, errors.New("database executor does not support row queries")
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 2)
+	args := []any{memberID}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return nil, err
-	}
-	args := []any{memberID}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	rows, err := queryer.QueryContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE member_id = `+s.p(1)+filter+` ORDER BY created_at DESC LIMIT `+fmt.Sprintf("%d", limit), args...)
 	if err != nil {
@@ -272,26 +264,20 @@ func (s Store) ListOrders(ctx context.Context, db database.Executor, paymentStat
 
 	query := `SELECT ` + orderColumns + ` FROM commerce_customer_orders WHERE 1=1`
 	var args []any
-	pos := 1
 	if paymentStatus != "" {
-		query += ` AND payment_status = ` + s.p(pos)
 		args = append(args, string(paymentStatus))
-		pos++
+		query += ` AND payment_status = ` + s.p(len(args))
 	}
 	if fulfillmentStatus != "" {
-		query += ` AND fulfillment_status = ` + s.p(pos)
 		args = append(args, string(fulfillmentStatus))
-		pos++
+		query += ` AND fulfillment_status = ` + s.p(len(args))
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, pos)
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return nil, err
 	}
 	query += filter
-	if filterArg != nil {
-		args = append(args, filterArg)
-	}
-	query += ` ORDER BY created_at DESC LIMIT ` + fmt.Sprintf("%d", limit+1) + ` OFFSET ` + fmt.Sprintf("%d", offset)
+	query += ` ORDER BY created_at DESC, id DESC LIMIT ` + fmt.Sprintf("%d", limit+1) + ` OFFSET ` + fmt.Sprintf("%d", offset)
 
 	rows, err := queryer.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -313,13 +299,10 @@ func (s Store) ListOrders(ctx context.Context, db database.Executor, paymentStat
 // ErrOrderNotFound both when the order does not exist and when it belongs to
 // someone else, so the member surface can't distinguish the two cases.
 func (s Store) GetOrderByMemberID(ctx context.Context, db database.Executor, memberID, orderID string) (commerce.Order, error) {
-	filter, filterArg, err := s.tenantFilter(ctx, 3)
+	args := []any{orderID, memberID}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return commerce.Order{}, err
-	}
-	args := []any{orderID, memberID}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE id = `+s.p(1)+` AND member_id = `+s.p(2)+filter, args...)
 	order, found, err := s.scanOrder(row)
@@ -342,13 +325,10 @@ func (s Store) UpdatePaymentStatus(ctx context.Context, db database.Executor, or
 	if err := database.RequireExecutor(db); err != nil {
 		return false, err
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 5)
+	args := []any{string(to), s.dbTime(s.now()), orderID, string(from)}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return false, err
-	}
-	args := []any{string(to), s.dbTime(s.now()), orderID, string(from)}
-	if filterArg != nil {
-		args = append(args, filterArg)
 	}
 	query := `UPDATE commerce_customer_orders SET payment_status = ` + s.p(1) + `, updated_at = ` + s.p(2) +
 		` WHERE id = ` + s.p(3) + ` AND payment_status = ` + s.p(4) + filter
@@ -363,27 +343,61 @@ func (s Store) UpdatePaymentStatus(ctx context.Context, db database.Executor, or
 	return affected == 1, nil
 }
 
-// RecordShipment is Service.CreateShipment's atomic write: guarded by
-// fulfillment_status the same way UpdatePaymentStatus is guarded by
-// payment_status, so calling it twice for the same order (an operator
-// double-clicking "ship," or a retried request) only ever writes the
-// carrier's tracking details once and never re-ships an order that has
-// already moved on to delivered or cancelled.
+// ClaimShipment moves a paid, unfulfilled order to preparing so exactly one
+// request may call the carrier. A preparing order whose claim is older than
+// staleBefore (its request died mid call) can be claimed again.
+func (s Store) ClaimShipment(ctx context.Context, db database.Executor, orderID string, staleBefore time.Time) (bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return false, err
+	}
+	filter, args, err := s.scope(ctx, []any{string(commerce.FulfillmentPreparing), s.dbTime(s.now()), orderID, string(commerce.PaymentPaid), string(commerce.FulfillmentUnfulfilled), string(commerce.FulfillmentPreparing), s.dbTime(staleBefore)})
+	if err != nil {
+		return false, err
+	}
+	query := `UPDATE commerce_customer_orders SET fulfillment_status = ` + s.p(1) + `, updated_at = ` + s.p(2) +
+		` WHERE id = ` + s.p(3) + ` AND payment_status = ` + s.p(4) +
+		` AND (fulfillment_status = ` + s.p(5) + ` OR (fulfillment_status = ` + s.p(6) + ` AND updated_at < ` + s.p(7) + `))` + filter
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
+}
+
+// ReleaseShipmentClaim gives a claim back after the carrier refused, so the
+// operator can retry.
+func (s Store) ReleaseShipmentClaim(ctx context.Context, db database.Executor, orderID string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	filter, args, err := s.scope(ctx, []any{string(commerce.FulfillmentUnfulfilled), s.dbTime(s.now()), orderID, string(commerce.FulfillmentPreparing)})
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `UPDATE commerce_customer_orders SET fulfillment_status = `+s.p(1)+`, updated_at = `+s.p(2)+
+		` WHERE id = `+s.p(3)+` AND fulfillment_status = `+s.p(4)+filter, args...)
+	return err
+}
+
+// RecordShipment stores the carrier's tracking details and moves a claimed
+// (preparing) order to shipped. Guarded by fulfillment_status, so it applies
+// at most once per claim.
 func (s Store) RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return false, err
 	}
-	filter, filterArg, err := s.tenantFilter(ctx, 8)
+	args := []any{string(commerce.FulfillmentShipped), carrier, trackingNumber, trackingURL, s.dbTime(shippedAt), s.dbTime(s.now()), orderID}
+	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return false, err
 	}
-	args := []any{string(commerce.FulfillmentShipped), carrier, trackingNumber, trackingURL, s.dbTime(shippedAt), s.dbTime(s.now()), orderID}
-	if filterArg != nil {
-		args = append(args, filterArg)
-	}
 	query := `UPDATE commerce_customer_orders SET fulfillment_status = ` + s.p(1) + `, shipping_carrier = ` + s.p(2) +
 		`, shipping_tracking_number = ` + s.p(3) + `, shipping_tracking_url = ` + s.p(4) + `, shipped_at = ` + s.p(5) + `, updated_at = ` + s.p(6) +
-		` WHERE id = ` + s.p(7) + ` AND fulfillment_status IN ('` + string(commerce.FulfillmentUnfulfilled) + `', '` + string(commerce.FulfillmentPreparing) + `')` + filter
+		` WHERE id = ` + s.p(7) + ` AND fulfillment_status = '` + string(commerce.FulfillmentPreparing) + `'` + filter
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return false, err

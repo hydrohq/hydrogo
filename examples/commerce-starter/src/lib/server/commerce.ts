@@ -54,11 +54,12 @@ export async function getCart(cookies: Cookies): Promise<Cart> {
   return commerceRequest<Cart>(cookies, '/api/v1/commerce/cart');
 }
 
-export async function addToCart(cookies: Cookies, variantId: string, quantity: number, unitPriceCents: number): Promise<Cart> {
+/** HydroGo prices the line from its own catalog; the storefront never sends a price. */
+export async function addToCart(cookies: Cookies, variantId: string, quantity: number): Promise<Cart> {
   return commerceRequest<Cart>(cookies, '/api/v1/commerce/cart/items', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ variant_id: variantId, quantity, unit_price_cents: unitPriceCents })
+    body: JSON.stringify({ variant_id: variantId, quantity })
   });
 }
 
