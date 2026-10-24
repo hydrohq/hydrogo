@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -45,6 +46,16 @@ type Dispatcher struct {
 	MaxAttempts int
 	Backoff     time.Duration
 	Sleep       func(context.Context, time.Duration) error
+	// AllowInternalAddresses lets an endpoint point at a loopback/private/
+	// link-local address. False (the default) is correct for this package's
+	// usual case -- an admin-configured notification to an external, third-
+	// party system, where a loopback/metadata-address target is never
+	// legitimate and is the SSRF case rejectInternalHost exists for. A
+	// caller with a genuinely different trust model -- e.g. a same-
+	// deployment synchronous extension hook, configured with the same
+	// trust as the rest of the server's own config file, which may
+	// legitimately target a sidecar service on localhost -- sets this true.
+	AllowInternalAddresses bool
 }
 
 type TestResult struct {
@@ -61,7 +72,7 @@ func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (T
 	if !endpoint.matches(event.Topic) {
 		return TestResult{}, errors.New("endpoint does not subscribe to this topic")
 	}
-	if err := validateEndpoint(endpoint); err != nil {
+	if err := validateEndpoint(endpoint, d.AllowInternalAddresses); err != nil {
 		return TestResult{}, err
 	}
 	if event.ID == "" || event.PayloadVersion < 1 {
@@ -88,7 +99,7 @@ func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (T
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
 	start := time.Now()
-	response, err := safeClient(client).Do(req)
+	response, err := safeClient(client, d.AllowInternalAddresses).Do(req)
 	latency := time.Since(start)
 	if err != nil {
 		return TestResult{Body: string(body), Signature: sig, Timestamp: timestamp, Latency: latency}, err
@@ -120,7 +131,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
-	client = safeClient(client)
+	client = safeClient(client, d.AllowInternalAddresses)
 	attempts := d.MaxAttempts
 	if attempts < 1 || attempts > 10 {
 		attempts = 3
@@ -150,7 +161,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 		if !endpoint.matches(event.Topic) {
 			continue
 		}
-		if err := validateEndpoint(endpoint); err != nil {
+		if err := validateEndpoint(endpoint, d.AllowInternalAddresses); err != nil {
 			return err
 		}
 		var delivered bool
@@ -199,17 +210,17 @@ func (e Endpoint) matches(topic string) bool {
 	return ok
 }
 
-func validateEndpoint(endpoint Endpoint) error {
+func validateEndpoint(endpoint Endpoint, allowInternal bool) error {
 	if strings.TrimSpace(endpoint.ID) == "" || strings.TrimSpace(endpoint.Secret) == "" {
 		return ErrInvalidEndpoint
 	}
-	if err := validateURL(endpoint.URL); err != nil {
+	if err := validateURL(endpoint.URL, allowInternal); err != nil {
 		return ErrInvalidEndpoint
 	}
 	return nil
 }
 
-func validateURL(raw string) error {
+func validateURL(raw string, allowInternal bool) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || u.Hostname() == "" || u.User != nil || u.Opaque != "" || u.Fragment != "" {
 		return ErrInvalidEndpoint
@@ -220,6 +231,39 @@ func validateURL(raw string) error {
 	if u.Port() == "" && strings.Contains(u.Host, ":") && !strings.HasPrefix(u.Host, "[") {
 		return ErrInvalidEndpoint
 	}
+	if !allowInternal {
+		if err := rejectInternalHost(u.Hostname()); err != nil {
+			return ErrInvalidEndpoint
+		}
+	}
+	return nil
+}
+
+// rejectInternalHost refuses a hostname given as a literal IP that is
+// loopback, private, link-local (this covers the 169.254.169.254 cloud
+// metadata address), or otherwise non-routable -- an operator-configured
+// webhook endpoint must point at a genuine external system, never back into
+// this host's own network. A hostname (as opposed to a literal IP) is
+// deliberately not resolved here: a real DNS lookup on every Dispatch call
+// and every redirect hop would add a network dependency and latency to a
+// pure validation function, and still could not fully close a DNS-rebinding
+// window (a safe answer now, a different one at actual dial time) without
+// dial-time revalidation instead. Acceptable for a destination only an
+// admin can configure today; revisit before this is ever reachable through
+// a less trusted path.
+func rejectInternalHost(hostname string) error {
+	// "localhost" is a fixed, well-known loopback name (RFC 6761), cheap to
+	// special-case without a general DNS lookup.
+	if strings.EqualFold(hostname, "localhost") {
+		return ErrInvalidEndpoint
+	}
+	ip := net.ParseIP(hostname)
+	if ip == nil {
+		return nil
+	}
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+		return ErrInvalidEndpoint
+	}
 	return nil
 }
 
@@ -227,7 +271,7 @@ func validateURL(raw string) error {
 // preventing a valid public webhook URL from redirecting to an invalid target.
 // Redirects are a second URL boundary and must receive the same validation as
 // the configured endpoint.
-func safeClient(client *http.Client) *http.Client {
+func safeClient(client *http.Client, allowInternal bool) *http.Client {
 	copy := *client
 	previous := copy.CheckRedirect
 	copy.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -236,7 +280,7 @@ func safeClient(client *http.Client) *http.Client {
 				return err
 			}
 		}
-		return validateURL(req.URL.String())
+		return validateURL(req.URL.String(), allowInternal)
 	}
 	return &copy
 }

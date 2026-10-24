@@ -40,10 +40,19 @@ func syncHookCaller(cfg config.Config) contenttypes.HookCaller {
 		topic := "hook." + event.Type + "." + event.On
 		id := make([]byte, 16)
 		_, _ = rand.Read(id)
-		dispatcher := webhooks.Dispatcher{Client: &http.Client{
-			Timeout:       timeout,
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-		}}
+		dispatcher := webhooks.Dispatcher{
+			Client: &http.Client{
+				Timeout:       timeout,
+				CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+			},
+			// Sync hooks are configured in the same config file as the
+			// database DSN and other trusted settings (unlike the generic
+			// external-webhooks feature, which is why that path keeps the
+			// internal-address rejection) -- a hook pointing at a sidecar
+			// service on the same host (e.g. a local ledger) is the
+			// expected, intended use, not an SSRF.
+			AllowInternalAddresses: true,
+		}
 		endpoint := webhooks.Endpoint{ID: hook.ID, URL: hook.URL, Secret: hook.Secret, Topics: map[string]struct{}{topic: {}}}
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
