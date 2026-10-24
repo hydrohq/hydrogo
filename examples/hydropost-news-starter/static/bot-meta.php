@@ -3,45 +3,62 @@
  * Server-side Meta Tag & OpenGraph Renderer for Social Media Crawlers & Search Bots.
  * Serves complete og:*, twitter:*, canonical and NewsArticle JSON-LD tags to crawlers
  * that do not execute JavaScript (WhatsApp, Facebook, X/Twitter, LinkedIn, Telegram, etc.).
+ *
+ * Reads through HydroGo's public JSON API -- never the SQLite file directly.
+ * The database schema is an internal implementation detail; the API is the
+ * only stable contract, and this script should keep working across a
+ * HydroGo upgrade the same way any other frontend would.
  */
 
 $category = isset($_GET['category']) ? trim($_GET['category']) : '';
 $slug = isset($_GET['slug']) ? trim($_GET['slug']) : '';
+$locale = isset($_GET['locale']) ? trim($_GET['locale']) : 'tr';
 
 $siteName = 'HydroPost';
 $siteDesc = 'HydroGo tekil binary mimarisiyle çalışan, ışık hızında haber portalı.';
-$publicOrigin = 'https://ardalabs.xyz';
-
-$dbPath = '/var/www/vhosts/ardalabs.xyz/private/hydro.db';
+// Set these for the actual deployment; they are not committed per-site values.
+$publicOrigin = getenv('HYDROPOST_PUBLIC_ORIGIN') ?: 'http://127.0.0.1:8090';
+// The API origin HydroGo itself answers on -- usually the same host (hydro.cgi
+// serves /api/ on this same domain), but kept separate in case a deployment
+// ever points bot-meta.php at a different HydroGo instance than the one the
+// public site's own domain resolves to.
+$apiOrigin = getenv('HYDROPOST_API_ORIGIN') ?: $publicOrigin;
 $article = null;
 
-if (file_exists($dbPath)) {
-    try {
-        $pdo = new PDO('sqlite:' . $dbPath, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
+/**
+ * Minimal, dependency-free JSON GET against HydroGo's public API.
+ * Returns the decoded `data` field, or null on any failure -- a slow or
+ * down backend must never turn into a PHP fatal error for a crawler.
+ */
+function hydro_api_get(string $origin, string $path): ?array {
+    $ctx = stream_context_create([
+        'http' => ['method' => 'GET', 'timeout' => 3, 'ignore_errors' => true],
+    ]);
+    $raw = @file_get_contents(rtrim($origin, '/') . $path, false, $ctx);
+    if ($raw === false) {
+        return null;
+    }
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded) || !array_key_exists('data', $decoded)) {
+        return null;
+    }
+    return $decoded['data'];
+}
 
-        // 1. Fetch site settings if present
-        $st = $pdo->prepare("SELECT data_json FROM hydro_collection_records WHERE collection_id = 'site_settings' LIMIT 1");
-        if ($st && $st->execute()) {
-            $row = $st->fetch();
-            if ($row && !empty($row['data_json'])) {
-                $settings = json_decode($row['data_json'], true);
-                if (!empty($settings['site_name'])) $siteName = $settings['site_name'];
-                if (!empty($settings['seo_description'])) $siteDesc = $settings['seo_description'];
-            }
-        }
+// 1. Site settings (name, default SEO description) -- best-effort, falls
+// back to the defaults above if the content type isn't seeded yet.
+$settingsList = hydro_api_get($apiOrigin, '/api/v1/content/site_settings?limit=1');
+if (is_array($settingsList) && count($settingsList) > 0) {
+    $settings = $settingsList[0];
+    if (!empty($settings['site_name'])) $siteName = $settings['site_name'];
+    if (!empty($settings['seo_description'])) $siteDesc = $settings['seo_description'];
+}
 
-        // 2. Fetch published article by slug
-        if ($slug !== '') {
-            $stmt = $pdo->prepare("SELECT title, excerpt, body, cover_media_id, category, author_name, created_at, updated_at, seo_title, seo_description FROM news_items WHERE slug = :slug AND status = 'published' LIMIT 1");
-            if ($stmt && $stmt->execute([':slug' => $slug])) {
-                $article = $stmt->fetch();
-            }
-        }
-    } catch (Exception $e) {
-        // Fallback gracefully on DB error
+// 2. The article itself, by locale + slug.
+if ($slug !== '') {
+    $data = hydro_api_get($apiOrigin, '/api/v1/news/' . rawurlencode($locale) . '/' . rawurlencode($slug));
+    if (is_array($data) && !empty($data['status']) && $data['status'] === 'published') {
+        $article = $data;
     }
 }
 
@@ -53,8 +70,15 @@ if ($article) {
     $articleCat = !empty($article['category']) ? strtolower($article['category']) : ($category ?: 'haber');
     $canonicalUrl = $publicOrigin . '/' . rawurlencode($articleCat) . '/' . rawurlencode($slug);
 
-    if (!empty($article['cover_media_id']) && !str_starts_with($article['cover_media_id'], 'demo-')) {
-        $imageUrl = $publicOrigin . '/media/' . rawurlencode($article['cover_media_id']);
+    $cover = $article['cover_media_id'] ?? '';
+    if ($cover !== '' && !str_starts_with($cover, 'demo-')) {
+        // cover_media_id is sometimes a full external image URL (an editor
+        // pasting a source's own image link) rather than an internal
+        // HydroGo media asset id -- only build a /media/ URL for the
+        // latter, never rewrite an already-absolute URL into a broken one.
+        $imageUrl = (str_starts_with($cover, 'http://') || str_starts_with($cover, 'https://'))
+            ? $cover
+            : $publicOrigin . '/media/' . rawurlencode($cover);
     } else {
         $imageUrl = $publicOrigin . '/images/editorial/gundem-1.jpg';
     }

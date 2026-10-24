@@ -31,7 +31,14 @@ func serveAutoTLS(ctx context.Context, config Config) error {
 			return errors.New("hostname is not configured for automatic TLS")
 		},
 	}
-	app := &http.Server{Handler: NewHandler(config), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
+	app := &http.Server{
+		Handler:           NewHandler(config),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 	httpHandler := manager.HTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		target := url.URL{Scheme: "https", Host: host, Path: r.URL.Path, RawQuery: r.URL.RawQuery}
 		http.Redirect(w, r, target.String(), http.StatusPermanentRedirect)

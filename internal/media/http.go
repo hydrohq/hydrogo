@@ -126,6 +126,7 @@ func (h HTTPHandler) serveAsset(w http.ResponseWriter, r *http.Request, asset As
 	if asset.Visibility == VisibilityPrivate && isDocumentFilename(asset.OriginalFilename) && !servedVariant {
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeOriginalFilename(asset.OriginalFilename)}))
 	}
+	w.Header().Set("Cache-Control", mediaCacheControl(asset.Visibility))
 	if h.Service.BlobStore != nil {
 		object, getErr := h.Service.BlobStore.Get(r.Context(), storageKey)
 		if getErr != nil {
@@ -173,4 +174,16 @@ func mediaStatus(err error) int {
 		return http.StatusServiceUnavailable
 	}
 	return http.StatusInternalServerError
+}
+
+// mediaCacheControl governs browser/CDN caching of a served asset.
+// Private assets (member uploads, unlisted documents) must never be cached
+// by a shared cache; public assets are served under a content-addressed id
+// (the sha256 of their bytes -- see upload.go), so the same id never points
+// to different content and a long, immutable cache lifetime is safe.
+func mediaCacheControl(visibility string) string {
+	if visibility == VisibilityPrivate {
+		return "private, no-store"
+	}
+	return "public, max-age=31536000, immutable"
 }

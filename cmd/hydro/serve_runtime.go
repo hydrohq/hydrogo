@@ -33,6 +33,8 @@ import (
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
@@ -89,7 +91,7 @@ func (a *serveApp) openDatabase() error {
 		return fmt.Errorf("load IP security rules: %w", err)
 	}
 	if !a.opts.cgi {
-		go runIPBlocklistRefresh(ctx, db, banStore, ipBlocklist)
+		a.spawn(func() { runIPBlocklistRefresh(ctx, db, banStore, ipBlocklist) })
 	}
 	a.ipBlocklist, a.banStore = ipBlocklist, banStore
 	return nil
@@ -135,7 +137,7 @@ func (a *serveApp) initAuth() error {
 			return fmt.Errorf("configure social sign-in: %w", err)
 		}
 	}
-	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth, LoginSecurity: userStore, TokenLifetimeSettings: authstore.TokenLifetimeStore{DB: db, Dialect: cfg.Database.Dialect}}
+	authHTTP := auth.HTTPHandler{Service: authSvc, Audit: auditRecorder, Secure: cfg.Security.SecureCookies, MFA: mfaService, MFARequiredRoles: configuredMFARoles(cfg.Security.MFARequiredRoles), MFADB: db, Transactions: transactioner, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), RecoveryLimiter: newRateLimiter(3, time.Hour), RecoveryConfirmLimiter: newRateLimiter(10, time.Hour), InviteAcceptLimiter: newRateLimiter(10, time.Hour), LoginTarpit: security.NewTarpit(10000, 15*time.Minute, time.Second, 8*time.Second), Recovery: recoveryService, RecoveryDB: db, Invitation: invitationService, InviteDB: db, PublicOrigin: cfg.HTTP.PublicOrigin, SocialOAuth: socialOAuth, LoginSecurity: userStore, TokenLifetimeSettings: authstore.TokenLifetimeStore{DB: db, Dialect: cfg.Database.Dialect}, Logger: a.logger}
 	authHTTP.PasswordResetTTL = cfg.PasswordResetDuration()
 	authHTTP.InvitationTTL = cfg.InvitationDuration()
 	mobileAuthHTTP := auth.MobileHTTPHandler{Auth: authSvc, Mobile: mobileAuth, MFA: mfaService, MFADB: db, LoginLimiter: newRateLimiter(5, time.Minute), MFALimiter: newRateLimiter(5, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope)}
@@ -224,9 +226,13 @@ func (a *serveApp) initOptionalModules() error {
 	}
 	if modules["members"] {
 		a.memberService = members.Service{Members: a.memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
+		a.memberSessions = memberSessionStore
 	}
 	if modules["members"] {
 		a.memberHTTP = membertransport.Handler{Service: a.memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale, Push: pushDispatcher}
+		if modules["commerce"] {
+			a.memberHTTP.Orders = commerce.MemberOrdersReader{Repository: commercestore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}}
+		}
 		if !cfg.SafeMode {
 			memberOAuth, err := configuredMemberSocialOAuth(db, cfg.Database.Dialect, a.memberService, newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), cfg.Security.SecureCookies, requireTenantScope)
 			if err != nil {
@@ -351,11 +357,11 @@ func (a *serveApp) initPublicCaches() error {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor: %v\n", monitorErr)
 			}
 		}
-		go func() {
+		a.spawn(func() {
 			if monitorErr := monitor.Run(ctx); monitorErr != nil && ctx.Err() == nil && stderr != nil {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor stopped: %v\n", monitorErr)
 			}
-		}()
+		})
 	}
 	return nil
 }
@@ -369,34 +375,36 @@ func (a *serveApp) startScheduledBackup() error {
 		if backupErr != nil {
 			return fmt.Errorf("configure scheduled cloud backup: %w", backupErr)
 		}
-		go backupstore.RunDaily(ctx, cfg.Backup.HourUTC, func(backupCtx context.Context) error {
-			root, err := os.MkdirTemp("", "hydrogo-backup-")
-			if err != nil {
-				return err
-			}
-			defer os.RemoveAll(root)
-			snapshot := filepath.Join(root, "snapshot")
-			if cfg.Database.Dialect == database.SQLite {
-				_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
-			} else if cfg.Database.Dialect == database.Postgres {
-				var tools backupstore.PostgresTools
-				tools, err = backupstore.LocatePostgresTools()
-				if err == nil {
-					_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+		a.spawn(func() {
+			backupstore.RunDaily(ctx, cfg.Backup.HourUTC, func(backupCtx context.Context) error {
+				root, err := os.MkdirTemp("", "hydrogo-backup-")
+				if err != nil {
+					return err
 				}
-			} else {
-				err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
-			}
-			if err != nil {
+				defer os.RemoveAll(root)
+				snapshot := filepath.Join(root, "snapshot")
+				if cfg.Database.Dialect == database.SQLite {
+					_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
+				} else if cfg.Database.Dialect == database.Postgres {
+					var tools backupstore.PostgresTools
+					tools, err = backupstore.LocatePostgresTools()
+					if err == nil {
+						_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+					}
+				} else {
+					err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
+				}
+				if err != nil {
+					return err
+				}
+				name := fmt.Sprintf("hydrogo-%s.tar.gz", time.Now().UTC().Format("20060102T150405Z"))
+				if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
+					return err
+				}
+				_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
 				return err
-			}
-			name := fmt.Sprintf("hydrogo-%s.tar.gz", time.Now().UTC().Format("20060102T150405Z"))
-			if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
-				return err
-			}
-			_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
-			return err
-		}, func(err error) { slog.Error("scheduled cloud backup failed", "error", err) })
+			}, func(err error) { slog.Error("scheduled cloud backup failed", "error", err) })
+		})
 	}
 	return nil
 }

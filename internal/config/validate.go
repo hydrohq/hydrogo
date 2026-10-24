@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cron"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 )
 
 var hookID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,39}$`)
@@ -39,11 +40,43 @@ func (c Config) Validate() error {
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
 	}
+	if c.Commerce.PayTR.Enabled() && (c.Commerce.PayTR.MerchantKey == "" || c.Commerce.PayTR.MerchantSalt == "") {
+		return errors.New("PayTR requires a merchant key and salt once a merchant id is configured")
+	}
+	if (c.Notifications.Telegram.BotToken == "") != (c.Notifications.Telegram.ChatID == "") {
+		return errors.New("Telegram notifications require both a bot token and a chat id")
+	}
+	if (c.Commerce.YurticiKargo.WSUserName == "") != (c.Commerce.YurticiKargo.WSPassword == "") {
+		return errors.New("Yurtiçi Kargo requires both a web service username and password")
+	}
+	if c.Commerce.YurticiKargo.Enabled() && !strings.HasPrefix(strings.ToLower(c.Commerce.YurticiKargo.ResolvedEndpoint()), "https://") && !c.Commerce.YurticiKargo.AllowInsecureEndpoint {
+		return errors.New("Yurtiçi Kargo endpoint is plain HTTP, which sends the web service password unencrypted; set an https endpoint or allow_insecure_endpoint: true")
+	}
+	if c.Commerce.Tax.Rate < 0 || c.Commerce.Tax.Rate >= 1 {
+		return errors.New("commerce tax rate must be 0 (disabled) or a fraction below 1")
+	}
+	if c.Commerce.Shipping.FlatRateCents < 0 || c.Commerce.Shipping.FreeAboveCents < 0 {
+		return errors.New("commerce shipping rates cannot be negative")
+	}
+	for _, currency := range c.Commerce.Currencies.Display {
+		if c.Commerce.Currencies.Default == "" {
+			return errors.New("commerce display currencies require a default currency")
+		}
+		if rate, ok := c.Commerce.Currencies.Rates[currency]; !ok || rate <= 0 {
+			return fmt.Errorf("commerce display currency %q needs a positive rate", currency)
+		}
+	}
 	if c.Backup.SigningSeed != "" {
 		seed, err := hex.DecodeString(strings.TrimSpace(c.Backup.SigningSeed))
 		if err != nil || len(seed) != 32 {
 			return errors.New("backup signing seed must be 64 hexadecimal characters")
 		}
+	}
+	if len(c.HTTP.TrustedProxies) > 64 {
+		return errors.New("http.trusted_proxies allows at most 64 entries")
+	}
+	if _, err := requestmeta.NewIPExtractor(c.HTTP.BehindProxy, c.HTTP.TrustedProxies); err != nil {
+		return err
 	}
 	if c.HTTP.AutoTLS {
 		if c.HTTP.BehindProxy {
@@ -83,9 +116,6 @@ func (c Config) Validate() error {
 		module = strings.TrimSpace(module)
 		if module == "" {
 			return errors.New("module name cannot be empty")
-		}
-		if module == "commerce" {
-			return errors.New("commerce is deferred and cannot be enabled in this release")
 		}
 		if _, exists := seenModules[module]; exists {
 			return fmt.Errorf("module %q is configured more than once", module)

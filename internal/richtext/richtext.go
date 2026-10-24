@@ -64,3 +64,33 @@ func PlainText(value string) string {
 	}
 	return strings.TrimSpace(b.String())
 }
+
+// IsDelta reports whether value is a Quill Delta document ({"ops":[...]} or
+// {"document":[...]}). A Delta is data, not markup: the renderer escapes its
+// text inserts, so it must not be run through the HTML sanitizer (which would
+// escape its quotes and corrupt the JSON).
+func IsDelta(value string) bool {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "{") {
+		return false
+	}
+	var envelope struct {
+		Document json.RawMessage `json:"document"`
+		Ops      json.RawMessage `json:"ops"`
+	}
+	if json.Unmarshal([]byte(value), &envelope) != nil {
+		return false
+	}
+	return len(envelope.Document) > 0 || len(envelope.Ops) > 0
+}
+
+var shared = NewSanitizer()
+
+// Clean is the stored form of a rich-text value: HTML is sanitized, a Delta
+// document is kept as-is. bluemonday policies are safe for concurrent use.
+func Clean(value string) string {
+	if IsDelta(value) {
+		return value
+	}
+	return shared.Sanitize(value)
+}

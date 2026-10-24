@@ -2,6 +2,7 @@ package config
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
@@ -36,7 +37,129 @@ type Config struct {
 	Backup          Backup           `yaml:"backup"`
 	Audit           Audit            `yaml:"audit"`
 	Limits          Limits           `yaml:"limits"`
+	Commerce        Commerce         `yaml:"commerce"`
+	Notifications   Notifications    `yaml:"notifications"`
 }
+
+// Notifications configures operational chat alerts (a new commerce order,
+// a reconciliation drift finding) -- cross-cutting, not commerce-specific,
+// so it lives at the top level rather than nested under Commerce, even
+// though commerce is its first and only user today. Empty is valid: no
+// project has to configure this to work, it just gets no alerts.
+type Notifications struct {
+	Telegram TelegramNotifications `yaml:"telegram"`
+}
+
+// TelegramNotifications holds one bot's credentials. BotToken is a secret:
+// set it only in a protected, untracked config file, never in a committed
+// preset. There is no HYDRO_* environment variable override for it.
+type TelegramNotifications struct {
+	BotToken string `yaml:"bot_token"`
+	ChatID   string `yaml:"chat_id"`
+}
+
+// Enabled reports whether enough configuration is present to send.
+func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.ChatID != "" }
+
+// Commerce configures the optional payment providers modules/commerce can
+// start a checkout against. Empty is a valid, fully functional
+// configuration: Checkout and ConfirmPayment work without any provider
+// configured, a project just has no way to redirect a shopper to a hosted
+// payment page yet.
+type Commerce struct {
+	PayTR        PayTR        `yaml:"paytr"`
+	Tax          Tax          `yaml:"tax"`
+	Shipping     ShippingFee  `yaml:"shipping"`
+	Currencies   Currencies   `yaml:"currencies"`
+	YurticiKargo YurticiKargo `yaml:"yurtici_kargo"`
+}
+
+// Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds
+// no tax at all -- a project that has not decided its tax setup yet is
+// unaffected.
+type Tax struct {
+	// Rate is e.g. 0.20 for 20% KDV. Must be 0 (disabled) or in (0, 1).
+	Rate float64 `yaml:"rate"`
+	// Inclusive means catalog prices already include tax (common in
+	// Turkish retail): the rate is then used only to break the tax amount
+	// out for the receipt, never added on top of the price. False means
+	// catalog prices are pre-tax and the rate is added at checkout.
+	Inclusive bool `yaml:"inclusive"`
+}
+
+// ShippingFee configures a single flat shipping fee, optionally waived
+// above a subtotal threshold. The zero value adds no shipping fee. Named
+// ShippingFee, not Shipping, so it reads unambiguously next to
+// commerce.ShippingProvider (a carrier integration -- Yurtiçi Kargo and
+// friends) and the shipping_* columns on an order; this struct is pure
+// pricing and has nothing to do with carriers. The yaml key stays
+// `shipping:` -- only the Go type name changed.
+type ShippingFee struct {
+	FlatRateCents  int64 `yaml:"flat_rate_cents"`
+	FreeAboveCents int64 `yaml:"free_above_cents"`
+}
+
+// Currencies configures the storefront's display-currency switcher. This
+// never changes what is actually charged -- checkout and PayTR always use
+// Default; Display/Rates are presentation only, a static, operator-
+// maintained conversion a storefront can show a visitor without this
+// project taking on live FX risk or multi-currency settlement. The zero
+// value (no Display currencies) shows prices in Default only.
+type Currencies struct {
+	Default string             `yaml:"default"`
+	Display []string           `yaml:"display"`
+	Rates   map[string]float64 `yaml:"rates"`
+}
+
+// PayTR holds one merchant's PayTR credentials. MerchantKey and
+// MerchantSalt are secrets: set them only in a protected, untracked config
+// file, never in a committed preset. There is no HYDRO_* environment
+// variable override for them.
+type PayTR struct {
+	MerchantID     string `yaml:"merchant_id"`
+	MerchantKey    string `yaml:"merchant_key"`
+	MerchantSalt   string `yaml:"merchant_salt"`
+	TestMode       bool   `yaml:"test_mode"`
+	NoInstallment  bool   `yaml:"no_installment"`
+	MaxInstallment int    `yaml:"max_installment"`
+	OKURL          string `yaml:"ok_url"`
+	FailURL        string `yaml:"fail_url"`
+}
+
+// Enabled reports whether enough PayTR configuration is present to start
+// the provider; it is intentionally cheap to check from cmd/hydro's route
+// wiring without importing modules/commerce/providers/paytr there.
+func (p PayTR) Enabled() bool { return p.MerchantID != "" }
+
+// YurticiKargo holds one account's Yurtiçi Kargo web service credentials --
+// see modules/commerce/providers/yurticikargo's package doc comment for
+// this integration's unverified status. WSUserName/WSPassword are secrets:
+// set them only in a protected, untracked config file, never in a committed
+// preset. There is no HYDRO_* environment variable override for them.
+type YurticiKargo struct {
+	WSUserName string `yaml:"ws_username"`
+	WSPassword string `yaml:"ws_password"`
+	// Endpoint is the SOAP service URL. Empty means the publicly documented
+	// one, which is plain HTTP; any http:// endpoint sends the credentials
+	// unencrypted and therefore needs AllowInsecureEndpoint.
+	Endpoint              string `yaml:"endpoint"`
+	AllowInsecureEndpoint bool   `yaml:"allow_insecure_endpoint"`
+}
+
+// YurticiKargoDefaultEndpoint is the only endpoint Yurtiçi documents publicly.
+const YurticiKargoDefaultEndpoint = "http://webservices.yurticikargo.com:8080/KOPSWebServices/ShippingOrderDispatcherServices"
+
+// ResolvedEndpoint is Endpoint or the documented default.
+func (y YurticiKargo) ResolvedEndpoint() string {
+	if strings.TrimSpace(y.Endpoint) != "" {
+		return strings.TrimSpace(y.Endpoint)
+	}
+	return YurticiKargoDefaultEndpoint
+}
+
+// Enabled reports whether enough configuration is present to start the
+// provider, the same cheap pre-import check PayTR.Enabled gives cmd/hydro.
+func (y YurticiKargo) Enabled() bool { return y.WSUserName != "" && y.WSPassword != "" }
 
 // Limits holds operator-tunable resource caps.
 type Limits struct {
@@ -125,6 +248,10 @@ type HTTP struct {
 	AutoTLS      bool   `yaml:"auto_tls"`
 	Domain       string `yaml:"domain"`
 	BehindProxy  bool   `yaml:"behind_proxy"`
+	// TrustedProxies lists the proxy addresses (CIDR or bare IP) whose
+	// X-Forwarded-For is believed. Empty with behind_proxy means a proxy on
+	// the same host (loopback). Every other peer is taken at face value.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 type Database struct {

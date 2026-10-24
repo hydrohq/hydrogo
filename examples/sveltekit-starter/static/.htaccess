@@ -1,0 +1,73 @@
+Options +ExecCGI -Indexes
+
+<IfModule mod_fcgid.c>
+  AddHandler fcgid-script .cgi
+</IfModule>
+<IfModule !mod_fcgid.c>
+  AddHandler cgi-script .cgi
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType font/woff2 .woff2
+  AddType font/woff .woff
+  AddType image/svg+xml .svg
+  AddType image/webp .webp
+</IfModule>
+
+# Security headers (SvelteKit's hooks.server.ts can't set these per-request
+# any more -- this is a static SPA, hooks only ever ran once at build time).
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+DirectoryIndex index.html hydro.cgi
+RewriteEngine On
+
+# Static asset caching headers
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+</IfModule>
+
+# 1. Keep real static assets (images, CSS, JS, favicon, bot-meta.php,
+# robots.txt, sitemap.xml, rss.xml) on Apache's direct path.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# 2. Never fallback _app/ static assets to index.html or hydro.cgi (prevents
+# a missing JS chunk from silently becoming the HTML shell).
+RewriteCond %{REQUEST_URI} ^/_app/
+RewriteRule ^ - [R=404,L]
+
+# 3. Route HydroGo backend endpoints to hydro.cgi.
+RewriteCond %{REQUEST_URI} ^/api/ [OR]
+RewriteCond %{REQUEST_URI} ^/admin [OR]
+RewriteCond %{REQUEST_URI} ^/auth/ [OR]
+RewriteCond %{REQUEST_URI} ^/csrf-token [OR]
+RewriteCond %{REQUEST_URI} ^/media/ [OR]
+RewriteCond %{REQUEST_URI} ^/webhooks/
+RewriteRule ^ hydro.cgi [QSA,L]
+
+# 4. Social media bot & crawler pre-rendering for news articles
+# (/news/<slug>) -- WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram,
+# Discord, Slack and Googlebot's own preview fetcher never execute
+# JavaScript, so they need a real server-rendered <head> for link
+# previews and indexing.
+RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Discordbot|Slackbot-LinkExpanding|SkypeUriPreview|Google-InspectionTool) [NC]
+RewriteCond %{REQUEST_URI} ^/news/([a-zA-Z0-9_\x7f-\xff-]+)/?$
+RewriteRule ^ bot-meta.php?slug=%1 [QSA,L]
+
+# 5. Route all other client page navigation to index.html (SPA fallback).
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

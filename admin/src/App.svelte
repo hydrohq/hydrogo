@@ -13,6 +13,7 @@
   import PagesListView from './routes/pages/PagesListView.svelte';
   import PageEditorView from './routes/pages/PageEditorView.svelte';
   import MembersView from './routes/members/MembersView.svelte';
+  import CommerceOrdersView from './routes/commerce/CommerceOrdersView.svelte';
   import UsersView from './routes/users/UsersView.svelte';
   import SiteView from './routes/site/SiteView.svelte';
   import AuditView from './routes/audit/AuditView.svelte';
@@ -144,6 +145,8 @@
         <MediaView />
       {:else if routeInfo.module === 'members'}
         <MembersView />
+      {:else if routeInfo.module === 'commerce'}
+        <CommerceOrdersView />
       {:else if routeInfo.module === 'users'}
         <UsersView />
       {:else if routeInfo.module === 'site'}

@@ -31,6 +31,7 @@
     if (path.startsWith('/news')) return t('nav.news');
     if (path.startsWith('/media')) return t('nav.media');
     if (path.startsWith('/members')) return t('nav.members');
+    if (path.startsWith('/commerce')) return t('nav.orders');
     if (path.startsWith('/site')) return t('title.siteSettings');
     if (path.startsWith('/users')) return t('title.users');
     if (path.startsWith('/account')) return t('title.account');

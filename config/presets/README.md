@@ -20,5 +20,8 @@ Use, for example:
 hydro serve --config config/presets/editorial.yaml
 ```
 
-The files contain no credentials. Configure `HYDRO_DATABASE_DSN`, payment,
-mail, Redis and security secrets in the deployment environment.
+The files contain no credentials. `HYDRO_DATABASE_DSN` and several other
+settings read from the deployment environment (see
+`internal/config/load.go`); payment provider credentials (PayTR, Yurtiçi
+Kargo, Telegram) have no environment variable override and must be set in a
+protected, untracked copy of the config file instead.
