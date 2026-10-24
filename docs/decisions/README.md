@@ -11,6 +11,7 @@
 | [0007](0007-template-cms-distribution.md) | Distribute HydroGo as a template CMS | Accepted |
 | [0008](0008-business-application-capabilities.md) | Business-application capabilities in core | Proposed |
 | [0009](0009-core-owned-event-outbox-and-migration-baseline.md) | Core-owned event outbox and a migration baseline for new databases | Accepted |
+| [0010](0010-generic-reports-and-jobs.md) | Generic reports and job visibility in core, not per project | Accepted (Slice A); Proposed (B, C) |
 | [0012](0012-commerce-catalog-as-content-types.md) | Commerce catalog as content types, not a new engine feature | Accepted (Phase 1 of 4) |
 | [0013](0013-commerce-cart-checkout-module.md) | `modules/commerce` for stock, cart, checkout and orders | Accepted (Phase 2 of 4) |
 | [0014](0014-commerce-paytr-provider.md) | PayTR as a `commerce.PaymentProvider` | Accepted (Phase 3 of 4) |
@@ -21,6 +22,11 @@
 | [0019](0019-commerce-order-notifications-and-member-login.md) | Order notifications and storefront member login | Accepted |
 | [0020](0020-commerce-shipping-provider.md) | Generic `ShippingProvider`, Yurtiçi Kargo first | Accepted |
 | [0021](0021-commerce-admin-orders-and-payment-scope.md) | Admin order screen, order district, and parking payment/carrier verification | Accepted |
+| [0022](0022-audit-remediation.md) | 2026-10-24 audit remediation | Accepted |
+| [0023](0023-frontend-toolchain-bump-and-sveltekit-3-blocker.md) | Admin toolchain bump; SvelteKit 3 blocked by an env-folding regression | Accepted |
+| [0024](0024-news-taxonomy-tenant-isolation.md) | News taxonomy had no tenant isolation at all | Accepted |
+| [0025](0025-sveltekit-cve-mitigation-without-the-major-bump.md) | Closing the two SvelteKit CVEs without the blocked version bump | Accepted |
+| [0026](0026-sveltekit-starter-static-adapter.md) | `sveltekit-starter` converted to a static SPA (adapter-static) | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.
