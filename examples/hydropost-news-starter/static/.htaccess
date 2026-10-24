@@ -1,0 +1,65 @@
+Options +ExecCGI -Indexes
+
+<IfModule mod_fcgid.c>
+  AddHandler fcgid-script .cgi
+</IfModule>
+<IfModule !mod_fcgid.c>
+  AddHandler cgi-script .cgi
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType font/woff2 .woff2
+  AddType font/woff .woff
+  AddType image/svg+xml .svg
+  AddType image/webp .webp
+</IfModule>
+
+DirectoryIndex index.html hydro.cgi
+RewriteEngine On
+
+# Static asset caching headers
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+</IfModule>
+
+# Cached HTML is only an internal rewrite target.
+RewriteCond %{THE_REQUEST} \s/+static_cache/ [NC]
+RewriteRule ^static_cache/ - [F,L]
+
+# 1. Keep real static assets (images, CSS, JS, favicon, bot-meta.php) on Apache direct path.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# 2. Never fallback _app/ static assets to index.html or hydro.cgi (prevents HTML caching on JS)
+RewriteCond %{REQUEST_URI} ^/_app/
+RewriteRule ^ - [R=404,L]
+
+# 3. Route HydroGo backend endpoints to hydro.cgi
+RewriteCond %{REQUEST_URI} ^/api/ [OR]
+RewriteCond %{REQUEST_URI} ^/admin [OR]
+RewriteCond %{REQUEST_URI} ^/auth/ [OR]
+RewriteCond %{REQUEST_URI} ^/csrf-token [OR]
+RewriteCond %{REQUEST_URI} ^/media/ [OR]
+RewriteCond %{REQUEST_URI} ^/sitemap [OR]
+RewriteCond %{REQUEST_URI} ^/webhooks/
+RewriteRule ^ hydro.cgi [QSA,L]
+
+# 4. Social Media Bot & Crawler Pre-rendering (WhatsApp, Facebook, Twitter/X, LinkedIn, Telegram, Discord, Googlebot)
+RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Discordbot|Slackbot-LinkExpanding|SkypeUriPreview|Google-InspectionTool) [NC]
+RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_\x7f-\xff-]+)/([a-zA-Z0-9_\x7f-\xff-]+)$
+RewriteRule ^ bot-meta.php?category=%1&slug=%2 [QSA,L]
+
+# 5. Route all client page navigation to index.html (SPA Fallback)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
