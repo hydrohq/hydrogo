@@ -90,13 +90,13 @@ func (a *serveApp) startWorkers() {
 	requireTenantScope, tenantScopes, logger := a.requireTenantScope, a.tenantScopes, a.logger
 	cgiMode, metrics := a.opts.cgi, a.metrics
 	if !cgiMode {
-		go runSessionCleanupObserved(ctx, a.sessionStore, stderr, metrics)
+		a.spawn(func() { runSessionCleanupObserved(ctx, a.sessionStore, stderr, metrics) })
 		if modules["members"] {
-			go runSessionCleanup(ctx, a.memberSessions, stderr)
+			a.spawn(func() { runSessionCleanup(ctx, a.memberSessions, stderr) })
 		}
 	}
 	if modules["media"] && !cgiMode {
-		go runStaleMediaTempSweeper(ctx, cfg.Media.Dir, stderr)
+		a.spawn(func() { runStaleMediaTempSweeper(ctx, cfg.Media.Dir, stderr) })
 	}
 	if modules["forms"] && a.smtpSender != nil && !cgiMode && !cfg.SafeMode {
 		if modules["pages"] {
@@ -105,17 +105,21 @@ func (a *serveApp) startWorkers() {
 				return err
 			}
 		}
-		go a.mailWorker.Run(ctx, 500*time.Millisecond)
+		a.spawn(func() { a.mailWorker.Run(ctx, 500*time.Millisecond) })
 	}
 	if modules["news"] && !cgiMode && !cfg.SafeMode {
-		go runNewsWorker(ctx, db, a.newsWorker, metrics, stderr, a.budget.WorkerConcurrency)
+		a.spawn(func() { runNewsWorker(ctx, db, a.newsWorker, metrics, stderr, a.budget.WorkerConcurrency) })
 	}
 	if modules["commerce"] && !cgiMode && !cfg.SafeMode {
-		go runCommerceReservationSweeper(ctx, commerce.Worker{Service: a.commerceService()}, db, stderr)
-		go runCommerceReconciliationAlert(ctx, a.commerceService(), db, a.commercePaymentProviderName(), a.commerceNotifier(), logger, stderr)
+		a.spawn(func() { runCommerceReservationSweeper(ctx, commerce.Worker{Service: a.commerceService()}, db, stderr) })
+		a.spawn(func() {
+			runCommerceReconciliationAlert(ctx, a.commerceService(), db, a.commercePaymentProviderName(), a.commerceNotifier(), logger, stderr)
+		})
 	}
 	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
-		go runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
+		a.spawn(func() {
+			runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
+		})
 	}
 	if !cfg.SafeMode && !cgiMode && modules["site"] && a.linkScanManager != nil && a.linkScanOrigin != "" {
 		tenantKeys := []string{"default"}
@@ -126,14 +130,16 @@ func (a *serveApp) startWorkers() {
 			}
 		}
 		if len(tenantKeys) > 0 {
-			go linkcheck.RunMonthly(ctx, a.linkScanManager, tenantKeys, a.linkScanOrigin, func(err error) { logger.WarnContext(ctx, "scheduled link audit could not start", "error", err) })
+			a.spawn(func() {
+				linkcheck.RunMonthly(ctx, a.linkScanManager, tenantKeys, a.linkScanOrigin, func(err error) { logger.WarnContext(ctx, "scheduled link audit could not start", "error", err) })
+			})
 		}
 	}
 	if !cfg.SafeMode && !cgiMode {
-		go runHookSchedules(ctx, cfg, a.hookCaller(), time.Now, logger)
+		a.spawn(func() { runHookSchedules(ctx, cfg, a.hookCaller(), time.Now, logger) })
 	}
 	if !cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
-		go database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance)
+		a.spawn(func() { database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance) })
 	}
 }
 
@@ -173,6 +179,31 @@ func (a *serveApp) runDatabaseMaintenance(maintenanceCtx context.Context) {
 			}
 		} else if auditErr := a.auditRecorder.Record(maintenanceCtx, "database.maintenance", target); auditErr != nil {
 			logger.ErrorContext(maintenanceCtx, "database maintenance audit failed", "error", auditErr)
+		}
+	}
+}
+
+// waitForWorkers blocks until every goroutine startWorkers launched has
+// returned, bounded by the same shutdown budget the HTTP server's own
+// graceful shutdown uses. listen already cancelled a.ctx before returning,
+// so workers should already be exiting; this only covers the gap between
+// "told to stop" and "actually stopped" (a VACUUM INTO mid-flight, a
+// backup upload finishing its current chunk).
+func (a *serveApp) waitForWorkers() {
+	done := make(chan struct{})
+	go func() {
+		a.workers.Wait()
+		close(done)
+	}()
+	timeout := a.budget.ShutdownTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		if a.logger != nil {
+			a.logger.Warn("background workers did not stop within the shutdown budget; exiting anyway", "timeout", timeout)
 		}
 	}
 }
