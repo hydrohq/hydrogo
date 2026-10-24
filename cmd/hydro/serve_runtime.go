@@ -91,7 +91,7 @@ func (a *serveApp) openDatabase() error {
 		return fmt.Errorf("load IP security rules: %w", err)
 	}
 	if !a.opts.cgi {
-		go runIPBlocklistRefresh(ctx, db, banStore, ipBlocklist)
+		a.spawn(func() { runIPBlocklistRefresh(ctx, db, banStore, ipBlocklist) })
 	}
 	a.ipBlocklist, a.banStore = ipBlocklist, banStore
 	return nil

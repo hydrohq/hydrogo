@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 )
 
@@ -20,10 +21,34 @@ type taxonomyQueryExecutor interface {
 
 var ErrTaxonomyTermInUse = news.ErrTaxonomyTermInUse
 var ErrTaxonomyTermHasChildren = news.ErrTaxonomyTermHasChildren
+var ErrTaxonomyTermIDTaken = news.ErrTaxonomyTermIDTaken
 
-// UpsertTaxonomyTerm stores one validated module-owned taxonomy term.
+// taxonomyTenantID returns the scope's tenant id, or "" when the store is
+// not tenant-scoped (single-customer deployments keep the empty-string
+// discriminator every row already defaults to).
+func (s Store) taxonomyTenantID(ctx context.Context) (string, error) {
+	if !s.RequireTenantScope {
+		return "", nil
+	}
+	scope, err := tenant.Require(ctx)
+	if err != nil {
+		return "", err
+	}
+	return scope.TenantID, nil
+}
+
+// UpsertTaxonomyTerm stores one validated module-owned taxonomy term. The
+// id is client-supplied, so this never does a bare INSERT ... ON CONFLICT
+// DO UPDATE keyed only on id -- that would let one tenant silently overwrite
+// another tenant's term by guessing or reusing its id. Instead: try an
+// UPDATE scoped to (id, tenant_id) first; if it matched nothing, check
+// whether the id exists for any OTHER tenant before inserting a new row.
 func (s Store) UpsertTaxonomyTerm(ctx context.Context, tx database.Executor, term v1.TaxonomyTerm) error {
 	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	tenantID, err := s.taxonomyTenantID(ctx)
+	if err != nil {
 		return err
 	}
 	terms, err := s.ListTaxonomyTerms(ctx, tx)
@@ -48,20 +73,45 @@ func (s Store) UpsertTaxonomyTerm(ctx context.Context, tx database.Executor, ter
 	if err != nil {
 		return fmt.Errorf("encode taxonomy labels: %w", err)
 	}
-	query := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,kind=EXCLUDED.kind,parent_id=EXCLUDED.parent_id,labels_json=EXCLUDED.labels_json`
-	switch s.Dialect {
-	case database.SQLite:
-		query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,kind=excluded.kind,parent_id=excluded.parent_id,labels_json=excluded.labels_json`
-	case database.MySQL:
-		query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE slug=VALUES(slug),kind=VALUES(kind),parent_id=VALUES(parent_id),labels_json=VALUES(labels_json)`
+
+	updateQuery := `UPDATE news_taxonomy_terms SET slug=` + s.p(1) + `,kind=` + s.p(2) + `,parent_id=` + s.p(3) + `,labels_json=` + s.p(4) + ` WHERE id=` + s.p(5) + ` AND tenant_id=` + s.p(6)
+	result, err := tx.ExecContext(ctx, updateQuery, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels), term.ID, tenantID)
+	if err != nil {
+		return err
 	}
-	_, err = tx.ExecContext(ctx, query, term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels))
+	if affected, err := result.RowsAffected(); err != nil {
+		return err
+	} else if affected > 0 {
+		return nil
+	}
+
+	queryer, ok := tx.(taxonomyQueryExecutor)
+	if !ok {
+		return fmt.Errorf("taxonomy executor does not support row queries")
+	}
+	var existing int
+	existsQuery := `SELECT COUNT(*) FROM news_taxonomy_terms WHERE id=` + s.p(1)
+	if err := queryer.QueryRowContext(ctx, existsQuery, term.ID).Scan(&existing); err != nil {
+		return err
+	}
+	if existing > 0 {
+		return ErrTaxonomyTermIDTaken
+	}
+
+	insertQuery := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json,tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `)`
+	_, err = tx.ExecContext(ctx, insertQuery, term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels), tenantID)
 	return err
 }
 
-// DeleteTaxonomyTerm removes an unused leaf term without silently changing content.
+// DeleteTaxonomyTerm removes an unused leaf term without silently changing
+// content, and never reaches outside its own tenant to do so.
 func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id string) error {
 	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	tenantID, err := s.taxonomyTenantID(ctx)
+	if err != nil {
 		return err
 	}
 	id = strings.TrimSpace(id)
@@ -73,32 +123,23 @@ func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id 
 		return fmt.Errorf("taxonomy executor does not support row queries")
 	}
 	var childCount int
-	childQuery := `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=$1`
-	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
-		childQuery = `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=?`
-	}
-	if err := queryer.QueryRowContext(ctx, childQuery, id).Scan(&childCount); err != nil {
+	childQuery := `SELECT COUNT(*) FROM news_taxonomy_terms WHERE parent_id=` + s.p(1) + ` AND tenant_id=` + s.p(2)
+	if err := queryer.QueryRowContext(ctx, childQuery, id, tenantID).Scan(&childCount); err != nil {
 		return err
 	}
 	if childCount > 0 {
 		return ErrTaxonomyTermHasChildren
 	}
 	var relationCount int
-	relationQuery := `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=$1`
-	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
-		relationQuery = `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=?`
-	}
-	if err := queryer.QueryRowContext(ctx, relationQuery, id).Scan(&relationCount); err != nil {
+	relationQuery := `SELECT COUNT(*) FROM news_taxonomy_relations WHERE term_id=` + s.p(1) + ` AND tenant_id=` + s.p(2)
+	if err := queryer.QueryRowContext(ctx, relationQuery, id, tenantID).Scan(&relationCount); err != nil {
 		return err
 	}
 	if relationCount > 0 {
 		return ErrTaxonomyTermInUse
 	}
-	deleteQuery := `DELETE FROM news_taxonomy_terms WHERE id=$1`
-	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
-		deleteQuery = `DELETE FROM news_taxonomy_terms WHERE id=?`
-	}
-	result, err := tx.ExecContext(ctx, deleteQuery, id)
+	deleteQuery := `DELETE FROM news_taxonomy_terms WHERE id=` + s.p(1) + ` AND tenant_id=` + s.p(2)
+	result, err := tx.ExecContext(ctx, deleteQuery, id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -110,8 +151,15 @@ func (s Store) DeleteTaxonomyTerm(ctx context.Context, tx database.Executor, id 
 
 // ReplaceTaxonomy atomically replaces the terms attached to one news item.
 // The tables and authorization policy remain owned by the News module.
+// Every statement is also scoped to the caller's tenant, independent of
+// whatever ownership check the caller already did on contentID itself --
+// relation rows must never be reachable across a tenant boundary either.
 func (s Store) ReplaceTaxonomy(ctx context.Context, tx database.Executor, contentID string, terms []v1.TaxonomyTerm) error {
 	if err := database.RequireExecutor(tx); err != nil {
+		return err
+	}
+	tenantID, err := s.taxonomyTenantID(ctx)
+	if err != nil {
 		return err
 	}
 	contentID = strings.TrimSpace(contentID)
@@ -140,35 +188,17 @@ func (s Store) ReplaceTaxonomy(ctx context.Context, tx database.Executor, conten
 		return err
 	}
 	for _, term := range v1.StableTaxonomyTerms(terms) {
-		labels, err := json.Marshal(term.Labels)
-		if err != nil {
-			return fmt.Errorf("encode taxonomy labels: %w", err)
-		}
-		query := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES ($1,$2,$3,$4,$5) ON CONFLICT(id) DO UPDATE SET slug=EXCLUDED.slug,kind=EXCLUDED.kind,parent_id=EXCLUDED.parent_id,labels_json=EXCLUDED.labels_json`
-		args := []any{term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels)}
-		switch s.Dialect {
-		case database.SQLite:
-			query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,kind=excluded.kind,parent_id=excluded.parent_id,labels_json=excluded.labels_json`
-		case database.MySQL:
-			query = `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE slug=VALUES(slug),kind=VALUES(kind),parent_id=VALUES(parent_id),labels_json=VALUES(labels_json)`
-		}
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		if err := s.UpsertTaxonomyTerm(ctx, tx, term); err != nil {
 			return err
 		}
 	}
-	deleteQuery := `DELETE FROM news_taxonomy_relations WHERE content_id=$1`
-	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
-		deleteQuery = `DELETE FROM news_taxonomy_relations WHERE content_id=?`
-	}
-	if _, err := tx.ExecContext(ctx, deleteQuery, contentID); err != nil {
+	deleteQuery := `DELETE FROM news_taxonomy_relations WHERE content_id=` + s.p(1) + ` AND tenant_id=` + s.p(2)
+	if _, err := tx.ExecContext(ctx, deleteQuery, contentID, tenantID); err != nil {
 		return err
 	}
-	insertQuery := `INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES ($1,$2)`
-	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
-		insertQuery = `INSERT INTO news_taxonomy_relations (content_id,term_id) VALUES (?,?)`
-	}
+	insertQuery := `INSERT INTO news_taxonomy_relations (content_id,term_id,tenant_id) VALUES (` + s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `)`
 	for _, term := range terms {
-		if _, err := tx.ExecContext(ctx, insertQuery, contentID, term.ID); err != nil {
+		if _, err := tx.ExecContext(ctx, insertQuery, contentID, term.ID, tenantID); err != nil {
 			return err
 		}
 	}
@@ -180,15 +210,16 @@ func (s Store) ListTaxonomy(ctx context.Context, tx database.Executor, contentID
 	if err := database.RequireExecutor(tx); err != nil {
 		return nil, err
 	}
+	tenantID, err := s.taxonomyTenantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	queryer, ok := tx.(taxonomyQueryExecutor)
 	if !ok {
 		return nil, fmt.Errorf("taxonomy executor does not support row queries")
 	}
-	query := `SELECT t.id,t.slug,t.kind,COALESCE(t.parent_id,''),t.labels_json FROM news_taxonomy_terms t JOIN news_taxonomy_relations r ON r.term_id=t.id WHERE r.content_id=$1 ORDER BY t.id`
-	if s.Dialect == database.SQLite || s.Dialect == database.MySQL {
-		query = `SELECT t.id,t.slug,t.kind,COALESCE(t.parent_id,''),t.labels_json FROM news_taxonomy_terms t JOIN news_taxonomy_relations r ON r.term_id=t.id WHERE r.content_id=? ORDER BY t.id`
-	}
-	rows, err := queryer.QueryContext(ctx, query, strings.TrimSpace(contentID))
+	query := `SELECT t.id,t.slug,t.kind,COALESCE(t.parent_id,''),t.labels_json FROM news_taxonomy_terms t JOIN news_taxonomy_relations r ON r.term_id=t.id AND r.tenant_id=t.tenant_id WHERE r.content_id=` + s.p(1) + ` AND r.tenant_id=` + s.p(2) + ` ORDER BY t.id`
+	rows, err := queryer.QueryContext(ctx, query, strings.TrimSpace(contentID), tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -211,16 +242,22 @@ func (s Store) ListTaxonomy(ctx context.Context, tx database.Executor, contentID
 	return result, nil
 }
 
-// ListTaxonomyTerms returns the module-owned term catalog in stable order.
+// ListTaxonomyTerms returns the module-owned term catalog in stable order,
+// scoped to the caller's tenant.
 func (s Store) ListTaxonomyTerms(ctx context.Context, tx database.Executor) ([]v1.TaxonomyTerm, error) {
 	if err := database.RequireExecutor(tx); err != nil {
+		return nil, err
+	}
+	tenantID, err := s.taxonomyTenantID(ctx)
+	if err != nil {
 		return nil, err
 	}
 	queryer, ok := tx.(taxonomyQueryExecutor)
 	if !ok {
 		return nil, fmt.Errorf("taxonomy executor does not support row queries")
 	}
-	rows, err := queryer.QueryContext(ctx, `SELECT id,slug,kind,COALESCE(parent_id,''),labels_json FROM news_taxonomy_terms ORDER BY id`)
+	query := `SELECT id,slug,kind,COALESCE(parent_id,''),labels_json FROM news_taxonomy_terms WHERE tenant_id=` + s.p(1) + ` ORDER BY id`
+	rows, err := queryer.QueryContext(ctx, query, tenantID)
 	if err != nil {
 		return nil, err
 	}
