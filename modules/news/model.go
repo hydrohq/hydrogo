@@ -17,6 +17,10 @@ var (
 	// term that items or child terms still reference.
 	ErrTaxonomyTermInUse       = errors.New("taxonomy term is in use")
 	ErrTaxonomyTermHasChildren = errors.New("taxonomy term has children")
+	// ErrTaxonomyTermIDTaken means the client-supplied term id already
+	// belongs to a different tenant; the id is never reused across a
+	// tenant boundary even if the terms would otherwise look unrelated.
+	ErrTaxonomyTermIDTaken = errors.New("taxonomy term id is already in use")
 )
 
 type Status string

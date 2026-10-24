@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -94,10 +94,7 @@ func (h AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func loginLimitKey(r *http.Request, email string) string {
 	remote := "unknown"
 	if r != nil {
-		remote = strings.TrimSpace(r.RemoteAddr)
-		if host, _, err := net.SplitHostPort(remote); err == nil {
-			remote = host
-		}
+		remote = requestmeta.ClientIP(r)
 	}
 	return strings.ToLower(strings.TrimSpace(email)) + "\x00" + remote
 }

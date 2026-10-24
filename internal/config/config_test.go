@@ -206,6 +206,144 @@ func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	}
 }
 
+func TestTelegramNotificationsRequireBothBotTokenAndChatID(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:telegram.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{BotToken: "token-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("bot token without chat id accepted")
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{ChatID: "chat-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("chat id without bot token accepted")
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{BotToken: "token", ChatID: "chat"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid telegram config: %v", err)
+	}
+	cfg.Notifications.Telegram = TelegramNotifications{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unconfigured telegram must stay valid: %v", err)
+	}
+}
+
+func TestYurticiKargoRequiresBothUsernameAndPassword(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:yurtici.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("ws username without password accepted")
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSPassword: "pass-only"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("ws password without username accepted")
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("credentials over the plain-HTTP default endpoint accepted without allow_insecure_endpoint")
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass", AllowInsecureEndpoint: true}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("explicit plain-HTTP opt-in: %v", err)
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass", Endpoint: "https://ws.example.test/soap"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("https endpoint: %v", err)
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unconfigured yurtici kargo must stay valid: %v", err)
+	}
+}
+
+func TestPayTRConfigurationRequiresKeyAndSaltWhenEnabled(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:paytr.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.PayTR = PayTR{MerchantID: "merchant-1"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("PayTR merchant id without key and salt accepted")
+	}
+	cfg.Commerce.PayTR = PayTR{MerchantID: "merchant-1", MerchantKey: "key", MerchantSalt: "salt"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid PayTR config: %v", err)
+	}
+	cfg.Commerce.PayTR = PayTR{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("PayTR left unconfigured must stay valid: %v", err)
+	}
+}
+
+func TestTaxRateMustBeAFractionBelowOne(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:tax.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.Tax = Tax{Rate: 0}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("disabled tax (rate 0) must stay valid: %v", err)
+	}
+	cfg.Commerce.Tax = Tax{Rate: 0.20}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid tax rate: %v", err)
+	}
+	cfg.Commerce.Tax = Tax{Rate: -0.1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("negative tax rate accepted")
+	}
+	cfg.Commerce.Tax = Tax{Rate: 1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("100%+ tax rate accepted")
+	}
+}
+
+func TestShippingRatesMustBeNonNegative(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:shipping.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.Shipping = ShippingFee{FlatRateCents: -100}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("negative flat_rate_cents accepted")
+	}
+	cfg.Commerce.Shipping = ShippingFee{FlatRateCents: 500, FreeAboveCents: -1}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("negative free_above_cents accepted")
+	}
+	cfg.Commerce.Shipping = ShippingFee{FlatRateCents: 500, FreeAboveCents: 10000}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid shipping config: %v", err)
+	}
+}
+
+func TestDisplayCurrenciesRequireARateAndADefault(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:currencies.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Commerce.Currencies = Currencies{Display: []string{"USD"}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("a display currency with no default and no rate accepted")
+	}
+	cfg.Commerce.Currencies = Currencies{Default: "TRY", Display: []string{"USD"}, Rates: map[string]float64{}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("a display currency with no rate accepted")
+	}
+	cfg.Commerce.Currencies = Currencies{Default: "TRY", Display: []string{"USD"}, Rates: map[string]float64{"USD": 0.03}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid currency config: %v", err)
+	}
+	cfg.Commerce.Currencies = Currencies{}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("no display currencies must stay valid: %v", err)
+	}
+}
+
 func TestGeoIPConfigurationBoundsTrustedProxyRanges(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:geoip.sqlite"}), Overrides{})
 	if err != nil {

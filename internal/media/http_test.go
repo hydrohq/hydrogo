@@ -432,3 +432,43 @@ func TestAssetServingIncludesNosniffHeader(t *testing.T) {
 		t.Fatalf("VULNERABILITY: Missing X-Content-Type-Options: nosniff header on public asset. Can lead to MIME sniffing XSS.")
 	}
 }
+
+func TestServeAssetCacheControlByVisibility(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "public.txt"), []byte("public"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "private.txt"), []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	uploader, err := NewUploader(dir, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name       string
+		visibility string
+		want       string
+	}{
+		{"public", VisibilityPublic, "public, max-age=31536000, immutable"},
+		{"private", VisibilityPrivate, "private, no-store"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			key := tc.visibility + ".txt"
+			if tc.visibility == VisibilityPublic {
+				key = "public.txt"
+			} else {
+				key = "private.txt"
+			}
+			handler := HTTPHandler{Service: Service{Uploader: uploader, Assets: httpAssetRepo{asset: Asset{ID: "a-" + tc.visibility, StorageKey: key, MimeType: "text/plain", Status: "ready", Visibility: tc.visibility}}}}
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/media/a-"+tc.visibility, nil)
+			request = request.WithContext(auth.WithUser(request.Context(), &auth.User{ID: "u1", Active: true, Role: auth.RoleAdmin}))
+			handler.serve(response, request)
+			if got := response.Header().Get("Cache-Control"); got != tc.want {
+				t.Fatalf("Cache-Control = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

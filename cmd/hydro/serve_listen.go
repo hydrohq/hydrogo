@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ardaozyildirim/hydrogo/internal/audit"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
@@ -92,6 +94,9 @@ func (a *serveApp) cgiLazyCron(cronCtx context.Context) {
 	if sessionStore != nil {
 		_, _ = sessionStore.DeleteExpired(cronCtx, time.Now().UTC())
 	}
+	if a.memberSessions != nil {
+		_, _ = a.memberSessions.DeleteExpired(cronCtx, time.Now().UTC())
+	}
 
 	// C. Outbox webhook dispatch
 	if !cfg.SafeMode && len(webhookEndpoints) > 0 {
@@ -151,7 +156,12 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		}
 		a.onClose(func() error { panicReporter.Close(); return nil })
 	}
+	clientIP, err := requestmeta.NewIPExtractor(cfg.HTTP.BehindProxy, cfg.HTTP.TrustedProxies)
+	if err != nil {
+		return server.Config{}, err
+	}
 	return server.Config{
+		ClientIP:        clientIP,
 		Address:         cfg.HTTP.Address,
 		SafeMode:        cfg.SafeMode,
 		AutoTLS:         cfg.HTTP.AutoTLS,
@@ -193,11 +203,12 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		IPBlocklist:          a.ipBlocklist,
 		AnomalyFilterEnabled: cfg.Security.EnableAnomalyFilter,
 		AnomalyBypassPaths:   cfg.Security.AnomalyBypassPaths,
+		CSRFExemptPaths:      commerceCSRFExemptPaths(modules, cfg.Commerce),
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
-				target := rule + " from " + r.RemoteAddr
+				target := rule + " from " + requestmeta.ClientIP(r)
 				details, _ := json.Marshal(map[string]any{
-					"ip":         r.RemoteAddr,
+					"ip":         requestmeta.ClientIP(r),
 					"user_agent": r.UserAgent(),
 					"method":     r.Method,
 					"path":       r.URL.Path,
@@ -212,7 +223,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 				}
 			}
 		},
-		AdminRequestAudit:   adminRequestAudit(cfg.Audit.LogRequestBodies, authHTTP.Audit),
+		AdminRequestAudit:   adminRequestAudit(cfg.Audit.LogRequestBodies, authHTTP.Audit, a.logger),
 		SecureCookie:        cfg.Security.SecureCookies,
 		HTTPBodyLimit:       budget.HTTPBodyBytes,
 		MaxInFlightRequests: budget.MaxInFlightHTTP,
@@ -253,7 +264,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 
 // adminRequestAudit returns the request-body audit middleware when the
 // operator enabled audit.log_request_bodies, and nil otherwise.
-func adminRequestAudit(enabled bool, recorder auth.AuditRecorder) func(http.Handler) http.Handler {
+func adminRequestAudit(enabled bool, recorder auth.AuditRecorder, logger *slog.Logger) func(http.Handler) http.Handler {
 	detailed, ok := recorder.(auth.DetailedAuditRecorder)
 	if !enabled || !ok {
 		return nil
@@ -263,5 +274,12 @@ func adminRequestAudit(enabled bool, recorder auth.AuditRecorder) func(http.Hand
 		// Uploads are multipart and skipped by content type; these endpoints are
 		// high-volume reports from the admin UI itself, not user actions.
 		SkipPath: func(path string) bool { return path == "/api/v1/admin/client-errors" },
+		// A dropped audit write is itself worth knowing about: the chain's
+		// "tamper-evident" guarantee depends on writes actually landing.
+		OnWriteError: func(err error) {
+			if logger != nil {
+				logger.Error("admin request audit write failed", "error", err)
+			}
+		},
 	}.Middleware
 }

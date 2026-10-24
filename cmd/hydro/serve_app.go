@@ -60,6 +60,12 @@ type serveApp struct {
 	cfg     config.Config
 	devMode bool
 	closers []func() error
+	// workers tracks every background goroutine startWorkers launches, so
+	// Serve can wait for them to actually exit after the HTTP server stops
+	// instead of only cancelling their context and returning immediately --
+	// a scheduled backup's VACUUM INTO mid-flight would otherwise be cut off
+	// with a partial file left behind.
+	workers sync.WaitGroup
 
 	tenantResolver     *tenant.HostResolver
 	tenantScopes       []tenant.Scope
@@ -85,6 +91,7 @@ type serveApp struct {
 	authHTTP        auth.HTTPHandler
 	mobileAuthHTTP  auth.MobileHTTPHandler
 	memberStore     memberstore.Store
+	memberSessions  expiredSessionCleaner
 	memberService   members.Service
 	memberHTTP      membertransport.Handler
 	memberOAuthHTTP *membertransport.OAuthHandler
@@ -166,4 +173,14 @@ func (a *serveApp) newRateLimiter(limit int, window time.Duration) security.Rate
 // activeStudioCollections lists the admin studio collections of enabled modules.
 func (a *serveApp) activeStudioCollections() []adminstudio.Collection {
 	return adminstudio.FilterActiveCollections(a.studioRegistry.Collections(), a.modules)
+}
+
+// spawn runs fn in a goroutine tracked by a.workers, so Serve can wait for
+// every background worker to actually exit after the HTTP server stops.
+func (a *serveApp) spawn(fn func()) {
+	a.workers.Add(1)
+	go func() {
+		defer a.workers.Done()
+		fn()
+	}()
 }

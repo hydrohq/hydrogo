@@ -14,6 +14,7 @@ import * as content from './messages/content';
 import * as search from './messages/search';
 import * as schema from './messages/schema';
 import * as site from './messages/site';
+import * as commerce from './messages/commerce';
 
 export const tr: Record<MessageKey, string> = {
   ...shell.tr,
@@ -31,4 +32,5 @@ export const tr: Record<MessageKey, string> = {
   ...search.tr,
   ...schema.tr,
   ...site.tr,
+  ...commerce.tr,
 };

@@ -1,8 +1,11 @@
 package push
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -49,6 +52,31 @@ func TestAdminBroadcastHonorsAudienceAndValidatesMessage(t *testing.T) {
 	}
 	if audited != "push.broadcast:mobile:2:2:0" {
 		t.Fatalf("audit record=%q", audited)
+	}
+}
+
+func TestAFailedBroadcastAuditWriteIsLoggedNotSilentlyDropped(t *testing.T) {
+	repo := &memorySubscriptions{items: []Subscription{{ID: "m1", UserID: "u1", Platform: PlatformMobile, Endpoint: strings.Repeat("m", 24)}}}
+	mobile := &fakeSender{}
+	var logs bytes.Buffer
+	handler := Handler{
+		Dispatcher: Dispatcher{Repository: repo, Mobile: mobile},
+		Audit:      auth.AuditRecorderFunc(func(context.Context, string, string) error { return errors.New("audit db unavailable") }),
+		Logger:     slog.New(slog.NewTextHandler(&logs, nil)),
+	}
+	request := httptest.NewRequest("POST", AdminBroadcastPath, strings.NewReader(`{"title":"Campaign","body":"A notice","audience":"mobile"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(security.CSRFHeaderName, "csrf-token")
+	request.AddCookie(&http.Cookie{Name: security.CSRFCookieName, Value: "csrf-token"})
+	request = request.WithContext(auth.WithUser(context.Background(), &auth.User{ID: "admin", Role: auth.RoleAdmin, Active: true}))
+	routeHandler := protectedPushRoutes(t, handler)
+	recorder := httptest.NewRecorder()
+	routeHandler.ServeHTTP(recorder, request)
+	if recorder.Code != 200 {
+		t.Fatalf("status = %d, want 200 (the broadcast itself still succeeds)", recorder.Code)
+	}
+	if !strings.Contains(logs.String(), "audit write failed") || !strings.Contains(logs.String(), "push.broadcast") {
+		t.Fatalf("expected the audit write failure to be logged, got: %s", logs.String())
 	}
 }
 

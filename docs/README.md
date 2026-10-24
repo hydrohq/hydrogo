@@ -4,6 +4,8 @@
 |---|---|
 | [getting-started.md](getting-started.md) | Install `hydro`, create a project with `hydro new`, first content type |
 | [content-types.md](content-types.md) | The YAML content type format and its public API |
+| [commerce.md](commerce.md) | The opt-in commerce module: endpoints, CLI, config |
+| [multi-tenancy.md](multi-tenancy.md) | Serving several customers from one shared database |
 | [deployment.md](deployment.md) | VPS, Docker, shared hosting, databases, backups |
 | [upgrading.md](upgrading.md) | Versioning policy, upgrade steps, how to cut a release |
 | [HEADLESS_API.md](HEADLESS_API.md) | The REST API |

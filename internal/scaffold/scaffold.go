@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	contenttypedata "github.com/ardaozyildirim/hydrogo/content-types"
+	commercestarter "github.com/ardaozyildirim/hydrogo/examples/commerce-starter"
 	crmstarter "github.com/ardaozyildirim/hydrogo/examples/crm-starter"
 	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
 )
@@ -73,6 +74,12 @@ var presets = []Preset{
 		Modules:      []string{"core", "auth", "pages", "media", "site", "collections"},
 		ContentTypes: []string{"site_settings", "site_navigation", "faq"},
 	},
+	{
+		Name:         "commerce",
+		Description:  "storefront: category/product/variant catalog plus cart, checkout and payments via the commerce module",
+		Modules:      []string{"core", "auth", "media", "collections", "commerce"},
+		ContentTypes: []string{"commerce/categories", "commerce/products", "commerce/variants"},
+	},
 }
 
 // Presets returns the available presets sorted by name.
@@ -110,7 +117,7 @@ type Options struct {
 }
 
 // Starters lists the frontend starters Create can copy into a project.
-func Starters() []string { return []string{"sveltekit", "crm"} }
+func Starters() []string { return []string{"sveltekit", "crm", "commerce"} }
 
 // copyStarter writes the embedded frontend starter into dir.
 func copyStarter(name, dir string) error {
@@ -120,6 +127,8 @@ func copyStarter(name, dir string) error {
 		source = sveltekitstarter.FS
 	case "crm":
 		source = crmstarter.FS
+	case "commerce":
+		source = commercestarter.FS
 	default:
 		return fmt.Errorf("unknown starter %q (available: %s)", name, strings.Join(Starters(), ", "))
 	}

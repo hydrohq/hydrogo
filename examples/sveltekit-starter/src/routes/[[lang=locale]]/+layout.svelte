@@ -4,6 +4,12 @@
   import Footer from '$lib/components/Footer.svelte';
 
   let { data, children } = $props();
+
+  // app.html's lang="%lang%" placeholder only gets replaced in a per-request
+  // server render; this is a static SPA, so set it client-side instead.
+  $effect(() => {
+    document.documentElement.lang = data.locale;
+  });
 </script>
 
 <a class="skip" href="#content">Skip to content</a>

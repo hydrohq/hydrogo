@@ -1,7 +1,10 @@
-import { hydro, siteOrigin } from '$lib/server/hydro';
+import { hydro, siteOrigin } from '$lib/hydro';
 import { locales, localePrefix } from '$lib/config';
 
 const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// Generated once at build time -- see robots.txt/+server.ts's comment.
+export const prerender = true;
 
 export async function GET() {
   const urls: { loc: string; lastmod?: string }[] = [];

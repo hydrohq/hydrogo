@@ -1,64 +1,62 @@
-// Starts the production build against a stub HydroGo API and checks the
-// failure paths: content pages answer 404 for unknown slugs, 502 when the API
-// is down, and the server stays up. Run `npm run build` first.
+// Serves the static build/ output the same way the deployed .htaccess does
+// (real file -> itself; missing _app/ asset -> 404; anything else -> the
+// SPA shell) and checks it actually comes up. Run `npm run build` first.
+//
+// This starter has no server of its own at runtime (adapter-static), so
+// unlike the old adapter-node smoke test, this cannot check a dynamic
+// content error turning into a real HTTP 404/502 -- that logic now runs
+// client-side in the browser via SvelteKit's error boundary, not as a
+// server response status. Checking the static-serving contract itself is
+// what's left to verify here.
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { extname, join } from 'node:path';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
 
-const listen = async (server) => {
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  return server.address().port;
-};
+const root = new URL('../build/', import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, '$1:');
 
-let apiUp = true;
-const api = createServer((req, res) => {
-  res.setHeader('content-type', 'application/json');
-  if (req.url.includes('/by-slug')) {
-    res.statusCode = 404;
-    res.end(JSON.stringify({ code: 'not_found', message: 'not found', request_id: 'smoke' }));
+const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.xml': 'application/xml', '.txt': 'text/plain', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+
+const server = createServer((req, res) => {
+  const path = decodeURIComponent(req.url.split('?')[0]);
+  const filePath = join(root, path);
+  if (existsSync(filePath) && statSync(filePath).isFile()) {
+    res.setHeader('content-type', MIME[extname(filePath)] ?? 'application/octet-stream');
+    createReadStream(filePath).pipe(res);
     return;
   }
-  res.end(JSON.stringify({ data: [], metadata: { total: 0 } }));
+  if (path.startsWith('/_app/')) {
+    res.statusCode = 404;
+    res.end('not found');
+    return;
+  }
+  res.setHeader('content-type', 'text/html');
+  createReadStream(join(root, 'index.html')).pipe(res);
 });
-const apiPort = await listen(api);
 
-const probe = createServer();
-const appPort = await listen(probe);
-probe.close();
-await once(probe, 'close');
-
-const app = spawn(process.execPath, ['build'], {
-  env: { ...process.env, PORT: String(appPort), HOST: '127.0.0.1', ORIGIN: `http://127.0.0.1:${appPort}`, HYDRO_API_ORIGIN: `http://127.0.0.1:${apiPort}`, PUBLIC_SITE_ORIGIN: `http://127.0.0.1:${appPort}` },
-  stdio: 'inherit'
-});
+server.listen(0, '127.0.0.1');
+await once(server, 'listening');
+const port = server.address().port;
 
 const get = async (path) => {
-  const res = await fetch(`http://127.0.0.1:${appPort}${path}`, { redirect: 'manual' });
+  const res = await fetch(`http://127.0.0.1:${port}${path}`);
   return { status: res.status, body: await res.text() };
 };
 
 try {
-  for (let i = 0; i < 50; i++) {
-    try { await get('/robots.txt'); break; } catch { await new Promise((r) => setTimeout(r, 200)); }
-    if (i === 49) throw new Error('the starter did not start');
-  }
   const home = await get('/');
-  assert.equal(home.status, 200, 'home renders with an empty API');
+  assert.equal(home.status, 200, 'home serves the SPA shell');
   assert.match(home.body, /<title>/);
-  assert.equal((await get('/news/does-not-exist')).status, 404, 'unknown article is a 404');
-  assert.equal((await get('/sitemap.xml')).status, 200);
 
-  api.close();
-  api.closeAllConnections();
-  await once(api, 'close');
-  apiUp = false;
-  const down = await get('/news/some-article');
-  assert.equal(down.status, 502, 'API down gives a 502, not a crash');
-  assert.ok((await get('/robots.txt')).status === 200, 'the server keeps serving after an API failure');
+  assert.equal((await get('/robots.txt')).status, 200, 'robots.txt was prerendered into the build');
+  assert.equal((await get('/sitemap.xml')).status, 200, 'sitemap.xml was prerendered into the build');
+  assert.equal((await get('/rss.xml')).status, 200, 'rss.xml was prerendered into the build');
+
+  assert.equal((await get('/news/some-article-that-does-not-exist')).status, 200, 'an unknown content path still gets the SPA shell (client-side error boundary takes over from here)');
+  assert.equal((await get('/_app/does-not-exist.js')).status, 404, '_app/ never falls back to the SPA shell');
+
   console.log('starter smoke test passed');
 } finally {
-  app.kill();
-  if (apiUp) api.close();
+  server.close();
 }

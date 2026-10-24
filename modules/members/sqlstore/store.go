@@ -414,6 +414,34 @@ func (s SessionStore) DeleteByID(ctx context.Context, sessionID string) error {
 	return err
 }
 
+// DeleteExpired removes every session past its expiry, so the table does
+// not grow forever with rows ValidateSession already treats as dead. It
+// matches cmd/hydro's expiredSessionCleaner interface, the same shape the
+// admin session store's periodic cleanup already uses.
+func (s SessionStore) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return 0, err
+	}
+	var nowVal any = now
+	if s.Dialect == database.SQLite {
+		nowVal = now.Format(time.RFC3339Nano)
+	}
+	args := []any{nowVal}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	result, err := Store(s).exec(ctx, "DELETE FROM member_sessions WHERE expires_at < "+s.ph(1)+clause, args...)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, nil // best-effort count; the delete itself succeeded
+	}
+	return affected, nil
+}
+
 func (s SessionStore) DeleteByMemberID(ctx context.Context, memberID string) error {
 	clause, scopeID, err := s.tenantClause(ctx, 2)
 	if err != nil {
