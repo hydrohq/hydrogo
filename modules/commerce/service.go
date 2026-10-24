@@ -33,6 +33,10 @@ type Repository interface {
 	GetOrderByIdempotencyKey(ctx context.Context, db database.Executor, key string) (Order, bool, error)
 	ListOrderItems(ctx context.Context, db database.Executor, orderID string) ([]OrderItem, error)
 	ListPendingOrdersOlderThan(ctx context.Context, db database.Executor, cutoff time.Time, limit int) ([]Order, error)
+	// ListOrders backs the admin order-browsing endpoint; either status
+	// filter as "" skips it. See repository/sqlstore's own doc comment for
+	// the pagination convention (limit+1 rows, no COUNT query).
+	ListOrders(ctx context.Context, db database.Executor, paymentStatus PaymentStatus, fulfillmentStatus FulfillmentStatus, limit, offset int) ([]Order, error)
 	UpdatePaymentStatus(ctx context.Context, db database.Executor, orderID string, from, to PaymentStatus) (bool, error)
 	RecordPaymentNotification(ctx context.Context, db database.Executor, provider, eventID string) (bool, error)
 	// ListNotifiedOrdersNotPaid and StockReservationDrift back
@@ -165,6 +169,7 @@ type CheckoutRequest struct {
 	GuestPhone      string
 	GuestAddress    string
 	GuestCity       string
+	GuestDistrict   string
 	GuestCountry    string
 	GuestPostalCode string
 	IdempotencyKey  string
@@ -271,7 +276,7 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 		order := Order{
 			ID: orderID, MemberID: req.MemberID,
 			GuestName: req.GuestName, GuestEmail: req.GuestEmail, GuestPhone: req.GuestPhone,
-			GuestAddress: req.GuestAddress, GuestCity: req.GuestCity, GuestCountry: req.GuestCountry, GuestPostalCode: req.GuestPostalCode,
+			GuestAddress: req.GuestAddress, GuestCity: req.GuestCity, GuestDistrict: req.GuestDistrict, GuestCountry: req.GuestCountry, GuestPostalCode: req.GuestPostalCode,
 			IdempotencyKey: req.IdempotencyKey, IdempotencyHash: req.IdempotencyKey,
 			SubtotalCents: breakdown.SubtotalCents, DiscountCents: breakdown.DiscountCents, TaxCents: breakdown.TaxCents, ShippingCents: breakdown.ShippingCents, TotalCents: breakdown.TotalCents,
 			PaymentStatus: PaymentPending, FulfillmentStatus: FulfillmentUnfulfilled,

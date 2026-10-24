@@ -20,6 +20,7 @@
 | [0018](0018-commerce-reconciliation.md) | Commerce reconciliation and drift alerting | Accepted |
 | [0019](0019-commerce-order-notifications-and-member-login.md) | Order notifications and storefront member login | Accepted |
 | [0020](0020-commerce-shipping-provider.md) | Generic `ShippingProvider`, Yurtiçi Kargo first | Accepted |
+| [0021](0021-commerce-admin-orders-and-payment-scope.md) | Admin order screen, order district, and parking payment/carrier verification | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.

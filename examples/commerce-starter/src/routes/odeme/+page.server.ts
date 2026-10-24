@@ -29,13 +29,14 @@ export const actions: Actions = {
     const guestPhone = String(form.get('guest_phone') ?? '').trim();
     const guestAddress = String(form.get('guest_address') ?? '').trim();
     const guestCity = String(form.get('guest_city') ?? '').trim();
+    const guestDistrict = String(form.get('guest_district') ?? '').trim();
     const guestCountry = String(form.get('guest_country') ?? '').trim();
     const guestPostalCode = String(form.get('guest_postal_code') ?? '').trim();
     const discountCode = String(form.get('discount_code') ?? '').trim();
 
-    const fieldValues = { guestName, guestEmail, guestPhone, guestAddress, guestCity, guestCountry, guestPostalCode, discountCode };
-    if (!guestEmail || !guestName || !guestAddress || !guestCity) {
-      return fail(400, { message: 'Lütfen ad, e-posta, adres ve şehir alanlarını doldurun.', ...fieldValues });
+    const fieldValues = { guestName, guestEmail, guestPhone, guestAddress, guestCity, guestDistrict, guestCountry, guestPostalCode, discountCode };
+    if (!guestEmail || !guestName || !guestAddress || !guestCity || !guestDistrict) {
+      return fail(400, { message: 'Lütfen ad, e-posta, adres, şehir ve ilçe alanlarını doldurun.', ...fieldValues });
     }
 
     const idempotencyKey = cookies.get(IDEMPOTENCY_COOKIE) ?? crypto.randomUUID();
@@ -49,6 +50,7 @@ export const actions: Actions = {
         guestPhone,
         guestAddress,
         guestCity,
+        guestDistrict,
         guestCountry,
         guestPostalCode,
         discountCode,
