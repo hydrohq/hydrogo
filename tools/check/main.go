@@ -42,7 +42,15 @@ func main() {
 		}},
 		{name: "code shape (HTML in Go strings, file size)", args: []string{"go", "run", "./tools/codeguard"}},
 		{name: "migrations", args: []string{"go", "run", "./tools/migrationguard", "-root", "migrations"}},
-		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json"}},
+		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json",
+			"-deny-modules-root", "internal",
+			// Pre-existing debt (found by the 2026-10-24 audit, not yet fixed):
+			// internal/mailer/sqlstore.Spool.Enqueue takes a modules/site type
+			// directly. New code must not add a second one of these; see
+			// docs/decisions for the commerce module's own write-up of why it
+			// deliberately did not reuse this spool.
+			"-deny-modules-exceptions", "internal/mailer/sqlstore/spool.go",
+		}},
 	}
 	if !*short {
 		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}},
