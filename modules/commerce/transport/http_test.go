@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	"github.com/ardaozyildirim/hydrogo/internal/notify"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
@@ -334,6 +336,91 @@ func (f fakePaymentProvider) StartPayment(ctx context.Context, order commerce.Or
 		return commerce.PaymentStart{}, f.err
 	}
 	return f.start, nil
+}
+
+type recordedOrderMail struct {
+	email, orderID, total string
+	items                 []mailer.OrderConfirmationItem
+}
+
+type fakeMailer struct {
+	calls []recordedOrderMail
+	err   error
+}
+
+func (f *fakeMailer) SendOrderConfirmation(_ context.Context, email, orderID, total string, items []mailer.OrderConfirmationItem) error {
+	f.calls = append(f.calls, recordedOrderMail{email: email, orderID: orderID, total: total, items: items})
+	return f.err
+}
+
+type fakeNotifier struct{ calls []notify.Message }
+
+func (f *fakeNotifier) Send(_ context.Context, msg notify.Message) error {
+	f.calls = append(f.calls, msg)
+	return nil
+}
+
+func TestCheckoutSendsOrderConfirmationEmailAndOperatorNotification(t *testing.T) {
+	h, db := newTestHandler(t)
+	mail := &fakeMailer{}
+	notifier := &fakeNotifier{}
+	h.Mailer = mail
+	h.Notifier = notifier
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-notify", 3); err != nil {
+		t.Fatal(err)
+	}
+
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-notify","quantity":1,"unit_price_cents":1500}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(
+		`{"guest_email":"guest@example.com","idempotency_key":"http-idem-notify-1","item_titles":{"variant-http-notify":"Deri Kemer"}}`,
+	))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
+
+	if len(mail.calls) != 1 {
+		t.Fatalf("expected exactly 1 order confirmation email, got %d", len(mail.calls))
+	}
+	if mail.calls[0].email != "guest@example.com" || len(mail.calls[0].items) != 1 || mail.calls[0].items[0].Title != "Deri Kemer" {
+		t.Fatalf("unexpected mail call: %+v", mail.calls[0])
+	}
+	if len(notifier.calls) != 1 || notifier.calls[0].Title != "Yeni sipariş" {
+		t.Fatalf("unexpected notifier calls: %+v", notifier.calls)
+	}
+}
+
+func TestCheckoutStillSucceedsWhenMailerFails(t *testing.T) {
+	h, db := newTestHandler(t)
+	h.Mailer = &fakeMailer{err: errors.New("smtp down")}
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-notify-fail", 3); err != nil {
+		t.Fatal(err)
+	}
+
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"variant-http-notify-fail","quantity":1,"unit_price_cents":1500}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","idempotency_key":"http-idem-notify-fail-1"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout must still succeed when the mailer fails: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
 }
 
 func TestCheckoutIncludesThePaymentProvidersRedirectWhenOneIsConfigured(t *testing.T) {

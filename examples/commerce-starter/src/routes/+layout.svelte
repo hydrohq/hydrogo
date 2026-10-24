@@ -30,6 +30,9 @@
       {/each}
     </div>
   {/if}
+  <a class="account-link" href={data.member ? '/uye/hesap' : '/uye/giris'}>
+    {data.member ? data.member.email : 'Giriş yap'}
+  </a>
   <a class="cart-link" href="/sepet">
     Sepet
     {#if data.cartItemCount > 0}<span class="count">{data.cartItemCount}</span>{/if}

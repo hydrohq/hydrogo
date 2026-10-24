@@ -2,11 +2,12 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { checkout, CommerceAPIError, getCheckoutConfig, SECURE_COOKIES } from '$lib/server/commerce';
 import { itemCatalogData, loadCartLines } from '$lib/server/cartLines';
+import { currentMember } from '$lib/server/member';
 
 const IDEMPOTENCY_COOKIE = 'checkout_idem';
 
 export const load: PageServerLoad = async ({ cookies }) => {
-  const [{ lines, totalCents }, checkoutConfig] = await Promise.all([loadCartLines(cookies), getCheckoutConfig()]);
+  const [{ lines, totalCents }, checkoutConfig, member] = await Promise.all([loadCartLines(cookies), getCheckoutConfig(), currentMember(cookies)]);
   if (lines.length === 0) redirect(303, '/sepet');
   // One key per checkout attempt on this cart, not per click: a double
   // submit (slow network, an impatient second click) must retry the same
@@ -17,7 +18,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     idempotencyKey = crypto.randomUUID();
     cookies.set(IDEMPOTENCY_COOKIE, idempotencyKey, { path: '/', httpOnly: true, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: 60 * 60 });
   }
-  return { lines, totalCents, currency: 'TRY', checkoutConfig };
+  return { lines, totalCents, currency: 'TRY', checkoutConfig, memberEmail: member?.email ?? '' };
 };
 
 export const actions: Actions = {

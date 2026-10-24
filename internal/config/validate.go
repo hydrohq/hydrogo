@@ -42,6 +42,9 @@ func (c Config) Validate() error {
 	if c.Commerce.PayTR.Enabled() && (c.Commerce.PayTR.MerchantKey == "" || c.Commerce.PayTR.MerchantSalt == "") {
 		return errors.New("PayTR requires a merchant key and salt once a merchant id is configured")
 	}
+	if (c.Notifications.Telegram.BotToken == "") != (c.Notifications.Telegram.ChatID == "") {
+		return errors.New("Telegram notifications require both a bot token and a chat id")
+	}
 	if c.Commerce.Tax.Rate < 0 || c.Commerce.Tax.Rate >= 1 {
 		return errors.New("commerce tax rate must be 0 (disabled) or a fraction below 1")
 	}
