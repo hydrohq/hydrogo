@@ -28,6 +28,8 @@ var expectedRLSTables = []string{
 	"page_redirects",
 	"form_inbox",
 	"news_items",
+	"news_taxonomy_terms",
+	"news_taxonomy_relations",
 	"members",
 	"member_sessions",
 	"member_mobile_device_sessions",
