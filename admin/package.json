@@ -11,13 +11,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lucide/svelte": "^1.57.0",
     "@tanstack/svelte-query": "^6.3.4",
     "@tiptap/core": "^3.32.0",
     "@tiptap/extension-placeholder": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
     "clsx": "^2.1.1",
-    "lucide-svelte": "^1.0.1",
     "tailwind-merge": "^3.0.1"
   },
   "devDependencies": {
