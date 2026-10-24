@@ -73,3 +73,36 @@ were closed as superseded by the coordinated bump above.
   record found, the same way this investigation did, before trusting a
   green `svelte-check`/`vite build` alone (neither one caught this; only
   reading the actual compiled output did).
+
+## Update (2026-10-24, same day): the `#lib` path is blocked too
+
+Re-investigated in an isolated copy of `crm-starter` (same package set:
+`@sveltejs/kit@3.1.0`, `vite@8.3.5`, `@sveltejs/vite-plugin-svelte@7.3.1`,
+`@sveltejs/adapter-node@6.0.0`), specifically to test whether adopting
+SvelteKit 3's actual replacement for `$lib` -- the new `#lib` import alias
+-- avoids the `$env/dynamic/private` folding bug above by not needing a
+custom `alias: { $lib: 'src/lib' }` at all (the earlier 0026 investigation
+found that custom alias was what triggered the `"paths" was overwritten`
+interaction with `$env`).
+
+Renaming every `$lib` import to `#lib` across the whole starter and
+building with no custom alias **does** fix the `$env/dynamic/private`
+folding: the env var reads survive in the compiled output this time.
+But `vite build` then fails a different way -- `Rolldown failed to
+resolve import "#lib/..."`, naming a different, effectively random file
+on each run. 13 consecutive clean-cache build attempts (including forcing
+`UV_THREADPOOL_SIZE=1` and running `svelte-kit sync` as a separate step
+first) all failed, never on the same import twice. This is a race
+condition in Rolldown's own module resolver when resolving the `#lib`
+alias, not anything reachable from our config -- `#lib` is SvelteKit 3's
+own mechanism, implemented inside `@sveltejs/kit`/Vite, not something a
+project configures.
+
+Net: both documented paths to SvelteKit 3 on this toolchain are blocked
+by a real upstream bug, for different reasons. Before retrying, check
+*both*: grep the compiled bundle for folded `$env` literals (if still
+using a custom `$lib` alias), and run `vite build` several times in a row
+checking for `Rolldown failed to resolve import "#lib/` style failures
+(if using the `#lib` default). A single green build is not enough
+evidence for either -- the `$env` fold is silent and the `#lib` resolver
+race only shows up on *some* runs.
