@@ -1,7 +1,4 @@
-import { env } from '$env/dynamic/private';
 import type { Session } from './sessions';
-
-const origin = () => (env.HYDRO_API_ORIGIN ?? 'http://127.0.0.1:8080').replace(/\/$/, '');
 
 /** An error envelope from HydroGo: {code, message, request_id, fields}. */
 export class HydroError extends Error {
@@ -55,13 +52,14 @@ export type LoginResult =
   | { ok: false; mfaRequired?: boolean; message: string };
 
 /** Sign in against HydroGo (CSRF + form login). Returns the server-side cookie pair. */
-export async function login(email: string, password: string, mfaCode: string): Promise<LoginResult> {
-  const csrfRes = await fetch(`${origin()}/csrf-token`);
+export async function login(origin: string, email: string, password: string, mfaCode: string): Promise<LoginResult> {
+  const base = origin.replace(/\/$/, '');
+  const csrfRes = await fetch(`${base}/csrf-token`);
   const csrfCookie = parseCookies(csrfRes.headers)['hydro_csrf'];
   const { token } = (await csrfRes.json()) as { token: string };
   const form = new URLSearchParams({ email, password });
   if (mfaCode) form.set('mfa_code', mfaCode);
-  const res = await fetch(`${origin()}/auth/login`, {
+  const res = await fetch(`${base}/auth/login`, {
     method: 'POST',
     headers: {
       'content-type': 'application/x-www-form-urlencoded',
@@ -82,7 +80,7 @@ export async function login(email: string, password: string, mfaCode: string): P
 }
 
 export async function logout(session: Session) {
-  await fetch(`${origin()}/auth/logout`, {
+  await fetch(`${session.hydroOrigin}/auth/logout`, {
     method: 'POST',
     headers: { cookie: session.cookie, 'x-csrf-token': session.csrf }
   }).catch(() => undefined);
@@ -92,7 +90,7 @@ async function call(session: Session, method: string, path: string, body?: unkno
   const headers: Record<string, string> = { cookie: session.cookie, accept: 'application/json' };
   if (method !== 'GET') headers['x-csrf-token'] = session.csrf;
   if (body !== undefined) headers['content-type'] = 'application/json';
-  return fetch(`${origin()}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  return fetch(`${session.hydroOrigin}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
 }
 
 export interface Query {

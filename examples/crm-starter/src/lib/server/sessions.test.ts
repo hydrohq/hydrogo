@@ -7,24 +7,24 @@ afterEach(() => {
 });
 
 describe('sessions', () => {
-  const data = { cookie: 'hydro_session=a', csrf: 'x', email: 'a@b.co' };
+  const data = { cookie: 'hydro_session=a', csrf: 'x', email: 'a@b.co', tenantId: 'default', hydroOrigin: 'http://127.0.0.1:8080' };
 
-  it('issues unguessable ids and returns the stored session', () => {
-    const a = createSession(data);
-    const b = createSession(data);
+  it('issues unguessable ids and returns the stored session', async () => {
+    const a = await createSession(data);
+    const b = await createSession(data);
     expect(a).not.toEqual(b);
     expect(a.length).toBeGreaterThanOrEqual(40);
-    expect(getSession(a)?.email).toBe('a@b.co');
+    expect((await getSession(a))?.email).toBe('a@b.co');
   });
 
-  it('forgets destroyed and expired sessions', () => {
+  it('forgets destroyed and expired sessions', async () => {
     vi.useFakeTimers();
-    const sid = createSession(data);
-    const other = createSession(data);
+    const sid = await createSession(data);
+    const other = await createSession(data);
     destroySession(sid);
-    expect(getSession(sid)).toBeNull();
+    expect(await getSession(sid)).toBeNull();
     vi.setSystemTime(Date.now() + 9 * 60 * 60 * 1000);
-    expect(getSession(other)).toBeNull();
-    expect(getSession(undefined)).toBeNull();
+    expect(await getSession(other)).toBeNull();
+    expect(await getSession(undefined)).toBeNull();
   });
 });

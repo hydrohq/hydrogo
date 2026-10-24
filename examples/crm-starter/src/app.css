@@ -133,6 +133,12 @@ button.primary:hover { filter: brightness(1.2); }
 .deal form { margin-top: .4rem; display: flex; gap: .25rem; }
 .deal select { flex: 1; min-height: 1.9rem; padding: .15rem .3rem; font-size: .82rem; }
 
+/* ---------- bar rows (reporting dashboard) ---------- */
+.bars { display: flex; flex-direction: column; gap: .5rem; }
+.bar-row { display: grid; grid-template-columns: 7rem 1fr 2.5rem; gap: .6rem; align-items: center; font-size: .86rem; }
+.bar-track { background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; height: .8rem; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+
 /* ---------- login ---------- */
 .login { max-width: 360px; margin: 14vh auto; padding: 1rem; text-align: center; }
 .login h1 { display: flex; align-items: center; justify-content: center; gap: .55rem; font-size: 1.2rem; margin-bottom: 1.2rem; }

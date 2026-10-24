@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STAGES, byStage, formatMoney, isOverdue, totals } from './pipeline';
+import { STAGES, byStage, formatMoney, isOverdue, totals, winRate } from './pipeline';
 
 describe('pipeline', () => {
   it('groups deals by stage and drops unknown stages', () => {
@@ -24,5 +24,10 @@ describe('pipeline', () => {
     expect(isOverdue('2026-01-01T00:00:00Z', now)).toBe(true);
     expect(isOverdue('2026-02-01T00:00:00Z', now)).toBe(false);
     expect(isOverdue(undefined, now)).toBe(false);
+  });
+
+  it('computes win rate from closed deals only', () => {
+    expect(winRate(3, 1)).toBe(0.75);
+    expect(winRate(0, 0)).toBeNull();
   });
 });
