@@ -90,7 +90,21 @@ sequential phases (branches `fix/audit-1-commerce` through
   original commerce work landed) and are now reconciled; the
   `hydropost-news-starter` example's `bot-meta.php` had a hardcoded origin
   and filesystem DB path, now read from environment variables with
-  generic fallbacks.
+  generic fallbacks. The same false `HYDRO_*` secret-override claim fixed
+  in `config.example.yaml` and `internal/config/config.go` was also found
+  and fixed in `modules/commerce/providers/paytr/paytr.go` and
+  `modules/commerce/providers/yurticikargo/yurticikargo.go`'s own doc
+  comments.
+- A new end-to-end test, `modules/commerce/providers/checkout_to_shipment_test.go`,
+  chains checkout, `StartPayment` and a PayTR callback, and `CreateShipment`
+  through the real `commerce.Service` against mock PayTR and Yurtiçi Kargo
+  HTTP servers in one run -- the two providers' own unit tests each mock
+  only their own call; nothing previously exercised the full hand-off
+  between them. It also covers a carrier refusal correctly releasing the
+  shipment claim so a retry can still succeed. Both provider packages
+  gained unparsable-response, connection-failure and already-canceled-
+  context tests, none of which existed before (only the documented-happy-
+  path and documented-refusal shapes were covered).
 
 ## Consequences
 
@@ -100,10 +114,19 @@ sequential phases (branches `fix/audit-1-commerce` through
   migration-ledger rows that break schema-diff tests), and
   `tests/contract`'s RLS-dependent tests were run as a non-superuser role,
   since `NOBYPASSRLS` is required for those tests to mean anything.
-- Not verified, and not claimed as verified: MySQL (no server available in
-  this environment) and `-race` (no C toolchain/WSL available on this
-  machine for cgo). Anyone merging this work should run both before
-  relying on it.
+- **MySQL and `-race`, previously listed as "not verified" in an earlier
+  draft of this record, have since been verified.** Docker was installed
+  into this machine's existing WSL2 Ubuntu distribution (which already had
+  Go 1.27 and a C toolchain, unused until now), a MySQL 8 container was
+  started there, and the full suite ran clean against it
+  (`HYDRO_TEST_MYSQL_URL`, zero failures across the whole module tree,
+  plus the two tests that need a literally empty target database run
+  separately against a dedicated empty one). The full suite also ran
+  clean under `go test ./... -race` in the same WSL environment, and the
+  new end-to-end commerce/provider tests were additionally run under
+  `-race` on their own. Still not verified, because nothing in this
+  environment can: the real PayTR and Yurtiçi Kargo services themselves
+  (see below).
 - Deliberately deferred, named rather than hidden: aggregate SQL pushdown
   for a couple of reporting queries, multi-instance cache invalidation
   (the sqlite cache-invalidation monitor assumes one process), signed
@@ -112,8 +135,9 @@ sequential phases (branches `fix/audit-1-commerce` through
   topic filter. None of these were part of the six critical findings.
 - Needs a human, not further autonomous work: merging this six-PR stack
   (with merge commits, not squash, so each phase's history survives),
-  re-enabling GitHub Actions if it is currently off, installing a C
-  toolchain or WSL to ever run `-race` on this machine, closing or
-  resolving stale PRs #325-327, obtaining a MySQL instance for dialect
-  parity testing, and obtaining real PayTR/Yurtiçi Kargo credentials to
-  verify those two integrations end-to-end.
+  re-enabling GitHub Actions if it is currently off, closing or resolving
+  stale PRs #325-327, and obtaining real PayTR/Yurtiçi Kargo merchant/
+  carrier credentials to verify those two integrations against the actual
+  services -- a mock HTTP/SOAP server, however thorough, can only prove
+  this code does what it claims to do with the shapes it was told to
+  expect, never that those shapes match what the real services send.
