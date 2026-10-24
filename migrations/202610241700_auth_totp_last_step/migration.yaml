@@ -1,0 +1,26 @@
+id: "202610241700_auth_totp_last_step"
+module: "auth"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "2a6903660cae22d89c2592af5351f50e79b36a4db78b2d197fc722092aa416eb"
+  postgres: "b0c5aadf173f18696ac7be2c29220c1605b43800cca9e85bda006be2e0535278"
+  mysql: "d5df4e949684d2b55608609c0e981199f83b2353b355c371011f9dbc8dcbd012"
+dependencies:
+  - "202609080007_mfa"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+lock_timeout: "Not certified; one defaulted column on user_mfa (one row per staff user with MFA)"
+disk_estimate: "Eight bytes per MFA-enabled staff user"
+compatibility: "Additive. 0 means no code used yet, so the first code after the upgrade is accepted as before."
+smoke:
+  - "An MFA login succeeds once with a fresh code and is refused when the same code is replayed"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

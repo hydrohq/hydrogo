@@ -93,7 +93,7 @@ func (s Schema) ValidateTranslation(data map[string]any) (map[string]any, error)
 		if err := validateValue(field, value); err != nil {
 			return nil, fieldError(id)
 		}
-		clean[id] = value
+		clean[id] = storedValue(field, value)
 	}
 	encoded, err := json.Marshal(clean)
 	if err != nil || len(encoded) > MaxRecordBytes {

@@ -7,6 +7,13 @@ export const SESSION_COOKIE = 'crm_sid';
 const PUBLIC_PATHS = new Set(['/login', '/health']);
 
 export const handle: Handle = async ({ event, resolve }) => {
+  // GHSA-pfhg-q3qv-9q6r (CVE-2026-114060): @sveltejs/kit < 3.0.0 can turn a
+  // `//`-prefixed action path into an open redirect through use:enhance.
+  // This is the SvelteKit security team's own documented workaround --
+  // reject it outright before route resolution.
+  if (event.url.pathname.startsWith('//')) {
+    return new Response('Not found', { status: 404 });
+  }
   const sid = event.cookies.get(SESSION_COOKIE) ?? null;
   event.locals.sid = sid;
   event.locals.session = getSession(sid ?? undefined);

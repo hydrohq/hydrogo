@@ -1,0 +1,28 @@
+id: "202610241802_members_list_index"
+module: "members"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "7b73bcc867658d1d560470eed157c524efcaa715177477bc9e0f9b01082a167f"
+  postgres: "7b73bcc867658d1d560470eed157c524efcaa715177477bc9e0f9b01082a167f"
+  mysql: "7b73bcc867658d1d560470eed157c524efcaa715177477bc9e0f9b01082a167f"
+dependencies:
+  - "202609190009_members_tenant_scope"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "Members tenant-scope migration is applied"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "One composite index on the members table"
+compatibility: "Purely additive index; no column or data change. The admin Members list/search query (ORDER BY created_at DESC, filtered by tenant_id and optionally status) had no supporting index, unlike News and Pages, which both got one -- a full-table scan-and-sort at small table sizes today, a real cost once a tenant has tens of thousands of members."
+smoke:
+  - "The admin members list query plan uses this index instead of a full table scan"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

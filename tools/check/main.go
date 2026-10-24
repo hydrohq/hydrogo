@@ -42,7 +42,15 @@ func main() {
 		}},
 		{name: "code shape (HTML in Go strings, file size)", args: []string{"go", "run", "./tools/codeguard"}},
 		{name: "migrations", args: []string{"go", "run", "./tools/migrationguard", "-root", "migrations"}},
-		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json"}},
+		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json",
+			"-deny-modules-root", "internal",
+			// Pre-existing debt (found by the 2026-10-24 audit, not yet fixed):
+			// internal/mailer/sqlstore.Spool.Enqueue takes a modules/site type
+			// directly. New code must not add a second one of these; see
+			// docs/decisions for the commerce module's own write-up of why it
+			// deliberately did not reuse this spool.
+			"-deny-modules-exceptions", "internal/mailer/sqlstore/spool.go",
+		}},
 	}
 	if !*short {
 		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}},
@@ -97,8 +105,18 @@ func auditSteps() []step {
 	if _, err := exec.LookPath(npm); err != nil {
 		return steps
 	}
-	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter"} {
+	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter", "examples/commerce-starter"} {
 		steps = append(steps, step{name: "npm audit " + dir, dir: dir, args: []string{npm, "audit", "--omit=dev", "--audit-level=high"}})
+	}
+	// examples/hydropost-news-starter uses pnpm (pnpm-lock.yaml, no
+	// package-lock.json), so npm audit there would just fail with ENOLOCK
+	// instead of actually scanning anything.
+	pnpm := "pnpm"
+	if runtime.GOOS == "windows" {
+		pnpm = "pnpm.cmd"
+	}
+	if _, err := exec.LookPath(pnpm); err == nil {
+		steps = append(steps, step{name: "pnpm audit examples/hydropost-news-starter", dir: "examples/hydropost-news-starter", args: []string{pnpm, "audit", "--prod", "--audit-level", "high"}})
 	}
 	return steps
 }

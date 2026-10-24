@@ -1,0 +1,29 @@
+id: "202610231303_commerce_payments"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "d786b22fe26c8958a2568ffe66b3e6e3d6f94998e96292e88f93bec3bf7d7353"
+  postgres: "d9dbcd275925d084e348ca0b2fdc8386657407c2b570216ecd7ef2b0cd0fa6ba"
+  mysql: "4f59013ea10dac29b87218e6984418206187347bdf0c6796d83c73e968d7b2cd"
+dependencies:
+  - "202610231302_commerce_orders"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; two small table creations"
+disk_estimate: "One row per payment attempt plus one row per received provider webhook event"
+compatibility: "New tables, additive only; no existing reader or writer is affected."
+smoke:
+  - "The same (provider, provider_event_id) webhook delivered twice is processed exactly once"
+  - "A conditional UPDATE flips an order's payment_status only when it is still pending"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

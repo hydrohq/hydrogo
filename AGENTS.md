@@ -10,9 +10,12 @@ change does not serve that, don't make it. Background:
 ## Branches
 
 `main` is the only long-lived branch (tags `vX.Y.Z` are cut from it). Work on a
-short-lived branch and open a pull request into `main`; GitHub CI runs for it.
-Delete the branch once it is merged. The local check below is still the first
-gate, since CI is slower and only runs once the PR exists.
+short-lived branch and open a pull request into `main`. CI (`.github/workflows/`)
+is configured to run on every push/PR but **Actions is currently disabled at
+the repo level** (`gh api repos/<owner>/<repo>/actions/permissions`) — no
+workflow has ever executed. Until a repo owner re-enables it,
+`go run ./tools/check` below is the *only* gate; do not assume a PR got any
+automated check beyond what you ran yourself. Delete the branch once merged.
 
 ## Before you finish any task
 
@@ -26,13 +29,13 @@ done if either step failed.
 | You are adding… | Put it in |
 |---|---|
 | A simple content type (FAQ, team, events, …) | one YAML file in `content-types/` — no Go, no Svelte. The admin screens and `/api/v1/content/<id>` come from the schema. See `content-types/faq.yaml` and `internal/contenttypes/definition.go` for the field kinds |
-| Content module logic (pages, news, members, site) | `modules/<name>/` → `model.go`, `service/` or `service.go`, `repository/sqlstore/`, `transport/http.go` (JSON only) |
+| Content module logic (pages, news, members, site, commerce) | `modules/<name>/` → `model.go`, `service/` or `service.go`, `repository/sqlstore/`, `transport/http.go` (JSON only) |
 | Shared core capability | `internal/<name>/` |
 | An admin screen for a module | `admin/src/routes/<module>/` (Svelte), built from `admin/src/lib/components` (shadcn-svelte) and the schema-driven pieces in `admin/src/lib/schema` |
 | An admin API endpoint | `/api/v1/admin/...` in the module's `transport/http.go`, responses through `internal/api.WriteData` / `WriteError` |
-| Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql` |
+| Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql`. A new table most other tables have (check a sibling in the same module) needs a `tenant_id` column too — add it to `internal/tenant.BackfillTables`, `tests/contract/postgres_rls_contract_test.go`'s `expectedRLSTables`, and thread `tenant.Require`/`RequireTenantScope` through its repository in the same change. See `docs/multi-tenancy.md` and `docs/decisions/0024-news-taxonomy-tenant-isolation.md` for what happens when this is skipped |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
-| A starting point for a public site | `examples/sveltekit-starter/` (server-rendered, uses `packages/client`). `examples/svelte-starter/` is HydroGo's own landing/docs SPA. `examples/hydropost-news-starter/` is a Turkish news portal — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
+| A starting point for a public site | `examples/sveltekit-starter/` (server-rendered, uses `packages/client`). `examples/crm-starter/` and `examples/commerce-starter/` are the `--starter crm`/`--starter commerce` panels for those presets. `examples/svelte-starter/` is HydroGo's own landing/docs SPA. `examples/hydropost-news-starter/` is a Turkish news portal — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
 | The typed API client for frontends | `packages/client` (`@hydrogo/client`, private: never published to npm or any public registry). Keep it in step with the public API envelope: pages, news and content return `{data, metadata}` |
 | What `hydro new` / `hydro init` create (presets, config template) | `internal/scaffold`. Presets only pick modules and stock types from `content-types/` |
 | Release, installer, install scripts | `.github/workflows/release.yml`, `deploy/windows/hydrogo.iss`, `scripts/install.sh`, `scripts/install.ps1` (see `docs/upgrading.md`) |
@@ -70,9 +73,10 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
    bare `t.Skip` or `test.skip`. Fix the code, update the test to the new
    intended behaviour, or delete it with an explanation in the commit.
    `codeguard` rejects renamed tests.
-9. **Regenerate, don't hand-edit**, generated files: `admin/src/lib/api/types.ts`
-   comes from `make generate` (`hydro schema openapi` → `openapi-typescript`);
-   `admin/dist` comes from `vite build`.
+9. **Don't hand-edit `admin/dist`**: it comes from `vite build`.
+   `admin/src/lib/api/types.ts` is hand-maintained (there is no OpenAPI →
+   TypeScript generation step yet); keep it in step with the admin API by
+   hand when you change a response shape.
 10. **Every API response uses the envelope** in `internal/api/response.go`:
     `{data, metadata}` or `{code, message, request_id, fields}`. Errors must carry
     the request id so the admin can show it.
@@ -110,9 +114,8 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 
 ```bash
 go run ./tools/devserver   # Go rebuilds + Vite HMR + demo data, http://127.0.0.1:8090
-go run ./tools/check       # everything CI checks that runs fast locally (or: make check)
-go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; runs weekly in CI)
-make generate              # OpenAPI → admin/src/lib/api/types.ts
+go run ./tools/check       # everything configured as CI checks -- run it yourself, Actions is disabled (or: make check)
+go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; configured to run weekly in CI, but see above)
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests
 ```
