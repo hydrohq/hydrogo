@@ -307,15 +307,15 @@ func TestShippingRatesMustBeNonNegative(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg.Commerce.Shipping = Shipping{FlatRateCents: -100}
+	cfg.Commerce.Shipping = ShippingFee{FlatRateCents: -100}
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("negative flat_rate_cents accepted")
 	}
-	cfg.Commerce.Shipping = Shipping{FlatRateCents: 500, FreeAboveCents: -1}
+	cfg.Commerce.Shipping = ShippingFee{FlatRateCents: 500, FreeAboveCents: -1}
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("negative free_above_cents accepted")
 	}
-	cfg.Commerce.Shipping = Shipping{FlatRateCents: 500, FreeAboveCents: 10000}
+	cfg.Commerce.Shipping = ShippingFee{FlatRateCents: 500, FreeAboveCents: 10000}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("valid shipping config: %v", err)
 	}
