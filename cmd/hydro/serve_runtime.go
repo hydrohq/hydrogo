@@ -357,11 +357,11 @@ func (a *serveApp) initPublicCaches() error {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor: %v\n", monitorErr)
 			}
 		}
-		go func() {
+		a.spawn(func() {
 			if monitorErr := monitor.Run(ctx); monitorErr != nil && ctx.Err() == nil && stderr != nil {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor stopped: %v\n", monitorErr)
 			}
-		}()
+		})
 	}
 	return nil
 }
@@ -375,34 +375,36 @@ func (a *serveApp) startScheduledBackup() error {
 		if backupErr != nil {
 			return fmt.Errorf("configure scheduled cloud backup: %w", backupErr)
 		}
-		go backupstore.RunDaily(ctx, cfg.Backup.HourUTC, func(backupCtx context.Context) error {
-			root, err := os.MkdirTemp("", "hydrogo-backup-")
-			if err != nil {
-				return err
-			}
-			defer os.RemoveAll(root)
-			snapshot := filepath.Join(root, "snapshot")
-			if cfg.Database.Dialect == database.SQLite {
-				_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
-			} else if cfg.Database.Dialect == database.Postgres {
-				var tools backupstore.PostgresTools
-				tools, err = backupstore.LocatePostgresTools()
-				if err == nil {
-					_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+		a.spawn(func() {
+			backupstore.RunDaily(ctx, cfg.Backup.HourUTC, func(backupCtx context.Context) error {
+				root, err := os.MkdirTemp("", "hydrogo-backup-")
+				if err != nil {
+					return err
 				}
-			} else {
-				err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
-			}
-			if err != nil {
+				defer os.RemoveAll(root)
+				snapshot := filepath.Join(root, "snapshot")
+				if cfg.Database.Dialect == database.SQLite {
+					_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
+				} else if cfg.Database.Dialect == database.Postgres {
+					var tools backupstore.PostgresTools
+					tools, err = backupstore.LocatePostgresTools()
+					if err == nil {
+						_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+					}
+				} else {
+					err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
+				}
+				if err != nil {
+					return err
+				}
+				name := fmt.Sprintf("hydrogo-%s.tar.gz", time.Now().UTC().Format("20060102T150405Z"))
+				if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
+					return err
+				}
+				_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
 				return err
-			}
-			name := fmt.Sprintf("hydrogo-%s.tar.gz", time.Now().UTC().Format("20060102T150405Z"))
-			if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
-				return err
-			}
-			_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
-			return err
-		}, func(err error) { slog.Error("scheduled cloud backup failed", "error", err) })
+			}, func(err error) { slog.Error("scheduled cloud backup failed", "error", err) })
+		})
 	}
 	return nil
 }

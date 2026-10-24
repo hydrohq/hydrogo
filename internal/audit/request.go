@@ -41,6 +41,11 @@ type RequestLog struct {
 	Recorder DetailRecorder
 	// SkipPath reports paths that are never captured (uploads, noisy endpoints).
 	SkipPath func(path string) bool
+	// OnWriteError is called (best-effort, off the request path) when an
+	// admin request's audit record fails to write. A tamper-evident log
+	// that can silently lose entries is not tamper-evident; nil discards
+	// the error, matching the previous behaviour.
+	OnWriteError func(err error)
 }
 
 // Middleware records one "admin.request" event per state-changing admin API
@@ -78,7 +83,9 @@ func (l RequestLog) Middleware(next http.Handler) http.Handler {
 		if len(target) > maxTargetLength {
 			target = target[:maxTargetLength]
 		}
-		_ = l.Recorder.RecordDetails(context.WithoutCancel(r.Context()), "admin.request", target, nil, details)
+		if err := l.Recorder.RecordDetails(context.WithoutCancel(r.Context()), "admin.request", target, nil, details); err != nil && l.OnWriteError != nil {
+			l.OnWriteError(err)
+		}
 	})
 }
 

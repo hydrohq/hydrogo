@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ardaozyildirim/hydrogo/internal/audit"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -222,7 +223,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 				}
 			}
 		},
-		AdminRequestAudit:   adminRequestAudit(cfg.Audit.LogRequestBodies, authHTTP.Audit),
+		AdminRequestAudit:   adminRequestAudit(cfg.Audit.LogRequestBodies, authHTTP.Audit, a.logger),
 		SecureCookie:        cfg.Security.SecureCookies,
 		HTTPBodyLimit:       budget.HTTPBodyBytes,
 		MaxInFlightRequests: budget.MaxInFlightHTTP,
@@ -263,7 +264,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 
 // adminRequestAudit returns the request-body audit middleware when the
 // operator enabled audit.log_request_bodies, and nil otherwise.
-func adminRequestAudit(enabled bool, recorder auth.AuditRecorder) func(http.Handler) http.Handler {
+func adminRequestAudit(enabled bool, recorder auth.AuditRecorder, logger *slog.Logger) func(http.Handler) http.Handler {
 	detailed, ok := recorder.(auth.DetailedAuditRecorder)
 	if !enabled || !ok {
 		return nil
@@ -273,5 +274,12 @@ func adminRequestAudit(enabled bool, recorder auth.AuditRecorder) func(http.Hand
 		// Uploads are multipart and skipped by content type; these endpoints are
 		// high-volume reports from the admin UI itself, not user actions.
 		SkipPath: func(path string) bool { return path == "/api/v1/admin/client-errors" },
+		// A dropped audit write is itself worth knowing about: the chain's
+		// "tamper-evident" guarantee depends on writes actually landing.
+		OnWriteError: func(err error) {
+			if logger != nil {
+				logger.Error("admin request audit write failed", "error", err)
+			}
+		},
 	}.Middleware
 }
