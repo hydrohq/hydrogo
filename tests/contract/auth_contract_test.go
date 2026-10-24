@@ -157,7 +157,9 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return mfa.Enable(ctx, tx, u.ID) }); err != nil {
 		t.Fatalf("enable MFA failed: %v", err)
 	}
-	code, err := totp.GenerateCode(enrollment.Secret, time.Now())
+	// Each MFA use below spends its code, so the three uses (verify, sign in,
+	// disable) take consecutive steps inside the one-step skew window.
+	code, err := totp.GenerateCode(enrollment.Secret, time.Now().Add(-30*time.Second))
 	if err != nil || mfa.Verify(ctx, db, u.ID, code) != nil {
 		t.Fatalf("TOTP verification failed: %v", err)
 	}
@@ -169,7 +171,11 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if loginWithoutMFAResult.Code != http.StatusUnauthorized {
 		t.Fatalf("login without MFA status = %d", loginWithoutMFAResult.Code)
 	}
-	loginWithMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"Amber-River7!Cedar"}, "mfa_code": {code}}.Encode()))
+	loginCode, err := totp.GenerateCode(enrollment.Secret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	loginWithMFA := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(url.Values{"email": {u.Email}, "password": {"Amber-River7!Cedar"}, "mfa_code": {loginCode}}.Encode()))
 	loginWithMFA.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	loginWithMFAResult := httptest.NewRecorder()
 	loginHTTP.Routes()[0].Handler.ServeHTTP(loginWithMFAResult, loginWithMFA)
@@ -209,7 +215,7 @@ func runAuthContract(t *testing.T, dialect database.Dialect, dsn string) {
 	if enabled, err := mfa.Enabled(ctx, db, u.ID); err != nil || !enabled {
 		t.Fatalf("invalid disable changed MFA state: enabled=%v err=%v", enabled, err)
 	}
-	validCode, err := totp.GenerateCode(enrollment.Secret, time.Now())
+	validCode, err := totp.GenerateCode(enrollment.Secret, time.Now().Add(30*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}

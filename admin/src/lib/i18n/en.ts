@@ -16,6 +16,7 @@ import * as content from './messages/content';
 import * as search from './messages/search';
 import * as schema from './messages/schema';
 import * as site from './messages/site';
+import * as commerce from './messages/commerce';
 
 export const en = {
   ...shell.en,
@@ -33,6 +34,7 @@ export const en = {
   ...search.en,
   ...schema.en,
   ...site.en,
+  ...commerce.en,
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -178,25 +178,38 @@ func rollbackCommand(args []string, stdout, stderr io.Writer) error {
 		if err := os.Rename(source, destination); err == nil {
 			movedSidecars = append(movedSidecars, struct{ source, destination string }{source, destination})
 		} else if !errors.Is(err, os.ErrNotExist) {
-			_ = os.Rename(previous, dbPath)
-			for _, sidecar := range movedSidecars {
-				_ = os.Rename(sidecar.destination, sidecar.source)
-			}
-			return fmt.Errorf("preserve SQLite sidecar: %w", err)
+			return fmt.Errorf("preserve SQLite sidecar: %w; %s", err, restoreOnFailure(dbPath, previous, movedSidecars))
 		}
 	}
 	if err := os.Rename(temporary, dbPath); err != nil {
-		_ = os.Rename(previous, dbPath)
-		for _, sidecar := range movedSidecars {
-			_ = os.Rename(sidecar.destination, sidecar.source)
-		}
-		return fmt.Errorf("activate rollback database: %w", err)
+		return fmt.Errorf("activate rollback database: %w; %s", err, restoreOnFailure(dbPath, previous, movedSidecars))
 	}
 	if err := validateSQLiteFile(dbPath); err != nil {
 		return fmt.Errorf("activated rollback database failed integrity check; prior database preserved at %s: %w", previous, err)
 	}
 	_, err = fmt.Fprintf(stdout, "rollback-complete database=%s snapshot=%s previous=%s\n", dbPath, snapshot, previous)
 	return err
+}
+
+// restoreOnFailure undoes a partial rollback (the preserved original
+// database and any moved WAL/SHM sidecars) and reports plainly if that
+// restore itself fails, instead of swallowing it: a silently failed
+// restore can leave dbPath missing entirely, which the caller's own error
+// (about the step that triggered the restore) would never mention.
+func restoreOnFailure(dbPath, previous string, movedSidecars []struct{ source, destination string }) string {
+	var problems []string
+	if err := os.Rename(previous, dbPath); err != nil {
+		problems = append(problems, fmt.Sprintf("restoring %s from %s also failed: %v", dbPath, previous, err))
+	}
+	for _, sidecar := range movedSidecars {
+		if err := os.Rename(sidecar.destination, sidecar.source); err != nil {
+			problems = append(problems, fmt.Sprintf("restoring sidecar %s also failed: %v", sidecar.source, err))
+		}
+	}
+	if len(problems) == 0 {
+		return "the original database was restored"
+	}
+	return "ADDITIONALLY, " + strings.Join(problems, "; ") + " -- the database may now be missing or in an inconsistent state; recover manually from " + previous
 }
 
 func migrationCommand(args []string, stdout, stderr io.Writer) error {

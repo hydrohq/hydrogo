@@ -35,7 +35,7 @@
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if navigating.current}
+{#if navigating.to}
   <div class="fixed top-0 left-0 right-0 h-1 z-[100] bg-red-100 overflow-hidden">
     <div class="h-full bg-[var(--hp-primary)] animate-hp-progress w-full"></div>
   </div>
@@ -44,7 +44,7 @@
 <div class="min-h-screen bg-[var(--hp-bg)] text-[var(--hp-ink-soft)] antialiased flex flex-col justify-between">
   <div>
     <Header nav={data.headerNav} breakingNews={data.breakingNews} siteName={data.siteSettings.site_name} />
-    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 w-full transition-opacity duration-150 {navigating.current ? 'opacity-40 pointer-events-none' : 'opacity-100'}">
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 w-full transition-opacity duration-150 {navigating.to ? 'opacity-40 pointer-events-none' : 'opacity-100'}">
       {@render children()}
     </main>
   </div>

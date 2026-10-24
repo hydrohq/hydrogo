@@ -197,6 +197,8 @@ func writeNewsError(w http.ResponseWriter, r *http.Request, err error) {
 		api.WriteError(w, r, http.StatusConflict, "the news item was changed by someone else; reload and try again", nil)
 	case errors.Is(err, news.ErrTaxonomyTermInUse), errors.Is(err, news.ErrTaxonomyTermHasChildren):
 		api.WriteError(w, r, http.StatusConflict, "the term is still referenced by items or child terms", nil)
+	case errors.Is(err, news.ErrTaxonomyTermIDTaken):
+		api.WriteError(w, r, http.StatusConflict, "this term id is already in use", nil)
 	case errors.Is(err, stdsql.ErrNoRows):
 		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
 	default:

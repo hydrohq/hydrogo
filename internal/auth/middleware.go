@@ -29,6 +29,9 @@ func Middleware(authSvc *AuthService, secure bool) func(http.Handler) http.Handl
 					api.WriteError(w, r, http.StatusForbidden, "this credential is read-only", nil)
 					return
 				}
+				if principal.Kind == PrincipalAPIKey {
+					user = apiKeyUser(user)
+				}
 				ctx := WithUser(r.Context(), user)
 				ctx = WithPrincipal(ctx, principal)
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -73,4 +76,26 @@ func Authorizer(roles ...Role) router.Authorizer {
 		}
 		return allowedRoles[u.Role]
 	}
+}
+
+// apiKeyUser bounds an API key to viewer powers whatever its owner's role.
+// Keys live in frontend servers and build pipelines; a key an admin created
+// must not read the member list, the audit log or user accounts just
+// because its owner may. Overrides only ever narrow: a permission the owner
+// was explicitly denied stays denied.
+func apiKeyUser(owner *User) *User {
+	if owner == nil {
+		return nil
+	}
+	bounded := *owner
+	bounded.Role = RoleViewer
+	overrides := make(map[string]bool, len(KnownPermissions))
+	for _, permission := range KnownPermissions {
+		overrides[permission] = false
+	}
+	for _, permission := range []string{PermissionContentRead, PermissionCommerceRead} {
+		overrides[permission] = Can(owner, permission)
+	}
+	bounded.PermissionOverrides = overrides
+	return &bounded
 }

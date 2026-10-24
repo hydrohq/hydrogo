@@ -62,9 +62,20 @@ func CSRFTokenFromContext(ctx context.Context) string {
 // anonymous GET defeats caching entirely. Callers must only mark a route via
 // skipCookieFor when they have verified the route's handler never renders a form
 // or widget that depends on the CSRF cookie actually reaching the browser.
-func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(http.Handler) http.Handler {
+// exemptPaths, when given, are routes skipped entirely regardless of
+// method -- an inbound third-party webhook (a payment provider's server-to-
+// server callback) has no browser session to carry a CSRF cookie, and its
+// own request signature is the real security boundary; CSRF double-submit
+// protects browser-originated mutations, not these. Matched exactly, or as
+// a prefix when the configured value ends in "/", the same semantics as
+// internal/security/anomaly.go's BypassPaths.
+func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool, exemptPaths ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if csrfPathExempt(r.URL.Path, exemptPaths) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			// Mobile credentials are bearer tokens carried outside browser cookies.
 			// This dedicated surface authenticates every mutation in its handlers;
 			// applying double-submit CSRF here would make native clients unusable.
@@ -157,6 +168,19 @@ func CSRFMiddleware(secure bool, skipCookieFor func(*http.Request) bool) func(ht
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func csrfPathExempt(path string, exemptPaths []string) bool {
+	for _, exempt := range exemptPaths {
+		exempt = strings.TrimSpace(exempt)
+		if exempt == "" {
+			continue
+		}
+		if path == exempt || (strings.HasSuffix(exempt, "/") && strings.HasPrefix(path, exempt)) {
+			return true
+		}
+	}
+	return false
 }
 
 // writeCSRFRejection answers 403 in the API error envelope, with the request

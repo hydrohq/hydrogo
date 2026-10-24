@@ -3,7 +3,36 @@ modules: [core, auth, members, pages, media, site, news, collections, analytics]
 http:
   address: "127.0.0.1:8080"
   # Set this to the canonical HTTPS origin in deployed environments.
+  # Required (hydro validate fails without it) once HYDRO_ENV/APP_ENV/
+  # GO_ENV=production: without it, cookies never get Secure, HSTS stays
+  # off, and CSRF has nothing to compare the request origin against.
   public_origin: ""
+  # Set when running behind a reverse proxy (Caddy, nginx, a load
+  # balancer) so rate limits, login attempt counters and IP bans key on
+  # the real client address instead of the proxy's. Empty here with
+  # behind_proxy: true trusts only a proxy on the same host (loopback);
+  # list the proxy's own address/CIDR for anything else. Without this,
+  # every caller behind the proxy shares one rate-limit bucket and an IP
+  # ban on an abusive client bans the whole site instead.
+  behind_proxy: false
+  trusted_proxies: []
+# Optional: serve several customers/sites from one shared database instead
+# of one deployment per customer. See docs/multi-tenancy.md. Disabled (the
+# default) means every row's tenant discriminator is empty and this whole
+# section does nothing.
+tenancy:
+  enabled: false
+  # true: a request Host header not listed below is refused (404) instead
+  # of silently falling through to a default tenant. Enable once every
+  # real host you serve is listed in hosts.
+  require_host: false
+  # Trusted, operator-configured host -> tenant id map. The tenant for a
+  # request always comes from this map matched against the Host header,
+  # never from a client-supplied header or query parameter.
+  hosts: {}
+  # hosts:
+  #   customer-a.example.com: "tenant-a"
+  #   customer-b.example.com: "tenant-b"
 database:
   dialect: "sqlite"
   # Prefer HYDRO_DATABASE_DSN or a protected deployment secret file.
@@ -64,3 +93,66 @@ limits:
   # Most records one content type may hold per tenant. 0 keeps the built-in
   # default (100000); a negative value removes the cap.
   records_per_type: 0
+# Everything below is only read when the commerce module is enabled
+# (add "commerce" to modules: above). Empty/disabled is a fully
+# functional default: cart and checkout work with no payment provider,
+# no carrier, no tax, no shipping fee and TRY as the only currency.
+commerce:
+  paytr:
+    # merchant_key/merchant_salt are secrets: set them only in a copy of
+    # this file that is untracked/protected (not committed), the same
+    # way database.dsn above is handled. There is currently no HYDRO_*
+    # environment variable override for these three fields -- unlike
+    # database.dsn or http.public_origin, which do have one (see
+    # internal/config/load.go for the full list that does). merchant_id
+    # alone turns this on; validate then requires the other two.
+    merchant_id: ""
+    merchant_key: ""
+    merchant_salt: ""
+    test_mode: false
+    no_installment: false
+    max_installment: 0
+    ok_url: ""
+    fail_url: ""
+  tax:
+    # e.g. 0.20 for 20% KDV. 0 (the default) adds no tax.
+    rate: 0
+    # true: catalog prices already include tax (common in Turkish
+    # retail) -- the rate only breaks the tax amount out for the
+    # receipt. false: prices are pre-tax and the rate is added at
+    # checkout.
+    inclusive: false
+  shipping:
+    # Flat shipping fee in the smallest currency unit (kuruş for TRY).
+    flat_rate_cents: 0
+    # Waive the fee above this subtotal; 0 never waives it.
+    free_above_cents: 0
+  currencies:
+    default: "TRY"
+    # Extra currencies to show a storefront's currency switcher.
+    # Display only -- checkout always charges in default, at a static,
+    # operator-maintained rate below, never live FX.
+    display: []
+    rates: {}
+  yurtici_kargo:
+    # See modules/commerce/providers/yurticikargo's package doc comment:
+    # this integration has never been verified against the real
+    # service. ws_password is a secret: set it only in an
+    # untracked/protected copy of this file, as above -- there is no
+    # HYDRO_* environment variable override for it.
+    ws_username: ""
+    ws_password: ""
+    # The only publicly documented endpoint is plain HTTP, which sends
+    # ws_password unencrypted; hydro validate refuses it unless you set
+    # an https:// endpoint here or explicitly allow it below.
+    endpoint: ""
+    allow_insecure_endpoint: false
+# Operator alerts: a new order and a non-clean `hydro commerce reconcile`
+# report are posted here when configured. Both bot_token and chat_id are
+# required together. bot_token is a secret: set it only in an
+# untracked/protected copy of this file, as above -- there is no
+# HYDRO_* environment variable override for it.
+notifications:
+  telegram:
+    bot_token: ""
+    chat_id: ""

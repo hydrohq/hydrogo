@@ -373,3 +373,52 @@ func TestCSRFSkippedForAPITokenRequests(t *testing.T) {
 		t.Fatalf("cookie with header: status=%d", rec.Code)
 	}
 }
+
+// An API key created by an admin must not inherit admin reach: keys sit in
+// frontend servers and CI, so a leaked key must not expose members, users,
+// audit or settings.
+func TestAnAdminsAPIKeyActsOnlyAsAViewer(t *testing.T) {
+	owner := &User{ID: "u-owner", Email: "owner@example.test", Role: RoleAdmin, Active: true}
+	service, _ := newTokenTestService(t, owner)
+	key, _, err := service.IssueAPIToken(context.Background(), owner.ID, "frontend", APITokenKey, []string{ScopeRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	personal, _, err := service.IssueAPIToken(context.Background(), owner.ID, "cli", APITokenPersonal, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen *User
+	handler := Middleware(service, false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = UserFromContext(r.Context())
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	request := func(header, value string) *User {
+		seen = nil
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/content/products", nil)
+		req.Header.Set(header, value)
+		handler.ServeHTTP(httptest.NewRecorder(), req)
+		return seen
+	}
+
+	asKey := request("X-API-Key", key)
+	if asKey == nil || asKey.Role != RoleViewer {
+		t.Fatalf("api key user = %+v, want a viewer", asKey)
+	}
+	for _, denied := range []string{PermissionMembersManage, PermissionUsersManage, PermissionSiteManage, PermissionOperations, PermissionContentWrite, PermissionCommerceWrite, PermissionMediaManage} {
+		if Can(asKey, denied) {
+			t.Errorf("an admin's API key holds %s", denied)
+		}
+	}
+	for _, allowed := range []string{PermissionContentRead, PermissionCommerceRead} {
+		if !Can(asKey, allowed) {
+			t.Errorf("an admin's API key lost %s", allowed)
+		}
+	}
+	if owner.Role != RoleAdmin {
+		t.Fatal("bounding the key must not change the owner")
+	}
+	if asPersonal := request("Authorization", "Bearer "+personal); asPersonal == nil || asPersonal.Role != RoleAdmin {
+		t.Fatalf("a personal token still acts as its owner, got %+v", asPersonal)
+	}
+}

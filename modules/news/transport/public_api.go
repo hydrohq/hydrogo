@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"net/http"
 	"strconv"
 	"strings"
@@ -54,6 +55,10 @@ func (h Handler) publicList(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "news is unavailable", nil)
 		return
 	}
+	// Bodies saved before sanitize-on-save are cleaned on the way out too.
+	for i := range items {
+		items[i].Body = richtext.Clean(items[i].Body)
+	}
 	api.WriteList(w, items, api.PaginationMeta{Limit: limit, HasMore: len(items) == limit})
 }
 
@@ -86,6 +91,7 @@ func (h Handler) publicGetWithRoute(w http.ResponseWriter, r *http.Request, rawL
 		api.WriteError(w, r, http.StatusNotFound, "news item not found", nil)
 		return
 	}
+	item.Body = richtext.Clean(item.Body)
 	api.WriteData(w, http.StatusOK, item, nil)
 }
 
@@ -117,6 +123,7 @@ func (h Handler) publicPreview(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusNotFound, "preview not found", nil)
 		return
 	}
+	item.Body = richtext.Clean(item.Body)
 	api.WriteData(w, http.StatusOK, item, nil)
 }
 

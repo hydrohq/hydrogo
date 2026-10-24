@@ -18,7 +18,7 @@ func (a *serveApp) pushRoutes() []router.Route {
 		return nil
 	}
 	pushDispatcher, newRateLimiter := a.pushDispatcher, a.newRateLimiter
-	return (pushservice.Handler{Dispatcher: *pushDispatcher, Limiter: newRateLimiter(3, time.Minute), Audit: a.auditRecorder}).Routes()
+	return (pushservice.Handler{Dispatcher: *pushDispatcher, Limiter: newRateLimiter(3, time.Minute), Audit: a.auditRecorder, Logger: a.logger}).Routes()
 }
 
 func (a *serveApp) memberRoutes() []router.Route {

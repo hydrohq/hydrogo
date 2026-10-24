@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +21,9 @@ type Handler struct {
 	Dispatcher Dispatcher
 	Limiter    security.RateLimiter
 	Audit      auth.AuditRecorder
+	// Logger is optional. When set, a failed audit write for a broadcast is
+	// logged instead of silently discarded.
+	Logger *slog.Logger
 }
 
 //go:embed assets/service-worker.js
@@ -188,7 +192,9 @@ func (h Handler) broadcast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Audit != nil {
-		_ = h.Audit.Record(r.Context(), "push.broadcast", strings.Join([]string{input.Audience, itoa(result.Sent), itoa(result.Delivered), itoa(result.Failed)}, ":"))
+		if err := h.Audit.Record(r.Context(), "push.broadcast", strings.Join([]string{input.Audience, itoa(result.Sent), itoa(result.Delivered), itoa(result.Failed)}, ":")); err != nil && h.Logger != nil {
+			h.Logger.ErrorContext(r.Context(), "audit write failed", "action", "push.broadcast", "error", err)
+		}
 	}
 	api.WriteData(w, http.StatusOK, result, nil)
 }

@@ -1,0 +1,29 @@
+id: "202610241800_news_taxonomy_tenant_scope"
+module: "news"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "4726d3da94b5850e630da55d6391cd14b16f4ee3ddbb375447c3b98b4d7822fb"
+  postgres: "4726d3da94b5850e630da55d6391cd14b16f4ee3ddbb375447c3b98b4d7822fb"
+  mysql: "4bd31d45f5c6879246bf791476669b838179bdeda53f2cbf3b183707ea8ab9fa"
+dependencies:
+  - "202609160001_news_taxonomy"
+  - "202609190007_news_tenant_scope"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "News taxonomy and tenant-scope migrations are applied"
+lock_timeout: "Bounded by migration runner deadline"
+disk_estimate: "One tenant discriminator column per taxonomy term/relation row, plus two indexes"
+compatibility: "Additive default-empty tenant_id, matching 202609190007_news_tenant_scope's approach for news_items. news_taxonomy_terms/news_taxonomy_relations had no tenant_id at all until this migration -- a real cross-tenant read/write gap in a shared database, closed by this migration plus repository-level filtering and 202610241801_news_taxonomy_rls."
+smoke:
+  - "A taxonomy term created under one tenant is invisible to and cannot be deleted or overwritten by another tenant"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

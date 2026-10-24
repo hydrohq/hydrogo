@@ -6,5 +6,5 @@ import "embed"
 
 // FS holds the starter's source files (no node_modules or build output).
 //
-//go:embed all:src .env.example .gitignore Dockerfile README.md package.json package-lock.json svelte.config.js tsconfig.json vite.config.ts
+//go:embed all:src all:static .env.example .gitignore Dockerfile README.md package.json package-lock.json tsconfig.json vite.config.ts
 var FS embed.FS
