@@ -148,6 +148,9 @@ All successful API responses adhere to the standard envelope:
 | `GET` | `/media/{storage_key}` | Public media assets (images, PDFs) |
 | `GET` | `/readyz` | Health & readiness probe (`200 OK ready`) |
 
+The opt-in `commerce` module (cart, checkout, orders, payments, shipping)
+has its own endpoint/CLI/config reference: [commerce.md](commerce.md).
+
 ---
 
 ## Frontend Integration
