@@ -45,6 +45,9 @@ func (c Config) Validate() error {
 	if (c.Notifications.Telegram.BotToken == "") != (c.Notifications.Telegram.ChatID == "") {
 		return errors.New("Telegram notifications require both a bot token and a chat id")
 	}
+	if (c.Commerce.YurticiKargo.WSUserName == "") != (c.Commerce.YurticiKargo.WSPassword == "") {
+		return errors.New("Yurtiçi Kargo requires both a web service username and password")
+	}
 	if c.Commerce.Tax.Rate < 0 || c.Commerce.Tax.Rate >= 1 {
 		return errors.New("commerce tax rate must be 0 (disabled) or a fraction below 1")
 	}

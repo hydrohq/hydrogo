@@ -19,6 +19,7 @@
 | [0017](0017-commerce-tax-shipping-discounts-currencies.md) | Tax, shipping, discount codes and display currencies | Accepted |
 | [0018](0018-commerce-reconciliation.md) | Commerce reconciliation and drift alerting | Accepted |
 | [0019](0019-commerce-order-notifications-and-member-login.md) | Order notifications and storefront member login | Accepted |
+| [0020](0020-commerce-shipping-provider.md) | Generic `ShippingProvider`, Yurtiçi Kargo first | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.

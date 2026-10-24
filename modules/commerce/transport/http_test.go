@@ -701,3 +701,93 @@ func TestCheckoutReturns422ForAnInvalidDiscountCode(t *testing.T) {
 		t.Fatalf("expected 422, got %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
 }
+
+type fakeShippingProvider struct {
+	name   string
+	result commerce.ShipmentResult
+	err    error
+}
+
+func (f fakeShippingProvider) Name() string { return f.name }
+
+func (f fakeShippingProvider) CreateShipment(ctx context.Context, order commerce.Order, items []commerce.OrderItem) (commerce.ShipmentResult, error) {
+	if f.err != nil {
+		return commerce.ShipmentResult{}, f.err
+	}
+	return f.result, nil
+}
+
+func TestCreateShipmentEndpointRecordsTracking(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-ship", 3); err != nil {
+		t.Fatal(err)
+	}
+	cart, err := h.Service.GetOrCreateCart(ctx, db, "", "anon-ship", "TRY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-ship", 1, 1500); err != nil {
+		t.Fatal(err)
+	}
+	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "ship-idem-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Service.ConfirmPayment(ctx, db, "paytr", "evt-ship-1", order.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	h.ShippingProvider = fakeShippingProvider{name: "yurtici-kargo", result: commerce.ShipmentResult{TrackingNumber: "YK123", TrackingURL: "https://example.com/track/YK123"}}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", nil)
+	req.SetPathValue("id", order.ID)
+	rec := httptest.NewRecorder()
+	h.createShipment(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create shipment: %d %s", rec.Code, rec.Body)
+	}
+	var shipped commerce.Order
+	decodeBody(t, rec, &shipped)
+	if shipped.ShippingTrackingNumber != "YK123" || shipped.FulfillmentStatus != commerce.FulfillmentShipped {
+		t.Fatalf("unexpected order after shipment: %+v", shipped)
+	}
+}
+
+func TestCreateShipmentEndpointReturns501WithNoProviderConfigured(t *testing.T) {
+	h, _ := newTestHandler(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/does-not-matter/shipment", nil)
+	req.SetPathValue("id", "does-not-matter")
+	rec := httptest.NewRecorder()
+	h.createShipment(rec, req)
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateShipmentEndpointReturns409ForAnUnpaidOrder(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-http-unpaid-ship", 3); err != nil {
+		t.Fatal(err)
+	}
+	cart, err := h.Service.GetOrCreateCart(ctx, db, "", "anon-unpaid-ship", "TRY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Service.AddItem(ctx, db, cart.ID, "variant-http-unpaid-ship", 1, 1500); err != nil {
+		t.Fatal(err)
+	}
+	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "unpaid-ship-idem-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h.ShippingProvider = fakeShippingProvider{name: "yurtici-kargo"}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", nil)
+	req.SetPathValue("id", order.ID)
+	rec := httptest.NewRecorder()
+	h.createShipment(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d %s", rec.Code, rec.Body)
+	}
+}

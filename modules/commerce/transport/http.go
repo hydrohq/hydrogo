@@ -69,6 +69,12 @@ type Handler struct {
 	// needed.
 	Mailer   OrderMailer
 	Notifier notify.Sender
+	// ShippingProvider is optional: when set, an admin can hand a paid
+	// order to it via POST .../orders/{id}/shipment (Yurtiçi Kargo
+	// currently; see modules/commerce.ShippingProvider). A project with
+	// none configured still gets full cart/checkout/payment, just no
+	// carrier integration -- same shape as PaymentProvider above.
+	ShippingProvider commerce.ShippingProvider
 }
 
 // OrderMailer sends a customer-facing order receipt. Defined here, not in
@@ -159,6 +165,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/commerce/orders/{id}/payment", Handler: http.HandlerFunc(h.startOrderPayment)},
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true},
 		{Pattern: "POST /api/v1/admin/commerce/discount-codes", Handler: http.HandlerFunc(h.createDiscountCode), Protected: true},
+		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true},
 	}
 }
 
@@ -563,4 +570,29 @@ func (h Handler) createDiscountCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteData(w, http.StatusCreated, record, nil)
+}
+
+// createShipment hands a paid order to the configured carrier and records
+// its tracking details. Unlike checkout/payment, this is an operator
+// action (or a future auto-fulfillment job), never shopper-triggered --
+// hence Protected: true above, same as setStock and createDiscountCode.
+func (h Handler) createShipment(w http.ResponseWriter, r *http.Request) {
+	if h.ShippingProvider == nil {
+		api.WriteError(w, r, http.StatusNotImplemented, "no shipping provider is configured", nil)
+		return
+	}
+	orderID := r.PathValue("id")
+	order, err := h.Service.CreateShipment(r.Context(), h.DB, h.ShippingProvider, orderID)
+	if err != nil {
+		switch {
+		case errors.Is(err, commerce.ErrOrderNotFound):
+			api.WriteError(w, r, http.StatusNotFound, "order not found", nil)
+		case errors.Is(err, commerce.ErrOrderNotShippable):
+			api.WriteError(w, r, http.StatusConflict, err.Error(), nil)
+		default:
+			api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		}
+		return
+	}
+	api.WriteData(w, http.StatusOK, order, nil)
 }

@@ -131,8 +131,15 @@ type Order struct {
 	TotalCents        int64             `json:"total_cents"`
 	PaymentStatus     PaymentStatus     `json:"payment_status"`
 	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status"`
-	CreatedAt         time.Time         `json:"created_at"`
-	UpdatedAt         time.Time         `json:"updated_at"`
+	// ShippingCarrier/TrackingNumber/TrackingURL are set together, once, by
+	// Service.CreateShipment -- empty until a ShippingProvider has actually
+	// accepted the order for delivery (see shipping.go).
+	ShippingCarrier        string    `json:"shipping_carrier,omitempty"`
+	ShippingTrackingNumber string    `json:"shipping_tracking_number,omitempty"`
+	ShippingTrackingURL    string    `json:"shipping_tracking_url,omitempty"`
+	ShippedAt              time.Time `json:"shipped_at,omitempty"` // zero = not shipped yet
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 // IsGuest reports whether the order has no member account behind it.
