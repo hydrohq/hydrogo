@@ -105,8 +105,18 @@ func auditSteps() []step {
 	if _, err := exec.LookPath(npm); err != nil {
 		return steps
 	}
-	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter"} {
+	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter", "examples/commerce-starter"} {
 		steps = append(steps, step{name: "npm audit " + dir, dir: dir, args: []string{npm, "audit", "--omit=dev", "--audit-level=high"}})
+	}
+	// examples/hydropost-news-starter uses pnpm (pnpm-lock.yaml, no
+	// package-lock.json), so npm audit there would just fail with ENOLOCK
+	// instead of actually scanning anything.
+	pnpm := "pnpm"
+	if runtime.GOOS == "windows" {
+		pnpm = "pnpm.cmd"
+	}
+	if _, err := exec.LookPath(pnpm); err == nil {
+		steps = append(steps, step{name: "pnpm audit examples/hydropost-news-starter", dir: "examples/hydropost-news-starter", args: []string{pnpm, "audit", "--prod", "--audit-level", "high"}})
 	}
 	return steps
 }
