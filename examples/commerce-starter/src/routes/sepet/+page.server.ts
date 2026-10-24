@@ -12,13 +12,12 @@ export const actions: Actions = {
   updateQuantity: async ({ request, cookies }) => {
     const form = await request.formData();
     const variantId = String(form.get('variant_id') ?? '');
-    const unitPriceCents = Number(form.get('unit_price_cents') ?? 0);
     const quantity = Number(form.get('quantity') ?? 1);
     if (!variantId || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
       return fail(400, { message: 'Geçersiz adet.' });
     }
     try {
-      await addToCart(cookies, variantId, quantity, unitPriceCents);
+      await addToCart(cookies, variantId, quantity);
     } catch {
       return fail(502, { message: 'Sepet güncellenemedi.' });
     }

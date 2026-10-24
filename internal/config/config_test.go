@@ -243,8 +243,16 @@ func TestYurticiKargoRequiresBothUsernameAndPassword(t *testing.T) {
 		t.Fatal("ws password without username accepted")
 	}
 	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("credentials over the plain-HTTP default endpoint accepted without allow_insecure_endpoint")
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass", AllowInsecureEndpoint: true}
 	if err := cfg.Validate(); err != nil {
-		t.Fatalf("valid yurtici kargo config: %v", err)
+		t.Fatalf("explicit plain-HTTP opt-in: %v", err)
+	}
+	cfg.Commerce.YurticiKargo = YurticiKargo{WSUserName: "user", WSPassword: "pass", Endpoint: "https://ws.example.test/soap"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("https endpoint: %v", err)
 	}
 	cfg.Commerce.YurticiKargo = YurticiKargo{}
 	if err := cfg.Validate(); err != nil {

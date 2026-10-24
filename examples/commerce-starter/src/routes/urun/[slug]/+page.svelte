@@ -21,9 +21,9 @@
   const outOfStock = $derived(hasVariants && availableStock <= 0);
 
   const thumbnails = $derived([data.product.cover_image, ...data.gallery.map((img) => img.image)]);
-  // priceCents stays in the catalog's own base currency and is what the
-  // hidden unit_price_cents form field sends -- only the visible <p.price>
-  // text below ever shows the converted display currency.
+  // priceCents is the catalog's base-currency price, for display only:
+  // HydroGo prices the cart line itself. Only the visible <p.price> text
+  // below shows the converted display currency.
   const shownPrice = $derived(convertDisplayPrice(priceCents, data.displayCurrency, data.currencies));
 
   function selectVariant(id: string) {
@@ -70,7 +70,6 @@
       {:else}
         <input type="hidden" name="variant_id" value={data.product.id} />
       {/if}
-      <input type="hidden" name="unit_price_cents" value={priceCents} />
 
       {#if hasVariants}
         {#if outOfStock}
