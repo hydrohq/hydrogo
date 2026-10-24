@@ -71,10 +71,15 @@ export class HydroGoClient {
 
   constructor(options: HydroGoClientOptions) {
     const rawOrigin = options.origin.trim();
-    let parsedOrigin: URL;
-    try { parsedOrigin = new URL(rawOrigin); } catch { throw new RangeError("origin must be an absolute HTTP(S) URL"); }
-    if ((parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") || parsedOrigin.username || parsedOrigin.password) {
-      throw new RangeError("origin must be an absolute HTTP(S) URL without credentials");
+    // An empty origin means "same origin as the page" (a relative request) --
+    // the common case for a static SPA served from the same domain HydroGo's
+    // own API answers on (the usual CGI/static-hosting deployment).
+    if (rawOrigin !== "") {
+      let parsedOrigin: URL;
+      try { parsedOrigin = new URL(rawOrigin); } catch { throw new RangeError("origin must be an absolute HTTP(S) URL, or empty for a same-origin relative request"); }
+      if ((parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") || parsedOrigin.username || parsedOrigin.password) {
+        throw new RangeError("origin must be an absolute HTTP(S) URL without credentials");
+      }
     }
     this.origin = rawOrigin.replace(/\/$/, "");
     this.requestFetch = options.fetch ?? fetch;

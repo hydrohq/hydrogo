@@ -1,9 +1,8 @@
-import { headerNavigation, localeOf, singleRecord } from '$lib/server/hydro';
+import { headerNavigation, localeOf, singleRecord } from '$lib/hydro';
 import { defaultLocale, locales } from '$lib/config';
 
-export async function load({ params, locals }) {
+export async function load({ params }) {
   const locale = localeOf(params.lang);
-  locals.lang = locale;
   const [settings, navigation] = await Promise.all([singleRecord('site_settings'), headerNavigation()]);
   return {
     locale,

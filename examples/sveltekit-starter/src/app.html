@@ -1,8 +1,13 @@
 <!doctype html>
-<html lang="%lang%">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Replaced client-side by each page's <svelte:head> once mounted
+         (this is a static SPA shell, not a per-request render) -- a
+         sensible default so the tab/bookmark title is never blank before
+         JS runs. -->
+    <title>My site</title>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

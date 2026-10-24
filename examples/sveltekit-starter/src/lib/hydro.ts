@@ -1,11 +1,27 @@
-import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
 import { error } from '@sveltejs/kit';
-import { createHydroGoClient, HydroGoError } from '$lib/hydrogo';
-import { defaultLocale } from '$lib/config';
+import { createHydroGoClient, HydroGoError } from './hydrogo';
+import { defaultLocale } from './config';
 
-export const hydro = createHydroGoClient({ origin: env.HYDRO_API_ORIGIN ?? 'http://127.0.0.1:8080' });
-export const siteOrigin = (publicEnv.PUBLIC_SITE_ORIGIN ?? 'http://localhost:3000').replace(/\/$/, '');
+// Runs in the browser (this starter is a static SPA, no server-side
+// rendering -- see docs/decisions on the Vite 8/Rolldown $env/dynamic
+// regression for why). In production the static build and the HydroGo API
+// are served from the same domain (hydro.cgi routed by .htaccess), so a
+// relative request is all that's ever needed and nothing has to be
+// configured per deployment. The local dev server runs on its own Vite
+// port, so it needs the real HydroGo dev address explicitly.
+const API_BASE =
+  typeof window !== 'undefined'
+    ? window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://127.0.0.1:8080'
+      : ''
+    : 'http://127.0.0.1:8080';
+
+export const hydro = createHydroGoClient({ origin: API_BASE });
+
+// A build-time constant (see .env.example): canonical links, sitemap and RSS
+// need an absolute URL and are generated once at build time (prerendered),
+// when there is no window to read a runtime origin from.
+export const siteOrigin = ((import.meta.env.VITE_PUBLIC_SITE_ORIGIN as string | undefined) ?? 'http://localhost:3000').replace(/\/$/, '');
 
 /** The API language for a request: the URL prefix, or the default language. */
 export const localeOf = (lang: string | undefined) => lang ?? defaultLocale;
