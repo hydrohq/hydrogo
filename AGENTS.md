@@ -10,9 +10,12 @@ change does not serve that, don't make it. Background:
 ## Branches
 
 `main` is the only long-lived branch (tags `vX.Y.Z` are cut from it). Work on a
-short-lived branch and open a pull request into `main`; GitHub CI runs for it.
-Delete the branch once it is merged. The local check below is still the first
-gate, since CI is slower and only runs once the PR exists.
+short-lived branch and open a pull request into `main`. CI (`.github/workflows/`)
+is configured to run on every push/PR but **Actions is currently disabled at
+the repo level** (`gh api repos/<owner>/<repo>/actions/permissions`) — no
+workflow has ever executed. Until a repo owner re-enables it,
+`go run ./tools/check` below is the *only* gate; do not assume a PR got any
+automated check beyond what you ran yourself. Delete the branch once merged.
 
 ## Before you finish any task
 
@@ -111,8 +114,8 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 
 ```bash
 go run ./tools/devserver   # Go rebuilds + Vite HMR + demo data, http://127.0.0.1:8090
-go run ./tools/check       # everything CI checks that runs fast locally (or: make check)
-go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; runs weekly in CI)
+go run ./tools/check       # everything configured as CI checks -- run it yourself, Actions is disabled (or: make check)
+go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; configured to run weekly in CI, but see above)
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests
 ```
