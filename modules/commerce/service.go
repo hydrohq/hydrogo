@@ -47,6 +47,13 @@ type Repository interface {
 	// admin transport handler can reach it through the same narrow
 	// interface setStock already uses for EnsureStock.
 	CreateDiscountCode(ctx context.Context, db database.Executor, code DiscountCode) error
+
+	// RecordShipment backs Service.CreateShipment: a conditional UPDATE
+	// guarded by fulfillment_status, the same atomic-transition pattern as
+	// UpdatePaymentStatus, so calling it twice for the same order (an
+	// operator double-clicking "ship") only ever calls the carrier and
+	// writes these columns once.
+	RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error)
 }
 
 // OutboxWriter is the subset of internal/outbox/sqlstore.Store the service
@@ -345,6 +352,57 @@ func (s Service) ConfirmPayment(ctx context.Context, db database.Executor, provi
 		return false, err
 	}
 	return true, nil
+}
+
+// ErrOrderNotShippable is returned when CreateShipment is asked to ship an
+// order that has not been paid yet, or that has already been shipped (or
+// moved past shipped) -- handing an unpaid order to a carrier would commit
+// a real shipping cost against a sale that may never settle, and calling
+// the carrier again for an already-shipped order would create a second
+// real-world shipment, not just a harmless duplicate write.
+var ErrOrderNotShippable = errors.New("order is not paid and unshipped, so it cannot be shipped")
+
+// CreateShipment hands a paid order to the given carrier and records the
+// tracking details it returns. It is deliberately not wired into
+// ConfirmPayment: shipping is a separate, usually manual (an operator
+// packs the order, or a schedule batches several) step from payment, not
+// an automatic consequence of it, so Checkout's transport calls this only
+// when an operator (or a future auto-fulfillment job) explicitly asks for
+// it -- see transport/http.go's createShipment handler.
+//
+// Unlike ConfirmPayment (which dedups a payment webhook that already
+// happened out in the world before it ever calls this service), the
+// carrier call here IS the real-world side effect, so the eligibility
+// check happens before calling the carrier, not only at the final write:
+// a retried request against an order that is no longer unfulfilled/
+// preparing is rejected without ever touching the carrier again.
+func (s Service) CreateShipment(ctx context.Context, db database.Executor, provider ShippingProvider, orderID string) (Order, error) {
+	order, err := s.Repository.GetOrder(ctx, db, orderID)
+	if err != nil {
+		return Order{}, err
+	}
+	if order.PaymentStatus != PaymentPaid || (order.FulfillmentStatus != FulfillmentUnfulfilled && order.FulfillmentStatus != FulfillmentPreparing) {
+		return Order{}, ErrOrderNotShippable
+	}
+	items, err := s.Repository.ListOrderItems(ctx, db, orderID)
+	if err != nil {
+		return Order{}, err
+	}
+	result, err := provider.CreateShipment(ctx, order, items)
+	if err != nil {
+		return Order{}, err
+	}
+	shippedAt := time.Now().UTC()
+	applied, err := s.Repository.RecordShipment(ctx, db, orderID, provider.Name(), result.TrackingNumber, result.TrackingURL, shippedAt)
+	if err != nil {
+		return Order{}, err
+	}
+	if applied {
+		if err := s.emit(ctx, db, "order.fulfilled", orderID); err != nil {
+			return Order{}, err
+		}
+	}
+	return s.Repository.GetOrder(ctx, db, orderID)
 }
 
 // ExpireOrder is worker.go's reservation-expiry job, one order at a time: an
