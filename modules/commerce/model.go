@@ -112,6 +112,7 @@ type Order struct {
 	GuestPhone      string `json:"guest_phone,omitempty"`
 	GuestAddress    string `json:"guest_address,omitempty"`
 	GuestCity       string `json:"guest_city,omitempty"`
+	GuestDistrict   string `json:"guest_district,omitempty"`
 	GuestCountry    string `json:"guest_country,omitempty"`
 	GuestPostalCode string `json:"guest_postal_code,omitempty"`
 	IdempotencyKey  string `json:"-"`

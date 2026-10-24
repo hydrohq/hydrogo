@@ -73,6 +73,7 @@ export type CheckoutInput = {
   guestPhone: string;
   guestAddress: string;
   guestCity: string;
+  guestDistrict: string;
   guestCountry: string;
   guestPostalCode: string;
   discountCode?: string;
@@ -91,6 +92,7 @@ export async function checkout(cookies: Cookies, input: CheckoutInput): Promise<
       guest_phone: input.guestPhone,
       guest_address: input.guestAddress,
       guest_city: input.guestCity,
+      guest_district: input.guestDistrict,
       guest_country: input.guestCountry,
       guest_postal_code: input.guestPostalCode,
       discount_code: input.discountCode ?? '',
