@@ -19,6 +19,18 @@
 {{define "plain"}}<!doctype html>
 <html><body><p>{{.}}</p></body></html>{{end}}
 
+{{define "order_confirmation"}}<!doctype html>
+<html><body style="margin:0;background:#f4f6f8;color:#17212b;font-family:Arial,sans-serif">
+<main style="max-width:600px;margin:24px auto;padding:24px;background:#fff;border-radius:12px">
+<h1 style="font-size:20px">Siparişiniz alındı</h1>
+<p style="font-size:15px">Sipariş numaranız: <strong>{{.OrderID}}</strong></p>
+<table style="width:100%;border-collapse:collapse;margin:16px 0">
+{{range .Items}}<tr><td style="padding:6px 0;border-bottom:1px solid #e6e9ed">{{.Title}} &times; {{.Quantity}}</td><td style="padding:6px 0;border-bottom:1px solid #e6e9ed;text-align:right">{{.Total}}</td></tr>
+{{end}}</table>
+<p style="font-size:16px"><strong>Toplam: {{.Total}}</strong></p>
+</main>
+</body></html>{{end}}
+
 {{define "header"}}<header style="border-bottom:3px solid {{.Color}};padding:0 0 16px;margin:0 0 20px">{{if .LogoURL}}<img src="{{.LogoURL}}" alt="{{.LogoAlt}}" style="display:block;max-width:180px;max-height:64px;margin:0 0 18px">{{end}}<strong style="font:600 18px Arial,sans-serif">{{.Name}}</strong></header>{{end}}
 
 {{define "footer"}}<footer style="border-top:1px solid #d6dbe1;padding-top:16px;margin-top:24px;color:#536170;font:12px/1.5 Arial,sans-serif">
