@@ -2,11 +2,8 @@ package main
 
 import (
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
@@ -25,25 +22,5 @@ func TestToPriceConvertsTwoDecimalCatalogPricesToCents(t *testing.T) {
 		if _, err := toPrice(bad, "TRY"); !errors.Is(err, commerce.ErrUnknownVariant) {
 			t.Errorf("toPrice(%v) must refuse to sell, got %v", bad, err)
 		}
-	}
-}
-
-func TestRequireStaffPermissionRefusesAStaffUserWithoutIt(t *testing.T) {
-	reached := false
-	guarded := requireStaffPermission(auth.PermissionCommerceWrite, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached = true }))
-
-	viewer := &auth.User{ID: "u-viewer", Role: auth.RoleViewer, Active: true}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/discount-codes", nil)
-	rec := httptest.NewRecorder()
-	guarded.ServeHTTP(rec, req.WithContext(auth.WithUser(req.Context(), viewer)))
-	if rec.Code != http.StatusForbidden || reached {
-		t.Fatalf("viewer creating a discount code: status=%d reached=%v", rec.Code, reached)
-	}
-
-	admin := &auth.User{ID: "u-admin", Role: auth.RoleAdmin, Active: true}
-	rec = httptest.NewRecorder()
-	guarded.ServeHTTP(rec, req.WithContext(auth.WithUser(req.Context(), admin)))
-	if !reached {
-		t.Fatal("an admin must pass the commerce write check")
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"net"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"net/http"
 	"strings"
 	"time"
@@ -232,12 +232,7 @@ func sessionToken(r *http.Request) string {
 	return cookie.Value
 }
 
-func clientIP(r *http.Request) string {
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return strings.TrimSpace(r.RemoteAddr)
-}
+func clientIP(r *http.Request) string { return requestmeta.ClientIP(r) }
 
 func (h HTTPHandler) adminUser(r *http.Request) bool {
 	user := UserFromContext(r.Context())

@@ -11,6 +11,9 @@
   // A module that is not enabled adds no navigation. Until the schema has
   // loaded everything shows, so the menu does not flash empty.
   const moduleOn = (name: string) => !schema.schema || schema.modules[name] === true;
+  // Hide what the signed-in user cannot open; the server still enforces it.
+  const can = (permission: string) => auth.hasPermission(permission);
+  const isAdmin = (auth.user?.role === 'admin');
 
   const currentPath = $derived(router.path);
   let showQuickCreate = $state(false);
@@ -76,6 +79,7 @@
   <div class="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
     <!-- Quick Create Button & Inbox (official nav-main.tsx layout) -->
     <div class="flex items-center gap-2 pt-1 pb-1 relative" data-dropdown="quick-create">
+      {#if can('admin.content.write') || can('admin.media.manage')}
       <button
         type="button"
         onclick={() => { showQuickCreate = !showQuickCreate; }}
@@ -91,8 +95,9 @@
           <span class="truncate">{t('nav.quickCreate')}</span>
         {/if}
       </button>
+      {/if}
 
-      {#if sidebar.open}
+      {#if sidebar.open && isAdmin}
         <button
           type="button"
           onclick={() => handleNavigate('/audit')}
@@ -133,7 +138,7 @@
             <span>{t('nav.newArticle')}</span>
           </button>
           {/if}
-          {#if moduleOn('media')}
+          {#if moduleOn('media') && can('admin.media.manage')}
           <button
             type="button"
             class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -215,7 +220,7 @@
       </a>
       {/if}
 
-      {#if moduleOn('media')}
+      {#if moduleOn('media') && can('admin.media.manage')}
       <!-- Media -->
       <a
         href="/admin/media"
@@ -234,7 +239,7 @@
       </a>
       {/if}
 
-      {#if moduleOn('members')}
+      {#if moduleOn('members') && can('admin.members.manage')}
       <!-- Members -->
       <a
         href="/admin/members"
@@ -254,7 +259,7 @@
       </a>
       {/if}
 
-      {#if moduleOn('commerce')}
+      {#if moduleOn('commerce') && can('admin.commerce.read')}
       <!-- Commerce orders -->
       <a
         href="/admin/commerce"
@@ -279,6 +284,7 @@
       {#if sidebar.open}
         <div class="px-2 py-1 flex items-center justify-between text-xs font-medium text-sidebar-foreground/60 tracking-wider">
           <span>{t('nav.documents')}</span>
+          {#if can('admin.content.write')}
           <button
             type="button"
             onclick={() => handleNavigate('/content-types')}
@@ -290,6 +296,7 @@
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
           </button>
+          {/if}
         </div>
       {/if}
         <div class="flex flex-col gap-0.5">
@@ -356,6 +363,7 @@
 
     <!-- NavSecondary (Matches official nav-secondary.tsx - pinned to mt-auto) -->
     <div class="mt-auto flex flex-col gap-0.5 pt-4">
+      {#if can('admin.site.manage')}
       <a
         href="/admin/site"
         onclick={() => handleNavigate('/site')}
@@ -370,7 +378,9 @@
           <span class="truncate">{t('nav.settings')}</span>
         {/if}
       </a>
+      {/if}
 
+      {#if isAdmin && can('admin.users.manage')}
       <a
         href="/admin/users"
         onclick={() => handleNavigate('/users')}
@@ -384,6 +394,7 @@
           <span class="truncate">{t('nav.users')}</span>
         {/if}
       </a>
+      {/if}
 
       <a
         href="/admin/system"

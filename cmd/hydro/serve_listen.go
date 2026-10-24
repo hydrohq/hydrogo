@@ -17,6 +17,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
@@ -151,7 +152,12 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		}
 		a.onClose(func() error { panicReporter.Close(); return nil })
 	}
+	clientIP, err := requestmeta.NewIPExtractor(cfg.HTTP.BehindProxy, cfg.HTTP.TrustedProxies)
+	if err != nil {
+		return server.Config{}, err
+	}
 	return server.Config{
+		ClientIP:        clientIP,
 		Address:         cfg.HTTP.Address,
 		SafeMode:        cfg.SafeMode,
 		AutoTLS:         cfg.HTTP.AutoTLS,
@@ -196,9 +202,9 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		CSRFExemptPaths:      commerceCSRFExemptPaths(modules, cfg.Commerce),
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
-				target := rule + " from " + r.RemoteAddr
+				target := rule + " from " + requestmeta.ClientIP(r)
 				details, _ := json.Marshal(map[string]any{
-					"ip":         r.RemoteAddr,
+					"ip":         requestmeta.ClientIP(r),
 					"user_agent": r.UserAgent(),
 					"method":     r.Method,
 					"path":       r.URL.Path,

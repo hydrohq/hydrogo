@@ -11,7 +11,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"net"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"net/http"
 	"time"
 
@@ -116,10 +116,7 @@ func (h Handler) clientIP(r *http.Request) string {
 			return ip
 		}
 	}
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return r.RemoteAddr
+	return requestmeta.ClientIP(r)
 }
 
 // shopper resolves which cart the request belongs to: a logged-in member's,
