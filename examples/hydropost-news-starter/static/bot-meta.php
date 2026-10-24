@@ -10,9 +10,9 @@ $slug = isset($_GET['slug']) ? trim($_GET['slug']) : '';
 
 $siteName = 'HydroPost';
 $siteDesc = 'HydroGo tekil binary mimarisiyle çalışan, ışık hızında haber portalı.';
-$publicOrigin = 'https://ardalabs.xyz';
-
-$dbPath = '/var/www/vhosts/ardalabs.xyz/private/hydro.db';
+// Set these for the actual deployment; they are not committed per-site values.
+$publicOrigin = getenv('HYDROPOST_PUBLIC_ORIGIN') ?: 'http://127.0.0.1:8090';
+$dbPath = getenv('HYDROPOST_DB_PATH') ?: __DIR__ . '/../hydro.db';
 $article = null;
 
 if (file_exists($dbPath)) {

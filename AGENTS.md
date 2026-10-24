@@ -70,9 +70,10 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
    bare `t.Skip` or `test.skip`. Fix the code, update the test to the new
    intended behaviour, or delete it with an explanation in the commit.
    `codeguard` rejects renamed tests.
-9. **Regenerate, don't hand-edit**, generated files: `admin/src/lib/api/types.ts`
-   comes from `make generate` (`hydro schema openapi` → `openapi-typescript`);
-   `admin/dist` comes from `vite build`.
+9. **Don't hand-edit `admin/dist`**: it comes from `vite build`.
+   `admin/src/lib/api/types.ts` is hand-maintained (there is no OpenAPI →
+   TypeScript generation step yet); keep it in step with the admin API by
+   hand when you change a response shape.
 10. **Every API response uses the envelope** in `internal/api/response.go`:
     `{data, metadata}` or `{code, message, request_id, fields}`. Errors must carry
     the request id so the admin can show it.
@@ -112,7 +113,6 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 go run ./tools/devserver   # Go rebuilds + Vite HMR + demo data, http://127.0.0.1:8090
 go run ./tools/check       # everything CI checks that runs fast locally (or: make check)
 go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; runs weekly in CI)
-make generate              # OpenAPI → admin/src/lib/api/types.ts
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests
 ```
