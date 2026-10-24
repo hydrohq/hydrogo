@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -779,6 +781,43 @@ func TestAdminPermissionEndpointBoundsFormBody(t *testing.T) {
 	(HTTPHandler{Service: service}).updateUserPermissions(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("oversized permission form status=%d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+// failingDetailedAuditRecorder always fails, to prove a failed audit write
+// is logged instead of silently discarded.
+type failingDetailedAuditRecorder struct{}
+
+func (failingDetailedAuditRecorder) Record(context.Context, string, string) error {
+	return errors.New("audit db unavailable")
+}
+
+func (failingDetailedAuditRecorder) RecordDetails(context.Context, string, string, []byte, []byte) error {
+	return errors.New("audit db unavailable")
+}
+
+func TestAFailedLoginAuditWriteIsLoggedNotSilentlyDropped(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	service := &AuthService{userRepo: httpUserRepo{}}
+	handler := HTTPHandler{
+		Service: service,
+		Audit:   failingDetailedAuditRecorder{},
+		Logger:  logger,
+	}.login
+
+	form := url.Values{"email": {"user1@example.com"}, "password": {"wrong"}}
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.RemoteAddr = "192.168.1.1:1234"
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+	if !strings.Contains(logs.String(), "audit write failed") || !strings.Contains(logs.String(), "auth.login_failed") {
+		t.Fatalf("expected the audit write failure to be logged, got: %s", logs.String())
 	}
 }
 
