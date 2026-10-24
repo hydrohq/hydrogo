@@ -13,7 +13,7 @@ func FuzzValidateWebhookURL(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, raw string) {
-		_ = validateURL(raw)
+		_ = validateURL(raw, false)
 	})
 }
 

@@ -251,7 +251,15 @@ func tenantListCommand(args []string, stdout, stderr io.Writer) error {
 				tenantsFound[tID] = true
 			}
 		}
+		// A scan or connection error mid-stream (not "the table doesn't
+		// exist", already handled by the Query err above) means this
+		// table's tenants may be incomplete; fail loud rather than silently
+		// backfilling a partial tenant list.
+		rowsErr := rows.Err()
 		_ = rows.Close()
+		if rowsErr != nil {
+			return fmt.Errorf("list tenant ids from %s: %w", table, rowsErr)
+		}
 	}
 
 	sortedTenants := make([]string, 0, len(tenantsFound))

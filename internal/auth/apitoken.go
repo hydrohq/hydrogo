@@ -28,8 +28,9 @@ const (
 )
 
 // Token scopes. A personal token always carries ScopeAdmin and acts as its
-// owner; API keys are read-only (ScopePreview additionally sees drafts once
-// handlers honour it).
+// owner; API keys are read-only and act at most as a viewer (content and
+// commerce reads), whatever their owner can do. ScopeRead and ScopePreview are
+// currently equivalent: no handler distinguishes drafts by key scope yet.
 const (
 	ScopeAdmin   = "admin"
 	ScopeRead    = "read"

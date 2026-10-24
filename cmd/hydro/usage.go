@@ -10,7 +10,7 @@ func printUsage(w io.Writer) {
 
 Usage:
   Start a project
-  hydro new DIR [--preset minimal|blog|corporate|news|crm|erp-lite|docs] [--starter sveltekit|crm] [--admin-email EMAIL [--admin-password-stdin]]
+  hydro new DIR [--preset minimal|blog|corporate|news|crm|erp-lite|docs|commerce] [--starter sveltekit|crm|commerce] [--admin-email EMAIL [--admin-password-stdin]]
   hydro init [same options]  (scaffold in the current directory)
 
   Run and develop
@@ -57,6 +57,7 @@ Usage:
   hydro jobs dead-letter list [--limit N] [--json] [runtime flags]
   hydro jobs dead-letter requeue --id ID --confirm [runtime flags]
   hydro jobs dead-letter purge --older-than 720h --limit N --confirm [runtime flags]
+  hydro commerce reconcile [--provider paytr] [--hold 30m] [--stale-after 15m] [--limit N] [--json] [runtime flags]
   hydro tenant validate|list [runtime flags]
   hydro tenant provision --tenant-id ID --admin-email EMAIL --admin-password-stdin [runtime flags]
   hydro tenant backfill (--tenant-id ID|--active) [--dry-run|--confirm] [runtime flags]

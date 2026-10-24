@@ -78,8 +78,11 @@ and `migrations/` are untouched: this is a UI-layer change.
 
 - `github.com/a-h/templ` leaves `go.mod`; `templ generate` leaves the dev
   server and `tools/check`. `tools/check` gains the frontend steps (`npm ci`,
-  lint, `svelte-check`, vitest, `vite build`) and an OpenAPI freshness check;
-  `admin/src/lib/api/types.ts` is generated from `hydro schema openapi`.
+  lint, `svelte-check`, vitest, `vite build`).
+  **Not realized**: the OpenAPI freshness check and `hydro schema openapi` →
+  `admin/src/lib/api/types.ts` generation planned here never got built (no
+  such CLI subcommand or `tools/check` step exists); `types.ts` is
+  hand-maintained today. See `docs/decisions/0022-audit-remediation.md`.
 - Every admin HTML handler becomes a JSON handler using
   `internal/api.WriteData/WriteError`; the error envelope carries
   `request_id` end-to-end so the SPA can show it next to any failure.

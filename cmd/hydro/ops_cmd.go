@@ -62,6 +62,10 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("database ping: %w", err)
 	}
 	fixes := make([]string, 0, 2)
+	var warnings []string
+	if err := validateProductionOrigin(cfg); err != nil {
+		warnings = append(warnings, err.Error())
+	}
 	sqliteJournalMode := ""
 	sqliteForeignKeyViolations := 0
 	if cfg.Database.Dialect == database.SQLite {
@@ -165,17 +169,18 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 			SecureCookies              bool     `json:"secure_cookies"`
 			HSTS                       bool     `json:"hsts"`
 			Fixes                      []string `json:"fixes,omitempty"`
+			Warnings                   []string `json:"warnings,omitempty"`
 			SQLiteJournalMode          string   `json:"sqlite_journal_mode,omitempty"`
 			SQLiteForeignKeyViolations int      `json:"sqlite_foreign_key_violations,omitempty"`
 			MediaMode                  string   `json:"media_mode"`
-		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes, SQLiteJournalMode: sqliteJournalMode, SQLiteForeignKeyViolations: sqliteForeignKeyViolations, MediaMode: mediaMode})
+		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes, Warnings: warnings, SQLiteJournalMode: sqliteJournalMode, SQLiteForeignKeyViolations: sqliteForeignKeyViolations, MediaMode: mediaMode})
 		if err != nil {
 			return err
 		}
 		_, err = fmt.Fprintln(stdout, string(data))
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "profile=%s database=%s sqlite_journal_mode=%s sqlite_foreign_key_violations=%d media_mode=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d fixes=%s\n", cfg.Profile, cfg.Database.Dialect, sqliteJournalMode, sqliteForeignKeyViolations, mediaMode, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, strings.Join(fixes, ","))
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s sqlite_journal_mode=%s sqlite_foreign_key_violations=%d media_mode=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d fixes=%s warnings=%s\n", cfg.Profile, cfg.Database.Dialect, sqliteJournalMode, sqliteForeignKeyViolations, mediaMode, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, strings.Join(fixes, ","), strings.Join(warnings, ";"))
 	return err
 }
 
@@ -202,6 +207,9 @@ func validateCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	modules := enabledModuleSet(cfg.Modules)
+	if err := validateProductionOrigin(cfg); err != nil {
+		return err
+	}
 	if *jsonOutput {
 		payload, err := json.Marshal(struct {
 			Valid        bool     `json:"valid"`
@@ -607,4 +615,18 @@ func readBoundedFile(path string, limit int64) ([]byte, error) {
 		return nil, fmt.Errorf("file exceeds %d-byte limit", limit)
 	}
 	return data, nil
+}
+
+// validateProductionOrigin flags a production deployment (HYDRO_ENV/APP_ENV/
+// GO_ENV=production) that never set http.public_origin: the scaffolded
+// default is empty, secure_cookies/enable_hsts stay off, and nothing else
+// in config.Validate catches this since an empty origin is self-consistent
+// on its own. validateCommand treats it as a hard failure (it is checked
+// before serve starts); doctor only warns (a running server with this gap
+// is still better diagnosed than left silent).
+func validateProductionOrigin(cfg config.Config) error {
+	if !isProductionEnvironment() || strings.TrimSpace(cfg.HTTP.PublicOrigin) != "" {
+		return nil
+	}
+	return errors.New("public_origin is empty in a production environment (HYDRO_ENV/APP_ENV/GO_ENV=production): session and member cookies will not get Secure, HSTS stays off, and CSRF origin checks have nothing to compare against -- set http.public_origin to the real https:// origin")
 }

@@ -8,6 +8,14 @@ export const SESSION_COOKIE = 'crm_sid';
 const PUBLIC_PATHS = new Set(['/login', '/health']);
 
 export const handle: Handle = async ({ event, resolve }) => {
+  // GHSA-pfhg-q3qv-9q6r (CVE-2026-114060): @sveltejs/kit < 3.0.0 can turn a
+  // `//`-prefixed action path into an open redirect through use:enhance.
+  // This is the SvelteKit security team's own documented workaround --
+  // reject it outright before route resolution.
+  if (event.url.pathname.startsWith('//')) {
+    return new Response('Not found', { status: 404 });
+  }
+
   // Infra health checks hit this from hosts that aren't a configured tenant; mirrors
   // internal/tenant.HostResolver's own /healthz bypass.
   if (event.url.pathname === '/health') return resolve(event);

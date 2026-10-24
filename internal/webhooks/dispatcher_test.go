@@ -48,11 +48,48 @@ func TestDispatcherSignsAndRetriesIdempotently(t *testing.T) {
 }
 
 func TestDispatcherRejectsInvalidEndpoint(t *testing.T) {
-	for _, badURL := range []string{"file:///secret", "http://user:pass@example.com/hook", "ftp://example.com", "not-a-url", "http://example.com:bad/hook", "http://example.com/hook#fragment"} {
+	for _, badURL := range []string{
+		"file:///secret", "http://user:pass@example.com/hook", "ftp://example.com", "not-a-url",
+		"http://example.com:bad/hook", "http://example.com/hook#fragment",
+		// Literal internal/non-routable addresses: an admin pasting one of
+		// these (by mistake or otherwise) must not get a webhook that calls
+		// back into this host's own network, including the cloud metadata
+		// address a compromised endpoint config could use to steal
+		// instance credentials.
+		"http://127.0.0.1/hook", "http://localhost/hook", "http://[::1]/hook",
+		"http://169.254.169.254/latest/meta-data/", "http://10.0.0.5/hook",
+		"http://192.168.1.1/hook", "http://172.16.0.1/hook", "http://0.0.0.0/hook",
+	} {
 		err := (Dispatcher{Endpoints: []Endpoint{{ID: "bad", URL: badURL, Secret: "x", Topics: map[string]struct{}{"x": {}}}}}).Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1})
 		if err == nil || !strings.Contains(err.Error(), "invalid webhook endpoint") {
 			t.Fatalf("badURL %q error = %v, want invalid webhook endpoint", badURL, err)
 		}
+	}
+}
+
+// TestAllowInternalAddressesPermitsALoopbackEndpoint proves the opt-out
+// exists and works: a caller with a different trust model than the default
+// external-webhooks case (e.g. a same-deployment synchronous extension
+// hook) can still reach a loopback service.
+func TestAllowInternalAddressesPermitsALoopbackEndpoint(t *testing.T) {
+	client := &http.Client{Transport: webhookRoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
+	})}
+	d := Dispatcher{Client: client, AllowInternalAddresses: true, Endpoints: []Endpoint{{ID: "sidecar", URL: "http://127.0.0.1:9999/hook", Secret: "secret", Topics: map[string]struct{}{"x": {}}}}, Sleep: func(context.Context, time.Duration) error { return nil }}
+	if err := d.Dispatch(context.Background(), Event{ID: "e", Topic: "x", PayloadVersion: 1}); err != nil {
+		t.Fatalf("Dispatch with AllowInternalAddresses = %v, want nil", err)
+	}
+}
+
+// TestDispatcherAllowsAnUnresolvedHostname proves the internal-address
+// rejection above only applies to literal IPs, not every hostname -- a
+// normal external webhook URL that happens to share a name pattern with
+// nothing internal must never be refused just because its name looks like
+// a domain. (A real DNS lookup is deliberately not performed; see
+// rejectInternalHost's doc comment for why.)
+func TestDispatcherAllowsAnUnresolvedHostname(t *testing.T) {
+	if err := validateURL("https://erp.example.test/hook", false); err != nil {
+		t.Fatalf("validateURL(ordinary hostname) = %v, want nil", err)
 	}
 }
 

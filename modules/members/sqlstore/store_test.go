@@ -277,3 +277,35 @@ func TestSessionGetByIDFindsOldestBeyondListLimitAndScopesTenant(t *testing.T) {
 		t.Fatalf("cross-tenant lookup err=%v", err)
 	}
 }
+
+func TestSessionStoreDeleteExpiredRemovesOnlyPastSessions(t *testing.T) {
+	db := setupTestDB(t)
+	mStore := sqlstore.Store{DB: db, Dialect: database.SQLite}
+	sStore := sqlstore.SessionStore{DB: db, Dialect: database.SQLite}
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if err := mStore.Create(ctx, &members.Member{ID: "m-exp", Email: "exp@example.test", PasswordHash: "hash", Active: true, CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	expired := &members.Session{ID: "s-expired", MemberID: "m-exp", TokenHash: "hash-expired", ExpiresAt: now.Add(-time.Hour), CreatedAt: now.Add(-2 * time.Hour), LastSeenAt: now.Add(-2 * time.Hour)}
+	live := &members.Session{ID: "s-live", MemberID: "m-exp", TokenHash: "hash-live", ExpiresAt: now.Add(time.Hour), CreatedAt: now, LastSeenAt: now}
+	if err := sStore.Create(ctx, expired); err != nil {
+		t.Fatal(err)
+	}
+	if err := sStore.Create(ctx, live); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := sStore.DeleteExpired(ctx, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted = %d, want 1", deleted)
+	}
+	if _, err := sStore.GetByTokenHash(ctx, "hash-expired"); err == nil {
+		t.Fatal("the expired session must be gone")
+	}
+	if _, err := sStore.GetByTokenHash(ctx, "hash-live"); err != nil {
+		t.Fatalf("the live session must survive: %v", err)
+	}
+}

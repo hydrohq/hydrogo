@@ -21,6 +21,8 @@ func main() {
 	root := flag.String("root", "modules", "module source root")
 	allow := flag.String("allow", "modules/api", "comma-separated aggregate roots allowed to import sibling modules")
 	dependenciesPath := flag.String("dependencies", "modules/dependencies.json", "declared direct module dependency graph")
+	denyModulesRoot := flag.String("deny-modules-root", "", "a source root (e.g. internal) that may never import modules/*; grandfathered violations come from -deny-modules-exceptions")
+	denyModulesExceptions := flag.String("deny-modules-exceptions", "", "comma-separated slash-paths (relative to the repo root) pre-existing violations of -deny-modules-root that are not yet fixed")
 	flag.Parse()
 
 	allowed := map[string]bool{}
@@ -29,16 +31,34 @@ func main() {
 			allowed[filepath.ToSlash(filepath.Clean(strings.TrimSpace(item)))] = true
 		}
 	}
+
+	var violations []string
+	if strings.TrimSpace(*denyModulesRoot) != "" {
+		exceptions := map[string]bool{}
+		for _, item := range strings.Split(*denyModulesExceptions, ",") {
+			if strings.TrimSpace(item) != "" {
+				exceptions[filepath.ToSlash(filepath.Clean(strings.TrimSpace(item)))] = true
+			}
+		}
+		denyViolations, err := checkNoModuleImports(*denyModulesRoot, exceptions)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		violations = append(violations, denyViolations...)
+	}
+
 	dependencies, err := readDependencies(*dependenciesPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	violations, err := checkModules(*root, allowed, dependencies)
+	moduleViolations, err := checkModules(*root, allowed, dependencies)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	violations = append(violations, moduleViolations...)
 	if len(violations) > 0 {
 		sort.Strings(violations)
 		fmt.Fprintln(os.Stderr, "moduleguard: module dependency contract failed:")
@@ -196,4 +216,49 @@ func dependencyCycles(graph map[string][]string) []string {
 		visit(module, nil)
 	}
 	return cycles
+}
+
+// checkNoModuleImports enforces that nothing under root imports
+// modules/*: AGENTS.md's layering (modules depend on internal/, never the
+// reverse) has no allowlist graph the way module-to-module dependencies
+// do -- internal/ importing any module at all is the violation. A listed
+// exception is a known, not-yet-fixed debt (grep the comment above its
+// import for why); anything else fails the build.
+func checkNoModuleImports(root string, exceptions map[string]bool) ([]string, error) {
+	var violations []string
+	seenExceptions := map[string]bool{}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		rel := filepath.ToSlash(path)
+		for _, imp := range file.Imports {
+			importPath := strings.Trim(imp.Path.Value, "\"")
+			if !strings.HasPrefix(importPath, modulePrefix) {
+				continue
+			}
+			if exceptions[rel] {
+				seenExceptions[rel] = true
+				continue
+			}
+			violations = append(violations, fmt.Sprintf("%s: %s may not import a module (%s) -- see AGENTS.md's layering rule", rel, root, importPath))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for exception := range exceptions {
+		if !seenExceptions[exception] {
+			violations = append(violations, fmt.Sprintf("-deny-modules-exceptions lists %s but it no longer imports a module; remove it from the exception list", exception))
+		}
+	}
+	return violations, nil
 }

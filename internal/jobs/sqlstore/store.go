@@ -67,6 +67,114 @@ func (s Store) ListDeadLetters(ctx context.Context, db database.Executor, limit 
 	return result, nil
 }
 
+// JobSummary is the admin's JSON view of a job: jobs.Job has no JSON tags
+// (nothing outside this package serialized it before), and it carries no
+// lease state, so this type both tags every field and adds the lease.
+type JobSummary struct {
+	ID           string     `json:"id"`
+	Type         string     `json:"type"`
+	Payload      string     `json:"payload"`
+	AvailableAt  time.Time  `json:"available_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	Attempts     int        `json:"attempts"`
+	DeadLettered bool       `json:"dead_lettered"`
+	LastError    string     `json:"last_error,omitempty"`
+	LeaseOwner   string     `json:"lease_owner,omitempty"`
+	LeaseUntil   *time.Time `json:"lease_until,omitempty"`
+}
+
+// JobSummaryOf tags a bare jobs.Job (for example from ListDeadLetters) for
+// the admin JSON API.
+func JobSummaryOf(job jobs.Job) JobSummary {
+	return JobSummary{
+		ID:           job.ID,
+		Type:         job.Type,
+		Payload:      job.Payload,
+		AvailableAt:  job.AvailableAt,
+		CreatedAt:    job.CreatedAt,
+		Attempts:     job.Attempts,
+		DeadLettered: job.DeadLettered,
+		LastError:    job.LastError,
+	}
+}
+
+// List returns a bounded operator view of claimable and leased jobs (never
+// dead-lettered ones; see ListDeadLetters for those).
+func (s Store) List(ctx context.Context, db database.Executor, limit int) ([]JobSummary, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	dead := "0"
+	if s.Dialect == database.Postgres {
+		dead = "FALSE"
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("database executor does not support row queries")
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT id, type, payload, available_at, created_at, attempts, dead_lettered, COALESCE(last_error, ''), COALESCE(lease_owner, ''), lease_until FROM jobs WHERE dead_lettered = `+dead+` ORDER BY available_at, id LIMIT `+s.p(1), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]JobSummary, 0, limit)
+	for rows.Next() {
+		var summary JobSummary
+		var available, created, leaseUntil any
+		if err := rows.Scan(&summary.ID, &summary.Type, &summary.Payload, &available, &created, &summary.Attempts, &summary.DeadLettered, &summary.LastError, &summary.LeaseOwner, &leaseUntil); err != nil {
+			return nil, err
+		}
+		summary.AvailableAt, err = parseTime(available)
+		if err != nil {
+			return nil, err
+		}
+		summary.CreatedAt, err = parseTime(created)
+		if err != nil {
+			return nil, err
+		}
+		if leaseUntil != nil {
+			parsed, err := parseTime(leaseUntil)
+			if err != nil {
+				return nil, err
+			}
+			summary.LeaseUntil = &parsed
+		}
+		result = append(result, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// DeleteDeadLetter removes one explicitly selected dead-letter job.
+func (s Store) DeleteDeadLetter(ctx context.Context, db database.Executor, id string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	dead := "1"
+	if s.Dialect == database.Postgres {
+		dead = "TRUE"
+	}
+	result, err := db.ExecContext(ctx, "DELETE FROM jobs WHERE id = "+s.p(1)+" AND dead_lettered = "+dead, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return jobs.ErrLeaseInvalid
+	}
+	return nil
+}
+
 // RequeueDeadLetter makes one explicitly selected dead-letter job claimable.
 // The attempt count and last error remain available for operator audit.
 func (s Store) RequeueDeadLetter(ctx context.Context, db database.Executor, id string, availableAt time.Time) error {

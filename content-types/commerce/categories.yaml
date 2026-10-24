@@ -1,0 +1,11 @@
+id: categories
+label: Categories
+description: Product categories for the storefront (e.g. belts, wallets, bags).
+group: Commerce
+title_field: name
+public: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, list: true, searchable: true}
+  - {id: slug, label: Slug, kind: text, required: true, unique: true, list: true, filterable: true}
+  - {id: parent, label: Parent category, kind: relation, to: categories, filterable: true}
+  - {id: description, label: Description, kind: textarea, searchable: true}

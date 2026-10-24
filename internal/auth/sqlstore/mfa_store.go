@@ -162,3 +162,42 @@ func (s *UserStore) ConsumeRecoveryCode(ctx context.Context, tx database.Executo
 	}
 	return nil
 }
+
+var _ auth.TOTPStepClaimer = (*UserStore)(nil)
+
+// ClaimTOTPStep accepts step only if it is newer than the last step used by
+// this user. One guarded UPDATE, so two concurrent logins with the same code
+// cannot both succeed.
+func (s *UserStore) ClaimTOTPStep(ctx context.Context, db database.Executor, userID string, step int64) (bool, error) {
+	if err := requireUserStore(s); err != nil {
+		return false, err
+	}
+	if err := requireAuthExecutor(db); err != nil {
+		return false, err
+	}
+	tenantID, err := s.tenant(ctx)
+	if err != nil {
+		return false, err
+	}
+	query := `UPDATE user_mfa SET last_totp_step = $1 WHERE user_id = $2 AND last_totp_step < $3`
+	args := []any{step, userID, step}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = $4`
+		args = append(args, tenantID)
+	}
+	if s.dialect == database.SQLite || s.dialect == database.MySQL {
+		query = `UPDATE user_mfa SET last_totp_step = ? WHERE user_id = ? AND last_totp_step < ?`
+		if s.RequireTenantScope {
+			query += ` AND tenant_id = ?`
+		}
+	}
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
+}
