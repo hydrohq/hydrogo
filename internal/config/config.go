@@ -69,7 +69,7 @@ func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.Cha
 type Commerce struct {
 	PayTR        PayTR        `yaml:"paytr"`
 	Tax          Tax          `yaml:"tax"`
-	Shipping     Shipping     `yaml:"shipping"`
+	Shipping     ShippingFee  `yaml:"shipping"`
 	Currencies   Currencies   `yaml:"currencies"`
 	YurticiKargo YurticiKargo `yaml:"yurtici_kargo"`
 }
@@ -87,9 +87,14 @@ type Tax struct {
 	Inclusive bool `yaml:"inclusive"`
 }
 
-// Shipping configures a single flat shipping fee, optionally waived above
-// a subtotal threshold. The zero value adds no shipping fee.
-type Shipping struct {
+// ShippingFee configures a single flat shipping fee, optionally waived
+// above a subtotal threshold. The zero value adds no shipping fee. Named
+// ShippingFee, not Shipping, so it reads unambiguously next to
+// commerce.ShippingProvider (a carrier integration -- Yurtiçi Kargo and
+// friends) and the shipping_* columns on an order; this struct is pure
+// pricing and has nothing to do with carriers. The yaml key stays
+// `shipping:` -- only the Go type name changed.
+type ShippingFee struct {
 	FlatRateCents  int64 `yaml:"flat_rate_cents"`
 	FreeAboveCents int64 `yaml:"free_above_cents"`
 }
