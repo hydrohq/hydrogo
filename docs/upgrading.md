@@ -19,7 +19,7 @@ hydro doctor --config config.yaml                                   # 5. verify 
 hydro serve --config config.yaml
 ```
 
-`hydro migrate` takes a snapshot of a SQLite database before it applies anything; `hydro rollback --snapshot PATH --confirm` restores it. Pin a version with `HYDRO_VERSION=v0.2.0 sh install.sh` or the matching image tag.
+`hydro migrate` takes a snapshot of a SQLite database before it applies anything; `hydro rollback --snapshot PATH --confirm` restores it. Pin a version with `HYDRO_VERSION=v0.3.0 sh install.sh` or the matching image tag.
 
 ## Releasing (maintainers)
 
