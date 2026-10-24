@@ -121,6 +121,35 @@ func runDurableJobLeaseContract(t *testing.T, db database.Executor, dialect data
 	if err != nil || removed != 1 {
 		t.Fatalf("dead-letter purge = %d/%v", removed, err)
 	}
+
+	job3 := jobs.Job{ID: "job-3", Type: "news.publish", Payload: "{}", AvailableAt: now, CreatedAt: now}
+	if err := store.Enqueue(ctx, db, job3); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := store.List(ctx, db, 10)
+	if err != nil || len(listed) != 1 || listed[0].ID != job3.ID || listed[0].LeaseOwner != "" {
+		t.Fatalf("list pending = %#v/%v", listed, err)
+	}
+	claimed3, token3, ok, err := store.Claim(ctx, db, "worker-f", now, time.Minute)
+	if err != nil || !ok || claimed3.ID != job3.ID {
+		t.Fatalf("claim job-3 = %+v/%v/%v", claimed3, ok, err)
+	}
+	listed, err = store.List(ctx, db, 10)
+	if err != nil || len(listed) != 1 || listed[0].LeaseOwner != "worker-f" || listed[0].LeaseUntil == nil {
+		t.Fatalf("list leased = %#v/%v", listed, err)
+	}
+	if err := store.DeadLetter(ctx, db, job3.ID, "worker-f", token3, "to be deleted"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.DeleteDeadLetter(ctx, db, job3.ID); err != nil {
+		t.Fatal(err)
+	}
+	if deadLetters, err := store.ListDeadLetters(ctx, db, 10); err != nil || len(deadLetters) != 0 {
+		t.Fatalf("dead letter should be gone: %#v/%v", deadLetters, err)
+	}
+	if err := store.DeleteDeadLetter(ctx, db, "missing"); !errors.Is(err, jobs.ErrLeaseInvalid) {
+		t.Fatalf("delete missing dead letter = %v", err)
+	}
 }
 
 func TestDialectBooleanLiterals(t *testing.T) {
