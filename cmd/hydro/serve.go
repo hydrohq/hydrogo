@@ -97,5 +97,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		}
 	}
 	app.startWorkers()
-	return app.listen(routes)
+	listenErr := app.listen(routes)
+	app.waitForWorkers()
+	return listenErr
 }
