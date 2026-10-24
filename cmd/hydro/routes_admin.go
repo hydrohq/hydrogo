@@ -52,6 +52,12 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("GET /api/v1/admin/system/metrics", a.adminSystemMetricsHandler),
 		protected("GET /api/v1/admin/system/health", a.adminSystemHealthHandler(a.readiness)),
 		protected("POST /api/v1/admin/client-errors", a.adminClientErrorHandler(a.newRateLimiter(10, time.Minute))),
+		// Jobs are core-owned (see docs/decisions/0010-generic-reports-and-jobs.md),
+		// so this is always registered, independent of which modules are enabled.
+		protected("GET /api/v1/admin/jobs", a.adminJobsHandler),
+		protected("GET /api/v1/admin/jobs/dead-letters", a.adminJobDeadLettersHandler),
+		protected("POST /api/v1/admin/jobs/dead-letters/{id}/requeue", a.adminJobDeadLetterRequeueHandler),
+		protected("DELETE /api/v1/admin/jobs/dead-letters/{id}", a.adminJobDeadLetterDeleteHandler),
 	}
 	if len(a.cfg.Hooks) > 0 {
 		routes = append(routes, protected("GET /api/v1/admin/system/services", a.adminServicesHandler))

@@ -7,6 +7,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import BackupsSecurityTab from './tabs/BackupsSecurityTab.svelte';
   import ServicesTab from './tabs/ServicesTab.svelte';
+  import JobsTab from './tabs/JobsTab.svelte';
   import { loadHookServices, type HookService } from './services';
   import { schema } from '$lib/stores/schema.svelte';
 
@@ -500,6 +501,8 @@
           </div>
         </div>
       </div>
+
+      <JobsTab />
 
     <!-- Tab 5: Monitored Paths -->
     {:else if activeTab === 'paths'}
