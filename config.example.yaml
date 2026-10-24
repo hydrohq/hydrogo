@@ -16,6 +16,23 @@ http:
   # ban on an abusive client bans the whole site instead.
   behind_proxy: false
   trusted_proxies: []
+# Optional: serve several customers/sites from one shared database instead
+# of one deployment per customer. See docs/multi-tenancy.md. Disabled (the
+# default) means every row's tenant discriminator is empty and this whole
+# section does nothing.
+tenancy:
+  enabled: false
+  # true: a request Host header not listed below is refused (404) instead
+  # of silently falling through to a default tenant. Enable once every
+  # real host you serve is listed in hosts.
+  require_host: false
+  # Trusted, operator-configured host -> tenant id map. The tenant for a
+  # request always comes from this map matched against the Host header,
+  # never from a client-supplied header or query parameter.
+  hosts: {}
+  # hosts:
+  #   customer-a.example.com: "tenant-a"
+  #   customer-b.example.com: "tenant-b"
 database:
   dialect: "sqlite"
   # Prefer HYDRO_DATABASE_DSN or a protected deployment secret file.

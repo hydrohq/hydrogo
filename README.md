@@ -21,6 +21,12 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 - **Content:** pages with blocks, news with categories and tags, media
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
   scheduled news publishing, and audit log.
+- **Commerce:** an opt-in module -- catalog (as content types), cart,
+  checkout, orders, PayTR payments, Yurtiçi Kargo shipping. See
+  [docs/commerce.md](docs/commerce.md).
+- **Multi-tenancy:** an opt-in, cross-cutting feature -- serve several
+  customers from one shared database instead of one deployment per
+  customer. See [docs/multi-tenancy.md](docs/multi-tenancy.md).
 - **Zero build on publish:** a publish in the admin is live on the next API
   request; frontends never need a rebuild.
 - **Project scaffolding:** `hydro new mysite --preset blog` creates a ready
@@ -56,9 +62,9 @@ hydro serve --config config.yaml
 `hydro new` writes `config.yaml`, the preset's `content-types/`, creates the
 SQLite database and the admin user (a generated password is printed once, or
 pass `--admin-password-stdin`). Presets: `minimal`, `blog`, `corporate`, `news`,
-`docs` (`hydro new --list-presets`). `hydro init` does the same in the current
-directory. Without `--admin-email` it only writes files and prints the next
-commands.
+`docs`, `crm`, `erp-lite`, `commerce` (`hydro new --list-presets`). `hydro init`
+does the same in the current directory. Without `--admin-email` it only
+writes files and prints the next commands.
 
 Add a content type: `hydro content-type new recipes`, edit the YAML,
 `hydro content-type validate`, restart. Then build your site on the API:
@@ -86,11 +92,11 @@ commands.
 | `cmd/hydro` | The CLI and HTTP server entrypoint |
 | `admin/` | Modern Svelte 5 + TypeScript + Tailwind embedded admin panel SPA |
 | `internal/` | Core packages: auth, database, media, admin UI embedding (`adminui`), collections, search, security, scaffolding (`scaffold`), … |
-| `modules/` | Content modules: `pages`, `news`, `members`, `site`, `seo` |
+| `modules/` | Content modules: `pages`, `news`, `members`, `site`, `seo`, `commerce` |
 | `content-types/` | Declarative YAML schemas for custom content types |
 | `migrations/` | SQL migrations for SQLite, PostgreSQL and MySQL |
 | `packages/client` | `@hydrogo/client`, the typed API client for frontends |
-| `examples/` | Frontend starters: `sveltekit-starter` (SSR), plus HydroGo's own landing/docs site and a news-portal reference |
+| `examples/` | Frontend starters: `sveltekit-starter` (SSR), `crm-starter`, `commerce-starter`, plus HydroGo's own landing/docs site (`svelte-starter`) and a news-portal reference (`hydropost-news-starter`) |
 | `deploy/`, `scripts/` | Docker/Caddy/nginx/hosting examples, install scripts, Windows installer script |
 | `tools/` | Dev server, guards, and check script |
 | `docs/` | Current docs and architecture decision records (ADRs) |
