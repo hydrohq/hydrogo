@@ -6,7 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"net"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -92,6 +93,11 @@ type HTTPHandler struct {
 	TokenLifetimeSettings  TokenLifetimeSettings
 	ErasureLog             *erasure.Log
 	EditionID              string
+	// Logger is optional. When set, a failed audit write (e.g. the login_failed
+	// or push.broadcast event below) is logged instead of silently discarded --
+	// a brute-force attempt or an admin action that the audit trail never
+	// recorded should not also go unnoticed by the operator.
+	Logger *slog.Logger
 }
 
 func (h HTTPHandler) Routes() []HTTPRoute {
@@ -197,7 +203,9 @@ func (h HTTPHandler) recordAuthFailure(r *http.Request, email string) {
 			"status":          http.StatusUnauthorized,
 			"reason":          "invalid_credentials",
 		})
-		_ = detailed.RecordDetails(r.Context(), "auth.login_failed", target, nil, details)
+		if err := detailed.RecordDetails(r.Context(), "auth.login_failed", target, nil, details); err != nil && h.Logger != nil {
+			h.Logger.ErrorContext(r.Context(), "audit write failed", "action", "auth.login_failed", "error", err)
+		}
 		return
 	}
 	h.recordAuthEvent(r, "auth.login_failed", target)
@@ -219,8 +227,11 @@ func maskEmail(email string) string {
 }
 
 func (h HTTPHandler) recordAuthEvent(r *http.Request, action, target string) {
-	if h.Audit != nil {
-		_ = h.Audit.Record(r.Context(), action, target)
+	if h.Audit == nil {
+		return
+	}
+	if err := h.Audit.Record(r.Context(), action, target); err != nil && h.Logger != nil {
+		h.Logger.ErrorContext(r.Context(), "audit write failed", "action", action, "error", err)
 	}
 }
 
@@ -232,12 +243,7 @@ func sessionToken(r *http.Request) string {
 	return cookie.Value
 }
 
-func clientIP(r *http.Request) string {
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return host
-	}
-	return strings.TrimSpace(r.RemoteAddr)
-}
+func clientIP(r *http.Request) string { return requestmeta.ClientIP(r) }
 
 func (h HTTPHandler) adminUser(r *http.Request) bool {
 	user := UserFromContext(r.Context())

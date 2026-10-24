@@ -1,0 +1,21 @@
+id: products
+label: Products
+description: Storefront catalog. Price and stock for a specific size/color live
+  on the matching record in Variants; a product with no variants sells at
+  base_price directly.
+group: Commerce
+title_field: name
+public: true
+drafts: true
+revisions: true
+fields:
+  - {id: name, label: Name, kind: text, required: true, list: true, searchable: true}
+  - {id: slug, label: Slug, kind: text, required: true, unique: true, list: true, filterable: true}
+  - {id: category, label: Category, kind: relation, to: categories, filterable: true, list: true}
+  - {id: description, label: Description, kind: richtext, searchable: true}
+  - {id: cover_image, label: Cover image, kind: media, required: true}
+  - {id: base_price, label: Base price, kind: number, required: true, min: 0, decimals: 2, list: true, filterable: true}
+  - {id: currency, label: Currency, kind: select, options: [TRY, USD, EUR], required: true, filterable: true}
+  - {id: sku, label: SKU, kind: text, unique: true, list: true, searchable: true}
+  - {id: seo_title, label: SEO title, kind: text}
+  - {id: seo_description, label: SEO description, kind: textarea}

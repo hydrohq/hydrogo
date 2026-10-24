@@ -46,7 +46,7 @@ func main() {
 	update := flag.Bool("update", false, "rewrite the baseline from the current tree")
 	flag.Parse()
 
-	files, err := trackedGoFiles()
+	files, err := trackedFiles()
 	if err != nil {
 		fail(err)
 	}
@@ -85,9 +85,13 @@ func fail(err error) {
 	os.Exit(1)
 }
 
-func trackedGoFiles() ([]string, error) {
+// trackedFiles lists Go and Svelte sources: AGENTS.md's "split a file
+// before it passes about 800 lines" names both languages, so the line-count
+// rule below applies to both. The HTML-in-Go-strings rule only makes sense
+// for Go -- a .svelte file's markup is its job, not a violation.
+func trackedFiles() ([]string, error) {
 	// Include untracked files too, so a new file is checked before it is added.
-	out, err := exec.Command("git", "ls-files", "--cached", "--others", "--exclude-standard", "*.go").Output()
+	out, err := exec.Command("git", "ls-files", "--cached", "--others", "--exclude-standard", "*.go", "*.svelte").Output()
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files: %w", err)
 	}
@@ -113,11 +117,13 @@ func measure(files []string) (baseline, error) {
 		if lines := strings.Count(string(data), "\n"); lines > maxLines {
 			e.Lines = lines
 		}
-		count, err := htmlStrings(name, data)
-		if err != nil {
-			return nil, err
+		if strings.HasSuffix(name, ".go") {
+			count, err := htmlStrings(name, data)
+			if err != nil {
+				return nil, err
+			}
+			e.HTMLStrings = count
 		}
-		e.HTMLStrings = count
 		if e != (entry{}) {
 			result[name] = e
 		}

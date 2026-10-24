@@ -51,7 +51,7 @@ func TestPostgresModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 		{name: "schema_migrations", want: true},
 		{name: "media_assets", want: true},
 		{name: "media_variants", want: true},
-		{name: "commerce_products", want: false},
+		{name: "commerce_stock", want: false},
 		{name: "news_items", want: false},
 		{name: "news_taxonomy_terms", want: false},
 		{name: "news_taxonomy_relations", want: false},

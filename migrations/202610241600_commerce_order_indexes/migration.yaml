@@ -1,0 +1,28 @@
+id: "202610241600_commerce_order_indexes"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "650b8c9fc684c9ac2ffa135feb0edcd2db1417419489f305757e7e2f94c21e17"
+  postgres: "2e9e9f38a955e2e74c897c7c7c240b7790efc3dd17ed90495170b687c0b089a9"
+  mysql: "96688f749a955db1e2af915f5dca03a5bb576aebd961c85fcebdec33d72ef3a5"
+dependencies:
+  - "202610231302_commerce_orders"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; two indexes on commerce_customer_orders. On a large PostgreSQL table build them by hand with CREATE INDEX CONCURRENTLY before upgrading; this migration then no-ops."
+disk_estimate: "Two secondary indexes, roughly proportional to the order count"
+compatibility: "Additive only; no query depends on the indexes for correctness."
+smoke:
+  - "The admin order list and the member order history keep their newest-first order"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

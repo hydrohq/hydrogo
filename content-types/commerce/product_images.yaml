@@ -1,0 +1,11 @@
+id: product_images
+label: Product gallery images
+description: Extra photos for a product's detail page, beyond its cover
+  image. Ordered by sort_order, ascending.
+group: Commerce
+title_field: product
+public: true
+fields:
+  - {id: product, label: Product, kind: relation, to: products, required: true, list: true, filterable: true}
+  - {id: image, label: Image, kind: media, required: true}
+  - {id: sort_order, label: Sort order, kind: number, min: 0, filterable: true}

@@ -120,6 +120,18 @@ func TestCreateCopiesCRMStarter(t *testing.T) {
 	}
 }
 
+func TestCreateCopiesCommerceStarter(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "shop")
+	if _, err := Create(Options{Dir: dir, Preset: "minimal", Starter: "commerce"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"frontend/package.json", "frontend/src/lib/server/commerce.ts", "frontend/src/routes/urun/[slug]/+page.svelte", "frontend/src/routes/sepet/+page.svelte", "frontend/src/routes/odeme/+page.server.ts", "frontend/.env.example"} {
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("missing %s: %v", rel, err)
+		}
+	}
+}
+
 func TestCRMPresetLogsAdminWrites(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "crm")
 	if _, err := Create(Options{Dir: dir, Preset: "crm"}); err != nil {

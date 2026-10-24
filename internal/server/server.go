@@ -12,6 +12,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -27,7 +28,10 @@ func nonNilContext(ctx context.Context) context.Context {
 }
 
 type Config struct {
-	Address                    string
+	Address string
+	// ClientIP resolves the caller address behind trusted proxies; nil uses
+	// the connection address.
+	ClientIP                   *requestmeta.IPExtractor
 	AutoTLS                    bool
 	TLSHost                    string
 	TLSCacheDir                string
@@ -70,6 +74,12 @@ type Config struct {
 	// Requests beyond the cap fail fast with 503 instead of queuing behind
 	// already-admitted work (ADR-0333). Non-positive disables the limiter.
 	MaxInFlightRequests int
+	// CSRFExemptPaths skips CSRF validation entirely for the listed routes:
+	// an inbound third-party webhook (a payment provider's callback) has no
+	// browser session to carry the double-submit cookie, and its own
+	// request signature is the real security boundary. See
+	// security.CSRFMiddleware's own doc comment.
+	CSRFExemptPaths []string
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -167,10 +177,20 @@ func NewHandler(config Config) http.Handler {
 		authorizer = auth.Authorizer()
 	}
 	if config.Metrics != nil && authorizer != nil {
-		routes = append(routes, router.Route{Pattern: "GET /metrics", Access: router.Protected, Handler: http.HandlerFunc(config.Metrics.Handler)})
+		metricsRoute := router.Route{Pattern: "GET /metrics", Access: router.Protected, Handler: http.HandlerFunc(config.Metrics.Handler)}
+		if config.AuthSvc != nil && config.Authorizer == nil {
+			metricsRoute.Permission = auth.PermissionOperations
+		}
+		routes = append(routes, metricsRoute)
 	}
 
-	routerHandler, err := router.New(routes, authorizer)
+	var can router.PermissionChecker
+	if config.AuthSvc != nil && config.Authorizer == nil {
+		can = func(r *http.Request, permission string) bool {
+			return auth.Can(auth.UserFromContext(r.Context()), permission)
+		}
+	}
+	routerHandler, err := router.NewWithPermissions(routes, authorizer, can)
 	if err != nil {
 		panic(err)
 	}
@@ -241,7 +261,7 @@ func NewHandler(config Config) http.Handler {
 	// Individual pages and news articles always render a cookie-consent or
 	// helpful-feedback widget bound to the CSRF cookie, so they keep today's
 	// behavior unchanged.
-	handler = security.CSRFMiddleware(config.SecureCookie, publicContentCacheEligible)(handler)
+	handler = security.CSRFMiddleware(config.SecureCookie, publicContentCacheEligible, config.CSRFExemptPaths...)(handler)
 
 	if config.Maintenance.Enabled != nil {
 		handler = MaintenanceMiddleware(config.Maintenance)(handler)
@@ -267,6 +287,11 @@ func NewHandler(config Config) http.Handler {
 	// requests from any layer below it (body limit, CSRF, auth, and routing)
 	// are visible to operators. Only the concurrency limiter wraps outside
 	// this, and it bypasses /metrics itself (see below).
+	// A second, outer recovery: the inner one (above, inside ErrorMiddleware)
+	// turns handler panics into structured errors; this one catches panics in
+	// the auth, CSRF and IP-blocklist middleware, which would otherwise drop
+	// the connection without a logged request.
+	handler = security.RecoveryMiddlewareWithObserver(config.Logger, config.OnPanic)(handler)
 	if config.Metrics != nil {
 		handler = config.Metrics.Middleware(handler)
 	}
@@ -279,6 +304,10 @@ func NewHandler(config Config) http.Handler {
 	// scraping are exempt: shedding them would make an orchestrator kill the
 	// instance that is trying to protect itself, or blind an operator during
 	// the exact overload they need visibility into.
+	// Resolve the client address before anything that keys on it (IP
+	// blocklist, rate limits, audit, logging).
+	handler = requestmeta.Middleware(config.ClientIP)(handler)
+
 	handler = ConcurrencyLimitMiddleware(config.MaxInFlightRequests, func(r *http.Request) bool {
 		switch r.URL.Path {
 		case "/healthz", "/readyz", "/metrics":

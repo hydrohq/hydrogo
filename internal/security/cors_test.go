@@ -12,7 +12,7 @@ func TestPublicReadCORSAllowsOnlyConfiguredPublishedGET(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
-	for _, path := range []string{"/api/v1/news?locale=tr", "/api/v1/pages?locale=tr"} {
+	for _, path := range []string{"/api/v1/news?locale=tr", "/api/v1/pages?locale=tr", "/api/v1/commerce/stock/variant-1", "/api/v1/commerce/orders/order-1", "/api/v1/commerce/currencies"} {
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		request.Header.Set("Origin", "https://store.example.test")
 		recorder := httptest.NewRecorder()

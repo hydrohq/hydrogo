@@ -1,7 +1,13 @@
-import { hydro, siteOrigin, singleRecord } from '$lib/server/hydro';
+import { hydro, siteOrigin, singleRecord } from '$lib/hydro';
 import { defaultLocale } from '$lib/config';
 
 const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Generated once at build time -- see robots.txt/+server.ts's comment.
+// A new article appearing here needs a rebuild; most RSS readers already
+// poll on their own schedule, so this is a reasonable trade rather than a
+// silent staleness trap.
+export const prerender = true;
 
 export async function GET() {
   const [settings, news] = await Promise.all([singleRecord('site_settings'), hydro.listNews(defaultLocale, 30).catch(() => [])]);

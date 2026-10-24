@@ -55,6 +55,7 @@ Presets (`hydro new --list-presets`):
 | `docs` | documentation site | + FAQ |
 | `crm` | sales (no website: pages and news are off) | companies, contacts, deals, activities; `--starter crm` adds a sales panel |
 | `erp-lite` | light ERP back office (no website) | products, warehouses, accounts, sales orders and lines, invoices and lines, payments |
+| `commerce` | storefront: catalog, cart, checkout, orders | categories, products, variants; `--starter commerce` adds a storefront. See [commerce.md](commerce.md) |
 
 `hydro init` does the same in the current directory. Without `--admin-email`, `hydro new` only writes files and prints the next commands.
 
@@ -74,6 +75,8 @@ The admin gets screens at `/admin/content/recipes` and, with `public: true`, the
 Use the API from any frontend. Two ready starting points:
 
 - [`examples/sveltekit-starter`](../examples/sveltekit-starter): server-rendered SvelteKit site (SEO-friendly, no rebuild when content changes). `--starter sveltekit` copies it into `frontend/`; then `cd frontend && npm install && npm run dev`.
+- [`examples/crm-starter`](../examples/crm-starter): a sales panel (deal board, companies, contacts, activities) for `--preset crm` projects. `--starter crm` copies it in.
+- [`examples/commerce-starter`](../examples/commerce-starter): a storefront (catalog, cart, checkout, order history) for `--preset commerce` projects. `--starter commerce` copies it in.
 - [`@hydrogo/client`](../packages/client): typed fetch client for any JavaScript/TypeScript frontend.
 
 Publishing is live immediately: the frontend reads the API on every request (or through a short cache you control). Nothing needs rebuilding when an editor clicks Publish.

@@ -169,6 +169,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return runtimeCommand(args[1:], stdout, stderr)
 	case "jobs":
 		return jobsCommand(args[1:], stdout, stderr)
+	case "commerce":
+		return commerceCommand(args[1:], stdout, stderr)
 	case "tenant":
 		return tenantCommand(args[1:], stdin, stdout, stderr)
 	case "profile":
