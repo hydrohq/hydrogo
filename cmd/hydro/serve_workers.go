@@ -91,6 +91,9 @@ func (a *serveApp) startWorkers() {
 	cgiMode, metrics := a.opts.cgi, a.metrics
 	if !cgiMode {
 		go runSessionCleanupObserved(ctx, a.sessionStore, stderr, metrics)
+		if modules["members"] {
+			go runSessionCleanup(ctx, a.memberSessions, stderr)
+		}
 	}
 	if modules["media"] && !cgiMode {
 		go runStaleMediaTempSweeper(ctx, cfg.Media.Dir, stderr)

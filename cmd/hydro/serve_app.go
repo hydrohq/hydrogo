@@ -85,6 +85,7 @@ type serveApp struct {
 	authHTTP        auth.HTTPHandler
 	mobileAuthHTTP  auth.MobileHTTPHandler
 	memberStore     memberstore.Store
+	memberSessions  expiredSessionCleaner
 	memberService   members.Service
 	memberHTTP      membertransport.Handler
 	memberOAuthHTTP *membertransport.OAuthHandler

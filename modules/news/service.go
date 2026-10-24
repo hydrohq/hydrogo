@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ardaozyildirim/hydrogo/internal/richtext"
 	"strings"
 	"time"
 
@@ -138,6 +139,7 @@ func (s Service) CreateDraft(ctx context.Context, item Item) error {
 	if err := content.ValidateRichText(item.Body); err != nil {
 		return ErrInvalidItem
 	}
+	item.Body = richtext.Clean(item.Body)
 	if err := Canonicalize(&item); err != nil {
 		return ErrInvalidItem
 	}
@@ -163,6 +165,7 @@ func (s Service) UpdateDraft(ctx context.Context, item Item, expectedVersion int
 	if err := content.ValidateRichText(item.Body); err != nil {
 		return ErrInvalidItem
 	}
+	item.Body = richtext.Clean(item.Body)
 	if err := Canonicalize(&item); err != nil {
 		return ErrInvalidItem
 	}

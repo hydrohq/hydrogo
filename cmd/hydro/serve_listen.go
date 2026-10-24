@@ -93,6 +93,9 @@ func (a *serveApp) cgiLazyCron(cronCtx context.Context) {
 	if sessionStore != nil {
 		_, _ = sessionStore.DeleteExpired(cronCtx, time.Now().UTC())
 	}
+	if a.memberSessions != nil {
+		_, _ = a.memberSessions.DeleteExpired(cronCtx, time.Now().UTC())
+	}
 
 	// C. Outbox webhook dispatch
 	if !cfg.SafeMode && len(webhookEndpoints) > 0 {

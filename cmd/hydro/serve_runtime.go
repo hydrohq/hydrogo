@@ -226,6 +226,7 @@ func (a *serveApp) initOptionalModules() error {
 	}
 	if modules["members"] {
 		a.memberService = members.Service{Members: a.memberStore, Sessions: memberSessionStore, Audit: memberAuditStore, ArgonParams: auth.DefaultArgon2Params}
+		a.memberSessions = memberSessionStore
 	}
 	if modules["members"] {
 		a.memberHTTP = membertransport.Handler{Service: a.memberService, Mobile: &members.MobileAuthService{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Secure: cfg.Security.SecureCookies, Limiter: newRateLimiter(10, time.Minute), Audit: newAuditRecorder(db, cfg.Database.Dialect, requireTenantScope), DB: db, DefaultLocale: cfg.I18N.DefaultLocale, Push: pushDispatcher}

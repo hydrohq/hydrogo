@@ -1,5 +1,6 @@
 <script lang="ts">
   import Seo from '$lib/components/Seo.svelte';
+  import { sanitizeHtml } from '$lib/sanitizeHtml';
 
   let { data } = $props();
 </script>
@@ -8,5 +9,5 @@
 
 <article class="article">
   <h1>{data.page.title}</h1>
-  <div class="prose">{@html data.page.body}</div>
+  <div class="prose">{@html sanitizeHtml(data.page.body)}</div>
 </article>
