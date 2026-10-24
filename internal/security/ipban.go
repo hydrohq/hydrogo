@@ -2,7 +2,7 @@ package security
 
 import (
 	"errors"
-	"net"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -99,10 +99,7 @@ func (b *IPBlocklist) Middleware(next http.Handler) http.Handler {
 		if b.Extractor != nil {
 			address = b.Extractor.Extract(r)
 		} else {
-			address = strings.TrimSpace(r.RemoteAddr)
-			if host, _, err := net.SplitHostPort(address); err == nil {
-				address = host
-			}
+			address = requestmeta.ClientIP(r)
 		}
 		if b.Blocked(address) {
 			http.Error(w, "forbidden", http.StatusForbidden)

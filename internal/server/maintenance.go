@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"net"
 	"net/http"
 	"strings"
@@ -103,11 +104,7 @@ func maintenanceExempt(r *http.Request) bool {
 }
 
 func maintenanceIPAllowed(r *http.Request, entries []*net.IPNet) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	ip := net.ParseIP(host)
+	ip := net.ParseIP(requestmeta.ClientIP(r))
 	if ip == nil {
 		return false
 	}

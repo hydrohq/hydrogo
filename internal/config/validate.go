@@ -14,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cron"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 )
 
 var hookID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,39}$`)
@@ -70,6 +71,12 @@ func (c Config) Validate() error {
 		if err != nil || len(seed) != 32 {
 			return errors.New("backup signing seed must be 64 hexadecimal characters")
 		}
+	}
+	if len(c.HTTP.TrustedProxies) > 64 {
+		return errors.New("http.trusted_proxies allows at most 64 entries")
+	}
+	if _, err := requestmeta.NewIPExtractor(c.HTTP.BehindProxy, c.HTTP.TrustedProxies); err != nil {
+		return err
 	}
 	if c.HTTP.AutoTLS {
 		if c.HTTP.BehindProxy {
