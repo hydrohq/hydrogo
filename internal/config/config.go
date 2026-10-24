@@ -51,8 +51,8 @@ type Notifications struct {
 }
 
 // TelegramNotifications holds one bot's credentials. BotToken is a secret:
-// set it in a protected, untracked config file or the deployment
-// environment, never in a committed preset.
+// set it only in a protected, untracked config file, never in a committed
+// preset. There is no HYDRO_* environment variable override for it.
 type TelegramNotifications struct {
 	BotToken string `yaml:"bot_token"`
 	ChatID   string `yaml:"chat_id"`
@@ -112,8 +112,9 @@ type Currencies struct {
 }
 
 // PayTR holds one merchant's PayTR credentials. MerchantKey and
-// MerchantSalt are secrets: set them in a protected, untracked config file
-// or through the deployment environment, never in a committed preset.
+// MerchantSalt are secrets: set them only in a protected, untracked config
+// file, never in a committed preset. There is no HYDRO_* environment
+// variable override for them.
 type PayTR struct {
 	MerchantID     string `yaml:"merchant_id"`
 	MerchantKey    string `yaml:"merchant_key"`
@@ -133,8 +134,8 @@ func (p PayTR) Enabled() bool { return p.MerchantID != "" }
 // YurticiKargo holds one account's Yurtiçi Kargo web service credentials --
 // see modules/commerce/providers/yurticikargo's package doc comment for
 // this integration's unverified status. WSUserName/WSPassword are secrets:
-// set them in a protected, untracked config file or through the deployment
-// environment, never in a committed preset.
+// set them only in a protected, untracked config file, never in a committed
+// preset. There is no HYDRO_* environment variable override for them.
 type YurticiKargo struct {
 	WSUserName string `yaml:"ws_username"`
 	WSPassword string `yaml:"ws_password"`

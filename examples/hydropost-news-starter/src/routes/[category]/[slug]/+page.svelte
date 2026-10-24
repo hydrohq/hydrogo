@@ -30,7 +30,7 @@
   ]);
 
   let popularList = $derived<NewsArticle[]>(data.popularNews || data.related || []);
-  let pageOrigin = $derived((typeof window !== 'undefined' && window.location?.origin) || data?.siteSettings?.public_origin || '');
+  let pageOrigin = $derived((typeof window !== 'undefined' && window.location?.origin) || '');
 
   // Sync state if navigation changes the active article
   $effect(() => {
