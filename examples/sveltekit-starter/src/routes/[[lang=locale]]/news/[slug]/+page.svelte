@@ -1,5 +1,6 @@
 <script lang="ts">
   import Seo from '$lib/components/Seo.svelte';
+  import { sanitizeHtml } from '$lib/sanitizeHtml';
 
   let { data } = $props();
   const item = $derived(data.item);
@@ -32,5 +33,5 @@
   <p class="meta">{#if item.author_name}{item.author_name} · {/if}<time datetime={item.updated_at}>{new Date(item.updated_at).toLocaleDateString(undefined, { dateStyle: 'long' })}</time></p>
   {#if data.cover}<img class="cover" src={data.cover} alt="" />{/if}
   <!-- HydroGo sanitizes rich text on the server, so it is safe to render as HTML. -->
-  <div class="prose">{@html item.body}</div>
+  <div class="prose">{@html sanitizeHtml(item.body)}</div>
 </article>
