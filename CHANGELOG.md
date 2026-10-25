@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Fix: the Users screen could not change a role or save permissions.** The admin client JSON-encoded string bodies a second time, so `POST /api/v1/admin/users/{id}/role` answered 400 and `.../permissions` read an empty form and replaced the user's explicit permissions with none. String bodies now go out as they are; the invite form posts form fields as the endpoint expects.
+- **Fix: invitations and password resets had no page to land on.** The e-mails carried a bare token, the link `hydro` returned pointed at `/password-reset` (a 404 in a headless project) and the invitation accept URL only accepted POST. E-mails now carry a link, and the admin panel has public pages at `/admin/reset-password` and `/admin/accept-invite` that set the password and return to `/admin/login`. The form-style redirects of `/auth/password-reset/confirm` and `/auth/invites/accept` point there too. See `docs/deployment.md`.
+- New `hydro create-user --email E --password-stdin [--role viewer|editor] [--permissions a,b]` opens (or corrects) a non-administrator account without SMTP; `create-admin` only made administrators.
+- `hydro serve` on a database that was never migrated now says "run `hydro migrate`" instead of failing on `no such table: security_ip_bans`, which put Docker deployments into a restart loop with a cryptic log.
+- The `421 invalid host` answer now names the host the server expects (its `public_origin`) and the one it received.
+- The admin API keeps seconds when it presents a datetime (`2026-11-02T10:00:30`), so reading a record and writing it back no longer truncates it to the minute; `docs/content-types.md` describes the formats the admin API, the public API and hooks use.
+- `.dockerignore` now excludes `node_modules` and `.svelte-kit`, whose host copies overwrote the container's own and broke the admin build stage; `docs/deployment.md` notes that the image needs BuildKit.
+
 ## [0.3.0] - 2026-10-24
 
 - `hydro generate tests` writes a Playwright spec per content type (`e2e/generated/content/<id>.spec.ts`) proving every admin role gets exactly the read/write access its declared permissions say it should — no hand-written test needed for a new content type. `hydro new` now always scaffolds an `e2e/` Playwright harness, and `hydro seed-test-users` creates the admin/editor/viewer accounts the generated specs log in as. See `docs/decisions/0011-generated-role-permission-tests.md`.
