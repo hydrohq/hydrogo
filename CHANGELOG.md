@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `examples/crm-starter` (the panel `hydro new --preset crm --starter crm` creates) has a new design: a soft tinted canvas with white rounded cards, an icon rail (a tab bar on phones), a greeting header with an account menu, a dashboard with KPI cards, a stage bar chart and an open-pipeline donut, sortable tables with empty states, dialogs for every "new ..." form (a bottom sheet on phones, focus trapped, Escape closes), a pipeline board with stage colours, and motion throughout (page transitions, staggered rows, counting numbers) that switches off under `prefers-reduced-motion`. Dark mode follows the system. Colours are CSS variables at the top of `src/app.css`; the server-side session, i18n (en/tr) and every form action are unchanged.
+
 ## [0.3.0] - 2026-10-24
 
 - `hydro generate tests` writes a Playwright spec per content type (`e2e/generated/content/<id>.spec.ts`) proving every admin role gets exactly the read/write access its declared permissions say it should — no hand-written test needed for a new content type. `hydro new` now always scaffolds an `e2e/` Playwright harness, and `hydro seed-test-users` creates the admin/editor/viewer accounts the generated specs log in as. See `docs/decisions/0011-generated-role-permission-tests.md`.

@@ -20,6 +20,27 @@ Sign in with the admin account you created. Demo data (optional):
 HYDRO_ADMIN_EMAIL=you@example.com HYDRO_ADMIN_PASSWORD=... node scripts/seed.mjs
 ```
 
+## Look and feel
+
+A soft tinted canvas, white rounded cards and an icon rail (a tab bar on
+phones); light and dark follow the system. Forms open in dialogs, tables sort
+by clicking a column header, and the dashboard shows KPI cards, a stage chart
+and the open-pipeline mix. Motion respects `prefers-reduced-motion`.
+
+To make it yours, change the variables at the top of `src/app.css`:
+
+| Variable | Used for |
+|---|---|
+| `--accent` | links, focus rings, chart tint |
+| `--dark` | filled controls and the active navigation item |
+| `--warm` | highlights, such as the hatched tallest bar |
+| `--bg`, `--surface`, `--ink`, `--muted`, `--line` | canvas, cards, text and borders |
+| `--s1` ... `--s8` | chart categories (kept in this order; they are checked for colour-blind separation) |
+
+Dark-mode values live in the `prefers-color-scheme: dark` block of the same
+file. Components are in `src/lib/components` (`Modal`, `Icon`, `Empty`,
+`BarChart`, `DonutChart`, `CountUp`).
+
 ## How it works
 
 The panel is a server-rendered SvelteKit app and the only thing that talks to

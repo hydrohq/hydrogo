@@ -7,7 +7,7 @@
 {#if form?.error}
   <p class="error" role="alert">
     {form.error === 'conflict' ? t.conflict : form.message || t.error}
-    {#each Object.entries(form.fields ?? {}) as [field, problem]}<span> {field}: {problem}.</span>{/each}
+    {#each Object.entries(form.fields ?? {}) as [field, problem] (field)}<span> {field}: {problem}.</span>{/each}
     {#if form.requestId}<small class="muted"> {t.requestId}: {form.requestId}</small>{/if}
   </p>
 {/if}
