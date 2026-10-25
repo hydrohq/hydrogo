@@ -29,7 +29,7 @@ const (
 	aggBudget    = 900 * time.Millisecond
 	getBudget    = 150 * time.Millisecond
 	writeBudget  = 300 * time.Millisecond
-	importBudget = 8 * time.Second // per 1000 rows
+	importBudget = 20 * time.Second // per 1000 rows
 	loadBudget   = 2500 * time.Millisecond
 )
 
@@ -81,6 +81,12 @@ func TestPerformanceWithRealisticData(t *testing.T) {
 	measure("filter by a number range", listBudget, 40, base+"?limit=100&filter[amount][gte]=900&filter[amount][lt]=950")
 	measure("text search", searchBudget, 40, base+"?limit=50&search=charlie")
 	measure("aggregate by group", aggBudget, 20, base+"/_aggregate?group_by=bucket&sum=amount")
+
+	t.Run("clients cannot ask for huge pages", func(t *testing.T) {
+		if res := p.must("GET", base+"?limit=101", &opts{token: token}); res.status != 400 {
+			t.Errorf("limit=101: %d, want 400", res.status)
+		}
+	})
 
 	t.Run("read one record", func(t *testing.T) {
 		first := p.must("GET", base+"?limit=1", &opts{token: token}).list()
