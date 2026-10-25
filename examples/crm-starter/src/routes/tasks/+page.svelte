@@ -7,7 +7,6 @@
 
 <svelte:head><title>{t.tasks} · {t.appName}</title></svelte:head>
 
-<main class="page">
-  <h1>{t.tasks}</h1>
-  <Timeline items={data.tasks} lang={data.lang} />
-</main>
+<div class="page">
+  <article class="card"><Timeline items={data.tasks} lang={data.lang} /></article>
+</div>

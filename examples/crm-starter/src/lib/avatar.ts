@@ -1,4 +1,4 @@
-const PALETTE = ['#2f6fed', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d'];
+const PALETTE = ['#1b6a94', '#b9693a', '#2f8f5b', '#6250d6', '#c4477c', '#0e8a9c', '#8a6d1f', '#5b7f2a'];
 
 /** Two letters from a name ("Jane Doe" -> "JD"), falling back to the first letters of one word. */
 export function initials(name: string): string {
