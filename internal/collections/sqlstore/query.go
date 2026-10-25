@@ -223,7 +223,7 @@ func (b *queryBuilder) order(sort *collections.Sort) (string, error) {
 
 // buildRecordQuery renders the SELECT for one page of a collection.
 func buildRecordQuery(dialect database.Dialect, tenantID, collectionID string, query collections.Query) (string, []any, error) {
-	if query.Limit < 1 || query.Limit > 100 || query.Offset < 0 || len(query.Where)+len(query.AnyOf) > collections.MaxQueryConditions {
+	if query.Limit < 1 || query.Limit > collections.MaxScanLimit || query.Offset < 0 || len(query.Where)+len(query.AnyOf) > collections.MaxQueryConditions {
 		return "", nil, collections.ErrInvalidQuery
 	}
 	b := &queryBuilder{dialect: dialect}

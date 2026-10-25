@@ -14,6 +14,7 @@ package smoke
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,6 +30,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // host is the public origin the project is configured with. HydroGo answers
@@ -56,21 +60,22 @@ func start(t *testing.T, bin string, contentTypes map[string]string) *project {
 	p.port = freePort(t)
 	p.baseURL = fmt.Sprintf("http://127.0.0.1:%d", p.port)
 	p.config = filepath.Join(p.dir, "config.yaml")
+	dialect, dsn := p.database()
 	cfg := fmt.Sprintf(`profile: compact
 modules: [core, auth, pages, media, site, collections]
 http:
   address: "127.0.0.1:%d"
   public_origin: "http://%s"
 database:
-  dialect: "sqlite"
-  dsn: "data/hydro.db"
+  dialect: %q
+  dsn: %q
 media:
   dir: "data/media"
 content_types_dir: "content-types"
 security:
   secure_cookies: false
   enable_hsts: false
-`, p.port, host)
+`, p.port, host, dialect, dsn)
 	if err := os.WriteFile(p.config, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -80,35 +85,65 @@ security:
 		}
 	}
 	p.run("", "migrate", "--config", p.config)
+	if dialect != "sqlite" {
+		// `hydro new` made the administrator in its own SQLite file.
+		p.run("Quartz-Meadow-4417-Lantern\n", "create-admin", "--email", "admin@smoke.test", "--password-stdin", "--config", p.config)
+	}
 
-	cmd := exec.Command(bin, "serve", "--config", p.config)
-	cmd.Dir = p.dir
-	cmd.Stdout, cmd.Stderr = p.log, p.log
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
-		if t.Failed() {
-			tail := p.log.String()
-			if len(tail) > 2500 {
-				tail = tail[len(tail)-2500:]
-			}
-			t.Logf("server log tail:\n%s", tail)
-		}
-	})
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		if res, err := p.do("GET", "/healthz", nil); err == nil && res.status == 200 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("server did not become ready:\n%s", p.log.String())
-		}
-		time.Sleep(150 * time.Millisecond)
-	}
+	p.serveOn(p.config, p.port)
 	return p
+}
+
+// database picks the engine the server runs on. SQLite by default;
+// SMOKE_DIALECT=postgres or mysql (with HYDRO_TEST_POSTGRES_URL or
+// HYDRO_TEST_MYSQL_URL pointing at a server you do not mind tests creating
+// databases on) runs the same checks there, each test in a fresh database.
+func (p *project) database() (dialect, dsn string) {
+	p.t.Helper()
+	switch d := os.Getenv("SMOKE_DIALECT"); d {
+	case "", "sqlite":
+		return "sqlite", "data/hydro.db"
+	case "postgres":
+		base := os.Getenv("HYDRO_TEST_POSTGRES_URL")
+		if base == "" {
+			p.t.Fatal("SMOKE_DIALECT=postgres needs HYDRO_TEST_POSTGRES_URL")
+		}
+		name := p.freshDatabase("pgx", base, "postgres")
+		u, _ := url.Parse(base)
+		u.Path = "/" + name
+		return "postgres", u.String()
+	case "mysql":
+		base := os.Getenv("HYDRO_TEST_MYSQL_URL")
+		if base == "" {
+			p.t.Fatal("SMOKE_DIALECT=mysql needs HYDRO_TEST_MYSQL_URL")
+		}
+		name := p.freshDatabase("mysql", base, "mysql")
+		cfg, err := mysql.ParseDSN(base)
+		if err != nil {
+			p.t.Fatal(err)
+		}
+		cfg.DBName = name
+		return "mysql", cfg.FormatDSN()
+	default:
+		p.t.Fatalf("unknown SMOKE_DIALECT %q", d)
+		return "", ""
+	}
+}
+
+func (p *project) freshDatabase(driver, base, kind string) string {
+	db, err := sql.Open(driver, base)
+	if err != nil {
+		p.t.Fatal(err)
+	}
+	name := fmt.Sprintf("smoke_%d_%d", os.Getpid(), time.Now().UnixNano()%1_000_000_000)
+	if _, err := db.Exec("CREATE DATABASE " + name); err != nil {
+		p.t.Fatalf("create database: %v", err)
+	}
+	p.t.Cleanup(func() {
+		_, _ = db.Exec("DROP DATABASE IF EXISTS " + name)
+		db.Close()
+	})
+	return name
 }
 
 func (p *project) run(stdin string, args ...string) string {
@@ -302,4 +337,39 @@ func percentile(d []time.Duration, q float64) time.Duration {
 	sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
 	i := int(float64(len(s)-1) * q)
 	return s[i]
+}
+
+// serveOn starts a server for the given config and waits until it answers; the
+// returned project talks to it. The first call is start()'s own server.
+func (p *project) serveOn(config string, port int) *project {
+	t := p.t
+	t.Helper()
+	q := &project{t: t, dir: p.dir, bin: p.bin, config: config, port: port, baseURL: fmt.Sprintf("http://127.0.0.1:%d", port), log: &bytes.Buffer{}}
+	cmd := exec.Command(q.bin, "serve", "--config", config)
+	cmd.Dir = q.dir
+	cmd.Stdout, cmd.Stderr = q.log, q.log
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+		if t.Failed() {
+			tail := q.log.String()
+			if len(tail) > 2500 {
+				tail = tail[len(tail)-2500:]
+			}
+			t.Logf("server log tail (%s):\n%s", filepath.Base(config), tail)
+		}
+	})
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		if res, err := q.do("GET", "/healthz", nil); err == nil && res.status == 200 {
+			return q
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("server did not become ready:\n%s", q.log.String())
+		}
+		time.Sleep(150 * time.Millisecond)
+	}
 }

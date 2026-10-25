@@ -1,31 +1,38 @@
 import { guardLoad } from '$lib/server/guard';
-import { list } from '$lib/server/hydro';
-import { OPEN_STAGES, STAGES, isOverdue, totals, winRate } from '$lib/pipeline';
+import { aggregate, list } from '$lib/server/hydro';
+import { OPEN_STAGES, STAGES, isOverdue, winRate } from '$lib/pipeline';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   const session = locals.session!;
   try {
-    const [open, won, lost, due, recent] = await Promise.all([
-      Promise.all(OPEN_STAGES.map((stage) => list(session, 'deals', { limit: 100, filter: { stage } }))),
-      list(session, 'deals', { limit: 100, filter: { stage: 'won' } }),
-      list(session, 'deals', { limit: 100, filter: { stage: 'lost' } }),
+    // Exact figures over every deal: one page of 100 would undercount a busy pipeline.
+    const sumsByCurrency = async (stage: string) => {
+      const result = await aggregate(session, 'deals', { groupBy: 'currency', sum: ['amount'], filter: { stage } });
+      return result.groups.map((group) => ({ currency: group.key ?? 'TRY', value: Number(group.sums.amount ?? 0) }));
+    };
+    const [byStage, openSums, wonSums, due, recent] = await Promise.all([
+      aggregate(session, 'deals', { groupBy: 'stage' }),
+      Promise.all(OPEN_STAGES.map(sumsByCurrency)),
+      sumsByCurrency('won'),
       list(session, 'activities', { limit: 20, sort: 'due', filter: { done: 'false' } }),
       list(session, 'activities', { limit: 10, sort: '-created_at' })
     ]);
-    const openDeals = open.flatMap((result) => result.data);
     const stageCounts = Object.fromEntries(STAGES.map((stage) => [stage, 0])) as Record<(typeof STAGES)[number], number>;
-    OPEN_STAGES.forEach((stage, i) => (stageCounts[stage] = open[i].data.length));
-    stageCounts.won = won.data.length;
-    stageCounts.lost = lost.data.length;
+    for (const group of byStage.groups) if (group.key && group.key in stageCounts) stageCounts[group.key as (typeof STAGES)[number]] = group.count;
+    const sum = (rows: { currency: string; value: number }[]) => {
+      const out: Record<string, number> = {};
+      for (const row of rows) if (row.value) out[row.currency] = (out[row.currency] ?? 0) + row.value;
+      return out;
+    };
     return {
-      openCount: openDeals.length,
-      openTotals: totals(openDeals),
-      wonCount: won.data.length,
-      wonTotals: totals(won.data),
+      openCount: OPEN_STAGES.reduce((n, stage) => n + stageCounts[stage], 0),
+      openTotals: sum(openSums.flat()),
+      wonCount: stageCounts.won,
+      wonTotals: sum(wonSums),
       due: due.data,
       stageCounts,
-      winRate: winRate(won.data.length, lost.data.length),
+      winRate: winRate(stageCounts.won, stageCounts.lost),
       overdueCount: due.data.filter((activity) => isOverdue(activity.due)).length,
       recent: recent.data
     };

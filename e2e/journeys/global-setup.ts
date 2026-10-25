@@ -63,6 +63,9 @@ export default async function globalSetup() {
     input: "Staff-Journey-Pass-2026-Zq!\n",
   });
 
+  const accountOutput = runCommand(bin, ["service-account", "create", "--name", "journeys", "--permissions", "admin.content.read,admin.content.write", "--expires-days", "1", "--config", configPath], { cwd: project });
+  process.env.JOURNEY_HYDRO_TOKEN = /^(hyd_\S+)$/m.exec(accountOutput)?.[1] ?? "";
+
   const servers: ChildProcess[] = [];
   const logs: string[] = [];
   const capture = (child: ChildProcess) => {

@@ -146,7 +146,7 @@ func auditSteps() []step {
 	if runtime.GOOS == "windows" {
 		pnpm = "pnpm.cmd"
 	}
-	if _, err := exec.LookPath(pnpm); err == nil {
+	if exec.Command(pnpm, "--version").Run() == nil {
 		steps = append(steps, step{name: "pnpm audit examples/hydropost-news-starter", dir: "examples/hydropost-news-starter", args: []string{pnpm, "audit", "--prod", "--audit-level", "high"}})
 	}
 	return steps

@@ -119,6 +119,7 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 go run ./tools/devserver   # Go rebuilds + Vite HMR + demo data, http://127.0.0.1:8090
 go run ./tools/check       # everything configured as CI checks -- run it yourself, Actions is disabled (or: make check)
 go run ./tools/check -e2e   # also the browser journeys (needs `npx playwright install chromium`)
+SMOKE_DIALECT=postgres HYDRO_TEST_POSTGRES_URL=... go test -tags smoke ./tests/smoke   # the same smoke tests on PostgreSQL (or mysql + HYDRO_TEST_MYSQL_URL)
 go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; configured to run weekly in CI, but see above)
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests
