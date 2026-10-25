@@ -467,12 +467,42 @@ func TestAdminInviteRequestRequiresAdminAndNotifiesToken(t *testing.T) {
 	if res.Code != http.StatusAccepted || !strings.HasPrefix(notified, "new@example.com:") {
 		t.Fatalf("invite request = %d, notification=%q", res.Code, notified)
 	}
-	var response map[string]string
+	var response map[string]any
 	if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response["email"] != "new@example.com" || !strings.Contains(response["url"], "https://hydro.example.test/auth/invites/accept?token=") || res.Header().Get("Cache-Control") != "no-store" {
+	if response["email"] != "new@example.com" || !strings.Contains(response["url"].(string), "https://hydro.example.test/admin/accept-invite?token=") || response["delivered"] != true || res.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("share response = %#v, headers=%v", response, res.Header())
+	}
+}
+
+func TestAdminInviteStillReturnsTheLinkWhenMailIsMissingOrFails(t *testing.T) {
+	newHandler := func(notice InviteNotifier) http.HandlerFunc {
+		return HTTPHandler{
+			Service:      NewAuthService(httpUserRepo{}, &httpSessionRepo{}, nil, TestArgon2Params),
+			Invitation:   &InvitationService{Users: httpUserRepo{}, Invites: httpRecoveryStore{}, ArgonParams: TestArgon2Params},
+			InviteDB:     httpExecutor{},
+			PublicOrigin: "https://hydro.example.test",
+			InviteNotice: notice,
+		}.issueInvite
+	}
+	for name, notice := range map[string]InviteNotifier{
+		"no mail configured": nil,
+		"delivery fails":     InviteNotifierFunc(func(context.Context, string, string) error { return errors.New("smtp down") }),
+	} {
+		form := url.Values{"email": {"new@example.com"}, "role": {string(RoleViewer)}}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/users/invites", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req = req.WithContext(WithUser(req.Context(), &User{ID: "admin", Role: RoleAdmin, Active: true}))
+		res := httptest.NewRecorder()
+		newHandler(notice)(res, req)
+		var response map[string]any
+		if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil || res.Code != http.StatusAccepted {
+			t.Fatalf("%s: status %d body %s", name, res.Code, res.Body.String())
+		}
+		if response["delivered"] != false || !strings.Contains(response["url"].(string), "/admin/accept-invite?token=") {
+			t.Errorf("%s: %#v", name, response)
+		}
 	}
 }
 
@@ -707,7 +737,7 @@ func TestInviteAcceptanceBrowserMismatchRedirectsWithoutConsumingInvite(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if location.Path != "/auth/invites/accept" || location.Query().Get("error") != "mismatch" || location.Query().Get("lang") != "tr" || location.Query().Get("token") != form.Get("token") {
+	if location.Path != InviteAcceptPagePath || location.Query().Get("error") != "mismatch" || location.Query().Get("lang") != "tr" || location.Query().Get("token") != form.Get("token") {
 		t.Fatalf("unexpected invite form redirect: %s", location)
 	}
 	if res.Header().Get("Cache-Control") != "no-store" || res.Header().Get("Referrer-Policy") != "no-referrer" {
@@ -736,7 +766,7 @@ func TestPasswordResetBrowserMismatchRedirectsWithoutConsumingToken(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if location.Path != "/password-reset" || location.Query().Get("error") != "mismatch" || location.Query().Get("lang") != "tr" || location.Query().Get("token") != form.Get("token") {
+	if location.Path != PasswordResetPagePath || location.Query().Get("error") != "mismatch" || location.Query().Get("lang") != "tr" || location.Query().Get("token") != form.Get("token") {
 		t.Fatalf("unexpected password reset redirect: %s", location)
 	}
 	if res.Header().Get("Cache-Control") != "no-store" || res.Header().Get("Referrer-Policy") != "no-referrer" {

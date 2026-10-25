@@ -12,3 +12,5 @@ data
 test-all.log
 docs
 e2e
+**/node_modules
+**/.svelte-kit

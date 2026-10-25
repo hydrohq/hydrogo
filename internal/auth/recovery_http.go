@@ -62,7 +62,7 @@ func (h HTTPHandler) adminPasswordResetLink(w http.ResponseWriter, r *http.Reque
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(map[string]string{"url": strings.TrimRight(h.PublicOrigin, "/") + "/password-reset?token=" + url.QueryEscape(token)})
+	_ = json.NewEncoder(w).Encode(map[string]string{"url": PasswordResetLink(h.PublicOrigin, token)})
 }
 
 func (h HTTPHandler) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
@@ -177,7 +177,7 @@ func (h HTTPHandler) confirmPasswordReset(w http.ResponseWriter, r *http.Request
 		if r.FormValue("lang") == "tr" {
 			values.Set("lang", "tr")
 		}
-		http.Redirect(w, r, "/login?"+values.Encode(), http.StatusSeeOther)
+		http.Redirect(w, r, LoginPagePath+"?"+values.Encode(), http.StatusSeeOther)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -190,5 +190,5 @@ func redirectPasswordResetForm(w http.ResponseWriter, r *http.Request, code stri
 	if r.FormValue("lang") == "tr" {
 		values.Set("lang", "tr")
 	}
-	http.Redirect(w, r, "/password-reset?"+values.Encode(), http.StatusSeeOther)
+	http.Redirect(w, r, PasswordResetPagePath+"?"+values.Encode(), http.StatusSeeOther)
 }

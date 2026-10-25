@@ -142,17 +142,17 @@ func (a AdminAPI) present(r *http.Request, typeID string, record map[string]any)
 			record[StatusField] = recordStatus(record)
 		}
 		for _, field := range definition.Fields {
-			layout := ""
+			text, ok := record[field.ID].(string)
+			if !ok {
+				continue
+			}
 			switch field.Kind {
 			case "date":
-				layout = "2006-01-02"
-			case "datetime":
-				layout = "2006-01-02T15:04"
-			}
-			if text, ok := record[field.ID].(string); ok && layout != "" {
 				if parsed, err := time.Parse(time.RFC3339, text); err == nil {
-					record[field.ID] = parsed.UTC().Format(layout)
+					record[field.ID] = parsed.UTC().Format("2006-01-02")
 				}
+			case "datetime":
+				record[field.ID] = presentDateTime(text)
 			}
 		}
 		for _, field := range a.hiddenFields(r, definition) {
@@ -161,6 +161,25 @@ func (a AdminAPI) present(r *http.Request, typeID string, record map[string]any)
 	}
 	return record
 }
+
+// presentDateTime renders a stored RFC 3339 instant the way a datetime-local
+// input reads it: UTC, to the minute, or to the second when the value has
+// seconds. Dropping them would silently change the value of an API client
+// that reads a record and writes it back.
+func presentDateTime(stored string) string {
+	parsed, err := time.Parse(time.RFC3339, stored)
+	if err != nil {
+		return stored
+	}
+	parsed = parsed.UTC()
+	if parsed.Second() != 0 || parsed.Nanosecond() != 0 {
+		return parsed.Format("2006-01-02T15:04:05")
+	}
+	return parsed.Format("2006-01-02T15:04")
+}
+
+// storageDateLayouts are the spellings a client may submit for a date or datetime.
+var storageDateLayouts = []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02"}
 
 // toStorage keeps only schema fields and converts date values
 // ("2006-01-02" or "2006-01-02T15:04") to RFC 3339.
@@ -172,7 +191,7 @@ func toStorage(schema collections.Schema, payload map[string]any) map[string]any
 			continue
 		}
 		if text, isText := value.(string); isText && field.Kind == collections.DateTime && text != "" {
-			for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02"} {
+			for _, layout := range storageDateLayouts {
 				if parsed, err := time.Parse(layout, text); err == nil {
 					value = parsed.UTC().Format(time.RFC3339)
 					break
