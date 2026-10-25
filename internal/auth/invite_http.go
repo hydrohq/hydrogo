@@ -19,7 +19,7 @@ func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
-	if h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || guards.IsNil(h.InviteNotice) || strings.TrimSpace(h.PublicOrigin) == "" {
+	if h.Invitation == nil || database.RequireExecutor(h.InviteDB) != nil || strings.TrimSpace(h.PublicOrigin) == "" {
 		http.Error(w, "invitation unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -48,16 +48,27 @@ func (h HTTPHandler) issueInvite(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "invitation failed", err, http.StatusBadRequest)
 		return
 	}
-	if err := h.InviteNotice.SendInvite(r.Context(), NormalizeEmail(r.FormValue("email")), token); err != nil {
-		http.Error(w, "invitation delivery failed", http.StatusInternalServerError)
-		return
+	// The invitation exists once it is issued. When no mail is configured, or
+	// the mail cannot be delivered, the administrator still gets the link in the
+	// answer (as with a password-reset link) and can pass it on; "delivered" says
+	// which case this is.
+	delivered := false
+	if !guards.IsNil(h.InviteNotice) {
+		if err := h.InviteNotice.SendInvite(r.Context(), NormalizeEmail(r.FormValue("email")), token); err != nil {
+			if h.Logger != nil {
+				h.Logger.Warn("invitation e-mail not delivered", "error", err.Error())
+			}
+		} else {
+			delivered = true
+		}
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"email": NormalizeEmail(r.FormValue("email")),
-		"url":   strings.TrimRight(h.PublicOrigin, "/") + "/auth/invites/accept?token=" + url.QueryEscape(token),
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"email":     NormalizeEmail(r.FormValue("email")),
+		"url":       InviteAcceptLink(h.PublicOrigin, token),
+		"delivered": delivered,
 	})
 }
 
@@ -138,7 +149,7 @@ func (h HTTPHandler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		if r.FormValue("lang") == "tr" {
 			values.Set("lang", "tr")
 		}
-		http.Redirect(w, r, "/login?"+values.Encode(), http.StatusSeeOther)
+		http.Redirect(w, r, LoginPagePath+"?"+values.Encode(), http.StatusSeeOther)
 		return
 	}
 	api.WriteJSON(w, http.StatusCreated, map[string]any{"user_id": user.ID, "email": user.Email, "role": user.Role})
@@ -151,5 +162,5 @@ func redirectInviteForm(w http.ResponseWriter, r *http.Request, code string) {
 	if r.FormValue("lang") == "tr" {
 		values.Set("lang", "tr")
 	}
-	http.Redirect(w, r, "/auth/invites/accept?"+values.Encode(), http.StatusSeeOther)
+	http.Redirect(w, r, InviteAcceptPagePath+"?"+values.Encode(), http.StatusSeeOther)
 }

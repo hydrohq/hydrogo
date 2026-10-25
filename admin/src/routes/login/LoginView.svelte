@@ -13,6 +13,10 @@
   let mfaRequired = $state(false);
   let loading = $state(false);
   let errorMessage = $state<string | null>(null);
+  // Shown after the page that sets a new password sends people back here.
+  const notice = $derived(
+    router.query.get('password_reset') === '1' ? t('login.passwordReset') : router.query.get('invite_accepted') === '1' ? t('login.inviteAccepted') : null
+  );
 
   async function handleLogin(e: SubmitEvent) {
     e.preventDefault();
@@ -57,6 +61,9 @@
         <p class="text-sm text-muted-foreground">{t('login.subtitle')}</p>
       </div>
 
+      {#if notice}
+        <div class="mb-4 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs" role="status">{notice}</div>
+      {/if}
       <form onsubmit={handleLogin} class="flex flex-col gap-4">
         {#if errorMessage}
           <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2">
