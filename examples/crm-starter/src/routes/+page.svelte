@@ -1,83 +1,90 @@
 <script lang="ts">
   import { dealCount, messages } from '$lib/i18n';
-  import { STAGES, formatMoney, isOverdue } from '$lib/pipeline';
+  import { OPEN_STAGES, STAGES, formatMoney, isOverdue } from '$lib/pipeline';
+  import BarChart from '$lib/components/BarChart.svelte';
+  import CountUp from '$lib/components/CountUp.svelte';
+  import DonutChart from '$lib/components/DonutChart.svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import { fly } from 'svelte/transition';
+  import { ease, ms } from '$lib/motion';
   let { data } = $props();
   const t = $derived(messages[data.lang]);
-  const maxStageCount = $derived(Math.max(1, ...STAGES.map((stage) => data.stageCounts[stage])));
+  const stageLabels = $derived(STAGES.map((s) => t.stages[s]));
+  const stageValues = $derived(STAGES.map((s) => data.stageCounts[s]));
+  const colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+  const mix = $derived(OPEN_STAGES.map((s, i) => ({ label: t.stages[s], value: data.stageCounts[s], color: colors[i] })));
+  const rate = $derived(data.winRate === null ? null : Math.round(data.winRate * 100));
 </script>
 
 <svelte:head><title>{t.dashboard} · {t.appName}</title></svelte:head>
 
-<main class="page">
-  <h1>{t.dashboard}</h1>
+<div class="page">
   <div class="cards">
-    <div class="card">
-      <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" /></svg></div>
-      <div class="muted">{t.openPipeline}</div>
-      <div class="big">{formatMoney(data.openTotals, data.lang)}</div>
-      <div class="muted">{dealCount(t, data.openCount)}</div>
-    </div>
-    <div class="card">
-      <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg></div>
-      <div class="muted">{t.wonThisPeriod}</div>
-      <div class="big">{formatMoney(data.wonTotals, data.lang)}</div>
-      <div class="muted">{dealCount(t, data.wonCount)}</div>
-    </div>
-    <div class="card">
-      <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 5-6" /></svg></div>
-      <div class="muted">{t.winRate}</div>
-      <div class="big">{data.winRate === null ? '–' : new Intl.NumberFormat(data.lang, { style: 'percent', maximumFractionDigits: 0 }).format(data.winRate)}</div>
-      <div class="muted">{data.winRate === null ? t.noClosedDeals : ''}</div>
-    </div>
-    <div class="card">
-      <div class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg></div>
-      <div class="muted">{t.overdueCount}</div>
-      <div class="big" class:overdue={data.overdueCount > 0}>{data.overdueCount}</div>
-    </div>
+    <article class="card kpi">
+      <header><span class="icon"><Icon name="deal" size={18} /></span>{t.openPipeline}<a class="go" href="/deals" aria-label={t.deals}><Icon name="arrow" size={15} /></a></header>
+      <div class="big money">{formatMoney(data.openTotals, data.lang)}</div>
+      <span class="muted">{dealCount(t, data.openCount)}</span>
+    </article>
+    <article class="card kpi">
+      <header><span class="icon"><Icon name="check" size={18} /></span>{t.wonThisPeriod}<a class="go" href="/deals" aria-label={t.deals}><Icon name="arrow" size={15} /></a></header>
+      <div class="big money">{formatMoney(data.wonTotals, data.lang)}</div>
+      <span class="muted">{dealCount(t, data.wonCount)}</span>
+    </article>
+    <article class="card kpi">
+      <header><span class="icon"><Icon name="chart" size={18} /></span>{t.winRate}</header>
+      <div class="big">{#if rate === null}–{:else}<CountUp value={rate} suffix="%" />{/if}</div>
+      <span class="muted">{rate === null ? t.noClosedDeals : ' '}</span>
+    </article>
+    <article class="card kpi">
+      <header><span class="icon"><Icon name="clock" size={18} /></span>{t.overdueCount}<a class="go" href="/tasks" aria-label={t.tasks}><Icon name="arrow" size={15} /></a></header>
+      <div class="big" class:overdue={data.overdueCount > 0}><CountUp value={data.overdueCount} /></div>
+      <span class="muted">{data.overdueCount > 0 ? t.dueToday : t.nothingDue}</span>
+    </article>
   </div>
 
-  <div class="section-card" style="margin-top: 1.4rem;">
-    <div class="section-head"><strong>{t.stageBreakdown}</strong></div>
-    <div class="bars">
-      {#each STAGES as stage}
-        <div class="bar-row">
-          <span class="muted">{t.stages[stage]}</span>
-          <div class="bar-track"><div class="bar-fill" style="width:{(data.stageCounts[stage] / maxStageCount) * 100}%"></div></div>
-          <span class="muted">{data.stageCounts[stage]}</span>
+  <div class="split">
+    <article class="card">
+      <div class="section-head"><h2 class="grow">{t.stageBreakdown}</h2></div>
+      <BarChart labels={stageLabels} values={stageValues} highlight={stageValues.indexOf(Math.max(...stageValues))} unit={t.dealMany} />
+    </article>
+    <article class="card">
+      <div class="section-head"><h2 class="grow">{t.pipelineMix}</h2></div>
+      <DonutChart slices={mix} centerLabel={t.openCount} />
+    </article>
+  </div>
+
+  <div class="split even">
+    <article class="card">
+      <div class="section-head"><h2 class="grow">{t.dueToday}</h2><a class="see-all" href="/tasks">{t.viewAll}</a></div>
+      {#if data.due.length === 0}
+        <p class="muted">{t.nothingDue}</p>
+      {:else}
+        <div class="rowlist">
+          {#each data.due.slice(0, 6) as activity, i (activity.id)}
+            <div class="rowcard" in:fly|local={{ y: 10, duration: ms(260), delay: ms(i * 40), easing: ease }}>
+              <span class="avatar" style="background:var(--surface-2);color:var(--accent)"><Icon name={activity.kind === 'call' ? 'phone' : activity.kind === 'email' ? 'mail' : activity.kind === 'meeting' ? 'calendar' : activity.kind === 'note' ? 'note' : 'tasks'} size={16} /></span>
+              <div class="main"><span class="title">{activity.subject}</span><div class="sub">{t.kinds[activity.kind as keyof typeof t.kinds] ?? activity.kind}</div></div>
+              <span class="trailing" class:overdue={isOverdue(activity.due)}>{activity.due ? new Date(activity.due as string).toLocaleString(data.lang, { dateStyle: 'short', timeStyle: 'short' }) : ''}</span>
+            </div>
+          {/each}
         </div>
-      {/each}
-    </div>
+      {/if}
+    </article>
+    <article class="card">
+      <div class="section-head"><h2 class="grow">{t.recentActivity}</h2></div>
+      {#if data.recent.length === 0}
+        <p class="muted">{t.empty}</p>
+      {:else}
+        <div class="rowlist">
+          {#each data.recent.slice(0, 6) as activity, i (activity.id)}
+            <div class="rowcard" in:fly|local={{ y: 10, duration: ms(260), delay: ms(i * 40), easing: ease }}>
+              <span class="avatar" style="background:var(--surface-2);color:var(--accent)"><Icon name={activity.kind === 'call' ? 'phone' : activity.kind === 'email' ? 'mail' : activity.kind === 'meeting' ? 'calendar' : activity.kind === 'note' ? 'note' : 'tasks'} size={16} /></span>
+              <div class="main"><span class="title">{activity.subject}</span><div class="sub">{t.kinds[activity.kind as keyof typeof t.kinds] ?? activity.kind}</div></div>
+              <span class="trailing muted">{new Date(activity.created_at).toLocaleString(data.lang, { dateStyle: 'short', timeStyle: 'short' })}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </article>
   </div>
-
-  <div class="section-card" style="margin-top: .9rem;">
-    <div class="section-head"><strong>{t.dueToday}</strong></div>
-    {#if data.due.length === 0}
-      <p class="muted">{t.nothingDue}</p>
-    {:else}
-      <ul class="timeline">
-        {#each data.due as activity}
-          <li>
-            <span>{activity.subject} <span class="muted">· {t.kinds[activity.kind as keyof typeof t.kinds] ?? activity.kind}</span></span>
-            <span class:overdue={isOverdue(activity.due)}>{activity.due ? new Date(activity.due as string).toLocaleString(data.lang) : ''}</span>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
-
-  <div class="section-card" style="margin-top: .9rem;">
-    <div class="section-head"><strong>{t.recentActivity}</strong></div>
-    {#if data.recent.length === 0}
-      <p class="muted">{t.empty}</p>
-    {:else}
-      <ul class="timeline">
-        {#each data.recent as activity}
-          <li>
-            <span>{activity.subject} <span class="muted">· {t.kinds[activity.kind as keyof typeof t.kinds] ?? activity.kind}</span></span>
-            <span class="muted">{new Date(activity.created_at).toLocaleString(data.lang)}</span>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
-</main>
+</div>
