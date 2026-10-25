@@ -32,12 +32,29 @@ func NewHostMiddleware(publicOrigin string) (func(http.Handler) http.Handler, er
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !requestMatchesHost(r.Host, expected) {
-				http.Error(w, "invalid host", http.StatusMisdirectedRequest)
+				http.Error(w, hostMismatchMessage(r.Host, expected), http.StatusMisdirectedRequest)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}, nil
+}
+
+// hostMismatchMessage says what was expected, so a reverse proxy or a Docker
+// network alias that forgot to forward the public Host is a one-line fix and
+// not a guessing game. The expected value is the public origin, which is not
+// secret; the received one is shortened and stripped of anything unprintable.
+func hostMismatchMessage(got string, expected expectedHost) string {
+	clean := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, got)
+	if len(clean) > 80 {
+		clean = clean[:80] + "..."
+	}
+	return fmt.Sprintf("invalid host %q: this server only answers to %s:%s (its public_origin). Behind a proxy or inside Docker, send that host in the Host header.", clean, expected.host, expected.port)
 }
 
 func parseExpectedHost(origin string) (expectedHost, error) {

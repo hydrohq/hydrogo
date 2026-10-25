@@ -5,6 +5,7 @@
 //
 //	go run ./tools/check            # everything
 //	go run ./tools/check -short     # skip the test suite
+//	go run ./tools/check -e2e       # also the browser journeys (needs Playwright's Chromium)
 package main
 
 import (
@@ -28,6 +29,7 @@ type step struct {
 
 func main() {
 	short := flag.Bool("short", false, "skip the test suite")
+	e2e := flag.Bool("e2e", false, "also run the browser journeys (needs Playwright's Chromium: npx playwright install chromium)")
 	audit := flag.Bool("audit", false, "also scan Go and npm dependencies for known vulnerabilities (needs network access)")
 	flag.Parse()
 
@@ -54,6 +56,9 @@ func main() {
 	}
 	if !*short {
 		steps = append(steps, step{name: "tests", args: []string{"go", "test", "./...", "-count=1", "-timeout=10m"}},
+			// The real binary against a throw-away project: the security promises and
+			// the API's speed on 10,000 records. About 20 seconds, no credentials.
+			step{name: "smoke (real server: security and performance)", args: []string{"go", "test", "-tags", "smoke", "./tests/smoke", "-count=1", "-timeout=10m"}},
 			step{name: "side-service example", dir: "examples/side-service", args: []string{"go", "test", "./...", "-count=1"}})
 
 		npm := "npm"
@@ -66,6 +71,10 @@ func main() {
 				step{name: "admin unit tests", dir: "admin", args: []string{npm, "test"}},
 				step{name: "admin build", dir: "admin", args: []string{npm, "run", "build"}},
 			)
+			steps = append(steps, starterSteps(npm)...)
+			if *e2e {
+				steps = append(steps, e2eSteps(npm)...)
+			}
 		}
 	}
 
@@ -91,6 +100,28 @@ func main() {
 		}
 	}
 	fmt.Printf("PASS: all checks passed in %s\n", time.Since(started).Round(time.Second))
+}
+
+// starterSteps type-checks, tests and builds the starter frontends that
+// `hydro new --starter ...` copies into new projects. They are the first thing a
+// new user sees, so a broken one must stop a change like any other.
+func starterSteps(npm string) []step {
+	starters := []struct {
+		dir   string
+		tests bool
+	}{{"examples/crm-starter", true}, {"examples/commerce-starter", false}, {"examples/sveltekit-starter", false}}
+	var steps []step
+	for _, s := range starters {
+		if _, err := os.Stat(s.dir + "/node_modules"); err != nil {
+			steps = append(steps, step{name: s.dir + " install", dir: s.dir, args: []string{npm, "ci"}})
+		}
+		steps = append(steps, step{name: s.dir + " svelte-check", dir: s.dir, args: []string{npm, "run", "check"}})
+		if s.tests {
+			steps = append(steps, step{name: s.dir + " unit tests", dir: s.dir, args: []string{npm, "test"}})
+		}
+		steps = append(steps, step{name: s.dir + " build", dir: s.dir, args: []string{npm, "run", "build"}})
+	}
+	return steps
 }
 
 // auditSteps scans for known vulnerabilities. It needs network access to the
@@ -119,4 +150,14 @@ func auditSteps() []step {
 		steps = append(steps, step{name: "pnpm audit examples/hydropost-news-starter", dir: "examples/hydropost-news-starter", args: []string{pnpm, "audit", "--prod", "--audit-level", "high"}})
 	}
 	return steps
+}
+
+// e2eSteps runs the browser journeys in e2e/journeys: real Chromium against a
+// real server and the CRM starter, started and stopped by the suite itself.
+func e2eSteps(npm string) []step {
+	var steps []step
+	if _, err := os.Stat("e2e/node_modules"); err != nil {
+		steps = append(steps, step{name: "e2e install", dir: "e2e", args: []string{npm, "ci"}})
+	}
+	return append(steps, step{name: "e2e browser journeys", dir: "e2e", args: []string{npm, "run", "journeys"}})
 }

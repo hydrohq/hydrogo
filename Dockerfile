@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.7
+# Needs BuildKit (docker buildx): the classic builder cannot read --platform=$BUILDPLATFORM.
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64

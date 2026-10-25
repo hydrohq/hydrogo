@@ -3,6 +3,7 @@ package security
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +70,20 @@ func TestHostMiddlewareCanonicalizesIDNHostnames(t *testing.T) {
 	handler.ServeHTTP(res, req)
 	if res.Code != http.StatusNoContent {
 		t.Fatalf("IDN host status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}
+
+func TestHostMismatchSaysWhatWasExpected(t *testing.T) {
+	middleware, err := NewHostMiddleware("https://crm.example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("must not run") }))
+	req := httptest.NewRequest(http.MethodGet, "http://hydrogo:8080/healthz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if rec.Code != http.StatusMisdirectedRequest || !strings.Contains(body, "crm.example.test:443") || !strings.Contains(body, "hydrogo:8080") || !strings.Contains(body, "Host header") {
+		t.Errorf("status %d body %q", rec.Code, body)
 	}
 }

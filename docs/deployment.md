@@ -24,6 +24,16 @@ Restart=on-failure
 
 `ghcr.io/ozyildirims/hydrogo` (linux/amd64 and arm64). Mount a project at `/app` or a config at `/app/config.yaml`, and a volume at `/app/data`. [`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml) is a full example with Caddy.
 
+Building the image yourself needs BuildKit (`docker buildx`, included in current Docker releases); the classic builder cannot read `--platform=$BUILDPLATFORM` and stops at the first stage. Build from a clean `git clone`: `.dockerignore` keeps `node_modules` and `.svelte-kit` out of the context, but a checkout with its own `admin/node_modules` is the usual cause of a failing `npm run build` stage.
+
+Order matters on a new database: `hydro migrate`, then `hydro create-admin` (and, for staff who are not administrators, `hydro create-user --email ... --role viewer --permissions a,b --password-stdin`), then `hydro serve`. With Docker that is `docker compose run --rm -T hydrogo migrate --config /app/config.yaml` before `up`. `serve` refuses an unmigrated database and says so.
+
+Set `HYDRO_PUBLIC_ORIGIN` (or `http.public_origin`) to the address people use. HydroGo answers `421` to any other `Host` header, and the message names the host it expects; a service in the same Docker network that calls `http://hydrogo:8080` must send the public host in its `Host` header.
+
+## Invitations and password resets
+
+An invitation (`POST /api/v1/admin/users/invites`, needs SMTP) and a password reset (`POST /api/v1/admin/users/{id}/password-reset-link`, or the e-mail a person requests) end in a link to the admin panel, `/admin/accept-invite?token=...` and `/admin/reset-password?token=...`. Those pages set the password and send the person to `/admin/login`. Without SMTP, an administrator can still copy the reset link from the Users screen and pass it on, and `hydro create-user` opens accounts directly.
+
 ## Shared hosting (CGI/FastCGI)
 
 See [`deploy/hosting/README.md`](../deploy/hosting/README.md). Use PostgreSQL or MySQL once traffic grows beyond a small site.

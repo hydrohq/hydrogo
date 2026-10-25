@@ -135,6 +135,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return serviceAccountCommand(args[1:], stdout, stderr)
 	case "create-admin":
 		return createAdmin(args[1:], stdin, stdout, stderr)
+	case "create-user":
+		return createUser(args[1:], stdin, stdout, stderr)
 	case "seed-test-users":
 		return seedTestUsers(args[1:], stdout, stderr)
 	case "generate":

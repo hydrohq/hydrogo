@@ -5,6 +5,7 @@
   import { router } from '$lib/router.svelte';
   import AppLayout from '$lib/components/shell/AppLayout.svelte';
   import LoginView from './routes/login/LoginView.svelte';
+  import SetPasswordView from './routes/account/SetPasswordView.svelte';
   import DashboardView from './routes/dashboard/DashboardView.svelte';
   import GenericListView from '$lib/schema/GenericListView.svelte';
   import MediaView from './routes/media/MediaView.svelte';
@@ -28,6 +29,9 @@
   import { brandingStore } from '$lib/stores/branding.svelte';
 
   let initializing = $state(true);
+  // Pages a person reaches from an e-mail before they have a session.
+  const publicPaths = ['/login', '/reset-password', '/accept-invite'];
+  const isPublicPath = (p: string) => publicPaths.some((x) => p === x || p.startsWith(`${x}?`));
 
   onMount(async () => {
     void brandingStore.load();
@@ -39,7 +43,7 @@
           router.navigate('/dashboard');
         }
       } else {
-        if (!router.path.includes('/login')) {
+        if (!isPublicPath(router.path)) {
           router.navigate('/login');
         }
       }
@@ -122,6 +126,10 @@
 
 {#if initializing}
   <DashboardSkeleton />
+{:else if router.path.startsWith('/reset-password')}
+  <SetPasswordView mode="reset" />
+{:else if router.path.startsWith('/accept-invite')}
+  <SetPasswordView mode="invite" />
 {:else if !auth.isAuthenticated}
   <LoginView />
 {:else}
