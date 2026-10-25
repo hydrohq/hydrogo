@@ -73,7 +73,7 @@ func TestAdminPasswordResetLinkIsOneUseAndResetsTargetAccount(t *testing.T) {
 		t.Fatalf("reset link status=%d response=%s", response.Code, response.Body.String())
 	}
 	parsed, err := url.Parse(payload.URL)
-	if err != nil || parsed.Host != "hydro.example.test" || !strings.HasPrefix(parsed.Path, "/password-reset") || len(parsed.Query().Get("token")) != 64 {
+	if err != nil || parsed.Host != "hydro.example.test" || parsed.Path != auth.PasswordResetPagePath || len(parsed.Query().Get("token")) != 64 {
 		t.Fatalf("invalid reset URL %q", payload.URL)
 	}
 	form := url.Values{"token": {parsed.Query().Get("token")}, "password": {"NewSecurePass!6789"}}
