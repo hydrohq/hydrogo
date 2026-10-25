@@ -47,6 +47,10 @@ const (
 	MaxQueryValueBytes = 256
 	MaxInValues        = 50
 	MaxQueryIDs        = 100
+	// MaxScanLimit is the page size server-side scans (aggregations) may ask
+	// for. The HTTP API still caps clients at 100; a scan of 10,000 records in
+	// pages of 100 meant 100 round trips, 1.9 s on MySQL.
+	MaxScanLimit = 1000
 )
 
 // Condition compares one schema field with a value. Value is the raw string
@@ -102,7 +106,7 @@ func ParseSort(raw string) *Sort {
 // condition values. Storage adapters only accept validated queries, so field
 // IDs reaching SQL are always known schema identifiers.
 func (s Schema) ValidateQuery(q Query) (Query, error) {
-	if q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > MaxListOffset {
+	if q.Limit < 1 || q.Limit > MaxScanLimit || q.Offset < 0 || q.Offset > MaxListOffset {
 		return Query{}, fmt.Errorf("%w: limit or offset out of range", ErrInvalidQuery)
 	}
 	if len(q.Where)+len(q.AnyOf) > MaxQueryConditions {
