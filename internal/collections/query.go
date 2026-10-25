@@ -226,7 +226,7 @@ func scalarValue(field Field, raw string) (any, error) {
 	case DateTime:
 		// Records store UTC RFC 3339 timestamps (see contenttypes.toStorage),
 		// so a date or local time is converted the same way before comparing.
-		for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02"} {
+		for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02"} {
 			if parsed, err := time.Parse(layout, strings.TrimSpace(raw)); err == nil {
 				return parsed.UTC().Format(time.RFC3339), nil
 			}

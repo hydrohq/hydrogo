@@ -50,6 +50,8 @@ export async function fetchCsrfToken(): Promise<string> {
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  /** A 401 here is an answer to show (a bad link), not a lost session to redirect from. */
+  noAuthRedirect?: boolean;
 }
 
 export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
@@ -93,9 +95,10 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     credentials: 'include',
   });
 
-  if (response.status === 401 && typeof window !== 'undefined') {
-    // If we're unauthorized and not already on the login page, redirect
-    if (!window.location.pathname.includes('/login') && !window.location.hash.includes('/login')) {
+  if (response.status === 401 && !options.noAuthRedirect && typeof window !== 'undefined') {
+    // If we're unauthorized and not already on a page that is meant to be reached
+    // signed out (sign-in, set a password from an e-mailed link), redirect.
+    if (!isSignedOutPage(window.location.pathname, window.location.hash)) {
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
       const redirectUrl = `/admin/login?redirect=${encodeURIComponent(currentPath)}`;
       window.location.href = redirectUrl;
@@ -144,6 +147,22 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
   return body as T;
 }
 
+const SIGNED_OUT_PAGES = ['/login', '/reset-password', '/accept-invite'];
+
+/** Pages a person reaches without a session; a 401 there is expected, not a reason to redirect. */
+export function isSignedOutPage(pathname: string, hash = ''): boolean {
+  return SIGNED_OUT_PAGES.some((page) => pathname.includes(page) || hash.includes(page));
+}
+
+/**
+ * FormData and strings go out as they are (a string is already encoded, for
+ * example a URLSearchParams for the endpoints that read form fields); anything
+ * else is sent as JSON. Quoting a string a second time made those endpoints
+ * read an empty form.
+ */
+const encodeBody = (body: unknown): BodyInit | undefined =>
+  body instanceof FormData || typeof body === 'string' ? body : JSON.stringify(body);
+
 export const api = {
   get: <T>(endpoint: string, options?: RequestOptions) =>
     apiRequest<T>(endpoint, { ...options, method: 'GET' }),
@@ -152,21 +171,21 @@ export const api = {
     apiRequest<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: body instanceof FormData ? body : JSON.stringify(body),
+      body: encodeBody(body),
     }),
 
   put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: body instanceof FormData ? body : JSON.stringify(body),
+      body: encodeBody(body),
     }),
 
   patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'PATCH',
-      body: body instanceof FormData ? body : JSON.stringify(body),
+      body: encodeBody(body),
     }),
 
   delete: <T>(endpoint: string, options?: RequestOptions) =>

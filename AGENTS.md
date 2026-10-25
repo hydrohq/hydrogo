@@ -20,7 +20,10 @@ automated check beyond what you ran yourself. Delete the branch once merged.
 ## Before you finish any task
 
 Run `go run ./tools/check` (or `make check`; build, vet, gofmt, guards, Go
-tests, admin lint/typecheck/tests/build). If you changed admin UI, also open
+tests, a smoke test of the real server — security promises and speed on 10,000
+records, `tests/smoke` — admin lint/typecheck/tests/build, and the starters'
+check/test/build). Touching admin sign-in, users, invitations or a starter?
+Add `-e2e`: real-browser journeys in `e2e/journeys` that start their own server. If you changed admin UI, also open
 the screen and look at it (see "Admin UI work" below). Don't report a task as
 done if either step failed.
 
@@ -115,6 +118,7 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 ```bash
 go run ./tools/devserver   # Go rebuilds + Vite HMR + demo data, http://127.0.0.1:8090
 go run ./tools/check       # everything configured as CI checks -- run it yourself, Actions is disabled (or: make check)
+go run ./tools/check -e2e   # also the browser journeys (needs `npx playwright install chromium`)
 go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; configured to run weekly in CI, but see above)
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests

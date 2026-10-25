@@ -79,6 +79,17 @@ func TestServeDevModeRejections(t *testing.T) {
 
 }
 
+// A server pointed at a database nobody migrated must say what to do instead
+// of failing on whichever table it happens to read first.
+func TestServeRefusesAnUnmigratedDatabaseWithAHint(t *testing.T) {
+	dsn := filepath.Join(t.TempDir(), "unmigrated.sqlite")
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"serve", "--dev", "--address", "127.0.0.1:0", "--database-dialect", "sqlite", "--database-dsn", dsn}, strings.NewReader(""), &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "hydro migrate") {
+		t.Fatalf("expected a hint to run hydro migrate, got err=%v stderr=%s", err, stderr.String())
+	}
+}
+
 // TestDevModeServeLifecycle re-execs this test binary as a child process to
 // exercise the full --dev/HYDRO_DEV_MODE bypass path end to end: a real HTTP
 // listener bound to 127.0.0.1, serving /healthz without any hydro.lic, and
