@@ -116,6 +116,26 @@ export async function list(session: Session, type: string, q: Query = {}): Promi
   return res.json();
 }
 
+export interface Aggregate {
+  total: { count: number; sums: Record<string, string> };
+  groups: { key: string | null; count: number; sums: Record<string, string> }[];
+}
+
+/**
+ * Exact counts and sums over every matching record (not just one page), via
+ * GET .../_aggregate. Sums arrive as exact decimal strings.
+ */
+export async function aggregate(session: Session, type: string, q: { groupBy?: string; sum?: string[]; filter?: Record<string, string> } = {}): Promise<Aggregate> {
+  const params = new URLSearchParams();
+  if (q.groupBy) params.set('group_by', q.groupBy);
+  if (q.sum?.length) params.set('sum', q.sum.join(','));
+  for (const [key, value] of Object.entries(q.filter ?? {})) params.set(`filter[${key}]`, value);
+  const res = await call(session, 'GET', `/api/v1/admin/content/${type}/_aggregate?${params}`);
+  if (!res.ok) return fail(res);
+  const body = (await res.json()).data as Partial<Aggregate>;
+  return { total: body.total ?? { count: 0, sums: {} }, groups: body.groups ?? [] };
+}
+
 export async function get(session: Session, type: string, id: string, expand: string[] = []): Promise<Record_> {
   const query = expand.length ? `?expand=${expand.join(',')}` : '';
   const res = await call(session, 'GET', `/api/v1/admin/content/${type}/${encodeURIComponent(id)}${query}`);

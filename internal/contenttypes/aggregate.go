@@ -70,7 +70,7 @@ func (a AdminAPI) aggregate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	query.Sort, query.Offset, query.Limit = nil, 0, 100
+	query.Sort, query.Offset, query.Limit = nil, 0, collections.MaxScanLimit
 
 	type tally struct {
 		count int
@@ -229,7 +229,7 @@ func (a AdminAPI) scopedQuery(w http.ResponseWriter, r *http.Request, definition
 		}
 		query.Where = append(query.Where, collections.Condition{Field: definition.Access.Owner, Op: collections.Equals, Value: subject})
 	}
-	query.Sort, query.Offset, query.Limit = nil, 0, 100
+	query.Sort, query.Offset, query.Limit = nil, 0, collections.MaxScanLimit
 	return query, true
 }
 
