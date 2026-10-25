@@ -55,6 +55,8 @@
 
   // Password Reset Link Modal
   let resetLinkModalUser = $state<StaffUser | null>(null);
+  // The same dialog shows an invitation link when no e-mail could be sent.
+  let linkIsInvite = $state(false);
   let generatedResetLink = $state<string | null>(null);
   let generatingResetLink = $state(false);
   let copiedResetLink = $state(false);
@@ -123,8 +125,19 @@
     if (!inviteEmail.trim()) return;
     inviting = true;
     try {
-      await api.post('/api/v1/admin/users/invites', { email: inviteEmail.trim(), role: inviteRole });
-      notify(t('users.notify.invited', { email: inviteEmail }));
+      const res = await api.post<{ email?: string; url?: string; delivered?: boolean }>(
+        '/api/v1/admin/users/invites',
+        new URLSearchParams({ email: inviteEmail.trim(), role: inviteRole }).toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+      );
+      if (res?.delivered === false && res.url) {
+        // No mail went out: hand the administrator the link to pass on.
+        linkIsInvite = true;
+        generatedResetLink = res.url;
+        resetLinkModalUser = { email: res.email ?? inviteEmail.trim() } as StaffUser;
+      } else {
+        notify(t('users.notify.invited', { email: inviteEmail }));
+      }
       inviteEmail = '';
       inviteOpen = false;
       await loadUsers();
@@ -178,6 +191,7 @@
   }
 
   async function handleGenerateResetLink(user: StaffUser) {
+    linkIsInvite = false;
     resetLinkModalUser = user;
     generatedResetLink = null;
     generatingResetLink = true;
@@ -497,9 +511,9 @@
 </Modal>
 
 <!-- Modal: Password Reset Link -->
-<Modal open={!!resetLinkModalUser} title={t('users.resetModalTitle')} onclose={() => (resetLinkModalUser = null)}>
+<Modal open={!!resetLinkModalUser} title={linkIsInvite ? t('users.inviteLinkTitle') : t('users.resetModalTitle')} onclose={() => (resetLinkModalUser = null)}>
   <div class="space-y-4">
-    <p class="text-xs text-muted-foreground">{t('users.shareBefore')} <span class="font-semibold text-foreground">{resetLinkModalUser?.email}</span>. {t('users.shareAfter')}</p>
+    <p class="text-xs text-muted-foreground">{linkIsInvite ? t('users.inviteShareBefore') : t('users.shareBefore')} <span class="font-semibold text-foreground">{resetLinkModalUser?.email}</span>. {t('users.shareAfter')}</p>
     {#if generatingResetLink}
       <div class="p-4 text-center text-xs text-muted-foreground animate-pulse">{t('users.generating')}</div>
     {:else if generatedResetLink}

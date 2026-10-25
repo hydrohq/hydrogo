@@ -48,20 +48,38 @@ var (
 
 // NotificationSender adapts password-reset and invitation events to the
 // application notifier interfaces without logging or persisting raw tokens.
-type NotificationSender struct{ Sender Sender }
+//
+// ResetLink and InviteLink turn a token into the page that redeems it. When
+// they are nil (a sender built without a public origin) the message carries
+// the bare token, which a person cannot use without a front end of their own.
+type NotificationSender struct {
+	Sender     Sender
+	ResetLink  func(token string) string
+	InviteLink func(token string) string
+}
 
 func (n NotificationSender) SendPasswordReset(ctx context.Context, email, token string) error {
 	if guards.IsNil(n.Sender) {
 		return ErrSenderRequired
 	}
-	return n.Sender.Send(ctx, Message{To: email, Subject: "HydroGo password reset", Body: "Password reset token: " + token})
+	body := "Password reset token: " + token
+	if n.ResetLink != nil {
+		body = "Someone asked to reset the password for this account. To choose a new one, open:\n\n" + n.ResetLink(token) +
+			"\n\nThe link works once and expires soon. If this was not you, ignore this message."
+	}
+	return n.Sender.Send(ctx, Message{To: email, Subject: "Reset your password", Body: body})
 }
 
 func (n NotificationSender) SendInvite(ctx context.Context, email, token string) error {
 	if guards.IsNil(n.Sender) {
 		return ErrSenderRequired
 	}
-	return n.Sender.Send(ctx, Message{To: email, Subject: "HydroGo invitation", Body: "Invitation token: " + token})
+	body := "Invitation token: " + token
+	if n.InviteLink != nil {
+		body = "You have been invited to join. To set your password and sign in, open:\n\n" + n.InviteLink(token) +
+			"\n\nThe link works once and expires soon."
+	}
+	return n.Sender.Send(ctx, Message{To: email, Subject: "You are invited", Body: body})
 }
 
 type SMTPConfig struct {

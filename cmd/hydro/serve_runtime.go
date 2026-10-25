@@ -84,6 +84,13 @@ func (a *serveApp) openDatabase() error {
 			return fmt.Errorf("auto-migration failed: %w", err)
 		}
 	}
+	if !a.opts.cgi && !a.opts.fastCGI {
+		// Without this, an unmigrated database fails on whichever table is read first
+		// ("no such table: security_ip_bans"), which reads like a bug in HydroGo.
+		if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, a.modules); err != nil {
+			return fmt.Errorf("the database is not ready for this version (%w); run `hydro migrate --config <your config file>` first", err)
+		}
+	}
 	a.transactioner = database.NewTenantTransactor(db, cfg.Database.Dialect, a.requireTenantScope)
 	ipBlocklist := security.NewIPBlocklist(4096)
 	banStore := securitystore.BanStore{Dialect: cfg.Database.Dialect}
@@ -265,7 +272,7 @@ func (a *serveApp) initMail() error {
 			return err
 		}
 		smtpSender = decorateEmailSender(sender)
-		notifier := mailer.NotificationSender{Sender: smtpSender}
+		notifier := newAuthNotifier(smtpSender, cfg.HTTP.PublicOrigin)
 		a.authHTTP.Notifier = notifier
 		a.authHTTP.InviteNotice = notifier
 	} else if cfg.Mail.From != "" && !cfg.SafeMode {
@@ -274,7 +281,7 @@ func (a *serveApp) initMail() error {
 		// delivery remains in the durable mail spool for retry.
 		sender := mailer.MXSender{From: cfg.Mail.From}
 		smtpSender = decorateEmailSender(sender)
-		notifier := mailer.NotificationSender{Sender: smtpSender}
+		notifier := newAuthNotifier(smtpSender, cfg.HTTP.PublicOrigin)
 		a.authHTTP.Notifier = notifier
 		a.authHTTP.InviteNotice = notifier
 	}
@@ -407,4 +414,16 @@ func (a *serveApp) startScheduledBackup() error {
 		})
 	}
 	return nil
+}
+
+// newAuthNotifier sends password-reset and invitation e-mails that carry a
+// link to the admin panel page redeeming the token. Without a public origin
+// there is no address to link to, so the message falls back to the bare token.
+func newAuthNotifier(sender mailer.Sender, publicOrigin string) mailer.NotificationSender {
+	n := mailer.NotificationSender{Sender: sender}
+	if strings.TrimSpace(publicOrigin) != "" {
+		n.ResetLink = func(token string) string { return auth.PasswordResetLink(publicOrigin, token) }
+		n.InviteLink = func(token string) string { return auth.InviteAcceptLink(publicOrigin, token) }
+	}
+	return n
 }

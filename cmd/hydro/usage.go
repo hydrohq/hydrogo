@@ -35,6 +35,7 @@ Usage:
   hydro audit head|verify [--anchor TENANT:SEQ:HASH] [runtime flags]
   hydro service-account create|revoke --name NAME [--permissions a,b] [--expires-days N] [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
+  hydro create-user --email EMAIL --password-stdin [--role viewer|editor] [--permissions a,b] [runtime flags]
   hydro seed-test-users [runtime flags]
   hydro generate tests [--dir content-types] [--out e2e/generated] [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
