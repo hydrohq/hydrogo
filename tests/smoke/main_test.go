@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -19,7 +20,13 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	binary = filepath.Join(dir, "hydro")
+	name := "hydro"
+	if runtime.GOOS == "windows" {
+		// exec.LookPath cannot resolve an extensionless file on Windows, even
+		// given its full path.
+		name += ".exe"
+	}
+	binary = filepath.Join(dir, name)
 	build := exec.Command("go", "build", "-o", binary, "./cmd/hydro")
 	build.Dir = filepath.Join("..", "..")
 	if out, err := build.CombinedOutput(); err != nil {
