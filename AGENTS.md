@@ -42,7 +42,9 @@ done if either step failed.
 
 Follow the closest existing example. `modules/news` is the reference module
 for content that needs custom behaviour; everything else should be a content
-type. Content types get admin screens at `/admin/content/<id>` and, with
+type. `modules/seo` is an intentional exception to the module layout: it has
+no persistence (llms.txt and OpenGraph generation only), so it has no
+`model.go`, `repository/` or `transport/` — don't "fix" it into conformance. Content types get admin screens at `/admin/content/<id>` and, with
 `public: true`, a read API at `/api/v1/content/<id>`; YAML flags add list
 search/filters, drafts, revisions and per-locale (`localized`) fields (see
 `definition.go`).
@@ -93,6 +95,15 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 - Stack: Svelte 5 (runes) + TypeScript + Tailwind + shadcn-svelte, under
   `admin/`. Data access goes through `admin/src/lib/api/client.ts` (CSRF
   header, 401 handling, envelope parsing) and `@tanstack/svelte-query`.
+- Component tests use `@testing-library/svelte` + jsdom: add
+  `// @vitest-environment jsdom` at the top of the test file (the suite's
+  default environment is Node, since most `admin/src/lib` tests are plain
+  logic). See `admin/src/lib/components/ui/ConfirmDialog.test.ts` and
+  `Modal.test.ts` for the pattern. Only a few primitives have component
+  tests so far; the 22 `lib/components/` files and 26 `routes/` views are
+  still mostly covered by `svelte-check` and Playwright e2e only — add a
+  component test alongside any of those you touch next, rather than leaving
+  it for a dedicated sweep.
 - Prefer the schema-driven screens: if a module's data fits
   `adminstudio.Collection`, let the generic list/edit components render it
   and add only the module-specific panels.

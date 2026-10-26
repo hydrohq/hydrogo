@@ -36,6 +36,13 @@ export default defineConfig({
     alias: {
       $lib: path.resolve(__dirname, './src/lib'),
     },
+    conditions: process.env.VITEST ? ['browser'] : undefined,
+  },
+  test: {
+    // Default stays Node; component tests opt in with a
+    // `// @vitest-environment jsdom` comment at the top of the file.
+    environment: 'node',
+    setupFiles: ['./vitest-setup.ts'],
   },
   server: {
     host: '127.0.0.1',
