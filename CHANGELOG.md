@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-26
+
+- **Admin component test coverage.** Every file in `admin/src/lib/components/` (except `shell/DashboardSkeleton`, pure decorative markup) and the login/account/users/members/audit screens under `admin/src/routes/` now have `@testing-library/svelte` tests, up from none: 175 tests covering real logic (JSON field editing, the TipTap toolbar/bubble menu/slash commands, the dashboard chart and data table, the notification/presence/search UI, and the router/auth/schema-store-coupled shell chrome) rather than mounting a real backend. `vitest-setup.ts` stubs `window.matchMedia`, which jsdom doesn't implement but the `theme` store calls on construction.
+- **Fix: the smoke test suite didn't build on Windows.** `tests/smoke` compiled its throwaway `hydro` binary with no file extension; `exec.LookPath` can't resolve that on Windows even given the full path, so `go run ./tools/check`'s smoke step failed there. It is named `hydro.exe` on Windows now.
 - **Fix: aggregations were slow on MySQL.** `_aggregate` walked the records in pages of 100, one query each: 10,000 records took 1.9 s on MySQL (80 ms on SQLite). Server-side scans now page by 1,000 (`collections.MaxScanLimit`); the HTTP API still caps clients at 100. 0.34 s on MySQL now.
 - **CRM starter: the dashboard counts every deal.** Stage counts and totals came from one page of 100 deals per stage and undercounted a busy pipeline; they now come from `_aggregate`.
 - **Quality gate: the smoke tests run on PostgreSQL and MySQL too** (`SMOKE_DIALECT=postgres|mysql`), include a snapshot/restore round trip, and `scripts/weekly-audit.sh` runs the dependency audit on a schedule where Actions is not available.
