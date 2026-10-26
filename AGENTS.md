@@ -102,11 +102,18 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
   `// @vitest-environment jsdom` at the top of the test file (the suite's
   default environment is Node, since most `admin/src/lib` tests are plain
   logic). See `admin/src/lib/components/ui/ConfirmDialog.test.ts` and
-  `Modal.test.ts` for the pattern. Only a few primitives have component
-  tests so far; the 22 `lib/components/` files and 26 `routes/` views are
-  still mostly covered by `svelte-check` and Playwright e2e only — add a
-  component test alongside any of those you touch next, rather than leaving
-  it for a dedicated sweep.
+  `Modal.test.ts` for the pattern, or `ChartAreaInteractive.test.ts` /
+  `NotificationPopover.test.ts` for one that mocks `$lib/api/client` and
+  sets the real `schema`/presence state directly instead of a live
+  endpoint. Most of `lib/components/ui`, `editor`, `dashboard` and
+  `presence` now have tests; `shell/AppLayout`, `Header`, `Sidebar`,
+  `SearchCommandModal`, `dashboard/DataTable`, `media/MediaPickerModal` and
+  `editor/RichTextEditor` are still covered only by `svelte-check` and
+  Playwright e2e (heavier router/auth/TipTap coupling) — `shell/DashboardSkeleton`
+  is pure decorative markup and isn't worth a component test. The 26
+  `routes/` views are also untested at this level. Add a component test
+  alongside any of those you touch next, rather than leaving it for a
+  dedicated sweep.
 - Prefer the schema-driven screens: if a module's data fits
   `adminstudio.Collection`, let the generic list/edit components render it
   and add only the module-specific panels.
