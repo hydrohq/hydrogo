@@ -102,16 +102,16 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
   `// @vitest-environment jsdom` at the top of the test file (the suite's
   default environment is Node, since most `admin/src/lib` tests are plain
   logic). See `admin/src/lib/components/ui/ConfirmDialog.test.ts` and
-  `Modal.test.ts` for the pattern, or `ChartAreaInteractive.test.ts` /
-  `NotificationPopover.test.ts` for one that mocks `$lib/api/client` and
-  sets the real `schema`/presence state directly instead of a live
-  endpoint. Most of `lib/components/ui`, `editor`, `dashboard` and
-  `presence` now have tests; `shell/AppLayout`, `Header`, `Sidebar`,
-  `SearchCommandModal`, `dashboard/DataTable`, `media/MediaPickerModal` and
-  `editor/RichTextEditor` are still covered only by `svelte-check` and
-  Playwright e2e (heavier router/auth/TipTap coupling) — `shell/DashboardSkeleton`
-  is pure decorative markup and isn't worth a component test. The 26
-  `routes/` views are also untested at this level. Add a component test
+  `Modal.test.ts` for the pattern, or `Header.test.ts` / `Sidebar.test.ts` /
+  `DataTable.test.ts` for one that mocks `$lib/api/client` and sets the real
+  `schema`/`auth`/`sidebar`/`theme` store state directly instead of a live
+  endpoint or DOM measurement. `RichTextEditor.test.ts` mounts a real TipTap
+  `Editor` in jsdom rather than faking it. `vitest-setup.ts` stubs
+  `window.matchMedia`, which jsdom doesn't implement but the `theme` store
+  calls on construction.
+  Every `lib/components/` file now has a test except
+  `shell/DashboardSkeleton` (pure decorative markup, not worth one). The 26
+  `routes/` views are still untested at this level — add a component test
   alongside any of those you touch next, rather than leaving it for a
   dedicated sweep.
 - Prefer the schema-driven screens: if a module's data fits
