@@ -1,6 +1,6 @@
 # @hydrogo/client
 
-Typed fetch client for the [HydroGo](https://github.com/ozyildirims/hydrogo) REST API. No dependencies; works in browsers, Node 20+, Deno, Bun and edge runtimes.
+Typed fetch client for the [HydroGo](https://github.com/ardaozyildirim/hydrogo) REST API. No dependencies; works in browsers, Node 20+, Deno, Bun and edge runtimes.
 
 ```ts
 import { createHydroGoClient } from "@hydrogo/client";

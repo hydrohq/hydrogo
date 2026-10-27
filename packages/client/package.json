@@ -4,7 +4,7 @@
   "private": true,
   "description": "Typed fetch client for the HydroGo headless CMS REST API (pages, news, content types, members).",
   "license": "MIT",
-  "repository": {"type": "git", "url": "git+https://github.com/ozyildirims/hydrogo.git", "directory": "packages/client"},
+  "repository": {"type": "git", "url": "git+https://github.com/ardaozyildirim/hydrogo.git", "directory": "packages/client"},
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

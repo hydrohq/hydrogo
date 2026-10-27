@@ -148,7 +148,7 @@
 
           <p class="mt-8 text-sm text-faint">
             Found a mistake? Docs live in <code class="rounded border border-line bg-subtle px-1 py-0.5 font-mono text-xs">examples/svelte-starter/src/lib/docs/</code>;
-            <a class="text-accent" href="https://github.com/ozyildirims/hydrogo/issues" target="_blank" rel="noopener noreferrer">open an issue</a> or send a pull request.
+            <a class="text-accent" href="https://github.com/ardaozyildirim/hydrogo/issues" target="_blank" rel="noopener noreferrer">open an issue</a> or send a pull request.
           </p>
         </article>
 

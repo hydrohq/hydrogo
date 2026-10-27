@@ -15,7 +15,7 @@ export const contentTypes: DocSection = {
         "with `public: true`, a read API at `/api/v1/content/<id>` (see [Content API](doc:rest-api/content-api)).",
       ),
       h2('A complete example'),
-      code('yaml', `# yaml-language-server: $schema=https://raw.githubusercontent.com/ozyildirims/hydrogo/main/docs/schemas/content-type.schema.json
+      code('yaml', `# yaml-language-server: $schema=https://raw.githubusercontent.com/ardaozyildirim/hydrogo/main/docs/schemas/content-type.schema.json
 id: recipes
 label: Recipes
 description: Dishes shown on the food blog.
@@ -161,7 +161,7 @@ hydro content-type validate --dir my-types`),
       tip("Run `hydro content-type validate` in CI so a broken YAML never reaches a server."),
       h2('Editor completion with JSON Schema'),
       p("A machine-readable schema for content type files is in the repository at `docs/schemas/content-type.schema.json`. Add this line as the first line of a YAML file and editors with the YAML language server (VS Code YAML extension, for instance) give completion, hover docs and inline validation:"),
-      code('yaml', "# yaml-language-server: $schema=https://raw.githubusercontent.com/ozyildirims/hydrogo/main/docs/schemas/content-type.schema.json"),
+      code('yaml', "# yaml-language-server: $schema=https://raw.githubusercontent.com/ardaozyildirim/hydrogo/main/docs/schemas/content-type.schema.json"),
       p("Offline, point at a local copy instead: `# yaml-language-server: $schema=../schemas/content-type.schema.json`."),
       h2('Stock content types'),
       p("`hydro new --preset ...` copies stock types into your project. They are examples; edit or delete freely."),

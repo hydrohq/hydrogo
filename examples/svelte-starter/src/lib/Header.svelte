@@ -47,7 +47,7 @@
         <kbd class="hidden rounded border border-line bg-bg px-1.5 py-0.5 font-sans text-[11px] sm:inline">{isMac ? '⌘' : 'Ctrl'} K</kbd>
       </button>
       <a
-        href="https://github.com/ozyildirims/hydrogo"
+        href="https://github.com/ardaozyildirim/hydrogo"
         target="_blank"
         rel="noopener noreferrer"
         class="hidden size-9 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-fg sm:inline-flex"

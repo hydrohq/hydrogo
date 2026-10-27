@@ -22,7 +22,7 @@ Restart=on-failure
 
 ## Docker
 
-`ghcr.io/ozyildirims/hydrogo` (linux/amd64 and arm64). Mount a project at `/app` or a config at `/app/config.yaml`, and a volume at `/app/data`. [`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml) is a full example with Caddy.
+`ghcr.io/ardaozyildirim/hydrogo` (linux/amd64 and arm64). Mount a project at `/app` or a config at `/app/config.yaml`, and a volume at `/app/data`. [`deploy/docker-compose.prod.yml`](../deploy/docker-compose.prod.yml) is a full example with Caddy.
 
 Building the image yourself needs BuildKit (`docker buildx`, included in current Docker releases); the classic builder cannot read `--platform=$BUILDPLATFORM` and stops at the first stage. Build from a clean `git clone`: `.dockerignore` keeps `node_modules` and `.svelte-kit` out of the context, but a checkout with its own `admin/node_modules` is the usual cause of a failing `npm run build` stage.
 
