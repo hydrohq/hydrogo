@@ -12,6 +12,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/audit"
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/content"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/guards"
@@ -50,6 +51,15 @@ type Service struct {
 	WorkflowRole     func(context.Context) string
 	Realtime         interface {
 		Publish(context.Context, realtime.Event) error
+	}
+	// PublicCache memoizes GetPublishedByRoute, the lookup every public
+	// article read performs. It is cleared after any transition that can
+	// change what is served at a route (publish, scheduled publish, retract).
+	PublicCache interface {
+		GetOrLoad(string, func() (Item, error)) (Item, error)
+		GetOrLoadAtGeneration(string, uint64, func() (Item, error)) (Item, error)
+		Clear()
+		Stats() cache.Stats
 	}
 }
 
@@ -117,7 +127,19 @@ func (s Service) GetPublishedByRoute(ctx context.Context, db database.Executor, 
 		locales = chain
 	}
 	for _, candidate := range locales {
-		item, err := s.Repository.GetPublishedByRoute(ctx, db, candidate, slug)
+		key := candidate + ":" + slug
+		load := func() (Item, error) { return s.Repository.GetPublishedByRoute(ctx, db, candidate, slug) }
+		var item Item
+		var err error
+		if s.PublicCache != nil {
+			if generation, ok := cache.GenerationFromContext(ctx); ok {
+				item, err = s.PublicCache.GetOrLoadAtGeneration(key, generation, load)
+			} else {
+				item, err = s.PublicCache.GetOrLoad(key, load)
+			}
+		} else {
+			item, err = load()
+		}
 		if err == nil {
 			return item, nil
 		}
@@ -230,6 +252,7 @@ func (s Service) RunScheduled(ctx context.Context, id string, generation int64, 
 		return s.events(ctx, tx, "news.published", id, int(generation))
 	})
 	if err == nil {
+		s.clearPublicCache()
 		s.publishLive(ctx, "news:published", id, int(generation))
 	}
 	return err
@@ -249,6 +272,7 @@ func (s Service) Publish(ctx context.Context, id string, expectedVersion int) er
 		return s.events(ctx, tx, "news.published", id, expectedVersion)
 	})
 	if err == nil {
+		s.clearPublicCache()
 		s.publishLive(ctx, "news:published", id, expectedVersion)
 	}
 	return err
@@ -268,9 +292,16 @@ func (s Service) Retract(ctx context.Context, id string, expectedVersion int) er
 		return s.events(ctx, tx, "news.retracted", id, expectedVersion)
 	})
 	if err == nil {
+		s.clearPublicCache()
 		s.publishLive(ctx, "news:retracted", id, expectedVersion)
 	}
 	return err
+}
+
+func (s Service) clearPublicCache() {
+	if s.PublicCache != nil {
+		s.PublicCache.Clear()
+	}
 }
 
 func (s Service) publishLive(ctx context.Context, topic, id string, version int) {

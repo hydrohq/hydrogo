@@ -10,6 +10,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/redis/go-redis/v9"
 )
@@ -59,6 +60,22 @@ func newPageCache(enabled bool, budget capacity.Budget, r redisRuntime, prefix s
 	twoTier, err := cache.NewTwoTier(local, remote)
 	if err != nil {
 		return nil, fmt.Errorf("configure two-tier page cache: %w", err)
+	}
+	return twoTier, nil
+}
+
+func newNewsCache(enabled bool, budget capacity.Budget, r redisRuntime, prefix string) (newsCache, error) {
+	if !enabled {
+		return nil, nil
+	}
+	local := cache.New[news.Item](budget.CacheEntries, budget.CacheTTL)
+	if r.client == nil {
+		return local, nil
+	}
+	remote := cache.RedisJSONRemote[news.Item]{Client: r.client, Prefix: prefix + "hydro:cache:news:", TTL: budget.CacheTTL}
+	twoTier, err := cache.NewTwoTier(local, remote)
+	if err != nil {
+		return nil, fmt.Errorf("configure two-tier news cache: %w", err)
 	}
 	return twoTier, nil
 }
