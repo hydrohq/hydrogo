@@ -146,10 +146,29 @@ func (p *project) freshDatabase(driver, base, kind string) string {
 	return name
 }
 
+// hermeticEnv strips HYDRO_* overrides from the ambient environment so the
+// smoke suite stays self-contained (its own config.yaml is the only source
+// of truth) even when a developer's shell exports something like
+// HYDRO_REDIS_URL for unrelated local work: inheriting that would make the
+// rate limiters below Redis-backed and shared with whatever else on the
+// machine talks to that Redis, instead of a fresh in-memory limiter per run.
+func hermeticEnv() []string {
+	env := os.Environ()
+	filtered := make([]string, 0, len(env))
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "HYDRO_") {
+			continue
+		}
+		filtered = append(filtered, kv)
+	}
+	return filtered
+}
+
 func (p *project) run(stdin string, args ...string) string {
 	p.t.Helper()
 	cmd := exec.Command(p.bin, args...)
 	cmd.Dir = p.dir
+	cmd.Env = hermeticEnv()
 	cmd.Stdin = strings.NewReader(stdin)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -347,6 +366,7 @@ func (p *project) serveOn(config string, port int) *project {
 	q := &project{t: t, dir: p.dir, bin: p.bin, config: config, port: port, baseURL: fmt.Sprintf("http://127.0.0.1:%d", port), log: &bytes.Buffer{}}
 	cmd := exec.Command(q.bin, "serve", "--config", config)
 	cmd.Dir = q.dir
+	cmd.Env = hermeticEnv()
 	cmd.Stdout, cmd.Stderr = q.log, q.log
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
