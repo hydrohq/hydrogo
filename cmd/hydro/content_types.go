@@ -16,6 +16,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"golang.org/x/sync/errgroup"
 )
 
 // contentTypeRoutes loads the YAML content types in dir, syncs their schemas
@@ -44,10 +45,12 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 			syncContexts = append(syncContexts, tenant.WithScope(ctx, scope))
 		}
 	}
+	var group errgroup.Group
 	for _, syncCtx := range syncContexts {
-		if err := service.SyncSchemas(syncCtx, schemas); err != nil {
-			return nil, nil, fmt.Errorf("content types: sync schemas: %w", err)
-		}
+		group.Go(func() error { return service.SyncSchemas(syncCtx, schemas) })
+	}
+	if err := group.Wait(); err != nil {
+		return nil, nil, fmt.Errorf("content types: sync schemas: %w", err)
 	}
 	if _, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled())); err != nil {
 		return nil, nil, fmt.Errorf("content types: admin registry: %w", err)
