@@ -2,9 +2,18 @@
 
 **A single-binary headless content management system written in Go.**
 
+[![CI](https://github.com/ardaozyildirim/hydrogo/actions/workflows/ci.yml/badge.svg)](https://github.com/ardaozyildirim/hydrogo/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ardaozyildirim/hydrogo)](https://github.com/ardaozyildirim/hydrogo/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ardaozyildirim/hydrogo.svg)](https://pkg.go.dev/github.com/ardaozyildirim/hydrogo)
+
 HydroGo manages pages, news, media, members, and custom content types, exposing
 everything over a unified REST API with an embedded modern admin panel. It runs
 as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
+
+**[Try the admin panel in your browser](https://hydro.ardalabs.dev/playground)**
+— no install, no account, nothing saved — or read the
+**[docs](https://hydro.ardalabs.dev/docs)**.
 
 > Status: v2 Headless. HydroGo serves pure JSON APIs and embeds a Svelte 5 SPA
 > admin panel. See [docs/decisions/0001-cms-focus.md](docs/decisions/0001-cms-focus.md) and
@@ -38,14 +47,14 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 
 ## Install
 
-Download from the [latest release](https://github.com/ozyildirims/hydrogo/releases/latest):
+Download from the [latest release](https://github.com/ardaozyildirim/hydrogo/releases/latest):
 
 | Platform | How |
 |---|---|
 | Windows | Run `HydroGo-Setup-<version>-windows-amd64.exe` (or `arm64`). It installs `hydro` and adds it to PATH; open a new terminal afterwards. |
-| Windows (PowerShell) | `irm https://github.com/ozyildirims/hydrogo/releases/latest/download/install.ps1 \| iex` |
-| Linux / macOS | `curl -fsSL https://github.com/ozyildirims/hydrogo/releases/latest/download/install.sh \| sh` |
-| Docker | `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ozyildirims/hydrogo:latest` (see [deployment](docs/deployment.md)) |
+| Windows (PowerShell) | `irm https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.ps1 \| iex` |
+| Linux / macOS | `curl -fsSL https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.sh \| sh` |
+| Docker | `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ardaozyildirim/hydrogo:latest` (see [deployment](docs/deployment.md)) |
 | From source | `go build -o bin/hydro ./cmd/hydro` (Go 1.27.2+) |
 
 Checksums are in `SHA256SUMS` on every release; the install scripts verify them.
@@ -96,7 +105,7 @@ commands.
 | `content-types/` | Declarative YAML schemas for custom content types |
 | `migrations/` | SQL migrations for SQLite, PostgreSQL and MySQL |
 | `packages/client` | `@hydrogo/client`, the typed API client for frontends |
-| `examples/` | Frontend starters: `sveltekit-starter` (SSR), `crm-starter`, `commerce-starter`, plus HydroGo's own landing/docs site (`svelte-starter`) and a news-portal reference (`hydropost-news-starter`) |
+| `examples/` | Frontend starters: `sveltekit-starter` (SSR), `crm-starter`, `commerce-starter`, plus HydroGo's own landing/docs site (`svelte-starter`), its marketing site and live playground (`hydro-website`, deployed at [hydro.ardalabs.dev](https://hydro.ardalabs.dev)) and a news-portal reference (`hydropost-news-starter`) |
 | `deploy/`, `scripts/` | Docker/Caddy/nginx/hosting examples, install scripts, Windows installer script |
 | `tools/` | Dev server, guards, and check script |
 | `docs/` | Current docs and architecture decision records (ADRs) |
