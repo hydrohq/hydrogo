@@ -11,7 +11,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@tanstack/svelte-query": "^6.3.4",
     "@tiptap/core": "^3.32.0",
     "@tiptap/extension-placeholder": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",

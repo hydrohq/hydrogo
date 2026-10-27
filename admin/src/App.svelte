@@ -6,23 +6,27 @@
   import AppLayout from '$lib/components/shell/AppLayout.svelte';
   import LoginView from './routes/login/LoginView.svelte';
   import SetPasswordView from './routes/account/SetPasswordView.svelte';
-  import DashboardView from './routes/dashboard/DashboardView.svelte';
-  import GenericListView from '$lib/schema/GenericListView.svelte';
-  import MediaView from './routes/media/MediaView.svelte';
-  import NewsListView from './routes/news/NewsListView.svelte';
-  import NewsEditorView from './routes/news/NewsEditorView.svelte';
-  import PagesListView from './routes/pages/PagesListView.svelte';
-  import PageEditorView from './routes/pages/PageEditorView.svelte';
-  import MembersView from './routes/members/MembersView.svelte';
-  import CommerceOrdersView from './routes/commerce/CommerceOrdersView.svelte';
-  import UsersView from './routes/users/UsersView.svelte';
-  import SiteView from './routes/site/SiteView.svelte';
-  import AuditView from './routes/audit/AuditView.svelte';
-  import SystemView from './routes/system/SystemView.svelte';
-  import AccountView from './routes/account/AccountView.svelte';
-  import ContentTypesView from './routes/contenttypes/ContentTypesView.svelte';
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import LazyView from '$lib/components/shell/LazyView.svelte';
+
+  // Each route view ships in its own chunk, downloaded only when visited —
+  // keeps the app shell small (the Pages/News editors pull in TipTap).
+  const loadDashboardView = () => import('./routes/dashboard/DashboardView.svelte');
+  const loadGenericListView = () => import('$lib/schema/GenericListView.svelte');
+  const loadMediaView = () => import('./routes/media/MediaView.svelte');
+  const loadNewsListView = () => import('./routes/news/NewsListView.svelte');
+  const loadNewsEditorView = () => import('./routes/news/NewsEditorView.svelte');
+  const loadPagesListView = () => import('./routes/pages/PagesListView.svelte');
+  const loadPageEditorView = () => import('./routes/pages/PageEditorView.svelte');
+  const loadMembersView = () => import('./routes/members/MembersView.svelte');
+  const loadCommerceOrdersView = () => import('./routes/commerce/CommerceOrdersView.svelte');
+  const loadUsersView = () => import('./routes/users/UsersView.svelte');
+  const loadSiteView = () => import('./routes/site/SiteView.svelte');
+  const loadAuditView = () => import('./routes/audit/AuditView.svelte');
+  const loadSystemView = () => import('./routes/system/SystemView.svelte');
+  const loadAccountView = () => import('./routes/account/AccountView.svelte');
+  const loadContentTypesView = () => import('./routes/contenttypes/ContentTypesView.svelte');
 
   import { i18n, isLocale } from '$lib/i18n/index.svelte';
   import { applyBrandColor } from '$lib/branding';
@@ -136,41 +140,41 @@
   <AppLayout>
     <div class="animate-fade-in w-full">
       {#if routeInfo.view === 'dashboard'}
-        <DashboardView />
+        <LazyView load={loadDashboardView} />
       {:else if routeInfo.view === 'list'}
-        <GenericListView type={routeInfo.type!} initialItemId={routeInfo.modalId} />
+        <LazyView load={loadGenericListView} props={{ type: routeInfo.type, initialItemId: routeInfo.modalId }} />
       {:else if routeInfo.view === 'form'}
-        <GenericListView type={routeInfo.type!} initialItemId={routeInfo.id} />
+        <LazyView load={loadGenericListView} props={{ type: routeInfo.type, initialItemId: routeInfo.id }} />
       {:else if routeInfo.view === 'news-list'}
-        <NewsListView />
+        <LazyView load={loadNewsListView} />
       {:else if routeInfo.view === 'news-editor'}
-        <NewsEditorView id={routeInfo.id!} />
+        <LazyView load={loadNewsEditorView} props={{ id: routeInfo.id }} />
       {:else if routeInfo.view === 'pages-list'}
-        <PagesListView />
+        <LazyView load={loadPagesListView} />
       {:else if routeInfo.view === 'page-editor'}
-        <PageEditorView id={routeInfo.id!} />
+        <LazyView load={loadPageEditorView} props={{ id: routeInfo.id }} />
       {:else if routeInfo.module === 'media'}
-        <MediaView />
+        <LazyView load={loadMediaView} />
       {:else if routeInfo.module === 'members'}
-        <MembersView />
+        <LazyView load={loadMembersView} />
       {:else if routeInfo.module === 'commerce'}
-        <CommerceOrdersView />
+        <LazyView load={loadCommerceOrdersView} />
       {:else if routeInfo.module === 'users'}
-        <UsersView />
+        <LazyView load={loadUsersView} />
       {:else if routeInfo.module === 'site'}
-        <SiteView />
+        <LazyView load={loadSiteView} />
       {:else if routeInfo.module === 'audit'}
-        <AuditView />
+        <LazyView load={loadAuditView} />
       {:else if routeInfo.module === 'system'}
-        <SystemView />
+        <LazyView load={loadSystemView} />
       {:else if routeInfo.module === 'account'}
-        <AccountView />
+        <LazyView load={loadAccountView} />
       {:else if routeInfo.module === 'content-types'}
-        <ContentTypesView />
+        <LazyView load={loadContentTypesView} />
       {:else}
         <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
         {#if schema.getCollection(routeInfo.module || '')}
-          <GenericListView type={routeInfo.module!} />
+          <LazyView load={loadGenericListView} props={{ type: routeInfo.module }} />
         {:else}
           <div class="p-8 max-w-2xl mx-auto rounded-xl border border-border bg-card text-card-foreground text-center space-y-3 shadow-xs">
             <h3 class="text-lg font-semibold capitalize">{routeInfo.module}</h3>

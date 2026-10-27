@@ -39,61 +39,47 @@
     actions: true,
   });
 
+  async function loadPages(): Promise<DashboardTableItem[]> {
+    const res = await api.get<ApiResponse<any[]>>('/api/v1/admin/pages', { params: { limit: 50 } });
+    if (!res?.data || !Array.isArray(res.data)) return [];
+    return res.data.map((p) => ({
+      id: `page-${p.id}`,
+      title: p.title || p.slug || t('dashboard.table.untitledPage'),
+      slug: p.slug,
+      type: 'page' as const,
+      status: p.status || 'published',
+      author: p.author_name || t('dashboard.table.adminAuthor'),
+      date: p.updated_at || p.created_at || new Date().toISOString(),
+      targetPath: `/pages/${p.id}`,
+    }));
+  }
+
+  async function loadNews(): Promise<DashboardTableItem[]> {
+    const res = await api.get<ApiResponse<any[]>>('/api/v1/admin/news', { params: { limit: 50 } });
+    if (!res?.data || !Array.isArray(res.data)) return [];
+    return res.data.map((n) => ({
+      id: `news-${n.id}`,
+      title: n.title || n.slug || t('dashboard.table.untitledNews'),
+      slug: n.slug,
+      type: 'news' as const,
+      status: n.status || 'published',
+      author: n.author_name || t('dashboard.table.editorialTeam'),
+      date: n.published_at || n.updated_at || n.created_at || new Date().toISOString(),
+      targetPath: `/news/${n.id}`,
+    }));
+  }
+
   async function loadAllContent() {
     loading = true;
-    const combined: DashboardTableItem[] = [];
-
     const on = (m: string) => !schema.schema || schema.modules[m] === true;
 
-    try {
-      if (!on('pages')) throw new Error('skip');
-      // 1. Fetch Pages
-      const pagesRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/pages', {
-        params: { limit: 50 },
-      });
-      if (pagesRes && pagesRes.data && Array.isArray(pagesRes.data)) {
-        for (const p of pagesRes.data) {
-          combined.push({
-            id: `page-${p.id}`,
-            title: p.title || p.slug || t('dashboard.table.untitledPage'),
-            slug: p.slug,
-            type: 'page',
-            status: p.status || 'published',
-            author: p.author_name || t('dashboard.table.adminAuthor'),
-            date: p.updated_at || p.created_at || new Date().toISOString(),
-            targetPath: `/pages/${p.id}`,
-          });
-        }
-      }
-    } catch (e) {
-      if (on('pages')) console.warn('Failed to load pages for dashboard:', e);
-    }
+    // Fetch pages and news together instead of waterfalling one after the other.
+    const [pages, news] = await Promise.all([
+      on('pages') ? loadPages().catch((e) => { console.warn('Failed to load pages for dashboard:', e); return []; }) : Promise.resolve([]),
+      on('news') ? loadNews().catch((e) => { console.warn('Failed to load news for dashboard:', e); return []; }) : Promise.resolve([]),
+    ]);
 
-    try {
-      if (!on('news')) throw new Error('skip');
-      // 2. Fetch News
-      const newsRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/news', {
-        params: { limit: 50 },
-      });
-      if (newsRes && newsRes.data && Array.isArray(newsRes.data)) {
-        for (const n of newsRes.data) {
-          combined.push({
-            id: `news-${n.id}`,
-            title: n.title || n.slug || t('dashboard.table.untitledNews'),
-            slug: n.slug,
-            type: 'news',
-            status: n.status || 'published',
-            author: n.author_name || t('dashboard.table.editorialTeam'),
-            date: n.published_at || n.updated_at || n.created_at || new Date().toISOString(),
-            targetPath: `/news/${n.id}`,
-          });
-        }
-      }
-    } catch (e) {
-      if (on('news')) console.warn('Failed to load news for dashboard:', e);
-    }
-
-    // Sort by most recent first
+    const combined = [...pages, ...news];
     combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     items = combined;
     loading = false;
