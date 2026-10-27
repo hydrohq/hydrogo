@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,6 +30,16 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 )
 
+// devserver is meant to be left running for an entire workday, proxying a
+// lot of HTTP/WebSocket traffic (admin Vite HMR, starter HMR, the dev
+// status poll every 250ms-1.2s per open tab). Go's GC only returns memory
+// to the OS lazily, so without a bound, RSS creeps upward over hours of
+// that traffic instead of settling once warm. A soft memory limit (Go
+// 1.19+) makes the GC work harder to stay under it instead of just
+// growing; it's a ceiling, not a reservation, so it costs nothing when
+// idle.
+const softMemoryLimit = 768 << 20 // 768 MiB
+
 const (
 	statusPath = "/__hydrogo/dev/status"
 	clientPath = "/__hydrogo/dev/client.js"
@@ -36,6 +47,7 @@ const (
 )
 
 func main() {
+	debug.SetMemoryLimit(softMemoryLimit)
 	address := flag.String("address", "127.0.0.1:8090", "development proxy listen address (use 0.0.0.0:PORT to allow LAN access, e.g. from a phone on the same network)")
 	appAddress := flag.String("app-address", "127.0.0.1:8091", "internal HydroGo application address")
 	databaseDSN := flag.String("database-dsn", "", "SQLite/PostgreSQL DSN passed to the child server")
