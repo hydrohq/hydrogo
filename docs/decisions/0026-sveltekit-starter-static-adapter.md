@@ -116,11 +116,11 @@ Converted `sveltekit-starter` to the same pattern:
   is 0 vulnerabilities for `sveltekit-starter` now that it is genuinely on
   `@sveltejs/kit@3.1.0` -- the two CVEs 0025 mitigated without a version
   bump are closed by the real fix here, for this starter specifically.
-- `bot-meta.php`'s rewrite was verified against the live, real
-  `ardalabs.xyz` API (read-only `file_get_contents` calls, no credentials
-  needed), not just locally: fetched a real published article, confirmed
-  the generated title/OG tags/JSON-LD are correct, and confirmed the
-  not-found and no-slug fallback paths degrade gracefully.
+- `bot-meta.php`'s rewrite was verified against a live, real deployment's
+  API (read-only `file_get_contents` calls, no credentials needed), not
+  just locally: fetched a real published article, confirmed the generated
+  title/OG tags/JSON-LD are correct, and confirmed the not-found and
+  no-slug fallback paths degrade gracefully.
 - `crm-starter` and `commerce-starter` remain on `adapter-node` /
   `@sveltejs/kit@2.70.3`: both have their own server-side secrets (session
   cookies for `crm-starter`; PayTR merchant credentials for
