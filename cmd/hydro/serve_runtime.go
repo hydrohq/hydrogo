@@ -306,6 +306,10 @@ func (a *serveApp) initPublicCaches() error {
 	if err != nil {
 		return fmt.Errorf("configure redis page cache: %w", err)
 	}
+	publicNewsCache, err := newNewsCache(modules["news"], budget, a.redisClient, cfg.Redis.KeyPrefix)
+	if err != nil {
+		return fmt.Errorf("configure redis news cache: %w", err)
+	}
 	var publicHTMLCache *server.PublicHTMLCache
 	if modules["pages"] || modules["news"] {
 		publicHTMLCache = server.NewPublicHTMLCache(server.PublicHTMLCacheOptions{
@@ -321,7 +325,7 @@ func (a *serveApp) initPublicCaches() error {
 			staticCacheDir = filepath.Join(documentRoot, "static_cache")
 		}
 	}
-	a.publicPageCache, a.publicHTMLCache, a.staticCacheDir = publicPageCache, publicHTMLCache, staticCacheDir
+	a.publicPageCache, a.publicNewsCache, a.publicHTMLCache, a.staticCacheDir = publicPageCache, publicNewsCache, publicHTMLCache, staticCacheDir
 	contentService := pageservice.ContentService{
 		Transactions: a.transactioner,
 		Pages:        pagesstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
@@ -346,7 +350,7 @@ func (a *serveApp) initPublicCaches() error {
 	}
 	a.contentService = contentService
 	var sqliteCacheConn *sql.Conn
-	if !a.opts.cgi && cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && (publicPageCache != nil || publicHTMLCache != nil) {
+	if !a.opts.cgi && cfg.Database.SQLiteExternalWriteWatch && cfg.Database.Dialect == database.SQLite && (publicPageCache != nil || publicNewsCache != nil || publicHTMLCache != nil) {
 		sqliteCacheConn, err = db.Conn(ctx)
 		if err != nil {
 			return fmt.Errorf("open sqlite cache monitor connection: %w", err)
@@ -358,7 +362,7 @@ func (a *serveApp) initPublicCaches() error {
 			err := sqliteCacheConn.QueryRowContext(readCtx, "PRAGMA data_version").Scan(&version)
 			return version, err
 		}
-		monitor.OnChange = func() { clearPublicCaches(publicPageCache, publicHTMLCache) }
+		monitor.OnChange = func() { clearPublicCaches(publicPageCache, publicNewsCache, publicHTMLCache) }
 		monitor.OnError = func(monitorErr error) {
 			if stderr != nil {
 				_, _ = fmt.Fprintf(stderr, "hydro sqlite cache monitor: %v\n", monitorErr)
