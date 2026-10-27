@@ -10,7 +10,7 @@ export const deployment: DocSection = {
       "Run HydroGo on any Linux server as a systemd service behind Caddy or nginx for TLS.",
       p("HydroGo is one static binary plus a config file and a data directory. On a VPS the usual shape is: `hydro serve` bound to localhost, managed by systemd, with Caddy or nginx terminating TLS in front."),
       h2('1. Install and create the project'),
-      code('bash', `curl -fsSL https://github.com/ozyildirims/hydrogo/releases/latest/download/install.sh | sh
+      code('bash', `curl -fsSL https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.sh | sh
 sudo useradd --system --home /srv/mysite --shell /usr/sbin/nologin hydro
 hydro new mysite --preset corporate --admin-email you@example.com
 sudo mv mysite /srv/mysite && sudo chown -R hydro:hydro /srv/mysite`),
@@ -113,13 +113,13 @@ hydro doctor --config /srv/mysite/config.yaml`),
       'Docker',
       "Run the published image, or the production Compose stack with Caddy, PostgreSQL and Redis.",
       h2('Run the image'),
-      code('bash', "docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ozyildirims/hydrogo:latest"),
-      p("Images are published to `ghcr.io/ozyildirims/hydrogo` for linux/amd64 and arm64. Tags follow releases (`v0.2.0`) and `latest`; pre-release tags (with a hyphen, like `v0.2.0-rc.1`) never move `latest`. Pin a version in production."),
+      code('bash', "docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ardaozyildirim/hydrogo:latest"),
+      p("Images are published to `ghcr.io/ardaozyildirim/hydrogo` for linux/amd64 and arm64. Tags follow releases (`v0.2.0`) and `latest`; pre-release tags (with a hyphen, like `v0.2.0-rc.1`) never move `latest`. Pin a version in production."),
       p("Mount a project folder at `/app` (it holds `config.yaml`, `content-types/` and `data/`), or just a config file at `/app/config.yaml`, and keep the data on a volume:"),
       code('bash', `docker run -d --name hydrogo -p 8080:8080 \\
   -v "$(pwd)":/app \\
   -e HYDRO_PUBLIC_ORIGIN=https://cms.example.com \\
-  ghcr.io/ozyildirims/hydrogo:v0.2.0`),
+  ghcr.io/ardaozyildirim/hydrogo:v0.2.0`),
       note("The Dockerfile in `deploy/` builds a non-root image whose working directory is `/var/lib/hydrogo`. Whichever image you use, the rule is the same: mount a persistent volume where your `database.dsn` and `media.dir` point."),
       h2('Production Compose stack'),
       p("`deploy/docker-compose.prod.yml` is a complete example: Caddy for TLS, HydroGo, PostgreSQL and Redis on a private network, with credentials supplied as Docker secrets. The entrypoint reads secret files and exports the matching `HYDRO_*` variables (database DSN, Redis URL, MFA key, S3 and SMTP credentials)."),

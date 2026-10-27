@@ -1,8 +1,8 @@
 # Install the hydro CLI on Windows without the Setup.exe (per-user, adds to PATH):
-#   irm https://github.com/ozyildirims/hydrogo/releases/latest/download/install.ps1 | iex
+#   irm https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.ps1 | iex
 # Set $env:HYDRO_VERSION (for example v0.2.0) to pin a version.
 $ErrorActionPreference = 'Stop'
-$repo = 'ozyildirims/hydrogo'
+$repo = 'ardaozyildirim/hydrogo'
 $version = if ($env:HYDRO_VERSION) { $env:HYDRO_VERSION } else { (Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest").tag_name }
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
 $name = "hydrogo_${version}_windows_$arch"

@@ -48,7 +48,7 @@ hydro migrate --config config.yaml                                  # 4. apply m
 hydro doctor --config config.yaml                                   # 5. verify the install
 hydro serve --config config.yaml`),
       p("Pin a version in automation instead of taking whatever is newest:"),
-      code('bash', "HYDRO_VERSION=v0.2.0 sh install.sh\n# or the matching image tag\ndocker pull ghcr.io/ozyildirims/hydrogo:v0.2.0"),
+      code('bash', "HYDRO_VERSION=v0.2.0 sh install.sh\n# or the matching image tag\ndocker pull ghcr.io/ardaozyildirim/hydrogo:v0.2.0"),
       h2('Rolling back'),
       p("`hydro migrate` takes a snapshot of a **SQLite** database before it applies anything. If the upgrade misbehaves, restore it:"),
       code('bash', "hydro rollback --snapshot PATH --confirm --config config.yaml"),

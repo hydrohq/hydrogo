@@ -48,7 +48,7 @@ func contentTypeCommand(args []string, stdout, stderr io.Writer) error {
 		if _, err := os.Stat(path); err == nil { // #nosec G703 -- id matches contentTypeID; the directory is the operator's flag
 			return fmt.Errorf("%s already exists", path)
 		}
-		skeleton := fmt.Sprintf(`# yaml-language-server: $schema=https://raw.githubusercontent.com/ozyildirims/hydrogo/main/docs/schemas/content-type.schema.json
+		skeleton := fmt.Sprintf(`# yaml-language-server: $schema=https://raw.githubusercontent.com/ardaozyildirim/hydrogo/main/docs/schemas/content-type.schema.json
 id: %s
 label: %s
 title_field: title

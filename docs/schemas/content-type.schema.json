@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/ozyildirims/hydrogo/docs/schemas/content-type.schema.json",
+  "$id": "https://github.com/ardaozyildirim/hydrogo/docs/schemas/content-type.schema.json",
   "title": "HydroGo content type",
   "description": "One file in content-types/*.yaml. In VS Code with the YAML extension, add `# yaml-language-server: $schema=<path or URL to this file>` as the first line for completion and validation.",
   "type": "object",

@@ -3,7 +3,7 @@
 Anything that is not pages, news or members is a content type: one YAML file in `content-types/`. HydroGo derives storage and validation, the admin screens (`/admin/content/<id>`) and, with `public: true`, a read API (`/api/v1/content/<id>`). No Go, no Svelte.
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/ozyildirims/hydrogo/main/docs/schemas/content-type.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ardaozyildirim/hydrogo/main/docs/schemas/content-type.schema.json
 id: recipes
 label: Recipes
 title_field: title

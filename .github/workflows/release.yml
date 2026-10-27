@@ -164,7 +164,7 @@ jobs:
             mkdir -p "${root}/usr/local/bin" "${root}/usr/local/share/doc/hydrogo"
             cp "archives/${name}/hydro" "${root}/usr/local/bin/hydro"
             cp "archives/${name}/config.example.yaml" "archives/${name}/LICENSE" "${root}/usr/local/share/doc/hydrogo/"
-            pkgbuild --root "$root" --identifier io.github.ozyildirims.hydrogo \
+            pkgbuild --root "$root" --identifier io.github.ardaozyildirim.hydrogo \
               --version "$version" --install-location / \
               "dist/HydroGo-${version}-macos-${arch}.pkg"
           done

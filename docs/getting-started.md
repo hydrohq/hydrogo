@@ -4,7 +4,7 @@ HydroGo is a headless CMS: one binary gives you the admin panel at `/admin` and 
 
 ## 1. Install the `hydro` command
 
-Download the installer for your system from the [latest release](https://github.com/ozyildirims/hydrogo/releases/latest):
+Download the installer for your system from the [latest release](https://github.com/ardaozyildirim/hydrogo/releases/latest):
 
 | System | CPU | File | Install |
 |---|---|---|---|
@@ -19,16 +19,16 @@ The one-line scripts (`install.sh`, `install.ps1`) pick the right archive for yo
 **Linux / macOS:**
 
 ```bash
-curl -fsSL https://github.com/ozyildirims/hydrogo/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://github.com/ozyildirims/hydrogo/releases/latest/download/install.ps1 | iex
+irm https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.ps1 | iex
 ```
 
-**Docker:** `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ozyildirims/hydrogo:latest` (mount your own `config.yaml` at `/app/config.yaml`; see [deployment](deployment.md)).
+**Docker:** `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ardaozyildirim/hydrogo:latest` (mount your own `config.yaml` at `/app/config.yaml`; see [deployment](deployment.md)).
 
 While the repository is private, the `curl`/`irm` one-liners and `docker pull` cannot download anonymously. Sign in to GitHub and download the installer (`HydroGo-Setup-<version>-windows-<arch>.exe`) or the archive for your platform from the repository's **Releases** page instead; the scripts work unchanged once the repository is public.
 

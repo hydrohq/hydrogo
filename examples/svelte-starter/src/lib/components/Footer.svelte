@@ -4,8 +4,8 @@
     <ul class="flex flex-wrap gap-x-5 gap-y-2">
       <li><a class="no-underline hover:text-fg" href="#/docs">Documentation</a></li>
       <li><a class="no-underline hover:text-fg" href="#/docs/reference/cli">CLI reference</a></li>
-      <li><a class="no-underline hover:text-fg" href="https://github.com/ozyildirims/hydrogo" target="_blank" rel="noopener noreferrer">GitHub</a></li>
-      <li><a class="no-underline hover:text-fg" href="https://github.com/ozyildirims/hydrogo/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a></li>
+      <li><a class="no-underline hover:text-fg" href="https://github.com/ardaozyildirim/hydrogo" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      <li><a class="no-underline hover:text-fg" href="https://github.com/ardaozyildirim/hydrogo/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a></li>
     </ul>
   </div>
 </footer>

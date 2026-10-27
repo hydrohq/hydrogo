@@ -6,7 +6,7 @@
   import { sections } from './docs';
   import { docsHref } from './router.svelte';
 
-  const quick = `curl -fsSL https://github.com/ozyildirims/hydrogo/releases/latest/download/install.sh | sh
+  const quick = `curl -fsSL https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.sh | sh
 hydro new mysite --preset blog --admin-email you@example.com
 cd mysite && hydro serve --config config.yaml`;
 

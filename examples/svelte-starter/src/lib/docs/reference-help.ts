@@ -62,7 +62,7 @@ export const referenceHelp: DocPage[] = [
       "Signature mismatch: sign the **raw** request body, prefixed with the timestamp and a dot, using the same secret. Parse JSON only after verifying.",
     ),
     h2('Still stuck?'),
-    p("Collect the `request_id`, the output of `hydro version`, `hydro doctor --json` (redact secrets) and the relevant log lines, then [open an issue](https://github.com/ozyildirims/hydrogo/issues). For security problems follow [Reporting vulnerabilities](doc:security/reporting) instead."),
+    p("Collect the `request_id`, the output of `hydro version`, `hydro doctor --json` (redact secrets) and the relevant log lines, then [open an issue](https://github.com/ardaozyildirim/hydrogo/issues). For security problems follow [Reporting vulnerabilities](doc:security/reporting) instead."),
   ),
 
   page(
@@ -109,7 +109,7 @@ export const referenceHelp: DocPage[] = [
     "Set up the repository, run the checks, and follow the few architecture rules that keep HydroGo small.",
     p("Open an issue for anything bigger than a bug fix, keep changes small and run the checks. By contributing you agree your work is licensed under the repository's MIT license."),
     h2('Set up'),
-    code('bash', `git clone https://github.com/ozyildirims/hydrogo.git
+    code('bash', `git clone https://github.com/ardaozyildirim/hydrogo.git
 cd hydrogo
 go run ./tools/devserver   # rebuilds on save, demo data, Vite HMR for the admin
 # open http://127.0.0.1:8090 and http://127.0.0.1:8090/admin`),
