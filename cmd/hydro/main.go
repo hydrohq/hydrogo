@@ -18,6 +18,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -28,9 +29,19 @@ type pageCache interface {
 	Stats() cache.Stats
 }
 
-func clearPublicCaches(page pageCache, html *server.PublicHTMLCache) {
+type newsCache interface {
+	GetOrLoad(string, func() (news.Item, error)) (news.Item, error)
+	GetOrLoadAtGeneration(string, uint64, func() (news.Item, error)) (news.Item, error)
+	Clear()
+	Stats() cache.Stats
+}
+
+func clearPublicCaches(page pageCache, newsItems newsCache, html *server.PublicHTMLCache) {
 	if page != nil {
 		page.Clear()
+	}
+	if newsItems != nil {
+		newsItems.Clear()
 	}
 	if html != nil {
 		html.Clear()

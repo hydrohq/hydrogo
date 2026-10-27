@@ -32,6 +32,7 @@ import (
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
 	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 )
 
@@ -46,8 +47,20 @@ func (p *pageCacheSpy) GetOrLoadAtGeneration(string, uint64, func() (pages.Page,
 func (p *pageCacheSpy) Clear()             { p.cleared++ }
 func (p *pageCacheSpy) Stats() cache.Stats { return cache.Stats{} }
 
-func TestSQLiteExternalWriteInvalidationClearsBothPublicCaches(t *testing.T) {
+type newsCacheSpy struct{ cleared int }
+
+func (n *newsCacheSpy) GetOrLoad(string, func() (news.Item, error)) (news.Item, error) {
+	return news.Item{}, nil
+}
+func (n *newsCacheSpy) GetOrLoadAtGeneration(string, uint64, func() (news.Item, error)) (news.Item, error) {
+	return news.Item{}, nil
+}
+func (n *newsCacheSpy) Clear()             { n.cleared++ }
+func (n *newsCacheSpy) Stats() cache.Stats { return cache.Stats{} }
+
+func TestSQLiteExternalWriteInvalidationClearsAllPublicCaches(t *testing.T) {
 	page := &pageCacheSpy{}
+	newsItems := &newsCacheSpy{}
 	html := server.NewPublicHTMLCache(server.PublicHTMLCacheOptions{})
 	var renders int
 	handler := html.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -63,10 +76,10 @@ func TestSQLiteExternalWriteInvalidationClearsBothPublicCaches(t *testing.T) {
 		t.Fatalf("initial HTML cache renders = %d, want 1", renders)
 	}
 
-	clearPublicCaches(page, html)
+	clearPublicCaches(page, newsItems, html)
 	handler.ServeHTTP(httptest.NewRecorder(), request)
-	if page.cleared != 1 || renders != 2 {
-		t.Fatalf("invalidated page cache %d times and rendered HTML %d times, want 1 and 2", page.cleared, renders)
+	if page.cleared != 1 || newsItems.cleared != 1 || renders != 2 {
+		t.Fatalf("invalidated page cache %d times, news cache %d times, and rendered HTML %d times, want 1, 1 and 2", page.cleared, newsItems.cleared, renders)
 	}
 }
 
