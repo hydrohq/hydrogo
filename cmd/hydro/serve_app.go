@@ -111,6 +111,7 @@ type serveApp struct {
 
 	// Content.
 	publicPageCache  pageCache
+	publicNewsCache  newsCache
 	publicHTMLCache  *server.PublicHTMLCache
 	staticCacheDir   string
 	contentService   pageservice.ContentService

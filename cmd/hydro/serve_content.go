@@ -253,7 +253,7 @@ func (a *serveApp) initNews() error {
 	cfg, db := a.cfg, a.db
 	requireTenantScope := a.requireTenantScope
 	if moduleEnabled(cfg.Modules, "news") {
-		a.newsService = newsservice.Service{Transactions: a.transactioner, Repository: a.newsRouteStore, Realtime: a.realtimeHub, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, WorkflowRole: func(ctx context.Context) string {
+		a.newsService = newsservice.Service{Transactions: a.transactioner, Repository: a.newsRouteStore, Realtime: a.realtimeHub, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, Outbox: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, PublicCache: a.publicNewsCache, WorkflowRole: func(ctx context.Context) string {
 			if user := auth.UserFromContext(ctx); user != nil {
 				return string(user.Role)
 			}
