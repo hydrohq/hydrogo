@@ -28,6 +28,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/modules/site"
 	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
 	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
+	"golang.org/x/sync/errgroup"
 )
 
 // initMedia wires uploads, the optimizer, object storage and the media HTTP
@@ -121,27 +122,34 @@ func (a *serveApp) initSite() error {
 	if !requireTenantScope {
 		redirectScopes = []tenant.Scope{{}}
 	}
+	var group errgroup.Group
 	for _, scope := range redirectScopes {
-		redirectCtx := ctx
-		if requireTenantScope {
-			redirectCtx = tenant.WithScope(redirectCtx, scope)
-		}
-		settings, settingsErr := siteStore.ListPublicSettings(redirectCtx, db)
-		if settingsErr != nil {
-			return fmt.Errorf("load site translation overrides: %w", settingsErr)
-		}
-		translationSettings := make(map[string]string, len(settings))
-		for _, setting := range settings {
-			translationSettings[setting.Key] = setting.Value
-		}
-		i18n.ReplaceOverrides(scope.TenantID, i18n.OverrideSettings(translationSettings))
-		rules, loadErr := siteService.ListRedirectRules(redirectCtx, 1000)
-		if loadErr != nil {
-			return fmt.Errorf("load site redirects: %w", loadErr)
-		}
-		if loadErr = redirectRegistry.Replace(scope.TenantID, rules); loadErr != nil {
-			return fmt.Errorf("validate site redirects: %w", loadErr)
-		}
+		group.Go(func() error {
+			redirectCtx := ctx
+			if requireTenantScope {
+				redirectCtx = tenant.WithScope(redirectCtx, scope)
+			}
+			settings, settingsErr := siteStore.ListPublicSettings(redirectCtx, db)
+			if settingsErr != nil {
+				return fmt.Errorf("load site translation overrides: %w", settingsErr)
+			}
+			translationSettings := make(map[string]string, len(settings))
+			for _, setting := range settings {
+				translationSettings[setting.Key] = setting.Value
+			}
+			i18n.ReplaceOverrides(scope.TenantID, i18n.OverrideSettings(translationSettings))
+			rules, loadErr := siteService.ListRedirectRules(redirectCtx, 1000)
+			if loadErr != nil {
+				return fmt.Errorf("load site redirects: %w", loadErr)
+			}
+			if loadErr = redirectRegistry.Replace(scope.TenantID, rules); loadErr != nil {
+				return fmt.Errorf("validate site redirects: %w", loadErr)
+			}
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return err
 	}
 	if modules["forms"] {
 		siteService.Forms = formstore.Store{Executor: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
