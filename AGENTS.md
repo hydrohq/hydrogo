@@ -11,11 +11,9 @@ change does not serve that, don't make it. Background:
 
 `main` is the only long-lived branch (tags `vX.Y.Z` are cut from it). Work on a
 short-lived branch and open a pull request into `main`. CI (`.github/workflows/`)
-is configured to run on every push/PR but **Actions is currently disabled at
-the repo level** (`gh api repos/<owner>/<repo>/actions/permissions`) — no
-workflow has ever executed. Until a repo owner re-enables it,
-`go run ./tools/check` below is the *only* gate; do not assume a PR got any
-automated check beyond what you ran yourself. Delete the branch once merged.
+runs on every push/PR (Actions was re-enabled 2026-10-27). Still also run
+`go run ./tools/check` yourself before finishing a task — don't wait on CI as
+your only signal. Delete the branch once merged.
 
 ## Before you finish any task
 
@@ -39,6 +37,7 @@ done if either step failed.
 | Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql`. A new table most other tables have (check a sibling in the same module) needs a `tenant_id` column too — add it to `internal/tenant.BackfillTables`, `tests/contract/postgres_rls_contract_test.go`'s `expectedRLSTables`, and thread `tenant.Require`/`RequireTenantScope` through its repository in the same change. See `docs/multi-tenancy.md` and `docs/decisions/0024-news-taxonomy-tenant-isolation.md` for what happens when this is skipped |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
 | A starting point for a public site | `examples/sveltekit-starter/` (server-rendered, uses `packages/client`). `examples/crm-starter/` and `examples/commerce-starter/` are the `--starter crm`/`--starter commerce` panels for those presets. `examples/svelte-starter/` is HydroGo's own landing/docs SPA. `examples/hydropost-news-starter/` is a Turkish news portal — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
+| The project's own marketing/playground site (`hydro.ardalabs.dev`) | `examples/hydro-website/` — a static Svelte SPA with **no backend**: the playground view mirrors the real admin's shadcn/Zinc tokens and component markup (see its `src/lib/demo/`) against an in-memory, per-visitor fake data store, not a live HydroGo instance |
 | The typed API client for frontends | `packages/client` (`@hydrogo/client`, private: never published to npm or any public registry). Keep it in step with the public API envelope: pages, news and content return `{data, metadata}` |
 | What `hydro new` / `hydro init` create (presets, config template) | `internal/scaffold`. Presets only pick modules and stock types from `content-types/` |
 | Release, installer, install scripts | `.github/workflows/release.yml`, `deploy/windows/hydrogo.iss`, `scripts/install.sh`, `scripts/install.ps1` (see `docs/upgrading.md`) |
