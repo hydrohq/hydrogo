@@ -11,7 +11,7 @@ import (
 // to the JSON endpoints below. Projects with their own front end can build
 // the same links with a different path.
 const (
-	PasswordResetPagePath = "/admin/reset-password"
+	PasswordResetPagePath = "/admin/reset-password" // #nosec G101 -- admin SPA route path, not a credential
 	InviteAcceptPagePath  = "/admin/accept-invite"
 	LoginPagePath         = "/admin/login"
 )
