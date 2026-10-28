@@ -109,16 +109,16 @@ func (s Store) StockReservationDrift(ctx context.Context, db database.Executor, 
 			var variantID string
 			var count int
 			if err := rows.Scan(&variantID, &count); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
 			reserved[variantID] = count
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 
 	expected := map[string]int{}
@@ -140,16 +140,16 @@ func (s Store) StockReservationDrift(ctx context.Context, db database.Executor, 
 			var variantID string
 			var count int
 			if err := rows.Scan(&variantID, &count); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
 			expected[variantID] = count
 		}
 		if err := rows.Err(); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 
 	variantIDs := make([]string, 0, len(reserved)+len(expected))
