@@ -39,7 +39,6 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 WORKDIR /app
 COPY --from=build /out/hydro /app/hydro
-COPY --from=build /src/hydrogo.lock /app/hydrogo.lock
 COPY --from=build /src/config.example.yaml /app/config.example.yaml
 
 USER hydro
@@ -49,7 +48,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget -q -O - http://127.0.0.1:8080/healthz >/dev/null || exit 1
 
-# Mount a deployment-owned config at /app/config.yaml. A license file, when
-# required by the lock, must also be mounted at the path configured there.
+# Mount a deployment-owned config at /app/config.yaml.
 ENTRYPOINT ["/app/hydro"]
 CMD ["serve", "--config", "/app/config.yaml"]
