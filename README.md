@@ -25,8 +25,10 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
   members, media, settings, and custom YAML content types.
 - **Admin Panel:** embedded single-page application built with Svelte 5,
   TypeScript, Tailwind CSS, and shadcn-svelte (`admin/` embedded in Go binary).
-- **Custom Content Types:** declarative YAML definitions (`content-types/*.yaml`)
-  instantly provide admin screens and `/api/v1/content/<id>` endpoints with zero code.
+- **Custom Content Types & Realtime BaaS:** declarative YAML definitions (`content-types/*.yaml`)
+  instantly provide admin screens, full CRUD REST APIs, PocketBase-style row-level access rules
+  (`access_rules:` evaluated over `@auth.id`, `@auth.role`, `record.*`), and Server-Sent Events (SSE)
+  real-time subscriptions (`realtime: true`) with per-subscriber row filtering.
 - **Content:** pages with blocks, news with categories and tags, media
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
   scheduled news publishing, and audit log.
