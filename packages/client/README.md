@@ -17,6 +17,19 @@ const one = await hydro.getContent("faq", faq.data[0].id);
 // Filters with operators, related records and keyset paging
 const deals = await hydro.listContent("deals", { filter: { amount: { gte: "100" } }, expand: ["company"], limit: 50 });
 const next = await hydro.listContent("deals", { after: deals.metadata.next_cursor, limit: 50 });
+
+// Full BaaS CRUD with row-level access rules
+const created = await hydro.createContent("messages", { text: "Hello", sender_id: "u1" }, memberToken);
+const updated = await hydro.updateContent("messages", created.id, { text: "Updated" }, memberToken);
+await hydro.deleteContent("messages", created.id, memberToken);
+
+// Realtime subscriptions via SSE
+const unsubscribe = hydro.subscribeContent("messages", (event) => {
+  console.log(`Live event ${event.action} on ${event.type}:`, event.record);
+}, memberToken);
+
+// Cleanup when unmounting
+unsubscribe();
 ```
 
 Errors are `HydroGoError` with `status`, `code`, `message` and `requestId` (quote the request id when reporting a problem). Requests time out after 15 s (`timeoutMs`, max 120 s), response bodies are size-capped, and member methods never send browser cookies.

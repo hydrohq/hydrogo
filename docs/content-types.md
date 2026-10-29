@@ -94,6 +94,66 @@ the permission see everything. The permission joins the catalog (grant it per
 user). The public API (`/api/v1/content/...`) has no users and is not
 affected, so a type with `access` cannot be `public`.
 
+## Declarative Row-Level Access Rules (PocketBase Parity)
+
+Types exposed to public clients or members can declare row-level access rules that govern who can list, read, create, update, or delete records:
+
+```yaml
+id: tweets
+label: Tweets
+title_field: text
+public: true
+realtime: true
+access_rules:
+  list: "status == 'published' || @auth.id == record.author_id"
+  read: "public"
+  create: "@auth.id != '' && @auth.id == record.author_id"
+  update: "@auth.id == record.author_id"
+  delete: "@auth.id == record.author_id"
+fields:
+  - {id: text, label: Text, kind: text, required: true}
+  - {id: author_id, label: Author, kind: text, required: true}
+```
+
+Rules are boolean expressions evaluated against the caller principal and the record fields:
+- `@auth.id`: Caller's ID (member ID or admin user ID)
+- `@auth.email`: Caller's email
+- `@auth.role`: Caller's role (`"admin"`, `"editor"`, `"member"`, etc.)
+- `@auth.is_admin`: Boolean flag for platform administrators
+- `@auth.is_member`: Boolean flag for logged-in members
+- `record.<field>` or `<field>`: Fields of the record (e.g. `record.author_id`, `status`, `created_at`)
+
+Convenience keywords:
+- `"public"` or `"true"`: Allowed for everyone (including unauthenticated callers).
+- `"admin"`: Allowed only for platform administrators.
+- `"member"`: Allowed for any authenticated member.
+- `"false"`: Disallowed for all non-admin callers.
+- Empty string (`""`): Defaults to allowed for reads on `public: true` types; defaults to denied for mutations (`create`, `update`, `delete`) unless administrator.
+
+Public CRUD Endpoints:
+- `GET /api/v1/content/<type>`: Lists records (filtered by `list` rule)
+- `GET /api/v1/content/<type>/<id>`: Reads a single record (guarded by `read` rule)
+- `POST /api/v1/content/<type>`: Creates a record (guarded by `create` rule)
+- `PUT /api/v1/content/<type>/<id>`: Updates a record (guarded by `update` rule)
+- `DELETE /api/v1/content/<type>/<id>`: Deletes a record (guarded by `delete` rule)
+
+## Realtime Pub/Sub Subscriptions
+
+Setting `realtime: true` enables Server-Sent Events (SSE) subscriptions for a content type:
+
+```http
+GET /api/v1/content/<type>/subscribe
+Accept: text/event-stream
+```
+
+Whenever a record is created, updated, or deleted, HydroGo broadcasts an SSE event:
+```json
+event: message
+data: {"action":"create","type":"tweets","record":{"id":"rec_1","text":"Hello World","author_id":"usr_1"}}
+```
+
+**Row-level event filtering**: Events are filtered per subscriber based on their identity and the type's `read` access rule. If an event contains a record that a subscriber is not permitted to read, HydroGo skips delivering it to that subscriber, preventing unauthorized data leakage in live streams.
+
 ## Field permissions
 
 ```yaml
