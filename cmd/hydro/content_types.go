@@ -26,7 +26,7 @@ import (
 // rendering it is the frontend's job. publicLimiter bounds the public
 // list/get routes per caller IP; nil leaves them unbounded (only used by
 // the test helper below).
-func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, presence *realtime.Presence, hook contenttypes.HookCaller, publicLimiter security.RateLimiter, typesProvider ...func() []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
+func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, presence *realtime.Presence, hook contenttypes.HookCaller, publicLimiter security.RateLimiter, hub *realtime.Hub, principalResolver func(r *http.Request) contenttypes.Principal, typesProvider ...func() []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("content types: %w", err)
@@ -61,11 +61,23 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 	}
 	// Clean on read as well as on write: records saved before rich text was
 	// sanitized on save are still served to storefronts that use innerHTML.
-	public := contenttypes.PublicAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, RenderRichText: richtext.Clean}
+	public := contenttypes.PublicAPI{
+		Service:          service,
+		Types:            types,
+		TypesFunc:        provider,
+		Locales:          locales,
+		RenderRichText:   richtext.Clean,
+		Hub:              hub,
+		ResolvePrincipal: principalResolver,
+	}
 	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Subject: contentTypeActor, Hook: hook, Authorize: contentTypeAccess, Can: contentTypeCan}
 	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: rateLimitedPublicContent(publicLimiter, http.HandlerFunc(public.List))},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: rateLimitedPublicContent(publicLimiter, http.HandlerFunc(public.Get))},
+		{Pattern: "POST /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.Create)},
+		{Pattern: "PUT /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Update)},
+		{Pattern: "DELETE /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Delete)},
+		{Pattern: "GET /api/v1/content/{type}/subscribe", Access: router.Public, Handler: http.HandlerFunc(public.Subscribe)},
 	}
 	return types, append(routes, admin.Routes()...), nil
 }

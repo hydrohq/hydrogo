@@ -21,6 +21,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/trash"
 	trashstore "github.com/ardaozyildirim/hydrogo/internal/trash/sqlstore"
 	trashtransport "github.com/ardaozyildirim/hydrogo/internal/trash/transport"
+	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
 
 // collectionRoutes registers the YAML content types under /api/v1/content
@@ -36,7 +37,7 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
-	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, a.hookCaller(), a.newRateLimiter(120, time.Minute), func() []contenttypes.Definition {
+	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, a.hookCaller(), a.newRateLimiter(120, time.Minute), a.realtimeHub, a.resolveContentPrincipal, func() []contenttypes.Definition {
 		return a.contentTypes
 	})
 	if err != nil {
@@ -56,6 +57,48 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 		}
 	}
 	return contentRoutes, nil
+}
+
+func (a *serveApp) resolveContentPrincipal(r *http.Request) contenttypes.Principal {
+	if user := auth.UserFromContext(r.Context()); user != nil && user.Active {
+		return contenttypes.Principal{
+			ID:        user.ID,
+			Email:     user.Email,
+			Role:      string(user.Role),
+			IsAdmin:   user.Role == auth.RoleAdmin,
+			IsMember:  false,
+			Anonymous: false,
+		}
+	}
+	if a.modules["members"] && a.memberService.Sessions != nil {
+		if cookie, err := r.Cookie(members.SessionCookieName); err == nil && cookie.Value != "" {
+			if _, member, err := a.memberService.ValidateSession(r.Context(), cookie.Value); err == nil && member != nil && member.Active {
+				return contenttypes.Principal{
+					ID:        member.ID,
+					Email:     member.Email,
+					Role:      "member",
+					IsAdmin:   false,
+					IsMember:  true,
+					Anonymous: false,
+				}
+			}
+		}
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			token := strings.TrimSpace(authHeader[7:])
+			if _, member, err := a.memberService.ValidateSession(r.Context(), token); err == nil && member != nil && member.Active {
+				return contenttypes.Principal{
+					ID:        member.ID,
+					Email:     member.Email,
+					Role:      "member",
+					IsAdmin:   false,
+					IsMember:  true,
+					Anonymous: false,
+				}
+			}
+		}
+	}
+	return contenttypes.Principal{Anonymous: true}
 }
 
 // trashRoutes registers the recycle bin for the enabled content kinds and

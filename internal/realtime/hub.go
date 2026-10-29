@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	bufferSize     = 16
-	maxSubscribers = 256
-	maxTopics      = 16
+	bufferSize            = 16
+	defaultMaxSubscribers = 4096
+	maxTopics             = 16
 )
 
 type Event struct {
@@ -35,6 +35,7 @@ type Hub struct {
 	mu                 sync.Mutex
 	subscribers        map[*subscriber]struct{}
 	RequireTenantScope bool
+	MaxSubscribers     int
 }
 
 func (h *Hub) Publish(ctx context.Context, event Event) error {
@@ -90,13 +91,54 @@ func (h *Hub) subscribe(tenantID string, topics []string) (*subscriber, error) {
 	if h.subscribers == nil {
 		h.subscribers = make(map[*subscriber]struct{})
 	}
-	if len(h.subscribers) >= maxSubscribers {
+	limit := h.MaxSubscribers
+	if limit <= 0 {
+		limit = defaultMaxSubscribers
+	}
+	if len(h.subscribers) >= limit {
 		return nil, errors.New("subscriber capacity reached")
 	}
 	h.subscribers[sub] = struct{}{}
 	return sub, nil
 }
 func (h *Hub) unsubscribe(sub *subscriber) { h.mu.Lock(); delete(h.subscribers, sub); h.mu.Unlock() }
+
+// SubscriberCount returns the number of active subscribers on the hub.
+func (h *Hub) SubscriberCount() int {
+	if h == nil {
+		return 0
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.subscribers)
+}
+
+// Subscription represents an active event subscription. Call Close when done.
+type Subscription struct {
+	hub *Hub
+	sub *subscriber
+	C   <-chan Event
+}
+
+// Close removes the subscriber from the hub and stops receiving events.
+func (s *Subscription) Close() {
+	if s != nil && s.hub != nil && s.sub != nil {
+		s.hub.unsubscribe(s.sub)
+	}
+}
+
+// SubscribeStream opens a realtime subscription channel for tenantID and the given topics.
+func (h *Hub) SubscribeStream(tenantID string, topics []string) (*Subscription, error) {
+	sub, err := h.subscribe(tenantID, topics)
+	if err != nil {
+		return nil, err
+	}
+	return &Subscription{
+		hub: h,
+		sub: sub,
+		C:   sub.events,
+	}, nil
+}
 func validTopic(topic string) bool {
 	if len(topic) < 3 || len(topic) > 96 || strings.Count(topic, ":") != 1 {
 		return false
