@@ -109,3 +109,64 @@ const listClient = createHydroGoClient({
 });
 const listed = await listClient.listContent("deals", { limit: 10, after: "cursor-1", expand: ["company", "partners"], filter: { status: "open", amount: { gte: "100", lt: "900" } } });
 assert.equal(listed.metadata.next_cursor, "cursor-2");
+
+// Test BaaS mutations and realtime
+const crudClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    const urlStr = String(url);
+    if (init?.method === "POST" && urlStr.endsWith("/api/v1/content/messages")) {
+      assert.equal(init?.headers?.["Authorization"], "Bearer test_token");
+      const body = JSON.parse(String(init.body));
+      assert.equal(body.text, "hello");
+      return new Response(JSON.stringify({ data: { id: "msg_1", text: "hello" } }));
+    }
+    if (init?.method === "PUT" && urlStr.endsWith("/api/v1/content/messages/msg_1")) {
+      assert.equal(init?.headers?.["Authorization"], "Bearer test_token");
+      const body = JSON.parse(String(init.body));
+      assert.equal(body.text, "updated");
+      return new Response(JSON.stringify({ data: { id: "msg_1", text: "updated" } }));
+    }
+    if (init?.method === "DELETE" && urlStr.endsWith("/api/v1/content/messages/msg_1")) {
+      return new Response(JSON.stringify({ data: { id: "msg_1", deleted: true } }));
+    }
+    throw new Error(`unexpected request: ${init?.method} ${urlStr}`);
+  },
+});
+
+const created = await crudClient.createContent("messages", { text: "hello" }, "test_token");
+assert.equal(created.id, "msg_1");
+assert.equal(created.text, "hello");
+
+const updated = await crudClient.updateContent("messages", "msg_1", { text: "updated" }, "test_token");
+assert.equal(updated.text, "updated");
+
+await crudClient.deleteContent("messages", "msg_1");
+
+// Test realtime subscription parsing
+let receivedEvent = null;
+const streamClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    assert.equal(String(url), "https://hydrogo.example/api/v1/content/messages/subscribe");
+    assert.equal(init?.headers?.["Accept"], "text/event-stream");
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(": connected\n\ndata: {\"action\":\"create\",\"type\":\"messages\",\"record\":{\"id\":\"m1\",\"text\":\"realtime message\"}}\n\n"));
+        controller.close();
+      },
+    });
+    return new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
+  },
+});
+
+const unsubscribe = streamClient.subscribeContent("messages", (event) => {
+  receivedEvent = event;
+});
+
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(receivedEvent);
+assert.equal(receivedEvent.action, "create");
+assert.equal(receivedEvent.record.text, "realtime message");
+unsubscribe();
+

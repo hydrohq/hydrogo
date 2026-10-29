@@ -4,6 +4,11 @@ description: Reader comments on news. They wait for moderation before publishing
 title_field: author_name
 public: true
 drafts: true
+realtime: true
+access_rules:
+  list: "status == 'published'"
+  read: "status == 'published'"
+  create: "public"
 fields:
   - {id: article_slug, label: Article slug, kind: text, required: true, list: true, filterable: true}
   - {id: author_name, label: Author, kind: text, required: true, list: true, searchable: true}
