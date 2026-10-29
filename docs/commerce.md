@@ -28,13 +28,10 @@ for why the split sits there.
 | `GET /api/v1/commerce/checkout-config` | What checkout needs from the client: tax rate/inclusivity, shipping fee/threshold, enabled payment providers. |
 | `POST /api/v1/commerce/checkout` | Places the order from the current cart. Idempotent per `(member or anonymous cart, idempotency_key)` -- a retried request with the same key returns the same order instead of creating a second one. |
 | `GET /api/v1/commerce/orders/{id}` | One order (its own cart/member only). |
-| `POST /api/v1/commerce/orders/{id}/payment` | Starts a payment with the configured provider (PayTR today) and returns its redirect/token. |
-| `POST /api/v1/commerce/payments/paytr/callback` | PayTR's server-to-server notification endpoint, not browser-facing. Only this callback, never the browser redirect, flips `payment_status`; see `docs/decisions/0014-commerce-paytr-provider.md`. |
+| `POST /api/v1/commerce/orders/{id}/payment` | Starts a payment with the configured provider (if any) and returns its redirect/token. |
 
 All public routes are rate-limited; writes go through the same CSRF/session
-rules as the rest of the API (the PayTR callback is explicitly exempt --
-see `commerceCSRFExemptPaths` in `cmd/hydro/routes_commerce.go` -- since
-PayTR, not a browser, calls it).
+rules as the rest of the API.
 
 ## Admin API
 
@@ -57,7 +54,7 @@ detail view with customer, address, line items, pricing breakdown and a
 ## CLI
 
 ```bash
-hydro commerce reconcile [--provider paytr] [--hold 30m] [--stale-after 15m] [--limit 100] [--json]
+hydro commerce reconcile [--provider NAME] [--hold 30m] [--stale-after 15m] [--limit 100] [--json]
 ```
 
 A read-only consistency sweep for stale pending orders, a payment
@@ -69,20 +66,19 @@ five minutes and logs a warning when a report is not clean. See
 ## Configuration
 
 See the `commerce:` section of `config.example.yaml` for the full set of
-keys (PayTR, tax, shipping, currencies, Yurtiçi Kargo) and
+keys (tax, shipping, currencies, Yurtiçi Kargo) and
 `notifications.telegram` for order/reconciliation alerts. Everything under
 `commerce:` is optional -- with it empty, cart and checkout still work with
 no payment provider, no carrier, no tax, no shipping fee and TRY as the
-only currency. PayTR/Yurtiçi Kargo/Telegram credentials are secrets with no
+only currency. Yurtiçi Kargo/Telegram credentials are secrets with no
 `HYDRO_*` environment variable override; set them only in a protected,
 untracked copy of your config file.
 
-PayTR and Yurtiçi Kargo are both structurally complete against their
-published documentation but have never been exercised against the real
-services (no sandbox/merchant account available while building them) --
-see `docs/decisions/0014-commerce-paytr-provider.md` and
+Yurtiçi Kargo is structurally complete against published documentation
+but has never been exercised against the real service (no sandbox/merchant
+account available while building it) -- see
 `docs/decisions/0020-commerce-shipping-provider.md` for the specifics to
-verify before relying on either in production.
+verify before relying on it in production.
 
 ## Starter
 

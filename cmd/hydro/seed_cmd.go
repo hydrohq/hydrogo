@@ -432,7 +432,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 			id:           "demo-news-commerce-pilot",
 			slug:         "e-ticaret-ve-odeme-saglayici-sozlesmeleri",
 			title:        "E-Ticaret Mimarisi: Varyantlar, Stok Rezervasyonu ve Ödeme Entegrasyonları",
-			excerpt:      "Stripe, iyzico ve PayTR entegrasyonlarını destekleyen sipariş, sepet ve ödeme provizyon akışları.",
+			excerpt:      "Modüler ödeme ve kargo entegrasyonlarını destekleyen sipariş, sepet ve ödeme akışları.",
 			takeaways:    "- Renk, beden ve lisans bazlı esnek varyant desteği.\n- Stok tükenmesi durumunda sepet seviyesinde koruma.\n- Idempotent sipariş oluşturma ve güvenli ödeme intent akışı.",
 			category:     "E-Ticaret",
 			author:       "Commerce Ekibi",

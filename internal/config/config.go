@@ -61,13 +61,10 @@ type TelegramNotifications struct {
 // Enabled reports whether enough configuration is present to send.
 func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.ChatID != "" }
 
-// Commerce configures the optional payment providers modules/commerce can
-// start a checkout against. Empty is a valid, fully functional
-// configuration: Checkout and ConfirmPayment work without any provider
-// configured, a project just has no way to redirect a shopper to a hosted
-// payment page yet.
+// Commerce configures optional commerce settings for modules/commerce.
+// Empty is a valid, fully functional configuration: Checkout and
+// ConfirmPayment work without any external provider configured.
 type Commerce struct {
-	PayTR        PayTR        `yaml:"paytr"`
 	Tax          Tax          `yaml:"tax"`
 	Shipping     ShippingFee  `yaml:"shipping"`
 	Currencies   Currencies   `yaml:"currencies"`
@@ -100,7 +97,7 @@ type ShippingFee struct {
 }
 
 // Currencies configures the storefront's display-currency switcher. This
-// never changes what is actually charged -- checkout and PayTR always use
+// never changes what is actually charged -- checkout always uses
 // Default; Display/Rates are presentation only, a static, operator-
 // maintained conversion a storefront can show a visitor without this
 // project taking on live FX risk or multi-currency settlement. The zero
@@ -110,26 +107,6 @@ type Currencies struct {
 	Display []string           `yaml:"display"`
 	Rates   map[string]float64 `yaml:"rates"`
 }
-
-// PayTR holds one merchant's PayTR credentials. MerchantKey and
-// MerchantSalt are secrets: set them only in a protected, untracked config
-// file, never in a committed preset. There is no HYDRO_* environment
-// variable override for them.
-type PayTR struct {
-	MerchantID     string `yaml:"merchant_id"`
-	MerchantKey    string `yaml:"merchant_key"`
-	MerchantSalt   string `yaml:"merchant_salt"`
-	TestMode       bool   `yaml:"test_mode"`
-	NoInstallment  bool   `yaml:"no_installment"`
-	MaxInstallment int    `yaml:"max_installment"`
-	OKURL          string `yaml:"ok_url"`
-	FailURL        string `yaml:"fail_url"`
-}
-
-// Enabled reports whether enough PayTR configuration is present to start
-// the provider; it is intentionally cheap to check from cmd/hydro's route
-// wiring without importing modules/commerce/providers/paytr there.
-func (p PayTR) Enabled() bool { return p.MerchantID != "" }
 
 // YurticiKargo holds one account's Yurtiçi Kargo web service credentials --
 // see modules/commerce/providers/yurticikargo's package doc comment for
@@ -158,7 +135,7 @@ func (y YurticiKargo) ResolvedEndpoint() string {
 }
 
 // Enabled reports whether enough configuration is present to start the
-// provider, the same cheap pre-import check PayTR.Enabled gives cmd/hydro.
+// provider.
 func (y YurticiKargo) Enabled() bool { return y.WSUserName != "" && y.WSPassword != "" }
 
 // Limits holds operator-tunable resource caps.

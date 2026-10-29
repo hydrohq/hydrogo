@@ -20,7 +20,7 @@
     "typescript": "^5.7.3",
     "vite": "^6.2.0"
   },
-  "description": "Guest storefront starter (SvelteKit): catalog, cart, checkout and PayTR payment against a HydroGo backend",
+  "description": "Guest storefront starter (SvelteKit): catalog, cart, and checkout against a HydroGo backend",
   "overrides": {
     "cookie": "^0.7.2"
   }
