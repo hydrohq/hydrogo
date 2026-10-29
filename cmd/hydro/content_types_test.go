@@ -29,20 +29,36 @@ func TestContentTypeRoutesRegisterNextToPublicLocaleRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := collections.Service{Repository: sqlstore.Store{DB: db, Dialect: database.SQLite}}
-	types, routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}), nil, nil, nil)
+	types, routes, err := contentTypeRoutes(ctx, filepath.Join("..", "..", "content-types"), service, nil, contenttypes.NewLocales(true, "en", []string{"en", "de"}), nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(types) == 0 || len(routes) == 0 {
 		t.Fatal("shipped content types produced no routes")
 	}
+	expectedPatterns := map[string]bool{
+		"GET /api/v1/content/{type}":           false,
+		"GET /api/v1/content/{type}/{id}":      false,
+		"POST /api/v1/content/{type}":          false,
+		"PUT /api/v1/content/{type}/{id}":      false,
+		"DELETE /api/v1/content/{type}/{id}":   false,
+		"GET /api/v1/content/{type}/subscribe": false,
+	}
 	adminRoutes := 0
 	for _, route := range routes {
+		if _, ok := expectedPatterns[route.Pattern]; ok {
+			expectedPatterns[route.Pattern] = true
+		}
 		if strings.Contains(route.Pattern, contenttypes.AdminAPIPath) {
 			adminRoutes++
 			if route.Access != router.Protected {
 				t.Fatalf("admin content route %q is not protected", route.Pattern)
 			}
+		}
+	}
+	for pattern, found := range expectedPatterns {
+		if !found {
+			t.Fatalf("expected public route %q was not registered", pattern)
 		}
 	}
 	if adminRoutes == 0 {

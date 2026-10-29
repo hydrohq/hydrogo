@@ -174,6 +174,8 @@ type Definition struct {
 	PeriodLock *PeriodLock `json:"period_lock,omitempty" yaml:"period_lock"`
 	// Hooks consult side services before changes (see Hook).
 	Hooks       []Hook                    `json:"hooks,omitempty" yaml:"hooks"`
+	Realtime    bool                      `json:"realtime,omitempty" yaml:"realtime"`
+	AccessRules *AccessRules              `json:"access_rules,omitempty" yaml:"access_rules"`
 	Access      *Access                   `json:"access,omitempty" yaml:"access"`
 	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions"`
 	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
@@ -358,6 +360,11 @@ func (d Definition) Validate() error {
 	}
 	if err := schema.Validate(); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidDefinition, err)
+	}
+	if d.AccessRules != nil {
+		if err := d.validateAccessRules(schema); err != nil {
+			return err
+		}
 	}
 	if _, err := adminstudio.NewRegistry([]adminstudio.Collection{d.AdminCollection()}); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidDefinition, err)
