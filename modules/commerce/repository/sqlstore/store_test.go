@@ -214,11 +214,11 @@ func TestPaymentNotificationIsRecordedOnceOnly(t *testing.T) {
 	ctx := context.Background()
 	store := Store{Dialect: database.SQLite}
 
-	first, err := store.RecordPaymentNotification(ctx, db, "paytr", "event-1")
+	first, err := store.RecordPaymentNotification(ctx, db, "mock-provider", "event-1")
 	if err != nil || !first {
 		t.Fatalf("first delivery: recorded=%v err=%v", first, err)
 	}
-	second, err := store.RecordPaymentNotification(ctx, db, "paytr", "event-1")
+	second, err := store.RecordPaymentNotification(ctx, db, "mock-provider", "event-1")
 	if err != nil {
 		t.Fatal(err)
 	}

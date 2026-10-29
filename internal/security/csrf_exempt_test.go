@@ -8,18 +8,18 @@ import (
 )
 
 // TestCSRFMiddlewareExemptPathsSkipsValidationEntirely covers an inbound
-// third-party webhook (PayTR's payment callback): the caller has no browser
-// session to carry a CSRF cookie, and its own request signature is the real
-// security boundary, the same reasoning /csp-report already gets.
+// third-party webhook: the caller has no browser session to carry a CSRF
+// cookie, and its own request signature is the real security boundary, the
+// same reasoning /csp-report already gets.
 func TestCSRFMiddlewareExemptPathsSkipsValidationEntirely(t *testing.T) {
 	var reached bool
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reached = true
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := CSRFMiddleware(false, nil, "/api/v1/commerce/payments/paytr/callback")(next)
+	handler := CSRFMiddleware(false, nil, "/api/v1/webhooks/inbound")(next)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/payments/paytr/callback", strings.NewReader("merchant_oid=x"))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/inbound", strings.NewReader("event_id=x"))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -33,7 +33,7 @@ func TestCSRFMiddlewareExemptPathsSkipsValidationEntirely(t *testing.T) {
 
 func TestCSRFMiddlewareExemptPathsDoesNotWeakenUnlistedRoutes(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
-	handler := CSRFMiddleware(false, nil, "/api/v1/commerce/payments/paytr/callback")(next)
+	handler := CSRFMiddleware(false, nil, "/api/v1/webhooks/inbound")(next)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", nil)
 	rec := httptest.NewRecorder()

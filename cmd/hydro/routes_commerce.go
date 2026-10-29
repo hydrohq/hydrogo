@@ -16,7 +16,6 @@ import (
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/paytr"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/yurticikargo"
 	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
@@ -28,9 +27,6 @@ import (
 // configured, which correctly skips that check rather than flagging every
 // unconfirmed order as an anomaly.
 func (a *serveApp) commercePaymentProviderName() string {
-	if a.cfg.Commerce.PayTR.Enabled() {
-		return "paytr"
-	}
 	return ""
 }
 
@@ -39,25 +35,14 @@ func (a *serveApp) commercePaymentProviderName() string {
 // security.CSRFMiddleware's own doc comment for why these need full
 // exemption, not just a relaxed check.
 func commerceCSRFExemptPaths(modules map[string]bool, cfg config.Commerce) []string {
-	if !modules["commerce"] || !cfg.PayTR.Enabled() {
-		return nil
-	}
-	return []string{paytr.CallbackPath}
+	return nil
 }
 
 // commercePaymentProvider builds the configured payment provider, or nil
 // when none is set up -- a project with no provider configured still gets
 // a fully working cart/checkout, just no hosted payment redirect.
 func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
-	cfg := a.cfg.Commerce.PayTR
-	if !cfg.Enabled() {
-		return nil
-	}
-	return paytr.Provider{Config: paytr.Config{
-		MerchantID: cfg.MerchantID, MerchantKey: cfg.MerchantKey, MerchantSalt: cfg.MerchantSalt,
-		TestMode: cfg.TestMode, NoInstallment: cfg.NoInstallment, MaxInstallment: cfg.MaxInstallment,
-		OKURL: cfg.OKURL, FailURL: cfg.FailURL,
-	}}
+	return nil
 }
 
 // commerceShippingProvider builds the configured carrier integration, or
@@ -132,10 +117,6 @@ func (a *serveApp) commerceRoutes() []router.Route {
 	handler.ShippingProvider = a.commerceShippingProvider()
 
 	transportRoutes := handler.Routes()
-	if paytrProvider, ok := provider.(paytr.Provider); ok {
-		callbackHandler := paytr.Handler{Service: handler.Service, Provider: paytrProvider, Logger: a.logger, Notifier: handler.Notifier}
-		transportRoutes = append(transportRoutes, callbackHandler.Routes()...)
-	}
 	routes := make([]router.Route, 0, len(transportRoutes))
 	for _, route := range transportRoutes {
 		access := router.Protected

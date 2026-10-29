@@ -1,17 +1,14 @@
 # HydroGo commerce starter
 
 A server-rendered storefront (SvelteKit, `adapter-node`): a product catalog,
-cart, guest checkout and PayTR payment against a HydroGo backend with the
+cart, and guest checkout against a HydroGo backend with the
 `commerce` preset and the `commerce` module enabled. No build step is needed
 when content changes -- every request renders from the live API.
 
 ## Run it
 
 1. Start a HydroGo project with the catalog content types
-   (`content-types/commerce/*.yaml`) and the `commerce` module enabled, with
-   a `commerce.paytr` section in its config if you want real payments (see
-   the root `docs/decisions/0014-commerce-paytr-provider.md`). Point
-   `commerce.paytr.ok_url`/`fail_url` at this site's `/odeme/sonuc`.
+   (`content-types/commerce/*.yaml`) and the `commerce` module enabled.
 2. `cp .env.example .env` and fill in `HYDRO_API_ORIGIN`.
 3. `npm install && npm run dev`.
 
@@ -27,8 +24,8 @@ reverse proxy can be refused.
 sort switcher), `/arama?q=` (search), `/urun/[slug]` (product detail:
 gallery, variant image swap, related products), `/sepet`, `/odeme` (with a
 discount code field and a tax/shipping estimate), `/siparis/[id]` (full
-subtotal/discount/tax/shipping/total receipt), `/odeme/sonuc` (PayTR
-redirect landing), `/para-birimi/[code]` (switches the display currency).
+subtotal/discount/tax/shipping/total receipt), `/odeme/sonuc` (payment
+return landing), `/para-birimi/[code]` (switches the display currency).
 
 ## Tax, shipping, discount codes, currencies
 
@@ -53,10 +50,9 @@ currency.
   HydroGo's cookie server-side): a visitor's cart cookie is proxied straight
   through, verbatim, between the browser and HydroGo, with this SvelteKit
   server only in the middle to attach the CSRF header every write needs.
-- `/odeme/sonuc` is where PayTR's `ok_url`/`fail_url` redirect lands. Per
-  PayTR's own docs that redirect carries no reliable payment status, so the
-  page does nothing but forward to `/siparis/<id>`, which asks HydroGo for
-  the real, server-verified order status.
+- `/odeme/sonuc` is where a payment provider return redirect lands. The
+  page forwards to `/siparis/<id>`, which asks HydroGo for the real,
+  server-verified order status.
 
 ## What this is not
 

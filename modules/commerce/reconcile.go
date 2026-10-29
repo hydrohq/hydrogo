@@ -80,11 +80,9 @@ func (r ReconcileReport) Clean() bool {
 // Reconcile is a read-only consistency sweep over cart/checkout/payment
 // state, meant to run on a schedule (cmd/hydro's own periodic tick,
 // mirroring Worker.ExpireDue) or on demand (`hydro commerce reconcile`).
-// provider is the payment provider to check NotifiedButNotPaid against
-// ("paytr", matching what ConfirmPayment is called with in
-// modules/commerce/providers/paytr/transport.go); empty skips that check,
-// which is the correct, non-alarming result for a project with no payment
-// provider configured at all.
+// provider is the payment provider to check NotifiedButNotPaid against;
+// empty skips that check, which is the correct, non-alarming result for a
+// project with no payment provider configured at all.
 func (s Service) Reconcile(ctx context.Context, db database.Executor, now time.Time, cfg ReconcileConfig, provider string, limit int) (ReconcileReport, error) {
 	if limit <= 0 {
 		limit = 100
