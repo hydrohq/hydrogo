@@ -28,6 +28,7 @@ export type FilterValue = string | Partial<Record<FilterOp, string>>;
 // expand names relation fields whose records come back under "expanded".
 export type ContentQuery = { limit?: number; offset?: number; after?: string; sort?: string; search?: string; locale?: string; expand?: string[]; filter?: Record<string, FilterValue> };
 export type ContentList<T> = { data: T[]; metadata: { limit: number; has_more: boolean; locale?: string; next_cursor?: string } };
+export type ContentEvent<T = Record<string, unknown>> = { action: "create" | "update" | "delete"; type: string; record: T };
 export type HydroGoRequestOptions = { signal?: AbortSignal };
 export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
 
@@ -144,6 +145,85 @@ export class HydroGoClient {
   async getContent<T = Record<string, unknown>>(type: string, id: string, locale?: string, options?: HydroGoRequestOptions): Promise<T> {
     const suffix = locale ? `?locale=${encodeURIComponent(locale)}` : "";
     return this.getData<T>(`/api/v1/content/${encodeURIComponent(type)}/${encodeURIComponent(id)}${suffix}`, options);
+  }
+
+  async createContent<T = Record<string, unknown>>(type: string, data: Partial<T>, token?: string, options?: HydroGoRequestOptions): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await this.request<{ data: T }>(`/api/v1/content/${encodeURIComponent(type)}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(data),
+    }, options);
+    return response.data;
+  }
+
+  async updateContent<T = Record<string, unknown>>(type: string, id: string, data: Partial<T>, token?: string, options?: HydroGoRequestOptions): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await this.request<{ data: T }>(`/api/v1/content/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(data),
+    }, options);
+    return response.data;
+  }
+
+  async deleteContent(type: string, id: string, token?: string, options?: HydroGoRequestOptions): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    await this.request<{ data: { id: string } }>(`/api/v1/content/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers,
+    }, options);
+  }
+
+  subscribeContent<T = Record<string, unknown>>(type: string, callback: (event: ContentEvent<T>) => void, token?: string): () => void {
+    const controller = new AbortController();
+    const url = `${this.origin}/api/v1/content/${encodeURIComponent(type)}/subscribe`;
+    const headers: Record<string, string> = { Accept: "text/event-stream" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    (async () => {
+      try {
+        const response = await this.requestFetch(url, {
+          method: "GET",
+          headers,
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) return;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() ?? "";
+
+          for (const block of lines) {
+            for (const line of block.split("\n")) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const event = JSON.parse(line.slice(6)) as ContentEvent<T>;
+                  callback(event);
+                } catch {
+                  // Ignore keep-alive or non-JSON payloads
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Stream aborted or connection ended
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
   }
 
   // Member methods use only the explicit bearer passed by the host application.

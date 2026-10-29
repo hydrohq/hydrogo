@@ -88,3 +88,34 @@ func TestSSERejectsEditorSystemTopic(t *testing.T) {
 		t.Fatalf("system topic response = %d", rec.Code)
 	}
 }
+
+func TestSubscribeStreamAndClose(t *testing.T) {
+	hub := &Hub{}
+	sub, err := hub.SubscribeStream("tenant-1", []string{"content:messages"})
+	if err != nil {
+		t.Fatalf("SubscribeStream error: %v", err)
+	}
+	defer sub.Close()
+
+	ctx := tenant.WithScope(context.Background(), tenant.Scope{TenantID: "tenant-1", Slug: "t1"})
+	if err := hub.Publish(ctx, Event{Topic: "content:messages", Data: []byte(`{"id":"m1"}`)}); err != nil {
+		t.Fatalf("Publish error: %v", err)
+	}
+
+	select {
+	case ev := <-sub.C:
+		if ev.Topic != "content:messages" {
+			t.Fatalf("unexpected topic: %s", ev.Topic)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("event not received in stream")
+	}
+
+	sub.Close()
+	hub.mu.Lock()
+	count := len(hub.subscribers)
+	hub.mu.Unlock()
+	if count != 0 {
+		t.Fatalf("expected 0 subscribers after close, got %d", count)
+	}
+}

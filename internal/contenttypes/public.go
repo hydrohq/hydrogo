@@ -2,9 +2,11 @@ package contenttypes
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 )
 
 // PublicAPI serves read-only JSON for content types marked `public: true`:
@@ -34,8 +36,17 @@ type PublicAPI struct {
 	RenderRichText func(stored string) string
 	Types          []Definition
 	// TypesFunc optionally supplies the definitions dynamically.
-	TypesFunc func() []Definition
-	Locales   Locales
+	TypesFunc        func() []Definition
+	Locales          Locales
+	Hub              *realtime.Hub
+	ResolvePrincipal func(r *http.Request) Principal
+}
+
+func (p PublicAPI) principal(r *http.Request) Principal {
+	if p.ResolvePrincipal != nil {
+		return p.ResolvePrincipal(r)
+	}
+	return Principal{Anonymous: true}
 }
 
 func (p PublicAPI) types() []Definition {
@@ -74,7 +85,7 @@ func (p PublicAPI) present(typeID, locale string, record collections.Record) map
 
 func (p PublicAPI) definition(id string) (Definition, bool) {
 	for _, definition := range p.types() {
-		if definition.ID == id && definition.Public {
+		if definition.ID == id && (definition.Public || definition.AccessRules != nil) {
 			return definition, true
 		}
 	}
@@ -99,6 +110,19 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		api.WriteError(w, r, http.StatusNotFound, "not found", nil)
 		return
+	}
+	principal := p.principal(r)
+	if definition.AccessRules != nil && definition.AccessRules.List != "" {
+		listRule := definition.AccessRules.List
+		allowed, err := EvaluateRule(listRule, principal, nil, true)
+		if err == nil && !allowed && (listRule == "false" || listRule == "admin" || (principal.Anonymous && (strings.Contains(listRule, "@auth.") || listRule == "member"))) {
+			if principal.Anonymous {
+				api.WriteError(w, r, http.StatusUnauthorized, "authentication required", nil)
+			} else {
+				api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+			}
+			return
+		}
 	}
 	locale, ok := p.publicLocale(r)
 	if !ok {
@@ -129,6 +153,16 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
+	}
+	if definition.AccessRules != nil && definition.AccessRules.List != "" {
+		filtered := make([]collections.Record, 0, len(records))
+		for _, rec := range records {
+			allowed, err := EvaluateRule(definition.AccessRules.List, principal, rec.Data, true)
+			if err == nil && allowed {
+				filtered = append(filtered, rec)
+			}
+		}
+		records = filtered
 	}
 	hasMore := len(records) > limit
 	if hasMore {
@@ -187,6 +221,18 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
+	}
+	principal := p.principal(r)
+	if definition.AccessRules != nil && definition.AccessRules.Read != "" {
+		allowed, err := EvaluateRule(definition.AccessRules.Read, principal, record.Data, true)
+		if err != nil || !allowed {
+			if principal.Anonymous {
+				api.WriteError(w, r, http.StatusUnauthorized, "authentication required", nil)
+			} else {
+				api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+			}
+			return
+		}
 	}
 	item := p.present(typeID, locale, record)
 	expanded, err := p.expansion().load(r.Context(), expand, []collections.Record{record})

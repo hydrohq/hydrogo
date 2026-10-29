@@ -15,6 +15,19 @@
     "title_field": {"type": "string", "description": "Field id shown as the record title."},
     "public": {"type": "boolean", "description": "Serve published records at /api/v1/content/<id>."},
     "drafts": {"type": "boolean", "description": "Records have a draft/published status; the public API returns only published ones."},
+    "realtime": {"type": "boolean", "description": "Enable realtime Pub/Sub subscriptions via SSE (GET /api/v1/content/<id>/subscribe)."},
+    "access_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Row-level access rules evaluated against the principal (@auth.id, @auth.role, @auth.email, etc.) and record fields.",
+      "properties": {
+        "list": {"type": "string", "description": "Expression governing who can list records."},
+        "read": {"type": "string", "description": "Expression governing who can get a single record."},
+        "create": {"type": "string", "description": "Expression governing who can create records via POST /api/v1/content/<id>."},
+        "update": {"type": "string", "description": "Expression governing who can update records via PUT /api/v1/content/<id>/<record-id>."},
+        "delete": {"type": "string", "description": "Expression governing who can delete records via DELETE /api/v1/content/<id>/<record-id>."}
+      }
+    },
     "permissions": {"type": "object", "additionalProperties": false, "description": "Guard this type with its own permissions instead of admin.content.read/write. Admins hold every permission; others get a named one through a per-user override.", "properties": {"read": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}, "write": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}}},
     "access": {"type": "object", "additionalProperties": false, "required": ["owner", "all"], "description": "Row access in the admin API: users without the all permission see and change only records whose owner text field holds their e-mail address; they become the owner of what they create. Public reads are unaffected.", "properties": {"owner": {"type": "string"}, "all": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"}}},
     "hooks": {"type": "array", "maxItems": 10, "description": "Ask a side service (configured under hooks: in the server config) before a change is saved. 2xx allows, 4xx rejects with its message, anything else rejects unless fail_open.", "items": {"type": "object", "additionalProperties": false, "required": ["on", "service"], "properties": {"on": {"enum": ["create", "update", "delete", "transition"]}, "from": {"type": "string"}, "to": {"type": "string"}, "service": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,39}$"}, "fail_open": {"type": "boolean"}}}},
