@@ -186,7 +186,7 @@ func TestConfirmPaymentRejectsAShortAmountAndAcceptsInstallmentInterest(t *testi
 	svc, db := newTestService(t)
 	ctx := context.Background()
 	_, short := placeOne(t, svc, db, "anon-short", "variant-short", 1000, "idem-short")
-	applied, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: "evt-short", OrderID: short.ID, AmountCents: 1})
+	applied, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "mock-provider", EventID: "evt-short", OrderID: short.ID, AmountCents: 1})
 	if applied || !errors.Is(err, commerce.ErrPaymentAmountMismatch) {
 		t.Fatalf("1 kuruş for a 10 TRY order: applied=%v err=%v", applied, err)
 	}
@@ -199,7 +199,7 @@ func TestConfirmPaymentRejectsAShortAmountAndAcceptsInstallmentInterest(t *testi
 	}
 
 	_, interest := placeOne(t, svc, db, "anon-interest", "variant-interest", 1000, "idem-interest")
-	applied, err = svc.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: "evt-interest", OrderID: interest.ID, AmountCents: interest.TotalCents + 150})
+	applied, err = svc.ConfirmPayment(ctx, commerce.Payment{Provider: "mock-provider", EventID: "evt-interest", OrderID: interest.ID, AmountCents: interest.TotalCents + 150})
 	if err != nil || !applied {
 		t.Fatalf("payment with installment interest: applied=%v err=%v", applied, err)
 	}
@@ -212,11 +212,11 @@ func TestAPaymentForAnExpiredOrderIsReportedNotSilentlyDropped(t *testing.T) {
 	if _, err := svc.ExpireOrder(ctx, order.ID); err != nil {
 		t.Fatal(err)
 	}
-	applied, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: "evt-late", OrderID: order.ID, AmountCents: order.TotalCents})
+	applied, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "mock-provider", EventID: "evt-late", OrderID: order.ID, AmountCents: order.TotalCents})
 	if applied || !errors.Is(err, commerce.ErrLatePayment) {
 		t.Fatalf("late payment: applied=%v err=%v, want ErrLatePayment", applied, err)
 	}
-	applied, err = svc.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: "evt-late", OrderID: order.ID, AmountCents: order.TotalCents})
+	applied, err = svc.ConfirmPayment(ctx, commerce.Payment{Provider: "mock-provider", EventID: "evt-late", OrderID: order.ID, AmountCents: order.TotalCents})
 	if applied || err != nil {
 		t.Fatalf("a redelivery of the same late notification must be quiet: applied=%v err=%v", applied, err)
 	}

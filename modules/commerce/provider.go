@@ -3,8 +3,7 @@ package commerce
 import "context"
 
 // PaymentProvider lets checkout start an off-site payment without Service or
-// its transport knowing which provider is in use. modules/commerce/providers
-// implements this per provider (PayTR first); Service never imports a
+// its transport knowing which provider is in use. Service never imports a
 // provider package, keeping checkout orchestration provider-agnostic.
 type PaymentProvider interface {
 	StartPayment(ctx context.Context, order Order, items []OrderItem) (PaymentStart, error)
@@ -21,10 +20,10 @@ type PaymentStart struct {
 
 type clientIPKey struct{}
 
-// WithClientIP attaches the shopper's IP to ctx for a provider that needs it
-// (PayTR's token request does). It is request-scoped transport metadata, not
-// order data, so it travels on ctx rather than as a field on Order -- the
-// commerce schema does not need a column that only one provider cares about.
+// WithClientIP attaches the shopper's IP to ctx for a provider that needs it.
+// It is request-scoped transport metadata, not order data, so it travels on
+// ctx rather than as a field on Order -- the commerce schema does not need a
+// column that only one provider cares about.
 func WithClientIP(ctx context.Context, ip string) context.Context {
 	return context.WithValue(ctx, clientIPKey{}, ip)
 }

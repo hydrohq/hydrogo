@@ -31,7 +31,7 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
   scheduled news publishing, and audit log.
 - **Commerce:** an opt-in module -- catalog (as content types), cart,
-  checkout, orders, PayTR payments, Yurtiçi Kargo shipping. See
+  checkout, orders, Yurtiçi Kargo shipping. See
   [docs/commerce.md](docs/commerce.md).
 - **Multi-tenancy:** an opt-in, cross-cutting feature -- serve several
   customers from one shared database instead of one deployment per

@@ -30,7 +30,7 @@ func commerceCommand(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("commerce reconcile", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
-	provider := flags.String("provider", "", "Payment provider to check for notified-but-unpaid orders, e.g. paytr; empty skips this check")
+	provider := flags.String("provider", "", "Payment provider to check for notified-but-unpaid orders; empty skips this check")
 	hold := flags.Duration("hold", 30*time.Minute, "Payment hold window a pending order may sit in before it is stale (mirror the running server's commerce worker hold)")
 	staleAfter := flags.Duration("stale-after", 15*time.Minute, "Grace period past --hold before a still-pending order is flagged")
 	limit := flags.Int("limit", 100, "Maximum rows returned per check")

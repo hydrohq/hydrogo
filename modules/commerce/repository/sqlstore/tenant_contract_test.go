@@ -96,17 +96,17 @@ func runTenantScopedStoreContract(t *testing.T, db database.Executor, dialect da
 		if _, _, err := store.CreateOrder(a, db, order, nil); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := store.RecordPaymentNotification(a, db, "paytr", order.ID); err != nil {
+		if _, err := store.RecordPaymentNotification(a, db, "mock-provider", order.ID); err != nil {
 			t.Fatal(err)
 		}
-		notified, err := store.ListNotifiedOrdersNotPaid(a, db, "paytr", 10)
+		notified, err := store.ListNotifiedOrdersNotPaid(a, db, "mock-provider", 10)
 		if err != nil {
 			t.Fatalf("ListNotifiedOrdersNotPaid under tenant scope: %v", err)
 		}
 		if len(notified) != 1 || notified[0].ID != order.ID {
 			t.Fatalf("expected the notified-but-pending order, got %+v", notified)
 		}
-		other, err := store.ListNotifiedOrdersNotPaid(b, db, "paytr", 10)
+		other, err := store.ListNotifiedOrdersNotPaid(b, db, "mock-provider", 10)
 		if err != nil {
 			t.Fatal(err)
 		}

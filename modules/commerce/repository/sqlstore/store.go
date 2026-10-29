@@ -401,8 +401,8 @@ func (s Store) ListItems(ctx context.Context, db database.Executor, cartID strin
 
 // RecordPaymentNotification inserts a (provider, provider_event_id) dedup
 // row. It returns false (not an error) when that exact event was already
-// recorded, since a provider redelivering the same notification is normal,
-// documented behaviour (see PayTR's own docs), not a failure.
+// recorded, since a provider redelivering the same notification is normal
+// documented behaviour (e.g. webhook retries), not a failure.
 func (s Store) RecordPaymentNotification(ctx context.Context, db database.Executor, provider, eventID string) (bool, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return false, err
