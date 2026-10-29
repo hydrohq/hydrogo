@@ -22,7 +22,7 @@ func TestReconcileCleanWhenNothingWrong(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "paytr", 100)
+	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "mock-provider", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,11 +79,11 @@ func TestReconcileFlagsNotifiedButNotPaid(t *testing.T) {
 	// catch: the provider's callback landed (so a naive "did the provider
 	// ever call back" check would look fine), but the order's own
 	// payment_status transition never actually applied.
-	if _, err := svc.Repository.RecordPaymentNotification(ctx, db, "paytr", order.ID); err != nil {
+	if _, err := svc.Repository.RecordPaymentNotification(ctx, db, "mock-provider", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
-	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "paytr", 100)
+	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "mock-provider", 100)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,9 +18,7 @@ import (
 // UpdatePaymentStatus but didn't (for example: the order was already moved
 // to "failed" by Worker.ExpireDue's own guarded transition before a
 // delayed webhook arrived, so the pending->paid UPDATE found no row to
-// apply to). For every provider this module ships today (paytr), the
-// notification's provider_event_id IS the order id -- see
-// modules/commerce/providers/paytr/transport.go's own doc comment -- so
+// apply to). The notification's provider_event_id is the order id, so
 // joining directly on id works without a separate order-id column on the
 // notification itself.
 func (s Store) ListNotifiedOrdersNotPaid(ctx context.Context, db database.Executor, provider string, limit int) ([]commerce.Order, error) {

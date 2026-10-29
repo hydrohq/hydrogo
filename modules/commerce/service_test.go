@@ -156,7 +156,7 @@ func TestConfirmPaymentCommitsReservationExactlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	applied, err := pay(svc, ctx, "paytr", "evt-1", order.ID)
+	applied, err := pay(svc, ctx, "mock-provider", "evt-1", order.ID)
 	if err != nil || !applied {
 		t.Fatalf("applied=%v err=%v", applied, err)
 	}
@@ -169,7 +169,7 @@ func TestConfirmPaymentCommitsReservationExactlyOnce(t *testing.T) {
 	}
 
 	// A redelivered webhook for the same event must not commit twice.
-	appliedAgain, err := pay(svc, ctx, "paytr", "evt-1", order.ID)
+	appliedAgain, err := pay(svc, ctx, "mock-provider", "evt-1", order.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestExpireOrderDoesNotUndoACompletedPayment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pay(svc, ctx, "paytr", "evt-paid-1", order.ID); err != nil {
+	if _, err := pay(svc, ctx, "mock-provider", "evt-paid-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -318,11 +318,11 @@ func TestConfirmPaymentEmitsOrderPaidOnlyWhenTheTransitionApplies(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	if _, err := pay(svc, ctx, "paytr", "evt-event-1", order.ID); err != nil {
+	if _, err := pay(svc, ctx, "mock-provider", "evt-event-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 	// A redelivered webhook must not emit a second order.paid event.
-	if _, err := pay(svc, ctx, "paytr", "evt-event-1", order.ID); err != nil {
+	if _, err := pay(svc, ctx, "mock-provider", "evt-event-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -440,7 +440,7 @@ func (f *fakeShippingProvider) CreateShipment(ctx context.Context, order commerc
 
 func payOrder(t *testing.T, svc commerce.Service, db database.Executor, orderID string) {
 	t.Helper()
-	if _, err := pay(svc, context.Background(), "paytr", "evt-"+orderID, orderID); err != nil {
+	if _, err := pay(svc, context.Background(), "mock-provider", "evt-"+orderID, orderID); err != nil {
 		t.Fatal(err)
 	}
 }

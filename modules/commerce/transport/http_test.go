@@ -548,7 +548,7 @@ func TestStartOrderPaymentRejectsAnAlreadyPaidOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pay(h.Service, ctx, "paytr", "evt-1", order.ID); err != nil {
+	if _, err := pay(h.Service, ctx, "mock-provider", "evt-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -745,7 +745,7 @@ func TestCreateShipmentEndpointRecordsTracking(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pay(h.Service, ctx, "paytr", "evt-ship-1", order.ID); err != nil {
+	if _, err := pay(h.Service, ctx, "mock-provider", "evt-ship-1", order.ID); err != nil {
 		t.Fatal(err)
 	}
 

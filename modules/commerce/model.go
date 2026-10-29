@@ -157,10 +157,10 @@ type OrderItem struct {
 	TotalCents     int64  `json:"total_cents"`
 }
 
-// PaymentCharge is one attempt to pay for an order through a provider
-// (PayTR, in Phase 3); an order can have more than one if a first attempt
-// failed. PaymentNotification (not modeled as a Go struct -- it has no
-// behaviour beyond existing) is the dedup record for provider callbacks.
+// PaymentCharge is one attempt to pay for an order through a provider;
+// an order can have more than one if a first attempt failed. PaymentNotification
+// (not modeled as a Go struct -- it has no behaviour beyond existing) is the
+// dedup record for provider callbacks.
 type PaymentCharge struct {
 	ID                string        `json:"id"`
 	OrderID           string        `json:"order_id"`

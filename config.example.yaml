@@ -98,22 +98,6 @@ limits:
 # functional default: cart and checkout work with no payment provider,
 # no carrier, no tax, no shipping fee and TRY as the only currency.
 commerce:
-  paytr:
-    # merchant_key/merchant_salt are secrets: set them only in a copy of
-    # this file that is untracked/protected (not committed), the same
-    # way database.dsn above is handled. There is currently no HYDRO_*
-    # environment variable override for these three fields -- unlike
-    # database.dsn or http.public_origin, which do have one (see
-    # internal/config/load.go for the full list that does). merchant_id
-    # alone turns this on; validate then requires the other two.
-    merchant_id: ""
-    merchant_key: ""
-    merchant_salt: ""
-    test_mode: false
-    no_installment: false
-    max_installment: 0
-    ok_url: ""
-    fail_url: ""
   tax:
     # e.g. 0.20 for 20% KDV. 0 (the default) adds no tax.
     rate: 0
