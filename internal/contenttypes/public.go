@@ -59,7 +59,8 @@ func (p PublicAPI) types() []Definition {
 // publicPage is the list metadata: the page plus the locale served.
 type publicPage struct {
 	api.PaginationMeta
-	Locale string `json:"locale,omitempty"`
+	Locale     string `json:"locale,omitempty"`
+	Aggregates any    `json:"aggregates,omitempty"`
 }
 
 func (p PublicAPI) present(typeID, locale string, record collections.Record) map[string]any {
@@ -134,6 +135,11 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
 		return
 	}
+	aggQuery, hasAgg, err := collections.ParseAggregateQuery(r.URL.Query())
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
+		return
+	}
 	expand, err := p.expansion().parse(r.URL.Query(), definition)
 	if err != nil {
 		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
@@ -159,7 +165,17 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if limit < 100 {
 		query.Limit = limit + 1
 	}
-	records, err := p.Service.QueryRecords(r.Context(), typeID, query)
+	schema, err := p.Service.GetSchema(r.Context(), typeID)
+	if err != nil {
+		writeServiceError(w, r, err, collections.Schema{})
+		return
+	}
+	checkedQuery, err := schema.ValidateQuery(query)
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
+		return
+	}
+	records, err := p.Service.QueryRecords(r.Context(), typeID, checkedQuery)
 	if err == nil {
 		err = p.translate(r, definition, locale, records)
 	}
@@ -190,6 +206,22 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	page := api.PaginationMeta{Limit: limit, Offset: query.Offset, HasMore: hasMore}
 	if hasMore && len(records) > 0 {
 		page.NextCursor = collections.NextCursor(query, records[len(records)-1])
+	}
+	if hasAgg {
+		aggQuery.Where = checkedQuery.Where
+		aggQuery.AnyOf = checkedQuery.AnyOf
+		aggQuery.AccessRule = checkedQuery.AccessRule
+		aggQuery.AuthContext = checkedQuery.AuthContext
+		aggregates, err := p.Service.AggregateRecords(r.Context(), typeID, aggQuery)
+		if err != nil {
+			writeServiceError(w, r, err, collections.Schema{})
+			return
+		}
+		api.WriteData(w, http.StatusOK, map[string]any{
+			"items":      items,
+			"aggregates": aggregates,
+		}, publicPage{PaginationMeta: page, Locale: locale, Aggregates: aggregates})
+		return
 	}
 	api.WriteData(w, http.StatusOK, items, publicPage{PaginationMeta: page, Locale: locale})
 }
