@@ -1,18 +1,16 @@
-// Package providers_test chains checkout, payment confirmation and Yurtiçi
-// Kargo shipment creation through the real commerce.Service pipeline.
+// Package providers_test chains checkout, payment confirmation and carrier
+// shipment creation through the real commerce.Service pipeline.
 package providers_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/yurticikargo"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 )
 
@@ -22,6 +20,23 @@ type mockPaymentProvider struct {
 
 func (m mockPaymentProvider) StartPayment(ctx context.Context, order commerce.Order, items []commerce.OrderItem) (commerce.PaymentStart, error) {
 	return commerce.PaymentStart{Token: m.token}, nil
+}
+
+type mockShippingProvider struct {
+	carrier string
+	refuse  bool
+}
+
+func (m mockShippingProvider) Name() string { return m.carrier }
+
+func (m mockShippingProvider) CreateShipment(ctx context.Context, order commerce.Order, items []commerce.OrderItem) (commerce.ShipmentResult, error) {
+	if m.refuse {
+		return commerce.ShipmentResult{}, errors.New("carrier refused shipment")
+	}
+	return commerce.ShipmentResult{
+		TrackingNumber: order.ID,
+		TrackingURL:    "https://tracking.example.test/?code=" + order.ID,
+	}, nil
 }
 
 func TestCheckoutThroughPaymentToShipmentAgainstMockPaymentAndYurticiKargo(t *testing.T) {
@@ -89,21 +104,9 @@ func TestCheckoutThroughPaymentToShipmentAgainstMockPaymentAndYurticiKargo(t *te
 		t.Fatalf("payment_status after callback = %q, want paid", paid.PaymentStatus)
 	}
 
-	// 3. Hand the now-paid order to a mock Yurtiçi Kargo createShipment
-	// endpoint and confirm the order comes out shipped with tracking info.
-	kargoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
-		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-  <soapenv:Body>
-    <createShipmentResponse><outFlag>0</outFlag><outResult>Basarili</outResult><jobId>job-pipeline-1</jobId></createShipmentResponse>
-  </soapenv:Body>
-</soapenv:Envelope>`))
-	}))
-	defer kargoServer.Close()
-	shippingProvider := yurticikargo.Provider{Config: yurticikargo.Config{
-		WSUserName: "ws-user", WSPassword: "ws-pass", BaseURL: kargoServer.URL,
-	}}
+	// 3. Hand the now-paid order to a carrier shippingProvider
+	// and confirm the order comes out shipped with tracking info.
+	shippingProvider := mockShippingProvider{carrier: "test-carrier"}
 	shipped, err := svc.CreateShipment(ctx, shippingProvider, order.ID)
 	if err != nil {
 		t.Fatalf("create shipment: %v", err)
@@ -111,7 +114,7 @@ func TestCheckoutThroughPaymentToShipmentAgainstMockPaymentAndYurticiKargo(t *te
 	if shipped.FulfillmentStatus != commerce.FulfillmentShipped {
 		t.Fatalf("fulfillment_status = %q, want shipped", shipped.FulfillmentStatus)
 	}
-	if shipped.ShippingCarrier != "yurtici-kargo" || shipped.ShippingTrackingNumber != order.ID {
+	if shipped.ShippingCarrier != "test-carrier" || shipped.ShippingTrackingNumber != order.ID {
 		t.Fatalf("carrier/tracking = %q/%q", shipped.ShippingCarrier, shipped.ShippingTrackingNumber)
 	}
 }
@@ -157,19 +160,7 @@ func TestCreateShipmentReleasesTheClaimWhenTheCarrierRefuses(t *testing.T) {
 		t.Fatalf("confirm payment: %v", err)
 	}
 
-	kargoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
-		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-  <soapenv:Body>
-    <createShipmentResponse><outFlag>1</outFlag><outResult>Alici adresi gecersiz</outResult></createShipmentResponse>
-  </soapenv:Body>
-</soapenv:Envelope>`))
-	}))
-	defer kargoServer.Close()
-	shippingProvider := yurticikargo.Provider{Config: yurticikargo.Config{
-		WSUserName: "ws-user", WSPassword: "ws-pass", BaseURL: kargoServer.URL,
-	}}
+	shippingProvider := mockShippingProvider{carrier: "test-carrier", refuse: true}
 	if _, err := svc.CreateShipment(ctx, shippingProvider, order.ID); err == nil {
 		t.Fatal("expected an error when the carrier refuses the shipment")
 	}
@@ -182,21 +173,9 @@ func TestCreateShipmentReleasesTheClaimWhenTheCarrierRefuses(t *testing.T) {
 		t.Fatalf("fulfillment_status after a carrier refusal = %q, want unfulfilled (claim released, retryable)", after.FulfillmentStatus)
 	}
 
-	// Retrying against a server that now accepts must succeed -- proves the
+	// Retrying against a provider that now accepts must succeed -- proves the
 	// released claim, not just the error, is correct.
-	kargoServer2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
-		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-  <soapenv:Body>
-    <createShipmentResponse><outFlag>0</outFlag><outResult>Basarili</outResult></createShipmentResponse>
-  </soapenv:Body>
-</soapenv:Envelope>`))
-	}))
-	defer kargoServer2.Close()
-	retryProvider := yurticikargo.Provider{Config: yurticikargo.Config{
-		WSUserName: "ws-user", WSPassword: "ws-pass", BaseURL: kargoServer2.URL,
-	}}
+	retryProvider := mockShippingProvider{carrier: "test-carrier", refuse: false}
 	if _, err := svc.CreateShipment(ctx, retryProvider, order.ID); err != nil {
 		t.Fatalf("retry after a released claim: %v", err)
 	}

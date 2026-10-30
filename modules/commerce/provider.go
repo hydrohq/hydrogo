@@ -9,6 +9,14 @@ type PaymentProvider interface {
 	StartPayment(ctx context.Context, order Order, items []OrderItem) (PaymentStart, error)
 }
 
+// AdvancedPaymentProvider allows optional full authorization/capture/refund lifecycle.
+type AdvancedPaymentProvider interface {
+	PaymentProvider
+	Authorize(ctx context.Context, order Order, amountCents int64) error
+	Capture(ctx context.Context, order Order, amountCents int64) error
+	Refund(ctx context.Context, order Order, amountCents int64) error
+}
+
 // PaymentStart is what a provider returns once it has accepted an order for
 // payment. RedirectURL sends the shopper to a hosted payment page; Token is
 // an opaque value a frontend can use to render an embedded form instead.

@@ -16,17 +16,34 @@ import (
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce/providers/yurticikargo"
 	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
 	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
 	"github.com/ardaozyildirim/hydrogo/modules/members"
 )
+
+var (
+	registeredShippingProvider commerce.ShippingProvider
+	registeredPaymentProvider  commerce.PaymentProvider
+)
+
+// RegisterShippingProvider registers a custom shipping carrier implementation.
+func RegisterShippingProvider(p commerce.ShippingProvider) {
+	registeredShippingProvider = p
+}
+
+// RegisterPaymentProvider registers a custom payment gateway implementation.
+func RegisterPaymentProvider(p commerce.PaymentProvider) {
+	registeredPaymentProvider = p
+}
 
 // commercePaymentProviderName names the configured payment provider for
 // Service.Reconcile's NotifiedButNotPaid check -- "" when none is
 // configured, which correctly skips that check rather than flagging every
 // unconfirmed order as an anomaly.
 func (a *serveApp) commercePaymentProviderName() string {
+	if registeredPaymentProvider != nil {
+		return "custom"
+	}
 	return ""
 }
 
@@ -42,21 +59,14 @@ func commerceCSRFExemptPaths(modules map[string]bool, cfg config.Commerce) []str
 // when none is set up -- a project with no provider configured still gets
 // a fully working cart/checkout, just no hosted payment redirect.
 func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
-	return nil
+	return registeredPaymentProvider
 }
 
 // commerceShippingProvider builds the configured carrier integration, or
 // nil when none is set up -- an order can always be paid and fulfilled by
-// hand (no admin shipment-creation endpoint call) without one. Yurtiçi
-// Kargo is the only carrier wired in today; ShippingProvider's job is to
-// let a second one (Aras, MNG, ...) be added here later as its own
-// provider package, without touching Service or transport.
+// hand (no admin shipment-creation endpoint call) without one.
 func (a *serveApp) commerceShippingProvider() commerce.ShippingProvider {
-	cfg := a.cfg.Commerce.YurticiKargo
-	if !cfg.Enabled() {
-		return nil
-	}
-	return yurticikargo.Provider{Config: yurticikargo.Config{WSUserName: cfg.WSUserName, WSPassword: cfg.WSPassword, BaseURL: cfg.ResolvedEndpoint()}}
+	return registeredShippingProvider
 }
 
 // commerceNotifier builds the configured operational chat alert sender, or
