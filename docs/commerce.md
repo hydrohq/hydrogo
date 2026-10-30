@@ -63,26 +63,51 @@ stock-reservation drift. The same sweep also runs in the background every
 five minutes and logs a warning when a report is not clean. See
 `docs/decisions/0018-commerce-reconciliation.md`.
 
+## Provider Interfaces & Decoupled Architecture
+
+In accordance with core architectural guidelines (no customer-specific or domestic courier/gateway implementations in core binary), payment and shipping carriers are decoupled into clean Go interfaces:
+
+### `PaymentProvider`
+```go
+type PaymentProvider interface {
+    StartPayment(ctx context.Context, order Order, items []OrderItem) (PaymentStart, error)
+}
+```
+Extended lifecycles (authorize, capture, refund) can optionally implement `AdvancedPaymentProvider`.
+
+### `ShippingProvider`
+```go
+type ShippingProvider interface {
+    Name() string
+    CreateShipment(ctx context.Context, order Order, items []OrderItem) (ShipmentResult, error)
+}
+```
+Carriers supporting tracking and cancellation can optionally implement `CarrierAdapter`.
+
+### Registering External Providers
+Operators can register custom provider implementations during application startup or in starter packages:
+```go
+import (
+    "github.com/ardaozyildirim/hydrogo/cmd/hydro"
+    "github.com/ardaozyildirim/hydrogo/examples/commerce-starter/extensions/yurticikargo"
+)
+
+func init() {
+    hydro.RegisterShippingProvider(yurticikargo.Provider{
+        Config: yurticikargo.Config{
+            WSUserName: os.Getenv("YURTICI_USER"),
+            WSPassword: os.Getenv("YURTICI_PASS"),
+        },
+    })
+}
+```
+
 ## Configuration
 
-See the `commerce:` section of `config.example.yaml` for the full set of
-keys (tax, shipping, currencies, Yurtiçi Kargo) and
-`notifications.telegram` for order/reconciliation alerts. Everything under
-`commerce:` is optional -- with it empty, cart and checkout still work with
-no payment provider, no carrier, no tax, no shipping fee and TRY as the
-only currency. Yurtiçi Kargo/Telegram credentials are secrets with no
-`HYDRO_*` environment variable override; set them only in a protected,
-untracked copy of your config file.
+See the `commerce:` section of `config.example.yaml` for optional keys (tax, shipping fees, currencies) and `notifications.telegram` for order/reconciliation alerts. Everything under `commerce:` is optional -- with it empty, cart and checkout still work with no payment provider, no carrier, no tax, no shipping fee and TRY/USD/EUR as the configured currency.
 
-Yurtiçi Kargo is structurally complete against published documentation
-but has never been exercised against the real service (no sandbox/merchant
-account available while building it) -- see
-`docs/decisions/0020-commerce-shipping-provider.md` for the specifics to
-verify before relying on it in production.
+Specific regional integrations (such as Yurtiçi Kargo) reside in `examples/commerce-starter/extensions/yurticikargo` as decoupled extensions.
 
 ## Starter
 
-`examples/commerce-starter` is a SvelteKit storefront (catalog, cart, guest
-and member checkout, order confirmation, member login/account/order
-history) built against this API. `hydro new --starter commerce` copies it
-into a project's `frontend/`.
+`examples/commerce-starter` is a SvelteKit storefront (catalog, cart, guest and member checkout, order confirmation, member login/account/order history) built against this API. `hydro new --starter commerce` copies it into a project's `frontend/`.

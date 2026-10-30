@@ -54,6 +54,31 @@ currency.
   page forwards to `/siparis/<id>`, which asks HydroGo for the real,
   server-verified order status.
 
+## Custom Carrier & Payment Extensions
+
+HydroGo core binary does not hardcode domestic carrier or payment gateway implementations. Storefront projects can register modular provider implementations located in `extensions/`:
+
+- **Yurtiçi Kargo**: `extensions/yurticikargo` implements `commerce.ShippingProvider` via SOAP WebServices.
+- **Custom Registration**:
+  ```go
+  package main
+
+  import (
+      "os"
+      "github.com/ardaozyildirim/hydrogo/cmd/hydro"
+      "github.com/ardaozyildirim/hydrogo/examples/commerce-starter/extensions/yurticikargo"
+  )
+
+  func init() {
+      hydro.RegisterShippingProvider(yurticikargo.Provider{
+          Config: yurticikargo.Config{
+              WSUserName: os.Getenv("YURTICI_USER"),
+              WSPassword: os.Getenv("YURTICI_PASS"),
+          },
+      })
+  }
+  ```
+
 ## What this is not
 
 Not a production storefront: no real multi-currency settlement (display
