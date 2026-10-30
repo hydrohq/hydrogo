@@ -234,7 +234,7 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	}
 	db.SetMaxOpenConns(options.MaxOpenConns)
 	db.SetMaxIdleConns(options.MaxIdleConns)
-	if err := db.PingContext(ctx); err != nil {
+	if err := pingWithRetry(ctx, db, dialect); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -338,4 +338,23 @@ func applySQLiteProfile(query url.Values, profile string) {
 	default:
 		// OpenWithOptions validates profiles before reaching this helper.
 	}
+}
+
+func pingWithRetry(ctx context.Context, db *sql.DB, dialect Dialect) error {
+	var err error
+	for attempt := 0; attempt < 20; attempt++ {
+		err = db.PingContext(ctx)
+		if err == nil {
+			return nil
+		}
+		if dialect != SQLite || (!strings.Contains(err.Error(), "locked") && !strings.Contains(err.Error(), "busy")) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	return err
 }

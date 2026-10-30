@@ -32,6 +32,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/server"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/migrations"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
@@ -97,6 +98,27 @@ func (a *serveApp) openDatabase() error {
 		}
 	}
 	a.transactioner = database.NewTenantTransactor(db, cfg.Database.Dialect, a.requireTenantScope)
+	a.tenantGovernor = tenant.NewGovernor(db, string(cfg.Database.Dialect))
+	if a.tenantResolver != nil {
+		a.tenantResolver.SetFallback(func(resolveCtx context.Context, host string) (tenant.Scope, bool) {
+			return tenant.ResolveTenantByDomain(resolveCtx, db, string(cfg.Database.Dialect), host)
+		}, 30*time.Second)
+		if govs, govErr := tenant.ListGovernances(ctx, db, string(cfg.Database.Dialect)); govErr == nil {
+			for _, g := range govs {
+				if g.LifecycleState == tenant.LifecycleArchived {
+					continue
+				}
+				if scope, scopeErr := tenant.NewScope(g.TenantID, g.TenantID); scopeErr == nil {
+					if g.Subdomain != "" {
+						a.tenantResolver.SetHost(g.Subdomain, scope)
+					}
+					if g.CustomDomain != "" {
+						a.tenantResolver.SetHost(g.CustomDomain, scope)
+					}
+				}
+			}
+		}
+	}
 	ipBlocklist := security.NewIPBlocklist(4096)
 	banStore := securitystore.BanStore{Dialect: cfg.Database.Dialect}
 	if err := refreshIPBlocklist(ctx, db, banStore, ipBlocklist); err != nil {

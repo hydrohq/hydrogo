@@ -59,6 +59,7 @@ type Config struct {
 	PublicOrigin               string
 	PublicAPIOrigins           []string
 	TenantResolver             *tenant.HostResolver
+	TenantGovernor             *tenant.Governor
 	TenantAdmission            *security.TenantAdmission
 	DistributedTenantAdmission *security.RedisTenantAdmission
 	RealtimeHub                *realtime.Hub
@@ -237,6 +238,10 @@ func NewHandler(config Config) http.Handler {
 	// It is wrapped before RequestID below so the request correlation ID is
 	// available as a bounded trace attribute.
 	handler = observability.TracingMiddleware(handler)
+
+	if config.TenantGovernor != nil {
+		handler = config.TenantGovernor.Middleware(handler)
+	}
 
 	// Generate a fresh correlation identifier before security and auth middleware.
 	handler = security.RequestIDMiddleware(handler)

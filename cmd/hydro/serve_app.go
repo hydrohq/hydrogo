@@ -68,6 +68,7 @@ type serveApp struct {
 	workers sync.WaitGroup
 
 	tenantResolver     *tenant.HostResolver
+	tenantGovernor     *tenant.Governor
 	tenantScopes       []tenant.Scope
 	requireTenantScope bool
 	modules            map[string]bool

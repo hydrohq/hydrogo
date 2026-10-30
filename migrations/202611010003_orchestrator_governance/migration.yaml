@@ -1,0 +1,28 @@
+id: "202611010003_orchestrator_governance"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "87901800ed03bbe16cc41e50af9cc87cb8431f00a3ca715fdf2aee577e1c46f5"
+  postgres: "4f0b5c7a9fcfc351801b80d60c26f037ceeebddc3cfbeecfee1e2fe875ec1c3c"
+  mysql: "914ea11fc82b6cb83a2429af73e3f6b0fdbfe867ee1ff2af33d59b14f4d153aa"
+dependencies:
+  - "202609210001_tenant_registry_and_bootstrap"
+schema:
+  readable_epoch: 7
+  writable_epoch: 7
+preconditions:
+  - "202609210001_tenant_registry_and_bootstrap is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "One governance row per provisioned tenant"
+compatibility: "Adds platform-level tenant_governance table for subscription, quota, domain, and AI metering controls."
+smoke:
+  - "Orchestrator governance rows persist per-tenant quotas, lifecycle state, and AI metering."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."
