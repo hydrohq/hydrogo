@@ -1,6 +1,7 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -22,17 +23,21 @@ import (
 )
 
 var (
-	ErrUploaderRequired    = errors.New("uploader is required")
-	ErrUploaderUnavailable = errors.New("uploader is unavailable")
-	ErrFileTooLarge        = errors.New("file exceeds maximum allowed size")
-	ErrDisallowedMimeType  = errors.New("disallowed file mime type")
-	ErrInvalidImageData    = errors.New("corrupt or invalid image payload")
-	ErrImageTooLarge       = errors.New("image dimensions exceed maximum allowed pixels")
-	ErrInvalidVisibility   = errors.New("invalid media visibility")
-	ErrAssetState          = errors.New("invalid media asset state")
+	ErrUploaderRequired        = errors.New("uploader is required")
+	ErrUploaderUnavailable     = errors.New("uploader is unavailable")
+	ErrFileTooLarge            = errors.New("file exceeds maximum allowed size")
+	ErrDisallowedMimeType      = errors.New("disallowed file mime type")
+	ErrInvalidImageData        = errors.New("corrupt or invalid image payload")
+	ErrImageTooLarge           = errors.New("image dimensions exceed maximum allowed pixels")
+	ErrImageDimensionsExceeded = ErrImageTooLarge
+	ErrInvalidVisibility       = errors.New("invalid media visibility")
+	ErrAssetState              = errors.New("invalid media asset state")
 )
 
 const (
+	MaxImageWidth        = 8192
+	MaxImageHeight       = 8192
+	MaxImagePixels       = 40_000_000
 	VisibilityPrivate    = "private"
 	VisibilityPublic     = "public"
 	maxUploadConcurrency = 1024
@@ -195,18 +200,30 @@ func (u *Uploader) saveContext(ctx context.Context, r io.Reader, originalFilenam
 		detectedMime = strings.TrimSpace(detectedMime[:idx])
 	}
 
-	ext, allowed := AllowedMimeTypes[detectedMime]
-	if strings.EqualFold(path.Ext(originalFilename), ".svg") {
-		detectedMime, ext, allowed = "image/svg+xml", ".svg", true
+	if strings.EqualFold(path.Ext(originalFilename), ".svg") && ValidateMagicBytes("image/svg+xml", header) {
+		detectedMime = "image/svg+xml"
 	}
+
+	var ext string
 	document := isDocumentFilename(originalFilename)
 	if document {
 		detectedMime = ContentTypeForDocument(originalFilename)
 		ext = path.Ext(strings.ToLower(originalFilename))
-		allowed = true
-	}
-	if !allowed {
-		return nil, fmt.Errorf("%w: %s", ErrDisallowedMimeType, detectedMime)
+		if err := ValidateDocument(originalFilename, header, maxBytes); err != nil {
+			return nil, ErrInvalidDocument
+		}
+	} else {
+		targetExt, allowed := AllowedMimeTypes[detectedMime]
+		if !allowed {
+			return nil, fmt.Errorf("%w: %s", ErrDisallowedMimeType, detectedMime)
+		}
+		if !ValidateMagicBytes(detectedMime, header) {
+			return nil, fmt.Errorf("%w: magic byte signature mismatch for %s", ErrDisallowedMimeType, detectedMime)
+		}
+		if !matchesExtension(detectedMime, originalFilename) {
+			return nil, fmt.Errorf("%w: extension %s does not match mime %s", ErrDisallowedMimeType, path.Ext(originalFilename), detectedMime)
+		}
+		ext = targetExt
 	}
 
 	// 3. Write to a temporary file while hashing SHA256
@@ -431,10 +448,61 @@ func validateImageDimensions(width, height int, maxPixels int64) error {
 	if width <= 0 || height <= 0 {
 		return ErrInvalidImageData
 	}
-	if maxPixels <= 0 || int64(width) > maxPixels/int64(height) {
-		return ErrImageTooLarge
+	if width > MaxImageWidth || height > MaxImageHeight {
+		return ErrImageDimensionsExceeded
+	}
+	if maxPixels <= 0 {
+		maxPixels = MaxImagePixels
+	}
+	if int64(width) > maxPixels/int64(height) {
+		return ErrImageDimensionsExceeded
 	}
 	return nil
+}
+
+// ValidateMagicBytes verifies file signatures using authoritative magic bytes.
+func ValidateMagicBytes(mimeType string, data []byte) bool {
+	switch mimeType {
+	case "image/jpeg":
+		return len(data) >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF
+	case "image/png":
+		return len(data) >= 8 && bytes.Equal(data[:8], []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})
+	case "image/webp":
+		return len(data) >= 12 && bytes.Equal(data[:4], []byte("RIFF")) && bytes.Equal(data[8:12], []byte("WEBP"))
+	case "image/gif":
+		return len(data) >= 6 && (bytes.Equal(data[:6], []byte("GIF87a")) || bytes.Equal(data[:6], []byte("GIF89a")))
+	case "image/svg+xml":
+		trimmed := bytes.TrimSpace(data)
+		return bytes.HasPrefix(trimmed, []byte("<?xml")) || bytes.HasPrefix(trimmed, []byte("<svg"))
+	case "video/mp4", "video/quicktime":
+		return len(data) >= 8 && (bytes.Equal(data[4:8], []byte("ftyp")) || bytes.Equal(data[4:8], []byte("moov")))
+	case "video/webm":
+		return len(data) >= 4 && bytes.Equal(data[:4], []byte{0x1A, 0x45, 0xDF, 0xA3})
+	}
+	return false
+}
+
+func matchesExtension(mimeType, filename string) bool {
+	ext := strings.ToLower(path.Ext(filename))
+	switch mimeType {
+	case "image/jpeg":
+		return ext == ".jpg" || ext == ".jpeg"
+	case "image/png":
+		return ext == ".png"
+	case "image/webp":
+		return ext == ".webp"
+	case "image/gif":
+		return ext == ".gif"
+	case "image/svg+xml":
+		return ext == ".svg"
+	case "video/mp4":
+		return ext == ".mp4"
+	case "video/webm":
+		return ext == ".webm"
+	case "video/quicktime":
+		return ext == ".mov"
+	}
+	return false
 }
 
 func fileSHA256(path string) (string, error) {
