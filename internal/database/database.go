@@ -27,6 +27,7 @@ type OpenOptions struct {
 	MaxOpenConns  int
 	MaxIdleConns  int
 	SQLiteProfile string
+	ReadOnly      bool
 }
 
 const (
@@ -49,7 +50,7 @@ type QueryExecutor interface {
 }
 
 type Transactor struct {
-	db                 *sql.DB
+	db                 DB
 	dialect            Dialect
 	requireTenantScope bool
 }
@@ -82,7 +83,7 @@ func RequireExecutor(executor Executor) error {
 	return nil
 }
 
-func NewTransactor(db *sql.DB) Transactor {
+func NewTransactor(db DB) Transactor {
 	return Transactor{db: db}
 }
 
@@ -91,7 +92,7 @@ func NewTransactor(db *sql.DB) Transactor {
 // contract in repositories but does not execute PostgreSQL session settings.
 // When requireTenantScope is false, PostgreSQL is explicitly put in
 // single-tenant mode for the transaction.
-func NewTenantTransactor(db *sql.DB, dialect Dialect, requireTenantScope bool) Transactor {
+func NewTenantTransactor(db DB, dialect Dialect, requireTenantScope bool) Transactor {
 	return Transactor{db: db, dialect: dialect, requireTenantScope: requireTenantScope}
 }
 
@@ -190,7 +191,7 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	case SQLite:
 		driver = "sqlite"
 		var err error
-		dsn, err = normalizeSQLiteDSN(dsn, options.SQLiteProfile)
+		dsn, err = normalizeSQLiteDSN(dsn, options.SQLiteProfile, options.ReadOnly)
 		if err != nil {
 			return nil, err
 		}
@@ -291,7 +292,7 @@ func SQLiteDSN(path string) string {
 	return u.String()
 }
 
-func normalizeSQLiteDSN(dsn, profile string) (string, error) {
+func normalizeSQLiteDSN(dsn, profile string, readOnly bool) (string, error) {
 	if !strings.HasPrefix(dsn, "file:") {
 		uri, err := url.Parse(SQLiteDSN(dsn))
 		if err != nil {
@@ -299,6 +300,9 @@ func normalizeSQLiteDSN(dsn, profile string) (string, error) {
 		}
 		query := uri.Query()
 		applySQLiteProfile(query, profile)
+		if readOnly {
+			query.Add("_pragma", "query_only=ON")
+		}
 		uri.RawQuery = query.Encode()
 		return uri.String(), nil
 	}
@@ -308,6 +312,9 @@ func normalizeSQLiteDSN(dsn, profile string) (string, error) {
 	}
 	query := u.Query()
 	applySQLiteProfile(query, profile)
+	if readOnly {
+		query.Add("_pragma", "query_only=ON")
+	}
 	u.RawQuery = query.Encode()
 	return u.String(), nil
 }
