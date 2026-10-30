@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { HydroGoError, createHydroGoClient } from "../dist/hydrogo.js";
+import { HydroGoError, createHydroGoClient, MemoryAuthStore, LocalStorageAuthStore } from "../dist/hydrogo.js";
 
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 0 }), RangeError);
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 120001 }), RangeError);
@@ -229,5 +229,152 @@ assert.ok(connectionStates.includes("connecting"));
 assert.ok(connectionStates.includes("connected"));
 assert.ok(connectionStates.includes("reconnecting"));
 assert.ok(connectionStates.includes("disconnected"));
+
+// -------------------------------------------------------------
+// Issue #397: Stateful AuthStore & Fluent Collection API Tests
+// -------------------------------------------------------------
+
+// 1. MemoryAuthStore unit test
+const store = new MemoryAuthStore();
+assert.equal(store.isValid, false);
+assert.equal(store.token, "");
+assert.equal(store.model, null);
+
+let changeCount = 0;
+let lastChangeToken = "";
+const unsubChange = store.onChange((token, model) => {
+  changeCount++;
+  lastChangeToken = token;
+});
+
+const sampleMember = {
+  id: "m-123",
+  email: "test@example.com",
+  active: true,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+};
+
+store.save("sample-token", sampleMember);
+assert.equal(store.isValid, true);
+assert.equal(store.token, "sample-token");
+assert.equal(store.model?.email, "test@example.com");
+assert.equal(changeCount, 1);
+assert.equal(lastChangeToken, "sample-token");
+
+store.clear();
+assert.equal(store.isValid, false);
+assert.equal(store.token, "");
+assert.equal(store.model, null);
+assert.equal(changeCount, 2);
+
+unsubChange();
+store.save("another-token", sampleMember);
+assert.equal(changeCount, 2, "Unsubscribed callback should not receive notifications");
+
+// 2. Automatic Token Injection with custom AuthStore
+const authStore = new MemoryAuthStore("auto-injected-token", sampleMember);
+let inspectedHeaders = null;
+
+const fluentClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  authStore,
+  fetch: async (url, init) => {
+    inspectedHeaders = init?.headers;
+    if (url.endsWith("/api/v1/content/messages") && init?.method === "POST") {
+      return new Response(JSON.stringify({ data: { id: "msg-1", text: "Hello" } }));
+    }
+    if (url.endsWith("/api/v1/content/messages/msg-1") && init?.method === "PUT") {
+      return new Response(JSON.stringify({ data: { id: "msg-1", text: "Updated" } }));
+    }
+    if (url.endsWith("/api/v1/content/messages/msg-1") && init?.method === "DELETE") {
+      return new Response(JSON.stringify({ data: { id: "msg-1" } }));
+    }
+    if (url.endsWith("/api/v1/content/messages/msg-1")) {
+      return new Response(JSON.stringify({ data: { id: "msg-1", text: "Hello" } }));
+    }
+    if (url.includes("/api/v1/content/messages") && (!init?.method || init.method === "GET")) {
+      return new Response(JSON.stringify({ data: [{ id: "msg-1", text: "Hello" }], metadata: { limit: 20, has_more: false } }));
+    }
+    return new Response(JSON.stringify({}), { status: 404 });
+  },
+});
+
+// Fluent collection tests
+const messages = fluentClient.collection("messages");
+assert.equal(messages.collectionName, "messages");
+
+// Create with automatic token injection
+const fluentCreated = await messages.create({ text: "Hello" });
+assert.equal(fluentCreated.id, "msg-1");
+assert.equal(inspectedHeaders["Authorization"], "Bearer auto-injected-token");
+
+// Update with automatic token injection
+const fluentUpdated = await messages.update("msg-1", { text: "Updated" });
+assert.equal(fluentUpdated.text, "Updated");
+assert.equal(inspectedHeaders["Authorization"], "Bearer auto-injected-token");
+
+// Delete with automatic token injection
+await messages.delete("msg-1");
+assert.equal(inspectedHeaders["Authorization"], "Bearer auto-injected-token");
+
+// Explicit token overrides authStore
+await messages.create({ text: "Override" }, "explicit-override-token");
+assert.equal(inspectedHeaders["Authorization"], "Bearer explicit-override-token");
+
+// List and Get
+const list = await messages.list();
+assert.equal(list.data.length, 1);
+const item = await messages.get("msg-1");
+assert.equal(item.id, "msg-1");
+
+// 3. auth.loginMember and auth.logout integration
+const authClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    if (url.endsWith("/api/v1/mobile/member/auth/login")) {
+      return new Response(JSON.stringify({
+        access_token: "login-access-token",
+        refresh_token: "login-refresh-token",
+        token_type: "Bearer",
+        expires_in: 900,
+        expires_at: "2026-01-01T00:00:00Z",
+      }));
+    }
+    if (url.endsWith("/api/v1/mobile/member/me")) {
+      return new Response(JSON.stringify({
+        id: "m-logged-in",
+        email: "login@example.test",
+        active: true,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      }));
+    }
+    if (url.endsWith("/api/v1/mobile/member/auth/revoke")) {
+      return new Response(null, { status: 204 });
+    }
+    return new Response(null, { status: 404 });
+  },
+});
+
+assert.equal(authClient.auth.isValid, false);
+const loginResult = await authClient.auth.loginMember({
+  email: "login@example.test",
+  password: "password123",
+  device_id: "test-device",
+  platform: "node",
+});
+
+assert.equal(loginResult.tokens.access_token, "login-access-token");
+assert.equal(loginResult.profile.id, "m-logged-in");
+assert.equal(authClient.auth.isValid, true);
+assert.equal(authClient.auth.token, "login-access-token");
+assert.equal(authClient.auth.model?.email, "login@example.test");
+
+await authClient.auth.logout();
+assert.equal(authClient.auth.isValid, false);
+assert.equal(authClient.auth.token, "");
+assert.equal(authClient.auth.model, null);
+
 
 
