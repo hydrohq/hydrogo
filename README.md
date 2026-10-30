@@ -18,6 +18,8 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 > Status: v2 Headless. HydroGo serves pure JSON APIs and embeds a Svelte 5 SPA
 > admin panel. See [docs/decisions/0001-cms-focus.md](docs/decisions/0001-cms-focus.md) and
 > [docs/decisions/0005-admin-svelte-spa.md](docs/decisions/0005-admin-svelte-spa.md).
+>
+> **Product Vision & Roadmap**: Read [docs/VISION.md](docs/VISION.md) for the HydroGo 2.0 architecture, multi-tenant agency engineering pillars, and AI-agent control plane roadmap, and [docs/sprints/SPRINT_PLAN.md](docs/sprints/SPRINT_PLAN.md) for the 8-sprint execution plan and tracked GitHub issues.
 
 ## What it does
 
