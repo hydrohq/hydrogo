@@ -25,6 +25,24 @@ var (
 	ErrRecordInUse = errors.New("record is referenced by other records")
 )
 
+// RecordInUseError indicates a record cannot be deleted because it is referenced
+// by another record under an on_delete: restrict constraint.
+type RecordInUseError struct {
+	CollectionID          string `json:"collection_id"`
+	RecordID              string `json:"record_id"`
+	FieldID               string `json:"field_id"`
+	ReferencingCollection string `json:"referencing_collection"`
+	ReferencingRecordID   string `json:"referencing_record_id"`
+}
+
+func (e *RecordInUseError) Error() string {
+	return fmt.Sprintf("%s: record %s in %s is referenced by %s in %s on field %s", ErrRecordInUse.Error(), e.RecordID, e.CollectionID, e.ReferencingRecordID, e.ReferencingCollection, e.FieldID)
+}
+
+func (e *RecordInUseError) Unwrap() error {
+	return ErrRecordInUse
+}
+
 const (
 	MaxCollections    = 100
 	MaxFields         = 64
@@ -66,6 +84,9 @@ type Field struct {
 	Max      *float64  `json:"max,omitempty"`
 	Options  []string  `json:"options,omitempty"`
 	Relation string    `json:"relation,omitempty"`
+	// OnDelete defines the action when the referenced record is deleted:
+	// "restrict" (default), "cascade", or "set_null".
+	OnDelete string `json:"on_delete,omitempty"`
 	// Localized fields keep one value per locale: the default locale's value
 	// in the record, the others as translations (see Service.SaveTranslation).
 	// Only text, rich text, media and select fields can be localized.
@@ -124,12 +145,23 @@ func (s Schema) Validate() error {
 		seen[field.ID] = struct{}{}
 		switch field.Kind {
 		case Text, RichText, Number, Boolean, DateTime, Select, MultiSelect, Media:
-			if field.Relation != "" {
+			if field.Relation != "" || field.OnDelete != "" {
 				return ErrInvalidSchema
 			}
 		case Relation, RelationMany:
 			if !identifier.MatchString(field.Relation) {
 				return ErrInvalidSchema
+			}
+			if field.OnDelete != "" {
+				switch strings.ToLower(field.OnDelete) {
+				case "restrict", "cascade":
+				case "set_null":
+					if field.Required {
+						return ErrInvalidSchema
+					}
+				default:
+					return ErrInvalidSchema
+				}
 			}
 		default:
 			return ErrInvalidSchema
