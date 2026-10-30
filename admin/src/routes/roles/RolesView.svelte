@@ -46,8 +46,8 @@
     loading = true;
     try {
       const res = await api.get<CustomRole[]>('/api/v1/admin/roles');
-      if (res && res.data) {
-        roles = res.data;
+      if (res) {
+        roles = Array.isArray(res) ? res : (((res as any).data as CustomRole[]) || []);
       }
     } catch (err: any) {
       statusErr = err?.message || 'Failed to load roles';
@@ -320,6 +320,7 @@
   description={`Are you sure you want to delete role "${deleteTarget?.name}"? Users assigned to this role will lose their custom permissions.`}
   confirmLabel="Delete Role"
   variant="destructive"
+  loading={deleting}
   onconfirm={handleDeleteRole}
   oncancel={() => (deleteTarget = null)}
 />

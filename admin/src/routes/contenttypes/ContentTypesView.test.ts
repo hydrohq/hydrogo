@@ -2,8 +2,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { api } from '$lib/api/client';
-import { router } from '$lib/router.svelte';
-import { schema } from '$lib/stores/schema.svelte';
 import ContentTypesView from './ContentTypesView.svelte';
 
 vi.mock('$lib/api/client', () => ({
