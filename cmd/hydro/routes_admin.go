@@ -36,6 +36,7 @@ func (a *serveApp) adminRoutes() []router.Route {
 		return router.Route{Pattern: pattern, Access: router.Protected, Handler: handler}
 	}
 	routes := []router.Route{
+		protected("GET /api/v1/admin/tenant/usage", a.adminTenantUsageHandler),
 		protected("GET /api/v1/admin/dashboard", a.adminDashboardHandler),
 		protected("GET /api/v1/admin/reports", a.adminReportsHandler),
 		protected("GET /api/v1/admin/backups", a.adminBackupStatusHandler),
