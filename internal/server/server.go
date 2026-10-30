@@ -313,7 +313,7 @@ func NewHandler(config Config) http.Handler {
 		case "/healthz", "/readyz", "/metrics":
 			return true
 		default:
-			return false
+			return isStreamingRequest(r)
 		}
 	})(handler)
 

@@ -22,6 +22,15 @@ const (
 
 var responseBuffers = sync.Pool{New: func() any { return new(bytes.Buffer) }}
 
+func isStreamingRequest(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	return strings.Contains(r.Header.Get("Accept"), "text/event-stream") ||
+		strings.HasSuffix(r.URL.Path, "/subscribe") ||
+		strings.HasSuffix(r.URL.Path, "/events")
+}
+
 // ETagMiddleware adds a weak entity tag to bounded, anonymous GET responses and
 // answers matching conditional requests without writing the response body.
 func ETagMiddleware(next http.Handler) http.Handler {
@@ -29,7 +38,7 @@ func ETagMiddleware(next http.Handler) http.Handler {
 		return nil
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead || r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead || r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" || isStreamingRequest(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -96,7 +105,7 @@ func CompressionMiddleware(next http.Handler) http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoding := negotiatedEncoding(r.Header.Get("Accept-Encoding"))
-		if encoding == "" || r.Method == http.MethodHead || r.Header.Get("Range") != "" {
+		if encoding == "" || r.Method == http.MethodHead || r.Header.Get("Range") != "" || isStreamingRequest(r) {
 			next.ServeHTTP(w, r)
 			return
 		}

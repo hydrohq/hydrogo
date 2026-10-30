@@ -121,8 +121,8 @@ fields:
 	}
 
 	var doc struct {
-		OpenAPI string `json:"openapi"`
-		Paths   map[string]any `json:"paths"`
+		OpenAPI    string         `json:"openapi"`
+		Paths      map[string]any `json:"paths"`
 		Components struct {
 			Schemas map[string]any `json:"schemas"`
 		} `json:"components"`

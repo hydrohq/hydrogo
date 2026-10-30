@@ -24,18 +24,18 @@ const (
 )
 
 type User struct {
-	ID                  string          `json:"id"`
-	Email               string          `json:"email"`
-	PasswordHash        string          `json:"-"`
-	Role                Role            `json:"role"`
-	Active              bool            `json:"active"`
-	CreatedAt           time.Time       `json:"created_at"`
-	UpdatedAt           time.Time       `json:"updated_at"`
-	EmailVerifiedAt     *time.Time      `json:"email_verified_at,omitempty"`
-	LastLoginAt         *time.Time      `json:"last_login_at,omitempty"`
-	LastLoginIP         string          `json:"-"`
-	FailedLoginAttempts int             `json:"-"`
-	PermissionOverrides map[string]bool `json:"-"`
+	ID                  string           `json:"id"`
+	Email               string           `json:"email"`
+	PasswordHash        string           `json:"-"`
+	Role                Role             `json:"role"`
+	Active              bool             `json:"active"`
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
+	EmailVerifiedAt     *time.Time       `json:"email_verified_at,omitempty"`
+	LastLoginAt         *time.Time       `json:"last_login_at,omitempty"`
+	LastLoginIP         string           `json:"-"`
+	FailedLoginAttempts int              `json:"-"`
+	PermissionOverrides map[string]bool  `json:"-"`
 	Permissions         []RolePermission `json:"permissions,omitempty"`
 }
 
