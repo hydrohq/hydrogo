@@ -382,6 +382,9 @@ func (s Store) DeleteRecord(ctx context.Context, collectionID, id string) error 
 		if err != nil {
 			return err
 		}
+		if err := tx.resolveIncomingRelations(ctx, tenantID, collectionID, id); err != nil {
+			return err
+		}
 		result, err := tx.exec(ctx, `DELETE FROM hydro_collection_records WHERE tenant_id=`+tx.p(1)+` AND collection_id=`+tx.p(2)+` AND id=`+tx.p(3), tenantID, collectionID, id)
 		if err != nil {
 			if database.IsForeignKeyViolation(err) {
@@ -394,6 +397,130 @@ func (s Store) DeleteRecord(ctx context.Context, collectionID, id string) error 
 		}
 		return tx.emit(ctx, "content.deleted", collectionID, id, 0)
 	})
+}
+
+type incomingRef struct {
+	sourceCollectionID string
+	sourceRecordID     string
+	fieldID            string
+}
+
+func (s Store) resolveIncomingRelations(ctx context.Context, tenantID, targetCollectionID, targetRecordID string) error {
+	rows, err := s.rows(ctx, `SELECT source_collection_id, source_record_id, field_id FROM hydro_collection_relations WHERE tenant_id=`+s.p(1)+` AND target_collection_id=`+s.p(2)+` AND target_record_id=`+s.p(3), tenantID, targetCollectionID, targetRecordID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var refs []incomingRef
+	for rows.Next() {
+		var ref incomingRef
+		if err := rows.Scan(&ref.sourceCollectionID, &ref.sourceRecordID, &ref.fieldID); err != nil {
+			return err
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+
+	schemaCache := make(map[string]collections.Schema)
+	getField := func(collectionID, fieldID string) (*collections.Field, error) {
+		schema, ok := schemaCache[collectionID]
+		if !ok {
+			var err error
+			schema, err = s.GetSchema(ctx, collectionID)
+			if err != nil {
+				return nil, err
+			}
+			schemaCache[collectionID] = schema
+		}
+		for i := range schema.Fields {
+			if schema.Fields[i].ID == fieldID {
+				return &schema.Fields[i], nil
+			}
+		}
+		return nil, nil
+	}
+
+	// Phase 1: Fail early if any incoming relation restricts deletion
+	for _, ref := range refs {
+		field, err := getField(ref.sourceCollectionID, ref.fieldID)
+		if err != nil {
+			return err
+		}
+		onDelete := "restrict"
+		if field != nil && field.OnDelete != "" {
+			onDelete = strings.ToLower(field.OnDelete)
+		}
+		if onDelete == "restrict" {
+			return &collections.RecordInUseError{
+				CollectionID:          targetCollectionID,
+				RecordID:              targetRecordID,
+				FieldID:               ref.fieldID,
+				ReferencingCollection: ref.sourceCollectionID,
+				ReferencingRecordID:   ref.sourceRecordID,
+			}
+		}
+	}
+
+	// Phase 2: Execute cascade and set_null actions
+	for _, ref := range refs {
+		field, err := getField(ref.sourceCollectionID, ref.fieldID)
+		if err != nil {
+			return err
+		}
+		onDelete := "restrict"
+		if field != nil && field.OnDelete != "" {
+			onDelete = strings.ToLower(field.OnDelete)
+		}
+		switch onDelete {
+		case "cascade":
+			if err := s.DeleteRecord(ctx, ref.sourceCollectionID, ref.sourceRecordID); err != nil && !errors.Is(err, collections.ErrRecordNotFound) {
+				return err
+			}
+		case "set_null":
+			record, err := s.GetRecord(ctx, ref.sourceCollectionID, ref.sourceRecordID)
+			if err != nil {
+				if errors.Is(err, collections.ErrRecordNotFound) {
+					continue
+				}
+				return err
+			}
+			data := record.Data
+			if field != nil && field.Kind == collections.RelationMany {
+				var remaining []any
+				if list, ok := data[ref.fieldID].([]any); ok {
+					for _, item := range list {
+						if itemStr, ok := item.(string); !ok || itemStr != targetRecordID {
+							remaining = append(remaining, item)
+						}
+					}
+				}
+				if len(remaining) == 0 {
+					delete(data, ref.fieldID)
+				} else {
+					data[ref.fieldID] = remaining
+				}
+			} else {
+				delete(data, ref.fieldID)
+			}
+			schema := schemaCache[ref.sourceCollectionID]
+			var uniqueFields []collections.Field
+			for _, f := range schema.Fields {
+				if f.Unique {
+					uniqueFields = append(uniqueFields, f)
+				}
+			}
+			if _, err := s.SaveRecord(ctx, ref.sourceCollectionID, ref.sourceRecordID, data, uniqueFields, record.Version); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s Store) RecordExists(ctx context.Context, collectionID, id string) (bool, error) {

@@ -212,6 +212,7 @@ type Field struct {
 	Options  []string `json:"options,omitempty" yaml:"options"`
 	To       string   `json:"to,omitempty" yaml:"to"`
 	Many     bool     `json:"many,omitempty" yaml:"many"`
+	OnDelete string   `json:"on_delete,omitempty" yaml:"on_delete"`
 	// Permission hides the field from everyone without it: it is left out of
 	// admin reads, ignored on writes (stored values stay), and cannot be
 	// filtered, sorted, grouped or summed. Not allowed on required, unique,
@@ -384,6 +385,7 @@ func (d Definition) Schema() (collections.Schema, error) {
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
 			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
 			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence, Decimals: field.Decimals, Computed: field.Computed, Rollup: field.Rollup,
+			OnDelete: strings.ToLower(field.OnDelete),
 		})
 	}
 	if d.Drafts {
