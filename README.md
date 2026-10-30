@@ -26,7 +26,7 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 - **Admin Panel:** embedded single-page application built with Svelte 5,
   TypeScript, Tailwind CSS, and shadcn-svelte (`admin/` embedded in Go binary).
 - **Custom Content Types & Realtime BaaS:** declarative YAML definitions (`content-types/*.yaml`)
-  instantly provide admin screens, full CRUD REST APIs, PocketBase-style row-level access rules
+  instantly provide admin screens, full CRUD REST APIs, declarative row-level access rules
   (`access_rules:` evaluated over `@auth.id`, `@auth.role`, `record.*`), and Server-Sent Events (SSE)
   real-time subscriptions (`realtime: true`) with per-subscriber row filtering.
 - **Content:** pages with blocks, news with categories and tags, media
