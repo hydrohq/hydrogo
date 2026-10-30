@@ -82,3 +82,17 @@ In addition to static `hosts` configuration and CLI provisioning, HydroGo includ
 - **Lifecycle & Subscription Auto-Degradation**: Each workspace has a `lifecycle_state` (`provisioning`, `active`, `readonly`, `suspended`, `archived`) and optional `trial_ends_at` / `subscription_ends_at` timestamps. When a trial or subscription expires, the workspace automatically degrades to `readonly` mode: public `GET`/`HEAD` requests continue serving the storefront while mutating requests return `402 Payment Required`.
 - **Resource Governor**: Enforces per-tenant storage quotas (`max_storage_bytes`), collection record limits (`max_records`), token-bucket request rate limits (`rate_limit_rps`), in-flight concurrency semaphores (`max_concurrent_reqs`), upload size caps (`max_upload_bytes`), and monthly AI token quotas (`ai_monthly_token_limit`).
 - **Caddy On-Demand TLS Gate**: `GET /api/v1/system/domain-check?domain=<host>` (loopback or `X-Orchestrator-Secret`) verifies whether a domain belongs to an active workspace before Caddy issues a TLS certificate.
+
+## Multi-Adapter AI Copilot & Boutique Store Factory
+
+- **Per-Workspace AI Adapters & BYOK**: Each workspace in `tenant_governance` can be assigned `gemini`, `openai`, `anthropic`, or `openai_compatible` (Ollama/Groq/DeepSeek) along with a model name, monthly token cap (`ai_monthly_token_limit`), and an optional AES-256-GCM encrypted API key (`ai_encrypted_api_key`).
+- **Workspace Copilot & One-Click Undo**: Store owners can open the **AI Asistan** drawer in the admin header (`POST /api/v1/admin/ai/copilot`) to create/update/delete records or change storefront theme tokens in natural language, and revert any action in one click via `POST /api/v1/admin/ai/actions/{id}/undo`.
+- **60-Second Boutique Factory (`tools/factory`)**:
+  ```bash
+  go run ./tools/factory \
+    --tenant ipek-butik \
+    --name "İpek Butik" \
+    --phone "+905551112233" \
+    --prompt "Kadın ipek gömlek ve keten takım satan lüks butik"
+  ```
+  Provisions the tenant workspace, applies `tenant_governance` quotas, syncs `content-types/boutique/*.yaml`, and seeds initial theme settings, categories, and products.

@@ -1,0 +1,25 @@
+id: boutique_products
+label: Butik Ürünleri
+description: Butik ürün kataloğu, fiyatlar, beden/renk seçenekleri ve ödeme bağlantıları.
+group: Mağaza Yönetimi
+icon: shopping-bag
+title_field: title
+public: true
+drafts: true
+revisions: true
+fields:
+  - {id: title, label: Ürün Adı, kind: text, required: true, list: true, searchable: true}
+  - {id: slug, label: URL Kodu (Slug), kind: text, required: true, unique: true, list: true, filterable: true}
+  - {id: sku, label: Stok Kodu, kind: text, unique: true, list: true, searchable: true}
+  - {id: category, label: Kategori, kind: relation, to: boutique_categories, required: true, list: true, filterable: true}
+  - {id: price, label: Satış Fiyatı (TL), kind: number, decimals: 2, min: 0, required: true, list: true, filterable: true}
+  - {id: compare_at_price, label: İndirimsiz Fiyat (Üstü Çizili TL), kind: number, decimals: 2, min: 0, list: true}
+  - {id: cover_image, label: Ana Ürün Görseli, kind: media}
+  - {id: sizes, label: "Mevcut Bedenler (S, M, L, XL)", kind: text, list: true, filterable: true}
+  - {id: colors, label: Mevcut Renkler, kind: text, list: true, filterable: true}
+  - {id: stock_quantity, label: Stok Adedi, kind: number, min: 0, required: true, list: true}
+  - {id: badge, label: Vitrin Rozeti, kind: select, options: [Yeni Sezon, Tükendi, Son 3 Ürün, İndirim, Özel Tasarım], list: true, filterable: true}
+  - {id: fabric_care, label: Kumaş ve Yıkama Bilgisi, kind: textarea, searchable: true}
+  - {id: description, label: Ürün Açıklaması, kind: richtext, searchable: true}
+  - {id: payment_link, label: Hızlı Ödeme Linki (Shopier / İyzico), kind: text}
+  - {id: featured, label: Ana Sayfada Göster, kind: boolean, list: true, filterable: true}

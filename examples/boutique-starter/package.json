@@ -1,0 +1,20 @@
+{
+  "name": "@hydrogo/boutique-starter",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mobile-first luxury boutique storefront powered by HydroGo content types and AI Workspace Copilot",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "svelte": "^5.20.2",
+    "svelte-check": "^4.1.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.4.5"
+  }
+}
