@@ -118,7 +118,7 @@ func runIndexContract(t *testing.T, db database.Executor) {
 	if _, err := service.CreateRecord(ctx, "indexed_deals", map[string]any{"name": "x", "stage": "won", "amount": 5}); err != nil {
 		t.Fatal(err)
 	}
-	if defs, _ := indexStatements("indexed_deals", collections.Field{ID: "x'; DROP TABLE y; --", Kind: collections.Text}, true); len(defs) != 0 {
+	if defs, _ := indexStatements(database.Postgres, "indexed_deals", collections.Field{ID: "x'; DROP TABLE y; --", Kind: collections.Text}, true); len(defs) != 0 {
 		t.Fatal("an unsafe field id produced an index name")
 	}
 }

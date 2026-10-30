@@ -22,29 +22,19 @@ var managedName = regexp.MustCompile(`^idx_hcr_(trgm_)?[0-9a-f]{20}$`)
 
 // SyncIndexes builds an expression index per Indexed field and drops indexes
 // of fields that no longer need one. Records live in one shared table, so each
-// index is partial (one collection) and leads with tenant_id. Queries filter
-// with the same expressions as buildRecordQuery; PostgreSQL plans each
-// statement with its bound values, so the bound field name still matches the
-// index. Only PostgreSQL is supported: SQLite and MySQL fall back to scans
-// (SQLite installs are small, and MySQL needs functional indexes on
-// generated JSON expressions that are not verified here).
+// index leads with tenant_id (and partial WHERE collection_id on Postgres/SQLite).
 func (s Store) SyncIndexes(ctx context.Context, schemas []collections.Schema) error {
-	if s.Dialect != database.Postgres {
-		return nil
+	var trigramReady bool
+	if s.Dialect == database.Postgres {
+		trigramReady = s.ensureTrigramExtension(ctx)
 	}
-	// pg_trgm lets a leading-wildcard LIKE search (collections.Contains) use a
-	// GIN index instead of scanning every record. It is optional: a managed
-	// Postgres without CREATE EXTENSION privilege keeps the existing btree
-	// indexes and the previous scan behavior, so a missing privilege cannot
-	// break startup.
-	trigramReady := s.ensureTrigramExtension(ctx)
 	wanted := map[string]string{}
 	for _, schema := range schemas {
 		for _, field := range schema.Fields {
 			if !field.Indexed {
 				continue
 			}
-			defs, err := indexStatements(schema.ID, field, trigramReady)
+			defs, err := indexStatements(s.Dialect, schema.ID, field, trigramReady)
 			if err != nil {
 				return err
 			}
@@ -57,12 +47,19 @@ func (s Store) SyncIndexes(ctx context.Context, schemas []collections.Schema) er
 	if err != nil {
 		return err
 	}
+	existingMap := make(map[string]bool, len(existing))
+	for _, name := range existing {
+		existingMap[name] = true
+	}
 	names := make([]string, 0, len(wanted))
 	for name := range wanted {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
+		if existingMap[name] {
+			continue
+		}
 		if _, err := s.DB.ExecContext(ctx, wanted[name]); err != nil {
 			return fmt.Errorf("create %s: %w", name, err)
 		}
@@ -76,7 +73,11 @@ func (s Store) SyncIndexes(ctx context.Context, schemas []collections.Schema) er
 		if !managedName.MatchString(name) {
 			continue
 		}
-		if _, err := s.DB.ExecContext(ctx, `DROP INDEX IF EXISTS `+name); err != nil {
+		dropSQL := `DROP INDEX IF EXISTS ` + name
+		if s.Dialect == database.MySQL {
+			dropSQL = `ALTER TABLE hydro_collection_records DROP INDEX ` + name
+		}
+		if _, err := s.DB.ExecContext(ctx, dropSQL); err != nil {
 			return fmt.Errorf("drop %s: %w", name, err)
 		}
 	}
@@ -90,7 +91,18 @@ func (s Store) managedIndexes(ctx context.Context) ([]string, error) {
 	if !ok {
 		return nil, errors.New("index query is unavailable")
 	}
-	rows, err := q.QueryContext(ctx, `SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'hydro_collection_records' AND indexname LIKE 'idx\_hcr\_%'`)
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	switch s.Dialect {
+	case database.Postgres:
+		rows, err = q.QueryContext(ctx, `SELECT indexname FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'hydro_collection_records' AND indexname LIKE 'idx\_hcr\_%'`)
+	case database.MySQL:
+		rows, err = q.QueryContext(ctx, `SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'hydro_collection_records' AND index_name LIKE 'idx_hcr_%'`)
+	default: // SQLite
+		rows, err = q.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'hydro_collection_records' AND name LIKE 'idx_hcr_%'`)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -120,13 +132,8 @@ type indexDef struct {
 	name, statement string
 }
 
-// indexStatements renders the CREATE INDEX statements for one field: the
-// existing equality/sort btree index, plus (for text fields, when the
-// trigram extension is available) a GIN trigram index that lets
-// collections.Contains use an index instead of a full scan. Collection and
-// field IDs are inlined (DDL cannot bind them), so both are re-checked as
-// plain identifiers.
-func indexStatements(collectionID string, field collections.Field, trigramReady bool) ([]indexDef, error) {
+// indexStatements renders the CREATE INDEX statements for one field.
+func indexStatements(dialect database.Dialect, collectionID string, field collections.Field, trigramReady bool) ([]indexDef, error) {
 	if !validFieldID(collectionID) || !validFieldID(field.ID) {
 		return nil, collections.ErrInvalidSchema
 	}
@@ -134,20 +141,51 @@ func indexStatements(collectionID string, field collections.Field, trigramReady 
 	hash := hex.EncodeToString(sum[:])[:20]
 	name := indexPrefix + hash
 	var defs []indexDef
-	var columns string
-	switch field.Kind {
-	case collections.Text, collections.RichText, collections.Select, collections.DateTime, collections.Media, collections.Relation:
-		columns = `tenant_id, (data_json::jsonb ->> '` + field.ID + `'), updated_at DESC, id`
-	case collections.Number, collections.Boolean:
-		columns = `tenant_id, (data_json::jsonb -> '` + field.ID + `') DESC, id`
-	default:
-		return nil, nil
+
+	switch dialect {
+	case database.Postgres:
+		var columns string
+		switch field.Kind {
+		case collections.Text, collections.RichText, collections.Select, collections.DateTime, collections.Media, collections.Relation:
+			columns = `tenant_id, (data_json::jsonb ->> '` + field.ID + `'), updated_at DESC, id`
+		case collections.Number, collections.Boolean:
+			columns = `tenant_id, (data_json::jsonb -> '` + field.ID + `') DESC, id`
+		default:
+			return nil, nil
+		}
+		defs = append(defs, indexDef{name, `CREATE INDEX IF NOT EXISTS ` + name + ` ON hydro_collection_records (` + columns + `) WHERE collection_id = '` + collectionID + `'`})
+		if trigramReady && (field.Kind == collections.Text || field.Kind == collections.RichText) {
+			trgmName := indexPrefix + "trgm_" + hash
+			expr := `lower((data_json::jsonb ->> '` + field.ID + `'))`
+			defs = append(defs, indexDef{trgmName, `CREATE INDEX IF NOT EXISTS ` + trgmName + ` ON hydro_collection_records USING gin (` + expr + ` gin_trgm_ops) WHERE collection_id = '` + collectionID + `'`})
+		}
+
+	case database.SQLite:
+		var columns string
+		switch field.Kind {
+		case collections.Text, collections.RichText, collections.Select, collections.DateTime, collections.Media, collections.Relation:
+			columns = `tenant_id, json_extract(data_json, '$.` + field.ID + `'), updated_at DESC, id`
+		case collections.Number, collections.Boolean:
+			columns = `tenant_id, json_extract(data_json, '$.` + field.ID + `') DESC, id`
+		default:
+			return nil, nil
+		}
+		defs = append(defs, indexDef{name, `CREATE INDEX IF NOT EXISTS ` + name + ` ON hydro_collection_records (` + columns + `) WHERE collection_id = '` + collectionID + `'`})
+
+	case database.MySQL:
+		var columnExpr string
+		switch field.Kind {
+		case collections.Text, collections.RichText, collections.Select, collections.DateTime, collections.Media, collections.Relation:
+			columnExpr = `(CAST(JSON_UNQUOTE(JSON_EXTRACT(data_json, '$.` + field.ID + `')) AS CHAR(255)))`
+		case collections.Number:
+			columnExpr = `(CAST(JSON_EXTRACT(data_json, '$.` + field.ID + `') AS DECIMAL(20, 4)))`
+		case collections.Boolean:
+			columnExpr = `(CAST(JSON_EXTRACT(data_json, '$.` + field.ID + `') AS UNSIGNED))`
+		default:
+			return nil, nil
+		}
+		defs = append(defs, indexDef{name, `CREATE INDEX ` + name + ` ON hydro_collection_records (tenant_id, collection_id, ` + columnExpr + `, updated_at, id)`})
 	}
-	defs = append(defs, indexDef{name, `CREATE INDEX IF NOT EXISTS ` + name + ` ON hydro_collection_records (` + columns + `) WHERE collection_id = '` + collectionID + `'`})
-	if trigramReady && (field.Kind == collections.Text || field.Kind == collections.RichText) {
-		trgmName := indexPrefix + "trgm_" + hash
-		expr := `lower((data_json::jsonb ->> '` + field.ID + `'))`
-		defs = append(defs, indexDef{trgmName, `CREATE INDEX IF NOT EXISTS ` + trgmName + ` ON hydro_collection_records USING gin (` + expr + ` gin_trgm_ops) WHERE collection_id = '` + collectionID + `'`})
-	}
+
 	return defs, nil
 }
