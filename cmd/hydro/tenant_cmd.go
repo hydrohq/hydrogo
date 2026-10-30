@@ -18,7 +18,7 @@ import (
 
 func tenantCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("tenant command requires a subcommand (validate, provision, backfill, list)")
+		return errors.New("tenant command requires a subcommand (validate, provision, backfill, list, export, import)")
 	}
 
 	switch args[0] {
@@ -30,8 +30,12 @@ func tenantCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) err
 		return tenantBackfillCommand(args[1:], stdout, stderr)
 	case "list":
 		return tenantListCommand(args[1:], stdout, stderr)
+	case "export":
+		return tenantExportCommand(args[1:], stdout, stderr)
+	case "import":
+		return tenantImportCommand(args[1:], stdin, stdout, stderr)
 	default:
-		return fmt.Errorf("unknown tenant subcommand %q (supported: validate, provision, backfill, list)", args[0])
+		return fmt.Errorf("unknown tenant subcommand %q (supported: validate, provision, backfill, list, export, import)", args[0])
 	}
 }
 
