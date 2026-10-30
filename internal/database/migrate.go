@@ -432,39 +432,68 @@ func releaseMySQLMigrationLock(ctx context.Context, conn *sql.Conn) {
 	_ = conn.QueryRowContext(ctx, "SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':hydrogo:migrate'))").Scan(&ignored)
 }
 
-var inMemorySQLiteMigrationMu sync.Mutex
+var inProcessSQLiteMigrationMu sync.Mutex
 
-func sqliteDatabasePath(ctx context.Context, conn *sql.Conn) string {
-	rows, err := conn.QueryContext(ctx, "PRAGMA database_list")
-	if err != nil {
-		return ""
+func sqliteDatabasePath(ctx context.Context, conn *sql.Conn) (string, error) {
+	deadline := time.Now().Add(30 * time.Second)
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var seq int
-		var name, file string
-		if err := rows.Scan(&seq, &name, &file); err == nil && name == "main" {
-			return file
+	for {
+		path, err := func() (string, error) {
+			rows, err := conn.QueryContext(ctx, "PRAGMA database_list")
+			if err != nil {
+				return "", err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var seq int
+				var name, file string
+				if err := rows.Scan(&seq, &name, &file); err == nil && name == "main" {
+					return file, nil
+				}
+			}
+			return "", nil
+		}()
+		if err == nil {
+			return path, nil
 		}
+		if strings.Contains(err.Error(), "locked") || strings.Contains(err.Error(), "busy") {
+			if time.Now().After(deadline) {
+				return "", fmt.Errorf("timeout waiting for sqlite database list: %w", err)
+			}
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(25 * time.Millisecond):
+				continue
+			}
+		}
+		return "", err
 	}
-	return ""
 }
 
 func acquireSQLiteMigrationLock(ctx context.Context, conn *sql.Conn) (func(), error) {
-	path := sqliteDatabasePath(ctx, conn)
+	inProcessSQLiteMigrationMu.Lock()
+	path, err := sqliteDatabasePath(ctx, conn)
+	if err != nil {
+		inProcessSQLiteMigrationMu.Unlock()
+		return nil, fmt.Errorf("resolve sqlite database path: %w", err)
+	}
 	if path == "" || path == ":memory:" || strings.Contains(path, "mode=memory") {
-		inMemorySQLiteMigrationMu.Lock()
 		return func() {
-			inMemorySQLiteMigrationMu.Unlock()
+			inProcessSQLiteMigrationMu.Unlock()
 		}, nil
 	}
 	lockPath := path + ".lock"
 	fl, err := acquireFileLock(ctx, lockPath, 30*time.Second)
 	if err != nil {
+		inProcessSQLiteMigrationMu.Unlock()
 		return nil, fmt.Errorf("acquire SQLite migration lock: %w", err)
 	}
 	return func() {
 		_ = fl.Release()
+		inProcessSQLiteMigrationMu.Unlock()
 	}, nil
 }
 
