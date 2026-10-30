@@ -31,7 +31,10 @@ Usage:
 
   Content and users
   hydro content-type new ID [--dir content-types]
-  hydro content-type validate [--dir content-types]
+  hydro content-type list [--dir content-types] [--json]
+  hydro content-type validate [--dir content-types] [--json]
+  hydro content-type apply --file PATH [--dir content-types] [--dry-run] [--json]
+  hydro content-type diff [--dir content-types] [--json]
   hydro audit head|verify [--anchor TENANT:SEQ:HASH] [runtime flags]
   hydro service-account create|revoke --name NAME [--permissions a,b] [--expires-days N] [runtime flags]
   hydro create-admin --email EMAIL --password-stdin [runtime flags]
