@@ -242,3 +242,26 @@ export interface OrchestratorListResponse {
   workspaces: WorkspaceSummary[];
   totals: OrchestratorTotals;
 }
+
+export interface CopilotOperation {
+  op: 'create' | 'update' | 'delete' | string;
+  collection_id: string;
+  record_id?: string;
+  data?: Record<string, unknown>;
+  before_data?: Record<string, unknown>;
+  existed?: boolean;
+}
+
+export interface CopilotActionLog {
+  id: string;
+  tenant_id: string;
+  prompt: string;
+  reply: string;
+  provider: string;
+  model: string;
+  tokens_used: number;
+  operations: CopilotOperation[];
+  undone: boolean;
+  created_at: string;
+  undone_at?: string;
+}

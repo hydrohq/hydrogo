@@ -6,9 +6,11 @@
   import { theme } from '$lib/stores/theme.svelte';
   import SearchCommandModal from '$lib/components/shell/SearchCommandModal.svelte';
   import NotificationPopover from '$lib/components/shell/NotificationPopover.svelte';
+  import CopilotDrawer from '$lib/components/shell/CopilotDrawer.svelte';
 
   const path = $derived(router.path);
   let showSearchModal = $state(false);
+  let showCopilotDrawer = $state(false);
 
   const pageTitle = $derived.by(() => {
     if (path === '/' || path === '/dashboard' || path === '/admin' || path === '/admin/' || path === '') {
@@ -131,6 +133,19 @@
         </svg>
       </a>
 
+      <!-- Workspace AI Copilot Button -->
+      <button
+        type="button"
+        onclick={() => (showCopilotDrawer = true)}
+        class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/90 h-8 px-2.5 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-150 shadow-xs cursor-pointer"
+        title="AI Mağaza Asistanı (Copilot)"
+      >
+        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
+        </svg>
+        <span class="hidden sm:inline">AI Asistan</span>
+      </button>
+
       <!-- Notifications Popover -->
       <NotificationPopover />
 
@@ -173,3 +188,4 @@
 </header>
 
 <SearchCommandModal bind:open={showSearchModal} onclose={() => (showSearchModal = false)} />
+<CopilotDrawer bind:open={showCopilotDrawer} onclose={() => (showCopilotDrawer = false)} />

@@ -138,6 +138,7 @@ type serveApp struct {
 	collectionService  collections.Service
 	contentTypes       []contenttypes.Definition
 	tenantContentTypes map[string][]contenttypes.Definition
+	copilotLogs        map[string][]aicore.CopilotActionLog
 	contentLocales     contenttypes.Locales
 	pageHTTP           pagetransport.Handler
 	pageLLMSCache      *seo.DiscoveryCache
