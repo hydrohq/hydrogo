@@ -15,6 +15,12 @@ func HTMLCommentMiddleware(next http.Handler) http.Handler {
 		return http.NotFoundHandler()
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Accept"), "text/event-stream") ||
+			strings.HasSuffix(r.URL.Path, "/subscribe") ||
+			strings.HasSuffix(r.URL.Path, "/events") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		buffer := &htmlBuffer{header: w.Header(), underlying: w}
 		next.ServeHTTP(buffer, r)
 		body := buffer.body.Bytes()

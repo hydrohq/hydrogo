@@ -202,4 +202,3 @@ func TestHubEventRingBufferAndCatchup(t *testing.T) {
 		t.Fatalf("expected 0 events for wrong topic, got %d", len(wrongTopicMissed))
 	}
 }
-

@@ -218,6 +218,7 @@ func (h *Hub) SubscribeStream(tenantID string, topics []string) (*Subscription, 
 		C:   sub.events,
 	}, nil
 }
+
 // EventsSince returns buffered events for tenantID matching any of the topics that occurred after lastEventID.
 func (h *Hub) EventsSince(tenantID string, topics []string, lastEventID string) []Event {
 	if h == nil || lastEventID == "" {

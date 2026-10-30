@@ -4,7 +4,7 @@ BUILD_DIR ?= bin
 GOOS ?= linux
 GOARCH ?= amd64
 
-.PHONY: build build-hosting build-vps test check clean admin-build admin-test admin-check
+.PHONY: build build-hosting build-vps test check clean admin-build admin-test admin-check bench
 
 admin-build:
 	$(NPM) --prefix admin run build
@@ -38,6 +38,9 @@ test:
 # Everything a change must pass before it is pushed.
 check:
 	$(GO) run ./tools/check
+
+bench:
+	$(GO) run ./tools/bench
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -51,7 +51,12 @@ func (a *serveApp) openDatabase() error {
 		return err
 	}
 	a.budget = budget
-	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+	dbOpts := profileDatabaseOptions(budget, cfg.Profile)
+	if cfg.Database.Dialect == database.SQLite {
+		dbOpts.MaxOpenConns = 1
+		dbOpts.MaxIdleConns = 1
+	}
+	db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, dbOpts)
 	if err != nil {
 		return err
 	}

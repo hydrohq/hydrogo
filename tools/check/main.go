@@ -31,6 +31,7 @@ func main() {
 	short := flag.Bool("short", false, "skip the test suite")
 	e2e := flag.Bool("e2e", false, "also run the browser journeys (needs Playwright's Chromium: npx playwright install chromium)")
 	audit := flag.Bool("audit", false, "also scan Go and npm dependencies for known vulnerabilities (needs network access)")
+	bench := flag.Bool("bench", false, "also run performance and load benchmark suite")
 	flag.Parse()
 
 	steps := []step{
@@ -80,6 +81,9 @@ func main() {
 
 	if *audit {
 		steps = append(steps, auditSteps()...)
+	}
+	if *bench {
+		steps = append(steps, step{name: "benchmarks (load & concurrency suite)", args: []string{"go", "run", "./tools/bench"}})
 	}
 
 	started := time.Now()
