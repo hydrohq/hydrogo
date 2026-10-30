@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -18,8 +19,11 @@ import (
 const (
 	bufferSize            = 16
 	defaultMaxSubscribers = 4096
+	defaultMaxHistory     = 1000
 	maxTopics             = 16
 )
+
+var globalEventSeq uint64
 
 type Event struct {
 	ID    string          `json:"id"`
@@ -32,9 +36,17 @@ type subscriber struct {
 	topics map[string]struct{}
 	events chan Event
 }
+
+type bufferedEvent struct {
+	tenantID string
+	event    Event
+}
+
 type Hub struct {
 	mu                 sync.Mutex
 	subscribers        map[*subscriber]struct{}
+	history            []bufferedEvent
+	MaxHistory         int
 	RequireTenantScope bool
 	MaxSubscribers     int
 	Bus                MessageBus
@@ -95,6 +107,9 @@ func (h *Hub) Publish(ctx context.Context, event Event) error {
 	if event.Time.IsZero() {
 		event.Time = time.Now().UTC()
 	}
+	if event.ID == "" {
+		event.ID = fmt.Sprintf("evt-%d-%d", event.Time.UnixMilli(), atomic.AddUint64(&globalEventSeq, 1))
+	}
 
 	tid := tenantID(ctx)
 
@@ -113,6 +128,16 @@ func (h *Hub) Publish(ctx context.Context, event Event) error {
 func (h *Hub) broadcastLocal(tid string, event Event) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	maxHist := h.MaxHistory
+	if maxHist <= 0 {
+		maxHist = defaultMaxHistory
+	}
+	h.history = append(h.history, bufferedEvent{tenantID: tid, event: event})
+	if len(h.history) > maxHist {
+		h.history = h.history[len(h.history)-maxHist:]
+	}
+
 	for sub := range h.subscribers {
 		if sub.tenant != tid {
 			continue
@@ -193,6 +218,46 @@ func (h *Hub) SubscribeStream(tenantID string, topics []string) (*Subscription, 
 		C:   sub.events,
 	}, nil
 }
+// EventsSince returns buffered events for tenantID matching any of the topics that occurred after lastEventID.
+func (h *Hub) EventsSince(tenantID string, topics []string, lastEventID string) []Event {
+	if h == nil || lastEventID == "" {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	topicSet := make(map[string]struct{}, len(topics))
+	for _, t := range topics {
+		topicSet[t] = struct{}{}
+	}
+
+	idx := -1
+	for i, be := range h.history {
+		if be.event.ID == lastEventID {
+			idx = i
+			break
+		}
+	}
+
+	start := 0
+	if idx >= 0 {
+		start = idx + 1
+	}
+
+	var result []Event
+	for i := start; i < len(h.history); i++ {
+		be := h.history[i]
+		if be.tenantID != tenantID {
+			continue
+		}
+		if _, ok := topicSet[be.event.Topic]; !ok {
+			continue
+		}
+		result = append(result, be.event)
+	}
+	return result
+}
+
 func validTopic(topic string) bool {
 	if len(topic) < 3 || len(topic) > 96 || strings.Count(topic, ":") != 1 {
 		return false
@@ -259,6 +324,20 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !write([]byte(": connected\n\n")) {
 		return
 	}
+	lastEventID := r.Header.Get("Last-Event-ID")
+	if lastEventID == "" {
+		lastEventID = r.URL.Query().Get("last_event_id")
+	}
+	if lastEventID != "" {
+		for _, event := range h.EventsSince(tenantName, topics, lastEventID) {
+			payload, e := json.Marshal(event)
+			if e == nil {
+				if !write([]byte(fmt.Sprintf("id: %s\nevent: %s\ndata: %s\n\n", event.ID, event.Topic, payload))) {
+					return
+				}
+			}
+		}
+	}
 	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -270,7 +349,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			payload, e := json.Marshal(event)
-			if e != nil || !write([]byte(fmt.Sprintf("event: %s\ndata: %s\n\n", event.Topic, payload))) {
+			if e != nil || !write([]byte(fmt.Sprintf("id: %s\nevent: %s\ndata: %s\n\n", event.ID, event.Topic, payload))) {
 				return
 			}
 		case <-ticker.C:

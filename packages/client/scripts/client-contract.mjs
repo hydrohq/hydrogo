@@ -170,3 +170,64 @@ assert.equal(receivedEvent.action, "create");
 assert.equal(receivedEvent.record.text, "realtime message");
 unsubscribe();
 
+// Test realtime subscription with reconnect, backoff, and Last-Event-ID
+let connectionStates = [];
+let connectionAttempts = 0;
+let receivedLastEventIdHeader = null;
+const reconnectEvents = [];
+
+const reconnectClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url, init) => {
+    connectionAttempts++;
+    if (connectionAttempts === 1) {
+      // First connection emits event 1 and then terminates
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(": connected\n\nid: evt-101\ndata: {\"action\":\"create\",\"type\":\"messages\",\"record\":{\"id\":\"m1\",\"text\":\"first msg\"}}\n\n"));
+          controller.close();
+        },
+      });
+      return new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
+    } else {
+      // Second connection receives Last-Event-ID and sends event 2
+      receivedLastEventIdHeader = init?.headers?.["Last-Event-ID"];
+      let streamCtrl;
+      init?.signal?.addEventListener("abort", () => {
+        try { streamCtrl?.close(); } catch {}
+      });
+      const stream = new ReadableStream({
+        start(controller) {
+          streamCtrl = controller;
+          controller.enqueue(new TextEncoder().encode(": connected\n\nid: evt-102\ndata: {\"action\":\"create\",\"type\":\"messages\",\"record\":{\"id\":\"m2\",\"text\":\"replayed msg\"}}\n\n"));
+        },
+      });
+      return new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
+    }
+  },
+});
+
+const unsubReconnect = reconnectClient.subscribeContent("messages", (event) => {
+  reconnectEvents.push(event);
+}, {
+  minBackoffMs: 20,
+  maxBackoffMs: 50,
+  onStateChange: (state) => {
+    connectionStates.push(state);
+  },
+});
+
+await new Promise((resolve) => setTimeout(resolve, 300));
+unsubReconnect();
+
+assert.equal(connectionAttempts, 2, "Expected 2 connection attempts (initial + reconnect)");
+assert.equal(receivedLastEventIdHeader, "evt-101", "Expected Last-Event-ID header to carry last seen event id");
+assert.equal(reconnectEvents.length, 2, "Expected 2 events across connections");
+assert.equal(reconnectEvents[0].record.id, "m1");
+assert.equal(reconnectEvents[1].record.id, "m2");
+assert.ok(connectionStates.includes("connecting"));
+assert.ok(connectionStates.includes("connected"));
+assert.ok(connectionStates.includes("reconnecting"));
+assert.ok(connectionStates.includes("disconnected"));
+
+

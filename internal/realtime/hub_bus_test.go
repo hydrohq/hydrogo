@@ -160,3 +160,46 @@ func TestRedisMessageBusChannelFormatting(t *testing.T) {
 		t.Fatalf("expected channel %q, got %q", expected, got)
 	}
 }
+
+func TestHubEventRingBufferAndCatchup(t *testing.T) {
+	hub := &Hub{MaxHistory: 10}
+	scope, _ := tenant.NewScope("tenant-x", "tx")
+	ctx := tenant.WithScope(context.Background(), scope)
+
+	// Publish 5 events
+	var ids []string
+	for i := 1; i <= 5; i++ {
+		id := "evt-" + string(rune('0'+i))
+		ids = append(ids, id)
+		err := hub.Publish(ctx, Event{
+			ID:    id,
+			Topic: "content:pages",
+			Data:  json.RawMessage(`{}`),
+		})
+		if err != nil {
+			t.Fatalf("publish %d: %v", i, err)
+		}
+	}
+
+	// Request events since evt-2
+	missed := hub.EventsSince("tenant-x", []string{"content:pages"}, "evt-2")
+	if len(missed) != 3 {
+		t.Fatalf("expected 3 missed events, got %d", len(missed))
+	}
+	if missed[0].ID != "evt-3" || missed[1].ID != "evt-4" || missed[2].ID != "evt-5" {
+		t.Fatalf("unexpected missed events: %+v", missed)
+	}
+
+	// Cross-tenant requests should return nothing
+	otherTenantMissed := hub.EventsSince("tenant-other", []string{"content:pages"}, "evt-2")
+	if len(otherTenantMissed) != 0 {
+		t.Fatalf("expected 0 events for other tenant, got %d", len(otherTenantMissed))
+	}
+
+	// Wrong topic should return nothing
+	wrongTopicMissed := hub.EventsSince("tenant-x", []string{"content:news"}, "evt-2")
+	if len(wrongTopicMissed) != 0 {
+		t.Fatalf("expected 0 events for wrong topic, got %d", len(wrongTopicMissed))
+	}
+}
+
