@@ -93,6 +93,7 @@ func (d Dispatcher) Test(ctx context.Context, endpoint Endpoint, event Event) (T
 	req.Header.Set("Idempotency-Key", event.ID)
 	req.Header.Set("X-Hydro-Event", event.Topic)
 	req.Header.Set("X-Hydro-Signature", sig)
+	req.Header.Set("X-Hydro-Signature-256", sig)
 	req.Header.Set("X-Hydro-Timestamp", timestamp)
 	client := d.Client
 	if client == nil {
@@ -176,7 +177,9 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 			request.Header.Set("Idempotency-Key", event.ID)
 			request.Header.Set("X-Hydro-Event", event.Topic)
 			timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-			request.Header.Set("X-Hydro-Signature", signatureAt(body, endpoint.Secret, timestamp))
+			sig := signatureAt(body, endpoint.Secret, timestamp)
+			request.Header.Set("X-Hydro-Signature", sig)
+			request.Header.Set("X-Hydro-Signature-256", sig)
 			request.Header.Set("X-Hydro-Timestamp", timestamp)
 			response, err := client.Do(request)
 			if err == nil {
@@ -296,4 +299,14 @@ func signatureAt(body []byte, secret, timestamp string) string {
 	_, _ = io.WriteString(mac, timestamp+".")
 	_, _ = mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// VerifySignature checks whether headerSig matches the expected HMAC-SHA256 signature
+// of body and timestamp using secret.
+func VerifySignature(body []byte, secret, timestamp, headerSig string) bool {
+	if secret == "" || headerSig == "" {
+		return false
+	}
+	expected := signatureAt(body, secret, timestamp)
+	return hmac.Equal([]byte(expected), []byte(headerSig))
 }

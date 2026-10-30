@@ -36,7 +36,8 @@ func contentEvents(cfg config.Config, store outboxstore.Store) func(ctx context.
 func subscribesToContent(webhooks []config.Webhook) bool {
 	for _, webhook := range webhooks {
 		for _, topic := range webhook.Topics {
-			if strings.HasPrefix(strings.TrimSpace(topic), "content.") {
+			trimmed := strings.TrimSpace(topic)
+			if strings.HasPrefix(trimmed, "content.") || trimmed == "*" || strings.HasPrefix(trimmed, "content:") {
 				return true
 			}
 		}

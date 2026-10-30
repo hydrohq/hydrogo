@@ -140,3 +140,34 @@ type webhookRoundTripperFunc func(*http.Request) (*http.Response, error)
 func (f webhookRoundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return f(request)
 }
+
+func TestVerifySignature(t *testing.T) {
+	body := []byte(`{"id":"evt-1","topic":"content.created","data":{"title":"hello"}}`)
+	secret := "webhook-secret-key-123"
+	timestamp := "1700000000"
+
+	sig := signatureAt(body, secret, timestamp)
+	if !VerifySignature(body, secret, timestamp, sig) {
+		t.Fatal("expected valid signature to verify successfully")
+	}
+
+	// Tampered body
+	if VerifySignature([]byte(`{"tampered":true}`), secret, timestamp, sig) {
+		t.Fatal("expected tampered body to fail signature verification")
+	}
+
+	// Wrong timestamp
+	if VerifySignature(body, secret, "1700000001", sig) {
+		t.Fatal("expected wrong timestamp to fail signature verification")
+	}
+
+	// Wrong secret
+	if VerifySignature(body, "wrong-secret", timestamp, sig) {
+		t.Fatal("expected wrong secret to fail signature verification")
+	}
+
+	// Empty secret or signature
+	if VerifySignature(body, "", timestamp, sig) || VerifySignature(body, secret, timestamp, "") {
+		t.Fatal("expected empty secret or sig to fail verification")
+	}
+}
