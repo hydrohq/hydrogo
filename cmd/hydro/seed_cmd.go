@@ -153,7 +153,7 @@ func seedDemo(args []string, stdout, stderr io.Writer) error {
 	}
 	demoLocale := strings.TrimSpace(cfg.I18N.DefaultLocale)
 	if demoLocale == "" {
-		demoLocale = "tr"
+		demoLocale = "en"
 	}
 	if *locale != "" {
 		demoLocale = strings.ToLower(strings.TrimSpace(*locale))

@@ -55,6 +55,12 @@ var presets = []Preset{
 		ContentTypes: []string{"site_settings", "site_navigation", "homepage_sections", "masthead", "columnists", "official_announcements", "ads", "polls", "videos", "galleries", "comments"},
 	},
 	{
+		Name:         "tr-news",
+		Description:  "regional Turkish news portal: homepage sections, columnists, polls, videos, ads",
+		Modules:      []string{"core", "auth", "members", "pages", "media", "site", "news", "collections", "analytics"},
+		ContentTypes: []string{"site_settings", "site_navigation", "homepage_sections", "masthead", "columnists", "official_announcements", "ads", "polls", "videos", "galleries", "comments"},
+	},
+	{
 		Name:         "crm",
 		Description:  "customer relationship management: companies, contacts, deals and activities",
 		Modules:      []string{"core", "auth", "media", "collections"},

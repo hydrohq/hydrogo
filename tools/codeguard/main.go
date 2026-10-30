@@ -71,6 +71,8 @@ func main() {
 		fail(err)
 	}
 	problems = append(problems, hidden...)
+	vendorViolations := checkCoreVendorDecoupling(files)
+	problems = append(problems, vendorViolations...)
 	for _, problem := range problems {
 		fmt.Fprintln(os.Stderr, "codeguard:", problem)
 	}
@@ -209,4 +211,26 @@ func disabledTests() ([]string, error) {
 		}
 	}
 	return problems, nil
+}
+
+func checkCoreVendorDecoupling(files []string) []string {
+	var problems []string
+	prohibited := []string{"yurticikargo.com", "paytr.com"}
+	for _, name := range files {
+		// Only check core packages (modules/ and internal/)
+		if !strings.HasPrefix(name, "modules/") && !strings.HasPrefix(name, "internal/") {
+			continue
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			continue
+		}
+		content := strings.ToLower(string(data))
+		for _, p := range prohibited {
+			if strings.Contains(content, p) {
+				problems = append(problems, fmt.Sprintf("%s: contains hardcoded vendor domain %q; decouple to extensions/ or starters per AGENTS.md Rule 2", name, p))
+			}
+		}
+	}
+	return problems
 }
