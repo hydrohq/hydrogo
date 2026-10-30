@@ -26,6 +26,8 @@ type Repository interface {
 	// QueryRecords lists records matching a query already checked by
 	// Schema.ValidateQuery.
 	QueryRecords(ctx context.Context, collectionID string, query Query) ([]Record, error)
+	// AggregateRecords computes aggregates (count, sum, avg, min, max) and optional group-by on records.
+	AggregateRecords(ctx context.Context, collectionID string, query AggregateQuery) ([]map[string]any, error)
 	GetRecord(context.Context, string, string) (Record, error)
 	// SaveRecord creates (empty id) or updates a record. When expectedVersion
 	// is positive the update only applies if the stored version still matches,
@@ -130,6 +132,16 @@ func (s Service) QueryRecords(ctx context.Context, collectionID string, query Qu
 		return nil, err
 	}
 	return s.Repository.QueryRecords(ctx, collectionID, checked)
+}
+
+func (s Service) AggregateRecords(ctx context.Context, collectionID string, query AggregateQuery) ([]map[string]any, error) {
+	if s.Repository == nil {
+		return nil, ErrCollectionNotFound
+	}
+	if _, err := s.GetSchema(ctx, collectionID); err != nil {
+		return nil, err
+	}
+	return s.Repository.AggregateRecords(ctx, collectionID, query)
 }
 
 func (s Service) GetRecord(ctx context.Context, collectionID, id string) (Record, error) {
