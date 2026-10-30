@@ -41,6 +41,8 @@ func (h HTTPHandler) adminRoutes() []HTTPRoute {
 		{Pattern: "GET " + AdminBasePath + "/settings", Protected: true, Handler: http.HandlerFunc(h.settings)},
 		{Pattern: "PUT " + AdminBasePath + "/settings", Protected: true, Handler: http.HandlerFunc(h.saveSettings)},
 		{Pattern: "POST " + AdminBasePath + "/direct-upload", Protected: true, Handler: http.HandlerFunc(h.directUpload)},
+		{Pattern: "POST " + AdminBasePath + "/upload-url", Protected: true, Handler: http.HandlerFunc(h.uploadURL)},
+		{Pattern: "POST " + AdminBasePath + "/confirm", Protected: true, Handler: http.HandlerFunc(h.confirmUpload)},
 		{Pattern: "GET " + AdminBasePath + "/{id}", Protected: true, Handler: http.HandlerFunc(h.get)},
 		{Pattern: "PATCH " + AdminBasePath + "/{id}", Protected: true, Handler: http.HandlerFunc(h.update)},
 		{Pattern: "GET " + AdminBasePath + "/{id}/url", Protected: true, Handler: http.HandlerFunc(h.url)},

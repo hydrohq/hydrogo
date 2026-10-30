@@ -47,7 +47,11 @@ func (h HTTPHandler) Routes() []HTTPRoute {
 		r = r.WithContext(context.WithValue(r.Context(), mediaSettingsContextKey{}, settings))
 		h.serve(w, r)
 	})
-	return append(h.adminRoutes(), HTTPRoute{Pattern: "GET /media/{id}", Handler: serve})
+	return append(h.adminRoutes(),
+		HTTPRoute{Pattern: "GET /media/{id}", Handler: serve},
+		HTTPRoute{Pattern: "POST /api/v1/media/upload-url", Protected: true, Handler: http.HandlerFunc(h.uploadURL)},
+		HTTPRoute{Pattern: "POST /api/v1/media/confirm", Protected: true, Handler: http.HandlerFunc(h.confirmUpload)},
+	)
 }
 
 func (h HTTPHandler) adminSettings(ctx context.Context) (AdminSettings, error) {
