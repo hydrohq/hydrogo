@@ -43,6 +43,8 @@ func TestValidateImageDimensionsRejectsInvalidDimensions(t *testing.T) {
 		{name: "zero height", width: 10, height: 0, want: ErrInvalidImageData},
 		{name: "negative width", width: -1, height: 10, want: ErrInvalidImageData},
 		{name: "pixel budget", width: 11, height: 10, want: ErrImageTooLarge},
+		{name: "width exceeded", width: 8193, height: 100, want: ErrImageDimensionsExceeded},
+		{name: "height exceeded", width: 100, height: 8193, want: ErrImageDimensionsExceeded},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := validateImageDimensions(tc.width, tc.height, 100); got != tc.want {
@@ -59,6 +61,31 @@ func TestUploaderRejectsExecutableDoubleExtensions(t *testing.T) {
 	}
 	if _, err := uploader.Save(bytes.NewReader(createTestPNG(2, 2)), "../avatar.png.php"); !errors.Is(err, ErrDisallowedMimeType) {
 		t.Fatalf("double extension error = %v", err)
+	}
+}
+
+func TestUploaderRejectsMismatchedExtensionAndMagicBytes(t *testing.T) {
+	uploader, err := NewUploader(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Executable file renamed to .jpg
+	exeData := []byte("MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00")
+	if _, err := uploader.Save(bytes.NewReader(exeData), "malicious.jpg"); !errors.Is(err, ErrDisallowedMimeType) {
+		t.Fatalf("exe as jpg error = %v, want ErrDisallowedMimeType", err)
+	}
+
+	// 2. PNG content renamed to .jpg
+	pngData := createTestPNG(2, 2)
+	if _, err := uploader.Save(bytes.NewReader(pngData), "fake.jpg"); !errors.Is(err, ErrDisallowedMimeType) {
+		t.Fatalf("png as jpg error = %v, want ErrDisallowedMimeType", err)
+	}
+
+	// 3. Fake magic bytes for JPEG
+	fakeJPEG := append([]byte{0x00, 0x00, 0x00}, bytes.Repeat([]byte{1}, 100)...)
+	if _, err := uploader.Save(bytes.NewReader(fakeJPEG), "corrupt.jpg"); !errors.Is(err, ErrDisallowedMimeType) {
+		t.Fatalf("fake jpeg error = %v, want ErrDisallowedMimeType", err)
 	}
 }
 

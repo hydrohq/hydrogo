@@ -312,7 +312,7 @@ func (t ffmpegTransformer) transformImage(ctx context.Context, input, id string)
 	if err != nil {
 		return transformResult{}, fmt.Errorf("decode image header: %w", err)
 	}
-	if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > 40_000_000 {
+	if config.Width <= 0 || config.Height <= 0 || config.Width > MaxImageWidth || config.Height > MaxImageHeight || int64(config.Width)*int64(config.Height) > MaxImagePixels {
 		return transformResult{}, errors.New("image dimensions exceed derivative limit")
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
