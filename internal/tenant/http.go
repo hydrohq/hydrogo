@@ -22,6 +22,14 @@ func NewHostResolver(hosts map[string]Scope, require bool) HostResolver {
 
 func (r HostResolver) Enabled() bool { return len(r.hosts) > 0 || r.require }
 
+func (r HostResolver) Matches(raw string) bool {
+	if len(r.hosts) == 0 {
+		return false
+	}
+	_, ok := r.hosts[normalizeHost(raw)]
+	return ok
+}
+
 // Middleware resolves the host before downstream auth/repository code. Health
 // and readiness endpoints remain tenant-neutral for load balancers.
 func (r HostResolver) Middleware(next http.Handler) http.Handler {

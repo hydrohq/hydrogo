@@ -210,19 +210,6 @@ func NewHandler(config Config) http.Handler {
 	handler = ETagMiddleware(handler)
 	handler = config.PublicHTMLCache.Middleware(handler)
 
-	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
-	if err != nil {
-		panic(err)
-	}
-	handler = hostMiddleware(handler)
-	if config.TenantResolver != nil && config.TenantResolver.Enabled() {
-		handler = config.TenantResolver.Middleware(handler)
-	}
-	if config.DistributedTenantAdmission != nil {
-		handler = config.DistributedTenantAdmission.Middleware(handler)
-	} else if config.TenantAdmission != nil {
-		handler = config.TenantAdmission.Middleware(handler)
-	}
 	publicCORS, err := security.NewPublicReadCORSMiddleware(config.PublicAPIOrigins)
 	if err != nil {
 		panic(err)
@@ -273,6 +260,32 @@ func NewHandler(config Config) http.Handler {
 	}
 	if config.IPBlocklist != nil {
 		handler = config.IPBlocklist.Middleware(handler)
+	}
+
+	hostMiddleware, err := security.NewHostMiddleware(config.PublicOrigin)
+	if err != nil {
+		panic(err)
+	}
+	if config.TenantResolver != nil && config.TenantResolver.Enabled() {
+		origHostMiddleware := hostMiddleware
+		hostMiddleware = func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if config.TenantResolver.Matches(r.Host) {
+					next.ServeHTTP(w, r)
+					return
+				}
+				origHostMiddleware(next).ServeHTTP(w, r)
+			})
+		}
+	}
+	handler = hostMiddleware(handler)
+	if config.TenantResolver != nil && config.TenantResolver.Enabled() {
+		handler = config.TenantResolver.Middleware(handler)
+	}
+	if config.DistributedTenantAdmission != nil {
+		handler = config.DistributedTenantAdmission.Middleware(handler)
+	} else if config.TenantAdmission != nil {
+		handler = config.TenantAdmission.Middleware(handler)
 	}
 
 	// Apply security headers (CSP allows inline code only by hash)

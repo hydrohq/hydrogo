@@ -238,7 +238,46 @@ func dbTime(dialect string, value time.Time) any {
 	return value
 }
 
+func tableExistsTx(ctx context.Context, tx *sql.Tx, dialect, tableName string) (bool, error) {
+	var exists bool
+	var err error
+	switch dialect {
+	case "sqlite":
+		err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?)`, tableName).Scan(&exists)
+	case "postgres":
+		err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1)`, tableName).Scan(&exists)
+	case "mysql":
+		err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?)`, tableName).Scan(&exists)
+	default:
+		return false, fmt.Errorf("unsupported dialect %s", dialect)
+	}
+	return exists, err
+}
+
+func tableExistsDB(ctx context.Context, db *sql.DB, dialect, tableName string) (bool, error) {
+	var exists bool
+	var err error
+	switch dialect {
+	case "sqlite":
+		err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?)`, tableName).Scan(&exists)
+	case "postgres":
+		err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1)`, tableName).Scan(&exists)
+	case "mysql":
+		err = db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?)`, tableName).Scan(&exists)
+	default:
+		return false, fmt.Errorf("unsupported dialect %s", dialect)
+	}
+	return exists, err
+}
+
 func ensureDefaults(ctx context.Context, tx *sql.Tx, dialect string, tenantID, locale, timezone string, now time.Time) (int, error) {
+	hasTable, err := tableExistsTx(ctx, tx, dialect, "site_settings")
+	if err != nil {
+		return 0, err
+	}
+	if !hasTable {
+		return 0, nil
+	}
 	defaults := append([]struct {
 		Key, Value string
 		Public     bool
@@ -357,6 +396,13 @@ func BackfillActiveTenants(ctx context.Context, db *sql.DB, dialect string, dryR
 	return report, nil
 }
 func countMissingDefaults(ctx context.Context, db *sql.DB, dialect string, tenantID string) (int64, error) {
+	hasTable, err := tableExistsDB(ctx, db, dialect, "site_settings")
+	if err != nil {
+		return 0, err
+	}
+	if !hasTable {
+		return 0, nil
+	}
 	var missing int64
 	for _, item := range bootstrapDefaults {
 		var exists int

@@ -94,6 +94,7 @@ func configureTenancy(cfg config.Config) (*tenant.HostResolver, []tenant.Scope, 
 			hostNames = append(hostNames, host)
 		}
 		sort.Strings(hostNames)
+		seenTenants := make(map[string]bool)
 		for _, host := range hostNames {
 			tenantID := cfg.Tenancy.Hosts[host]
 			scope, scopeErr := tenant.NewScope(tenantID, tenantID)
@@ -101,7 +102,10 @@ func configureTenancy(cfg config.Config) (*tenant.HostResolver, []tenant.Scope, 
 				return nil, nil, fmt.Errorf("tenancy host %q: %w", host, scopeErr)
 			}
 			hostScopes[host] = scope
-			tenantScopes = append(tenantScopes, scope)
+			if !seenTenants[tenantID] {
+				seenTenants[tenantID] = true
+				tenantScopes = append(tenantScopes, scope)
+			}
 		}
 		resolver := tenant.NewHostResolver(hostScopes, cfg.Tenancy.RequireHost)
 		tenantResolver = &resolver

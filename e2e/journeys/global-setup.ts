@@ -53,18 +53,37 @@ export default async function globalSetup() {
   runCommand(bin, ["new", "proj", "--preset", "crm", "--admin-email", ADMIN_EMAIL, "--admin-password-stdin"], { cwd: work, input: `${ADMIN_PASSWORD}\n` });
   const project = join(work, "proj");
   const configPath = join(project, "config.yaml");
+  const tenancyConfig = `
+tenancy:
+  enabled: true
+  require_host: false
+  hosts:
+    127.0.0.1: "tenant-main"
+    localhost: "tenant-main"
+    alpha.example.test: "tenant-alpha"
+    beta.example.test: "tenant-beta"
+`;
   writeFileSync(
     configPath,
-    readFileSync(configPath, "utf8").replace(/address: ".*"/, `address: "127.0.0.1:${hydroPort}"`).replace(/public_origin: ".*"/, `public_origin: "${hydroUrl}"`),
+    readFileSync(configPath, "utf8").replace(/address: ".*"/, `address: "127.0.0.1:${hydroPort}"`).replace(/public_origin: ".*"/, `public_origin: "${hydroUrl}"`) + tenancyConfig,
   );
   runCommand(bin, ["migrate", "--config", configPath], { cwd: project });
   runCommand(bin, ["create-user", "--email", "staff@journeys.test", "--role", "viewer", "--permissions", "admin.site.manage", "--password-stdin", "--config", configPath], {
     cwd: project,
     input: "Staff-Journey-Pass-2026-Zq!\n",
   });
-
   const accountOutput = runCommand(bin, ["service-account", "create", "--name", "journeys", "--permissions", "admin.content.read,admin.content.write", "--expires-days", "1", "--config", configPath], { cwd: project });
   process.env.JOURNEY_HYDRO_TOKEN = /^(hyd_\S+)$/m.exec(accountOutput)?.[1] ?? "";
+
+  runCommand(bin, ["tenant", "backfill", "--tenant-id", "tenant-main", "--confirm", "--config", configPath], { cwd: project });
+  runCommand(bin, ["tenant", "provision", "--tenant-id", "tenant-alpha", "--admin-email", "admin@alpha.test", "--admin-password-stdin", "--config", configPath], {
+    cwd: project,
+    input: `${ADMIN_PASSWORD}\n`,
+  });
+  runCommand(bin, ["tenant", "provision", "--tenant-id", "tenant-beta", "--admin-email", "admin@beta.test", "--admin-password-stdin", "--config", configPath], {
+    cwd: project,
+    input: `${ADMIN_PASSWORD}\n`,
+  });
 
   const servers: ChildProcess[] = [];
   const logs: string[] = [];
@@ -94,12 +113,16 @@ export default async function globalSetup() {
     servers.push(crm);
     await waitFor(`${crmUrl}/health`, "the CRM starter", crm, log);
   } catch (error) {
+    console.error("SERVER LOGS:\n", log());
     for (const s of servers) await stopServer(s);
     rmSync(work, { recursive: true, force: true });
     throw error;
   }
 
   process.env.JOURNEY_HYDRO_URL = hydroUrl;
+  process.env.JOURNEY_HYDRO_PORT = String(hydroPort);
+  process.env.JOURNEY_HYDRO_ALPHA_URL = `http://alpha.example.test:${hydroPort}`;
+  process.env.JOURNEY_HYDRO_BETA_URL = `http://beta.example.test:${hydroPort}`;
   process.env.JOURNEY_CRM_URL = crmUrl;
   return async () => {
     for (const s of servers.reverse()) await stopServer(s);
