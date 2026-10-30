@@ -10,6 +10,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -46,4 +47,8 @@ func newNewsCache(enabled bool, budget capacity.Budget, _ redisRuntime, _ string
 		return nil, nil
 	}
 	return cache.New[news.Item](budget.CacheEntries, budget.CacheTTL), nil
+}
+
+func configureRealtimeHub(_ *realtime.Hub, _ redisRuntime, _ string) error {
+	return nil
 }
