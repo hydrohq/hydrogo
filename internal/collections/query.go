@@ -73,6 +73,15 @@ type Sort struct {
 	Kind FieldKind
 }
 
+// AuthContext holds caller identity attributes used during row-level rule compilation.
+type AuthContext struct {
+	ID       string
+	Email    string
+	Role     string
+	IsAdmin  bool
+	IsMember bool
+}
+
 // Query is a bounded list query: every condition in Where must match, and
 // when AnyOf is not empty at least one of its conditions must match too
 // (used for search across several fields).
@@ -88,6 +97,9 @@ type Query struct {
 	// After continues a list after a cursor from NextCursor; it replaces
 	// Offset and only works with the default sort or a created_at/updated_at sort.
 	After *Cursor
+	// AccessRule is a declarative row-level access rule pushed into SQL WHERE.
+	AccessRule  string
+	AuthContext AuthContext
 }
 
 // ParseSort reads "field" or "-field".
@@ -130,7 +142,14 @@ func (s Schema) ValidateQuery(q Query) (Query, error) {
 			return Query{}, err
 		}
 	}
-	result := Query{Limit: q.Limit, Offset: q.Offset, IDs: q.IDs, After: q.After}
+	result := Query{
+		Limit:       q.Limit,
+		Offset:      q.Offset,
+		IDs:         q.IDs,
+		After:       q.After,
+		AccessRule:  q.AccessRule,
+		AuthContext: q.AuthContext,
+	}
 	for _, group := range []struct {
 		in  []Condition
 		out *[]Condition

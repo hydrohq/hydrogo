@@ -239,6 +239,13 @@ func buildRecordQuery(dialect database.Dialect, tenantID, collectionID string, q
 		}
 		sql.WriteString(" AND " + clause)
 	}
+	if query.AccessRule != "" {
+		clause, err := collections.CompileAccessRuleToSQL(b.dialect, query.AccessRule, query.AuthContext, b.param, b.text)
+		if err != nil {
+			return "", nil, err
+		}
+		sql.WriteString(" AND (" + clause + ")")
+	}
 	if after := query.After; after != nil {
 		if (after.Field != collections.SortCreatedAt && after.Field != collections.SortUpdatedAt) || len(after.Value) == 0 || len(after.ID) == 0 {
 			return "", nil, collections.ErrInvalidQuery

@@ -142,6 +142,19 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if definition.Drafts {
 		query.Where = append(query.Where, publishedCondition())
 	}
+	if definition.AccessRules != nil && definition.AccessRules.List != "" {
+		listRule := strings.TrimSpace(definition.AccessRules.List)
+		if !principal.IsAdmin && !strings.EqualFold(listRule, "public") && !strings.EqualFold(listRule, "true") {
+			query.AccessRule = listRule
+			query.AuthContext = collections.AuthContext{
+				ID:       principal.ID,
+				Email:    principal.Email,
+				Role:     principal.Role,
+				IsAdmin:  principal.IsAdmin,
+				IsMember: principal.IsMember,
+			}
+		}
+	}
 	limit := query.Limit
 	if limit < 100 {
 		query.Limit = limit + 1
@@ -153,16 +166,6 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
-	}
-	if definition.AccessRules != nil && definition.AccessRules.List != "" {
-		filtered := make([]collections.Record, 0, len(records))
-		for _, rec := range records {
-			allowed, err := EvaluateRule(definition.AccessRules.List, principal, rec.Data, true)
-			if err == nil && allowed {
-				filtered = append(filtered, rec)
-			}
-		}
-		records = filtered
 	}
 	hasMore := len(records) > limit
 	if hasMore {
