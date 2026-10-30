@@ -151,6 +151,7 @@ func (a *serveApp) initAuth() error {
 	a.memberStore = memberstore.Store{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	a.userStore, a.sessionStore, a.authSvc, a.mfaService, a.recoveryService = userStore, sessionStore, authSvc, mfaService, recoveryService
 	a.userAdmin = userStore
+	a.roleStore = authstore.RoleStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	a.auditRecorder, a.authHTTP, a.mobileAuthHTTP = auditRecorder, authHTTP, mobileAuthHTTP
 	return nil
 }

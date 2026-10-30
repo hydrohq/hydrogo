@@ -22,6 +22,7 @@
   const loadMembersView = () => import('./routes/members/MembersView.svelte');
   const loadCommerceOrdersView = () => import('./routes/commerce/CommerceOrdersView.svelte');
   const loadUsersView = () => import('./routes/users/UsersView.svelte');
+  const loadRolesView = () => import('./routes/roles/RolesView.svelte');
   const loadSiteView = () => import('./routes/site/SiteView.svelte');
   const loadAuditView = () => import('./routes/audit/AuditView.svelte');
   const loadSystemView = () => import('./routes/system/SystemView.svelte');
@@ -166,6 +167,8 @@
         <LazyView load={loadCommerceOrdersView} />
       {:else if routeInfo.module === 'users'}
         <LazyView load={loadUsersView} />
+      {:else if routeInfo.module === 'roles'}
+        <LazyView load={loadRolesView} />
       {:else if routeInfo.module === 'site'}
         <LazyView load={loadSiteView} />
       {:else if routeInfo.module === 'audit'}

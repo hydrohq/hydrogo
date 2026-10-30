@@ -163,6 +163,7 @@ func (s *UserStore) GetByID(ctx context.Context, id string) (*auth.User, error) 
 	u.CreatedAt = parseTime(createdAtVal)
 	u.UpdatedAt = parseTime(updatedAtVal)
 	u.EmailVerifiedAt = parseOptionalTime(verifiedAtVal)
+	s.loadRolePermissions(ctx, &u)
 
 	return &u, nil
 }
@@ -202,8 +203,40 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*auth.User, e
 	u.CreatedAt = parseTime(createdAtVal)
 	u.UpdatedAt = parseTime(updatedAtVal)
 	u.EmailVerifiedAt = parseOptionalTime(verifiedAtVal)
+	s.loadRolePermissions(ctx, &u)
 
 	return &u, nil
+}
+
+func (s *UserStore) loadRolePermissions(ctx context.Context, u *auth.User) {
+	if u == nil || u.Role == auth.RoleAdmin || u.Role == auth.RoleEditor || u.Role == auth.RoleViewer {
+		return
+	}
+	tenantID, _ := s.tenant(ctx)
+	query := `SELECT resource, action FROM hydro_role_permissions WHERE role_id = ` + s.bind(1)
+	args := []any{string(u.Role)}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = ` + s.bind(2)
+		args = append(args, tenantID)
+	}
+	_ = s.within(ctx, func(exec database.Executor) error {
+		queryExec, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return nil
+		}
+		rows, err := queryExec.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var perm auth.RolePermission
+			if err := rows.Scan(&perm.Resource, &perm.Action); err == nil {
+				u.Permissions = append(u.Permissions, perm)
+			}
+		}
+		return nil
+	})
 }
 
 // RecordFailedLogin increments the account counter only when the normalized

@@ -48,6 +48,8 @@ var expectedRLSTables = []string{
 	"hydro_collection_revisions",
 	"hydro_collection_translations",
 	"hydro_collection_sequences",
+	"hydro_roles",
+	"hydro_role_permissions",
 }
 
 // TestPostgresTenantRLSContract certifies ADR-0156 and ADR-0180:

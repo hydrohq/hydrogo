@@ -36,6 +36,7 @@ type User struct {
 	LastLoginIP         string          `json:"-"`
 	FailedLoginAttempts int             `json:"-"`
 	PermissionOverrides map[string]bool `json:"-"`
+	Permissions         []RolePermission `json:"permissions,omitempty"`
 }
 
 // UserAdminRepository contains the administrative account operations used by

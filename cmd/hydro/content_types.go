@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -102,6 +103,25 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 // reads need admin.content.read, changes admin.content.write.
 func contentTypeAccess(r *http.Request, write bool) bool {
 	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		return false
+	}
+	if user.Role == auth.RoleAdmin {
+		return true
+	}
+	if user.Role != auth.RoleEditor && user.Role != auth.RoleViewer {
+		action := "read"
+		if write {
+			action = "update"
+		}
+		typeID := r.PathValue("type")
+		if typeID != "" {
+			if auth.CanResource(user, "collection:"+typeID, action) || auth.CanResource(user, "collection:*", action) {
+				return true
+			}
+		}
+		return auth.CanResource(user, "*", action)
+	}
 	if write {
 		return auth.Can(user, auth.PermissionContentWrite)
 	}
@@ -118,7 +138,27 @@ func contentTypeActor(r *http.Request) string {
 
 // contentTypeCan answers permission checks of state transitions.
 func contentTypeCan(r *http.Request, permission string) bool {
-	return auth.Can(auth.UserFromContext(r.Context()), permission)
+	user := auth.UserFromContext(r.Context())
+	if user == nil || !user.Active {
+		return false
+	}
+	if user.Role == auth.RoleAdmin {
+		return true
+	}
+	if user.Role != auth.RoleEditor && user.Role != auth.RoleViewer {
+		typeID := r.PathValue("type")
+		action := "update"
+		if strings.Contains(permission, "read") {
+			action = "read"
+		}
+		if typeID != "" {
+			if auth.CanResource(user, "collection:"+typeID, action) || auth.CanResource(user, "collection:*", action) {
+				return true
+			}
+		}
+		return auth.CanResource(user, "*", action)
+	}
+	return auth.Can(user, permission)
 }
 
 // rateLimitedPublicContent bounds the public content API per caller IP.
