@@ -127,8 +127,9 @@ func (a *serveApp) adminSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	schema := a.buildAdminSchema()
-	schema.Resources = contenttypes.HideUnreadableFields(schema.Resources, a.contentTypes, func(permission string) bool { return contentTypeCan(r, permission) })
+	defs := a.contentTypesForContext(r.Context())
+	schema := a.buildAdminSchemaForTypes(defs)
+	schema.Resources = contenttypes.HideUnreadableFields(schema.Resources, defs, func(permission string) bool { return contentTypeCan(r, permission) })
 	schema.Locales.AdminDefault = a.adminDefaultLocale(r.Context())
 	schema.Branding = a.adminBranding(r.Context())
 	api.WriteData(w, http.StatusOK, schema, nil)
@@ -176,18 +177,22 @@ func (a *serveApp) adminBranding(ctx context.Context) adminBranding {
 }
 
 func (a *serveApp) buildAdminSchema() adminSchema {
+	return a.buildAdminSchemaForTypes(a.getContentTypes())
+}
+
+func (a *serveApp) buildAdminSchemaForTypes(defs []contenttypes.Definition) adminSchema {
 	localized := a.contentLocales.Enabled()
-	resources := contenttypes.AdminCollections(a.contentTypes, localized)
+	resources := contenttypes.AdminCollections(defs, localized)
 	resources = append(resources, a.activeStudioCollections()...)
 	schema := adminSchema{
 		Version:      1,
 		Resources:    resources,
-		ContentTypes: make([]adminSchemaContentType, 0, len(a.contentTypes)),
+		ContentTypes: make([]adminSchemaContentType, 0, len(defs)),
 		Modules:      make(map[string]bool, len(a.modules)),
 		Locales:      adminSchemaLocales{Enabled: localized, Default: a.contentLocales.Default, All: append([]string{}, a.contentLocales.All...)},
 		Permissions:  a.authSvc.AvailablePermissions(),
 	}
-	for _, definition := range a.contentTypes {
+	for _, definition := range defs {
 		schema.ContentTypes = append(schema.ContentTypes, adminSchemaContentType{
 			ID: definition.ID, Label: definition.Label, Description: definition.Description, Public: definition.Public,
 			Drafts: definition.Drafts, Revisions: definition.Revisions, Localization: localized && definition.Localized(),

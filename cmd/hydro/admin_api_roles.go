@@ -69,7 +69,7 @@ func (a *serveApp) adminRoleSaveHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var input adminRoleInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&input); err != nil {
 		api.WriteError(w, r, http.StatusBadRequest, "invalid request body", nil)
 		return
 	}

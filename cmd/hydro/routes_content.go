@@ -37,13 +37,13 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
-	definitions, contentRoutes, err := contentTypeRoutes(ctx, cfg.ContentTypesDir, collectionService, a.tenantScopes, a.contentLocales, a.editPresence, a.hookCaller(), a.newRateLimiter(120, time.Minute), a.realtimeHub, a.resolveContentPrincipal, func() []contenttypes.Definition {
-		return a.contentTypes
-	})
+	definitions, contentRoutes, err := contentTypeRoutesWithContext(ctx, cfg.ContentTypesDir, collectionService, a.getTenantScopes(), a.contentLocales, a.editPresence, a.hookCaller(), a.newRateLimiter(120, time.Minute), a.realtimeHub, a.resolveContentPrincipal, a.getContentTypes, a.contentTypesForContext)
 	if err != nil {
 		return nil, err
 	}
+	a.stateMu.Lock()
 	a.contentTypes = definitions
+	a.stateMu.Unlock()
 	if err := checkHookServices(cfg.Hooks, definitions); err != nil {
 		return nil, err
 	}

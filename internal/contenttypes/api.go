@@ -1,6 +1,7 @@
 package contenttypes
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -21,6 +22,8 @@ type AdminAPI struct {
 	Types   []Definition
 	// TypesFunc optionally supplies the definitions dynamically.
 	TypesFunc func() []Definition
+	// TypesForContext optionally supplies tenant-scoped definitions per request.
+	TypesForContext func(context.Context) []Definition
 	// Actor names the user making a change (stored with revisions).
 	Actor func(*http.Request) string
 	// Locales are the site's content locales (see localization.go).

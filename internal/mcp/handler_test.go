@@ -391,6 +391,39 @@ func TestMCPScopeEnforcement(t *testing.T) {
 	if resp.Error.Code != -32000 && resp.Error.Code != -32001 {
 		t.Fatalf("expected error code -32000 or -32001, got %d", resp.Error.Code)
 	}
+
+	// Viewer user cannot mutate records
+	viewerCtx := auth.WithUser(context.Background(), &auth.User{
+		ID:     "viewer-1",
+		Role:   auth.RoleViewer,
+		Active: true,
+	})
+	reqViewer := httptest.NewRequest(http.MethodPost, "/api/v1/mcp", strings.NewReader(mutatePayload)).WithContext(viewerCtx)
+	wViewer := httptest.NewRecorder()
+	h.ServeHTTP(wViewer, reqViewer)
+	var viewerResp JSONRPCResponse
+	if err := json.Unmarshal(wViewer.Body.Bytes(), &viewerResp); err != nil {
+		t.Fatal(err)
+	}
+	if viewerResp.Error == nil {
+		t.Fatalf("expected viewer mutation to be rejected, got: %v", viewerResp.Result)
+	}
+
+	// RequireAuth rejects unauthenticated requests
+	hAuth := NewHandler(Config{
+		CollectionService: h.cfg.CollectionService,
+		RequireAuth:       true,
+	})
+	reqAnon := httptest.NewRequest(http.MethodPost, "/api/v1/mcp", strings.NewReader(mutatePayload))
+	wAnon := httptest.NewRecorder()
+	hAuth.ServeHTTP(wAnon, reqAnon)
+	var anonResp JSONRPCResponse
+	if err := json.Unmarshal(wAnon.Body.Bytes(), &anonResp); err != nil {
+		t.Fatal(err)
+	}
+	if anonResp.Error == nil {
+		t.Fatalf("expected unauthenticated request to be rejected when RequireAuth is true")
+	}
 }
 
 var _ = filepath.Join

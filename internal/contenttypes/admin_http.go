@@ -43,41 +43,63 @@ const AdminAPIPath = "/api/v1/admin/content"
 //	GET    .../_export                         CSV of the matching records
 //	POST   .../_import[?dry_run=1]             CSV body, one atomic transaction
 //	POST   /api/v1/admin/content/_batch        {operations:[{op,type,id,version,fields}]} atomic
+func (a AdminAPI) forRequest(r *http.Request) AdminAPI {
+	if a.TypesForContext != nil && r != nil {
+		cp := a
+		cp.Types = a.TypesForContext(r.Context())
+		cp.TypesFunc = nil
+		cp.TypesForContext = nil
+		return cp
+	}
+	return a
+}
+
 func (a AdminAPI) Routes() []router.Route {
 	base := AdminAPIPath + "/{type}"
 	record := base + "/{id}"
 	handlers := []struct {
 		pattern string
-		handler http.HandlerFunc
+		handler func(AdminAPI, http.ResponseWriter, *http.Request)
 	}{
-		{"GET " + base, a.list},
-		{"GET " + base + AggregatePath, a.aggregate},
-		{"GET " + base + "/_export", a.export},
-		{"POST " + base + "/_import", a.importCSV},
-		{"POST " + base, a.create},
-		{"GET " + record, a.get},
-		{"PUT " + record, a.update},
-		{"DELETE " + record, a.delete},
-		{"POST " + record + "/workflow", a.workflow},
-		{"POST " + record + "/state", a.state},
-		{"GET " + record + "/revisions", a.revisions},
-		{"GET " + record + "/revisions/{version}", a.revision},
-		{"POST " + record + "/revisions/{version}/restore", a.restore},
-		{"GET " + record + "/locales", a.locales},
-		{"GET " + record + "/locale/{locale}", a.locale},
-		{"PUT " + record + "/locale/{locale}", a.saveLocale},
-		{"POST " + record + "/locale/{locale}/copy", a.copyLocale},
+		{"GET " + base, AdminAPI.list},
+		{"GET " + base + AggregatePath, AdminAPI.aggregate},
+		{"GET " + base + "/_export", AdminAPI.export},
+		{"POST " + base + "/_import", AdminAPI.importCSV},
+		{"POST " + base, AdminAPI.create},
+		{"GET " + record, AdminAPI.get},
+		{"PUT " + record, AdminAPI.update},
+		{"DELETE " + record, AdminAPI.delete},
+		{"POST " + record + "/workflow", AdminAPI.workflow},
+		{"POST " + record + "/state", AdminAPI.state},
+		{"GET " + record + "/revisions", AdminAPI.revisions},
+		{"GET " + record + "/revisions/{version}", AdminAPI.revision},
+		{"POST " + record + "/revisions/{version}/restore", AdminAPI.restore},
+		{"GET " + record + "/locales", AdminAPI.locales},
+		{"GET " + record + "/locale/{locale}", AdminAPI.locale},
+		{"PUT " + record + "/locale/{locale}", AdminAPI.saveLocale},
+		{"POST " + record + "/locale/{locale}/copy", AdminAPI.copyLocale},
 	}
 	routes := make([]router.Route, 0, len(handlers)+4)
-	routes = append(routes, router.Route{Pattern: "POST " + BatchPath, Access: router.Protected, Handler: http.HandlerFunc(a.batch)})
+	routes = append(routes, router.Route{Pattern: "POST " + BatchPath, Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		a.forRequest(r).batch(w, r)
+	})})
 	for _, entry := range handlers {
-		routes = append(routes, router.Route{Pattern: entry.pattern, Access: router.Protected, Handler: entry.handler})
+		fn := entry.handler
+		routes = append(routes, router.Route{Pattern: entry.pattern, Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fn(a.forRequest(r), w, r)
+		})})
 	}
 	if a.Presence != nil {
 		routes = append(routes,
-			router.Route{Pattern: "POST " + record + "/presence", Access: router.Protected, Handler: http.HandlerFunc(a.presenceHeartbeat)},
-			router.Route{Pattern: "GET " + record + "/presence", Access: router.Protected, Handler: http.HandlerFunc(a.presenceList)},
-			router.Route{Pattern: "POST " + record + "/presence/leave", Access: router.Protected, Handler: http.HandlerFunc(a.presenceLeave)},
+			router.Route{Pattern: "POST " + record + "/presence", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				a.forRequest(r).presenceHeartbeat(w, r)
+			})},
+			router.Route{Pattern: "GET " + record + "/presence", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				a.forRequest(r).presenceList(w, r)
+			})},
+			router.Route{Pattern: "POST " + record + "/presence/leave", Access: router.Protected, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				a.forRequest(r).presenceLeave(w, r)
+			})},
 		)
 	}
 	return routes

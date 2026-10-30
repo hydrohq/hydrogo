@@ -36,6 +36,7 @@ type PublicBatchItemResult struct {
 }
 
 func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	defaultType := r.PathValue("type")
 	r.Body = http.MaxBytesReader(w, r.Body, maxBatchBodyBytes)
 

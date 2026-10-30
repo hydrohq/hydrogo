@@ -24,12 +24,25 @@ import (
 
 // Config holds dependencies for the MCP server handler.
 type Config struct {
-	CollectionService collections.Service
-	ContentTypesDir   string
-	ContentTypes      func() []contenttypes.Definition
-	SyncSchema        func(ctx context.Context, def contenttypes.Definition) error
-	AuditStore        audit.DetailRecorder
-	DB                database.Executor
+	CollectionService      collections.Service
+	ContentTypesDir        string
+	RequireTenantScope     bool
+	RequireAuth            bool
+	ContentTypes           func() []contenttypes.Definition
+	ContentTypesForContext func(ctx context.Context) []contenttypes.Definition
+	SyncSchema             func(ctx context.Context, def contenttypes.Definition) error
+	AuditStore             audit.DetailRecorder
+	DB                     database.Executor
+}
+
+func (h *Handler) contentTypes(ctx context.Context) []contenttypes.Definition {
+	if h.cfg.ContentTypesForContext != nil {
+		return h.cfg.ContentTypesForContext(ctx)
+	}
+	if h.cfg.ContentTypes != nil {
+		return h.cfg.ContentTypes()
+	}
+	return nil
 }
 
 // Handler handles Model Context Protocol requests over SSE and JSON-RPC 2.0.
@@ -344,10 +357,7 @@ func (h *Handler) handleResourcesRead(ctx context.Context, w http.ResponseWriter
 	var contentText string
 	switch params.URI {
 	case "hydro://openapi.json":
-		var types []contenttypes.Definition
-		if h.cfg.ContentTypes != nil {
-			types = h.cfg.ContentTypes()
-		}
+		types := h.contentTypes(ctx)
 		doc, err := openapi.BuildDocument(nil, types)
 		if err != nil {
 			writeRPCError(w, req.ID, -32000, fmt.Sprintf("failed to build OpenAPI spec: %v", err))
@@ -356,10 +366,7 @@ func (h *Handler) handleResourcesRead(ctx context.Context, w http.ResponseWriter
 		contentText = string(doc)
 
 	case "hydro://schemas":
-		var types []contenttypes.Definition
-		if h.cfg.ContentTypes != nil {
-			types = h.cfg.ContentTypes()
-		}
+		types := h.contentTypes(ctx)
 		raw, _ := json.MarshalIndent(types, "", "  ")
 		contentText = string(raw)
 
@@ -381,11 +388,8 @@ func (h *Handler) handleResourcesRead(ctx context.Context, w http.ResponseWriter
 
 // Tool Implementations
 
-func (h *Handler) toolListContentTypes(_ context.Context) (ToolCallResult, error) {
-	var types []contenttypes.Definition
-	if h.cfg.ContentTypes != nil {
-		types = h.cfg.ContentTypes()
-	}
+func (h *Handler) toolListContentTypes(ctx context.Context) (ToolCallResult, error) {
+	types := h.contentTypes(ctx)
 
 	data, err := json.MarshalIndent(types, "", "  ")
 	if err != nil {
@@ -457,6 +461,11 @@ func (h *Handler) toolDefineContentType(ctx context.Context, args json.RawMessag
 	dir := h.cfg.ContentTypesDir
 	if dir == "" {
 		dir = "content-types"
+	}
+	if h.cfg.RequireTenantScope {
+		if scope, err := tenant.FromContext(ctx); err == nil && scope.TenantID != "" {
+			dir = filepath.Join(dir, "tenants", scope.TenantID)
+		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: fmt.Sprintf("failed to create directory: %v", err)}}}, nil
@@ -632,15 +641,24 @@ func (h *Handler) requireScope(ctx context.Context, scope string) error {
 	}
 
 	user := auth.UserFromContext(ctx)
-	if user != nil && user.Active && (user.Role == "admin" || auth.Can(user, auth.PermissionContentWrite)) {
-		return nil
-	}
-
-	// In development or local context without explicit principal, allow if context has tenant scope or unrestricted
-	if user == nil && principal.Kind == "" {
-		if _, err := tenant.FromContext(ctx); err == nil {
+	if user != nil {
+		if !user.Active {
+			return fmt.Errorf("unauthorized: inactive user")
+		}
+		if user.Role == auth.RoleAdmin {
 			return nil
 		}
+		if scope == "agent:read" && auth.Can(user, auth.PermissionContentRead) {
+			return nil
+		}
+		if (scope == "agent:mutate" || scope == "agent:schema") && auth.Can(user, auth.PermissionContentWrite) {
+			return nil
+		}
+		return fmt.Errorf("insufficient user permissions: requires %s scope", scope)
+	}
+
+	if h.cfg.RequireAuth {
+		return fmt.Errorf("authentication required for MCP endpoint")
 	}
 
 	return nil

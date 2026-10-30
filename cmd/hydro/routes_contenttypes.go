@@ -32,8 +32,51 @@ func (a *serveApp) contentTypeAdminRoutes() []router.Route {
 	}
 }
 
+func (a *serveApp) contentTypesDirForContext(ctx context.Context) string {
+	dir := a.cfg.ContentTypesDir
+	if dir == "" {
+		dir = "content-types"
+	}
+	if a.requireTenantScope && ctx != nil {
+		if scope, err := tenant.FromContext(ctx); err == nil && scope.TenantID != "" {
+			return filepath.Join(dir, "tenants", scope.TenantID)
+		}
+	}
+	return dir
+}
+
 func (a *serveApp) syncContentTypes(ctx context.Context) error {
-	types, err := contenttypes.LoadDir(a.cfg.ContentTypesDir)
+	if a.requireTenantScope && ctx != nil {
+		if scope, err := tenant.FromContext(ctx); err == nil && scope.TenantID != "" {
+			tDir := a.contentTypesDirForContext(ctx)
+			tTypes, loadErr := contenttypes.LoadDir(tDir)
+			if loadErr != nil {
+				return fmt.Errorf("reload tenant content types: %w", loadErr)
+			}
+			a.stateMu.Lock()
+			if a.tenantContentTypes == nil {
+				a.tenantContentTypes = make(map[string][]contenttypes.Definition)
+			}
+			a.tenantContentTypes[scope.TenantID] = tTypes
+			a.stateMu.Unlock()
+
+			merged := a.contentTypesForContext(ctx)
+			schemas, schemaErr := contenttypes.Schemas(merged)
+			if schemaErr != nil {
+				return fmt.Errorf("compile tenant schemas: %w", schemaErr)
+			}
+			if err := a.collectionService.SyncSchemas(ctx, schemas); err != nil {
+				return fmt.Errorf("sync tenant schemas: %w", err)
+			}
+			return nil
+		}
+	}
+
+	dir := a.cfg.ContentTypesDir
+	if dir == "" {
+		dir = "content-types"
+	}
+	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
 		return fmt.Errorf("reload content types: %w", err)
 	}
@@ -41,10 +84,11 @@ func (a *serveApp) syncContentTypes(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("compile schemas: %w", err)
 	}
+	scopes := a.getTenantScopes()
 	syncContexts := []context.Context{ctx}
-	if len(a.tenantScopes) > 0 {
+	if len(scopes) > 0 {
 		syncContexts = syncContexts[:0]
-		for _, scope := range a.tenantScopes {
+		for _, scope := range scopes {
 			syncContexts = append(syncContexts, tenant.WithScope(ctx, scope))
 		}
 	}
@@ -53,7 +97,9 @@ func (a *serveApp) syncContentTypes(ctx context.Context) error {
 			return fmt.Errorf("sync schemas: %w", err)
 		}
 	}
+	a.stateMu.Lock()
 	a.contentTypes = types
+	a.stateMu.Unlock()
 	return nil
 }
 
@@ -63,7 +109,7 @@ func (a *serveApp) adminListContentTypes(w http.ResponseWriter, r *http.Request)
 		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
 		return
 	}
-	api.WriteData(w, http.StatusOK, a.contentTypes, nil)
+	api.WriteData(w, http.StatusOK, a.contentTypesForContext(r.Context()), nil)
 }
 
 func (a *serveApp) adminCreateContentType(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +147,7 @@ func (a *serveApp) adminCreateContentType(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	for _, existing := range a.contentTypes {
+	for _, existing := range a.contentTypesForContext(r.Context()) {
 		if existing.ID == def.ID {
 			api.WriteError(w, r, http.StatusConflict, fmt.Sprintf("content type %q already exists", def.ID), nil)
 			return
@@ -114,10 +160,7 @@ func (a *serveApp) adminCreateContentType(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	dir := a.cfg.ContentTypesDir
-	if dir == "" {
-		dir = "content-types"
-	}
+	dir := a.contentTypesDirForContext(r.Context())
 	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- content-types directory of the project
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to prepare content types directory", nil)
 		return
@@ -152,7 +195,7 @@ func (a *serveApp) adminUpdateContentType(w http.ResponseWriter, r *http.Request
 	}
 
 	found := false
-	for _, existing := range a.contentTypes {
+	for _, existing := range a.contentTypesForContext(r.Context()) {
 		if existing.ID == id {
 			found = true
 			break
@@ -204,9 +247,10 @@ func (a *serveApp) adminUpdateContentType(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	dir := a.cfg.ContentTypesDir
-	if dir == "" {
-		dir = "content-types"
+	dir := a.contentTypesDirForContext(r.Context())
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- content-types directory of the project
+		api.WriteError(w, r, http.StatusInternalServerError, "failed to prepare content types directory", nil)
+		return
 	}
 	filePath := filepath.Join(dir, id+".yaml")
 
@@ -243,7 +287,7 @@ func (a *serveApp) adminDeleteContentType(w http.ResponseWriter, r *http.Request
 	}
 
 	found := false
-	for _, existing := range a.contentTypes {
+	for _, existing := range a.contentTypesForContext(r.Context()) {
 		if existing.ID == id {
 			found = true
 			break
@@ -254,10 +298,7 @@ func (a *serveApp) adminDeleteContentType(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	dir := a.cfg.ContentTypesDir
-	if dir == "" {
-		dir = "content-types"
-	}
+	dir := a.contentTypesDirForContext(r.Context())
 	filePath := filepath.Join(dir, id+".yaml")
 	if err := os.Remove(filePath); err != nil && !errors.Is(err, os.ErrNotExist) { // #nosec G703 -- id equals the ID of an already loaded content type
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to delete definition file", nil)

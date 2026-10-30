@@ -1,32 +1,162 @@
 package tenant
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
 
-// HostResolver establishes tenant scope from an operator-owned host map. It
-// never accepts a tenant ID from a request header or query parameter.
+type cachedScope struct {
+	scope     Scope
+	found     bool
+	expiresAt time.Time
+}
+
+type hostRegistry struct {
+	mu          sync.RWMutex
+	hosts       map[string]Scope
+	cache       map[string]cachedScope
+	fallback    func(ctx context.Context, host string) (Scope, bool)
+	fallbackTTL time.Duration
+}
+
+// HostResolver establishes tenant scope from an operator-owned host map or
+// dynamic registry. It never accepts a tenant ID from a request header or
+// query parameter.
 type HostResolver struct {
-	hosts   map[string]Scope
-	require bool
+	registry *hostRegistry
+	require  bool
 }
 
 func NewHostResolver(hosts map[string]Scope, require bool) HostResolver {
 	copyHosts := make(map[string]Scope, len(hosts))
 	for host, scope := range hosts {
-		copyHosts[normalizeHost(host)] = scope
+		if norm := normalizeHost(host); norm != "" {
+			copyHosts[norm] = scope
+		}
 	}
-	return HostResolver{hosts: copyHosts, require: require}
+	return HostResolver{
+		registry: &hostRegistry{
+			hosts:       copyHosts,
+			cache:       make(map[string]cachedScope),
+			fallbackTTL: 5 * time.Minute,
+		},
+		require: require,
+	}
 }
 
-func (r HostResolver) Enabled() bool { return len(r.hosts) > 0 || r.require }
+// SetFallback configures an optional dynamic lookup (such as a database query)
+// with an in-memory TTL cache for hosts not present in the static map.
+func (r *HostResolver) SetFallback(fn func(ctx context.Context, host string) (Scope, bool), ttl time.Duration) {
+	if r.registry == nil {
+		r.registry = &hostRegistry{
+			hosts: make(map[string]Scope),
+			cache: make(map[string]cachedScope),
+		}
+	}
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+	r.registry.mu.Lock()
+	r.registry.fallback = fn
+	r.registry.fallbackTTL = ttl
+	r.registry.cache = make(map[string]cachedScope)
+	r.registry.mu.Unlock()
+}
 
-func (r HostResolver) Matches(raw string) bool {
-	if len(r.hosts) == 0 {
+// SetHost registers or updates a host-to-tenant mapping at runtime without
+// requiring a server restart.
+func (r HostResolver) SetHost(raw string, scope Scope) bool {
+	norm := normalizeHost(raw)
+	if norm == "" || r.registry == nil {
 		return false
 	}
-	_, ok := r.hosts[normalizeHost(raw)]
+	r.registry.mu.Lock()
+	r.registry.hosts[norm] = scope
+	delete(r.registry.cache, norm)
+	r.registry.mu.Unlock()
+	return true
+}
+
+// RemoveHost removes a host mapping at runtime and invalidates any cached entry.
+func (r HostResolver) RemoveHost(raw string) {
+	norm := normalizeHost(raw)
+	if norm == "" || r.registry == nil {
+		return
+	}
+	r.registry.mu.Lock()
+	delete(r.registry.hosts, norm)
+	delete(r.registry.cache, norm)
+	r.registry.mu.Unlock()
+}
+
+// Hosts returns a snapshot copy of the currently registered static/runtime hosts.
+func (r HostResolver) Hosts() map[string]Scope {
+	if r.registry == nil {
+		return nil
+	}
+	r.registry.mu.RLock()
+	defer r.registry.mu.RUnlock()
+	out := make(map[string]Scope, len(r.registry.hosts))
+	for k, v := range r.registry.hosts {
+		out[k] = v
+	}
+	return out
+}
+
+func (r HostResolver) Enabled() bool {
+	if r.require {
+		return true
+	}
+	if r.registry == nil {
+		return false
+	}
+	r.registry.mu.RLock()
+	defer r.registry.mu.RUnlock()
+	return len(r.registry.hosts) > 0 || r.registry.fallback != nil
+}
+
+// Resolve looks up the tenant Scope for raw host using the runtime map and
+// optional TTL-cached fallback.
+func (r HostResolver) Resolve(ctx context.Context, raw string) (Scope, bool) {
+	norm := normalizeHost(raw)
+	if norm == "" || r.registry == nil {
+		return Scope{}, false
+	}
+	now := time.Now()
+
+	r.registry.mu.RLock()
+	if scope, ok := r.registry.hosts[norm]; ok {
+		r.registry.mu.RUnlock()
+		return scope, true
+	}
+	if entry, ok := r.registry.cache[norm]; ok && now.Before(entry.expiresAt) {
+		r.registry.mu.RUnlock()
+		return entry.scope, entry.found
+	}
+	fallback := r.registry.fallback
+	ttl := r.registry.fallbackTTL
+	r.registry.mu.RUnlock()
+
+	if fallback == nil {
+		return Scope{}, false
+	}
+
+	scope, ok := fallback(ctx, norm)
+	r.registry.mu.Lock()
+	r.registry.cache[norm] = cachedScope{
+		scope:     scope,
+		found:     ok,
+		expiresAt: now.Add(ttl),
+	}
+	r.registry.mu.Unlock()
+	return scope, ok
+}
+
+func (r HostResolver) Matches(raw string) bool {
+	_, ok := r.Resolve(context.Background(), raw)
 	return ok
 }
 
@@ -38,7 +168,7 @@ func (r HostResolver) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, req)
 			return
 		}
-		scope, ok := r.hosts[normalizeHost(req.Host)]
+		scope, ok := r.Resolve(req.Context(), req.Host)
 		if !ok {
 			if r.require {
 				http.Error(w, "tenant unavailable", http.StatusMisdirectedRequest)

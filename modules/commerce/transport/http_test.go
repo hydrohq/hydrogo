@@ -749,7 +749,7 @@ func TestCreateShipmentEndpointRecordsTracking(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h.ShippingProvider = fakeShippingProvider{name: "yurtici-kargo", result: commerce.ShipmentResult{TrackingNumber: "YK123", TrackingURL: "https://example.com/track/YK123"}}
+	h.ShippingProvider = fakeShippingProvider{name: "carrier-a", result: commerce.ShipmentResult{TrackingNumber: "TRK123", TrackingURL: "https://example.com/track/TRK123"}}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", nil)
 	req.SetPathValue("id", order.ID)
 	rec := httptest.NewRecorder()
@@ -759,7 +759,7 @@ func TestCreateShipmentEndpointRecordsTracking(t *testing.T) {
 	}
 	var shipped commerce.Order
 	decodeBody(t, rec, &shipped)
-	if shipped.ShippingTrackingNumber != "YK123" || shipped.FulfillmentStatus != commerce.FulfillmentShipped {
+	if shipped.ShippingTrackingNumber != "TRK123" || shipped.FulfillmentStatus != commerce.FulfillmentShipped {
 		t.Fatalf("unexpected order after shipment: %+v", shipped)
 	}
 }
@@ -793,7 +793,7 @@ func TestCreateShipmentEndpointReturns409ForAnUnpaidOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h.ShippingProvider = fakeShippingProvider{name: "yurtici-kargo"}
+	h.ShippingProvider = fakeShippingProvider{name: "carrier-a"}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", nil)
 	req.SetPathValue("id", order.ID)
 	rec := httptest.NewRecorder()

@@ -85,28 +85,17 @@ type ShippingProvider interface {
 Carriers supporting tracking and cancellation can optionally implement `CarrierAdapter`.
 
 ### Registering External Providers
-Operators can register custom provider implementations during application startup or in starter packages:
+Operators can register custom provider implementations during application startup:
 ```go
-import (
-    "github.com/ardaozyildirim/hydrogo/cmd/hydro"
-    "github.com/ardaozyildirim/hydrogo/examples/commerce-starter/extensions/yurticikargo"
-)
-
 func init() {
-    hydro.RegisterShippingProvider(yurticikargo.Provider{
-        Config: yurticikargo.Config{
-            WSUserName: os.Getenv("YURTICI_USER"),
-            WSPassword: os.Getenv("YURTICI_PASS"),
-        },
-    })
+    RegisterShippingProvider(mycarrier.Provider{})
+    RegisterPaymentProvider(mygateway.Provider{})
 }
 ```
 
 ## Configuration
 
 See the `commerce:` section of `config.example.yaml` for optional keys (tax, shipping fees, currencies) and `notifications.telegram` for order/reconciliation alerts. Everything under `commerce:` is optional -- with it empty, cart and checkout still work with no payment provider, no carrier, no tax, no shipping fee and TRY/USD/EUR as the configured currency.
-
-Specific regional integrations (such as Yurtiçi Kargo) reside in `examples/commerce-starter/extensions/yurticikargo` as decoupled extensions.
 
 ## Starter
 

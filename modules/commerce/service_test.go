@@ -459,7 +459,7 @@ func TestCreateShipmentRecordsTrackingAndMovesOrderToShipped(t *testing.T) {
 	}
 	payOrder(t, svc, db, order.ID)
 
-	provider := &fakeShippingProvider{name: "yurtici-kargo"}
+	provider := &fakeShippingProvider{name: "carrier-a"}
 	shipped, err := svc.CreateShipment(ctx, provider, order.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -467,7 +467,7 @@ func TestCreateShipmentRecordsTrackingAndMovesOrderToShipped(t *testing.T) {
 	if shipped.FulfillmentStatus != commerce.FulfillmentShipped {
 		t.Fatalf("fulfillment_status = %q, want shipped", shipped.FulfillmentStatus)
 	}
-	if shipped.ShippingCarrier != "yurtici-kargo" || shipped.ShippingTrackingNumber != "TRK-"+order.ID {
+	if shipped.ShippingCarrier != "carrier-a" || shipped.ShippingTrackingNumber != "TRK-"+order.ID {
 		t.Fatalf("unexpected shipping fields: %+v", shipped)
 	}
 	if provider.calls != 1 {
@@ -488,7 +488,7 @@ func TestCreateShipmentRejectsAnUnpaidOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	provider := &fakeShippingProvider{name: "yurtici-kargo"}
+	provider := &fakeShippingProvider{name: "carrier-a"}
 	_, err = svc.CreateShipment(ctx, provider, order.ID)
 	if !errors.Is(err, commerce.ErrOrderNotShippable) {
 		t.Fatalf("expected ErrOrderNotShippable, got %v", err)
@@ -519,7 +519,7 @@ func TestCreateShipmentRejectsAnAlreadyShippedOrderWithoutCallingTheCarrierAgain
 	}
 	payOrder(t, svc, db, order.ID)
 
-	provider := &fakeShippingProvider{name: "yurtici-kargo"}
+	provider := &fakeShippingProvider{name: "carrier-a"}
 	if _, err := svc.CreateShipment(ctx, provider, order.ID); err != nil {
 		t.Fatal(err)
 	}

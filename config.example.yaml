@@ -118,19 +118,6 @@ commerce:
     # operator-maintained rate below, never live FX.
     display: []
     rates: {}
-  yurtici_kargo:
-    # See modules/commerce/providers/yurticikargo's package doc comment:
-    # this integration has never been verified against the real
-    # service. ws_password is a secret: set it only in an
-    # untracked/protected copy of this file, as above -- there is no
-    # HYDRO_* environment variable override for it.
-    ws_username: ""
-    ws_password: ""
-    # The only publicly documented endpoint is plain HTTP, which sends
-    # ws_password unencrypted; hydro validate refuses it unless you set
-    # an https:// endpoint here or explicitly allow it below.
-    endpoint: ""
-    allow_insecure_endpoint: false
 # Operator alerts: a new order and a non-clean `hydro commerce reconcile`
 # report are posted here when configured. Both bot_token and chat_id are
 # required together. bot_token is a secret: set it only in an

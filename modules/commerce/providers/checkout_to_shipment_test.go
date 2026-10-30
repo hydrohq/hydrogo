@@ -39,7 +39,7 @@ func (m mockShippingProvider) CreateShipment(ctx context.Context, order commerce
 	}, nil
 }
 
-func TestCheckoutThroughPaymentToShipmentAgainstMockPaymentAndYurticiKargo(t *testing.T) {
+func TestCheckoutThroughPaymentToShipmentAgainstMockProviders(t *testing.T) {
 	ctx := commerce.WithClientIP(context.Background(), "203.0.113.9")
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "checkout-to-shipment.sqlite"))
 	if err != nil {
