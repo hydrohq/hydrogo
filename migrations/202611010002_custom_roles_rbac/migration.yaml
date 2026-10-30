@@ -1,0 +1,28 @@
+id: "202611010002_custom_roles_rbac"
+module: "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "b7762e793b6ad73980280162d34085dad04e49eab6c16cac6eb5be92c5abd2cc"
+  postgres: "4306490a7ddb182fe15b60f84bae19ca4261f331b27da1c92dfa08042883c2d3"
+  mysql: "c250b96a652e962917ec0550c1a322c827f34272eac822519ac251df84bf7ca0"
+dependencies:
+  - "202609200003_postgres_tenant_rls"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "202609200003_postgres_tenant_rls is applied"
+lock_timeout: "Not certified; measured by the migration runner deadline"
+disk_estimate: "Zero rows on upgrade"
+compatibility: "Adds custom roles and granular permission bindings for multi-tenant RBAC."
+smoke:
+  - "Roles and permissions tables accept tenant-isolated roles."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No production down migration; restore or forward migration only."

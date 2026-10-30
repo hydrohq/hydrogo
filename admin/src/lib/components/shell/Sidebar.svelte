@@ -394,6 +394,20 @@
           <span class="truncate">{t('nav.users')}</span>
         {/if}
       </a>
+      <a
+        href="/admin/roles"
+        onclick={() => handleNavigate('/roles')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/roles') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title="Roles & Permissions"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Roles</span>
+        {/if}
+      </a>
       {/if}
 
       <a

@@ -63,12 +63,13 @@ func (s *UserStore) List(ctx context.Context) ([]*auth.User, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load user permissions: %w", err)
 		}
+		s.loadRolePermissions(ctx, user)
 	}
 	return users, nil
 }
 
 func (s *UserStore) UpdateRole(ctx context.Context, userID string, role auth.Role) error {
-	if role != auth.RoleAdmin && role != auth.RoleEditor && role != auth.RoleViewer {
+	if role != auth.RoleAdmin && role != auth.RoleEditor && role != auth.RoleViewer && !auth.ValidCustomRoleName(string(role)) {
 		return errors.New("invalid user role")
 	}
 	if err := requireUserDB(s); err != nil {

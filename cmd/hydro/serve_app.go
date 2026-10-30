@@ -83,6 +83,7 @@ type serveApp struct {
 	// Accounts.
 	userStore       *authstore.UserStore
 	userAdmin       auth.UserAdminRepository
+	roleStore       auth.RoleStore
 	sessionStore    *authstore.SessionStore
 	authSvc         *auth.AuthService
 	mfaService      *auth.MFAService
