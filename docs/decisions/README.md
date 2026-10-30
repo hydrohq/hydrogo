@@ -29,6 +29,7 @@
 | [0025](0025-sveltekit-cve-mitigation-without-the-major-bump.md) | Closing the two SvelteKit CVEs without the blocked version bump | Accepted |
 | [0026](0026-sveltekit-starter-static-adapter.md) | `sveltekit-starter` converted to a static SPA (adapter-static) | Accepted |
 | [0027](0027-realtime-baas-and-row-level-access-rules.md) | Realtime BaaS (PocketBase Parity) and Row-Level Access Rules | Accepted |
+| [0028](0028-ai-agent-control-plane-and-mcp.md) | AI-Agent Control Plane & Model Context Protocol (MCP) Architecture | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.
