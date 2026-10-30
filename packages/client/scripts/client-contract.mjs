@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
 import { HydroGoError, createHydroGoClient, MemoryAuthStore, LocalStorageAuthStore } from "../dist/hydrogo.js";
+import {
+  createCollectionQuery,
+  createCollectionRecordQuery,
+  createCollectionMutation,
+  autoSyncRealtimeCollection,
+  pageQueryOptions,
+  newsListQueryOptions,
+  newsItemQueryOptions,
+} from "../dist/query.js";
 
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 0 }), RangeError);
 assert.throws(() => createHydroGoClient({ origin: "https://hydrogo.example", timeoutMs: 120001 }), RangeError);
@@ -375,6 +384,86 @@ await authClient.auth.logout();
 assert.equal(authClient.auth.isValid, false);
 assert.equal(authClient.auth.token, "");
 assert.equal(authClient.auth.model, null);
+
+// -------------------------------------------------------------
+// Issue #409: TanStack Query Hooks & Auto-Invalidation Tests
+// -------------------------------------------------------------
+
+// 1. Query options generation
+const queryClientMock = {
+  invalidated: [],
+  invalidateQueries(filters) {
+    this.invalidated.push(filters.queryKey);
+  },
+};
+
+const qOpts = createCollectionQuery(fluentClient, "messages", { limit: 10 });
+assert.deepEqual(qOpts.queryKey, ["hydrogo", "content", "messages", "list", { limit: 10 }]);
+const qRes = await qOpts.queryFn();
+assert.equal(qRes.data.length, 1);
+
+const rOpts = createCollectionRecordQuery(fluentClient, "messages", "msg-1");
+assert.deepEqual(rOpts.queryKey, ["hydrogo", "content", "messages", "record", "msg-1", ""]);
+const rRes = await rOpts.queryFn();
+assert.equal(rRes.id, "msg-1");
+
+// 2. Mutation options generation & cache invalidation
+const mutationOpts = createCollectionMutation(fluentClient, "messages", queryClientMock);
+
+const mutatedCreate = await mutationOpts.mutationFn({
+  action: "create",
+  data: { text: "New from mutation" },
+});
+assert.equal(mutatedCreate.id, "msg-1");
+await mutationOpts.onSuccess();
+assert.equal(queryClientMock.invalidated.length, 1);
+assert.deepEqual(queryClientMock.invalidated[0], ["hydrogo", "content", "messages"]);
+
+// 3. Realtime auto-invalidation
+let sseStreamCtrl;
+const sseClient = createHydroGoClient({
+  origin: "https://hydrogo.example",
+  fetch: async (url) => {
+    if (url.includes("/api/v1/content/messages/subscribe")) {
+      const stream = new ReadableStream({
+        start(controller) {
+          sseStreamCtrl = controller;
+          controller.enqueue(
+            new TextEncoder().encode(
+              ": connected\n\nid: evt-sync-1\ndata: {\"action\":\"update\",\"type\":\"messages\",\"record\":{\"id\":\"msg-42\",\"text\":\"Live update\"}}\n\n"
+            )
+          );
+        },
+      });
+      return new Response(stream, { headers: { "Content-Type": "text/event-stream" } });
+    }
+    return new Response(null, { status: 404 });
+  },
+});
+
+const realtimeQueryMock = {
+  invalidated: [],
+  invalidateQueries(filters) {
+    this.invalidated.push(filters.queryKey);
+  },
+};
+
+const unsubAutoSync = autoSyncRealtimeCollection(sseClient, "messages", realtimeQueryMock);
+
+// Wait for event to arrive
+await new Promise((resolve) => setTimeout(resolve, 50));
+unsubAutoSync();
+try { sseStreamCtrl?.close(); } catch {}
+
+assert.ok(
+  realtimeQueryMock.invalidated.some((key) => key[0] === "hydrogo" && key[2] === "messages"),
+  "Expected collection query key to be invalidated on SSE event"
+);
+assert.ok(
+  realtimeQueryMock.invalidated.some((key) => key[0] === "hydrogo" && key[2] === "messages" && key[3] === "record" && key[4] === "msg-42"),
+  "Expected specific record query key to be invalidated on SSE event"
+);
+
 
 
 

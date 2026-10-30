@@ -8,7 +8,10 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": {".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}},
+  "exports": {
+    ".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"},
+    "./query": {"types": "./dist/query.d.ts", "default": "./dist/query.js"}
+  },
   "files": ["dist", "README.md"],
   "sideEffects": false,
   "scripts": { "build": "tsc -p tsconfig.json", "check": "tsc --noEmit -p tsconfig.json", "test": "npm run build && node scripts/client-contract.mjs", "generated-contract": "node scripts/generated-edition-types.mjs", "demo": "node dist/demo.js", "prepublishOnly": "npm test" },
