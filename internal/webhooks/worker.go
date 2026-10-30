@@ -156,6 +156,16 @@ func (w Worker) RunOnce(ctx context.Context, now time.Time) (bool, error) {
 	if delay <= 0 {
 		delay = time.Minute
 	}
+	if event.Attempts > 1 {
+		shift := event.Attempts - 1
+		if shift > 10 {
+			shift = 10
+		}
+		delay = delay * time.Duration(1<<uint(shift))
+		if delay > 24*time.Hour {
+			delay = 24 * time.Hour
+		}
+	}
 	if retryErr := w.Store.Retry(ctx, w.DB, event.ID, w.WorkerID, token, now.Add(delay), err.Error()); retryErr != nil {
 		return true, retryErr
 	}
