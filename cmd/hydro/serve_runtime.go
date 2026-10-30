@@ -205,6 +205,10 @@ func (a *serveApp) initOptionalModules() error {
 	a.pushDispatcher = pushDispatcher
 	if modules["realtime"] {
 		a.realtimeHub = &realtime.Hub{RequireTenantScope: requireTenantScope}
+		if err := configureRealtimeHub(a.realtimeHub, a.redisClient, cfg.Redis.KeyPrefix); err != nil {
+			return fmt.Errorf("configure realtime hub: %w", err)
+		}
+		a.onClose(func() error { return a.realtimeHub.Close() })
 	}
 	if modules["pages"] || modules["news"] {
 		a.editPresence = &realtime.Presence{TTL: realtime.DefaultPresenceTTL}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
+	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/news"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
@@ -78,4 +79,12 @@ func newNewsCache(enabled bool, budget capacity.Budget, r redisRuntime, prefix s
 		return nil, fmt.Errorf("configure two-tier news cache: %w", err)
 	}
 	return twoTier, nil
+}
+
+func configureRealtimeHub(hub *realtime.Hub, r redisRuntime, keyPrefix string) error {
+	if r.client != nil {
+		bus := realtime.NewRedisMessageBus(r.client, keyPrefix)
+		return hub.SetBus(bus)
+	}
+	return nil
 }

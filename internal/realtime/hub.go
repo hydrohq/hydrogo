@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -36,6 +37,44 @@ type Hub struct {
 	subscribers        map[*subscriber]struct{}
 	RequireTenantScope bool
 	MaxSubscribers     int
+	Bus                MessageBus
+	busCloser          io.Closer
+}
+
+// SetBus configures a distributed message bus adapter (e.g. Redis).
+func (h *Hub) SetBus(bus MessageBus) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.busCloser != nil {
+		_ = h.busCloser.Close()
+		h.busCloser = nil
+	}
+	h.Bus = bus
+	if bus != nil {
+		closer, err := bus.Subscribe(context.Background(), func(tenantID, topic string, payload []byte) {
+			var event Event
+			if err := json.Unmarshal(payload, &event); err == nil {
+				h.broadcastLocal(tenantID, event)
+			}
+		})
+		if err != nil {
+			return err
+		}
+		h.busCloser = closer
+	}
+	return nil
+}
+
+// Close shuts down the hub and any attached message bus subscriptions.
+func (h *Hub) Close() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.busCloser != nil {
+		err := h.busCloser.Close()
+		h.busCloser = nil
+		return err
+	}
+	return nil
 }
 
 func (h *Hub) Publish(ctx context.Context, event Event) error {
@@ -56,10 +95,26 @@ func (h *Hub) Publish(ctx context.Context, event Event) error {
 	if event.Time.IsZero() {
 		event.Time = time.Now().UTC()
 	}
+
+	tid := tenantID(ctx)
+
+	if h.Bus != nil {
+		raw, err := json.Marshal(event)
+		if err != nil {
+			return err
+		}
+		return h.Bus.Publish(ctx, tid, event.Topic, raw)
+	}
+
+	h.broadcastLocal(tid, event)
+	return nil
+}
+
+func (h *Hub) broadcastLocal(tid string, event Event) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for sub := range h.subscribers {
-		if sub.tenant != tenantID(ctx) {
+		if sub.tenant != tid {
 			continue
 		}
 		if _, ok := sub.topics[event.Topic]; !ok {
@@ -72,7 +127,6 @@ func (h *Hub) Publish(ctx context.Context, event Event) error {
 			delete(h.subscribers, sub)
 		}
 	}
-	return nil
 }
 
 func (h *Hub) subscribe(tenantID string, topics []string) (*subscriber, error) {
