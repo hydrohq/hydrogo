@@ -1,0 +1,26 @@
+id: boutique_orders
+label: Butik Siparişleri
+description: WhatsApp ve hızlı ödeme üzerinden gelen müşteri siparişleri.
+group: Mağaza Yönetimi
+icon: package
+title_field: order_no
+public: false
+revisions: true
+states:
+  field: order_status
+  initial: yeni
+  transitions:
+    - {from: yeni, to: onaylandi}
+    - {from: onaylandi, to: kargolandi}
+    - {from: kargolandi, to: teslim_edildi}
+    - {from: yeni, to: iptal}
+fields:
+  - {id: order_no, label: Sipariş No, kind: text, sequence: {prefix: "BTK-{yyyy}-", pad: 5}, list: true}
+  - {id: customer_name, label: Müşteri Adı Soyadı, kind: text, required: true, list: true, searchable: true}
+  - {id: customer_phone, label: Telefon (WhatsApp), kind: text, required: true, list: true, searchable: true}
+  - {id: shipping_address, label: Teslimat Adresi, kind: textarea, required: true}
+  - {id: items_summary, label: Sipariş Edilen Ürünler (Beden/Renk), kind: textarea, required: true}
+  - {id: total_amount, label: Toplam Tutar (TL), kind: number, decimals: 2, min: 0, required: true, list: true}
+  - {id: order_channel, label: Kanal, kind: select, options: [WhatsApp, Kredi Kartı, Havale/EFT, Instagram DM], list: true, filterable: true}
+  - {id: order_status, label: Sipariş Durumu, kind: select, options: [yeni, onaylandi, kargolandi, teslim_edildi, iptal], list: true, filterable: true}
+  - {id: tracking_code, label: Kargo Takip Kodu, kind: text, list: true}
