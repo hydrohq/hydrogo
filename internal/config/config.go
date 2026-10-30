@@ -2,7 +2,6 @@ package config
 
 import (
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
@@ -65,10 +64,9 @@ func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.Cha
 // Empty is a valid, fully functional configuration: Checkout and
 // ConfirmPayment work without any external provider configured.
 type Commerce struct {
-	Tax          Tax          `yaml:"tax"`
-	Shipping     ShippingFee  `yaml:"shipping"`
-	Currencies   Currencies   `yaml:"currencies"`
-	YurticiKargo YurticiKargo `yaml:"yurtici_kargo"`
+	Tax        Tax         `yaml:"tax"`
+	Shipping   ShippingFee `yaml:"shipping"`
+	Currencies Currencies  `yaml:"currencies"`
 }
 
 // Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds
@@ -87,10 +85,10 @@ type Tax struct {
 // ShippingFee configures a single flat shipping fee, optionally waived
 // above a subtotal threshold. The zero value adds no shipping fee. Named
 // ShippingFee, not Shipping, so it reads unambiguously next to
-// commerce.ShippingProvider (a carrier integration -- Yurtiçi Kargo and
-// friends) and the shipping_* columns on an order; this struct is pure
-// pricing and has nothing to do with carriers. The yaml key stays
-// `shipping:` -- only the Go type name changed.
+// commerce.ShippingProvider (a carrier integration) and the shipping_*
+// columns on an order; this struct is pure pricing and has nothing to do
+// with carriers. The yaml key stays `shipping:` -- only the Go type name
+// changed.
 type ShippingFee struct {
 	FlatRateCents  int64 `yaml:"flat_rate_cents"`
 	FreeAboveCents int64 `yaml:"free_above_cents"`
@@ -107,36 +105,6 @@ type Currencies struct {
 	Display []string           `yaml:"display"`
 	Rates   map[string]float64 `yaml:"rates"`
 }
-
-// YurticiKargo holds one account's Yurtiçi Kargo web service credentials --
-// see modules/commerce/providers/yurticikargo's package doc comment for
-// this integration's unverified status. WSUserName/WSPassword are secrets:
-// set them only in a protected, untracked config file, never in a committed
-// preset. There is no HYDRO_* environment variable override for them.
-type YurticiKargo struct {
-	WSUserName string `yaml:"ws_username"`
-	WSPassword string `yaml:"ws_password"`
-	// Endpoint is the SOAP service URL. Empty means the publicly documented
-	// one, which is plain HTTP; any http:// endpoint sends the credentials
-	// unencrypted and therefore needs AllowInsecureEndpoint.
-	Endpoint              string `yaml:"endpoint"`
-	AllowInsecureEndpoint bool   `yaml:"allow_insecure_endpoint"`
-}
-
-// YurticiKargoDefaultEndpoint is the default endpoint for carrier testing.
-const YurticiKargoDefaultEndpoint = "http://webservices.carrier.example.test:8080/soap"
-
-// ResolvedEndpoint is Endpoint or the documented default.
-func (y YurticiKargo) ResolvedEndpoint() string {
-	if strings.TrimSpace(y.Endpoint) != "" {
-		return strings.TrimSpace(y.Endpoint)
-	}
-	return YurticiKargoDefaultEndpoint
-}
-
-// Enabled reports whether enough configuration is present to start the
-// provider.
-func (y YurticiKargo) Enabled() bool { return y.WSUserName != "" && y.WSPassword != "" }
 
 // Limits holds operator-tunable resource caps.
 type Limits struct {

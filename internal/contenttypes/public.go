@@ -1,6 +1,7 @@
 package contenttypes
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -36,10 +37,23 @@ type PublicAPI struct {
 	RenderRichText func(stored string) string
 	Types          []Definition
 	// TypesFunc optionally supplies the definitions dynamically.
-	TypesFunc        func() []Definition
+	TypesFunc func() []Definition
+	// TypesForContext optionally supplies tenant-scoped definitions per request.
+	TypesForContext  func(context.Context) []Definition
 	Locales          Locales
 	Hub              *realtime.Hub
 	ResolvePrincipal func(r *http.Request) Principal
+}
+
+func (p PublicAPI) forRequest(r *http.Request) PublicAPI {
+	if p.TypesForContext != nil && r != nil {
+		cp := p
+		cp.Types = p.TypesForContext(r.Context())
+		cp.TypesFunc = nil
+		cp.TypesForContext = nil
+		return cp
+	}
+	return p
 }
 
 func (p PublicAPI) principal(r *http.Request) Principal {
@@ -106,6 +120,7 @@ func (p PublicAPI) expansion() expansion {
 }
 
 func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	typeID := r.PathValue("type")
 	definition, ok := p.definition(typeID)
 	if !ok {
@@ -227,6 +242,7 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	typeID := r.PathValue("type")
 	definition, ok := p.definition(typeID)
 	if !ok {

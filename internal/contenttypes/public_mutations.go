@@ -10,6 +10,7 @@ import (
 const maxPublicBodyBytes = 1 << 20 // 1MB
 
 func (p PublicAPI) Create(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	typeID := r.PathValue("type")
 	definition, ok := p.definition(typeID)
 	if !ok {
@@ -65,6 +66,7 @@ func (p PublicAPI) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p PublicAPI) Update(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	typeID := r.PathValue("type")
 	id := r.PathValue("id")
 	definition, ok := p.definition(typeID)
@@ -136,6 +138,7 @@ func (p PublicAPI) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p PublicAPI) Delete(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	typeID := r.PathValue("type")
 	id := r.PathValue("id")
 	definition, ok := p.definition(typeID)

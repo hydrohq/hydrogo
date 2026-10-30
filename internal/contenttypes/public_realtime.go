@@ -42,6 +42,7 @@ func (p PublicAPI) dispatchRealtime(ctx context.Context, typeID, action string, 
 }
 
 func (p PublicAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
+	p = p.forRequest(r)
 	typeID := r.PathValue("type")
 	definition, ok := p.definition(typeID)
 	if !ok {

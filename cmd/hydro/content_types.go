@@ -28,11 +28,25 @@ import (
 // list/get routes per caller IP; nil leaves them unbounded (only used by
 // the test helper below).
 func contentTypeRoutes(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, presence *realtime.Presence, hook contenttypes.HookCaller, publicLimiter security.RateLimiter, hub *realtime.Hub, principalResolver func(r *http.Request) contenttypes.Principal, typesProvider ...func() []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
+	var provider func() []contenttypes.Definition
+	if len(typesProvider) > 0 {
+		provider = typesProvider[0]
+	}
+	var ctxProvider func(context.Context) []contenttypes.Definition
+	if provider != nil {
+		ctxProvider = func(context.Context) []contenttypes.Definition {
+			return provider()
+		}
+	}
+	return contentTypeRoutesWithContext(ctx, dir, service, scopes, locales, presence, hook, publicLimiter, hub, principalResolver, provider, ctxProvider)
+}
+
+func contentTypeRoutesWithContext(ctx context.Context, dir string, service collections.Service, scopes []tenant.Scope, locales contenttypes.Locales, presence *realtime.Presence, hook contenttypes.HookCaller, publicLimiter security.RateLimiter, hub *realtime.Hub, principalResolver func(r *http.Request) contenttypes.Principal, provider func() []contenttypes.Definition, ctxProvider func(context.Context) []contenttypes.Definition) ([]contenttypes.Definition, []router.Route, error) {
 	types, err := contenttypes.LoadDir(dir)
 	if err != nil {
 		return nil, nil, fmt.Errorf("content types: %w", err)
 	}
-	if len(types) == 0 {
+	if len(types) == 0 && provider == nil && ctxProvider == nil {
 		return nil, nil, nil
 	}
 	schemas, err := contenttypes.Schemas(types)
@@ -46,17 +60,15 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 			syncContexts = append(syncContexts, tenant.WithScope(ctx, scope))
 		}
 	}
-	for _, syncCtx := range syncContexts {
-		if err := service.SyncSchemas(syncCtx, schemas); err != nil {
-			return nil, nil, fmt.Errorf("content types: sync schemas: %w", err)
+	if len(schemas) > 0 {
+		for _, syncCtx := range syncContexts {
+			if err := service.SyncSchemas(syncCtx, schemas); err != nil {
+				return nil, nil, fmt.Errorf("content types: sync schemas: %w", err)
+			}
 		}
 	}
 	if _, err := adminstudio.NewRegistry(contenttypes.AdminCollections(types, locales.Enabled())); err != nil {
 		return nil, nil, fmt.Errorf("content types: admin registry: %w", err)
-	}
-	var provider func() []contenttypes.Definition
-	if len(typesProvider) > 0 {
-		provider = typesProvider[0]
 	}
 	// Clean on read as well as on write: records saved before rich text was
 	// sanitized on save are still served to storefronts that use innerHTML.
@@ -64,12 +76,25 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		Service:          service,
 		Types:            types,
 		TypesFunc:        provider,
+		TypesForContext:  ctxProvider,
 		Locales:          locales,
 		RenderRichText:   richtext.Clean,
 		Hub:              hub,
 		ResolvePrincipal: principalResolver,
 	}
-	admin := contenttypes.AdminAPI{Service: service, Types: types, TypesFunc: provider, Locales: locales, Presence: presence, Actor: contentTypeActor, Subject: contentTypeActor, Hook: hook, Authorize: contentTypeAccess, Can: contentTypeCan}
+	admin := contenttypes.AdminAPI{
+		Service:         service,
+		Types:           types,
+		TypesFunc:       provider,
+		TypesForContext: ctxProvider,
+		Locales:         locales,
+		Presence:        presence,
+		Actor:           contentTypeActor,
+		Subject:         contentTypeActor,
+		Hook:            hook,
+		Authorize:       contentTypeAccess,
+		Can:             contentTypeCan,
+	}
 	routes := []router.Route{
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: rateLimitedPublicContent(publicLimiter, http.HandlerFunc(public.List))},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: rateLimitedPublicContent(publicLimiter, http.HandlerFunc(public.Get))},
@@ -81,7 +106,9 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		{Pattern: "GET /api/v1/content/{type}/subscribe", Access: router.Public, Handler: http.HandlerFunc(public.Subscribe)},
 		{Pattern: "GET /api/v1/openapi.json", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			currentTypes := types
-			if provider != nil {
+			if ctxProvider != nil {
+				currentTypes = ctxProvider(r.Context())
+			} else if provider != nil {
 				currentTypes = provider()
 			}
 			doc, err := openapi.BuildDocument(nil, currentTypes)

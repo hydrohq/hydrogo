@@ -18,11 +18,12 @@ func (a *serveApp) mcpRoutes() []router.Route {
 	}
 
 	handler := mcp.NewHandler(mcp.Config{
-		CollectionService: a.collectionService,
-		ContentTypesDir:   a.cfg.ContentTypesDir,
-		ContentTypes: func() []contenttypes.Definition {
-			return a.contentTypes
-		},
+		CollectionService:      a.collectionService,
+		ContentTypesDir:        a.cfg.ContentTypesDir,
+		RequireTenantScope:     a.requireTenantScope,
+		RequireAuth:            a.authSvc != nil,
+		ContentTypes:           a.getContentTypes,
+		ContentTypesForContext: a.contentTypesForContext,
 		SyncSchema: func(ctx context.Context, _ contenttypes.Definition) error {
 			return a.syncContentTypes(ctx)
 		},

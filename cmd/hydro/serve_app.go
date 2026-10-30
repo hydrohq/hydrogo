@@ -133,12 +133,14 @@ type serveApp struct {
 	studioRegistry   adminstudio.Registry
 	// contentTypes are the loaded YAML content types and contentLocales the
 	// site locales they are served in; both feed the admin schema.
-	collectionService collections.Service
-	contentTypes      []contenttypes.Definition
-	contentLocales    contenttypes.Locales
-	pageHTTP          pagetransport.Handler
-	pageLLMSCache     *seo.DiscoveryCache
-	newsHTTP          newstransport.Handler
+	stateMu            sync.RWMutex
+	collectionService  collections.Service
+	contentTypes       []contenttypes.Definition
+	tenantContentTypes map[string][]contenttypes.Definition
+	contentLocales     contenttypes.Locales
+	pageHTTP           pagetransport.Handler
+	pageLLMSCache      *seo.DiscoveryCache
+	newsHTTP           newstransport.Handler
 
 	// Runtime.
 	metrics          *observability.Metrics
@@ -185,4 +187,94 @@ func (a *serveApp) spawn(fn func()) {
 		defer a.workers.Done()
 		fn()
 	}()
+}
+
+// getContentTypes returns a thread-safe snapshot of global content types.
+func (a *serveApp) getContentTypes() []contenttypes.Definition {
+	a.stateMu.RLock()
+	defer a.stateMu.RUnlock()
+	out := make([]contenttypes.Definition, len(a.contentTypes))
+	copy(out, a.contentTypes)
+	return out
+}
+
+// contentTypesForContext returns the merged content types visible to ctx. When
+// tenancy is active and ctx carries a tenant scope, tenant-specific schemas
+// override or extend the global definitions without leaking across tenants.
+func (a *serveApp) contentTypesForContext(ctx context.Context) []contenttypes.Definition {
+	a.stateMu.RLock()
+	base := make([]contenttypes.Definition, len(a.contentTypes))
+	copy(base, a.contentTypes)
+	if !a.requireTenantScope || ctx == nil {
+		a.stateMu.RUnlock()
+		return base
+	}
+	scope, err := tenant.FromContext(ctx)
+	if err != nil || scope.TenantID == "" {
+		a.stateMu.RUnlock()
+		return base
+	}
+	tenantDefs := a.tenantContentTypes[scope.TenantID]
+	a.stateMu.RUnlock()
+	if len(tenantDefs) == 0 {
+		return base
+	}
+	indexByID := make(map[string]int, len(base))
+	for i, def := range base {
+		indexByID[def.ID] = i
+	}
+	for _, tDef := range tenantDefs {
+		if idx, exists := indexByID[tDef.ID]; exists {
+			base[idx] = tDef
+		} else {
+			indexByID[tDef.ID] = len(base)
+			base = append(base, tDef)
+		}
+	}
+	return base
+}
+
+// getTenantScopes returns a thread-safe snapshot of registered tenant scopes.
+func (a *serveApp) getTenantScopes() []tenant.Scope {
+	a.stateMu.RLock()
+	defer a.stateMu.RUnlock()
+	out := make([]tenant.Scope, len(a.tenantScopes))
+	copy(out, a.tenantScopes)
+	return out
+}
+
+// registerTenantScope registers a new tenant scope and optional host mapping at
+// runtime and synchronizes active collection schemas without restarting the server.
+func (a *serveApp) registerTenantScope(ctx context.Context, host string, scope tenant.Scope) error {
+	a.stateMu.Lock()
+	exists := false
+	for _, existing := range a.tenantScopes {
+		if existing.TenantID == scope.TenantID {
+			exists = true
+			break
+		}
+	}
+	if !exists {
+		a.tenantScopes = append(a.tenantScopes, scope)
+	}
+	a.stateMu.Unlock()
+
+	if a.tenantResolver != nil && host != "" {
+		a.tenantResolver.SetHost(host, scope)
+	}
+
+	if a.collectionService.Repository != nil {
+		scopedCtx := tenant.WithScope(ctx, scope)
+		defs := a.contentTypesForContext(scopedCtx)
+		if len(defs) > 0 {
+			schemas, err := contenttypes.Schemas(defs)
+			if err != nil {
+				return err
+			}
+			if err := a.collectionService.SyncSchemas(scopedCtx, schemas); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
