@@ -408,3 +408,75 @@ func TestErrorMiddlewarePreservesRetryAfter(t *testing.T) {
 		t.Fatalf("Retry-After = %q, want 60", got)
 	}
 }
+
+func TestMemberBearerTokenMutationsBypassCSRFInServer(t *testing.T) {
+	created, updated, deleted := false, false, false
+	handler := NewHandler(Config{
+		Routes: []router.Route{
+			{
+				Pattern: "POST /api/v1/content/messages",
+				Access:  router.Public,
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					created = true
+					w.WriteHeader(http.StatusCreated)
+				}),
+			},
+			{
+				Pattern: "PUT /api/v1/content/messages/{id}",
+				Access:  router.Public,
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					updated = true
+					w.WriteHeader(http.StatusOK)
+				}),
+			},
+			{
+				Pattern: "DELETE /api/v1/content/messages/{id}",
+				Access:  router.Public,
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					deleted = true
+					w.WriteHeader(http.StatusOK)
+				}),
+			},
+		},
+	})
+
+	memberToken := "Bearer 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	// 1. Without bearer token or CSRF token, mutations must be rejected with 403 Forbidden
+	for _, req := range []*http.Request{
+		httptest.NewRequest(http.MethodPost, "/api/v1/content/messages", strings.NewReader(`{}`)),
+		httptest.NewRequest(http.MethodPut, "/api/v1/content/messages/msg_1", strings.NewReader(`{}`)),
+		httptest.NewRequest(http.MethodDelete, "/api/v1/content/messages/msg_1", nil),
+	} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("%s without auth/csrf got %d, want 403", req.Method, rec.Code)
+		}
+	}
+
+	// 2. With member bearer token, POST, PUT, DELETE must succeed through the full stack
+	reqPost := httptest.NewRequest(http.MethodPost, "/api/v1/content/messages", strings.NewReader(`{}`))
+	reqPost.Header.Set("Authorization", memberToken)
+	recPost := httptest.NewRecorder()
+	handler.ServeHTTP(recPost, reqPost)
+	if recPost.Code != http.StatusCreated || !created {
+		t.Fatalf("POST with member bearer token got %d (created=%v), want 201", recPost.Code, created)
+	}
+
+	reqPut := httptest.NewRequest(http.MethodPut, "/api/v1/content/messages/msg_1", strings.NewReader(`{}`))
+	reqPut.Header.Set("Authorization", memberToken)
+	recPut := httptest.NewRecorder()
+	handler.ServeHTTP(recPut, reqPut)
+	if recPut.Code != http.StatusOK || !updated {
+		t.Fatalf("PUT with member bearer token got %d (updated=%v), want 200", recPut.Code, updated)
+	}
+
+	reqDelete := httptest.NewRequest(http.MethodDelete, "/api/v1/content/messages/msg_1", nil)
+	reqDelete.Header.Set("Authorization", memberToken)
+	recDelete := httptest.NewRecorder()
+	handler.ServeHTTP(recDelete, reqDelete)
+	if recDelete.Code != http.StatusOK || !deleted {
+		t.Fatalf("DELETE with member bearer token got %d (deleted=%v), want 200", recDelete.Code, deleted)
+	}
+}
