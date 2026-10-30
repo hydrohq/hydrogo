@@ -319,15 +319,50 @@ func (s Service) CompleteQuarantineUpload(ctx context.Context, id, objectKey str
 	if _, parts, err := validateObjectKey(objectKey); err != nil || !isQuarantineKey(parts) {
 		return ErrQuarantineCompletion
 	}
-	if err := VerifyObject(ctx, s.BlobStore, objectKey, expectedSize, expectedSHA256); err != nil {
+	if expectedSHA256 != "" {
+		if err := VerifyObject(ctx, s.BlobStore, objectKey, expectedSize, expectedSHA256); err != nil {
+			return err
+		}
+	} else if expectedSize >= 0 {
+		rc, err := s.BlobStore.Get(ctx, objectKey)
+		if err != nil {
+			return ErrQuarantineCompletion
+		}
+		defer rc.Close()
+		if expectedSize > 0 {
+			n, _ := io.Copy(io.Discard, rc)
+			if n != expectedSize {
+				return ErrQuarantineCompletion
+			}
+		}
+	}
+	var asset Asset
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if verified, ok := s.Assets.(VerifiedAssetRepository); ok {
+			if err := verified.MarkReadyVerified(ctx, tx, id, objectKey, visibility); err != nil {
+				return err
+			}
+		} else {
+			if err := s.Assets.MarkReady(ctx, tx, id, visibility); err != nil {
+				return err
+			}
+		}
+		if s.Optimizer != nil {
+			var getErr error
+			asset, getErr = s.Assets.Get(ctx, tx, id)
+			if getErr != nil {
+				return nil
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		return err
 	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
-		if verified, ok := s.Assets.(VerifiedAssetRepository); ok {
-			return verified.MarkReadyVerified(ctx, tx, id, objectKey, visibility)
-		}
-		return s.Assets.MarkReady(ctx, tx, id, visibility)
-	})
+	if s.Optimizer != nil && asset.ID != "" {
+		s.Optimizer.Enqueue(asset)
+	}
+	return nil
 }
 
 func (s Service) SetVisibility(ctx context.Context, id, visibility string) error {
