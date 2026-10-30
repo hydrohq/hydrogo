@@ -32,8 +32,12 @@
     drafts?: boolean;
     revisions?: boolean;
     localization?: boolean;
+    realtime?: boolean;
+    access_rules?: Record<string, string>;
     fields: ContentTypeField[];
   }
+
+  let { mode = 'list' }: { mode?: string } = $props();
 
   let contentTypes = $state<ContentTypeDefinition[]>([]);
   let loading = $state(true);
@@ -50,6 +54,13 @@
   let newPublic = $state(true);
   let newDrafts = $state(true);
   let newRevisions = $state(true);
+  let newRealtime = $state(false);
+  let showAccessRules = $state(false);
+  let ruleList = $state('');
+  let ruleRead = $state('');
+  let ruleCreate = $state('');
+  let ruleUpdate = $state('');
+  let ruleDelete = $state('');
   let newFields = $state<ContentTypeField[]>([
     { id: 'title', label: 'Title', kind: 'text', required: true, list: true, searchable: true },
   ]);
@@ -91,6 +102,24 @@
     newFields = [
       ...newFields,
       { id: '', label: '', kind: 'text', required: false, list: true, searchable: false, filterable: false },
+    ];
+  }
+
+  function addFieldKind(kind: string) {
+    const label = kind.charAt(0).toUpperCase() + kind.slice(1);
+    const count = newFields.filter(f => f.kind === kind).length + 1;
+    const id = count > 1 ? `${kind}_${count}` : kind;
+    newFields = [
+      ...newFields,
+      {
+        id,
+        label: count > 1 ? `${label} ${count}` : label,
+        kind,
+        required: false,
+        list: true,
+        searchable: kind === 'text' || kind === 'richtext' || kind === 'textarea',
+        filterable: kind === 'text' || kind === 'number' || kind === 'select' || kind === 'boolean',
+      },
     ];
   }
 
@@ -153,6 +182,13 @@
 
     creating = true;
     try {
+      const accessRules: Record<string, string> = {};
+      if (ruleList.trim()) accessRules.list = ruleList.trim();
+      if (ruleRead.trim()) accessRules.read = ruleRead.trim();
+      if (ruleCreate.trim()) accessRules.create = ruleCreate.trim();
+      if (ruleUpdate.trim()) accessRules.update = ruleUpdate.trim();
+      if (ruleDelete.trim()) accessRules.delete = ruleDelete.trim();
+
       const payload: ContentTypeDefinition = {
         id,
         label: newLabel.trim(),
@@ -161,6 +197,8 @@
         public: newPublic,
         drafts: newDrafts,
         revisions: newRevisions || newDrafts,
+        realtime: newRealtime,
+        access_rules: Object.keys(accessRules).length > 0 ? accessRules : undefined,
         fields: cleanedFields,
       };
 
@@ -199,6 +237,9 @@
 
   onMount(() => {
     loadContentTypes();
+    if (mode === 'new') {
+      createModalOpen = true;
+    }
   });
 </script>
 
@@ -356,7 +397,7 @@
     <!-- Toggles -->
     <div class="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
       <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.features')}</div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
         <label class="flex items-center gap-2 cursor-pointer text-xs select-none">
           <input type="checkbox" bind:checked={newPublic} class="size-4 rounded border-input text-primary" />
           <span>{t('ct.featApi')}</span>
@@ -369,7 +410,51 @@
           <input type="checkbox" bind:checked={newRevisions} class="size-4 rounded border-input text-primary" />
           <span>{t('ct.featRevisions')}</span>
         </label>
+        <label class="flex items-center gap-2 cursor-pointer text-xs select-none">
+          <input type="checkbox" bind:checked={newRealtime} class="size-4 rounded border-input text-primary" />
+          <span>Realtime (SSE)</span>
+        </label>
       </div>
+    </div>
+
+    <!-- Access Rules (RLS) -->
+    <div class="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
+      <div class="flex items-center justify-between">
+        <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Access Rules (RLS)</div>
+        <button
+          type="button"
+          class="text-xs text-primary hover:underline font-medium cursor-pointer"
+          onclick={() => { showAccessRules = !showAccessRules; }}
+        >
+          {showAccessRules ? 'Hide' : 'Configure'}
+        </button>
+      </div>
+      {#if showAccessRules}
+        <div class="space-y-2 pt-1 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label for="rule-list" class="text-[10px] text-muted-foreground">List Rule (e.g. true)</label>
+              <input id="rule-list" bind:value={ruleList} placeholder="e.g. true" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
+            </div>
+            <div>
+              <label for="rule-read" class="text-[10px] text-muted-foreground">Read Rule (e.g. true)</label>
+              <input id="rule-read" bind:value={ruleRead} placeholder="e.g. true" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
+            </div>
+            <div>
+              <label for="rule-create" class="text-[10px] text-muted-foreground">Create Rule (e.g. auth.is_admin)</label>
+              <input id="rule-create" bind:value={ruleCreate} placeholder="e.g. auth.is_admin" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
+            </div>
+            <div>
+              <label for="rule-update" class="text-[10px] text-muted-foreground">Update Rule (e.g. auth.is_admin)</label>
+              <input id="rule-update" bind:value={ruleUpdate} placeholder="e.g. auth.is_admin" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
+            </div>
+          </div>
+          <div>
+            <label for="rule-delete" class="text-[10px] text-muted-foreground">Delete Rule (e.g. auth.is_admin)</label>
+            <input id="rule-delete" bind:value={ruleDelete} placeholder="e.g. auth.is_admin" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
+          </div>
+        </div>
+      {/if}
     </div>
 
     <!-- Field Definitions -->
@@ -384,6 +469,20 @@
           <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           <span>{t('ct.addField')}</span>
         </button>
+      </div>
+
+      <!-- Field Palette -->
+      <div class="flex flex-wrap items-center gap-1.5 pt-1 pb-1">
+        <span class="text-[11px] font-medium text-muted-foreground mr-1">Palette:</span>
+        {#each ['text', 'number', 'boolean', 'select', 'richtext', 'datetime', 'media', 'relation'] as kind}
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-muted hover:bg-muted/80 text-foreground transition-colors cursor-pointer border border-border"
+            onclick={() => addFieldKind(kind)}
+          >
+            + {kind}
+          </button>
+        {/each}
       </div>
 
       <div class="space-y-2.5">
@@ -411,6 +510,7 @@
                 <option value="boolean">{t('ct.kind.boolean')}</option>
                 <option value="select">{t('ct.kind.select')}</option>
                 <option value="date">{t('ct.kind.date')}</option>
+                <option value="datetime">DateTime</option>
                 <option value="media">{t('ct.kind.media')}</option>
                 <option value="relation">{t('ct.kind.relation')}</option>
               </select>
