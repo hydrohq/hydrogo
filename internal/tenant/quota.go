@@ -41,6 +41,19 @@ func (e *QuotaError) Error() string {
 	return e.Message
 }
 
+func (e *QuotaError) Is(target error) bool {
+	switch target {
+	case ErrAIQuotaExceeded:
+		return e.Code == "tenant_ai_quota_exceeded"
+	case ErrStorageQuotaExceeded:
+		return e.Code == "tenant_storage_quota_exceeded"
+	case ErrRecordQuotaExceeded:
+		return e.Code == "tenant_record_quota_exceeded"
+	default:
+		return false
+	}
+}
+
 // Quotas configures maximum consumption bounds for a single tenant.
 type Quotas struct {
 	MaxStorageBytes          int64 `json:"max_storage_bytes"`

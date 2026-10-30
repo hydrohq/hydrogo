@@ -487,7 +487,7 @@ func ConsumeAITokens(ctx context.Context, db SQLExecutor, dialect, tenantID stri
 	if tokens < 0 {
 		tokens = 0
 	}
-	if gov.AIMonthlyTokenLimit > 0 && gov.AITokensUsed+tokens > gov.AIMonthlyTokenLimit {
+	if gov.AIMonthlyTokenLimit > 0 && ((tokens == 0 && gov.AITokensUsed >= gov.AIMonthlyTokenLimit) || gov.AITokensUsed+tokens > gov.AIMonthlyTokenLimit) {
 		return gov, &QuotaError{
 			Code:      "tenant_ai_quota_exceeded",
 			Message:   fmt.Sprintf("monthly AI token quota exceeded for tenant %s: %d + %d > %d", tenantID, gov.AITokensUsed, tokens, gov.AIMonthlyTokenLimit),
