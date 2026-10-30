@@ -40,7 +40,7 @@ Usage:
   hydro generate tests [--dir content-types] [--out e2e/generated] [runtime flags]
   hydro seed --count=20 --locale=tr|en --clean --confirm-demo [--force-prod] [runtime flags]
   hydro clean --demo [--target demo|staging|production] [--force-prod] [runtime flags]
-  hydro sdk generate [--openapi PATH] [--out DIR] [--lang all|typescript|dart]
+  hydro sdk generate [--openapi PATH] [--content-types-dir DIR] [--out DIR] [--lang all|typescript|dart]
 
   Operations
   hydro doctor [--json] [--fix] [runtime flags]

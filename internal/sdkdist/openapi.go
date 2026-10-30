@@ -125,6 +125,18 @@ func GenerateOpenAPISDK(specPath, out string, language SDKLanguage) ([]string, e
 	if err != nil {
 		return nil, fmt.Errorf("read OpenAPI document: %w", err)
 	}
+	return GenerateOpenAPISDKFromBytes(data, out, language)
+}
+
+// GenerateOpenAPISDKFromBytes reads an OpenAPI 3.1 JSON byte payload and writes
+// dependency-free TypeScript and/or Dart clients.
+func GenerateOpenAPISDKFromBytes(data []byte, out string, language SDKLanguage) ([]string, error) {
+	if language != SDKAll && language != SDKTypeScript && language != SDKDart {
+		return nil, fmt.Errorf("unsupported SDK language %q", language)
+	}
+	if strings.TrimSpace(out) == "" {
+		return nil, errors.New("output directory is required")
+	}
 	if len(data) == 0 || len(data) > maxOpenAPIDocumentBytes {
 		return nil, fmt.Errorf("OpenAPI document must be between 1 and %d bytes", maxOpenAPIDocumentBytes)
 	}

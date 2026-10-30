@@ -10,6 +10,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/ardaozyildirim/hydrogo/internal/openapi"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"github.com/ardaozyildirim/hydrogo/internal/richtext"
@@ -78,6 +79,19 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		{Pattern: "PUT /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Update)},
 		{Pattern: "DELETE /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Delete)},
 		{Pattern: "GET /api/v1/content/{type}/subscribe", Access: router.Public, Handler: http.HandlerFunc(public.Subscribe)},
+		{Pattern: "GET /api/v1/openapi.json", Access: router.Public, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			currentTypes := types
+			if provider != nil {
+				currentTypes = provider()
+			}
+			doc, err := openapi.BuildDocument(nil, currentTypes)
+			if err != nil {
+				http.Error(w, "failed to generate openapi specification", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			_, _ = w.Write(doc)
+		})},
 	}
 	return types, append(routes, admin.Routes()...), nil
 }
