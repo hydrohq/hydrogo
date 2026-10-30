@@ -94,7 +94,7 @@ the permission see everything. The permission joins the catalog (grant it per
 user). The public API (`/api/v1/content/...`) has no users and is not
 affected, so a type with `access` cannot be `public`.
 
-## Declarative Row-Level Access Rules (PocketBase Parity)
+## Declarative Row-Level Access Rules (RLS)
 
 Types exposed to public clients or members can declare row-level access rules that govern who can list, read, create, update, or delete records:
 
