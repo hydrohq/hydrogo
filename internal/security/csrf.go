@@ -30,12 +30,16 @@ func GenerateCSRFToken() (string, error) {
 // apiTokenPrefix mirrors auth.APITokenPrefix; security cannot import auth.
 const apiTokenPrefix = "hyd_"
 
+// carriesAPIToken checks whether the request presents an explicit token (X-API-Key
+// or Authorization: Bearer <token>) rather than relying on ambient browser credentials.
+// Stateless API requests carrying explicit bearer tokens or API keys bypass cookie-based
+// double-submit CSRF checks.
 func carriesAPIToken(r *http.Request) bool {
 	if strings.TrimSpace(r.Header.Get("X-API-Key")) != "" {
 		return true
 	}
 	parts := strings.Fields(r.Header.Get("Authorization"))
-	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && strings.HasPrefix(parts[1], apiTokenPrefix)
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && strings.TrimSpace(parts[1]) != ""
 }
 
 func isSafeCSRFMethod(method string) bool {
