@@ -76,6 +76,8 @@ func contentTypeRoutes(ctx context.Context, dir string, service collections.Serv
 		{Pattern: "GET /api/v1/content/{type}", Access: router.Public, Handler: rateLimitedPublicContent(publicLimiter, http.HandlerFunc(public.List))},
 		{Pattern: "GET /api/v1/content/{type}/{id}", Access: router.Public, Handler: rateLimitedPublicContent(publicLimiter, http.HandlerFunc(public.Get))},
 		{Pattern: "POST /api/v1/content/{type}", Access: router.Public, Handler: http.HandlerFunc(public.Create)},
+		{Pattern: "POST /api/v1/content/{type}/batch", Access: router.Public, Handler: http.HandlerFunc(public.Batch)},
+		{Pattern: "POST /api/v1/content/batch", Access: router.Public, Handler: http.HandlerFunc(public.Batch)},
 		{Pattern: "PUT /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Update)},
 		{Pattern: "DELETE /api/v1/content/{type}/{id}", Access: router.Public, Handler: http.HandlerFunc(public.Delete)},
 		{Pattern: "GET /api/v1/content/{type}/subscribe", Access: router.Public, Handler: http.HandlerFunc(public.Subscribe)},
