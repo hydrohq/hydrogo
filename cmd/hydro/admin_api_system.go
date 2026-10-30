@@ -10,6 +10,8 @@ import (
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/i18n"
 	"github.com/ardaozyildirim/hydrogo/internal/security"
@@ -162,6 +164,27 @@ func (a *serveApp) adminSystemHealthHandler(ready func(context.Context) error) h
 			if err := ready(checkCtx); err != nil {
 				status["ok"] = false
 				status["error"] = err.Error()
+			}
+		}
+		if auditstore.ChainEnabled() {
+			store := auditstore.Store{DB: a.db, Dialect: a.cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+			service := audit.Service{Store: store, DB: a.db, Dialect: a.cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+			tenantID := ""
+			if scope, err := tenant.FromContext(r.Context()); err == nil {
+				tenantID = scope.TenantID
+			}
+			res, err := service.VerifyAuditChain(r.Context(), tenantID)
+			if err != nil || !res.Valid {
+				status["ok"] = false
+				status["audit_chain"] = map[string]any{
+					"valid":    false,
+					"problems": res.Problems,
+				}
+			} else {
+				status["audit_chain"] = map[string]any{
+					"valid": true,
+					"links": res.TotalLinks,
+				}
 			}
 		}
 		w.Header().Set("Cache-Control", "no-store")
