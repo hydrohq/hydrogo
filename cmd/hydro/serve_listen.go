@@ -257,6 +257,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 			SecureCookie: cfg.Security.SecureCookies,
 		},
 		TenantResolver: a.tenantResolver,
+		TenantGovernor: a.tenantGovernor,
 		Routes:         routes,
 		Ready:          a.readiness,
 	}, nil

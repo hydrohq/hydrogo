@@ -70,6 +70,16 @@ func GetTenantQuotas(ctx context.Context, db SQLExecutor, dialect string, tenant
 		return quotas, nil
 	}
 
+	if gov, err := GetGovernance(ctx, db, dialect, tenantID); err == nil {
+		if gov.MaxStorageBytes > 0 {
+			quotas.MaxStorageBytes = gov.MaxStorageBytes
+		}
+		if gov.MaxRecords > 0 {
+			quotas.MaxRecordsPerCollection = gov.MaxRecords
+		}
+		return quotas, nil
+	}
+
 	p1 := "?"
 	if dialect == "postgres" {
 		p1 = "$1"

@@ -37,6 +37,12 @@ func (a *serveApp) adminRoutes() []router.Route {
 	}
 	routes := []router.Route{
 		protected("GET /api/v1/admin/tenant/usage", a.adminTenantUsageHandler),
+		protected("GET /api/v1/admin/orchestrator/tenants", a.adminOrchestratorListHandler),
+		protected("POST /api/v1/admin/orchestrator/tenants", a.adminOrchestratorProvisionHandler),
+		protected("GET /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorGetHandler),
+		protected("PATCH /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorUpdateHandler),
+		protected("POST /api/v1/admin/orchestrator/tenants/{id}/impersonate", a.adminOrchestratorImpersonateHandler),
+		protected("POST /api/v1/admin/orchestrator/tenants/{id}/archive", a.adminOrchestratorArchiveHandler),
 		protected("GET /api/v1/admin/dashboard", a.adminDashboardHandler),
 		protected("GET /api/v1/admin/reports", a.adminReportsHandler),
 		protected("GET /api/v1/admin/backups", a.adminBackupStatusHandler),
@@ -129,6 +135,7 @@ func (a *serveApp) adminSchema(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	defs := a.contentTypesForContext(r.Context())
 	schema := a.buildAdminSchemaForTypes(defs)
+	schema.Modules["orchestrator"] = a.isOrchestratorRequest(r)
 	schema.Resources = contenttypes.HideUnreadableFields(schema.Resources, defs, func(permission string) bool { return contentTypeCan(r, permission) })
 	schema.Locales.AdminDefault = a.adminDefaultLocale(r.Context())
 	schema.Branding = a.adminBranding(r.Context())

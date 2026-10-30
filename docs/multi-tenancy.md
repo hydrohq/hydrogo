@@ -73,3 +73,12 @@ hydro tenant backfill (--tenant-id ID|--active) [--dry-run|--confirm]
 `backfill` assigns pre-existing empty-tenant rows (e.g. after turning
 `tenancy.enabled` on for a database that was single-tenant) to a real
 tenant id; always run it with `--dry-run` first.
+
+## Platform Orchestrator & Resource Governor
+
+In addition to static `hosts` configuration and CLI provisioning, HydroGo includes a built-in **Platform Orchestrator** and **Resource Governor** (see [ADR 0029](decisions/0029-platform-orchestrator-and-resource-governor.md)):
+
+- **Zero-Restart Provisioning & Domain Routing**: Workspaces provisioned via `POST /api/v1/admin/orchestrator/tenants` immediately register their `subdomain` and `custom_domain` in `HostResolver` and synchronize collection schemas without restarting the server.
+- **Lifecycle & Subscription Auto-Degradation**: Each workspace has a `lifecycle_state` (`provisioning`, `active`, `readonly`, `suspended`, `archived`) and optional `trial_ends_at` / `subscription_ends_at` timestamps. When a trial or subscription expires, the workspace automatically degrades to `readonly` mode: public `GET`/`HEAD` requests continue serving the storefront while mutating requests return `402 Payment Required`.
+- **Resource Governor**: Enforces per-tenant storage quotas (`max_storage_bytes`), collection record limits (`max_records`), token-bucket request rate limits (`rate_limit_rps`), in-flight concurrency semaphores (`max_concurrent_reqs`), upload size caps (`max_upload_bytes`), and monthly AI token quotas (`ai_monthly_token_limit`).
+- **Caddy On-Demand TLS Gate**: `GET /api/v1/system/domain-check?domain=<host>` (loopback or `X-Orchestrator-Secret`) verifies whether a domain belongs to an active workspace before Caddy issues a TLS certificate.
