@@ -410,6 +410,25 @@
       </a>
       {/if}
 
+      {#if isAdmin && moduleOn('orchestrator')}
+      <a
+        href="/admin/orchestrator"
+        onclick={() => handleNavigate('/orchestrator')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/orchestrator') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title="Orchestrator (Workspaces)"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="7" height="7" x="3" y="3" rx="1"></rect>
+          <rect width="7" height="7" x="14" y="3" rx="1"></rect>
+          <rect width="7" height="7" x="14" y="14" rx="1"></rect>
+          <rect width="7" height="7" x="3" y="14" rx="1"></rect>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Orchestrator</span>
+        {/if}
+      </a>
+      {/if}
+
       <a
         href="/admin/system"
         onclick={() => handleNavigate('/system')}

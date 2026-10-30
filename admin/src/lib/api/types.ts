@@ -180,3 +180,65 @@ export interface MediaItem {
   folder?: string;
   created_at?: string;
 }
+
+export interface TenantGovernance {
+  tenant_id: string;
+  display_name: string;
+  subdomain: string;
+  custom_domain: string;
+  blueprint: string;
+  plan: 'starter' | 'pro' | 'vip' | 'custom' | string;
+  lifecycle_state: 'provisioning' | 'active' | 'readonly' | 'suspended' | 'archived' | string;
+  effective_state: 'provisioning' | 'active' | 'readonly' | 'suspended' | 'archived' | string;
+  trial_ends_at?: string;
+  subscription_ends_at?: string;
+  max_storage_bytes: number;
+  max_records: number;
+  rate_limit_rps: number;
+  max_concurrent_reqs: number;
+  max_upload_bytes: number;
+  ai_enabled: boolean;
+  ai_provider: string;
+  ai_model: string;
+  has_custom_api_key: boolean;
+  ai_monthly_token_limit: number;
+  ai_tokens_used: number;
+  owner_phone: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TenantUsage {
+  tenant_id: string;
+  storage_bytes: number;
+  max_storage_bytes: number;
+  storage_usage_percent: number;
+  total_media_assets: number;
+  total_records: number;
+  max_records_per_collection: number;
+}
+
+export interface WorkspaceSummary {
+  governance: TenantGovernance;
+  usage: TenantUsage;
+  admin_email?: string;
+  record_usage_percent: number;
+  ai_token_usage_percent: number;
+}
+
+export interface OrchestratorTotals {
+  total_workspaces: number;
+  active_workspaces: number;
+  readonly_workspaces: number;
+  suspended_workspaces: number;
+  archived_workspaces: number;
+  total_storage_bytes: number;
+  total_records: number;
+  total_ai_tokens_used: number;
+}
+
+export interface OrchestratorListResponse {
+  workspaces: WorkspaceSummary[];
+  totals: OrchestratorTotals;
+}
