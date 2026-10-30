@@ -10,6 +10,8 @@ import (
 	"io/fs"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
 	"gopkg.in/yaml.v3"
@@ -91,6 +93,12 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 				return err
 			}
 			defer releaseMySQLMigrationLock(context.Background(), conn)
+		case SQLite:
+			release, err := acquireSQLiteMigrationLock(ctx, conn)
+			if err != nil {
+				return err
+			}
+			defer release()
 		}
 	}
 	if err := ensureMigrationLedger(ctx, conn, dialect); err != nil {
@@ -422,6 +430,42 @@ func acquireMySQLMigrationLock(ctx context.Context, conn *sql.Conn) error {
 func releaseMySQLMigrationLock(ctx context.Context, conn *sql.Conn) {
 	var ignored sql.NullInt64
 	_ = conn.QueryRowContext(ctx, "SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':hydrogo:migrate'))").Scan(&ignored)
+}
+
+var inMemorySQLiteMigrationMu sync.Mutex
+
+func sqliteDatabasePath(ctx context.Context, conn *sql.Conn) string {
+	rows, err := conn.QueryContext(ctx, "PRAGMA database_list")
+	if err != nil {
+		return ""
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var seq int
+		var name, file string
+		if err := rows.Scan(&seq, &name, &file); err == nil && name == "main" {
+			return file
+		}
+	}
+	return ""
+}
+
+func acquireSQLiteMigrationLock(ctx context.Context, conn *sql.Conn) (func(), error) {
+	path := sqliteDatabasePath(ctx, conn)
+	if path == "" || path == ":memory:" || strings.Contains(path, "mode=memory") {
+		inMemorySQLiteMigrationMu.Lock()
+		return func() {
+			inMemorySQLiteMigrationMu.Unlock()
+		}, nil
+	}
+	lockPath := path + ".lock"
+	fl, err := acquireFileLock(ctx, lockPath, 30*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("acquire SQLite migration lock: %w", err)
+	}
+	return func() {
+		_ = fl.Release()
+	}, nil
 }
 
 func migrationIsTransactional(migrationFS fs.FS, migrationID string, dialect Dialect) (bool, error) {
