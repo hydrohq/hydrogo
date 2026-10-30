@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,8 +10,12 @@ import (
 	"testing"
 	"time"
 
+	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/config"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/migrations"
+	_ "modernc.org/sqlite"
 )
 
 type fakeUserAdmin struct{ users []*auth.User }
@@ -218,5 +223,64 @@ func TestAdminSystemInfoAndAccountLocale(t *testing.T) {
 	app.adminI18nHandler(unknown, request)
 	if unknown.Code != http.StatusNotFound {
 		t.Fatalf("unknown locale: %d", unknown.Code)
+	}
+}
+
+func TestAdminAuditVerifyHandler(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+
+	auditstore.SetChain(true)
+	defer auditstore.SetChain(false)
+
+	app := &serveApp{db: db, cfg: config.Config{Database: config.Database{Dialect: database.SQLite}}}
+	admin := &auth.User{ID: "a1", Role: auth.RoleAdmin, Active: true}
+
+	// 1. Non-admin forbidden
+	forbidden := httptest.NewRecorder()
+	app.adminAuditVerifyHandler(forbidden, adminAPIRequest(http.MethodPost, "/api/v1/admin/audit/verify", "", &auth.User{ID: "e1", Role: auth.RoleEditor, Active: true}))
+	if forbidden.Code != http.StatusForbidden {
+		t.Fatalf("editor verify code = %d, want 403", forbidden.Code)
+	}
+
+	// 2. Untampered verify succeeds
+	store := auditstore.Store{DB: db, Dialect: database.SQLite}
+	_ = store.Record(ctx, db, "e1", "page.create", "p1")
+	_ = store.Record(ctx, db, "e2", "page.update", "p1")
+
+	rec := httptest.NewRecorder()
+	app.adminAuditVerifyHandler(rec, adminAPIRequest(http.MethodPost, "/api/v1/admin/audit/verify", "", admin))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin verify code = %d, want 200", rec.Code)
+	}
+	body := decodeEnvelope(t, rec)
+	data, _ := body["data"].(map[string]any)
+	if data["valid"] != true || data["total_links"] != float64(2) {
+		t.Fatalf("unexpected verify response: %+v", data)
+	}
+
+	// 3. Direct tampering fails verification
+	_, _ = db.Exec("DROP TRIGGER IF EXISTS audit_events_immutable_update")
+	_, err = db.Exec("UPDATE audit_events SET action = 'tampered' WHERE id = 'e1'")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	recTampered := httptest.NewRecorder()
+	app.adminAuditVerifyHandler(recTampered, adminAPIRequest(http.MethodPost, "/api/v1/admin/audit/verify", "", admin))
+	if recTampered.Code != http.StatusOK {
+		t.Fatalf("admin verify tampered code = %d, want 200", recTampered.Code)
+	}
+	bodyTampered := decodeEnvelope(t, recTampered)
+	dataTampered, _ := bodyTampered["data"].(map[string]any)
+	if dataTampered["valid"] != false {
+		t.Fatalf("expected valid=false after tamper, got %+v", dataTampered)
 	}
 }

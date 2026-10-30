@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/audit"
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
 type adminAuditEntry struct {
@@ -98,4 +100,28 @@ func (a *serveApp) adminAuditHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	api.WriteList(w, entries, api.PaginationMeta{Limit: filter.Limit, Offset: filter.Offset, Total: result.Total, HasMore: filter.Offset+len(entries) < result.Total})
+}
+
+func (a *serveApp) adminAuditVerifyHandler(w http.ResponseWriter, r *http.Request) {
+	if !activePlatformAdmin(auth.UserFromContext(r.Context())) {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+	tenantID := ""
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		tenantID = scope.TenantID
+	} else if a.requireTenantScope {
+		api.WriteError(w, r, http.StatusBadRequest, "tenant scope is required", nil)
+		return
+	}
+	store := auditstore.Store{DB: a.db, Dialect: a.cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+	service := audit.Service{Store: store, DB: a.db, Dialect: a.cfg.Database.Dialect, RequireTenantScope: a.requireTenantScope}
+	res, err := service.VerifyAuditChain(r.Context(), tenantID)
+	if err != nil {
+		slog.Error("admin audit verify failed", "error", err)
+		api.WriteError(w, r, http.StatusInternalServerError, "failed to verify audit chain", nil)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	api.WriteData(w, http.StatusOK, res, nil)
 }

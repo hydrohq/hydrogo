@@ -66,6 +66,7 @@ func (a *serveApp) adminRoutes() []router.Route {
 	// admin write is recorded whichever modules are on), so its explorer must not
 	// wait for pages: crm and erp-lite have none and still show the Audit button.
 	routes = append(routes, protected("GET /api/v1/admin/audit", a.adminAuditHandler))
+	routes = append(routes, protected("POST /api/v1/admin/audit/verify", a.adminAuditVerifyHandler))
 	return routes
 }
 
