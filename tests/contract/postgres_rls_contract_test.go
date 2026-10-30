@@ -41,6 +41,13 @@ var expectedRLSTables = []string{
 	"commerce_payment_charges",
 	"commerce_payment_notifications",
 	"hydro_forms",
+	"hydro_collections",
+	"hydro_collection_records",
+	"hydro_collection_unique",
+	"hydro_collection_relations",
+	"hydro_collection_revisions",
+	"hydro_collection_translations",
+	"hydro_collection_sequences",
 }
 
 // TestPostgresTenantRLSContract certifies ADR-0156 and ADR-0180:
@@ -161,6 +168,18 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 			return fmt.Errorf("insert alpha audit_event: %w", err)
 		}
 
+		// Insert Collection and Collection Record
+		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO hydro_collections (id, label, schema_json, version, tenant_id, created_at, updated_at)
+			VALUES ('col-alpha', 'Articles', '{}', 1, 'tenant-alpha', '2026-01-01', '2026-01-01')`)
+		if err != nil {
+			return fmt.Errorf("insert alpha collection: %w", err)
+		}
+		_, err = tx.ExecContext(ctxAlpha, `INSERT INTO hydro_collection_records (collection_id, id, data_json, version, tenant_id, created_at, updated_at)
+			VALUES ('col-alpha', 'rec-alpha', '{}', 1, 'tenant-alpha', '2026-01-01', '2026-01-01')`)
+		if err != nil {
+			return fmt.Errorf("insert alpha collection record: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -169,7 +188,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 
 	// Step B: Verify Tenant Alpha reads its own data
 	err = transactor.WithinQuery(ctxAlpha, func(qe database.QueryExecutor) error {
-		var pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount int
+		var pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount, colRecordCount int
 		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM pages WHERE id = 'page-alpha'`).Scan(&pageCount); err != nil {
 			return err
 		}
@@ -191,8 +210,11 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM audit_events WHERE id = 'audit-alpha'`).Scan(&auditCount); err != nil {
 			return err
 		}
-		if pageCount != 1 || settingsCount != 1 || memberCount != 1 || userCount != 1 || mediaCount != 1 || productCount != 1 || auditCount != 1 {
-			return fmt.Errorf("expected tenant-alpha counts all 1, got (%d,%d,%d,%d,%d,%d,%d)", pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount)
+		if err := qe.QueryRowContext(ctxAlpha, `SELECT count(*) FROM hydro_collection_records WHERE id = 'rec-alpha'`).Scan(&colRecordCount); err != nil {
+			return err
+		}
+		if pageCount != 1 || settingsCount != 1 || memberCount != 1 || userCount != 1 || mediaCount != 1 || productCount != 1 || auditCount != 1 || colRecordCount != 1 {
+			return fmt.Errorf("expected tenant-alpha counts all 1, got (%d,%d,%d,%d,%d,%d,%d,%d)", pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount, colRecordCount)
 		}
 		return nil
 	})
@@ -202,7 +224,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 
 	// Step C: Verify Tenant Beta CANNOT read Tenant Alpha's data (SELECT returns 0 rows)
 	err = transactor.WithinQuery(ctxBeta, func(qe database.QueryExecutor) error {
-		var pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount int
+		var pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount, colRecordCount int
 		// Notice no explicit WHERE tenant_id filter here, to prove RLS policy alone blocks cross-tenant reads!
 		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM pages WHERE id = 'page-alpha'`).Scan(&pageCount); err != nil {
 			return err
@@ -225,8 +247,11 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM audit_events WHERE id = 'audit-alpha'`).Scan(&auditCount); err != nil {
 			return err
 		}
-		if pageCount != 0 || settingsCount != 0 || memberCount != 0 || userCount != 0 || mediaCount != 0 || productCount != 0 || auditCount != 0 {
-			return fmt.Errorf("security breach: tenant-beta saw tenant-alpha rows! counts: (%d,%d,%d,%d,%d,%d,%d)", pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount)
+		if err := qe.QueryRowContext(ctxBeta, `SELECT count(*) FROM hydro_collection_records WHERE id = 'rec-alpha'`).Scan(&colRecordCount); err != nil {
+			return err
+		}
+		if pageCount != 0 || settingsCount != 0 || memberCount != 0 || userCount != 0 || mediaCount != 0 || productCount != 0 || auditCount != 0 || colRecordCount != 0 {
+			return fmt.Errorf("security breach: tenant-beta saw tenant-alpha rows! counts: (%d,%d,%d,%d,%d,%d,%d,%d)", pageCount, settingsCount, memberCount, userCount, mediaCount, productCount, auditCount, colRecordCount)
 		}
 		return nil
 	})
@@ -247,6 +272,18 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if rows != 0 {
 			return fmt.Errorf("security breach: tenant-beta updated %d tenant-alpha rows", rows)
 		}
+
+		resCol, err := tx.ExecContext(ctxBeta, `UPDATE hydro_collection_records SET data_json = '{"hacked":true}' WHERE id = 'rec-alpha'`)
+		if err != nil {
+			return err
+		}
+		rowsCol, err := resCol.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsCol != 0 {
+			return fmt.Errorf("security breach: tenant-beta updated %d tenant-alpha collection rows", rowsCol)
+		}
 		return nil
 	})
 	if err != nil {
@@ -266,6 +303,18 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		if rows != 0 {
 			return fmt.Errorf("security breach: tenant-beta deleted %d tenant-alpha rows", rows)
 		}
+
+		resCol, err := tx.ExecContext(ctxBeta, `DELETE FROM hydro_collection_records WHERE id = 'rec-alpha'`)
+		if err != nil {
+			return err
+		}
+		rowsCol, err := resCol.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsCol != 0 {
+			return fmt.Errorf("security breach: tenant-beta deleted %d tenant-alpha collection rows", rowsCol)
+		}
 		return nil
 	})
 	if err != nil {
@@ -279,6 +328,13 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 			VALUES ('page-spoofed', 'Spoofed', 1, 'en', 'spoofed', 'Spoofed Content', 'published', 1, 0, 'tenant-alpha', NOW(), NOW())`)
 		if err == nil {
 			return fmt.Errorf("security breach: tenant-beta was allowed to insert row with tenant_id='tenant-alpha'")
+		}
+
+		_, err = tx.ExecContext(ctxBeta, `INSERT INTO hydro_collection_records
+			(collection_id, id, data_json, version, tenant_id, created_at, updated_at)
+			VALUES ('col-alpha', 'rec-spoofed', '{}', 1, 'tenant-alpha', '2026-01-01', '2026-01-01')`)
+		if err == nil {
+			return fmt.Errorf("security breach: tenant-beta was allowed to insert collection record with tenant_id='tenant-alpha'")
 		}
 		return nil
 	})

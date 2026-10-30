@@ -1,0 +1,3 @@
+-- PostgreSQL-only defense-in-depth. SQLite relies on the explicit tenant
+-- predicates in certified repositories and does not have row-level policies.
+SELECT 1;

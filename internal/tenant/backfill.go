@@ -16,7 +16,7 @@ type BackfillReport struct {
 	TotalRows      int64            `json:"total_rows"`
 }
 
-// BackfillTables lists all 30 tenant-scoped database tables.
+// BackfillTables lists all 37 tenant-scoped database tables.
 var BackfillTables = []string{
 	"pages",
 	"page_revisions",
@@ -48,6 +48,13 @@ var BackfillTables = []string{
 	"commerce_payment_charges",
 	"commerce_payment_notifications",
 	"hydro_forms",
+	"hydro_collections",
+	"hydro_collection_records",
+	"hydro_collection_unique",
+	"hydro_collection_relations",
+	"hydro_collection_revisions",
+	"hydro_collection_translations",
+	"hydro_collection_sequences",
 }
 
 // isMissingTableError identifies when a table does not exist across PostgreSQL and SQLite
