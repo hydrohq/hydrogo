@@ -72,11 +72,11 @@ func (b *queryBuilder) param(value any) string {
 func (b *queryBuilder) text(field string) string {
 	switch b.dialect {
 	case database.Postgres:
-		return "(data_json::jsonb ->> " + b.param(field) + "::text)"
+		return "(data_json::jsonb ->> '" + field + "')"
 	case database.MySQL:
-		return "JSON_UNQUOTE(JSON_EXTRACT(data_json, " + b.param("$."+field) + "))"
+		return "JSON_UNQUOTE(JSON_EXTRACT(data_json, '$." + field + "'))"
 	default:
-		return "json_extract(data_json, " + b.param("$."+field) + ")"
+		return "json_extract(data_json, '$." + field + "')"
 	}
 }
 
@@ -84,11 +84,11 @@ func (b *queryBuilder) text(field string) string {
 func (b *queryBuilder) value(field string) string {
 	switch b.dialect {
 	case database.Postgres:
-		return "(data_json::jsonb -> " + b.param(field) + "::text)"
+		return "(data_json::jsonb -> '" + field + "')"
 	case database.MySQL:
-		return "JSON_EXTRACT(data_json, " + b.param("$."+field) + ")"
+		return "JSON_EXTRACT(data_json, '$." + field + "')"
 	default:
-		return "json_extract(data_json, " + b.param("$."+field) + ")"
+		return "json_extract(data_json, '$." + field + "')"
 	}
 }
 
