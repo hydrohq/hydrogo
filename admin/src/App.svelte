@@ -28,6 +28,7 @@
   const loadSystemView = () => import('./routes/system/SystemView.svelte');
   const loadAccountView = () => import('./routes/account/AccountView.svelte');
   const loadContentTypesView = () => import('./routes/contenttypes/ContentTypesView.svelte');
+  const loadOrchestratorView = () => import('./routes/orchestrator/OrchestratorView.svelte');
 
   import { i18n, isLocale } from '$lib/i18n/index.svelte';
   import { applyBrandColor } from '$lib/branding';
@@ -177,6 +178,8 @@
         <LazyView load={loadSystemView} />
       {:else if routeInfo.module === 'account'}
         <LazyView load={loadAccountView} />
+      {:else if routeInfo.module === 'orchestrator'}
+        <LazyView load={loadOrchestratorView} />
       {:else if routeInfo.module === 'content-types' || routeInfo.view === 'content-types'}
         <LazyView load={loadContentTypesView} props={{ mode: routeInfo.mode }} />
       {:else}
