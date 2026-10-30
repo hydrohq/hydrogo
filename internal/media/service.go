@@ -134,6 +134,11 @@ func (s Service) List(ctx context.Context, db database.Executor, limit int) ([]A
 	return repository.List(ctx, db, limit)
 }
 
+// QuotaChecker enforces tenant-scoped storage consumption limits.
+type QuotaChecker interface {
+	CheckStorageQuota(ctx context.Context, incomingBytes int64) error
+}
+
 // Service coordinates immutable file creation with the pending/ready metadata state.
 // A failed metadata write leaves an unreferenced file for the storage sweeper.
 type Service struct {
@@ -146,6 +151,7 @@ type Service struct {
 	Optimizer        *Optimizer
 	AdminSettings    AdminSettingsRepository
 	DefaultWatermark *WatermarkOptions
+	QuotaChecker     QuotaChecker
 }
 
 func (s Service) Upload(ctx context.Context, reader io.Reader, filename string) (*UploadResult, error) {
@@ -196,6 +202,12 @@ func (s Service) UploadPrivateDocument(ctx context.Context, reader io.Reader, fi
 }
 
 func (s Service) storeUpload(ctx context.Context, result *UploadResult) (*UploadResult, error) {
+	if s.QuotaChecker != nil {
+		if err := s.QuotaChecker.CheckStorageQuota(ctx, result.SizeBytes); err != nil {
+			_ = os.Remove(result.StoragePath)
+			return nil, err
+		}
+	}
 	storageKey, err := StorageKeyForContext(ctx, filepath.Base(result.StoragePath))
 	if err != nil {
 		return nil, err
@@ -315,6 +327,11 @@ func (s Service) loadWatermarkLogo(ctx context.Context, id string) (image.Image,
 func (s Service) CompleteQuarantineUpload(ctx context.Context, id, objectKey string, expectedSize int64, expectedSHA256, visibility string) error {
 	if s.BlobStore == nil || guards.IsNil(s.Assets) {
 		return ErrQuarantineCompletion
+	}
+	if s.QuotaChecker != nil {
+		if err := s.QuotaChecker.CheckStorageQuota(ctx, expectedSize); err != nil {
+			return err
+		}
 	}
 	if _, parts, err := validateObjectKey(objectKey); err != nil || !isQuarantineKey(parts) {
 		return ErrQuarantineCompletion

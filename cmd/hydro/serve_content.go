@@ -73,7 +73,16 @@ func (a *serveApp) initMedia() error {
 		if mediaOptimizer != nil {
 			mediaOptimizer.SetBlobStore(blobStore)
 		}
-		mediaService = media.Service{Transactions: a.transactioner, Uploader: uploader, BlobStore: blobStore, Assets: mediaStore, Optimizer: mediaOptimizer, AdminSettings: mediaStore, DefaultWatermark: configuredWatermark}
+		mediaService = media.Service{
+			Transactions:     a.transactioner,
+			Uploader:         uploader,
+			BlobStore:        blobStore,
+			Assets:           mediaStore,
+			Optimizer:        mediaOptimizer,
+			AdminSettings:    mediaStore,
+			DefaultWatermark: configuredWatermark,
+			QuotaChecker:     mediaQuotaChecker{db: db, dialect: string(cfg.Database.Dialect)},
+		}
 		if mediaOptimizer != nil {
 			go func() { <-ctx.Done(); mediaOptimizer.Close() }()
 		}
