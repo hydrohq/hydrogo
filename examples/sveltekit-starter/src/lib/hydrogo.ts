@@ -39,7 +39,158 @@ export type ContentSubscribeOptions = {
   maxRetries?: number;
 };
 export type HydroGoRequestOptions = { signal?: AbortSignal };
-export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
+
+export interface AuthStore {
+  token: string;
+  model: MemberProfile | null;
+  isValid: boolean;
+  save(token: string, model: MemberProfile): void;
+  clear(): void;
+  onChange(callback: (token: string, model: MemberProfile | null) => void): () => void;
+}
+
+export class MemoryAuthStore implements AuthStore {
+  private _token: string = "";
+  private _model: MemberProfile | null = null;
+  private readonly listeners: Set<(token: string, model: MemberProfile | null) => void> = new Set();
+
+  constructor(initialToken = "", initialModel: MemberProfile | null = null) {
+    this._token = initialToken;
+    this._model = initialModel;
+  }
+
+  get token(): string {
+    return this._token;
+  }
+
+  get model(): MemberProfile | null {
+    return this._model;
+  }
+
+  get isValid(): boolean {
+    return Boolean(this._token.trim());
+  }
+
+  save(token: string, model: MemberProfile): void {
+    this._token = token;
+    this._model = model;
+    this.notify();
+  }
+
+  clear(): void {
+    this._token = "";
+    this._model = null;
+    this.notify();
+  }
+
+  onChange(callback: (token: string, model: MemberProfile | null) => void): () => void {
+    this.listeners.add(callback);
+    return () => {
+      this.listeners.delete(callback);
+    };
+  }
+
+  private notify(): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(this._token, this._model);
+      } catch {
+        // Ignore listener exceptions
+      }
+    }
+  }
+}
+
+export class LocalStorageAuthStore extends MemoryAuthStore {
+  private readonly storageKey: string;
+
+  constructor(storageKey = "hydrogo_auth") {
+    let initialToken = "";
+    let initialModel: MemberProfile | null = null;
+
+    if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.token === "string") {
+            initialToken = parsed.token;
+            initialModel = parsed.model ?? null;
+          }
+        }
+      } catch {
+        // Ignore parsing or storage access issues
+      }
+    }
+
+    super(initialToken, initialModel);
+    this.storageKey = storageKey;
+  }
+
+  override save(token: string, model: MemberProfile): void {
+    super.save(token, model);
+    if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+      try {
+        window.localStorage.setItem(this.storageKey, JSON.stringify({ token, model }));
+      } catch {
+        // Storage quota exceeded or disabled
+      }
+    }
+  }
+
+  override clear(): void {
+    super.clear();
+    if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+      try {
+        window.localStorage.removeItem(this.storageKey);
+      } catch {
+        // Storage disabled
+      }
+    }
+  }
+}
+
+export class RecordService<T = Record<string, unknown>> {
+  constructor(
+    private readonly client: HydroGoClient,
+    readonly collectionName: string,
+  ) {}
+
+  async list(query?: ContentQuery, options?: HydroGoRequestOptions): Promise<ContentList<T>> {
+    return this.client.listContent<T>(this.collectionName, query, options);
+  }
+
+  async get(id: string, options?: { locale?: string } & HydroGoRequestOptions): Promise<T> {
+    return this.client.getContent<T>(this.collectionName, id, options?.locale, options);
+  }
+
+  async create(data: Partial<T>, token?: string, options?: HydroGoRequestOptions): Promise<T> {
+    return this.client.createContent<T>(this.collectionName, data, token, options);
+  }
+
+  async update(id: string, data: Partial<T>, token?: string, options?: HydroGoRequestOptions): Promise<T> {
+    return this.client.updateContent<T>(this.collectionName, id, data, token, options);
+  }
+
+  async delete(id: string, token?: string, options?: HydroGoRequestOptions): Promise<void> {
+    return this.client.deleteContent(this.collectionName, id, token, options);
+  }
+
+  subscribe(
+    callback: (event: ContentEvent<T>) => void,
+    optionsOrToken?: string | ContentSubscribeOptions,
+  ): () => void {
+    return this.client.subscribeContent<T>(this.collectionName, callback, optionsOrToken);
+  }
+}
+
+export type HydroGoClientOptions = {
+  origin: string;
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  authStore?: AuthStore;
+};
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_TIMEOUT_MS = 120_000;
@@ -78,6 +229,7 @@ export class HydroGoClient {
   private readonly requestFetch: typeof fetch;
   private readonly timeoutMs: number;
   private readonly externalSignal?: AbortSignal;
+  readonly authStore: AuthStore;
 
   constructor(options: HydroGoClientOptions) {
     const rawOrigin = options.origin.trim();
@@ -97,6 +249,46 @@ export class HydroGoClient {
     if (!Number.isInteger(timeout) || timeout < 1 || timeout > MAX_TIMEOUT_MS) throw new RangeError("timeoutMs must be between 1 and 120000");
     this.timeoutMs = timeout;
     this.externalSignal = options.signal;
+    if (options.authStore) {
+      this.authStore = options.authStore;
+    } else if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+      this.authStore = new LocalStorageAuthStore();
+    } else {
+      this.authStore = new MemoryAuthStore();
+    }
+  }
+
+  get auth() {
+    return {
+      store: this.authStore,
+      get token(): string { return this.store.token; },
+      get model(): MemberProfile | null { return this.store.model; },
+      get isValid(): boolean { return this.store.isValid; },
+      loginMember: async (input: MemberLoginInput, options?: HydroGoRequestOptions): Promise<{ tokens: MemberTokenPair; profile: MemberProfile }> => {
+        const tokens = await this.memberLogin(input, options);
+        const profile = await this.memberMe(tokens.access_token, options);
+        this.authStore.save(tokens.access_token, profile);
+        return { tokens, profile };
+      },
+      logout: async (allDevices = false, options?: HydroGoRequestOptions): Promise<void> => {
+        const token = this.authStore.token;
+        if (token) {
+          try {
+            await this.memberLogout(token, allDevices, options);
+          } finally {
+            this.authStore.clear();
+          }
+        } else {
+          this.authStore.clear();
+        }
+      },
+      clear: () => this.authStore.clear(),
+      onChange: (callback: (token: string, model: MemberProfile | null) => void) => this.authStore.onChange(callback),
+    };
+  }
+
+  collection<T = Record<string, unknown>>(name: string): RecordService<T> {
+    return new RecordService<T>(this, name);
   }
 
   async getPage(locale: string, slug: string, options?: HydroGoRequestOptions): Promise<Page> {
@@ -157,8 +349,9 @@ export class HydroGoClient {
   }
 
   async createContent<T = Record<string, unknown>>(type: string, data: Partial<T>, token?: string, options?: HydroGoRequestOptions): Promise<T> {
+    const effectiveToken = token ?? (this.authStore.isValid ? this.authStore.token : undefined);
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (effectiveToken) headers["Authorization"] = `Bearer ${effectiveToken}`;
     const response = await this.request<{ data: T }>(`/api/v1/content/${encodeURIComponent(type)}`, {
       method: "POST",
       headers,
@@ -168,8 +361,9 @@ export class HydroGoClient {
   }
 
   async updateContent<T = Record<string, unknown>>(type: string, id: string, data: Partial<T>, token?: string, options?: HydroGoRequestOptions): Promise<T> {
+    const effectiveToken = token ?? (this.authStore.isValid ? this.authStore.token : undefined);
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (effectiveToken) headers["Authorization"] = `Bearer ${effectiveToken}`;
     const response = await this.request<{ data: T }>(`/api/v1/content/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
       method: "PUT",
       headers,
@@ -179,8 +373,9 @@ export class HydroGoClient {
   }
 
   async deleteContent(type: string, id: string, token?: string, options?: HydroGoRequestOptions): Promise<void> {
+    const effectiveToken = token ?? (this.authStore.isValid ? this.authStore.token : undefined);
     const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (effectiveToken) headers["Authorization"] = `Bearer ${effectiveToken}`;
     await this.request<{ data: { id: string } }>(`/api/v1/content/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
       method: "DELETE",
       headers,
@@ -193,7 +388,7 @@ export class HydroGoClient {
     optionsOrToken?: string | ContentSubscribeOptions,
   ): () => void {
     const opts: ContentSubscribeOptions = typeof optionsOrToken === "string" ? { token: optionsOrToken } : (optionsOrToken ?? {});
-    const token = opts.token;
+    const token = opts.token ?? (this.authStore.isValid ? this.authStore.token : undefined);
     const onStateChange = opts.onStateChange;
     const minBackoffMs = opts.minBackoffMs ?? 500;
     const maxBackoffMs = opts.maxBackoffMs ?? 30_000;
