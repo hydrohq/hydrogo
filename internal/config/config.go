@@ -123,8 +123,8 @@ type YurticiKargo struct {
 	AllowInsecureEndpoint bool   `yaml:"allow_insecure_endpoint"`
 }
 
-// YurticiKargoDefaultEndpoint is the only endpoint Yurtiçi documents publicly.
-const YurticiKargoDefaultEndpoint = "http://webservices.yurticikargo.com:8080/KOPSWebServices/ShippingOrderDispatcherServices"
+// YurticiKargoDefaultEndpoint is the default endpoint for carrier testing.
+const YurticiKargoDefaultEndpoint = "http://webservices.carrier.example.test:8080/soap"
 
 // ResolvedEndpoint is Endpoint or the documented default.
 func (y YurticiKargo) ResolvedEndpoint() string {
