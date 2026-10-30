@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +27,7 @@ func (a *serveApp) contentTypeAdminRoutes() []router.Route {
 	return []router.Route{
 		protected("GET /api/v1/admin/content-types", a.adminListContentTypes),
 		protected("POST /api/v1/admin/content-types", a.adminCreateContentType),
+		protected("PUT /api/v1/admin/content-types/{id}", a.adminUpdateContentType),
 		protected("DELETE /api/v1/admin/content-types/{id}", a.adminDeleteContentType),
 	}
 }
@@ -71,10 +73,24 @@ func (a *serveApp) adminCreateContentType(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var def contenttypes.Definition
-	if err := json.NewDecoder(r.Body).Decode(&def); err != nil {
-		api.WriteError(w, r, http.StatusBadRequest, "invalid request body", nil)
+	bodyBytes, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "failed to read request body", nil)
 		return
+	}
+
+	var def contenttypes.Definition
+	trimmed := strings.TrimSpace(string(bodyBytes))
+	if strings.HasPrefix(trimmed, "{") {
+		if err := json.Unmarshal(bodyBytes, &def); err != nil {
+			api.WriteError(w, r, http.StatusBadRequest, "invalid JSON payload", nil)
+			return
+		}
+	} else {
+		if err := yaml.Unmarshal(bodyBytes, &def); err != nil {
+			api.WriteError(w, r, http.StatusBadRequest, "invalid YAML payload", nil)
+			return
+		}
 	}
 
 	def.ID = strings.TrimSpace(strings.ToLower(def.ID))
@@ -120,6 +136,97 @@ func (a *serveApp) adminCreateContentType(w http.ResponseWriter, r *http.Request
 	}
 
 	api.WriteData(w, http.StatusCreated, def, nil)
+}
+
+func (a *serveApp) adminUpdateContentType(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !auth.Can(user, auth.PermissionContentWrite) && !activePlatformAdmin(user) {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+
+	id := strings.TrimSpace(strings.ToLower(r.PathValue("id")))
+	if id == "" {
+		api.WriteError(w, r, http.StatusBadRequest, "missing content type id", nil)
+		return
+	}
+
+	found := false
+	for _, existing := range a.contentTypes {
+		if existing.ID == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		api.WriteError(w, r, http.StatusNotFound, "content type not found", nil)
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "failed to read request body", nil)
+		return
+	}
+
+	var def contenttypes.Definition
+	trimmed := strings.TrimSpace(string(bodyBytes))
+	if strings.HasPrefix(trimmed, "{") {
+		if err := json.Unmarshal(bodyBytes, &def); err != nil {
+			api.WriteError(w, r, http.StatusBadRequest, "invalid JSON payload", nil)
+			return
+		}
+	} else {
+		if err := yaml.Unmarshal(bodyBytes, &def); err != nil {
+			api.WriteError(w, r, http.StatusBadRequest, "invalid YAML payload", nil)
+			return
+		}
+	}
+
+	if def.ID == "" {
+		def.ID = id
+	}
+	def.ID = strings.TrimSpace(strings.ToLower(def.ID))
+	if def.ID != id {
+		api.WriteError(w, r, http.StatusBadRequest, "definition ID does not match route path", nil)
+		return
+	}
+	def.Label = strings.TrimSpace(def.Label)
+
+	if err := def.Validate(); err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	yamlBytes, err := yaml.Marshal(&def)
+	if err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, "failed to serialize definition", nil)
+		return
+	}
+
+	dir := a.cfg.ContentTypesDir
+	if dir == "" {
+		dir = "content-types"
+	}
+	filePath := filepath.Join(dir, id+".yaml")
+
+	oldBytes, _ := os.ReadFile(filePath)
+
+	if err := os.WriteFile(filePath, yamlBytes, 0o644); err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, "failed to write definition file", nil)
+		return
+	}
+
+	if err := a.syncContentTypes(r.Context()); err != nil {
+		if len(oldBytes) > 0 {
+			_ = os.WriteFile(filePath, oldBytes, 0o644)
+			_ = a.syncContentTypes(r.Context())
+		}
+		api.WriteError(w, r, http.StatusInternalServerError, fmt.Sprintf("failed to sync schema: %v", err), nil)
+		return
+	}
+
+	api.WriteData(w, http.StatusOK, def, nil)
 }
 
 func (a *serveApp) adminDeleteContentType(w http.ResponseWriter, r *http.Request) {
