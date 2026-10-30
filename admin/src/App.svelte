@@ -124,6 +124,11 @@
       }
       return { view: 'pages-list' };
     }
+    if (p.startsWith('/content-types')) {
+      const parts = p.split('/');
+      const action = parts[2];
+      return { view: 'content-types', mode: action === 'new' ? 'new' : 'list' };
+    }
     return { view: 'custom', module: p.replace(/^\//, '') };
   });
 </script>
@@ -169,8 +174,8 @@
         <LazyView load={loadSystemView} />
       {:else if routeInfo.module === 'account'}
         <LazyView load={loadAccountView} />
-      {:else if routeInfo.module === 'content-types'}
-        <LazyView load={loadContentTypesView} />
+      {:else if routeInfo.module === 'content-types' || routeInfo.view === 'content-types'}
+        <LazyView load={loadContentTypesView} props={{ mode: routeInfo.mode }} />
       {:else}
         <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
         {#if schema.getCollection(routeInfo.module || '')}
