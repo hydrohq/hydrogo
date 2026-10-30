@@ -57,6 +57,8 @@ var BackfillTables = []string{
 	"hydro_collection_sequences",
 	"hydro_roles",
 	"hydro_role_permissions",
+	"admin_user_permissions",
+	"api_tokens",
 }
 
 // isMissingTableError identifies when a table does not exist across PostgreSQL and SQLite

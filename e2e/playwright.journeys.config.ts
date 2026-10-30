@@ -17,5 +17,12 @@ export default defineConfig({
   retries: 0,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? "line" : "list",
-  use: { trace: "retain-on-failure", screenshot: "only-on-failure", ...devices["Desktop Chrome"] },
+  use: {
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    ...devices["Desktop Chrome"],
+    launchOptions: {
+      args: ["--host-resolver-rules=MAP *.example.test 127.0.0.1"],
+    },
+  },
 });
