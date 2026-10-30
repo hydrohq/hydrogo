@@ -29,6 +29,15 @@ export type FilterValue = string | Partial<Record<FilterOp, string>>;
 export type ContentQuery = { limit?: number; offset?: number; after?: string; sort?: string; search?: string; locale?: string; expand?: string[]; filter?: Record<string, FilterValue> };
 export type ContentList<T> = { data: T[]; metadata: { limit: number; has_more: boolean; locale?: string; next_cursor?: string } };
 export type ContentEvent<T = Record<string, unknown>> = { action: "create" | "update" | "delete"; type: string; record: T };
+export type ConnectionState = "connecting" | "connected" | "disconnected" | "reconnecting";
+export type ContentSubscribeOptions = {
+  token?: string;
+  onStateChange?: (state: ConnectionState) => void;
+  initialLastEventId?: string;
+  minBackoffMs?: number;
+  maxBackoffMs?: number;
+  maxRetries?: number;
+};
 export type HydroGoRequestOptions = { signal?: AbortSignal };
 export type HydroGoClientOptions = { origin: string; fetch?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
 
@@ -178,20 +187,52 @@ export class HydroGoClient {
     }, options);
   }
 
-  subscribeContent<T = Record<string, unknown>>(type: string, callback: (event: ContentEvent<T>) => void, token?: string): () => void {
-    const controller = new AbortController();
-    const url = `${this.origin}/api/v1/content/${encodeURIComponent(type)}/subscribe`;
-    const headers: Record<string, string> = { Accept: "text/event-stream" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+  subscribeContent<T = Record<string, unknown>>(
+    type: string,
+    callback: (event: ContentEvent<T>) => void,
+    optionsOrToken?: string | ContentSubscribeOptions,
+  ): () => void {
+    const opts: ContentSubscribeOptions = typeof optionsOrToken === "string" ? { token: optionsOrToken } : (optionsOrToken ?? {});
+    const token = opts.token;
+    const onStateChange = opts.onStateChange;
+    const minBackoffMs = opts.minBackoffMs ?? 500;
+    const maxBackoffMs = opts.maxBackoffMs ?? 30_000;
+    const maxRetries = opts.maxRetries ?? Infinity;
 
-    (async () => {
+    let aborted = false;
+    let activeController: AbortController | null = null;
+    let lastEventId = opts.initialLastEventId ?? "";
+    let retryAttempt = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const setState = (s: ConnectionState) => {
+      onStateChange?.(s);
+    };
+
+    const connect = async () => {
+      if (aborted) return;
+      activeController = new AbortController();
+      setState(retryAttempt === 0 ? "connecting" : "reconnecting");
+
+      const url = `${this.origin}/api/v1/content/${encodeURIComponent(type)}/subscribe`;
+      const headers: Record<string, string> = { Accept: "text/event-stream" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (lastEventId) headers["Last-Event-ID"] = lastEventId;
+
       try {
         const response = await this.requestFetch(url, {
           method: "GET",
           headers,
-          signal: controller.signal,
+          signal: activeController.signal,
         });
-        if (!response.ok || !response.body) return;
+
+        if (!response.ok || !response.body) {
+          throw new Error(`SSE stream failed with status ${response.status}`);
+        }
+
+        setState("connected");
+        retryAttempt = 0;
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -200,18 +241,24 @@ export class HydroGoClient {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n\n");
-          buffer = lines.pop() ?? "";
+          const blocks = buffer.split("\n\n");
+          buffer = blocks.pop() ?? "";
 
-          for (const block of lines) {
+          for (const block of blocks) {
+            let eventData = "";
             for (const line of block.split("\n")) {
-              if (line.startsWith("data: ")) {
-                try {
-                  const event = JSON.parse(line.slice(6)) as ContentEvent<T>;
-                  callback(event);
-                } catch {
-                  // Ignore keep-alive or non-JSON payloads
-                }
+              if (line.startsWith("id: ")) {
+                lastEventId = line.slice(4).trim();
+              } else if (line.startsWith("data: ")) {
+                eventData = line.slice(6);
+              }
+            }
+            if (eventData) {
+              try {
+                const event = JSON.parse(eventData) as ContentEvent<T>;
+                callback(event);
+              } catch {
+                // Ignore keep-alive or non-JSON payloads
               }
             }
           }
@@ -219,10 +266,35 @@ export class HydroGoClient {
       } catch {
         // Stream aborted or connection ended
       }
-    })();
+
+      if (aborted) {
+        setState("disconnected");
+        return;
+      }
+
+      if (retryAttempt >= maxRetries) {
+        setState("disconnected");
+        return;
+      }
+
+      setState("reconnecting");
+      const backoff = Math.min(maxBackoffMs, minBackoffMs * Math.pow(2, retryAttempt)) + Math.random() * 200;
+      retryAttempt++;
+
+      reconnectTimer = setTimeout(() => {
+        if (!aborted) {
+          connect();
+        }
+      }, backoff);
+    };
+
+    connect();
 
     return () => {
-      controller.abort();
+      aborted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (activeController) activeController.abort();
+      setState("disconnected");
     };
   }
 

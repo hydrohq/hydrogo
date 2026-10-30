@@ -110,6 +110,29 @@ func (p PublicAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lastEventID := r.Header.Get("Last-Event-ID")
+	if lastEventID == "" {
+		lastEventID = r.URL.Query().Get("last_event_id")
+	}
+	if lastEventID != "" && p.Hub != nil {
+		missed := p.Hub.EventsSince(tenantID, []string{topic}, lastEventID)
+		for _, event := range missed {
+			if readRule != "" {
+				var payload RealtimePayload
+				if err := json.Unmarshal(event.Data, &payload); err == nil && payload.Record != nil {
+					allowed, err := EvaluateRule(readRule, principal, payload.Record, true)
+					if err != nil || !allowed {
+						continue
+					}
+				}
+			}
+			sseMsg := fmt.Sprintf("id: %s\nevent: message\ndata: %s\n\n", event.ID, event.Data)
+			if !write([]byte(sseMsg)) {
+				return
+			}
+		}
+	}
+
 	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 
@@ -131,7 +154,7 @@ func (p PublicAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			sseMsg := fmt.Sprintf("event: message\ndata: %s\n\n", event.Data)
+			sseMsg := fmt.Sprintf("id: %s\nevent: message\ndata: %s\n\n", event.ID, event.Data)
 			if !write([]byte(sseMsg)) {
 				return
 			}
