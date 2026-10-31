@@ -6,28 +6,61 @@
   <title>{{.Title}} — {{.StoreName}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FAFAF9;
+      --card-bg: #FFFFFF;
+      --text-main: #1C1917;
+      --text-muted: #78716C;
+      --border: #E7E5E4;
+      --accent: #1C1917;
+      --accent-hover: #292524;
+      --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body {
-      background-color: #FAF8F5;
-      color: #1C1917;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-family);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    .container {
-      max-width: 520px;
+    .card {
+      max-width: 480px;
       width: 100%;
-      background: #FFFFFF;
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: var(--card-bg);
+      border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 44px 32px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+      padding: 40px 32px;
+      box-shadow: 0 4px 20px -2px rgba(28, 25, 23, 0.05), 0 2px 6px -1px rgba(28, 25, 23, 0.03);
       text-align: center;
+    }
+    .icon-wrapper {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .icon-wrapper.rose {
+      background-color: #FFE4E6;
+      color: #E11D48;
+    }
+    .icon-wrapper.amber {
+      background-color: #FEF3C7;
+      color: #D97706;
     }
     .badge {
       display: inline-flex;
@@ -35,59 +68,59 @@
       gap: 6px;
       padding: 4px 12px;
       border-radius: 9999px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.02em;
-      margin-bottom: 20px;
-    }
-    .badge-amber {
-      background: #FEF3C7;
-      color: #92400E;
-      border: 1px solid #FCD34D;
+      margin-bottom: 16px;
     }
     .badge-rose {
       background: #FFE4E6;
       color: #9F1239;
       border: 1px solid #FECDD3;
     }
-    .brand {
-      font-family: 'Cormorant Garamond', Georgia, serif;
-      font-size: 28px;
+    .badge-amber {
+      background: #FEF3C7;
+      color: #92400E;
+      border: 1px solid #FCD34D;
+    }
+    .title {
+      font-size: 22px;
       font-weight: 700;
-      color: #1C1917;
-      margin-bottom: 12px;
-      line-height: 1.25;
+      color: var(--text-main);
+      line-height: 1.3;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
     }
     .explanation {
-      font-size: 14px;
-      color: #57534E;
+      font-size: 13px;
+      color: var(--text-muted);
       line-height: 1.6;
       margin-bottom: 24px;
     }
     .meta-box {
       background: #F5F5F4;
-      border: 1px solid #E7E5E4;
-      border-radius: 10px;
-      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 11px;
-      color: #78716C;
+      color: var(--text-muted);
       margin-bottom: 28px;
       text-align: left;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
     .meta-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
     }
     .meta-val {
       user-select: all;
-      color: #1C1917;
-      font-weight: 500;
+      color: var(--text-main);
+      font-weight: 600;
       word-break: break-all;
     }
     .actions {
@@ -100,39 +133,63 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 6px;
       font-size: 13px;
       font-weight: 600;
       padding: 10px 20px;
-      border-radius: 8px;
+      border-radius: 10px;
       text-decoration: none;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
       border: 1px solid transparent;
+      user-select: none;
+    }
+    .btn:active {
+      transform: scale(0.98);
     }
     .btn-primary {
-      background: #1C1917;
+      background: var(--accent);
       color: #FFFFFF;
     }
     .btn-primary:hover {
-      background: #292524;
+      background: var(--accent-hover);
     }
     .btn-outline {
       background: #FFFFFF;
-      color: #1C1917;
+      color: var(--text-main);
       border-color: #D6D3D1;
     }
     .btn-outline:hover {
       background: #F5F5F4;
     }
+    .store-footer {
+      margin-top: 24px;
+      font-size: 11px;
+      color: #A8A29E;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="card">
+    <div class="icon-wrapper {{if eq .BadgeClass "badge-amber"}}amber{{else}}rose{{end}}">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        {{if eq .BadgeClass "badge-amber"}}
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        {{else}}
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+        {{end}}
+      </svg>
+    </div>
+
     <div class="badge {{.BadgeClass}}">
       <span>●</span>
       <span>{{.StatusLabel}}</span>
     </div>
-    <h1 class="brand">{{.Title}}</h1>
+
+    <h1 class="title">{{.Title}}</h1>
     <p class="explanation">{{.Explanation}}</p>
 
     <div class="meta-box">
@@ -148,11 +205,22 @@
 
     <div class="actions">
       <button type="button" class="btn btn-outline" onclick="window.location.reload()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+        </svg>
         Sayfayı Yenile
       </button>
       <a href="https://console.example.com" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2"/>
+          <path d="M7 7h10M7 12h10M7 17h10"/>
+        </svg>
         Platform Konsolu
       </a>
+    </div>
+
+    <div class="store-footer">
+      {{.StoreName}} · HydroGo Platform
     </div>
   </div>
 </body>
