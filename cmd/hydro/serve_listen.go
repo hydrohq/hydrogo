@@ -203,7 +203,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		IPBlocklist:          a.ipBlocklist,
 		AnomalyFilterEnabled: cfg.Security.EnableAnomalyFilter,
 		AnomalyBypassPaths:   cfg.Security.AnomalyBypassPaths,
-		CSRFExemptPaths:      commerceCSRFExemptPaths(modules, cfg.Commerce),
+		CSRFExemptPaths:      append(commerceCSRFExemptPaths(modules, cfg.Commerce), "/api/v1/public/onboard"),
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
 				target := rule + " from " + requestmeta.ClientIP(r)
