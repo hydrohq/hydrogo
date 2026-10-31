@@ -20,6 +20,15 @@
   let showUserMenu = $state(false);
   let activeDocDropdown = $state<string | null>(null);
 
+  const isConsoleMode = $derived.by(() => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname.toLowerCase();
+      if (host.startsWith('console.') || host.includes('console.example.com')) return true;
+    }
+    if (currentPath.startsWith('/console') || currentPath.startsWith('/orchestrator')) return true;
+    return false;
+  });
+
   function isActive(target: string): boolean {
     if (target === '/' || target === '/dashboard') {
       return (
@@ -65,19 +74,110 @@
   class="fixed inset-y-0 left-0 z-50 flex h-full flex-col bg-sidebar text-sidebar-foreground transition-all duration-200 ease-in-out md:static md:z-0 {sidebar.open ? 'w-64' : 'w-16'} {sidebar.mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}"
 >
   <!-- SidebarHeader: Brand (Matches official shadcn AppSidebar SidebarHeader) -->
-  <div class="flex h-12 shrink-0 items-center border-b border-sidebar-border px-3">
+  <div class="flex h-12 shrink-0 items-center justify-between border-b border-sidebar-border px-3">
     <a
-      href="/admin/dashboard"
-      onclick={() => handleNavigate('/dashboard')}
-      class="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left text-sm font-semibold transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      href={isConsoleMode ? '/admin/console' : '/admin/dashboard'}
+      onclick={() => handleNavigate(isConsoleMode ? '/console' : '/dashboard')}
+      class="flex w-full items-center gap-2 rounded-md p-1.5 text-left text-sm font-semibold transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     >
       <BrandLogo size="md" showText={sidebar.open} />
+      {#if isConsoleMode && sidebar.open}
+        <span class="ml-auto text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+          Console
+        </span>
+      {/if}
     </a>
   </div>
 
   <!-- SidebarContent (Matches official NavMain, NavDocuments, NavSecondary) -->
   <div class="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2">
-    <!-- Quick Create Button & Inbox (official nav-main.tsx layout) -->
+    {#if isConsoleMode}
+      <!-- Pure Console / SaaS Factory Navigation -->
+      <div class="flex flex-col gap-1 pt-1">
+        <!-- ⚡ Mağaza Fabrikası -->
+        <a
+          href="/admin/console"
+          onclick={() => handleNavigate('/console')}
+          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/console') || isActive('/orchestrator') ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+          title="Mağaza Fabrikası"
+        >
+          <svg class="size-4 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          {#if sidebar.open}
+            <span class="truncate">Mağaza Fabrikası</span>
+          {/if}
+        </a>
+
+        <!-- 👥 Yöneticiler -->
+        {#if isAdmin && can('admin.users.manage')}
+        <a
+          href="/admin/users"
+          onclick={() => handleNavigate('/users')}
+          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+          title="Yöneticiler"
+        >
+          <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
+          </svg>
+          {#if sidebar.open}
+            <span class="truncate">{t('nav.users')}</span>
+          {/if}
+        </a>
+
+        <a
+          href="/admin/roles"
+          onclick={() => handleNavigate('/roles')}
+          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/roles') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+          title="Roller"
+        >
+          <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
+          </svg>
+          {#if sidebar.open}
+            <span class="truncate">Roller</span>
+          {/if}
+        </a>
+        {/if}
+
+        <!-- 📜 Denetim Günlüğü -->
+        {#if isAdmin}
+        <a
+          href="/admin/audit"
+          onclick={() => handleNavigate('/audit')}
+          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/audit') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+          title="Denetim Günlüğü"
+        >
+          <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+          </svg>
+          {#if sidebar.open}
+            <span class="truncate">{t('nav.auditLog')}</span>
+          {/if}
+        </a>
+        {/if}
+
+        <!-- ⚙️ Sistem & Telemetri -->
+        <a
+          href="/admin/system"
+          onclick={() => handleNavigate('/system')}
+          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/system') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+          title={t('nav.telemetry')}
+        >
+          <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          {#if sidebar.open}
+            <span class="truncate">{t('nav.telemetry')}</span>
+          {/if}
+        </a>
+      </div>
+    {:else}
+      <!-- Quick Create Button & Inbox (official nav-main.tsx layout) -->
     <div class="flex items-center gap-2 pt-1 pb-1 relative" data-dropdown="quick-create">
       {#if can('admin.content.write') || can('admin.media.manage')}
       <button
@@ -442,6 +542,7 @@
         {/if}
       </a>
     </div>
+    {/if}
   </div>
 
   <!-- SidebarFooter: NavUser (Matches official nav-user.tsx) -->

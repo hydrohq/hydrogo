@@ -1,0 +1,28 @@
+id: "202611010005_platform_credits"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "ade931b19d49d9a3e3da444460bbefd42abb4194e65fb8bd497025cfe464453f"
+  postgres: "f6686a1bb6584fa0382e6a80f73baa1d60ae59a867ee3bf6a60da0fb39a4a5c2"
+  mysql: "70d25b99c4023310ebb91e264157114c680aefb70fd1781cdfcb1fedb6332b88"
+dependencies:
+  - "202611010004_tenant_dns_verified"
+schema:
+  readable_epoch: 9
+  writable_epoch: 9
+preconditions:
+  - "202611010004_tenant_dns_verified is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Platform credit tracking table for store provisioning"
+compatibility: "Adds platform_credits table for multi-tenant store factory billing and quota tracking."
+smoke:
+  - "Platform stores and decrements available credits on store provisioning."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

@@ -280,6 +280,17 @@ export interface SuperadminMetrics {
   server_public_ip: string;
   cloudflare_wildcard_status: string;
   cloudflare_status_message: string;
+  credits_remaining?: number;
+  credits_total?: number;
+  credits_used?: number;
+}
+
+export interface PlatformCredits {
+  account_id: string;
+  total_credits: number;
+  used_credits: number;
+  remaining_credits: number;
+  plan: string;
 }
 
 export interface SuperadminWorkspace {
