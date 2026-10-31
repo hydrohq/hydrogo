@@ -23,6 +23,13 @@ type aiSuggestInput struct {
 	Consent      bool   `json:"consent"`
 }
 
+// GET /api/v1/admin/pages/ai/status reports whether the AI assistant is configured and active.
+func (h Handler) adminAIStatus(w http.ResponseWriter, r *http.Request) {
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"enabled": h.assistantEnabled(),
+	}, nil)
+}
+
 func currentUser(r *http.Request) *auth.User {
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active {

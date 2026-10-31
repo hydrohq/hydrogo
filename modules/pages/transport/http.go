@@ -113,6 +113,9 @@ func (h Handler) Routes() []Route {
 			Route{Pattern: "GET " + publicBase + "/{id}/preview", Handler: http.HandlerFunc(h.publicPreview)},
 		)
 	}
+	routes = append(routes,
+		Route{Pattern: "GET " + adminBase + "/ai/status", Handler: http.HandlerFunc(h.adminAIStatus), Protected: true},
+	)
 	if h.assistantEnabled() {
 		routes = append(routes,
 			Route{Pattern: "POST " + adminBase + "/{id}/ai-suggest", Handler: http.HandlerFunc(h.adminAISuggest), Protected: true},

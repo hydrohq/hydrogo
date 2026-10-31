@@ -10,6 +10,7 @@
   import RichTextEditor from '$lib/components/editor/RichTextEditor.svelte';
   import BlocksEditor, { type Block } from './BlocksEditor.svelte';
   import PageRevisionsModal from './PageRevisionsModal.svelte';
+  import AIAssistantModal from '$lib/components/editor/AIAssistantModal.svelte';
   import { createPresence } from '$lib/presence.svelte';
   import DocumentPresence from '$lib/components/presence/DocumentPresence.svelte';
 
@@ -45,6 +46,7 @@
   let saving = $state(false);
   let activeEditorTab = $state<'content' | 'blocks'>('content');
   let revisionsOpen = $state(false);
+  let aiModalOpen = $state(false);
   let errorMsg = $state<string | null>(null);
   let successMsg = $state<string | null>(null);
   let initialSnapshot = $state('');
@@ -192,6 +194,23 @@
   onrestored={() => { loadPage(); }}
 />
 
+{#if !isNew}
+  <AIAssistantModal
+    open={aiModalOpen}
+    pageId={id}
+    currentTitle={formData.title}
+    currentBody={formData.body}
+    currentLocale={formData.locale}
+    onapply={(newTitle, newBody) => {
+      formData.title = newTitle;
+      formData.body = newBody;
+      successMsg = 'AI suggestion applied to editor!';
+      setTimeout(() => { successMsg = null; }, 3000);
+    }}
+    onclose={() => { aiModalOpen = false; }}
+  />
+{/if}
+
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
     <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -223,6 +242,14 @@
 
         <div class="flex items-center gap-2">
           {#if !isNew}
+            <button
+              type="button"
+              onclick={() => { aiModalOpen = true; }}
+              class="h-8 px-2.5 rounded-md border border-primary/30 bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+            >
+              <span>✨</span>
+              <span>AI Assist</span>
+            </button>
             <button
               type="button"
               onclick={() => { revisionsOpen = true; }}

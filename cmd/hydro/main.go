@@ -178,6 +178,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return portableCommand(args[1:], stdout, stderr)
 	case "release":
 		return releaseCommand(args[1:], stdout, stderr)
+	case "mcp":
+		return mcpCommand(args[1:], stdin, stdout, stderr)
 	case "runtime":
 		return runtimeCommand(args[1:], stdout, stderr)
 	case "jobs":
