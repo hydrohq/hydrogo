@@ -283,6 +283,8 @@ export interface SuperadminMetrics {
   credits_remaining?: number;
   credits_total?: number;
   credits_used?: number;
+  onboard_invite_code?: string;
+  onboard_enabled?: boolean;
 }
 
 export interface PlatformCredits {
