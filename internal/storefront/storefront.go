@@ -92,6 +92,7 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	return storefrontTmpl.Execute(w, data)
 }
 
@@ -107,6 +108,7 @@ func RenderSuspended(w http.ResponseWriter, r *http.Request, data SuspendedData)
 	data.CleanPhone = cleanPhoneNumber(data.OwnerPhone)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; frame-ancestors 'none';")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	return suspendedTmpl.Execute(w, data)
 }
