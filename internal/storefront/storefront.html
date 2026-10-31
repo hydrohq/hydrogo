@@ -6,16 +6,18 @@
   <title>{{.StoreName}} — {{.Slogan}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-primary: {{.BGTone}};
+      --bg-surface: #FFFFFF;
+      --bg-subtle: #F3EFEA;
       --text-primary: #1C1917;
+      --text-secondary: #57534E;
       --text-muted: #78716C;
       --primary: {{.PrimaryColor}};
-      --accent: {{.PrimaryColor}};
-      --card-bg: #FFFFFF;
-      --border: rgba(0, 0, 0, 0.07);
+      --border: rgba(28, 25, 23, 0.08);
+      --border-hover: rgba(28, 25, 23, 0.18);
       --font-serif: 'Cormorant Garamond', Georgia, serif;
       --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     }
@@ -27,17 +29,22 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       background-color: var(--bg-primary);
       color: var(--text-primary);
       font-family: var(--font-sans);
       font-size: 15px;
-      line-height: 1.5;
+      line-height: 1.6;
       min-height: 100vh;
-      padding-bottom: 90px;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* Demo Sticky Banner */
+    /* Demo Sticky Top Banner */
     .demo-bar {
       position: sticky;
       top: 0;
@@ -47,8 +54,9 @@
       font-size: 12px;
       font-weight: 500;
       text-align: center;
-      padding: 8px 16px;
+      padding: 9px 16px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      letter-spacing: 0.01em;
     }
 
     /* Announcement Bar */
@@ -56,17 +64,16 @@
       background-color: var(--primary);
       color: #FFFFFF;
       font-size: 12px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      font-weight: 600;
+      letter-spacing: 0.04em;
+      font-weight: 500;
       text-align: center;
-      padding: 7px 12px;
+      padding: 8px 16px;
     }
 
     /* Header */
     header {
-      background: var(--bg-primary);
-      padding: 20px 18px 14px;
+      background: rgba(250, 248, 245, 0.94);
+      padding: 16px 20px;
       border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
@@ -75,109 +82,326 @@
       -webkit-backdrop-filter: blur(12px);
     }
     .demo-active header {
-      top: 39px;
+      top: 36px;
     }
-    .header-top {
+    .header-inner {
+      max-width: 1140px;
+      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 16px;
+    }
+    .brand-group {
+      text-decoration: none;
+      color: inherit;
     }
     .brand-name {
       font-family: var(--font-serif);
       font-size: 26px;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.01em;
       color: var(--text-primary);
       line-height: 1.1;
     }
     .brand-tagline {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-muted);
-      margin-top: 3px;
-      letter-spacing: 0.02em;
+      margin-top: 2px;
+      letter-spacing: 0.03em;
     }
-    .wa-badge {
+    .nav-links {
+      display: none;
+      align-items: center;
+      gap: 24px;
+    }
+    @media (min-width: 840px) {
+      .nav-links {
+        display: flex;
+      }
+    }
+    .nav-link {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .nav-link:hover {
+      color: var(--text-primary);
+    }
+    .header-wa-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: #25D366;
+      gap: 8px;
+      background: var(--text-primary);
       color: #FFFFFF;
       font-size: 12px;
-      font-weight: 600;
-      padding: 8px 14px;
+      font-weight: 500;
+      padding: 8px 16px;
       border-radius: 9999px;
       text-decoration: none;
-      box-shadow: 0 2px 8px rgba(37, 211, 102, 0.25);
+      transition: opacity 0.15s ease;
+    }
+    .header-wa-btn:hover {
+      opacity: 0.9;
     }
 
-    /* Catalog Container */
+    /* Main Content Container */
     .container {
-      max-width: 1080px;
+      max-width: 1140px;
       margin: 0 auto;
-      padding: 20px 16px;
+      padding: 0 20px;
+      width: 100%;
     }
 
-    .catalog-title-row {
+    /* Section Rhythm */
+    section {
+      padding: 56px 0;
+    }
+    @media (min-width: 768px) {
+      section {
+        padding: 72px 0;
+      }
+    }
+
+    /* Hero Section */
+    .hero-section {
+      padding: 40px 0 56px;
+    }
+    @media (min-width: 900px) {
+      .hero-section {
+        padding: 64px 0 72px;
+      }
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 36px;
+      align-items: center;
+    }
+    @media (min-width: 900px) {
+      .hero-grid {
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 56px;
+      }
+    }
+    .hero-badge {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+    .hero-title {
+      font-family: var(--font-serif);
+      font-size: 38px;
+      line-height: 1.12;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 18px;
+    }
+    @media (min-width: 768px) {
+      .hero-title {
+        font-size: 52px;
+      }
+    }
+    .hero-subtitle {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+      max-width: 540px;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .btn-primary {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s ease;
+    }
+    .btn-primary:hover {
+      background: #000000;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border-hover);
+      padding: 12px 22px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background: var(--bg-subtle);
+    }
+    .hero-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      padding-top: 18px;
+    }
+    .hero-visual {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      aspect-ratio: 4 / 3.4;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+    }
+    .hero-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Craft Pillars Section */
+    .pillars-section {
+      background: #F6F3EE;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .section-eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .section-heading {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text-primary);
+      margin-bottom: 32px;
+    }
+    @media (min-width: 768px) {
+      .section-heading {
+        font-size: 34px;
+      }
+    }
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+    @media (min-width: 600px) {
+      .pillars-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (min-width: 960px) {
+      .pillars-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+      }
+    }
+    .pillar-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .pillar-num {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    .pillar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .pillar-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+    }
+
+    /* Catalog Section */
+    .catalog-header {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 18px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
     }
     .catalog-title {
       font-family: var(--font-serif);
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 600;
       color: var(--text-primary);
     }
-    .product-count {
+    .catalog-count {
       font-size: 13px;
       color: var(--text-muted);
     }
 
-    /* 2-Column Mobile Product Grid */
+    /* Product Grid */
     .product-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
+      gap: 16px;
     }
     @media (min-width: 768px) {
       .product-grid {
         grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
+        gap: 24px;
       }
     }
     @media (min-width: 1024px) {
       .product-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 24px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
       }
     }
-
     .product-card {
-      background: var(--card-bg);
+      background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 10px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.2s ease, transform 0.2s ease;
     }
-    .product-card:active {
-      transform: scale(0.98);
+    .product-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
     }
-    @media (hover: hover) {
-      .product-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
-      }
-    }
-
     .product-visual {
       position: relative;
       width: 100%;
-      aspect-ratio: 1 / 1.15;
-      background: #F3EFEA;
+      aspect-ratio: 4 / 4.8;
+      background: var(--bg-subtle);
       overflow: hidden;
     }
     .product-visual img {
@@ -187,77 +411,269 @@
       transition: transform 0.3s ease;
     }
     .product-card:hover .product-visual img {
-      transform: scale(1.04);
+      transform: scale(1.03);
     }
     .badge {
       position: absolute;
-      top: 8px;
-      left: 8px;
-      background: rgba(28, 25, 23, 0.85);
+      top: 10px;
+      left: 10px;
+      background: rgba(28, 25, 23, 0.88);
       color: #FFFFFF;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
       border-radius: 4px;
-      backdrop-filter: blur(4px);
+      letter-spacing: 0.02em;
     }
-
     .product-info {
-      padding: 12px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
       flex-grow: 1;
     }
     .product-title {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
-      line-height: 1.3;
+      line-height: 1.35;
       color: var(--text-primary);
       margin-bottom: 6px;
+    }
+    .product-desc-snippet {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin-bottom: 12px;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .price-row {
+    .product-footer {
       margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .price-group {
       display: flex;
       align-items: baseline;
       gap: 6px;
-      margin-bottom: 10px;
     }
     .price-current {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 700;
       color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
     }
     .price-old {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
       text-decoration: line-through;
+      font-variant-numeric: tabular-nums;
     }
-    .order-trigger-btn {
-      width: 100%;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
+    .order-action-link {
       font-size: 12px;
       font-weight: 600;
-      padding: 8px 10px;
+      color: var(--primary);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    /* Story Section */
+    .story-section {
+      background: #F6F3EE;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 36px;
+      align-items: center;
+    }
+    @media (min-width: 860px) {
+      .story-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 56px;
+      }
+    }
+    .story-visual {
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 4 / 3.4;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+    }
+    .story-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .story-content {
+      display: flex;
+      flex-direction: column;
+    }
+    .story-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+    .story-quote {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 19px;
+      line-height: 1.45;
+      color: var(--text-primary);
+      border-left: 2px solid var(--primary);
+      padding-left: 18px;
+    }
+
+    /* Testimonials Section */
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    @media (min-width: 768px) {
+      .testimonials-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .testimonial-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .testimonial-quote {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+    }
+    .testimonial-author {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .testimonial-location {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* FAQ Section */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+    .faq-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
       border-radius: 8px;
+      overflow: hidden;
+    }
+    .faq-summary {
+      padding: 18px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
       cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 5px;
-      transition: all 0.2s ease;
+      justify-content: space-between;
+      user-select: none;
     }
-    .order-trigger-btn:hover {
-      background: var(--primary);
-      color: #FFFFFF;
-      border-color: var(--primary);
+    .faq-summary::-webkit-details-marker {
+      display: none;
+    }
+    .faq-summary::after {
+      content: '+';
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+    details[open] .faq-summary::after {
+      content: '−';
+    }
+    .faq-body {
+      padding: 0 20px 18px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      border-top: 1px solid rgba(0,0,0,0.03);
+      padding-top: 12px;
+    }
+
+    /* Footer */
+    footer {
+      background: #1C1917;
+      color: #FAF8F5;
+      padding: 56px 0 32px;
+      margin-top: auto;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 36px;
+      margin-bottom: 40px;
+    }
+    @media (min-width: 768px) {
+      .footer-grid {
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 48px;
+      }
+    }
+    .footer-brand {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .footer-desc {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #A8A29E;
+      max-width: 360px;
+    }
+    .footer-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FAF8F5;
+      letter-spacing: 0.04em;
+      margin-bottom: 14px;
+    }
+    .footer-info {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #A8A29E;
+    }
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #78716C;
+    }
+    @media (min-width: 768px) {
+      .footer-bottom {
+        flex-direction: row;
+      }
     }
 
     /* Bottom Sheet Drawer */
@@ -275,15 +691,14 @@
       opacity: 1;
       pointer-events: auto;
     }
-
     .drawer {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
       background: #FFFFFF;
-      border-radius: 20px 20px 0 0;
-      max-height: 88vh;
+      border-radius: 16px 16px 0 0;
+      max-height: 90vh;
       display: flex;
       flex-direction: column;
       z-index: 210;
@@ -296,9 +711,8 @@
     .drawer.active {
       transform: translateY(0);
     }
-
     .drawer-handle {
-      width: 44px;
+      width: 40px;
       height: 4px;
       background: #E5E5E5;
       border-radius: 9999px;
@@ -306,16 +720,30 @@
       flex-shrink: 0;
     }
     .drawer-header {
-      padding: 10px 20px 14px;
+      padding: 12px 20px 14px;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       border-bottom: 1px solid var(--border);
     }
+    .drawer-prod-title {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text-primary);
+    }
+    .drawer-prod-price {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
     .drawer-close {
       background: transparent;
       border: none;
-      font-size: 22px;
+      font-size: 24px;
       cursor: pointer;
       color: var(--text-muted);
       line-height: 1;
@@ -327,27 +755,12 @@
       flex-grow: 1;
       -webkit-overflow-scrolling: touch;
     }
-
-    .drawer-prod-title {
-      font-family: var(--font-serif);
-      font-size: 22px;
-      font-weight: 700;
-      line-height: 1.2;
-      color: var(--text-primary);
-    }
-    .drawer-prod-price {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--primary);
-      margin: 6px 0 12px;
-    }
     .drawer-prod-desc {
       font-size: 13px;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       margin-bottom: 18px;
       line-height: 1.5;
     }
-
     .form-group {
       margin-bottom: 14px;
     }
@@ -357,10 +770,8 @@
       font-weight: 600;
       color: var(--text-primary);
       margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
     }
-    .form-input, .form-textarea, .form-select {
+    .form-input, .form-textarea {
       width: 100%;
       border: 1px solid #D6D3D1;
       border-radius: 8px;
@@ -370,16 +781,15 @@
       background: #FAF8F5;
       color: var(--text-primary);
     }
-    .form-input:focus, .form-textarea:focus, .form-select:focus {
+    .form-input:focus, .form-textarea:focus {
       outline: none;
       border-color: var(--primary);
       background: #FFFFFF;
     }
     .form-textarea {
       resize: vertical;
-      min-height: 60px;
+      min-height: 64px;
     }
-
     .pill-group {
       display: flex;
       flex-wrap: wrap;
@@ -389,18 +799,16 @@
       background: #F5F5F4;
       border: 1px solid #E7E5E4;
       padding: 6px 14px;
-      border-radius: 9999px;
+      border-radius: 6px;
       font-size: 13px;
       cursor: pointer;
       color: var(--text-primary);
     }
     .pill-btn.selected {
-      background: var(--primary);
+      background: var(--text-primary);
       color: #FFFFFF;
-      border-color: var(--primary);
-      font-weight: 600;
+      border-color: var(--text-primary);
     }
-
     .drawer-actions {
       padding: 14px 20px 20px;
       border-top: 1px solid var(--border);
@@ -411,29 +819,32 @@
     }
     .btn-whatsapp-order {
       width: 100%;
-      background: #25D366;
+      background: #1C1917;
       color: #FFFFFF;
       border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       padding: 14px;
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+      transition: background 0.15s ease;
+    }
+    .btn-whatsapp-order:hover {
+      background: #000000;
     }
     .btn-shopier {
       width: 100%;
-      background: #1C1917;
-      color: #FFFFFF;
-      border: none;
-      border-radius: 10px;
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border-hover);
+      border-radius: 8px;
       padding: 12px;
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       text-align: center;
       text-decoration: none;
@@ -455,63 +866,225 @@
   {{end}}
 
   <header>
-    <div class="header-top">
-      <div>
+    <div class="header-inner">
+      <a href="/" class="brand-group">
         <h1 class="brand-name">{{.StoreName}}</h1>
         {{if .Slogan}}
         <p class="brand-tagline">{{.Slogan}}</p>
         {{end}}
-      </div>
-      <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="wa-badge">
-        <span>WhatsApp</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#koleksiyon" class="nav-link">Koleksiyon</a>
+        <a href="#ilkeler" class="nav-link">Zanaat İlkeleri</a>
+        <a href="#hikaye" class="nav-link">Atölye Hikayesi</a>
+        <a href="#yorumlar" class="nav-link">Müşteri Notları</a>
+        <a href="#sss" class="nav-link">SSS</a>
+      </nav>
+      <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="header-wa-btn">
+        <span>Atölye Hattı</span>
       </a>
     </div>
   </header>
 
-  <div class="container">
-    <div class="catalog-title-row">
-      <h2 class="catalog-title">Seçkin Koleksiyon</h2>
-      <span class="product-count">{{len .Products}} Ürün</span>
-    </div>
-
-    <div class="product-grid">
-      {{range .Products}}
-      <article class="product-card" onclick="openDrawer('{{.ID}}')">
-        <div class="product-visual">
-          {{if .Badge}}
-          <span class="badge">{{.Badge}}</span>
+  <!-- Editorial Hero Section -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="hero-grid">
+        <div>
+          {{if .HeroBadge}}
+          <span class="hero-badge">{{.HeroBadge}}</span>
           {{end}}
-          {{if .ImageURL}}
-          <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy">
-          {{else}}
-          <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#A8A29E; font-family:var(--font-serif); font-size:42px;">
-            ✦
+          <h2 class="hero-title">{{.HeroTitle}}</h2>
+          <p class="hero-subtitle">{{.HeroSubtitle}}</p>
+          <div class="hero-actions">
+            <a href="#koleksiyon" class="btn-primary">Koleksiyonu İncele</a>
+            <a href="#hikaye" class="btn-secondary">Atölye Hikayemiz</a>
           </div>
-          {{end}}
+          <div class="hero-meta-row">
+            <span>4.9 / 5 Zanaatkar Puanı</span>
+            <span>·</span>
+            <span>1240°C Stoneware</span>
+            <span>·</span>
+            <span>Kırılma Garantili Kargo</span>
+          </div>
         </div>
-        <div class="product-info">
-          <h3 class="product-title">{{.Title}}</h3>
-          <div class="price-row">
-            {{if and .CompareAtPrice (gt .CompareAtPrice .Price)}}
-            <span class="price-old">{{printf "%.0f" .CompareAtPrice}} TL</span>
+        <div>
+          <div class="hero-visual">
+            {{if .HeroImage}}
+            <img src="{{.HeroImage}}" alt="{{.StoreName}} Zanaat Sahnesi" loading="eager">
+            {{else}}
+            <img src="https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=1200&q=80" alt="Atölye" loading="eager">
             {{end}}
-            <span class="price-current">{{printf "%.0f" .Price}} TL</span>
           </div>
-          <button type="button" class="order-trigger-btn" onclick="event.stopPropagation(); openDrawer('{{.ID}}')">
-            Hızlı Sipariş Ver
-          </button>
         </div>
-      </article>
-      {{end}}
+      </div>
     </div>
-  </div>
+  </section>
+
+  <!-- Craft Pillars Section -->
+  <section class="pillars-section" id="ilkeler">
+    <div class="container">
+      <p class="section-eyebrow">ZANAAT STANDARTLARIMIZ</p>
+      <h3 class="section-heading">{{.PillarsTitle}}</h3>
+      <div class="pillars-grid">
+        {{range $i, $p := .Pillars}}
+        <div class="pillar-card">
+          <span class="pillar-num">0{{add $i 1}}</span>
+          <h4 class="pillar-title">{{$p.Title}}</h4>
+          <p class="pillar-desc">{{$p.Desc}}</p>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- Product Catalog Section -->
+  <section id="koleksiyon">
+    <div class="container">
+      <div class="catalog-header">
+        <div>
+          <p class="section-eyebrow">SEÇKİN ATÖLYE SERİSİ</p>
+          <h3 class="catalog-title">Güncel Koleksiyon</h3>
+        </div>
+        <span class="catalog-count">{{len .Products}} Parça</span>
+      </div>
+
+      <div class="product-grid">
+        {{range .Products}}
+        <article class="product-card" onclick="openDrawer('{{.ID}}')">
+          <div class="product-visual">
+            {{if .Badge}}
+            <span class="badge">{{.Badge}}</span>
+            {{end}}
+            {{if .ImageURL}}
+            <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy">
+            {{else}}
+            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#A8A29E; font-family:var(--font-serif); font-size:42px;">
+              ✦
+            </div>
+            {{end}}
+          </div>
+          <div class="product-info">
+            <h4 class="product-title">{{.Title}}</h4>
+            {{if .Description}}
+            <p class="product-desc-snippet">{{.Description}}</p>
+            {{end}}
+            <div class="product-footer">
+              <div class="price-group">
+                {{if gt .CompareAtPrice .Price}}
+                <span class="price-old">{{printf "%.0f" .CompareAtPrice}} TL</span>
+                {{end}}
+                <span class="price-current">{{printf "%.0f" .Price}} TL</span>
+              </div>
+              <span class="order-action-link">İncele &amp; Sipariş →</span>
+            </div>
+          </div>
+        </article>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- Story Section -->
+  <section class="story-section" id="hikaye">
+    <div class="container">
+      <div class="story-grid">
+        <div class="story-visual">
+          {{if .StoryImage}}
+          <img src="{{.StoryImage}}" alt="{{.StoryTitle}}" loading="lazy">
+          {{else}}
+          <img src="https://images.unsplash.com/photo-1576020799627-aeac76d580dc?auto=format&fit=crop&w=1000&q=80" alt="Zanaat" loading="lazy">
+          {{end}}
+        </div>
+        <div class="story-content">
+          <p class="section-eyebrow">{{.StoryBadge}}</p>
+          <h3 class="section-heading">{{.StoryTitle}}</h3>
+          <p class="story-text">{{.StoryText}}</p>
+          {{if .StoryQuote}}
+          <blockquote class="story-quote">
+            "{{.StoryQuote}}"
+          </blockquote>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Customer Testimonials -->
+  <section id="yorumlar">
+    <div class="container">
+      <p class="section-eyebrow">DENEYİMLER</p>
+      <h3 class="section-heading">Müşteri Notları</h3>
+      <div class="testimonials-grid">
+        {{range .Testimonials}}
+        <div class="testimonial-card">
+          <p class="testimonial-quote">"{{.Quote}}"</p>
+          <div>
+            <div class="testimonial-author">{{.Customer}}</div>
+            <div class="testimonial-location">{{.Location}} · {{.Item}}</div>
+          </div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="pillars-section" id="sss">
+    <div class="container">
+      <p class="section-eyebrow">MERAK EDİLENLER</p>
+      <h3 class="section-heading">Sıkça Sorulan Sorular</h3>
+      <div class="faq-list">
+        {{range .FAQs}}
+        <details class="faq-item">
+          <summary class="faq-summary">{{.Question}}</summary>
+          <div class="faq-body">{{.Answer}}</div>
+        </details>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- Atelier Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">{{.StoreName}}</div>
+          <p class="footer-desc">
+            Atölyemizde tek tek el tornasında şekillenen, sofralar ve yaşam alanları için özenle üretilmiş el yapımı zanaat parçaları.
+          </p>
+        </div>
+        <div>
+          <div class="footer-title">Ziyaret &amp; İletişim</div>
+          <p class="footer-info">
+            {{.AtelierAddress}}<br>
+            {{.AtelierHours}}<br>
+            WhatsApp: {{.CleanPhone}}
+          </p>
+        </div>
+        <div>
+          <div class="footer-title">Sosyal &amp; Destek</div>
+          <p class="footer-info">
+            Instagram: {{.Instagram}}<br>
+            Güvenli Teslimat &amp; Kırılma Garantisi<br>
+            1500 TL Üzeri Ücretsiz Kargo
+          </p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 {{.StoreName}}. Tüm hakları saklıdır.</span>
+        <span>HydroGo Butik Motoru ile güçlendirilmiştir.</span>
+      </div>
+    </div>
+  </footer>
 
   <!-- Bottom Sheet Drawer -->
   <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
   <div class="drawer" id="orderDrawer">
     <div class="drawer-handle"></div>
     <div class="drawer-header">
-      <div id="drawerHeading">
+      <div>
         <h3 class="drawer-prod-title" id="dTitle">Ürün Adı</h3>
         <div class="drawer-prod-price" id="dPrice">0 TL</div>
       </div>
@@ -521,7 +1094,7 @@
       <p class="drawer-prod-desc" id="dDesc"></p>
 
       <div class="form-group" id="sizeGroup" style="display:none;">
-        <label class="form-label">Seçenek / Beden</label>
+        <label class="form-label">Seçenek / Ebat</label>
         <div class="pill-group" id="dSizes"></div>
       </div>
 
@@ -547,7 +1120,7 @@
     </div>
     <div class="drawer-actions">
       <button type="button" class="btn-whatsapp-order" onclick="submitWhatsAppOrder()">
-        <span>WhatsApp ile siparişi tamamla</span>
+        <span>WhatsApp ile Siparişi Tamamla</span>
       </button>
       <a id="shopierBtn" href="#" target="_blank" class="btn-shopier" style="display:none;">
         Kredi Kartı ile Satın Al (Shopier)
@@ -683,17 +1256,17 @@
         console.warn('Local order record fallback:', e);
       }
 
-      // Format WhatsApp Message
-      let msg = `Merhaba, yeni bir sipariş vermek istiyorum!\n\n`;
-      msg += `📋 *Sipariş No:* #${orderCode}\n`;
-      msg += `🛍️ *Ürün:* ${activeProduct.title}\n`;
-      if (selectedSize && selectedSize !== 'Standart') msg += `📏 *Beden:* ${selectedSize}\n`;
-      if (selectedColor) msg += `🎨 *Renk:* ${selectedColor}\n`;
-      msg += `💰 *Tutar:* ${Number(activeProduct.price).toLocaleString('tr-TR')} TL\n\n`;
-      msg += `👤 *Müşteri:* ${name}\n`;
-      msg += `📞 *Telefon:* ${phone}\n`;
-      msg += `📍 *Teslimat Adresi:*\n${addr}\n\n`;
-      msg += `Siparişimi onaylayabilir misiniz?`;
+      // Format WhatsApp Message (Clean, no emoji clutter)
+      let msg = `Merhaba, ${activeProduct.title} için sipariş vermek istiyorum.\n\n`;
+      msg += `Sipariş No: #${orderCode}\n`;
+      msg += `Ürün: ${activeProduct.title}\n`;
+      if (selectedSize && selectedSize !== 'Standart') msg += `Seçenek: ${selectedSize}\n`;
+      if (selectedColor) msg += `Renk: ${selectedColor}\n`;
+      msg += `Tutar: ${Number(activeProduct.price).toLocaleString('tr-TR')} TL\n\n`;
+      msg += `Müşteri: ${name}\n`;
+      msg += `Telefon: ${phone}\n`;
+      msg += `Teslimat Adresi:\n${addr}\n\n`;
+      msg += `Siparişimi onaylar mısınız?`;
 
       const targetWa = storeWhatsapp || '905550000000';
       const waUrl = `https://wa.me/${targetWa}?text=${encodeURIComponent(msg)}`;

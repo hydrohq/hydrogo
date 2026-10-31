@@ -1,6 +1,7 @@
 package storefront
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"html/template"
@@ -21,28 +22,51 @@ var (
 
 func initTemplates() {
 	templatesOnce.Do(func() {
-		storefrontTmpl, tmplErr = template.ParseFS(templateFS, "storefront.html")
+		funcs := template.FuncMap{
+			"add": func(a, b int) int { return a + b },
+		}
+		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html")
 		if tmplErr != nil {
 			return
 		}
-		suspendedTmpl, tmplErr = template.ParseFS(templateFS, "suspended.html")
+		suspendedTmpl, tmplErr = template.New("suspended.html").Funcs(funcs).ParseFS(templateFS, "suspended.html")
 	})
 }
 
 // ProductView represents a single catalog item for storefront rendering.
 type ProductView struct {
-	ID             string   `json:"id"`
-	Title          string   `json:"title"`
-	Slug           string   `json:"slug"`
-	Price          float64  `json:"price"`
-	CompareAtPrice *float64 `json:"compare_at_price,omitempty"`
-	Description    string   `json:"description,omitempty"`
-	ImageURL       string   `json:"image_url,omitempty"`
-	Sizes          string   `json:"sizes,omitempty"`
-	Colors         string   `json:"colors,omitempty"`
-	Badge          string   `json:"badge,omitempty"`
-	PaymentLink    string   `json:"payment_link,omitempty"`
-	InStock        bool     `json:"in_stock"`
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	Slug           string  `json:"slug"`
+	Price          float64 `json:"price"`
+	CompareAtPrice float64 `json:"compare_at_price,omitempty"`
+	Description    string  `json:"description,omitempty"`
+	ImageURL       string  `json:"image_url,omitempty"`
+	Sizes          string  `json:"sizes,omitempty"`
+	Colors         string  `json:"colors,omitempty"`
+	Badge          string  `json:"badge,omitempty"`
+	PaymentLink    string  `json:"payment_link,omitempty"`
+	InStock        bool    `json:"in_stock"`
+}
+
+// FeaturePillar represents a single craft pillar card.
+type FeaturePillar struct {
+	Title string `json:"title"`
+	Desc  string `json:"desc"`
+}
+
+// Testimonial represents authentic customer feedback.
+type Testimonial struct {
+	Customer string `json:"customer"`
+	Location string `json:"location"`
+	Quote    string `json:"quote"`
+	Item     string `json:"item"`
+}
+
+// FAQItem represents an accordion FAQ.
+type FAQItem struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
 }
 
 // StorefrontData carries data to render the luxury storefront page.
@@ -55,8 +79,27 @@ type StorefrontData struct {
 	ShopierURL      string
 	AnnouncementBar string
 	IsDemo          bool
-	Products        []ProductView
-	ProductsJSON    template.JS
+
+	// Rich Editorial Sections
+	HeroBadge      string
+	HeroTitle      string
+	HeroSubtitle   string
+	HeroImage      string
+	StoryBadge     string
+	StoryTitle     string
+	StoryText      string
+	StoryQuote     string
+	StoryImage     string
+	PillarsTitle   string
+	Pillars        []FeaturePillar
+	Testimonials   []Testimonial
+	FAQs           []FAQItem
+	AtelierAddress string
+	AtelierHours   string
+	Instagram      string
+
+	Products     []ProductView
+	ProductsJSON template.JS
 }
 
 // SuspendedData carries data to render the maintenance/suspended page.
@@ -90,10 +133,16 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 		data.ProductsJSON = template.JS("[]")
 	}
 
+	var buf bytes.Buffer
+	if err := storefrontTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
-	return storefrontTmpl.Execute(w, data)
+	_, err = buf.WriteTo(w)
+	return err
 }
 
 // RenderSuspended writes the luxury suspended/maintenance HTML to w.

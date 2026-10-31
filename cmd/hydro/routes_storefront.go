@@ -132,6 +132,10 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 
 	isDemo := gov.LifecycleState == tenant.LifecycleDemo || gov.Status == "DEMO" || gov.Status == "demo"
 
+	// Build rich editorial storytelling, pillars, testimonials and FAQs
+	hBadge, hTitle, hSub, hImg, sBadge, sTitle, sText, sQuote, sImg, pTitle, pillars, testimonials, faqs, atAddr, atHours, insta :=
+		buildStorefrontEditorial(settings, storeName, gov.Notes)
+
 	data := storefront.StorefrontData{
 		StoreName:       storeName,
 		Slogan:          slogan,
@@ -141,10 +145,122 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		ShopierURL:      shopierURL,
 		AnnouncementBar: announcement,
 		IsDemo:          isDemo,
+		HeroBadge:       hBadge,
+		HeroTitle:       hTitle,
+		HeroSubtitle:    hSub,
+		HeroImage:       hImg,
+		StoryBadge:      sBadge,
+		StoryTitle:      sTitle,
+		StoryText:       sText,
+		StoryQuote:      sQuote,
+		StoryImage:      sImg,
+		PillarsTitle:    pTitle,
+		Pillars:         pillars,
+		Testimonials:    testimonials,
+		FAQs:            faqs,
+		AtelierAddress:  atAddr,
+		AtelierHours:    atHours,
+		Instagram:       insta,
 		Products:        products,
 	}
 
 	_ = storefront.Render(w, r, data)
+}
+
+func buildStorefrontEditorial(settings map[string]any, storeName, notes string) (
+	heroBadge, heroTitle, heroSubtitle, heroImage string,
+	storyBadge, storyTitle, storyText, storyQuote, storyImage string,
+	pillarsTitle string,
+	pillars []storefront.FeaturePillar,
+	testimonials []storefront.Testimonial,
+	faqs []storefront.FAQItem,
+	atelierAddress, atelierHours, instagram string,
+) {
+	baseline := blueprints.GetNicheEditorialContent(storeName, notes)
+	heroBadge = baseline.HeroBadge
+	heroTitle = baseline.HeroTitle
+	heroSubtitle = baseline.HeroSubtitle
+	heroImage = baseline.HeroImage
+	storyBadge = baseline.StoryBadge
+	storyTitle = baseline.StoryTitle
+	storyText = baseline.StoryText
+	storyQuote = baseline.StoryQuote
+	storyImage = baseline.StoryImage
+	pillarsTitle = baseline.PillarsTitle
+	atelierAddress = baseline.AtelierAddress
+	atelierHours = baseline.AtelierHours
+	instagram = baseline.Instagram
+
+	for _, p := range baseline.Pillars {
+		pillars = append(pillars, storefront.FeaturePillar{Title: p.Title, Desc: p.Desc})
+	}
+	for _, t := range baseline.Testimonials {
+		testimonials = append(testimonials, storefront.Testimonial{Customer: t.Customer, Location: t.Location, Quote: t.Quote, Item: t.Item})
+	}
+	for _, f := range baseline.FAQs {
+		faqs = append(faqs, storefront.FAQItem{Question: f.Question, Answer: f.Answer})
+	}
+
+	if v, ok := settings["hero_badge"].(string); ok && strings.TrimSpace(v) != "" {
+		heroBadge = v
+	}
+	if v, ok := settings["hero_title"].(string); ok && strings.TrimSpace(v) != "" {
+		heroTitle = v
+	}
+	if v, ok := settings["hero_subtitle"].(string); ok && strings.TrimSpace(v) != "" {
+		heroSubtitle = v
+	}
+	if v, ok := settings["hero_image"].(string); ok && strings.TrimSpace(v) != "" {
+		heroImage = v
+	}
+	if v, ok := settings["story_badge"].(string); ok && strings.TrimSpace(v) != "" {
+		storyBadge = v
+	}
+	if v, ok := settings["story_title"].(string); ok && strings.TrimSpace(v) != "" {
+		storyTitle = v
+	}
+	if v, ok := settings["story_text"].(string); ok && strings.TrimSpace(v) != "" {
+		storyText = v
+	}
+	if v, ok := settings["story_quote"].(string); ok && strings.TrimSpace(v) != "" {
+		storyQuote = v
+	}
+	if v, ok := settings["story_image"].(string); ok && strings.TrimSpace(v) != "" {
+		storyImage = v
+	}
+	if v, ok := settings["pillars_title"].(string); ok && strings.TrimSpace(v) != "" {
+		pillarsTitle = v
+	}
+	if v, ok := settings["atelier_address"].(string); ok && strings.TrimSpace(v) != "" {
+		atelierAddress = v
+	}
+	if v, ok := settings["atelier_hours"].(string); ok && strings.TrimSpace(v) != "" {
+		atelierHours = v
+	}
+	if v, ok := settings["instagram"].(string); ok && strings.TrimSpace(v) != "" {
+		instagram = v
+	}
+
+	if pStr, ok := settings["pillars_json"].(string); ok && strings.TrimSpace(pStr) != "" {
+		var parsed []storefront.FeaturePillar
+		if err := json.Unmarshal([]byte(pStr), &parsed); err == nil && len(parsed) > 0 {
+			pillars = parsed
+		}
+	}
+	if tStr, ok := settings["testimonials_json"].(string); ok && strings.TrimSpace(tStr) != "" {
+		var parsed []storefront.Testimonial
+		if err := json.Unmarshal([]byte(tStr), &parsed); err == nil && len(parsed) > 0 {
+			testimonials = parsed
+		}
+	}
+	if fStr, ok := settings["faqs_json"].(string); ok && strings.TrimSpace(fStr) != "" {
+		var parsed []storefront.FAQItem
+		if err := json.Unmarshal([]byte(fStr), &parsed); err == nil && len(parsed) > 0 {
+			faqs = parsed
+		}
+	}
+
+	return
 }
 
 func (a *serveApp) loadTenantStoreSettings(ctx context.Context, gov tenant.Governance) map[string]any {
@@ -199,7 +315,7 @@ func mapRecordToProductView(r collections.Record) storefront.ProductView {
 		pv.Price = p
 	}
 	if cp, ok := d["compare_at_price"].(float64); ok && cp > 0 {
-		pv.CompareAtPrice = &cp
+		pv.CompareAtPrice = cp
 	}
 	if desc, ok := d["description"].(string); ok {
 		pv.Description = desc
