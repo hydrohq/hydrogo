@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
@@ -34,7 +34,8 @@
 
       if (ok) {
         await schema.loadSchema(true);
-        const redirect = router.query.get('redirect') || '/dashboard';
+        const isConsole = typeof window !== 'undefined' && (window.location.hostname.startsWith('console.') || window.location.hostname.includes('console.example.com'));
+        const redirect = router.query.get('redirect') || (isConsole ? '/console' : '/dashboard');
         router.navigate(redirect);
       } else {
         mfaRequired = true;
