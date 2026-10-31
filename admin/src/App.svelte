@@ -46,8 +46,9 @@
       const isAuthed = await auth.checkAuth();
       if (isAuthed) {
         await schema.loadSchema();
-        if (router.path === '/login') {
-          router.navigate('/dashboard');
+        const isConsole = typeof window !== 'undefined' && (window.location.hostname.startsWith('console.') || window.location.hostname.includes('console.example.com'));
+        if (router.path === '/login' || (isConsole && (router.path === '/' || router.path === '/dashboard'))) {
+          router.navigate(isConsole ? '/console' : '/dashboard');
         }
       } else {
         if (!isPublicPath(router.path)) {
