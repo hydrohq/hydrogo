@@ -191,17 +191,30 @@ func (a *serveApp) initOptionalModules() error {
 	newRateLimiter := a.newRateLimiter
 	memberSessionStore := memberstore.SessionStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	memberAuditStore := memberstore.AuditStore{DB: db, Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
-	if modules["ai"] && strings.EqualFold(strings.TrimSpace(os.Getenv("HYDRO_AI_ENABLED")), "true") {
-		endpoint, apiKey, model := strings.TrimSpace(os.Getenv("HYDRO_AI_ENDPOINT")), os.Getenv("HYDRO_AI_API_KEY"), strings.TrimSpace(os.Getenv("HYDRO_AI_MODEL"))
-		if endpoint == "" || strings.TrimSpace(apiKey) == "" || model == "" {
-			return errors.New("AI assistance requires HYDRO_AI_ENDPOINT, HYDRO_AI_API_KEY, and HYDRO_AI_MODEL")
+	if modules["ai"] {
+		apiKey := strings.TrimSpace(os.Getenv("HYDRO_AI_API_KEY"))
+		if apiKey == "" {
+			apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
 		}
-		provider := aicore.OpenAICompatible{Endpoint: endpoint, APIKey: apiKey, Model: model}
-		if provider.Validate() != nil {
-			return errors.New("AI assistance provider configuration is invalid")
+		if apiKey != "" || strings.EqualFold(strings.TrimSpace(os.Getenv("HYDRO_AI_ENABLED")), "true") {
+			endpoint := strings.TrimSpace(os.Getenv("HYDRO_AI_ENDPOINT"))
+			if endpoint == "" {
+				endpoint = "https://api.openai.com/v1/chat/completions"
+			}
+			model := strings.TrimSpace(os.Getenv("HYDRO_AI_MODEL"))
+			if model == "" {
+				model = "gpt-4o-mini"
+			}
+			if apiKey == "" {
+				return errors.New("AI assistance requires HYDRO_AI_API_KEY or OPENAI_API_KEY")
+			}
+			provider := aicore.OpenAICompatible{Endpoint: endpoint, APIKey: apiKey, Model: model}
+			if err := provider.Validate(); err != nil {
+				return fmt.Errorf("AI assistance provider configuration is invalid: %w", err)
+			}
+			a.contentAssistant = aicore.Assistant{Enabled: true, Provider: provider, Timeout: 15 * time.Second}
+			a.contentAIAudit = auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 		}
-		a.contentAssistant = aicore.Assistant{Enabled: true, Provider: provider, Timeout: 15 * time.Second}
-		a.contentAIAudit = auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}
 	}
 	var pushDispatcher *pushservice.Dispatcher
 	if modules["push"] && !cfg.SafeMode {
