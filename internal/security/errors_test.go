@@ -68,3 +68,31 @@ func TestErrorMiddlewareUnwrapsResponseWriter(t *testing.T) {
 		t.Fatal("underlying response writer was not unwrapped")
 	}
 }
+
+func TestErrorMiddlewareBrowserHTMLWithCSP(t *testing.T) {
+	handler := ErrorMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "page not found", http.StatusNotFound)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/some-page", nil)
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9")
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", res.Code)
+	}
+	contentType := res.Header().Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") {
+		t.Fatalf("expected text/html content-type for browser request, got %q", contentType)
+	}
+	csp := res.Header().Get("Content-Security-Policy")
+	if !strings.Contains(csp, "'unsafe-inline'") {
+		t.Fatalf("expected CSP to allow unsafe-inline styles for error page, got %q", csp)
+	}
+	body := res.Body.String()
+	if !strings.Contains(body, "Sayfa Bulunamadı") {
+		t.Fatalf("expected styled HTML error page with Turkish title, got %q", body)
+	}
+}

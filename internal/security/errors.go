@@ -2,11 +2,26 @@ package security
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
 )
+
+//go:embed http_error.html
+var httpErrorHTML string
+
+var httpErrorTmpl = template.Must(template.New("http_error").Parse(httpErrorHTML))
+
+type httpErrorView struct {
+	StatusCode int
+	Code       string
+	Title      string
+	Message    string
+	RequestID  string
+}
 
 const maxBufferedErrorResponse = 2 << 20
 
@@ -102,6 +117,20 @@ func (c *errorCapture) flushPassthrough() {
 	}
 }
 
+func wantsBrowserHTML(r *http.Request) bool {
+	if r == nil || r.URL == nil {
+		return false
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		return false
+	}
+	accept := r.Header.Get("Accept")
+	if strings.Contains(accept, "application/json") && !strings.Contains(accept, "text/html") {
+		return false
+	}
+	return strings.Contains(accept, "text/html")
+}
+
 func (c *errorCapture) commit(r *http.Request) {
 	if c.passthrough {
 		return
@@ -109,7 +138,46 @@ func (c *errorCapture) commit(r *http.Request) {
 	if c.status == 0 {
 		c.status = http.StatusOK
 	}
-	if c.status >= http.StatusInternalServerError {
+
+	if c.status >= http.StatusBadRequest && wantsBrowserHTML(r) {
+		msg := strings.TrimSpace(c.body.String())
+		if c.status >= http.StatusInternalServerError {
+			msg = publicServerErrorMessage(c.status)
+		}
+		if msg == "" {
+			msg = publicServerErrorMessage(c.status)
+		}
+
+		title := "Bir Hata Oluştu"
+		switch c.status {
+		case http.StatusBadRequest:
+			title = "Geçersiz İstek"
+		case http.StatusUnauthorized:
+			title = "Yetkilendirme Gerekli"
+		case http.StatusForbidden:
+			title = "Erişim Reddedildi"
+		case http.StatusNotFound:
+			title = "Sayfa Bulunamadı"
+		case http.StatusTooManyRequests:
+			title = "Çok Fazla İstek"
+		case http.StatusInternalServerError:
+			title = "Sunucu Hatası"
+		case http.StatusBadGateway, http.StatusServiceUnavailable:
+			title = "Servis Geçici Olarak Kullanılamıyor"
+		}
+
+		c.header.Set("Content-Type", "text/html; charset=utf-8")
+		c.header.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; frame-ancestors 'none';")
+		c.header.Del("Content-Length")
+		c.body.Reset()
+		_ = httpErrorTmpl.Execute(&c.body, httpErrorView{
+			StatusCode: c.status,
+			Code:       ErrorCode(c.status),
+			Title:      title,
+			Message:    msg,
+			RequestID:  RequestIDFromContext(r.Context()),
+		})
+	} else if c.status >= http.StatusInternalServerError {
 		payload, err := json.Marshal(ErrorResponse{
 			Code:      ErrorCode(c.status),
 			Message:   publicServerErrorMessage(c.status),

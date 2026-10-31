@@ -9,6 +9,7 @@
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
   import AppErrorScreen from '$lib/components/shell/AppErrorScreen.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+  import { confirmDialogState, resolveConfirm } from '$lib/confirm';
   import LazyView from '$lib/components/shell/LazyView.svelte';
 
   // Each route view ships in its own chunk, downloaded only when visited —
@@ -225,5 +226,18 @@
     variant="destructive"
     onconfirm={() => router.confirmLeave()}
     oncancel={() => router.cancelLeave()}
+  />
+
+  <!-- Global Programmatic Confirm Dialog (Accessible from anywhere via confirmAction) -->
+  <ConfirmDialog
+    open={$confirmDialogState.open}
+    title={$confirmDialogState.title}
+    description={$confirmDialogState.description}
+    confirmLabel={$confirmDialogState.confirmLabel}
+    cancelLabel={$confirmDialogState.cancelLabel}
+    variant={$confirmDialogState.variant || 'destructive'}
+    loading={$confirmDialogState.loading}
+    onconfirm={() => resolveConfirm(true)}
+    oncancel={() => resolveConfirm(false)}
   />
 {/if}
