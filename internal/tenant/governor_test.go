@@ -154,6 +154,26 @@ func TestGovernorLifecycleAndSubscriptionExpiry(t *testing.T) {
 		t.Fatalf("expected GET on suspended workspace to return 503, got %d", recSuspended.Code)
 	}
 
+	// Browser GET request with Accept: text/html must receive beautifully formatted HTML error page, not raw JSON
+	reqBrowser := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqBrowser.Header.Set("Accept", "text/html,application/xhtml+xml")
+	reqBrowser.Header.Set("X-Request-Id", "req-test-12345")
+	reqBrowser = reqBrowser.WithContext(WithScope(ctx, scope))
+	recBrowser := httptest.NewRecorder()
+	handler.ServeHTTP(recBrowser, reqBrowser)
+	if recBrowser.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected browser request on suspended workspace to return 503, got %d", recBrowser.Code)
+	}
+	if !strings.Contains(recBrowser.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("expected Content-Type text/html, got %s", recBrowser.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(recBrowser.Body.String(), "Bu Mağaza Geçici Olarak Askıya Alınmıştır") {
+		t.Fatalf("expected HTML body to contain explanation title, got: %s", recBrowser.Body.String())
+	}
+	if !strings.Contains(recBrowser.Body.String(), "req-test-12345") {
+		t.Fatalf("expected HTML body to contain request ID, got: %s", recBrowser.Body.String())
+	}
+
 	reqOrch := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/orchestrator/tenants/expired-shop", strings.NewReader(`{}`))
 	reqOrch = reqOrch.WithContext(WithScope(ctx, scope))
 	recOrch := httptest.NewRecorder()

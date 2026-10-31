@@ -7,6 +7,7 @@
   import LoginView from './routes/login/LoginView.svelte';
   import SetPasswordView from './routes/account/SetPasswordView.svelte';
   import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
+  import AppErrorScreen from '$lib/components/shell/AppErrorScreen.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import LazyView from '$lib/components/shell/LazyView.svelte';
 
@@ -36,6 +37,7 @@
   import { brandingStore } from '$lib/stores/branding.svelte';
 
   let initializing = $state(true);
+  let fatalError = $state<{ message: string; code?: string; requestId?: string; status?: number } | null>(null);
   // Pages a person reaches from an e-mail before they have a session.
   const publicPaths = ['/login', '/reset-password', '/accept-invite'];
   const isPublicPath = (p: string) => publicPaths.some((x) => p === x || p.startsWith(`${x}?`));
@@ -54,6 +56,15 @@
         if (!isPublicPath(router.path)) {
           router.navigate('/login');
         }
+      }
+    } catch (err: any) {
+      if (!isPublicPath(router.path)) {
+        fatalError = {
+          message: err?.message || 'Uygulama başlatılamadı.',
+          code: err?.code || (err?.status ? `HTTP_${err.status}` : undefined),
+          requestId: err?.requestId || err?.request_id || undefined,
+          status: err?.status,
+        };
       }
     } finally {
       initializing = false;
@@ -139,6 +150,8 @@
 
 {#if initializing}
   <DashboardSkeleton path={router.path} />
+{:else if fatalError}
+  <AppErrorScreen error={fatalError} onretry={() => window.location.reload()} />
 {:else if router.path.startsWith('/reset-password')}
   <SetPasswordView mode="reset" />
 {:else if router.path.startsWith('/accept-invite')}
