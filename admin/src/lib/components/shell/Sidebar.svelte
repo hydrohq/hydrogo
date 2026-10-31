@@ -82,7 +82,7 @@
     >
       <BrandLogo size="md" showText={sidebar.open} />
       {#if isConsoleMode && sidebar.open}
-        <span class="ml-auto text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+        <span class="ml-auto text-[10px] font-medium tracking-wide px-1.5 py-0.5 rounded border border-sidebar-border bg-sidebar-accent text-muted-foreground">
           Console
         </span>
       {/if}
@@ -94,22 +94,24 @@
     {#if isConsoleMode}
       <!-- Pure Console / SaaS Factory Navigation -->
       <div class="flex flex-col gap-1 pt-1">
-        <!-- ⚡ Mağaza Fabrikası -->
+        <!-- Mağaza Fabrikası -->
         <a
           href="/admin/console"
           onclick={() => handleNavigate('/console')}
-          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/console') || isActive('/orchestrator') ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+          class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors {isActive('/console') || isActive('/orchestrator') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
           title="Mağaza Fabrikası"
         >
-          <svg class="size-4 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          <svg class="size-4 shrink-0 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M3 9h18" />
+            <path d="M9 21V9" />
           </svg>
           {#if sidebar.open}
             <span class="truncate">Mağaza Fabrikası</span>
           {/if}
         </a>
 
-        <!-- 👥 Yöneticiler -->
+        <!-- Yöneticiler -->
         {#if isAdmin && can('admin.users.manage')}
         <a
           href="/admin/users"
@@ -141,7 +143,7 @@
         </a>
         {/if}
 
-        <!-- 📜 Denetim Günlüğü -->
+        <!-- Denetim Günlüğü -->
         {#if isAdmin}
         <a
           href="/admin/audit"
@@ -159,7 +161,7 @@
         </a>
         {/if}
 
-        <!-- ⚙️ Sistem & Telemetri -->
+        <!-- Sistem & Telemetri -->
         <a
           href="/admin/system"
           onclick={() => handleNavigate('/system')}
