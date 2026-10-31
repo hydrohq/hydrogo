@@ -1,0 +1,326 @@
+package main
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/blueprints"
+	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/ardaozyildirim/hydrogo/internal/storefront"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+)
+
+func (a *serveApp) storefrontRoutes() []router.Route {
+	return []router.Route{
+		{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
+		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
+	}
+}
+
+func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
+	host := strings.ToLower(strings.TrimSpace(r.Host))
+	if i := strings.IndexByte(host, ':'); i > 0 {
+		host = host[:i]
+	}
+
+	consoleHost := strings.ToLower(strings.TrimSpace(a.cfg.Factory.ConsoleHost))
+	if consoleHost == "" {
+		consoleHost = "console.example.com"
+	}
+
+	// 1. If console host, redirect to admin console / orchestrator
+	if host == consoleHost {
+		http.Redirect(w, r, "/admin/orchestrator", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// 2. Resolve tenant scope
+	scope, err := tenant.FromContext(r.Context())
+	tenantFound := err == nil && scope.TenantID != "" && scope.TenantID != "default" && scope.TenantID != "platform"
+	if !tenantFound {
+		if resolved, resOk := tenant.ResolveTenantByDomain(r.Context(), a.db, string(a.cfg.Database.Dialect), host); resOk {
+			scope = resolved
+			tenantFound = true
+		}
+	}
+
+	// If not on a tenant host, fallback to admin redirect
+	if !tenantFound || scope.TenantID == "" {
+		http.Redirect(w, r, "/admin", http.StatusTemporaryRedirect)
+		return
+	}
+
+	// 3. Load tenant governance
+	dialect := string(a.cfg.Database.Dialect)
+	gov, err := tenant.GetGovernance(r.Context(), a.db, dialect, scope.TenantID)
+	if err != nil {
+		gov = tenant.DefaultGovernance(scope.TenantID)
+	}
+
+	// 4. Suspended check -> Luxury Maintenance Page
+	if gov.LifecycleState == tenant.LifecycleSuspended {
+		_ = storefront.RenderSuspended(w, r, storefront.SuspendedData{
+			StoreName:  gov.DisplayName,
+			OwnerPhone: gov.OwnerPhone,
+		})
+		return
+	}
+
+	// 5. Query tenant store_settings and products
+	tenantCtx := tenant.WithScope(r.Context(), scope)
+
+	settings := a.loadTenantStoreSettings(tenantCtx, gov)
+	products := a.loadTenantStoreProducts(tenantCtx)
+
+	// If no products seeded yet, generate preview catalog
+	if len(products) == 0 {
+		_, defaultProds := a.fallbackCatalog(gov)
+		products = defaultProds
+	}
+
+	cleanPhone := gov.OwnerPhone
+	if phone, ok := settings["whatsapp_number"].(string); ok && strings.TrimSpace(phone) != "" {
+		cleanPhone = strings.TrimSpace(phone)
+	}
+
+	storeName := gov.DisplayName
+	if name, ok := settings["brand_name"].(string); ok && strings.TrimSpace(name) != "" {
+		storeName = strings.TrimSpace(name)
+	} else if name, ok := settings["store_name"].(string); ok && strings.TrimSpace(name) != "" {
+		storeName = strings.TrimSpace(name)
+	}
+
+	slogan := ""
+	if s, ok := settings["tagline"].(string); ok {
+		slogan = s
+	} else if s, ok := settings["slogan"].(string); ok {
+		slogan = s
+	}
+
+	primaryColor := "#8C6D46"
+	if c, ok := settings["primary_color"].(string); ok && strings.TrimSpace(c) != "" {
+		primaryColor = strings.TrimSpace(c)
+	} else if c, ok := settings["accent_color"].(string); ok && strings.TrimSpace(c) != "" {
+		primaryColor = strings.TrimSpace(c)
+	}
+
+	bgTone := "#FAF8F5"
+	if bg, ok := settings["bg_tone"].(string); ok && strings.TrimSpace(bg) != "" {
+		bgTone = strings.TrimSpace(bg)
+	} else if bg, ok := settings["bg_primary_color"].(string); ok && strings.TrimSpace(bg) != "" {
+		bgTone = strings.TrimSpace(bg)
+	}
+
+	announcement := ""
+	if ann, ok := settings["announcement_bar"].(string); ok {
+		announcement = ann
+	}
+
+	shopierURL := ""
+	if sh, ok := settings["shopier_url"].(string); ok {
+		shopierURL = sh
+	} else if sh, ok := settings["payment_link"].(string); ok {
+		shopierURL = sh
+	}
+
+	isDemo := gov.LifecycleState == tenant.LifecycleDemo || gov.Status == "DEMO" || gov.Status == "demo"
+
+	data := storefront.StorefrontData{
+		StoreName:       storeName,
+		Slogan:          slogan,
+		PrimaryColor:    primaryColor,
+		BGTone:          bgTone,
+		CleanPhone:      cleanPhone,
+		ShopierURL:      shopierURL,
+		AnnouncementBar: announcement,
+		IsDemo:          isDemo,
+		Products:        products,
+	}
+
+	_ = storefront.Render(w, r, data)
+}
+
+func (a *serveApp) loadTenantStoreSettings(ctx context.Context, gov tenant.Governance) map[string]any {
+	out := map[string]any{
+		"brand_name":       gov.DisplayName,
+		"whatsapp_number":  gov.OwnerPhone,
+		"primary_color":    "#8C6D46",
+		"bg_tone":          "#FAF8F5",
+		"announcement_bar": "1500 TL ve Üzeri Siparişlerde Ücretsiz Kargo · WhatsApp ile Hızlı Sipariş",
+	}
+	recs, err := a.collectionService.ListRecords(ctx, "store_settings", 1, 0)
+	if err == nil && len(recs) > 0 {
+		for k, v := range recs[0].Data {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func (a *serveApp) loadTenantStoreProducts(ctx context.Context) []storefront.ProductView {
+	recs, err := a.collectionService.ListRecords(ctx, "products", 50, 0)
+	if err != nil || len(recs) == 0 {
+		recs, err = a.collectionService.ListRecords(ctx, "boutique_products", 50, 0)
+	}
+	if err != nil || len(recs) == 0 {
+		return nil
+	}
+
+	var prods []storefront.ProductView
+	for _, r := range recs {
+		pv := mapRecordToProductView(r)
+		if pv.Title != "" {
+			prods = append(prods, pv)
+		}
+	}
+	return prods
+}
+
+func mapRecordToProductView(r collections.Record) storefront.ProductView {
+	pv := storefront.ProductView{
+		ID:      r.ID,
+		InStock: true,
+	}
+	d := r.Data
+	if t, ok := d["title"].(string); ok {
+		pv.Title = t
+	}
+	if s, ok := d["slug"].(string); ok {
+		pv.Slug = s
+	}
+	if p, ok := d["price"].(float64); ok {
+		pv.Price = p
+	}
+	if cp, ok := d["compare_at_price"].(float64); ok && cp > 0 {
+		pv.CompareAtPrice = &cp
+	}
+	if desc, ok := d["description"].(string); ok {
+		pv.Description = desc
+	}
+	if img, ok := d["image_url"].(string); ok {
+		pv.ImageURL = img
+	}
+	if s, ok := d["sizes"].(string); ok {
+		pv.Sizes = s
+	}
+	if c, ok := d["colors"].(string); ok {
+		pv.Colors = c
+	}
+	if b, ok := d["badge"].(string); ok {
+		pv.Badge = b
+	}
+	if pl, ok := d["payment_link"].(string); ok {
+		pv.PaymentLink = pl
+	}
+	if is, ok := d["in_stock"].(bool); ok {
+		pv.InStock = is
+	}
+	return pv
+}
+
+func (a *serveApp) fallbackCatalog(gov tenant.Governance) (map[string]any, []storefront.ProductView) {
+	settings, rawProds := a.defaultCatalogGen(gov.DisplayName, gov.OwnerPhone, gov.Notes)
+	var views []storefront.ProductView
+	for i, p := range rawProds {
+		title, _ := p["title"].(string)
+		slug, _ := p["slug"].(string)
+		price, _ := p["price"].(float64)
+		desc, _ := p["description"].(string)
+		img, _ := p["image_url"].(string)
+		badge, _ := p["badge"].(string)
+		sizes, _ := p["sizes"].(string)
+		colors, _ := p["colors"].(string)
+
+		views = append(views, storefront.ProductView{
+			ID:          fmt.Sprintf("mock-%d", i+1),
+			Title:       title,
+			Slug:        slug,
+			Price:       price,
+			Description: desc,
+			ImageURL:    img,
+			Badge:       badge,
+			Sizes:       sizes,
+			Colors:      colors,
+			InStock:     true,
+		})
+	}
+	return settings, views
+}
+
+func (a *serveApp) defaultCatalogGen(name, phone, prompt string) (map[string]any, []map[string]any) {
+	return blueprints.GenerateLuxuryCatalog(name, phone, prompt)
+}
+
+func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ProductID       string  `json:"product_id"`
+		ProductTitle    string  `json:"product_title"`
+		Price           float64 `json:"price"`
+		Size            string  `json:"size"`
+		Color           string  `json:"color"`
+		CustomerName    string  `json:"customer_name"`
+		CustomerPhone   string  `json:"customer_phone"`
+		CustomerAddress string  `json:"customer_address"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, "invalid json payload", nil)
+		return
+	}
+
+	// 1. Resolve tenant scope
+	scope, err := tenant.FromContext(r.Context())
+	tenantFound := err == nil && scope.TenantID != ""
+	if !tenantFound {
+		host := strings.ToLower(strings.TrimSpace(r.Host))
+		if i := strings.IndexByte(host, ':'); i > 0 {
+			host = host[:i]
+		}
+		if res, resOk := tenant.ResolveTenantByDomain(r.Context(), a.db, string(a.cfg.Database.Dialect), host); resOk {
+			scope = res
+			tenantFound = true
+		}
+	}
+
+	var codeBytes [3]byte
+	_, _ = rand.Read(codeBytes[:])
+	orderCode := fmt.Sprintf("ORD-%s", strings.ToUpper(hex.EncodeToString(codeBytes[:])))
+
+	if tenantFound && scope.TenantID != "" {
+		tenantCtx := tenant.WithScope(r.Context(), scope)
+
+		itemsSummary := fmt.Sprintf("%s (%s / %s)", in.ProductTitle, in.Size, in.Color)
+		orderData := map[string]any{
+			"order_code":       orderCode,
+			"order_no":         orderCode,
+			"customer_name":    in.CustomerName,
+			"customer_phone":   in.CustomerPhone,
+			"customer_address": in.CustomerAddress,
+			"shipping_address": in.CustomerAddress,
+			"items_json":       itemsSummary,
+			"items_summary":    itemsSummary,
+			"total_price":      in.Price,
+			"total_amount":     in.Price,
+			"status":           "yeni",
+			"order_status":     "yeni",
+			"order_channel":    "WhatsApp",
+		}
+
+		// Try orders collection, then boutique_orders
+		if _, err := a.collectionService.CreateRecord(tenantCtx, "orders", orderData); err != nil {
+			_, _ = a.collectionService.CreateRecord(tenantCtx, "boutique_orders", orderData)
+		}
+	}
+
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"order_code": orderCode,
+		"status":     "created",
+	}, nil)
+}

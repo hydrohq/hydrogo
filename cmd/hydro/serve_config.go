@@ -87,7 +87,7 @@ func parseServeArgs(args []string, stderr io.Writer) (serveOptions, config.Confi
 func configureTenancy(cfg config.Config) (*tenant.HostResolver, []tenant.Scope, error) {
 	var tenantResolver *tenant.HostResolver
 	var tenantScopes []tenant.Scope
-	if cfg.Tenancy.Enabled {
+	if cfg.Tenancy.Enabled || cfg.Factory.BaseDomain != "" || os.Getenv("HYDRO_BASE_DOMAIN") != "" {
 		hostScopes := make(map[string]tenant.Scope, len(cfg.Tenancy.Hosts))
 		hostNames := make([]string, 0, len(cfg.Tenancy.Hosts))
 		for host := range cfg.Tenancy.Hosts {
@@ -107,7 +107,11 @@ func configureTenancy(cfg config.Config) (*tenant.HostResolver, []tenant.Scope, 
 				tenantScopes = append(tenantScopes, scope)
 			}
 		}
-		resolver := tenant.NewHostResolver(hostScopes, cfg.Tenancy.RequireHost)
+		requireHost := cfg.Tenancy.RequireHost
+		if !cfg.Tenancy.Enabled {
+			requireHost = false
+		}
+		resolver := tenant.NewHostResolver(hostScopes, requireHost)
 		tenantResolver = &resolver
 	}
 	return tenantResolver, tenantScopes, nil

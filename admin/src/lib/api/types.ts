@@ -265,3 +265,35 @@ export interface CopilotActionLog {
   created_at: string;
   undone_at?: string;
 }
+
+export interface SuperadminMetrics {
+  total_stores: number;
+  active_stores: number;
+  demo_stores: number;
+  suspended_stores: number;
+  total_orders: number;
+  ram_alloc_bytes: number;
+  ram_sys_bytes: number;
+  uptime_seconds: number;
+  base_domain: string;
+  console_host: string;
+  server_public_ip: string;
+  cloudflare_wildcard_status: string;
+  cloudflare_status_message: string;
+}
+
+export interface SuperadminWorkspace {
+  tenant_id: string;
+  slug: string;
+  name: string;
+  live_url: string;
+  subdomain: string;
+  custom_domain: string;
+  dns_verified: boolean;
+  status: 'DEMO' | 'ACTIVE' | 'SUSPENDED' | string;
+  plan: string;
+  owner_phone: string;
+  order_count: number;
+  created_at: string;
+  expires_at?: string;
+}

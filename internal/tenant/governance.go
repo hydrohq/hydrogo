@@ -12,6 +12,7 @@ import (
 const (
 	LifecycleProvisioning = "provisioning"
 	LifecycleActive       = "active"
+	LifecycleDemo         = "demo"
 	LifecycleReadOnly     = "readonly"
 	LifecycleSuspended    = "suspended"
 	LifecycleArchived     = "archived"
@@ -36,6 +37,9 @@ type Governance struct {
 	DisplayName         string    `json:"display_name"`
 	Subdomain           string    `json:"subdomain"`
 	CustomDomain        string    `json:"custom_domain"`
+	DNSVerified         bool      `json:"dns_verified"`
+	Slug                string    `json:"slug,omitempty"`
+	Status              string    `json:"status,omitempty"`
 	Blueprint           string    `json:"blueprint"`
 	Plan                string    `json:"plan"`
 	LifecycleState      string    `json:"lifecycle_state"`
@@ -133,7 +137,7 @@ func (g Governance) ComputeEffectiveState(now time.Time) string {
 	if state == "" {
 		state = LifecycleActive
 	}
-	if state != LifecycleActive {
+	if state != LifecycleActive && state != LifecycleDemo {
 		return state
 	}
 	if raw := strings.TrimSpace(g.SubscriptionEndsAt); raw != "" {
@@ -146,12 +150,12 @@ func (g Governance) ComputeEffectiveState(now time.Time) string {
 			return LifecycleReadOnly
 		}
 	}
-	return LifecycleActive
+	return state
 }
 
 func ValidLifecycleState(state string) bool {
 	switch strings.ToLower(strings.TrimSpace(state)) {
-	case LifecycleProvisioning, LifecycleActive, LifecycleReadOnly, LifecycleSuspended, LifecycleArchived:
+	case LifecycleProvisioning, LifecycleActive, LifecycleDemo, LifecycleReadOnly, LifecycleSuspended, LifecycleArchived:
 		return true
 	default:
 		return false
@@ -191,15 +195,21 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 	if gov.AIEnabled {
 		aiEnabledInt = 1
 	}
+	dnsVerifiedVal := any(0)
+	if dialect == "postgres" {
+		dnsVerifiedVal = gov.DNSVerified
+	} else if gov.DNSVerified {
+		dnsVerifiedVal = 1
+	}
 
 	cols := `tenant_id, display_name, subdomain, custom_domain, blueprint, plan, lifecycle_state,
 		trial_ends_at, subscription_ends_at, max_storage_bytes, max_records, rate_limit_rps,
 		max_concurrent_reqs, max_upload_bytes, ai_enabled, ai_provider, ai_model,
 		ai_encrypted_api_key, ai_monthly_token_limit, ai_tokens_used, owner_phone, notes,
-		created_at, updated_at`
+		created_at, updated_at, dns_verified`
 
 	var ph []string
-	for i := 1; i <= 24; i++ {
+	for i := 1; i <= 25; i++ {
 		ph = append(ph, placeholder(dialect, i))
 	}
 	valuesClause := strings.Join(ph, ", ")
@@ -229,7 +239,8 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 				ai_tokens_used = VALUES(ai_tokens_used),
 				owner_phone = VALUES(owner_phone),
 				notes = VALUES(notes),
-				updated_at = VALUES(updated_at)`
+				updated_at = VALUES(updated_at),
+				dns_verified = VALUES(dns_verified)`
 	} else {
 		query = `INSERT INTO tenant_governance (` + cols + `) VALUES (` + valuesClause + `)
 			ON CONFLICT(tenant_id) DO UPDATE SET
@@ -254,7 +265,8 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 				ai_tokens_used = excluded.ai_tokens_used,
 				owner_phone = excluded.owner_phone,
 				notes = excluded.notes,
-				updated_at = excluded.updated_at`
+				updated_at = excluded.updated_at,
+				dns_verified = excluded.dns_verified`
 	}
 
 	_, err := db.ExecContext(ctx, query,
@@ -282,6 +294,7 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 		gov.Notes,
 		dbTime(dialect, gov.CreatedAt),
 		dbTime(dialect, gov.UpdatedAt),
+		dnsVerifiedVal,
 	)
 	return err
 }
@@ -290,7 +303,7 @@ const selectGovernanceColumns = `tenant_id, display_name, subdomain, custom_doma
 	trial_ends_at, subscription_ends_at, max_storage_bytes, max_records, rate_limit_rps,
 	max_concurrent_reqs, max_upload_bytes, ai_enabled, ai_provider, ai_model,
 	COALESCE(ai_encrypted_api_key, ''), ai_monthly_token_limit, ai_tokens_used,
-	owner_phone, COALESCE(notes, ''), created_at, updated_at`
+	owner_phone, COALESCE(notes, ''), created_at, updated_at, COALESCE(dns_verified, 0)`
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -299,7 +312,7 @@ type rowScanner interface {
 func scanGovernance(scanner rowScanner, now time.Time) (Governance, error) {
 	var gov Governance
 	var aiEnabledInt int
-	var createdRaw, updatedRaw any
+	var createdRaw, updatedRaw, dnsVerifiedRaw any
 	err := scanner.Scan(
 		&gov.TenantID,
 		&gov.DisplayName,
@@ -325,11 +338,29 @@ func scanGovernance(scanner rowScanner, now time.Time) (Governance, error) {
 		&gov.Notes,
 		&createdRaw,
 		&updatedRaw,
+		&dnsVerifiedRaw,
 	)
 	if err != nil {
 		return Governance{}, err
 	}
 	gov.AIEnabled = aiEnabledInt != 0
+	switch v := dnsVerifiedRaw.(type) {
+	case bool:
+		gov.DNSVerified = v
+	case int64:
+		gov.DNSVerified = v != 0
+	case int:
+		gov.DNSVerified = v != 0
+	case []byte:
+		gov.DNSVerified = len(v) > 0 && v[0] != '0' && v[0] != 0
+	}
+	if gov.Slug == "" {
+		gov.Slug = gov.Subdomain
+		if gov.Slug == "" {
+			gov.Slug = gov.TenantID
+		}
+	}
+	gov.Status = gov.LifecycleState
 	gov.HasCustomAPIKey = strings.TrimSpace(gov.AIEncryptedAPIKey) != ""
 	gov.CreatedAt = parseDBTime(createdRaw)
 	gov.UpdatedAt = parseDBTime(updatedRaw)
@@ -430,13 +461,13 @@ func ResolveTenantByDomain(ctx context.Context, db SQLExecutor, dialect, host st
 	if idx := strings.IndexByte(host, '.'); idx > 0 {
 		sub = host[:idx]
 	}
-	p1, p2, p3 := placeholder(dialect, 1), placeholder(dialect, 2), placeholder(dialect, 3)
+	p1, p2, p3, p4 := placeholder(dialect, 1), placeholder(dialect, 2), placeholder(dialect, 3), placeholder(dialect, 4)
 	query := `SELECT tenant_id FROM tenant_governance
 		WHERE lifecycle_state <> 'archived'
-		  AND (custom_domain = ` + p1 + ` OR subdomain = ` + p2 + ` OR subdomain = ` + p3 + `)
+		  AND (custom_domain = ` + p1 + ` OR subdomain = ` + p2 + ` OR subdomain = ` + p3 + ` OR tenant_id = ` + p4 + `)
 		LIMIT 1`
 	var tenantID string
-	if err := db.QueryRowContext(ctx, query, host, host, sub).Scan(&tenantID); err != nil || strings.TrimSpace(tenantID) == "" {
+	if err := db.QueryRowContext(ctx, query, host, host, sub, sub).Scan(&tenantID); err != nil || strings.TrimSpace(tenantID) == "" {
 		return Scope{}, false
 	}
 	scope, err := NewScope(tenantID, tenantID)
@@ -456,12 +487,12 @@ func CheckDomainAllowed(ctx context.Context, db SQLExecutor, dialect, domain str
 	if idx := strings.IndexByte(domain, '.'); idx > 0 {
 		sub = domain[:idx]
 	}
-	p1, p2 := placeholder(dialect, 1), placeholder(dialect, 2)
+	p1, p2, p3, p4 := placeholder(dialect, 1), placeholder(dialect, 2), placeholder(dialect, 3), placeholder(dialect, 4)
 	query := `SELECT COUNT(*) FROM tenant_governance
-		WHERE lifecycle_state IN ('active', 'readonly', 'provisioning')
-		  AND ((custom_domain <> '' AND custom_domain = ` + p1 + `) OR (subdomain <> '' AND subdomain = ` + p2 + `))`
+		WHERE lifecycle_state NOT IN ('suspended', 'archived')
+		  AND ((custom_domain <> '' AND custom_domain = ` + p1 + `) OR (subdomain <> '' AND (subdomain = ` + p2 + ` OR subdomain = ` + p3 + `)) OR tenant_id = ` + p4 + `)`
 	var count int
-	if err := db.QueryRowContext(ctx, query, domain, sub).Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, query, domain, domain, sub, sub).Scan(&count); err != nil {
 		return false, err
 	}
 	return count > 0, nil

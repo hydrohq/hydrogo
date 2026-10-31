@@ -18,7 +18,7 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "collections"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ContentTypesDir: "content-types", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "collections"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ContentTypesDir: "content-types", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}, Factory: Factory{BaseDomain: "ardalabs.dev", ConsoleHost: "console.example.com"}}
 	result.License.File = "hydro.lic"
 	if path != "" {
 		file, err := os.Open(path) // #nosec G304 -- the operator's config file path
@@ -320,6 +320,21 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_SENTRY_DSN"); ok && value != "" {
 		result.Observability.SentryDSN = value
+	}
+	if value, ok := lookup("HYDRO_BASE_DOMAIN"); ok && value != "" {
+		result.Factory.BaseDomain = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_CONSOLE_HOST"); ok && value != "" {
+		result.Factory.ConsoleHost = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("CLOUDFLARE_API_TOKEN"); ok && value != "" {
+		result.Factory.CloudflareAPIToken = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("CLOUDFLARE_ZONE_ID"); ok && value != "" {
+		result.Factory.CloudflareZoneID = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("SERVER_PUBLIC_IP"); ok && value != "" {
+		result.Factory.ServerPublicIP = strings.TrimSpace(value)
 	}
 	dsnSources := 0
 	if result.Database.DSN != "" {

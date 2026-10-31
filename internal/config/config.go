@@ -38,6 +38,16 @@ type Config struct {
 	Limits          Limits           `yaml:"limits"`
 	Commerce        Commerce         `yaml:"commerce"`
 	Notifications   Notifications    `yaml:"notifications"`
+	Factory         Factory          `yaml:"factory"`
+}
+
+// Factory configures the automated multi-tenant store factory infrastructure.
+type Factory struct {
+	BaseDomain         string `yaml:"base_domain"`
+	ConsoleHost        string `yaml:"console_host"`
+	CloudflareAPIToken string `yaml:"cloudflare_api_token"`
+	CloudflareZoneID   string `yaml:"cloudflare_zone_id"`
+	ServerPublicIP     string `yaml:"server_public_ip"`
 }
 
 // Notifications configures operational chat alerts (a new commerce order,
