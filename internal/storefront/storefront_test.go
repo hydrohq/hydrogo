@@ -19,6 +19,26 @@ func TestRenderStorefront(t *testing.T) {
 		CleanPhone:      "05551234567",
 		AnnouncementBar: "Tüm Siparişlerde Ücretsiz Kargo",
 		IsDemo:          true,
+		HeroBadge:       "2026 GÜZ KOLEKSİYONU",
+		HeroTitle:       "Topraktan Sofraya",
+		HeroSubtitle:    "Doğal killer ve kurşunsuz sırlarla atölyemizde tek tek el tornasında çekilen seramikler.",
+		StoryBadge:      "ZANAAT VE SABIR",
+		StoryTitle:      "Çamurun Dönüşüm Hikayesi",
+		StoryText:       "Atölyemizde hiçbir nesne aceleye getirilmez.",
+		StoryQuote:      "Kusursuz simetri yerine doğallık.",
+		PillarsTitle:    "Atölye Sözümüz",
+		Pillars: []FeaturePillar{
+			{Title: "1240°C Stoneware", Desc: "Yüksek mukavemet."},
+		},
+		Testimonials: []Testimonial{
+			{Customer: "Ceren A.", Location: "Kadıköy", Quote: "Harika fincanlar.", Item: "Espresso Seti"},
+		},
+		FAQs: []FAQItem{
+			{Question: "Bulaşık makinesinde yıkanabilir mi?", Answer: "Evet, yıkanabilir."},
+		},
+		AtelierAddress: "Kadıköy Moda",
+		AtelierHours:   "10:00 - 19:00",
+		Instagram:      "@veraseramik",
 		Products: []ProductView{
 			{
 				ID:       "prod-1",
@@ -48,6 +68,21 @@ func TestRenderStorefront(t *testing.T) {
 	}
 	if !strings.Contains(body, "905551234567") {
 		t.Errorf("expected clean phone in body")
+	}
+	if !strings.Contains(body, "Topraktan Sofraya") {
+		t.Errorf("expected hero title in body")
+	}
+	if !strings.Contains(body, "1240°C Stoneware") {
+		t.Errorf("expected pillar in body")
+	}
+	if !strings.Contains(body, "Çamurun Dönüşüm Hikayesi") {
+		t.Errorf("expected story title in body")
+	}
+	if !strings.Contains(body, "Harika fincanlar.") {
+		t.Errorf("expected testimonial in body")
+	}
+	if !strings.Contains(body, "Bulaşık makinesinde yıkanabilir mi?") {
+		t.Errorf("expected FAQ question in body")
 	}
 }
 

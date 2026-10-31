@@ -39,6 +39,22 @@ func BoutiqueDefinitions() []contenttypes.Definition {
 				{ID: "theme_preset", Label: "Tema Şablonu", Kind: "select", Options: []string{"minimal_cream", "noir_gold", "pastel_blush", "emerald_silk"}},
 				{ID: "font_heading", Label: "Başlık Tipi", Kind: "text"},
 				{ID: "border_radius_style", Label: "Köşe Stili", Kind: "text"},
+				{ID: "hero_badge", Label: "Hero Rozet", Kind: "text"},
+				{ID: "hero_title", Label: "Hero Başlık", Kind: "text"},
+				{ID: "hero_subtitle", Label: "Hero Alt Başlık", Kind: "textarea"},
+				{ID: "hero_image", Label: "Hero Görseli", Kind: "text"},
+				{ID: "story_badge", Label: "Hikaye Rozet", Kind: "text"},
+				{ID: "story_title", Label: "Hikaye Başlık", Kind: "text"},
+				{ID: "story_text", Label: "Hikaye Metni", Kind: "textarea"},
+				{ID: "story_quote", Label: "Hikaye Alıntısı", Kind: "text"},
+				{ID: "story_image", Label: "Hikaye Görseli", Kind: "text"},
+				{ID: "pillars_title", Label: "İlkeler Başlığı", Kind: "text"},
+				{ID: "pillars_json", Label: "İlkeler (JSON)", Kind: "textarea"},
+				{ID: "testimonials_json", Label: "Müşteri Yorumları (JSON)", Kind: "textarea"},
+				{ID: "faqs_json", Label: "Sıkça Sorulan Sorular (JSON)", Kind: "textarea"},
+				{ID: "atelier_address", Label: "Atölye Adresi", Kind: "text"},
+				{ID: "atelier_hours", Label: "Çalışma Saatleri", Kind: "text"},
+				{ID: "instagram", Label: "Instagram Hesabı", Kind: "text"},
 			},
 		},
 		{
@@ -168,6 +184,10 @@ func GenerateLuxuryCatalog(displayName, phone, prompt string) (map[string]any, [
 		"theme_preset":     preset,
 		"font_heading":     "Cormorant Garamond",
 	}
+
+	// Enrich with deep artisanal storytelling, pillars, testimonials and FAQs
+	editorial := GetNicheEditorialContent(brandName, prompt)
+	editorial.MergeIntoSettings(settings)
 
 	// 6 Realistic Luxury Products
 	isLeather := strings.Contains(lower, "deri") || strings.Contains(lower, "çanta") || strings.Contains(lower, "cüzdan")
