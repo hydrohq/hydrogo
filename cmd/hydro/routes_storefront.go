@@ -35,9 +35,9 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		consoleHost = "console.example.com"
 	}
 
-	// 1. If console host, redirect to admin console / orchestrator
+	// 1. If console host, redirect to admin console
 	if host == consoleHost {
-		http.Redirect(w, r, "/admin/orchestrator", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/admin/console", http.StatusTemporaryRedirect)
 		return
 	}
 

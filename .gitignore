@@ -93,4 +93,6 @@ scratch*.py
 /.agent/
 /.agents/
 /config.yaml
+/config.*.yaml
+config.production.yaml
 /e2e/test-results-journeys/

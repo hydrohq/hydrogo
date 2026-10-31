@@ -93,4 +93,18 @@ describe('Sidebar', () => {
     // Assert
     expect(sidebar.mobileOpen).toBe(false);
   });
+
+  it('renders dedicated factory navigation and hides standard cms items in console mode', () => {
+    // Arrange
+    router.navigate('/console');
+    auth.user = { role: 'admin', email: 'admin@example.com' } as any;
+
+    // Act
+    render(Sidebar, { props: {} });
+
+    // Assert
+    expect(screen.getByTitle('Mağaza Fabrikası')).toBeTruthy();
+    expect(screen.queryByTitle('Pages')).toBeNull();
+    expect(screen.queryByTitle('Quick Create')).toBeNull();
+  });
 });
