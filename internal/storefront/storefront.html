@@ -42,14 +42,13 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: linear-gradient(90deg, #1C1917 0%, #292524 100%);
-      color: #FACC15;
-      font-size: 13px;
-      font-weight: 600;
+      background: #1C1917;
+      color: #FAF8F5;
+      font-size: 12px;
+      font-weight: 500;
       text-align: center;
-      padding: 10px 16px;
-      border-bottom: 1px solid rgba(250, 204, 21, 0.3);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 8px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     /* Announcement Bar */
@@ -445,7 +444,7 @@
 
   {{if .IsDemo}}
   <div class="demo-bar">
-    ⚡ Bu mağaza önizleme modundadır. Kalıcı olarak yayına almak ve yönetim paneline erişmek için iletişime geçin.
+    Bu mağaza önizleme modundadır. Kalıcı olarak yayına almak ve yönetim paneline erişmek için iletişime geçin.
   </div>
   {{end}}
 
@@ -548,7 +547,7 @@
     </div>
     <div class="drawer-actions">
       <button type="button" class="btn-whatsapp-order" onclick="submitWhatsAppOrder()">
-        <span>WhatsApp İle Siparişi Tamamla</span>
+        <span>WhatsApp ile siparişi tamamla</span>
       </button>
       <a id="shopierBtn" href="#" target="_blank" class="btn-shopier" style="display:none;">
         Kredi Kartı ile Satın Al (Shopier)
