@@ -39,6 +39,7 @@
     if (path.startsWith('/account')) return t('title.account');
     if (path.startsWith('/audit')) return t('title.audit');
     if (path.startsWith('/system')) return t('nav.telemetry');
+    if (path.startsWith('/console') || path.startsWith('/orchestrator')) return 'Mağaza Fabrikası';
     return t('nav.documents');
   });
 
