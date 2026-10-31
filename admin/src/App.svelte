@@ -138,7 +138,7 @@
 </script>
 
 {#if initializing}
-  <DashboardSkeleton />
+  <DashboardSkeleton path={router.path} />
 {:else if router.path.startsWith('/reset-password')}
   <SetPasswordView mode="reset" />
 {:else if router.path.startsWith('/accept-invite')}
