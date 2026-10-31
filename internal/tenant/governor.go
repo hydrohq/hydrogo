@@ -2,13 +2,21 @@ package tenant
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
+	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+//go:embed governor_error.html
+var governorFS embed.FS
+
+var governorErrorTmpl = template.Must(template.ParseFS(governorFS, "governor_error.html"))
 
 type cachedGovernance struct {
 	gov       Governance
@@ -161,20 +169,25 @@ func (g *Governor) Middleware(next http.Handler) http.Handler {
 		now := g.nowFn()
 		gov := g.loadGovernance(r.Context(), scope.TenantID, now)
 
+		storeName := gov.DisplayName
+		if storeName == "" {
+			storeName = scope.TenantID
+		}
+
 		switch gov.EffectiveState {
 		case LifecycleSuspended, LifecycleArchived:
-			writeGovernorError(w, r, http.StatusServiceUnavailable, "workspace_suspended", "This workspace is currently suspended or archived by the platform administrator.")
+			writeGovernorError(w, r, http.StatusServiceUnavailable, "workspace_suspended", "This workspace is currently suspended or archived by the platform administrator.", storeName)
 			return
 		case LifecycleReadOnly:
 			if isMutatingMethod(r.Method) && !isAuthSessionPath(path) {
-				writeGovernorError(w, r, http.StatusPaymentRequired, "workspace_readonly_subscription_expired", "This workspace is in read-only mode because its subscription or trial has expired.")
+				writeGovernorError(w, r, http.StatusPaymentRequired, "workspace_readonly_subscription_expired", "This workspace is in read-only mode because its subscription or trial has expired.", storeName)
 				return
 			}
 		}
 
 		bucket := g.bucketFor(scope.TenantID)
 		if !bucket.allowRPS(gov.RateLimitRPS, now) {
-			writeGovernorError(w, r, http.StatusTooManyRequests, "tenant_rate_limit_exceeded", "Workspace request rate limit exceeded; please slow down.")
+			writeGovernorError(w, r, http.StatusTooManyRequests, "tenant_rate_limit_exceeded", "Workspace request rate limit exceeded; please slow down.", storeName)
 			return
 		}
 
@@ -182,7 +195,7 @@ func (g *Governor) Middleware(next http.Handler) http.Handler {
 			current := bucket.inFlight.Add(1)
 			defer bucket.inFlight.Add(-1)
 			if int(current) > gov.MaxConcurrentReqs {
-				writeGovernorError(w, r, http.StatusTooManyRequests, "tenant_concurrency_exceeded", "Workspace concurrent request limit exceeded; please try again shortly.")
+				writeGovernorError(w, r, http.StatusTooManyRequests, "tenant_concurrency_exceeded", "Workspace concurrent request limit exceeded; please try again shortly.", storeName)
 				return
 			}
 		}
@@ -215,7 +228,33 @@ func isMutatingMethod(method string) bool {
 	}
 }
 
-func writeGovernorError(w http.ResponseWriter, r *http.Request, status int, code, message string) {
+type governorErrorView struct {
+	Title       string
+	Explanation string
+	StatusLabel string
+	BadgeClass  string
+	StoreName   string
+	Code        string
+	StatusCode  int
+	RequestID   string
+}
+
+func wantsGovernorHTML(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	path := r.URL.Path
+	if strings.HasPrefix(path, "/api/") {
+		return false
+	}
+	accept := r.Header.Get("Accept")
+	if strings.Contains(accept, "application/json") && !strings.Contains(accept, "text/html") {
+		return false
+	}
+	return strings.Contains(accept, "text/html") || (r.Method == http.MethodGet && (accept == "*/*" || accept == ""))
+}
+
+func writeGovernorError(w http.ResponseWriter, r *http.Request, status int, code, message, storeName string) {
 	reqID := strings.TrimSpace(r.Header.Get("X-Request-Id"))
 	if reqID == "" {
 		reqID = strings.TrimSpace(w.Header().Get("X-Request-Id"))
@@ -223,6 +262,48 @@ func writeGovernorError(w http.ResponseWriter, r *http.Request, status int, code
 	if reqID == "" {
 		reqID = "gov-enforced"
 	}
+
+	if wantsGovernorHTML(r) {
+		name := strings.TrimSpace(storeName)
+		if name == "" {
+			name = "Mağaza"
+		}
+		view := governorErrorView{
+			StoreName:  name,
+			Code:       code,
+			StatusCode: status,
+			RequestID:  reqID,
+		}
+		switch code {
+		case "workspace_suspended":
+			view.Title = "Bu Mağaza Geçici Olarak Askıya Alınmıştır"
+			view.Explanation = "Bu çalışma alanı veya vitrin, platform yöneticisi tarafından geçici olarak askıya alınmış ya da arşivlenmiştir. Durumunuzu kontrol etmek için platform yönetim konsoluna başvurabilirsiniz."
+			view.StatusLabel = "503 · Askıda"
+			view.BadgeClass = "badge-rose"
+		case "workspace_readonly_subscription_expired":
+			view.Title = "Abonelik Süresi Sona Erdi"
+			view.Explanation = "Bu mağazanın deneme veya abonelik süresi sona erdiği için salt-okunur moda alınmıştır. Yeni işlem gerçekleştirebilmek için lütfen planınızı yenileyiniz."
+			view.StatusLabel = "402 · Süre Doldu"
+			view.BadgeClass = "badge-amber"
+		case "tenant_rate_limit_exceeded", "tenant_concurrency_exceeded":
+			view.Title = "İstek Yoğunluğu Sınırı Aşıldı"
+			view.Explanation = "Çalışma alanına yönelik istek yoğunluğu sınırı aştı. Lütfen birkaç saniye bekleyip sayfayı yenileyiniz."
+			view.StatusLabel = "429 · Yoğunluk"
+			view.BadgeClass = "badge-amber"
+		default:
+			view.Title = "Servis Geçici Olarak Kullanılamıyor"
+			view.Explanation = message
+			view.StatusLabel = fmt.Sprintf("%d · Servis Hatası", status)
+			view.BadgeClass = "badge-rose"
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.WriteHeader(status)
+		_ = governorErrorTmpl.Execute(w, view)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{
