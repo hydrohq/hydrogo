@@ -217,7 +217,7 @@ func (s Schema) ValidateRecord(data map[string]any) (map[string]any, error) {
 	}
 	for id := range data {
 		if _, ok := allowed[id]; !ok {
-			return nil, ErrInvalidRecord
+			return nil, fmt.Errorf("%w: unknown field %q", ErrInvalidRecord, id)
 		}
 	}
 	clean := make(map[string]any, len(data))

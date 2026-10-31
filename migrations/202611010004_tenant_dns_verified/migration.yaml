@@ -1,0 +1,28 @@
+id: "202611010004_tenant_dns_verified"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "e367b227552621bb4c3a05797da175de4805543f839d206bc5b0e935d765bb5e"
+  postgres: "c1c56a5d618403483a0ba6f3ee38c5d5de3525eb11636bd284f56013329d3b57"
+  mysql: "c8c655710047562ca3314e8a903fa243cd2de656082dd47bb854b2d61d69746f"
+dependencies:
+  - "202611010003_orchestrator_governance"
+schema:
+  readable_epoch: 8
+  writable_epoch: 8
+preconditions:
+  - "202611010003_orchestrator_governance is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Adds dns_verified column to tenant_governance"
+compatibility: "Adds dns_verified column and supports demo lifecycle state for boutique stores."
+smoke:
+  - "Tenants track DNS A-record verification status and demo lifecycle state."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.StoreName}} — Bakımdayız</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #FAF8F5;
+      color: #1C1917;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: #FFFFFF;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 20px;
+      padding: 48px 32px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+    }
+    .icon {
+      font-size: 36px;
+      margin-bottom: 20px;
+      color: #8C6D46;
+    }
+    .brand {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #1C1917;
+      margin-bottom: 12px;
+    }
+    .msg {
+      font-size: 15px;
+      color: #78716C;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .contact {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #1C1917;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .contact:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✦</div>
+    <h1 class="brand">{{.StoreName}}</h1>
+    <p class="msg">
+      Bu mağaza geçici olarak bakımdadır.<br>
+      Koleksiyonlarımız güncelleniyor, lütfen daha sonra tekrar ziyaret ediniz.
+    </p>
+    {{if .OwnerPhone}}
+    <a href="https://wa.me/{{.CleanPhone}}" class="contact" target="_blank" rel="noopener noreferrer">
+      İletişime Geçin
+    </a>
+    {{end}}
+  </div>
+</body>
+</html>

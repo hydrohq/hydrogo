@@ -53,6 +53,7 @@ func openGovernanceTestDB(t *testing.T) *sql.DB {
 		ai_tokens_used INTEGER NOT NULL DEFAULT 0,
 		owner_phone TEXT NOT NULL DEFAULT '',
 		notes TEXT NOT NULL DEFAULT '',
+		dns_verified INTEGER NOT NULL DEFAULT 0,
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`
