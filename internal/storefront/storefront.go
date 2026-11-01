@@ -10,8 +10,45 @@ import (
 	"sync"
 )
 
-//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html
+//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html fonts/*
 var templateFS embed.FS
+
+// ResolveFontFamilies returns CSS font families (heading, body) for a given typography preset.
+func ResolveFontFamilies(preset string) (heading, body string) {
+	switch strings.ToLower(strings.TrimSpace(preset)) {
+	case "playfair", "editorial_playfair", "playfair_jakarta":
+		return "'Playfair Display', Didot, 'Bodoni MT', 'Times New Roman', serif", "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+	case "cinzel", "monumental_cinzel", "cinzel_inter":
+		return "'Cinzel', 'Trajan Pro', 'Bodoni MT', serif", "'Inter', system-ui, -apple-system, sans-serif"
+	case "syne", "avantgarde_syne", "syne_inter":
+		return "'Syne', 'Futura', system-ui, sans-serif", "'Inter', system-ui, -apple-system, sans-serif"
+	case "modern", "modern_grotesk", "jakarta_inter", "sans":
+		return "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif", "'Inter', system-ui, -apple-system, sans-serif"
+	case "garamond", "artisan_garamond", "cormorant":
+		return "'Cormorant Garamond', Garamond, 'Baskerville', serif", "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+	default:
+		// Default to Playfair Display (luxury editorial) & Plus Jakarta Sans
+		return "'Playfair Display', Didot, 'Bodoni MT', serif", "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+	}
+}
+
+// ServeFont serves locally embedded font files with immutable caching.
+func ServeFont(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.PathValue("name"))
+	if name == "" || strings.Contains(name, "/") || strings.Contains(name, "..") {
+		http.NotFound(w, r)
+		return
+	}
+	content, err := templateFS.ReadFile("fonts/" + name)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "font/woff2")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	_, _ = w.Write(content)
+}
 
 var (
 	templatesOnce     sync.Once
@@ -102,6 +139,9 @@ type StorefrontData struct {
 	AnnouncementBar string
 	IsDemo          bool
 	LayoutMode      string // "multipage", "single_page", "hybrid"
+	FontPreset      string // "editorial_playfair", "artisan_garamond", "monumental_cinzel", "avantgarde_syne", "modern_grotesk"
+	FontHeading     string
+	FontBody        string
 
 	// Rich Editorial Sections
 	HeroBadge      string
@@ -121,8 +161,9 @@ type StorefrontData struct {
 	AtelierHours   string
 	Instagram      string
 
-	Products     []ProductView
-	ProductsJSON template.JS
+	Products         []ProductView
+	FeaturedProducts []ProductView
+	ProductsJSON     template.JS
 }
 
 // ProductDetailData carries data for dedicated product page.
@@ -133,6 +174,9 @@ type ProductDetailData struct {
 	BGTone          string
 	CleanPhone      string
 	ShopierURL      string
+	FontPreset      string
+	FontHeading     string
+	FontBody        string
 	Product         ProductView
 	RelatedProducts []ProductView
 }
@@ -144,6 +188,9 @@ type CategoryData struct {
 	PrimaryColor    string
 	BGTone          string
 	CleanPhone      string
+	FontPreset      string
+	FontHeading     string
+	FontBody        string
 	CurrentCategory string
 	Categories      []string
 	Products        []ProductView
@@ -157,6 +204,9 @@ type AboutData struct {
 	PrimaryColor string
 	BGTone       string
 	CleanPhone   string
+	FontPreset   string
+	FontHeading  string
+	FontBody     string
 	StoryBadge   string
 	StoryTitle   string
 	StoryText    string
@@ -173,6 +223,9 @@ type ContactData struct {
 	PrimaryColor   string
 	BGTone         string
 	CleanPhone     string
+	FontPreset     string
+	FontHeading    string
+	FontBody       string
 	AtelierAddress string
 	AtelierHours   string
 	FAQs           []FAQItem
@@ -180,9 +233,12 @@ type ContactData struct {
 
 // SuspendedData carries data to render the maintenance/suspended page.
 type SuspendedData struct {
-	StoreName  string
-	OwnerPhone string
-	CleanPhone string
+	StoreName   string
+	OwnerPhone  string
+	CleanPhone  string
+	FontPreset  string
+	FontHeading string
+	FontBody    string
 }
 
 // Render writes the luxury boutique storefront HTML to w.
@@ -203,6 +259,14 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 	if data.LayoutMode == "" {
 		data.LayoutMode = "hybrid"
 	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
+	if len(data.Products) > 4 {
+		data.FeaturedProducts = data.Products[:4]
+	} else {
+		data.FeaturedProducts = data.Products
+	}
 	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
 
 	prodsJSON, err := json.Marshal(data.Products)
@@ -219,7 +283,7 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	_, err = buf.WriteTo(w)
 	return err
 }
@@ -239,6 +303,9 @@ func RenderProductDetail(w http.ResponseWriter, r *http.Request, data ProductDet
 	if data.BGTone == "" {
 		data.BGTone = "#FAF8F5"
 	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
 	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
 
 	var buf bytes.Buffer
@@ -248,7 +315,7 @@ func RenderProductDetail(w http.ResponseWriter, r *http.Request, data ProductDet
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -268,6 +335,9 @@ func RenderCategory(w http.ResponseWriter, r *http.Request, data CategoryData) e
 	if data.BGTone == "" {
 		data.BGTone = "#FAF8F5"
 	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
 	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
 
 	var buf bytes.Buffer
@@ -277,7 +347,7 @@ func RenderCategory(w http.ResponseWriter, r *http.Request, data CategoryData) e
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -297,6 +367,9 @@ func RenderAbout(w http.ResponseWriter, r *http.Request, data AboutData) error {
 	if data.BGTone == "" {
 		data.BGTone = "#FAF8F5"
 	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
 	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
 
 	var buf bytes.Buffer
@@ -306,7 +379,7 @@ func RenderAbout(w http.ResponseWriter, r *http.Request, data AboutData) error {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -326,6 +399,9 @@ func RenderContact(w http.ResponseWriter, r *http.Request, data ContactData) err
 	if data.BGTone == "" {
 		data.BGTone = "#FAF8F5"
 	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
 	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
 
 	var buf bytes.Buffer
@@ -335,7 +411,7 @@ func RenderContact(w http.ResponseWriter, r *http.Request, data ContactData) err
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -349,10 +425,13 @@ func RenderSuspended(w http.ResponseWriter, r *http.Request, data SuspendedData)
 	if data.StoreName == "" {
 		data.StoreName = "Mağaza"
 	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
 	data.CleanPhone = cleanPhoneNumber(data.OwnerPhone)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; frame-ancestors 'none';")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; frame-ancestors 'none';")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	return suspendedTmpl.Execute(w, data)
 }

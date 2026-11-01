@@ -167,7 +167,7 @@ func (c *errorCapture) commit(r *http.Request) {
 		}
 
 		c.header.Set("Content-Type", "text/html; charset=utf-8")
-		c.header.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; frame-ancestors 'none';")
+		c.header.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; frame-ancestors 'none';")
 		c.header.Del("Content-Length")
 		c.body.Reset()
 		_ = httpErrorTmpl.Execute(&c.body, httpErrorView{

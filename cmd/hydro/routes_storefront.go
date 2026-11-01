@@ -28,6 +28,7 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "GET /about", Access: router.Public, Handler: http.HandlerFunc(a.storefrontAboutHandler)},
 		{Pattern: "GET /iletisim", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
 		{Pattern: "GET /contact", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
+		{Pattern: "GET /storefront/fonts/{name}", Access: router.Public, Handler: http.HandlerFunc(storefront.ServeFont)},
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 	}
 }
@@ -152,6 +153,13 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		layoutMode = strings.TrimSpace(lm)
 	}
 
+	fontPreset := "editorial_playfair"
+	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	} else if fp, ok := settings["theme_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	}
+
 	isDemo := gov.LifecycleState == tenant.LifecycleDemo || gov.Status == "DEMO" || gov.Status == "demo"
 
 	// Build rich editorial storytelling, pillars, testimonials and FAQs
@@ -168,6 +176,7 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		AnnouncementBar: announcement,
 		IsDemo:          isDemo,
 		LayoutMode:      layoutMode,
+		FontPreset:      fontPreset,
 		HeroBadge:       hBadge,
 		HeroTitle:       hTitle,
 		HeroSubtitle:    hSub,

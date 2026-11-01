@@ -228,3 +228,41 @@ func TestRenderContact(t *testing.T) {
 		t.Errorf("expected WhatsApp button in body")
 	}
 }
+
+func TestResolveFontFamilies(t *testing.T) {
+	h1, b1 := ResolveFontFamilies("editorial_playfair")
+	if !strings.Contains(h1, "Playfair Display") || !strings.Contains(b1, "Plus Jakarta Sans") {
+		t.Errorf("expected Playfair Display & Plus Jakarta Sans, got %s / %s", h1, b1)
+	}
+
+	h2, b2 := ResolveFontFamilies("monumental_cinzel")
+	if !strings.Contains(h2, "Cinzel") || !strings.Contains(b2, "Inter") {
+		t.Errorf("expected Cinzel & Inter, got %s / %s", h2, b2)
+	}
+
+	h3, b3 := ResolveFontFamilies("avantgarde_syne")
+	if !strings.Contains(h3, "Syne") || !strings.Contains(b3, "Inter") {
+		t.Errorf("expected Syne & Inter, got %s / %s", h3, b3)
+	}
+}
+
+func TestServeFont(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/storefront/fonts/playfair-display.woff2", nil)
+	req.SetPathValue("name", "playfair-display.woff2")
+
+	ServeFont(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if rec.Header().Get("Content-Type") != "font/woff2" {
+		t.Errorf("expected font/woff2, got %s", rec.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(rec.Header().Get("Cache-Control"), "immutable") {
+		t.Errorf("expected immutable cache-control")
+	}
+	if rec.Body.Len() == 0 {
+		t.Errorf("expected font body bytes")
+	}
+}
