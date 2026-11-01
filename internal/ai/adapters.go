@@ -63,6 +63,13 @@ func NewAdapter(cfg AdapterConfig) Adapter {
 	if client == nil {
 		client = &http.Client{Timeout: 25 * time.Second}
 	}
+	// Custom endpoints (HYDRO_AI_BASE_URL) pass the same SSRF gate on every
+	// adapter, not only the OpenAI-compatible one.
+	if raw := strings.TrimSpace(cfg.Endpoint); raw != "" {
+		if _, err := endpointSecurityCheck(raw); err != nil {
+			return rejectedAdapter{err: err}
+		}
+	}
 	switch provider {
 	case "gemini", "google":
 		if model == "" {
@@ -105,6 +112,16 @@ func NewAdapter(cfg AdapterConfig) Adapter {
 			Client: client,
 		}
 	}
+}
+
+// rejectedAdapter fails every call with the configuration error that made the
+// endpoint unusable, instead of silently falling back to a default provider.
+type rejectedAdapter struct {
+	err error
+}
+
+func (r rejectedAdapter) Generate(context.Context, ChatRequest) (ChatResponse, error) {
+	return ChatResponse{}, r.err
 }
 
 // ErrEncryptionNotConfigured means no master secret is available to derive the
