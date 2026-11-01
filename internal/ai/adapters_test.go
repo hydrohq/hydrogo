@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,15 @@ func TestEncryptAndDecryptBYOKAPIKey(t *testing.T) {
 	}
 	if decrypted != rawKey {
 		t.Fatalf("expected %q, got %q", rawKey, decrypted)
+	}
+}
+
+func TestBYOKEncryptionRefusesMissingMasterSecret(t *testing.T) {
+	if _, err := EncryptAPIKey("sk-live-tenant-key", ""); !errors.Is(err, ErrEncryptionNotConfigured) {
+		t.Fatalf("expected ErrEncryptionNotConfigured, got %v", err)
+	}
+	if _, err := DecryptAPIKey("enc:v1:abc", "   "); !errors.Is(err, ErrEncryptionNotConfigured) {
+		t.Fatalf("expected ErrEncryptionNotConfigured on decrypt, got %v", err)
 	}
 }
 

@@ -107,6 +107,11 @@ func NewAdapter(cfg AdapterConfig) Adapter {
 	}
 }
 
+// ErrEncryptionNotConfigured means no master secret is available to derive the
+// BYOK key from; encrypting (or decrypting) with an implicit default would put
+// every deployment on the same key, so the operation is refused instead.
+var ErrEncryptionNotConfigured = errors.New("AI key encryption is not configured; set HYDRO_AI_KEY_SECRET")
+
 // EncryptAPIKey encrypts a tenant's BYOK API key using AES-256-GCM derived from masterSecret.
 func EncryptAPIKey(plaintext, masterSecret string) (string, error) {
 	plaintext = strings.TrimSpace(plaintext)
@@ -116,7 +121,10 @@ func EncryptAPIKey(plaintext, masterSecret string) (string, error) {
 	if strings.HasPrefix(plaintext, encryptedKeyPrefix) {
 		return plaintext, nil
 	}
-	key := deriveAESKey(masterSecret)
+	key, err := deriveAESKey(masterSecret)
+	if err != nil {
+		return "", err
+	}
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return "", err
@@ -146,7 +154,10 @@ func DecryptAPIKey(ciphertext, masterSecret string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := deriveAESKey(masterSecret)
+	key, err := deriveAESKey(masterSecret)
+	if err != nil {
+		return "", err
+	}
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return "", err
@@ -166,11 +177,11 @@ func DecryptAPIKey(ciphertext, masterSecret string) (string, error) {
 	return string(plain), nil
 }
 
-func deriveAESKey(secret string) [32]byte {
+func deriveAESKey(secret string) ([32]byte, error) {
 	if strings.TrimSpace(secret) == "" {
-		secret = "hydrogo-default-ai-key-derivation-seed"
+		return [32]byte{}, ErrEncryptionNotConfigured
 	}
-	return sha256.Sum256([]byte(secret))
+	return sha256.Sum256([]byte(secret)), nil
 }
 
 // GeminiAdapter implements Adapter for Google Gemini models via the REST v1beta API.
