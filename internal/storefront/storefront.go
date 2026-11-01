@@ -14,21 +14,23 @@ import (
 var templateFS embed.FS
 
 // ResolveFontFamilies returns CSS font families (heading, body) for a given typography preset.
-func ResolveFontFamilies(preset string) (heading, body string) {
+func ResolveFontFamilies(preset string) (heading, body template.CSS) {
 	switch strings.ToLower(strings.TrimSpace(preset)) {
 	case "playfair", "editorial_playfair", "playfair_jakarta":
-		return "'Playfair Display', Didot, 'Bodoni MT', 'Times New Roman', serif", "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+		return "'Playfair Display', Didot, 'Bodoni MT', 'Times New Roman', serif", "'Geist', 'Plus Jakarta Sans', system-ui, sans-serif"
 	case "cinzel", "monumental_cinzel", "cinzel_inter":
-		return "'Cinzel', 'Trajan Pro', 'Bodoni MT', serif", "'Inter', system-ui, -apple-system, sans-serif"
+		return "'Cinzel', 'Trajan Pro', 'Bodoni MT', serif", "'Geist', 'Inter', system-ui, sans-serif"
 	case "syne", "avantgarde_syne", "syne_inter":
-		return "'Syne', 'Futura', system-ui, sans-serif", "'Inter', system-ui, -apple-system, sans-serif"
-	case "modern", "modern_grotesk", "jakarta_inter", "sans":
-		return "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif", "'Inter', system-ui, -apple-system, sans-serif"
+		return "'Syne', 'Futura', system-ui, sans-serif", "'Geist', 'Inter', system-ui, sans-serif"
+	case "modern", "modern_grotesk", "jakarta_inter":
+		return "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif", "'Geist', 'Inter', system-ui, sans-serif"
 	case "garamond", "artisan_garamond", "cormorant":
-		return "'Cormorant Garamond', Garamond, 'Baskerville', serif", "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+		return "'Cormorant Garamond', Garamond, 'Baskerville', serif", "'Geist', 'Plus Jakarta Sans', system-ui, sans-serif"
+	case "geist", "v0", "v0_geist", "modern_geist":
+		fallthrough
 	default:
-		// Default to Playfair Display (luxury editorial) & Plus Jakarta Sans
-		return "'Playfair Display', Didot, 'Bodoni MT', serif", "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif"
+		// Default to v0 Geist: ultra-clean, modern, Swiss/Vercel aesthetic!
+		return "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
 	}
 }
 
@@ -140,8 +142,8 @@ type StorefrontData struct {
 	IsDemo          bool
 	LayoutMode      string // "multipage", "single_page", "hybrid"
 	FontPreset      string // "editorial_playfair", "artisan_garamond", "monumental_cinzel", "avantgarde_syne", "modern_grotesk"
-	FontHeading     string
-	FontBody        string
+	FontHeading     template.CSS
+	FontBody        template.CSS
 
 	// Rich Editorial Sections
 	HeroBadge      string
@@ -175,8 +177,8 @@ type ProductDetailData struct {
 	CleanPhone      string
 	ShopierURL      string
 	FontPreset      string
-	FontHeading     string
-	FontBody        string
+	FontHeading     template.CSS
+	FontBody        template.CSS
 	Product         ProductView
 	RelatedProducts []ProductView
 }
@@ -189,8 +191,8 @@ type CategoryData struct {
 	BGTone          string
 	CleanPhone      string
 	FontPreset      string
-	FontHeading     string
-	FontBody        string
+	FontHeading     template.CSS
+	FontBody        template.CSS
 	CurrentCategory string
 	Categories      []string
 	Products        []ProductView
@@ -205,8 +207,8 @@ type AboutData struct {
 	BGTone       string
 	CleanPhone   string
 	FontPreset   string
-	FontHeading  string
-	FontBody     string
+	FontHeading  template.CSS
+	FontBody     template.CSS
 	StoryBadge   string
 	StoryTitle   string
 	StoryText    string
@@ -224,8 +226,8 @@ type ContactData struct {
 	BGTone         string
 	CleanPhone     string
 	FontPreset     string
-	FontHeading    string
-	FontBody       string
+	FontHeading    template.CSS
+	FontBody       template.CSS
 	AtelierAddress string
 	AtelierHours   string
 	FAQs           []FAQItem
@@ -237,8 +239,8 @@ type SuspendedData struct {
 	OwnerPhone  string
 	CleanPhone  string
 	FontPreset  string
-	FontHeading string
-	FontBody    string
+	FontHeading template.CSS
+	FontBody    template.CSS
 }
 
 // Render writes the luxury boutique storefront HTML to w.
@@ -257,7 +259,10 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 		data.BGTone = "#FAF8F5"
 	}
 	if data.LayoutMode == "" {
-		data.LayoutMode = "hybrid"
+		data.LayoutMode = "multipage"
+	}
+	if data.FontPreset == "" {
+		data.FontPreset = "v0_geist"
 	}
 	if data.FontHeading == "" || data.FontBody == "" {
 		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)

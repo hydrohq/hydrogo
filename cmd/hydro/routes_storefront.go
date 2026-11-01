@@ -148,12 +148,12 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		shopierURL = sh
 	}
 
-	layoutMode := "hybrid"
+	layoutMode := "multipage"
 	if lm, ok := settings["layout_mode"].(string); ok && strings.TrimSpace(lm) != "" {
 		layoutMode = strings.TrimSpace(lm)
 	}
 
-	fontPreset := "editorial_playfair"
+	fontPreset := "v0_geist"
 	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
 		fontPreset = strings.TrimSpace(fp)
 	} else if fp, ok := settings["theme_preset"].(string); ok && strings.TrimSpace(fp) != "" {
