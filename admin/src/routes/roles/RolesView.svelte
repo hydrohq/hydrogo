@@ -138,97 +138,99 @@
   });
 </script>
 
-<div class="space-y-6">
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-    <div>
-      <h2 class="text-2xl font-bold tracking-tight text-foreground">Custom Roles & Permissions</h2>
-      <p class="text-sm text-muted-foreground">Manage granular tenant roles and resource capabilities.</p>
-    </div>
-    <Button onclick={openCreateModal}>
-      <svg class="size-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-      Create Role
-    </Button>
-  </div>
-
-  <!-- Alerts -->
-  {#if statusMsg}
-    <div class="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 dark:text-green-400">
-      {statusMsg}
-    </div>
-  {/if}
-  {#if statusErr}
-    <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-      {statusErr}
-    </div>
-  {/if}
-
-  <!-- Roles Table -->
-  <div class="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
-    {#if loading}
-      <div class="p-8 text-center text-sm text-muted-foreground">Loading custom roles...</div>
-    {:else if roles.length === 0}
-      <div class="p-12 text-center space-y-3">
-        <div class="inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
-          </svg>
-        </div>
-        <h3 class="text-base font-semibold text-foreground">No Custom Roles Defined</h3>
-        <p class="text-sm text-muted-foreground max-w-sm mx-auto">
-          Create granular roles to give team members scoped access to specific content types and operations.
-        </p>
-        <Button variant="outline" size="sm" onclick={openCreateModal}>Create First Role</Button>
+<div class="flex flex-1 flex-col">
+  <div class="@container/main flex flex-1 flex-col gap-4 p-4 lg:p-6 max-w-5xl mx-auto w-full">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+      <div>
+        <h2 class="text-xl font-semibold tracking-tight text-foreground">Custom Roles & Permissions</h2>
+        <p class="text-xs text-muted-foreground mt-0.5">Manage granular tenant roles and resource capabilities.</p>
       </div>
-    {:else}
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th class="px-4 py-3 font-medium">Role</th>
-              <th class="px-4 py-3 font-medium">Identifier</th>
-              <th class="px-4 py-3 font-medium">Permissions</th>
-              <th class="px-4 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-border">
-            {#each roles as role}
-              <tr class="hover:bg-muted/30 transition-colors">
-                <td class="px-4 py-3 font-medium text-foreground">
-                  <div>{role.name}</div>
-                  {#if role.description}
-                    <div class="text-xs text-muted-foreground">{role.description}</div>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-muted-foreground font-mono text-xs">
-                  {role.id}
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex flex-wrap gap-1.5 max-w-md">
-                    {#if role.permissions && role.permissions.length > 0}
-                      {#each role.permissions as perm}
-                        <Badge variant="secondary" class="text-xs">
-                          {perm.resource}:{perm.action}
-                        </Badge>
-                      {/each}
-                    {:else}
-                      <span class="text-xs text-muted-foreground italic">No permissions</span>
-                    {/if}
-                  </div>
-                </td>
-                <td class="px-4 py-3 text-right space-x-2">
-                  <Button variant="ghost" size="sm" onclick={() => openEditModal(role)}>Edit</Button>
-                  <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteTarget = role)}>Delete</Button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+      <Button onclick={openCreateModal} class="cursor-pointer shadow-xs gap-1.5 self-start sm:self-auto">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        Create Role
+      </Button>
+    </div>
+
+    <!-- Alerts -->
+    {#if statusMsg}
+      <div class="rounded-lg border border-green-500/30 bg-green-500/10 p-3.5 text-xs text-green-700 dark:text-green-400">
+        {statusMsg}
       </div>
     {/if}
+    {#if statusErr}
+      <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive">
+        {statusErr}
+      </div>
+    {/if}
+
+    <!-- Roles Table -->
+    <div class="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+      {#if loading}
+        <div class="p-8 text-center text-sm text-muted-foreground">Loading custom roles...</div>
+      {:else if roles.length === 0}
+        <div class="p-12 text-center space-y-3">
+          <div class="inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-foreground">No Custom Roles Defined</h3>
+          <p class="text-sm text-muted-foreground max-w-sm mx-auto">
+            Create granular roles to give team members scoped access to specific content types and operations.
+          </p>
+          <Button variant="outline" size="sm" onclick={openCreateModal}>Create First Role</Button>
+        </div>
+      {:else}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
+              <tr>
+                <th class="px-4 py-3 font-medium">Role</th>
+                <th class="px-4 py-3 font-medium">Identifier</th>
+                <th class="px-4 py-3 font-medium">Permissions</th>
+                <th class="px-4 py-3 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              {#each roles as role}
+                <tr class="hover:bg-muted/30 transition-colors">
+                  <td class="px-4 py-3 font-medium text-foreground">
+                    <div>{role.name}</div>
+                    {#if role.description}
+                      <div class="text-xs text-muted-foreground">{role.description}</div>
+                    {/if}
+                  </td>
+                  <td class="px-4 py-3 text-muted-foreground font-mono text-xs">
+                    {role.id}
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1.5 max-w-md">
+                      {#if role.permissions && role.permissions.length > 0}
+                        {#each role.permissions as perm}
+                          <Badge variant="secondary" class="text-xs">
+                            {perm.resource}:{perm.action}
+                          </Badge>
+                        {/each}
+                      {:else}
+                        <span class="text-xs text-muted-foreground italic">No permissions</span>
+                      {/if}
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-right space-x-2">
+                    <Button variant="ghost" size="sm" onclick={() => openEditModal(role)}>Edit</Button>
+                    <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteTarget = role)}>Delete</Button>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
