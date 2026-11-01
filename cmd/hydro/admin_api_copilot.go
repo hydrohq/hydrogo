@@ -92,6 +92,10 @@ func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request)
 		api.WriteError(w, r, http.StatusBadGateway, fmt.Sprintf("AI Copilot generation failed: %v", err), nil)
 		return
 	}
+	if err := validateCopilotOperations(plan.Operations, defs); err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
 
 	if a.db != nil && tokensUsed > 0 {
 		updatedGov, consumeErr := tenant.ConsumeAITokens(r.Context(), a.db, dialect, tenantID, tokensUsed)
@@ -302,8 +306,10 @@ func (a *serveApp) generateWorkspaceCopilotPlan(
 }
 
 func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string, defs []contenttypes.Definition) aicore.CopilotPlan {
-	// Support explicit JSON plans passed directly in tests or advanced prompts.
-	if strings.HasPrefix(strings.TrimSpace(prompt), "{") {
+	// An explicit JSON plan passed as the prompt is a dev/test affordance only:
+	// in production the prompt must never be executable input, or any
+	// authenticated caller could write arbitrary records through it.
+	if a.devMode && strings.HasPrefix(strings.TrimSpace(prompt), "{") {
 		if plan, err := aicore.ParseCopilotPlan(prompt); err == nil && plan.Reply != "" {
 			return plan
 		}
@@ -320,8 +326,8 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 				rec := recs[0]
 				updates := map[string]any{}
 				if strings.Contains(lower, "koyu") || strings.Contains(lower, "dark") || strings.Contains(lower, "siyah") {
-					updates["bg_primary_color"] = "#121212"
-					updates["text_primary_color"] = "#F9F6F0"
+					updates["bg_tone"] = "#121212"
+					updates["primary_color"] = "#F9F6F0"
 				}
 				if strings.Contains(lower, "altın") || strings.Contains(lower, "gold") {
 					updates["accent_color"] = "#D4AF37"
@@ -346,6 +352,36 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 		Reply:      "İsteğiniz alındı ve çalışma alanı asistanı tarafından değerlendirildi.",
 		Operations: ops,
 	}
+}
+
+// validateCopilotOperations rejects plans that reference unknown collections or
+// set fields outside the target schema, so a manipulated model response cannot
+// write arbitrary columns.
+func validateCopilotOperations(ops []aicore.CopilotOperation, defs []contenttypes.Definition) error {
+	if len(ops) == 0 {
+		return nil
+	}
+	known := make(map[string]map[string]bool, len(defs))
+	for _, def := range defs {
+		fields := make(map[string]bool, len(def.Fields))
+		for _, f := range def.Fields {
+			fields[f.ID] = true
+		}
+		known[def.ID] = fields
+	}
+	for _, op := range ops {
+		colID := strings.TrimSpace(op.CollectionID)
+		fields, ok := known[colID]
+		if !ok {
+			return fmt.Errorf("copilot operation targets unknown collection %q", colID)
+		}
+		for key := range op.Data {
+			if !fields[key] {
+				return fmt.Errorf("copilot operation tries to set unknown field %q on %s", key, colID)
+			}
+		}
+	}
+	return nil
 }
 
 func (a *serveApp) executeCopilotOperations(ctx context.Context, ops []aicore.CopilotOperation) ([]aicore.CopilotOperation, error) {
