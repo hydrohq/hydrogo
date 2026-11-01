@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -186,6 +187,9 @@ func TestAdminAICopilotExecuteAndUndo(t *testing.T) {
 	// 3. Test AI token quota enforcement (429 Too Many Requests)
 	gov.AITokensUsed = 10000
 	gov.AIMonthlyTokenLimit = 10000
+	// Pin the bucket to the current month so the monthly rollover does not
+	// reset the counter before quota enforcement runs.
+	gov.AITokenPeriod = time.Now().UTC().Format("2006-01")
 	if err := tenant.UpsertGovernance(ctx, db, "sqlite", gov); err != nil {
 		t.Fatal(err)
 	}
