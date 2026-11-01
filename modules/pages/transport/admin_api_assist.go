@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
@@ -46,6 +48,10 @@ func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
 		writeForbidden(w, r)
 		return
 	}
+	if h.AILimiter != nil && !security.AllowForRequest(h.AILimiter, r.Context(), "ai-suggest:"+user.ID) {
+		security.WriteRateLimitedResponse(w, "too many AI requests", time.Minute)
+		return
+	}
 	var input aiSuggestInput
 	if !api.DecodeJSON(w, r, &input, 8<<10) {
 		return
@@ -62,6 +68,13 @@ func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
 	}
 	if operation == ai.Translate && !hasLocale(h.SupportedLocales, targetLocale) {
 		api.WriteValidation(w, r, map[string]string{"target_locale": "invalid"})
+		return
+	}
+	tenantID, ok := h.presenceTenant(w, r)
+	if !ok {
+		return
+	}
+	if err := h.checkAIQuota(w, r, tenantID); err != nil {
 		return
 	}
 	page, err := h.Content.Get(r.Context(), h.DB, r.PathValue("id"))
@@ -97,7 +110,48 @@ func (h Handler) adminAISuggest(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "no suggestion could be produced; the draft is unchanged", nil)
 		return
 	}
+	h.consumeAIQuota(r, tenantID, estimateAITokens(page.Title, page.Body, result.Title, result.Body))
 	api.WriteData(w, http.StatusOK, map[string]any{"before": map[string]string{"title": page.Title, "body": page.Body}, "suggestion": result}, nil)
+}
+
+// checkAIQuota pre-checks the tenant AI token quota (consuming nothing) and
+// writes the matching error response when the workspace is out of AI budget.
+func (h Handler) checkAIQuota(w http.ResponseWriter, r *http.Request, tenantID string) error {
+	if h.AIDB == nil || h.Dialect == "" {
+		return nil
+	}
+	if _, err := tenant.ConsumeAITokens(r.Context(), h.AIDB, h.Dialect, tenantID, 0); err != nil {
+		switch {
+		case errors.Is(err, tenant.ErrAIQuotaExceeded):
+			api.WriteError(w, r, http.StatusTooManyRequests, "monthly AI token quota exceeded for this workspace", nil)
+		case errors.Is(err, tenant.ErrAIDisabled):
+			api.WriteError(w, r, http.StatusForbidden, "AI assistance is disabled for this workspace", nil)
+		default:
+			api.WriteError(w, r, http.StatusInternalServerError, "failed to check the workspace AI quota", nil)
+		}
+		return err
+	}
+	return nil
+}
+
+// consumeAIQuota records estimated usage after a successful call. The reply is
+// already produced, so a bookkeeping failure is logged instead of failing the
+// request; the pre-check above is the hard gate.
+func (h Handler) consumeAIQuota(r *http.Request, tenantID string, tokens int64) {
+	if h.AIDB == nil || h.Dialect == "" || tokens <= 0 {
+		return
+	}
+	if _, err := tenant.ConsumeAITokens(r.Context(), h.AIDB, h.Dialect, tenantID, tokens); err != nil {
+		slog.Warn("recording AI token usage failed", "tenant", tenantID, "tokens", tokens, "error", err)
+	}
+}
+
+func estimateAITokens(titles ...string) int64 {
+	total := 0
+	for _, s := range titles {
+		total += len(s)
+	}
+	return int64(total/4) + 1
 }
 
 func hasLocale(locales []string, target string) bool {

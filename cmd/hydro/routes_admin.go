@@ -43,7 +43,7 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("PATCH /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorUpdateHandler),
 		protected("POST /api/v1/admin/orchestrator/tenants/{id}/impersonate", a.adminOrchestratorImpersonateHandler),
 		protected("POST /api/v1/admin/orchestrator/tenants/{id}/archive", a.adminOrchestratorArchiveHandler),
-		protected("POST /api/v1/admin/ai/copilot", a.adminAICopilotHandler),
+		protected("POST /api/v1/admin/ai/copilot", a.rateLimitedAI("copilot", 20, time.Minute, a.adminAICopilotHandler)),
 		protected("GET /api/v1/admin/ai/actions", a.adminAIActionsListHandler),
 		protected("POST /api/v1/admin/ai/actions/{id}/undo", a.adminAIActionUndoHandler),
 		protected("GET /api/v1/admin/dashboard", a.adminDashboardHandler),

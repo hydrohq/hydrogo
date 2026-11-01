@@ -202,6 +202,26 @@ func TestGovernorConcurrencyAndAITokenMetering(t *testing.T) {
 		t.Fatal("expected second ConsumeAITokens (600+500 > 1000) to fail with quota error")
 	}
 
+	// Demo workspaces are live trial stores: they consume AI quota like active
+	// ones instead of failing every call, while suspended workspaces must not.
+	demoGov := DefaultGovernance("demo-shop")
+	demoGov.LifecycleState = LifecycleDemo
+	demoGov.AIMonthlyTokenLimit = 1000
+	if err := UpsertGovernance(ctx, db, "sqlite", demoGov); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ConsumeAITokens(ctx, db, "sqlite", "demo-shop", 100); err != nil {
+		t.Fatalf("demo workspace AI consumption failed: %v", err)
+	}
+	suspendedGov := DefaultGovernance("suspended-shop")
+	suspendedGov.LifecycleState = LifecycleSuspended
+	if err := UpsertGovernance(ctx, db, "sqlite", suspendedGov); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ConsumeAITokens(ctx, db, "sqlite", "suspended-shop", 0); err == nil {
+		t.Fatal("expected suspended workspace AI consumption to fail")
+	}
+
 	// Test concurrency semaphore
 	governor := NewGovernor(db, "sqlite")
 	scope, _ := NewScope("busy-shop", "busy-shop")
