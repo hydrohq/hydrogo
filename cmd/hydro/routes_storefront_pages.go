@@ -78,6 +78,11 @@ func (a *serveApp) storefrontProductHandler(w http.ResponseWriter, r *http.Reque
 		shopierURL = sh
 	}
 
+	fontPreset := "editorial_playfair"
+	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	}
+
 	data := storefront.ProductDetailData{
 		StoreName:       storeName,
 		Slogan:          slogan,
@@ -85,6 +90,7 @@ func (a *serveApp) storefrontProductHandler(w http.ResponseWriter, r *http.Reque
 		BGTone:          bgTone,
 		CleanPhone:      cleanPhone,
 		ShopierURL:      shopierURL,
+		FontPreset:      fontPreset,
 		Product:         *found,
 		RelatedProducts: related,
 	}
@@ -157,12 +163,18 @@ func (a *serveApp) storefrontCategoryHandler(w http.ResponseWriter, r *http.Requ
 		cleanPhone = strings.TrimSpace(phone)
 	}
 
+	fontPreset := "editorial_playfair"
+	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	}
+
 	data := storefront.CategoryData{
 		StoreName:       storeName,
 		Slogan:          slogan,
 		PrimaryColor:    primaryColor,
 		BGTone:          bgTone,
 		CleanPhone:      cleanPhone,
+		FontPreset:      fontPreset,
 		CurrentCategory: slug,
 		Categories:      categoryList,
 		Products:        filtered,
@@ -207,12 +219,18 @@ func (a *serveApp) storefrontAboutHandler(w http.ResponseWriter, r *http.Request
 	_, _, _, _, sBadge, sTitle, sText, sQuote, sImg, pTitle, pillars, _, _, _, _, _ :=
 		buildStorefrontEditorial(settings, storeName, gov.Notes)
 
+	fontPreset := "editorial_playfair"
+	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	}
+
 	data := storefront.AboutData{
 		StoreName:    storeName,
 		Slogan:       slogan,
 		PrimaryColor: primaryColor,
 		BGTone:       bgTone,
 		CleanPhone:   cleanPhone,
+		FontPreset:   fontPreset,
 		StoryBadge:   sBadge,
 		StoryTitle:   sTitle,
 		StoryText:    sText,
@@ -267,12 +285,18 @@ func (a *serveApp) storefrontContactHandler(w http.ResponseWriter, r *http.Reque
 		atHours = "Salı – Cumartesi: 10:30 – 19:00 (Pazar & Pazartesi randevu ile)"
 	}
 
+	fontPreset := "editorial_playfair"
+	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	}
+
 	data := storefront.ContactData{
 		StoreName:      storeName,
 		Slogan:         slogan,
 		PrimaryColor:   primaryColor,
 		BGTone:         bgTone,
 		CleanPhone:     cleanPhone,
+		FontPreset:     fontPreset,
 		AtelierAddress: atAddr,
 		AtelierHours:   atHours,
 		FAQs:           faqs,

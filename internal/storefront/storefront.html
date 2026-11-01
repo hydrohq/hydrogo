@@ -4,10 +4,68 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>{{.StoreName}} — {{.Slogan}}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    @font-face {
+      font-family: 'Playfair Display';
+      font-style: normal;
+      font-weight: 500 700;
+      font-display: swap;
+      src: url('/storefront/fonts/playfair-display-ext.woff2') format('woff2');
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+    }
+    @font-face {
+      font-family: 'Playfair Display';
+      font-style: normal;
+      font-weight: 500 700;
+      font-display: swap;
+      src: url('/storefront/fonts/playfair-display.woff2') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: normal;
+      font-weight: 500 700;
+      font-display: swap;
+      src: url('/storefront/fonts/cormorant-garamond-ext.woff2') format('woff2');
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+    }
+    @font-face {
+      font-family: 'Cormorant Garamond';
+      font-style: normal;
+      font-weight: 500 700;
+      font-display: swap;
+      src: url('/storefront/fonts/cormorant-garamond.woff2') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    @font-face {
+      font-family: 'Cinzel';
+      font-style: normal;
+      font-weight: 600 700;
+      font-display: swap;
+      src: url('/storefront/fonts/cinzel.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Syne';
+      font-style: normal;
+      font-weight: 700 800;
+      font-display: swap;
+      src: url('/storefront/fonts/syne.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Plus Jakarta Sans';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('/storefront/fonts/plus-jakarta-sans.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('/storefront/fonts/inter.woff2') format('woff2');
+    }
+
     :root {
       --bg-primary: {{.BGTone}};
       --bg-surface: #FFFFFF;
@@ -18,8 +76,8 @@
       --primary: {{.PrimaryColor}};
       --border: rgba(28, 25, 23, 0.08);
       --border-hover: rgba(28, 25, 23, 0.18);
-      --font-serif: 'Cormorant Garamond', Georgia, serif;
-      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-serif: {{.FontHeading}};
+      --font-sans: {{.FontBody}};
     }
 
     * {
@@ -631,8 +689,8 @@
     }
     @media (min-width: 768px) {
       .footer-grid {
-        grid-template-columns: 1.4fr 1fr 1fr;
-        gap: 48px;
+        grid-template-columns: 1.2fr 0.8fr 1fr 1fr;
+        gap: 36px;
       }
     }
     .footer-brand {
@@ -903,8 +961,13 @@
           <h2 class="hero-title">{{.HeroTitle}}</h2>
           <p class="hero-subtitle">{{.HeroSubtitle}}</p>
           <div class="hero-actions">
+            {{if eq .LayoutMode "multipage"}}
+            <a href="/kategori/tumu" class="btn-primary">Koleksiyonu Keşfet &rarr;</a>
+            <a href="/hakkimizda" class="btn-secondary">Atölye Hikayemiz &rarr;</a>
+            {{else}}
             <a href="#koleksiyon" class="btn-primary">Koleksiyonu İncele</a>
             <a href="#hikaye" class="btn-secondary">Atölye Hikayemiz</a>
+            {{end}}
           </div>
           <div class="hero-meta-row">
             <span>4.9 / 5 Zanaatkar Puanı</span>
@@ -927,6 +990,144 @@
     </div>
   </section>
 
+  {{if eq .LayoutMode "multipage"}}
+  <!-- MULTI-PAGE CURATED COLLECTION PREVIEW -->
+  <section style="padding: 70px 0;">
+    <div class="container">
+      <div class="catalog-header">
+        <div>
+          <p class="section-eyebrow">SEÇKİN ATÖLYE SERİSİ</p>
+          <h3 class="catalog-title">Öne Çıkan Seçkiler</h3>
+        </div>
+        <a href="/kategori/tumu" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+          Tüm Koleksiyonu Gör ({{len .Products}} Parça) &rarr;
+        </a>
+      </div>
+
+      <div class="product-grid">
+        {{range .FeaturedProducts}}
+        <article class="product-card" onclick="window.location.href='/urun/{{.Slug}}'" style="cursor: pointer;">
+          <div class="product-visual">
+            {{if .Badge}}
+            <span class="badge">{{.Badge}}</span>
+            {{end}}
+            {{if .ImageURL}}
+            <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy">
+            {{else}}
+            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#A8A29E; font-family:var(--font-serif); font-size:42px;">
+              ✦
+            </div>
+            {{end}}
+          </div>
+          <div class="product-info">
+            <h4 class="product-title">{{.Title}}</h4>
+            {{if .Description}}
+            <p class="product-desc-snippet">{{.Description}}</p>
+            {{end}}
+            <div class="product-footer">
+              <div class="price-group">
+                {{if gt .CompareAtPrice .Price}}
+                <span class="price-old">{{printf "%.0f" .CompareAtPrice}} TL</span>
+                {{end}}
+                <span class="price-current">{{printf "%.0f" .Price}} TL</span>
+              </div>
+              <span class="order-action-link">Ürünü İncele &rarr;</span>
+            </div>
+          </div>
+        </article>
+        {{end}}
+      </div>
+
+      <div style="text-align: center; margin-top: 48px;">
+        <a href="/kategori/tumu" class="btn-primary" style="padding: 14px 32px; font-size: 15px; text-decoration: none; display: inline-block;">
+          Tüm Koleksiyonu ve Kategorileri İncele ({{len .Products}} Parça) &rarr;
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Story Teaser Section -->
+  <section class="story-section">
+    <div class="container">
+      <div class="story-grid">
+        <div class="story-visual">
+          {{if .StoryImage}}
+          <img src="{{.StoryImage}}" alt="{{.StoryTitle}}" loading="lazy">
+          {{else}}
+          <img src="https://images.unsplash.com/photo-1576020799627-aeac76d580dc?auto=format&fit=crop&w=1000&q=80" alt="Zanaat" loading="lazy">
+          {{end}}
+        </div>
+        <div class="story-content">
+          <p class="section-eyebrow">{{.StoryBadge}}</p>
+          <h3 class="section-heading">{{.StoryTitle}}</h3>
+          <p class="story-text">{{.StoryText}}</p>
+          {{if .StoryQuote}}
+          <blockquote class="story-quote">
+            "{{.StoryQuote}}"
+          </blockquote>
+          {{end}}
+          <div style="margin-top: 24px;">
+            <a href="/hakkimizda" class="btn-primary" style="text-decoration: none; display: inline-block;">
+              Atölye Hikayemizin Tamamını Oku &rarr;
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Craft Pillars Section -->
+  <section class="pillars-section">
+    <div class="container">
+      <p class="section-eyebrow">ZANAAT STANDARTLARIMIZ</p>
+      <h3 class="section-heading">{{.PillarsTitle}}</h3>
+      <div class="pillars-grid">
+        {{range $i, $p := .Pillars}}
+        <div class="pillar-card">
+          <span class="pillar-num">0{{add $i 1}}</span>
+          <h4 class="pillar-title">{{$p.Title}}</h4>
+          <p class="pillar-desc">{{$p.Desc}}</p>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- Customer Testimonials -->
+  <section id="yorumlar">
+    <div class="container">
+      <p class="section-eyebrow">DENEYİMLER</p>
+      <h3 class="section-heading">Müşteri Notları</h3>
+      <div class="testimonials-grid">
+        {{range .Testimonials}}
+        <div class="testimonial-card">
+          <p class="testimonial-quote">"{{.Quote}}"</p>
+          <div>
+            <div class="testimonial-author">{{.Customer}}</div>
+            <div class="testimonial-location">{{.Location}} · {{.Item}}</div>
+          </div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <!-- Showroom & Contact Teaser Banner -->
+  <section style="padding: 60px 0; border-top: 1px solid var(--border); background: var(--bg-surface); margin-top: 60px;">
+    <div class="container" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px;">
+      <div>
+        <p class="section-eyebrow">ATÖLYE &amp; SHOWROOM</p>
+        <h3 style="font-family: var(--font-serif); font-size: 28px; margin: 6px 0 8px;">Ziyaret Edin veya İletişime Geçin</h3>
+        <p style="font-size: 14px; color: var(--text-muted); max-width: 540px; margin: 0;">{{.AtelierAddress}} &bull; {{.AtelierHours}}</p>
+      </div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="/iletisim" class="btn-primary" style="text-decoration: none;">İletişim &amp; Harita Bilgisi &rarr;</a>
+        <a href="https://wa.me/{{.CleanPhone}}" target="_blank" class="btn-secondary" style="text-decoration: none;">WhatsApp Destek Hattı &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  {{else}}
   <!-- Craft Pillars Section -->
   <section class="pillars-section" id="ilkeler">
     <div class="container">
@@ -957,7 +1158,7 @@
 
       <div class="product-grid">
         {{range .Products}}
-        <article class="product-card" {{if eq $.LayoutMode "multipage"}}onclick="window.location.href='/urun/{{.Slug}}'"{{else}}onclick="openDrawer('{{.ID}}')"{{end}} style="cursor: pointer;">
+        <article class="product-card" onclick="openDrawer('{{.ID}}')" style="cursor: pointer;">
           <div class="product-visual">
             {{if .Badge}}
             <span class="badge">{{.Badge}}</span>
@@ -1050,6 +1251,7 @@
       </div>
     </div>
   </section>
+  {{end}}
 
   <!-- Atelier Footer -->
   <footer>
@@ -1060,6 +1262,15 @@
           <p class="footer-desc">
             Atölyemizde tek tek el tornasında şekillenen, sofralar ve yaşam alanları için özenle üretilmiş el yapımı zanaat parçaları.
           </p>
+        </div>
+        <div>
+          <div class="footer-title">Sayfalar</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <a href="/" style="color: rgba(255,255,255,0.7); text-decoration: none;">Anasayfa</a>
+            <a href="/kategori/tumu" style="color: rgba(255,255,255,0.7); text-decoration: none;">Tüm Koleksiyon</a>
+            <a href="/hakkimizda" style="color: rgba(255,255,255,0.7); text-decoration: none;">Atölye Hikayesi</a>
+            <a href="/iletisim" style="color: rgba(255,255,255,0.7); text-decoration: none;">Showroom &amp; İletişim</a>
+          </div>
         </div>
         <div>
           <div class="footer-title">Ziyaret &amp; İletişim</div>
