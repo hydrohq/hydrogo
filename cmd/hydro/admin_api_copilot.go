@@ -77,6 +77,8 @@ func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request)
 				api.WriteError(w, r, http.StatusForbidden, "AI Copilot is disabled for this workspace", nil)
 				return
 			}
+			api.WriteError(w, r, http.StatusInternalServerError, "failed to check the workspace AI quota", nil)
+			return
 		}
 	} else {
 		gov = tenant.DefaultGovernance(tenantID)
@@ -92,9 +94,16 @@ func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if a.db != nil && tokensUsed > 0 {
-		if updatedGov, consumeErr := tenant.ConsumeAITokens(r.Context(), a.db, dialect, tenantID, tokensUsed); consumeErr == nil {
-			gov = updatedGov
+		updatedGov, consumeErr := tenant.ConsumeAITokens(r.Context(), a.db, dialect, tenantID, tokensUsed)
+		if consumeErr != nil {
+			if errors.Is(consumeErr, tenant.ErrAIQuotaExceeded) {
+				api.WriteError(w, r, http.StatusTooManyRequests, "monthly AI token quota exceeded for this workspace; nothing was changed", nil)
+				return
+			}
+			api.WriteError(w, r, http.StatusInternalServerError, "failed to record AI token usage; nothing was changed", nil)
+			return
 		}
+		gov = updatedGov
 	}
 
 	executedOps, execErr := a.executeCopilotOperations(r.Context(), plan.Operations)

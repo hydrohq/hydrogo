@@ -512,8 +512,8 @@ func ConsumeAITokens(ctx context.Context, db SQLExecutor, dialect, tenantID stri
 	if !gov.AIEnabled {
 		return gov, ErrAIDisabled
 	}
-	if gov.ComputeEffectiveState(time.Now().UTC()) != LifecycleActive {
-		return gov, fmt.Errorf("workspace is in %s state", gov.ComputeEffectiveState(time.Now().UTC()))
+	if effective := gov.ComputeEffectiveState(time.Now().UTC()); effective != LifecycleActive && effective != LifecycleDemo {
+		return gov, fmt.Errorf("workspace is in %s state", effective)
 	}
 	if tokens < 0 {
 		tokens = 0
