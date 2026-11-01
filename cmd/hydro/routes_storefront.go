@@ -20,11 +20,19 @@ import (
 func (a *serveApp) storefrontRoutes() []router.Route {
 	return []router.Route{
 		{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
+		{Pattern: "GET /urun/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontProductHandler)},
+		{Pattern: "GET /products/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontProductHandler)},
+		{Pattern: "GET /kategori/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontCategoryHandler)},
+		{Pattern: "GET /collections/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontCategoryHandler)},
+		{Pattern: "GET /hakkimizda", Access: router.Public, Handler: http.HandlerFunc(a.storefrontAboutHandler)},
+		{Pattern: "GET /about", Access: router.Public, Handler: http.HandlerFunc(a.storefrontAboutHandler)},
+		{Pattern: "GET /iletisim", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
+		{Pattern: "GET /contact", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 	}
 }
 
-func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
+func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Request) (tenant.Scope, tenant.Governance, map[string]any, []storefront.ProductView, bool) {
 	host := strings.ToLower(strings.TrimSpace(r.Host))
 	if i := strings.IndexByte(host, ':'); i > 0 {
 		host = host[:i]
@@ -38,7 +46,7 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. If console host, redirect to admin console
 	if host == consoleHost {
 		http.Redirect(w, r, "/admin/console", http.StatusTemporaryRedirect)
-		return
+		return tenant.Scope{}, tenant.Governance{}, nil, nil, false
 	}
 
 	// 2. Resolve tenant scope
@@ -54,7 +62,7 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 	// If not on a tenant host, fallback to admin redirect
 	if !tenantFound || scope.TenantID == "" {
 		http.Redirect(w, r, "/admin", http.StatusTemporaryRedirect)
-		return
+		return tenant.Scope{}, tenant.Governance{}, nil, nil, false
 	}
 
 	// 3. Load tenant governance
@@ -70,7 +78,7 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 			StoreName:  gov.DisplayName,
 			OwnerPhone: gov.OwnerPhone,
 		})
-		return
+		return tenant.Scope{}, gov, nil, nil, false
 	}
 
 	// 5. Query tenant store_settings and products
@@ -83,6 +91,15 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 	if len(products) == 0 {
 		_, defaultProds := a.fallbackCatalog(gov)
 		products = defaultProds
+	}
+
+	return scope, gov, settings, products, true
+}
+
+func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
+	_, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
+	if !ok {
+		return
 	}
 
 	cleanPhone := gov.OwnerPhone
@@ -130,6 +147,11 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		shopierURL = sh
 	}
 
+	layoutMode := "hybrid"
+	if lm, ok := settings["layout_mode"].(string); ok && strings.TrimSpace(lm) != "" {
+		layoutMode = strings.TrimSpace(lm)
+	}
+
 	isDemo := gov.LifecycleState == tenant.LifecycleDemo || gov.Status == "DEMO" || gov.Status == "demo"
 
 	// Build rich editorial storytelling, pillars, testimonials and FAQs
@@ -145,6 +167,7 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		ShopierURL:      shopierURL,
 		AnnouncementBar: announcement,
 		IsDemo:          isDemo,
+		LayoutMode:      layoutMode,
 		HeroBadge:       hBadge,
 		HeroTitle:       hTitle,
 		HeroSubtitle:    hSub,

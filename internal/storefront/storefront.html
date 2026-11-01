@@ -874,11 +874,17 @@
         {{end}}
       </a>
       <nav class="nav-links">
+        {{if eq .LayoutMode "multipage"}}
+        <a href="/kategori/tumu" class="nav-link">Koleksiyon</a>
+        <a href="/hakkimizda" class="nav-link">Atölye Hikayesi</a>
+        <a href="/iletisim" class="nav-link">İletişim &amp; Randevu</a>
+        {{else}}
         <a href="#koleksiyon" class="nav-link">Koleksiyon</a>
         <a href="#ilkeler" class="nav-link">Zanaat İlkeleri</a>
         <a href="#hikaye" class="nav-link">Atölye Hikayesi</a>
         <a href="#yorumlar" class="nav-link">Müşteri Notları</a>
         <a href="#sss" class="nav-link">SSS</a>
+        {{end}}
       </nav>
       <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="header-wa-btn">
         <span>Atölye Hattı</span>
@@ -951,7 +957,7 @@
 
       <div class="product-grid">
         {{range .Products}}
-        <article class="product-card" onclick="openDrawer('{{.ID}}')">
+        <article class="product-card" {{if eq $.LayoutMode "multipage"}}onclick="window.location.href='/urun/{{.Slug}}'"{{else}}onclick="openDrawer('{{.ID}}')"{{end}} style="cursor: pointer;">
           <div class="product-visual">
             {{if .Badge}}
             <span class="badge">{{.Badge}}</span>
@@ -1087,6 +1093,7 @@
       <div>
         <h3 class="drawer-prod-title" id="dTitle">Ürün Adı</h3>
         <div class="drawer-prod-price" id="dPrice">0 TL</div>
+        <a id="dDedicatedLink" href="#" style="display:inline-block; margin-top:6px; font-size:12px; color:var(--primary); text-decoration:underline; font-weight:500;">Ayrı Ürün Sayfasında Aç &amp; Paylaş ↗</a>
       </div>
       <button class="drawer-close" onclick="closeDrawer()">&times;</button>
     </div>
@@ -1143,6 +1150,11 @@
       document.getElementById('dTitle').textContent = activeProduct.title;
       document.getElementById('dPrice').textContent = Number(activeProduct.price).toLocaleString('tr-TR') + ' TL';
       document.getElementById('dDesc').textContent = activeProduct.description || '';
+
+      const dedicatedLink = document.getElementById('dDedicatedLink');
+      if (dedicatedLink) {
+        dedicatedLink.href = '/urun/' + (activeProduct.slug || activeProduct.id);
+      }
 
       // Sizes
       const sizeGroup = document.getElementById('sizeGroup');

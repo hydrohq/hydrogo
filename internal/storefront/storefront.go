@@ -10,26 +10,47 @@ import (
 	"sync"
 )
 
-//go:embed storefront.html suspended.html
+//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html
 var templateFS embed.FS
 
 var (
-	templatesOnce  sync.Once
-	storefrontTmpl *template.Template
-	suspendedTmpl  *template.Template
-	tmplErr        error
+	templatesOnce     sync.Once
+	storefrontTmpl    *template.Template
+	suspendedTmpl     *template.Template
+	productDetailTmpl *template.Template
+	categoryTmpl      *template.Template
+	aboutTmpl         *template.Template
+	contactTmpl       *template.Template
+	tmplErr           error
 )
 
 func initTemplates() {
 	templatesOnce.Do(func() {
 		funcs := template.FuncMap{
 			"add": func(a, b int) int { return a + b },
+			"urlquery": func(s string) string { return template.URLQueryEscaper(s) },
 		}
 		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html")
 		if tmplErr != nil {
 			return
 		}
 		suspendedTmpl, tmplErr = template.New("suspended.html").Funcs(funcs).ParseFS(templateFS, "suspended.html")
+		if tmplErr != nil {
+			return
+		}
+		productDetailTmpl, tmplErr = template.New("product_detail.html").Funcs(funcs).ParseFS(templateFS, "product_detail.html")
+		if tmplErr != nil {
+			return
+		}
+		categoryTmpl, tmplErr = template.New("category_view.html").Funcs(funcs).ParseFS(templateFS, "category_view.html")
+		if tmplErr != nil {
+			return
+		}
+		aboutTmpl, tmplErr = template.New("about_view.html").Funcs(funcs).ParseFS(templateFS, "about_view.html")
+		if tmplErr != nil {
+			return
+		}
+		contactTmpl, tmplErr = template.New("contact_view.html").Funcs(funcs).ParseFS(templateFS, "contact_view.html")
 	})
 }
 
@@ -45,6 +66,7 @@ type ProductView struct {
 	Sizes          string  `json:"sizes,omitempty"`
 	Colors         string  `json:"colors,omitempty"`
 	Badge          string  `json:"badge,omitempty"`
+	Category       string  `json:"category,omitempty"`
 	PaymentLink    string  `json:"payment_link,omitempty"`
 	InStock        bool    `json:"in_stock"`
 }
@@ -79,6 +101,7 @@ type StorefrontData struct {
 	ShopierURL      string
 	AnnouncementBar string
 	IsDemo          bool
+	LayoutMode      string // "multipage", "single_page", "hybrid"
 
 	// Rich Editorial Sections
 	HeroBadge      string
@@ -100,6 +123,59 @@ type StorefrontData struct {
 
 	Products     []ProductView
 	ProductsJSON template.JS
+}
+
+// ProductDetailData carries data for dedicated product page.
+type ProductDetailData struct {
+	StoreName       string
+	Slogan          string
+	PrimaryColor    string
+	BGTone          string
+	CleanPhone      string
+	ShopierURL      string
+	Product         ProductView
+	RelatedProducts []ProductView
+}
+
+// CategoryData carries data for category listing page.
+type CategoryData struct {
+	StoreName       string
+	Slogan          string
+	PrimaryColor    string
+	BGTone          string
+	CleanPhone      string
+	CurrentCategory string
+	Categories      []string
+	Products        []ProductView
+	TotalCount      int
+}
+
+// AboutData carries data for dedicated atelier/story page.
+type AboutData struct {
+	StoreName    string
+	Slogan       string
+	PrimaryColor string
+	BGTone       string
+	CleanPhone   string
+	StoryBadge   string
+	StoryTitle   string
+	StoryText    string
+	StoryQuote   string
+	StoryImage   string
+	PillarsTitle string
+	Pillars      []FeaturePillar
+}
+
+// ContactData carries data for dedicated contact page.
+type ContactData struct {
+	StoreName      string
+	Slogan         string
+	PrimaryColor   string
+	BGTone         string
+	CleanPhone     string
+	AtelierAddress string
+	AtelierHours   string
+	FAQs           []FAQItem
 }
 
 // SuspendedData carries data to render the maintenance/suspended page.
@@ -124,6 +200,9 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 	if data.BGTone == "" {
 		data.BGTone = "#FAF8F5"
 	}
+	if data.LayoutMode == "" {
+		data.LayoutMode = "hybrid"
+	}
 	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
 
 	prodsJSON, err := json.Marshal(data.Products)
@@ -142,6 +221,122 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
 	_, err = buf.WriteTo(w)
+	return err
+}
+
+// RenderProductDetail renders dedicated product detail view.
+func RenderProductDetail(w http.ResponseWriter, r *http.Request, data ProductDetailData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Boutique Atelier"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := productDetailTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// RenderCategory renders category collections view.
+func RenderCategory(w http.ResponseWriter, r *http.Request, data CategoryData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Boutique Atelier"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := categoryTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// RenderAbout renders dedicated atelier story view.
+func RenderAbout(w http.ResponseWriter, r *http.Request, data AboutData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Boutique Atelier"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := aboutTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// RenderContact renders dedicated contact and showroom view.
+func RenderContact(w http.ResponseWriter, r *http.Request, data ContactData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Boutique Atelier"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := contactTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	_, err := buf.WriteTo(w)
 	return err
 }
 

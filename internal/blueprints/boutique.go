@@ -31,6 +31,7 @@ func BoutiqueDefinitions() []contenttypes.Definition {
 				{ID: "shopier_url", Label: "Shopier / Ödeme Linki", Kind: "text"},
 				{ID: "payment_link", Label: "Ödeme Bağlantısı", Kind: "text"},
 				{ID: "announcement_bar", Label: "Duyuru Bandı", Kind: "text"},
+				{ID: "layout_mode", Label: "Vitrin Sayfa Mimarisi", Kind: "select", Options: []string{"hybrid", "single_page", "multipage"}},
 				// Cross-compatibility fields with existing boutique theme engine
 				{ID: "store_name", Label: "Mağaza Adı", Kind: "text"},
 				{ID: "slogan", Label: "Slogan", Kind: "text"},
