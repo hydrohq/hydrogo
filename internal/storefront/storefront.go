@@ -66,7 +66,7 @@ var (
 func initTemplates() {
 	templatesOnce.Do(func() {
 		funcs := template.FuncMap{
-			"add": func(a, b int) int { return a + b },
+			"add":      func(a, b int) int { return a + b },
 			"urlquery": func(s string) string { return template.URLQueryEscaper(s) },
 		}
 		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html")
