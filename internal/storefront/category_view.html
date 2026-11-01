@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{if eq .CurrentCategory "tumu"}}Tüm Koleksiyon{{else}}{{.CurrentCategory}}{{end}} — {{.StoreName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: {{.BGTone}};
+      --bg-surface: #FFFFFF;
+      --bg-subtle: #F3EFEA;
+      --text-primary: #1C1917;
+      --text-secondary: #57534E;
+      --text-muted: #78716C;
+      --primary: {{.PrimaryColor}};
+      --border: rgba(28, 25, 23, 0.08);
+      --border-hover: rgba(28, 25, 23, 0.18);
+      --font-serif: 'Cormorant Garamond', Georgia, serif;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header & Navigation */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      background: rgba(250, 248, 245, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-logo {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-link {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .nav-link:hover, .nav-link.active { color: var(--text-primary); font-weight: 600; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-whatsapp { background: #15803D; color: #fff; }
+    .btn-whatsapp:hover { background: #166534; }
+
+    /* Category Hero */
+    .category-hero {
+      max-width: 1200px;
+      margin: 40px auto 20px;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .category-title {
+      font-family: var(--font-serif);
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .category-subtitle {
+      font-size: 14.5px;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 24px;
+    }
+
+    /* Category Filter Pills */
+    .pills-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 40px;
+    }
+    .pill {
+      padding: 8px 18px;
+      border-radius: 9999px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .pill:hover {
+      border-color: var(--text-primary);
+      color: var(--text-primary);
+    }
+    .pill.active {
+      background: var(--text-primary);
+      color: #FAF8F5;
+      border-color: var(--text-primary);
+    }
+
+    /* Products Grid */
+    .catalog-section {
+      max-width: 1200px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+      width: 100%;
+    }
+    .catalog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 28px;
+    }
+    .product-card {
+      background: var(--bg-surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.25s ease;
+    }
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px -6px rgba(0,0,0,0.06);
+      border-color: var(--border-hover);
+    }
+    .card-img-wrap {
+      aspect-ratio: 4/5;
+      width: 100%;
+      background: var(--bg-subtle);
+      overflow: hidden;
+      position: relative;
+    }
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    .product-card:hover .card-img {
+      transform: scale(1.04);
+    }
+    .card-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(250, 248, 245, 0.95);
+      backdrop-filter: blur(8px);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .card-body {
+      padding: 18px 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .card-title {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .card-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .card-price {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .card-cta {
+      margin-top: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Footer */
+    .footer {
+      background: #1C1917;
+      color: #FAF8F5;
+      padding: 48px 24px 32px;
+      margin-top: auto;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #A8A29E;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="brand-logo">{{.StoreName}}</a>
+      <nav class="nav-links">
+        <a href="/" class="nav-link">Ana Sayfa</a>
+        <a href="/kategori/tumu" class="nav-link active">Koleksiyon</a>
+        <a href="/hakkimizda" class="nav-link">Hikayemiz</a>
+        <a href="/iletisim" class="nav-link">İletişim</a>
+      </nav>
+      <a href="https://wa.me/{{.CleanPhone}}" target="_blank" class="btn btn-whatsapp">
+        WhatsApp Sipariş ↗
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="category-hero">
+      <h1 class="category-title">
+        {{if eq .CurrentCategory "tumu"}}
+          Tüm Atölye Koleksiyonu
+        {{else}}
+          {{.CurrentCategory}}
+        {{end}}
+      </h1>
+      <p class="category-subtitle">
+        Her biri geleneksel dokunuşlarla şekillendirilmiş, atölyemizin özgün tasarım seçkisi.
+      </p>
+
+      <!-- Category Filter Pills -->
+      <div class="pills-container">
+        <a href="/kategori/tumu" class="pill {{if eq .CurrentCategory "tumu"}}active{{end}}">
+          Tümü ({{.TotalCount}})
+        </a>
+        {{range .Categories}}
+        <a href="/kategori/{{.}}" class="pill {{if eq $.CurrentCategory .}}active{{end}}">
+          {{.}}
+        </a>
+        {{end}}
+      </div>
+    </div>
+
+    <section class="catalog-section">
+      <div class="catalog-header">
+        <span>Toplam <strong>{{len .Products}}</strong> parça sergileniyor</span>
+        <span>Atölyeden Doğrudan Teslimat</span>
+      </div>
+
+      <div class="products-grid">
+        {{range .Products}}
+        <a href="/urun/{{.Slug}}" class="product-card">
+          <div class="card-img-wrap">
+            <img class="card-img" src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy" />
+            {{if .Badge}}
+              <span class="card-badge">{{.Badge}}</span>
+            {{end}}
+          </div>
+          <div class="card-body">
+            <h3 class="card-title">{{.Title}}</h3>
+            <div class="card-price-row">
+              <span class="card-price">{{printf "%.0f" .Price}} TL</span>
+              {{if gt .CompareAtPrice 0.0}}
+                <span style="font-size: 13px; color: var(--text-muted); text-decoration: line-through;">{{printf "%.0f" .CompareAtPrice}} TL</span>
+              {{end}}
+            </div>
+            <span class="card-cta">Detayları İncele →</span>
+          </div>
+        </a>
+        {{end}}
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 20px;">
+        <div>
+          <span style="font-family: var(--font-serif); font-size: 24px; font-weight: 700;">{{.StoreName}}</span>
+          <p style="font-size: 13px; color: #A8A29E; margin-top: 4px;">{{.Slogan}}</p>
+        </div>
+        <div style="display: flex; gap: 20px; font-size: 13px;">
+          <a href="/" style="color: #A8A29E; text-decoration: none;">Ana Sayfa</a>
+          <a href="/kategori/tumu" style="color: #A8A29E; text-decoration: none;">Koleksiyon</a>
+          <a href="/hakkimizda" style="color: #A8A29E; text-decoration: none;">Hikayemiz</a>
+          <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© {{.StoreName}} Atölyesi. Tüm hakları saklıdır.</span>
+        <span>HydroGo Butik Altyapısı</span>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

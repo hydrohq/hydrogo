@@ -108,3 +108,123 @@ func TestRenderSuspended(t *testing.T) {
 		t.Errorf("expected maintenance message in body")
 	}
 }
+
+func TestRenderProductDetail(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/urun/stoneware-kupa", nil)
+
+	data := ProductDetailData{
+		StoreName:    "Vera Seramik",
+		PrimaryColor: "#1B5E43",
+		CleanPhone:   "05551234567",
+		Product: ProductView{
+			ID:          "prod-1",
+			Title:       "El Yapımı Stoneware Kupa",
+			Slug:        "stoneware-kupa",
+			Price:       450,
+			Description: "1240 derecede fırınlanmış özel tasarım kupa.",
+			InStock:     true,
+			Badge:       "Çok Satan",
+		},
+		RelatedProducts: []ProductView{
+			{ID: "prod-2", Title: "Espresso Fincanı", Slug: "espresso-fincani", Price: 320, InStock: true},
+		},
+	}
+
+	err := RenderProductDetail(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderProductDetail error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "El Yapımı Stoneware Kupa") {
+		t.Errorf("expected product title in body")
+	}
+	if !strings.Contains(body, "Espresso Fincanı") {
+		t.Errorf("expected related product title in body")
+	}
+	if !strings.Contains(body, "WhatsApp ile Doğrudan Sipariş Ver") {
+		t.Errorf("expected WhatsApp order button in body")
+	}
+}
+
+func TestRenderCategory(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/kategori/kupalar", nil)
+
+	data := CategoryData{
+		StoreName:       "Vera Seramik",
+		CurrentCategory: "Kupalar",
+		Categories:      []string{"Kupalar", "Tabaklar"},
+		TotalCount:      1,
+		Products: []ProductView{
+			{ID: "prod-1", Title: "Stoneware Kupa", Slug: "stoneware-kupa", Price: 450, InStock: true},
+		},
+	}
+
+	err := RenderCategory(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderCategory error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Kupalar") {
+		t.Errorf("expected category title in body")
+	}
+	if !strings.Contains(body, "Stoneware Kupa") {
+		t.Errorf("expected product in body")
+	}
+}
+
+func TestRenderAbout(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/hakkimizda", nil)
+
+	data := AboutData{
+		StoreName:  "Vera Seramik",
+		StoryBadge: "ZANAAT VE SABIR",
+		StoryTitle: "Topraktan Doğan Sanat",
+		StoryText:  "Atölyemizde her parça elde şekillenir.",
+		Pillars: []FeaturePillar{
+			{Title: "Doğal Hammadde", Desc: "Kurşunsuz sırlar."},
+		},
+	}
+
+	err := RenderAbout(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderAbout error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Topraktan Doğan Sanat") {
+		t.Errorf("expected story title in body")
+	}
+	if !strings.Contains(body, "Doğal Hammadde") {
+		t.Errorf("expected pillar in body")
+	}
+}
+
+func TestRenderContact(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/iletisim", nil)
+
+	data := ContactData{
+		StoreName:      "Vera Seramik",
+		CleanPhone:     "05551234567",
+		AtelierAddress: "Kadıköy Moda Cad. No: 12",
+		AtelierHours:   "Hafta içi 10:00 - 19:00",
+	}
+
+	err := RenderContact(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderContact error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Kadıköy Moda Cad. No: 12") {
+		t.Errorf("expected address in body")
+	}
+	if !strings.Contains(body, "WhatsApp Destek") {
+		t.Errorf("expected WhatsApp button in body")
+	}
+}

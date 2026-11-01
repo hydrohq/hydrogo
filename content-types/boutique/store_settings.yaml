@@ -13,6 +13,7 @@ fields:
   - {id: whatsapp_number, label: WhatsApp Sipariş Hattı (+905...), kind: text, required: true, list: true}
   - {id: instagram_handle, label: Instagram Kullanıcı Adı, kind: text}
   - {id: announcement_bar, label: Üst Duyuru Bandı (Kargo / İndirim), kind: text}
+  - {id: layout_mode, label: Vitrin Sayfa Mimarisi, kind: select, options: [hybrid, single_page, multipage]}
   - {id: free_shipping_threshold, label: Ücretsiz Kargo Alt Limiti (TL), kind: number, min: 0}
   - {id: theme_preset, label: Tasarım Şablonu, kind: select, options: [minimal_cream, noir_gold, pastel_blush, emerald_silk], filterable: true}
   - {id: bg_primary_color, label: Arka Plan Rengi (Hex), kind: text}

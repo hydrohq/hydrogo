@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hikayemiz & Atölye — {{.StoreName}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: {{.BGTone}};
+      --bg-surface: #FFFFFF;
+      --bg-subtle: #F3EFEA;
+      --text-primary: #1C1917;
+      --text-secondary: #57534E;
+      --text-muted: #78716C;
+      --primary: {{.PrimaryColor}};
+      --border: rgba(28, 25, 23, 0.08);
+      --border-hover: rgba(28, 25, 23, 0.18);
+      --font-serif: 'Cormorant Garamond', Georgia, serif;
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header & Navigation */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      background: rgba(250, 248, 245, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-logo {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-link {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .nav-link:hover, .nav-link.active { color: var(--text-primary); font-weight: 600; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-whatsapp { background: #15803D; color: #fff; }
+    .btn-whatsapp:hover { background: #166534; }
+    .btn-primary { background: var(--text-primary); color: #fff; }
+    .btn-primary:hover { background: #292524; }
+
+    /* Story Hero */
+    .story-hero {
+      max-width: 1000px;
+      margin: 60px auto 40px;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+    .story-title {
+      font-family: var(--font-serif);
+      font-size: 46px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+    }
+    .story-lead {
+      font-size: 17px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    /* Atelier Image Banner */
+    .atelier-banner {
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+    .banner-img-wrap {
+      width: 100%;
+      height: 480px;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .banner-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Editorial Narrative */
+    .narrative-section {
+      max-width: 780px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+      font-size: 16px;
+      line-height: 1.85;
+      color: var(--text-secondary);
+    }
+    .narrative-section p {
+      margin-bottom: 24px;
+    }
+    .quote-box {
+      border-left: 3px solid var(--text-primary);
+      padding: 20px 0 20px 24px;
+      margin: 36px 0;
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-style: italic;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    /* Pillars Grid */
+    .pillars-section {
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 80px 24px;
+    }
+    .pillars-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 32px;
+      margin-top: 40px;
+    }
+    .pillar-card {
+      background: var(--bg-surface);
+      padding: 32px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    .pillar-title {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+    .pillar-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    .footer {
+      background: #1C1917;
+      color: #FAF8F5;
+      padding: 48px 24px 32px;
+      margin-top: auto;
+    }
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #A8A29E;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="brand-logo">{{.StoreName}}</a>
+      <nav class="nav-links">
+        <a href="/" class="nav-link">Ana Sayfa</a>
+        <a href="/kategori/tumu" class="nav-link">Koleksiyon</a>
+        <a href="/hakkimizda" class="nav-link active">Hikayemiz</a>
+        <a href="/iletisim" class="nav-link">İletişim</a>
+      </nav>
+      <a href="/kategori/tumu" class="btn btn-primary" style="padding: 9px 18px; font-size: 13px;">
+        Koleksiyonu Keşfet →
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="story-hero">
+      <span class="badge-pill">{{.StoryBadge}}</span>
+      <h1 class="story-title">{{.StoryTitle}}</h1>
+      <p class="story-lead">
+        Her bir parça, aceleye getirilmemiş saatlerin, el emeğinin ve malzemenin doğasına duyulan derin saygının bir ifadesidir.
+      </p>
+    </div>
+
+    {{if .StoryImage}}
+    <div class="atelier-banner">
+      <div class="banner-img-wrap">
+        <img class="banner-img" src="{{.StoryImage}}" alt="{{.StoreName}} Atölyesi" />
+      </div>
+    </div>
+    {{end}}
+
+    <section class="narrative-section">
+      <p>
+        {{.StoryText}}
+      </p>
+
+      {{if .StoryQuote}}
+      <div class="quote-box">
+        "{{.StoryQuote}}"
+      </div>
+      {{end}}
+
+      <p>
+        Seri üretimin getirdiği tektipliğe karşı, el yapımı nesnelerin taşıdığı hafif kusurların, el izlerinin ve dokusal farklılıkların gerçek lüks olduğuna inanıyoruz. Atölyemizden çıkan her fincan, vazo veya dekoratif form, nesilden nesile aktarılabilecek bir zarafet taşır.
+      </p>
+
+      <div style="text-align: center; margin-top: 48px;">
+        <a href="/kategori/tumu" class="btn btn-primary" style="height: 48px; font-size: 15px;">
+          Atölye Tasarımlarını İncele →
+        </a>
+      </div>
+    </section>
+
+    <!-- Craft Pillars -->
+    {{if .Pillars}}
+    <section class="pillars-section">
+      <div class="pillars-inner">
+        <div style="text-align: center;">
+          <h2 style="font-family: var(--font-serif); font-size: 34px; font-weight: 700; color: var(--text-primary);">
+            {{if .PillarsTitle}}{{.PillarsTitle}}{{else}}Zanaat & Üretim İlkelerimiz{{end}}
+          </h2>
+          <p style="font-size: 14px; color: var(--text-muted); margin-top: 6px;">
+            Her parçada taviz vermediğimiz temel atölye standartlarımız
+          </p>
+        </div>
+
+        <div class="pillars-grid">
+          {{range .Pillars}}
+          <div class="pillar-card">
+            <h3 class="pillar-title">{{.Title}}</h3>
+            <p class="pillar-desc">{{.Desc}}</p>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </section>
+    {{end}}
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 20px;">
+        <div>
+          <span style="font-family: var(--font-serif); font-size: 24px; font-weight: 700;">{{.StoreName}}</span>
+          <p style="font-size: 13px; color: #A8A29E; margin-top: 4px;">{{.Slogan}}</p>
+        </div>
+        <div style="display: flex; gap: 20px; font-size: 13px;">
+          <a href="/" style="color: #A8A29E; text-decoration: none;">Ana Sayfa</a>
+          <a href="/kategori/tumu" style="color: #A8A29E; text-decoration: none;">Koleksiyon</a>
+          <a href="/hakkimizda" style="color: #A8A29E; text-decoration: none;">Hikayemiz</a>
+          <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© {{.StoreName}} Atölyesi. Tüm hakları saklıdır.</span>
+        <span>HydroGo Butik Altyapısı</span>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
