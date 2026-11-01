@@ -105,11 +105,28 @@ type chatMessage struct {
 }
 
 func (p OpenAICompatible) endpoint() (*url.URL, error) {
-	parsed, err := url.Parse(strings.TrimSpace(p.Endpoint))
-	if err != nil || parsed.Hostname() == "" || parsed.User != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+	parsed, err := endpointSecurityCheck(p.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasSuffix(parsed.Path, "/chat/completions") {
+		parsed.Path = strings.TrimRight(parsed.Path, "/") + "/chat/completions"
+	}
+	return parsed, nil
+}
+
+// endpointSecurityCheck validates a provider endpoint before any request is
+// made: https anywhere, http only on loopback (local Ollama and friends), and
+// never with embedded credentials. This is the SSRF gate for operator-provided
+// HYDRO_AI_BASE_URL values on every adapter.
+func endpointSecurityCheck(raw string) (*url.URL, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Hostname() == "" || parsed.User != nil {
 		return nil, errors.New("invalid AI provider endpoint")
 	}
-	if parsed.Scheme == "http" {
+	switch parsed.Scheme {
+	case "https":
+	case "http":
 		ip := net.ParseIP(parsed.Hostname())
 		if ip == nil {
 			if parsed.Hostname() != "localhost" {
@@ -118,9 +135,8 @@ func (p OpenAICompatible) endpoint() (*url.URL, error) {
 		} else if !ip.IsLoopback() {
 			return nil, errors.New("unencrypted AI endpoint must be loopback")
 		}
-	}
-	if !strings.HasSuffix(parsed.Path, "/chat/completions") {
-		parsed.Path = strings.TrimRight(parsed.Path, "/") + "/chat/completions"
+	default:
+		return nil, errors.New("invalid AI provider endpoint")
 	}
 	return parsed, nil
 }
