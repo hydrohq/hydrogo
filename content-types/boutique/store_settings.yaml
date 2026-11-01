@@ -14,7 +14,7 @@ fields:
   - {id: instagram_handle, label: Instagram Kullanıcı Adı, kind: text}
   - {id: announcement_bar, label: Üst Duyuru Bandı (Kargo / İndirim), kind: text}
   - {id: layout_mode, label: Vitrin Sayfa Mimarisi, kind: select, options: [hybrid, single_page, multipage]}
-  - {id: font_preset, label: Tipografi & Yazı Tipi Paleti, kind: select, options: [editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
+  - {id: font_preset, label: Tipografi & Yazı Tipi Paleti, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
   - {id: free_shipping_threshold, label: Ücretsiz Kargo Alt Limiti (TL), kind: number, min: 0}
   - {id: theme_preset, label: Tasarım Şablonu, kind: select, options: [minimal_cream, noir_gold, pastel_blush, emerald_silk], filterable: true}
   - {id: bg_primary_color, label: Arka Plan Rengi (Hex), kind: text}

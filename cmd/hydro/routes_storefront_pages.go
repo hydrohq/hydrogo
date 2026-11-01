@@ -78,7 +78,7 @@ func (a *serveApp) storefrontProductHandler(w http.ResponseWriter, r *http.Reque
 		shopierURL = sh
 	}
 
-	fontPreset := "editorial_playfair"
+	fontPreset := "v0_geist"
 	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
 		fontPreset = strings.TrimSpace(fp)
 	}
@@ -163,7 +163,7 @@ func (a *serveApp) storefrontCategoryHandler(w http.ResponseWriter, r *http.Requ
 		cleanPhone = strings.TrimSpace(phone)
 	}
 
-	fontPreset := "editorial_playfair"
+	fontPreset := "v0_geist"
 	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
 		fontPreset = strings.TrimSpace(fp)
 	}
@@ -219,7 +219,7 @@ func (a *serveApp) storefrontAboutHandler(w http.ResponseWriter, r *http.Request
 	_, _, _, _, sBadge, sTitle, sText, sQuote, sImg, pTitle, pillars, _, _, _, _, _ :=
 		buildStorefrontEditorial(settings, storeName, gov.Notes)
 
-	fontPreset := "editorial_playfair"
+	fontPreset := "v0_geist"
 	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
 		fontPreset = strings.TrimSpace(fp)
 	}
@@ -285,7 +285,7 @@ func (a *serveApp) storefrontContactHandler(w http.ResponseWriter, r *http.Reque
 		atHours = "Salı – Cumartesi: 10:30 – 19:00 (Pazar & Pazartesi randevu ile)"
 	}
 
-	fontPreset := "editorial_playfair"
+	fontPreset := "v0_geist"
 	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
 		fontPreset = strings.TrimSpace(fp)
 	}

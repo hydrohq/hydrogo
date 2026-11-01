@@ -32,7 +32,7 @@ func BoutiqueDefinitions() []contenttypes.Definition {
 				{ID: "payment_link", Label: "Ödeme Bağlantısı", Kind: "text"},
 				{ID: "announcement_bar", Label: "Duyuru Bandı", Kind: "text"},
 				{ID: "layout_mode", Label: "Vitrin Sayfa Mimarisi", Kind: "select", Options: []string{"hybrid", "single_page", "multipage"}},
-				{ID: "font_preset", Label: "Tipografi & Yazı Tipi Paleti", Kind: "select", Options: []string{"editorial_playfair", "artisan_garamond", "monumental_cinzel", "avantgarde_syne", "modern_grotesk"}},
+				{ID: "font_preset", Label: "Tipografi & Yazı Tipi Paleti", Kind: "select", Options: []string{"v0_geist", "editorial_playfair", "artisan_garamond", "monumental_cinzel", "avantgarde_syne", "modern_grotesk"}},
 				// Cross-compatibility fields with existing boutique theme engine
 				{ID: "store_name", Label: "Mağaza Adı", Kind: "text"},
 				{ID: "slogan", Label: "Slogan", Kind: "text"},
