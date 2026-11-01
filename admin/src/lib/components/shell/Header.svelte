@@ -36,6 +36,7 @@
     if (path.startsWith('/commerce')) return t('nav.orders');
     if (path.startsWith('/site')) return t('title.siteSettings');
     if (path.startsWith('/users')) return t('title.users');
+    if (path.startsWith('/roles')) return 'Roller ve İzinler';
     if (path.startsWith('/account')) return t('title.account');
     if (path.startsWith('/audit')) return t('title.audit');
     if (path.startsWith('/system')) return t('nav.telemetry');
