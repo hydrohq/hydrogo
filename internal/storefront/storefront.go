@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html fonts/*
+//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html sections/*.html fonts/*
 var templateFS embed.FS
 
 // ResolveFontFamilies returns CSS font families (heading, body) for a given typography preset.
@@ -66,7 +66,7 @@ var (
 func initTemplates() {
 	templatesOnce.Do(func() {
 		funcs := template.FuncMap{
-			"add": func(a, b int) int { return a + b },
+			"add":      func(a, b int) int { return a + b },
 			"urlquery": func(s string) string { return template.URLQueryEscaper(s) },
 		}
 		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html")
@@ -166,6 +166,11 @@ type StorefrontData struct {
 	Products         []ProductView
 	FeaturedProducts []ProductView
 	ProductsJSON     template.JS
+
+	// Dynamic Sectional Architecture (ADR-0031)
+	LayoutJSON       string
+	RenderedSections []template.HTML
+	HasCustomLayout  bool
 }
 
 // ProductDetailData carries data for dedicated product page.
@@ -279,6 +284,14 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 		data.ProductsJSON = template.JS(prodsJSON) // #nosec G203 -- sanitized JSON of product catalog
 	} else {
 		data.ProductsJSON = template.JS("[]")
+	}
+
+	if strings.TrimSpace(data.LayoutJSON) != "" {
+		secs, err := ParseAndRenderSections(data.LayoutJSON, data)
+		if err == nil && len(secs) > 0 {
+			data.RenderedSections = secs
+			data.HasCustomLayout = true
+		}
 	}
 
 	var buf bytes.Buffer

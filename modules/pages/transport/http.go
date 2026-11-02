@@ -17,6 +17,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/preview"
 	"github.com/ardaozyildirim/hydrogo/internal/realtime"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/pages"
 	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
 	"github.com/ardaozyildirim/hydrogo/modules/seo"
@@ -49,7 +50,13 @@ type Handler struct {
 	Presence            *realtime.Presence
 	Assistant           ai.Assistant
 	AIAudit             audit.Writer
-	ContentViews        interface {
+	// AIDB, Dialect and AILimiter enforce the tenant AI token quota and
+	// rate-limit the suggestion endpoint; without them the assistant runs
+	// unbounded. AIDB is the query-capable handle quota accounting needs.
+	AIDB         database.QueryExecutor
+	Dialect      string
+	AILimiter    security.RateLimiter
+	ContentViews interface {
 		ContentViewCounts(context.Context, string, string, []string) (map[string]int64, error)
 	}
 	AnalyticsEnabled bool

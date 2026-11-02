@@ -33,35 +33,38 @@ var (
 
 // Governance holds the platform orchestrator's resource, lifecycle, domain, and AI controls for a tenant workspace.
 type Governance struct {
-	TenantID            string    `json:"tenant_id"`
-	DisplayName         string    `json:"display_name"`
-	Subdomain           string    `json:"subdomain"`
-	CustomDomain        string    `json:"custom_domain"`
-	DNSVerified         bool      `json:"dns_verified"`
-	Slug                string    `json:"slug,omitempty"`
-	Status              string    `json:"status,omitempty"`
-	Blueprint           string    `json:"blueprint"`
-	Plan                string    `json:"plan"`
-	LifecycleState      string    `json:"lifecycle_state"`
-	EffectiveState      string    `json:"effective_state"`
-	TrialEndsAt         string    `json:"trial_ends_at,omitempty"`
-	SubscriptionEndsAt  string    `json:"subscription_ends_at,omitempty"`
-	MaxStorageBytes     int64     `json:"max_storage_bytes"`
-	MaxRecords          int       `json:"max_records"`
-	RateLimitRPS        int       `json:"rate_limit_rps"`
-	MaxConcurrentReqs   int       `json:"max_concurrent_reqs"`
-	MaxUploadBytes      int64     `json:"max_upload_bytes"`
-	AIEnabled           bool      `json:"ai_enabled"`
-	AIProvider          string    `json:"ai_provider"`
-	AIModel             string    `json:"ai_model"`
-	AIEncryptedAPIKey   string    `json:"-"`
-	HasCustomAPIKey     bool      `json:"has_custom_api_key"`
-	AIMonthlyTokenLimit int64     `json:"ai_monthly_token_limit"`
-	AITokensUsed        int64     `json:"ai_tokens_used"`
-	OwnerPhone          string    `json:"owner_phone"`
-	Notes               string    `json:"notes"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	TenantID            string `json:"tenant_id"`
+	DisplayName         string `json:"display_name"`
+	Subdomain           string `json:"subdomain"`
+	CustomDomain        string `json:"custom_domain"`
+	DNSVerified         bool   `json:"dns_verified"`
+	Slug                string `json:"slug,omitempty"`
+	Status              string `json:"status,omitempty"`
+	Blueprint           string `json:"blueprint"`
+	Plan                string `json:"plan"`
+	LifecycleState      string `json:"lifecycle_state"`
+	EffectiveState      string `json:"effective_state"`
+	TrialEndsAt         string `json:"trial_ends_at,omitempty"`
+	SubscriptionEndsAt  string `json:"subscription_ends_at,omitempty"`
+	MaxStorageBytes     int64  `json:"max_storage_bytes"`
+	MaxRecords          int    `json:"max_records"`
+	RateLimitRPS        int    `json:"rate_limit_rps"`
+	MaxConcurrentReqs   int    `json:"max_concurrent_reqs"`
+	MaxUploadBytes      int64  `json:"max_upload_bytes"`
+	AIEnabled           bool   `json:"ai_enabled"`
+	AIProvider          string `json:"ai_provider"`
+	AIModel             string `json:"ai_model"`
+	AIEncryptedAPIKey   string `json:"-"`
+	HasCustomAPIKey     bool   `json:"has_custom_api_key"`
+	AIMonthlyTokenLimit int64  `json:"ai_monthly_token_limit"`
+	AITokensUsed        int64  `json:"ai_tokens_used"`
+	// AITokenPeriod is the "YYYY-MM" bucket AITokensUsed belongs to; crossing
+	// into a new calendar month resets the counter instead of requiring a job.
+	AITokenPeriod string    `json:"ai_token_period"`
+	OwnerPhone    string    `json:"owner_phone"`
+	Notes         string    `json:"notes"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // WorkspaceSummary combines Governance controls with live storage, record, and AI utilization metrics.
@@ -205,11 +208,11 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 	cols := `tenant_id, display_name, subdomain, custom_domain, blueprint, plan, lifecycle_state,
 		trial_ends_at, subscription_ends_at, max_storage_bytes, max_records, rate_limit_rps,
 		max_concurrent_reqs, max_upload_bytes, ai_enabled, ai_provider, ai_model,
-		ai_encrypted_api_key, ai_monthly_token_limit, ai_tokens_used, owner_phone, notes,
+		ai_encrypted_api_key, ai_monthly_token_limit, ai_tokens_used, ai_token_period, owner_phone, notes,
 		created_at, updated_at, dns_verified`
 
 	var ph []string
-	for i := 1; i <= 25; i++ {
+	for i := 1; i <= 26; i++ {
 		ph = append(ph, placeholder(dialect, i))
 	}
 	valuesClause := strings.Join(ph, ", ")
@@ -237,6 +240,7 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 				ai_encrypted_api_key = VALUES(ai_encrypted_api_key),
 				ai_monthly_token_limit = VALUES(ai_monthly_token_limit),
 				ai_tokens_used = VALUES(ai_tokens_used),
+				ai_token_period = VALUES(ai_token_period),
 				owner_phone = VALUES(owner_phone),
 				notes = VALUES(notes),
 				updated_at = VALUES(updated_at),
@@ -263,6 +267,7 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 				ai_encrypted_api_key = excluded.ai_encrypted_api_key,
 				ai_monthly_token_limit = excluded.ai_monthly_token_limit,
 				ai_tokens_used = excluded.ai_tokens_used,
+				ai_token_period = excluded.ai_token_period,
 				owner_phone = excluded.owner_phone,
 				notes = excluded.notes,
 				updated_at = excluded.updated_at,
@@ -290,6 +295,7 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 		gov.AIEncryptedAPIKey,
 		gov.AIMonthlyTokenLimit,
 		gov.AITokensUsed,
+		strings.TrimSpace(gov.AITokenPeriod),
 		strings.TrimSpace(gov.OwnerPhone),
 		gov.Notes,
 		dbTime(dialect, gov.CreatedAt),
@@ -303,7 +309,7 @@ const selectGovernanceColumns = `tenant_id, display_name, subdomain, custom_doma
 	trial_ends_at, subscription_ends_at, max_storage_bytes, max_records, rate_limit_rps,
 	max_concurrent_reqs, max_upload_bytes, ai_enabled, ai_provider, ai_model,
 	COALESCE(ai_encrypted_api_key, ''), ai_monthly_token_limit, ai_tokens_used,
-	owner_phone, COALESCE(notes, ''), created_at, updated_at, COALESCE(dns_verified, 0)`
+	COALESCE(ai_token_period, ''), owner_phone, COALESCE(notes, ''), created_at, updated_at, COALESCE(dns_verified, 0)`
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -334,6 +340,7 @@ func scanGovernance(scanner rowScanner, now time.Time) (Governance, error) {
 		&gov.AIEncryptedAPIKey,
 		&gov.AIMonthlyTokenLimit,
 		&gov.AITokensUsed,
+		&gov.AITokenPeriod,
 		&gov.OwnerPhone,
 		&gov.Notes,
 		&createdRaw,
@@ -512,11 +519,25 @@ func ConsumeAITokens(ctx context.Context, db SQLExecutor, dialect, tenantID stri
 	if !gov.AIEnabled {
 		return gov, ErrAIDisabled
 	}
-	if gov.ComputeEffectiveState(time.Now().UTC()) != LifecycleActive {
-		return gov, fmt.Errorf("workspace is in %s state", gov.ComputeEffectiveState(time.Now().UTC()))
+	if effective := gov.ComputeEffectiveState(time.Now().UTC()); effective != LifecycleActive && effective != LifecycleDemo {
+		return gov, fmt.Errorf("workspace is in %s state", effective)
 	}
 	if tokens < 0 {
 		tokens = 0
+	}
+	// Crossed into a new calendar month: previous usage no longer counts. The
+	// reset is folded into consumption so no scheduler is required and the
+	// counter self-heals on first use after the rollover.
+	now := time.Now().UTC()
+	period := now.Format("2006-01")
+	if gov.AITokenPeriod != period {
+		p1, p2, p3 := placeholder(dialect, 1), placeholder(dialect, 2), placeholder(dialect, 3)
+		resetQuery := `UPDATE tenant_governance SET ai_tokens_used = 0, ai_token_period = ` + p1 + `, updated_at = ` + p2 + ` WHERE tenant_id = ` + p3
+		if _, err := db.ExecContext(ctx, resetQuery, period, dbTime(dialect, now), tenantID); err != nil {
+			return gov, err
+		}
+		gov.AITokensUsed = 0
+		gov.AITokenPeriod = period
 	}
 	if gov.AIMonthlyTokenLimit > 0 && ((tokens == 0 && gov.AITokensUsed >= gov.AIMonthlyTokenLimit) || gov.AITokensUsed+tokens > gov.AIMonthlyTokenLimit) {
 		return gov, &QuotaError{
@@ -531,7 +552,7 @@ func ConsumeAITokens(ctx context.Context, db SQLExecutor, dialect, tenantID stri
 	if tokens > 0 {
 		p1, p2, p3 := placeholder(dialect, 1), placeholder(dialect, 2), placeholder(dialect, 3)
 		query := `UPDATE tenant_governance SET ai_tokens_used = ai_tokens_used + ` + p1 + `, updated_at = ` + p2 + ` WHERE tenant_id = ` + p3
-		if _, err := db.ExecContext(ctx, query, tokens, dbTime(dialect, time.Now().UTC()), tenantID); err != nil {
+		if _, err := db.ExecContext(ctx, query, tokens, dbTime(dialect, now), tenantID); err != nil {
 			return gov, err
 		}
 		gov.AITokensUsed += tokens

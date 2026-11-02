@@ -1,0 +1,29 @@
+<section id="koleksiyon" style="padding: 70px 0;">
+  <div class="container">
+    <div class="catalog-header">
+      <div>
+        <p class="section-eyebrow">{{.Subtitle}}</p>
+        <h3 class="catalog-title">{{.Title}}</h3>
+      </div>
+      <a href="/kategori/tumu" class="btn-secondary" style="font-size: 13px; text-decoration: none;">
+        Tüm Koleksiyonu Gör ({{len .Products}} Parça) &rarr;
+      </a>
+    </div>
+    <div class="catalog-grid">
+      {{range .Products}}
+      <div class="product-card" onclick="openDrawer('{{.ID}}')">
+        <div class="product-visual">
+          <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy">
+          {{if .Badge}}
+          <span class="product-badge">{{.Badge}}</span>
+          {{end}}
+        </div>
+        <div class="product-info">
+          <h4 class="product-title">{{.Title}}</h4>
+          <div class="product-price">{{printf "%.0f" .Price}} TL</div>
+        </div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</section>

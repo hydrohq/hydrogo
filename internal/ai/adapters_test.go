@@ -2,8 +2,10 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +27,38 @@ func TestEncryptAndDecryptBYOKAPIKey(t *testing.T) {
 	}
 	if decrypted != rawKey {
 		t.Fatalf("expected %q, got %q", rawKey, decrypted)
+	}
+}
+
+func TestBYOKEncryptionRefusesMissingMasterSecret(t *testing.T) {
+	if _, err := EncryptAPIKey("sk-live-tenant-key", ""); !errors.Is(err, ErrEncryptionNotConfigured) {
+		t.Fatalf("expected ErrEncryptionNotConfigured, got %v", err)
+	}
+	if _, err := DecryptAPIKey("enc:v1:abc", "   "); !errors.Is(err, ErrEncryptionNotConfigured) {
+		t.Fatalf("expected ErrEncryptionNotConfigured on decrypt, got %v", err)
+	}
+}
+
+func TestAdapterEndpointsRejectNonLoopbackHTTP(t *testing.T) {
+	ctx := context.Background()
+	blocked := []string{
+		"http://169.254.169.254/latest/meta-data",
+		"http://internal-admin:8080/",
+		"https://user:pass@evil.example/",
+	}
+	for _, endpoint := range blocked {
+		for _, provider := range []string{"gemini", "anthropic", "openai"} {
+			adapter := NewAdapter(AdapterConfig{Provider: provider, APIKey: "k", Endpoint: endpoint})
+			if _, err := adapter.Generate(ctx, ChatRequest{Messages: []ChatMessage{{Role: "user", Content: "hi"}}}); err == nil {
+				t.Fatalf("provider %s accepted unsafe endpoint %q", provider, endpoint)
+			}
+		}
+	}
+	// Loopback http is allowed by policy (local Ollama): it must reach the
+	// network layer rather than being rejected by the security gate.
+	_, err := NewAdapter(AdapterConfig{Provider: "gemini", APIKey: "k", Endpoint: "http://127.0.0.1:11434"}).Generate(ctx, ChatRequest{})
+	if err != nil && (strings.Contains(err.Error(), "provider endpoint") || strings.Contains(err.Error(), "loopback")) {
+		t.Fatalf("loopback endpoint rejected by security policy: %v", err)
 	}
 }
 
