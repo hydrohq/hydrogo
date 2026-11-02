@@ -175,4 +175,40 @@ test.describe("multi-tenant: data isolation and cross-tenant tampering", () => {
     await alphaContext.close();
     await betaContext.close();
   });
+
+  test("ai site generation generates layout and products, rejects unauthorized access", async ({ browser }) => {
+    const alphaContext = await browser.newContext();
+    const alphaPage = await alphaContext.newPage();
+    await signIn(alphaPage, alphaUrl(), "admin@alpha.test");
+
+    // Call /api/v1/admin/ai/generate with a boutique prompt
+    const genResult = await alphaPage.evaluate(async () => {
+      const csrf = document.cookie.split("; ").find((c) => c.startsWith("hydro_csrf="))?.split("=")[1] || "";
+      const res = await fetch("/api/v1/admin/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+        body: JSON.stringify({
+          prompt: "Koyu altın ve siyah el yapımı takılar",
+          name: "Noir Takı Atölyesi",
+          phone: "+905551234567",
+        }),
+      });
+      return { status: res.status, body: await res.json() };
+    });
+
+    expect(genResult.status).toBe(200);
+    expect(genResult.body.data.products_generated).toBeGreaterThan(0);
+    expect(genResult.body.data.sections_generated).toBeGreaterThan(0);
+
+    // Verify unauthenticated user cannot invoke AI generate
+    const anonContext = await browser.newContext();
+    const anonPage = await anonContext.newPage();
+    const anonResp = await anonPage.request.post(alphaUrl("/api/v1/admin/ai/generate"), {
+      data: { prompt: "Attack without auth" },
+    });
+    expect(anonResp.status()).toBe(401);
+
+    await alphaContext.close();
+    await anonContext.close();
+  });
 });

@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -42,6 +44,9 @@ func TestAdminAICopilotExecuteAndUndo(t *testing.T) {
 	}
 
 	app := &serveApp{
+		// The test feeds an executable JSON plan through the prompt, which is
+		// only accepted in dev mode (production prompts are never plans).
+		devMode:            true,
 		db:                 db,
 		collectionService:  colSvc,
 		requireTenantScope: true,
@@ -182,6 +187,9 @@ func TestAdminAICopilotExecuteAndUndo(t *testing.T) {
 	// 3. Test AI token quota enforcement (429 Too Many Requests)
 	gov.AITokensUsed = 10000
 	gov.AIMonthlyTokenLimit = 10000
+	// Pin the bucket to the current month so the monthly rollover does not
+	// reset the counter before quota enforcement runs.
+	gov.AITokenPeriod = time.Now().UTC().Format("2006-01")
 	if err := tenant.UpsertGovernance(ctx, db, "sqlite", gov); err != nil {
 		t.Fatal(err)
 	}
@@ -190,5 +198,93 @@ func TestAdminAICopilotExecuteAndUndo(t *testing.T) {
 	app.adminAICopilotHandler(recQuota, reqQuota)
 	if recQuota.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 Too Many Requests when AI quota is exhausted, got %d", recQuota.Code)
+	}
+}
+
+func TestAdminAICopilotRejectsUnknownFieldsAndProdRawPlans(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "copilot-validate.sqlite")
+	db, err := database.Open(ctx, database.SQLite, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatalf("ApplyMigrations: %v", err)
+	}
+
+	colSvc := collections.Service{
+		Repository: collectionstore.Store{DB: db, Dialect: database.SQLite, RequireTenantScope: true},
+	}
+	app := &serveApp{
+		db:                 db,
+		collectionService:  colSvc,
+		requireTenantScope: true,
+		siteStore:          sitestore.Store{Dialect: database.SQLite, RequireTenantScope: true},
+		contentTypes: []contenttypes.Definition{
+			{
+				ID:     "products",
+				Label:  "Ürünler",
+				Public: true,
+				Fields: []contenttypes.Field{
+					{ID: "title", Label: "Başlık", Kind: "text", Required: true},
+				},
+			},
+		},
+	}
+	app.cfg.Database.Dialect = database.SQLite
+
+	scope, err := tenant.NewScope("shop", "shop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tenantCtx := auth.WithUser(tenant.WithScope(ctx, scope), &auth.User{ID: "u1", Email: "u@shop.com", Role: auth.RoleAdmin, Active: true})
+
+	schemas, err := contenttypes.Schemas(app.contentTypes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := colSvc.SyncSchemas(tenantCtx, schemas); err != nil {
+		t.Fatalf("SyncSchemas: %v", err)
+	}
+
+	gov := tenant.DefaultGovernance("shop")
+	gov.AIMonthlyTokenLimit = 10000
+	if err := tenant.UpsertGovernance(ctx, db, "sqlite", gov); err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. Production (devMode off): a JSON plan in the prompt must not execute.
+	rawPlan := `{"reply":"tamam","operations":[{"op":"create","collection_id":"products","data":{"title":"X"}}]}`
+	reqProd := httptest.NewRequest(http.MethodPost, "/api/v1/admin/ai/copilot", bytes.NewReader([]byte(`{"prompt":`+strconv.Quote(rawPlan)+`}`))).WithContext(tenantCtx)
+	recProd := httptest.NewRecorder()
+	app.adminAICopilotHandler(recProd, reqProd)
+	if recProd.Code != http.StatusOK {
+		t.Fatalf("expected 200 heuristic reply in prod, got %d: %s", recProd.Code, recProd.Body.String())
+	}
+	prods, err := colSvc.QueryRecords(tenantCtx, "products", collections.Query{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prods) != 0 {
+		t.Fatalf("raw JSON prompt executed %d operations in prod mode", len(prods))
+	}
+
+	// 2. Dev mode plan that targets a field outside the schema must be rejected
+	// before any mutation (field allowlist).
+	app.devMode = true
+	badPlan := `{"reply":"tamam","operations":[{"op":"create","collection_id":"products","data":{"title":"X","evil_column":"y"}}]}`
+	reqBad := httptest.NewRequest(http.MethodPost, "/api/v1/admin/ai/copilot", bytes.NewReader([]byte(`{"prompt":`+strconv.Quote(badPlan)+`}`))).WithContext(tenantCtx)
+	recBad := httptest.NewRecorder()
+	app.adminAICopilotHandler(recBad, reqBad)
+	if recBad.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unknown field, got %d: %s", recBad.Code, recBad.Body.String())
+	}
+	prods, err = colSvc.QueryRecords(tenantCtx, "products", collections.Query{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prods) != 0 {
+		t.Fatalf("rejected plan still created %d records", len(prods))
 	}
 }

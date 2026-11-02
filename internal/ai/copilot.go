@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/ai/prompts"
 )
 
 // CopilotOperation represents a single collection record mutation planned by the Workspace Copilot.
@@ -19,48 +21,38 @@ type CopilotOperation struct {
 
 // CopilotPlan is the structured JSON response produced by the AI adapter for a workspace instruction.
 type CopilotPlan struct {
-	Reply      string             `json:"reply"`
-	Operations []CopilotOperation `json:"operations"`
+	Reply         string             `json:"reply"`
+	Operations    []CopilotOperation `json:"operations"`
+	PromptID      string             `json:"prompt_id,omitempty"`
+	PromptVersion string             `json:"prompt_version,omitempty"`
+	PromptHash    string             `json:"prompt_hash,omitempty"`
 }
 
 // CopilotActionLog records an executed Copilot turn along with pre-mutation snapshots for one-click Undo.
 type CopilotActionLog struct {
-	ID         string             `json:"id"`
-	TenantID   string             `json:"tenant_id"`
-	Prompt     string             `json:"prompt"`
-	Reply      string             `json:"reply"`
-	Provider   string             `json:"provider"`
-	Model      string             `json:"model"`
-	TokensUsed int64              `json:"tokens_used"`
-	Operations []CopilotOperation `json:"operations"`
-	Undone     bool               `json:"undone"`
-	CreatedAt  time.Time          `json:"created_at"`
-	UndoneAt   *time.Time         `json:"undone_at,omitempty"`
+	ID            string             `json:"id"`
+	TenantID      string             `json:"tenant_id"`
+	Prompt        string             `json:"prompt"`
+	Reply         string             `json:"reply"`
+	Provider      string             `json:"provider"`
+	Model         string             `json:"model"`
+	TokensUsed    int64              `json:"tokens_used"`
+	Operations    []CopilotOperation `json:"operations"`
+	Undone        bool               `json:"undone"`
+	PromptID      string             `json:"prompt_id,omitempty"`
+	PromptVersion string             `json:"prompt_version,omitempty"`
+	PromptHash    string             `json:"prompt_hash,omitempty"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UndoneAt      *time.Time         `json:"undone_at,omitempty"`
 }
 
-// BuildCopilotSystemPrompt constructs the system instruction for the tenant's Workspace Copilot.
+// BuildCopilotSystemPrompt constructs the system instruction for the tenant's Workspace Copilot from the prompt registry.
 func BuildCopilotSystemPrompt(tenantID string, collectionsSummary string, recordsSample string) string {
-	return `Sen "` + tenantID + `" çalışma alanının (workspace) özel yapay zeka mağaza ve içerik asistanısın (HydroGo AI Copilot).
-Kullanıcının doğal dildeki isteklerini analiz edip çalışma alanındaki koleksiyon kayıtlarını oluşturabilir, güncelleyebilir veya silebilirsin.
-Yalnızca aşağıdaki JSON formatında yanıt ver (başka hiçbir açıklama veya markdown ekleme):
-{
-  "reply": "Kullanıcıya yapılan işlemi açıklayan nazik Türkçe yanıt",
-  "operations": [
-    {
-      "op": "create" | "update" | "delete",
-      "collection_id": "koleksiyon_id",
-      "record_id": "kayit_id (update/delete için zorunlu, create için opsiyonel)",
-      "data": { "alan": "değer" }
-    }
-  ]
-}
-Kurallar:
-1. Sadece kullanıcının istediği değişiklikleri yap. Eğer kullanıcı soru soruyorsa "operations": [] döndür ve "reply" içinde yanıtla.
-2. "update" işleminde mevcut kaydın tüm alanlarını koruyarak sadece değişen alanları güncelle.
-3. Aktif Koleksiyon Şemaları:
-` + collectionsSummary + `
-4. Mevcut Kayıt Örnekleri:
-` + recordsSample
+	return prompts.MustRender("copilot_system", map[string]string{
+		"TENANT_ID":           tenantID,
+		"COLLECTIONS_SUMMARY": collectionsSummary,
+		"RECORDS_SAMPLE":      recordsSample,
+	})
 }
 
 // ParseCopilotPlan extracts and validates a CopilotPlan from raw model output.

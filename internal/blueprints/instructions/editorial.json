@@ -1,0 +1,141 @@
+{
+  "ceramic": {
+    "hero_badge": "2026 GÜZ KOLEKSİYONU · EL TORNASI ATÖLYE SERİSİ",
+    "hero_title": "Topraktan Sofraya, Sabırla Şekillenen Formlar",
+    "hero_subtitle": "Doğal killer ve kurşunsuz sırlarla atölyemizde tek tek el tornasında çekilen, 1240 derecede pişirilmiş zamansız stoneware parçalar.",
+    "hero_image": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=1200&q=80",
+    "story_badge": "ZANAAT VE SABIR",
+    "story_title": "Çamurun 14 Günlük Dönüşüm Hikayesi",
+    "story_text": "Atölyemizde hiçbir nesne seri üretimin aceleciliğiyle üretilmez. Doğal çamurun el tornasında çekilmesi, yavaşça kuruması, 950 derecede ilk bisküvi fırınlaması, doğal mineral sırlarla elde sırlanması ve son olarak 1240 derecelik nihai fırın yolculuğu... Masanıza gelen her tabak ve kupa, iki haftalık sabırlı bir zanaat emeğini barındırır.",
+    "story_quote": "Kusursuz simetri yerine, doğallığın ve ustanın el izinin sıcaklığına inanıyoruz.",
+    "story_image": "https://images.unsplash.com/photo-1576020799627-aeac76d580dc?auto=format&fit=crop&w=1000&q=80",
+    "pillars_title": "Atölye Sözümüz & Zanaat İlkelerimiz",
+    "pillars": [
+      {
+        "title": "1240°C Stoneware Mukavemeti",
+        "desc": "Yüksek ısı fırınlaması sayesinde porselen sertliğinde, bulaşık makinesi ve fırına tam dayanıklı."
+      },
+      {
+        "title": "Kurşunsuz Doğal Sırlar",
+        "desc": "Gıda ile temasa %100 uygun, kimyasal içermeyen mineral bazlı doğal atölye sırları."
+      },
+      {
+        "title": "Kırılma Garantili Kargo",
+        "desc": "Özel mukavva ve petek kraft koruma ile kapınıza kadar sıfır hasar taahhüdü."
+      }
+    ],
+    "testimonials": [
+      {
+        "customer": "Zeynep S.",
+        "location": "Kadıköy, İstanbul",
+        "quote": "Kupaların ağırlığı, elde duruşu ve sırın mat dokusu olağanüstü. Sabah kahvesi ritüelim tamamen değişti.",
+        "item": "Rustik Stoneware Fincan"
+      },
+      {
+        "customer": "Caner B.",
+        "location": "Alsancak, İzmir",
+        "quote": "Sofrada sunduğumuz her yemek tabaklarla birlikte bir sanat eserine dönüşüyor. Kesinlikle tavsiye ederim.",
+        "item": "Geniş Makarna Tabağı"
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Ürünler bulaşık makinesinde yıkanabilir mi?",
+        "answer": "Evet. 1240°C yüksek ısı stoneware fırınlaması sayesinde tüm tabak ve kupalarımız bulaşık makinesinde güvenle yıkanabilir."
+      },
+      {
+        "question": "Kargo sırasında kırılma olursa ne yapıyorsunuz?",
+        "answer": "Kargo paketlerimizi darbeye dayanıklı özel petek ambalajlarla hazırlıyoruz. Olası bir hasarda fotoğraf göndermeniz yeterlidir; anında yenisini gönderiyoruz."
+      }
+    ],
+    "atelier_address": "Caferağa Mah. Moda Cad. No:42/A Kadıköy / İstanbul",
+    "atelier_hours": "Salı - Cumartesi: 11:00 - 19:00",
+    "instagram": "@veraceramics"
+  },
+  "leather": {
+    "hero_badge": "GELENEKSEL SARAÇ İŞÇİLİĞİ · SINIRLI ÜRETİM",
+    "hero_title": "Zamanla Güzelleşen, Nesilden Nesile Kalan Deri Eserler",
+    "hero_subtitle": "Bitkisel tabaklanmış İtalyan vaketa derilerinden, el dikişi mumlu iplerle tek tek üretilmiş ömürlük aksesuarlar.",
+    "hero_image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1200&q=80",
+    "story_badge": "MİRAS VE KALİTE",
+    "story_title": "Mumlu İpler ve Çift İğne El Dikişi",
+    "story_text": "Makineler dikişi hızlı bitirebilir ancak bir dikiş koptuğunda tamamı sökülür. Biz her deliği el keskisiyle açıyor, iki ayrı iğne ve mumlanmış keten iple birbirine kenetlenen geleneksel saraç dikişi uyguluyoruz. Derilerimiz kromla değil, meşe palamudu ve kestane kabuklarıyla tabaklanır; yıllar geçtikçe yaşayan, patine alan asil bir doku kazanır.",
+    "story_quote": "Hızlı tüketim dünyasında, eskidikçe değer kazanan zamansız parçalar üretiyoruz.",
+    "story_image": "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=1000&q=80",
+    "pillars_title": "Ustalık İlkelerimiz",
+    "pillars": [
+      {
+        "title": "Geleneksel Saraç El Dikişi",
+        "desc": "Makinelerin asla taklit edemeyeceği mukavemette, çift iğneyle elde dikilen dikişler."
+      },
+      {
+        "title": "Bitkisel Tabaklanmış Vaketa Deri",
+        "desc": "Zararlı kimyasallar içermeyen, doğal bitki özleriyle işlenmiş ve zamanla patine alan doğal deri."
+      },
+      {
+        "title": "Ömür Boyu Dikiş Garantisi",
+        "desc": "Atölyemizden çıkan her el yapımı deri üründe dikiş atmasına karşı ömür boyu ücretsiz onarım."
+      }
+    ],
+    "testimonials": [
+      {
+        "customer": "Murat K.",
+        "location": "Beşiktaş, İstanbul",
+        "quote": "Cüzdanı 6 aydır her gün kullanıyorum, rengi koyulaştıkça ve deri oturdukça güzelleşiyor. İşçilik muazzam.",
+        "item": "Minimalist Kartlık Cüzdan"
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Deri bakımı için ne önerirsiniz?",
+        "answer": "Yılda bir kez doğal balmumu veya renksiz doğal deri bakım kremi sürmeniz, derinin yumuşak kalması ve su iticiliği için yeterlidir."
+      }
+    ],
+    "atelier_address": "Asmalı Mescit Mah. Meşrutiyet Cad. No:18 Beyoğlu / İstanbul",
+    "atelier_hours": "Pazartesi - Cumartesi: 10:30 - 19:30",
+    "instagram": "@veraleather"
+  },
+  "default": {
+    "hero_badge": "BUTİK ATÖLYE SEÇKİSİ · ÖZEL SERİ",
+    "hero_title": "Zamansız Estetik ve Zarafet Dolu Yaşam Alanları",
+    "hero_subtitle": "Özenle seçilmiş materyaller ve seçkin zanaatkarlıkla hayat bulan özel butik tasarım ürünleri.",
+    "hero_image": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
+    "story_badge": "ÖZGÜN TASARIM",
+    "story_title": "Sadeliğin ve Özgün Detayların Gücü",
+    "story_text": "Koleksiyonumuzdaki her bir parça, modern yaşam alanlarına şıklık, sükunet ve karakter katmak amacıyla özenle tasarlanmıştır.",
+    "story_quote": "Gerçek lüks, ayrıntılarda saklanan zarafettir.",
+    "story_image": "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1000&q=80",
+    "pillars_title": "Hizmet ve Kalite Standartlarımız",
+    "pillars": [
+      {
+        "title": "Kusursuz Paketleme",
+        "desc": "Tüm siparişleriniz özel hediye kutusunda ve koruyucu ambalajında hazırlanır."
+      },
+      {
+        "title": "Hızlı WhatsApp Destek",
+        "desc": "Sipariş öncesi ve sonrası doğrudan atölye ekibimizle anında iletişim imkanı."
+      },
+      {
+        "title": "Güvenli Teslimat",
+        "desc": "Tüm Türkiye'ye sigortalı ve kırılma garantili hızlı kargo gönderimi."
+      }
+    ],
+    "testimonials": [
+      {
+        "customer": "Selin D.",
+        "location": "Çankaya, Ankara",
+        "quote": "Siparişim 2 günde ulaştı, paketleme o kadar zarifti ki açmaya kıyamadım. Ürünler fotoğraflardan çok daha güzel.",
+        "item": "Özel Tasarım Koleksiyon Parçası"
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Siparişler ne kadar sürede kargolanır?",
+        "answer": "Stokta bulunan ürünlerimiz 1-2 iş günü içerisinde özenle paketlenerek kargoya teslim edilmektedir."
+      }
+    ],
+    "atelier_address": "Nispetiye Cad. No:24 Etiler / Beşiktaş / İstanbul",
+    "atelier_hours": "Hafta içi: 10:00 - 18:30",
+    "instagram": "@butikatelier"
+  }
+}

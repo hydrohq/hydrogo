@@ -1,0 +1,28 @@
+id: "202611020001_ai_token_period"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "bf9c1e0308c4945cce68c889a4c4d72657bb0ffa867545c29ea98828d0bf1948"
+  postgres: "8843b74f7314587e33f82af98be66d4d8e2db9647d9405f3b838839ba9c3e1c6"
+  mysql: "8843b74f7314587e33f82af98be66d4d8e2db9647d9405f3b838839ba9c3e1c6"
+dependencies:
+  - "202611010005_platform_credits"
+schema:
+  readable_epoch: 10
+  writable_epoch: 10
+preconditions:
+  - "202611010005_platform_credits is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Adds ai_token_period column to tenant_governance"
+compatibility: "Adds the calendar-month bucket that makes AI token quota resets automatic on first consumption after rollover."
+smoke:
+  - "AI token usage counters reset when the calendar month changes without a scheduled job."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

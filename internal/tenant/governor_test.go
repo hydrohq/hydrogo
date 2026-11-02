@@ -51,6 +51,7 @@ func openGovernanceTestDB(t *testing.T) *sql.DB {
 		ai_encrypted_api_key TEXT NOT NULL DEFAULT '',
 		ai_monthly_token_limit INTEGER NOT NULL DEFAULT 500000,
 		ai_tokens_used INTEGER NOT NULL DEFAULT 0,
+		ai_token_period TEXT NOT NULL DEFAULT '',
 		owner_phone TEXT NOT NULL DEFAULT '',
 		notes TEXT NOT NULL DEFAULT '',
 		dns_verified INTEGER NOT NULL DEFAULT 0,
@@ -200,6 +201,46 @@ func TestGovernorConcurrencyAndAITokenMetering(t *testing.T) {
 	}
 	if _, err := ConsumeAITokens(ctx, db, "sqlite", "busy-shop", 500); err == nil {
 		t.Fatal("expected second ConsumeAITokens (600+500 > 1000) to fail with quota error")
+	}
+
+	// Demo workspaces are live trial stores: they consume AI quota like active
+	// ones instead of failing every call, while suspended workspaces must not.
+	demoGov := DefaultGovernance("demo-shop")
+	demoGov.LifecycleState = LifecycleDemo
+	demoGov.AIMonthlyTokenLimit = 1000
+	if err := UpsertGovernance(ctx, db, "sqlite", demoGov); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ConsumeAITokens(ctx, db, "sqlite", "demo-shop", 100); err != nil {
+		t.Fatalf("demo workspace AI consumption failed: %v", err)
+	}
+	suspendedGov := DefaultGovernance("suspended-shop")
+	suspendedGov.LifecycleState = LifecycleSuspended
+	if err := UpsertGovernance(ctx, db, "sqlite", suspendedGov); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ConsumeAITokens(ctx, db, "sqlite", "suspended-shop", 0); err == nil {
+		t.Fatal("expected suspended workspace AI consumption to fail")
+	}
+
+	// Usage recorded under a previous calendar month must not carry over: the
+	// counter rolls to zero on first consumption after the rollover.
+	rolledGov := DefaultGovernance("rolled-shop")
+	rolledGov.AIMonthlyTokenLimit = 1000
+	rolledGov.AITokensUsed = 950
+	rolledGov.AITokenPeriod = "2000-01"
+	if err := UpsertGovernance(ctx, db, "sqlite", rolledGov); err != nil {
+		t.Fatal(err)
+	}
+	afterReset, err := ConsumeAITokens(ctx, db, "sqlite", "rolled-shop", 50)
+	if err != nil {
+		t.Fatalf("consumption after monthly rollover failed: %v", err)
+	}
+	if afterReset.AITokensUsed != 50 {
+		t.Fatalf("expected counter to reset then consume 50, got %d", afterReset.AITokensUsed)
+	}
+	if afterReset.AITokenPeriod == "2000-01" {
+		t.Fatal("expected ai_token_period to advance to the current month")
 	}
 
 	// Test concurrency semaphore
