@@ -985,6 +985,11 @@
     </div>
   </header>
 
+  {{if .HasCustomLayout}}
+    {{range .RenderedSections}}
+      {{.}}
+    {{end}}
+  {{else}}
   <!-- Editorial Hero Section -->
   <section class="hero-section">
     <div class="container">
@@ -1286,6 +1291,7 @@
       </div>
     </div>
   </section>
+  {{end}}
   {{end}}
 
   <!-- Atelier Footer -->

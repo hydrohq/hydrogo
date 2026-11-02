@@ -166,6 +166,11 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 	hBadge, hTitle, hSub, hImg, sBadge, sTitle, sText, sQuote, sImg, pTitle, pillars, testimonials, faqs, atAddr, atHours, insta :=
 		buildStorefrontEditorial(settings, storeName, gov.Notes)
 
+	var layoutJSON string
+	if lj, ok := settings["layout_json"].(string); ok {
+		layoutJSON = strings.TrimSpace(lj)
+	}
+
 	data := storefront.StorefrontData{
 		StoreName:       storeName,
 		Slogan:          slogan,
@@ -177,6 +182,7 @@ func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
 		IsDemo:          isDemo,
 		LayoutMode:      layoutMode,
 		FontPreset:      fontPreset,
+		LayoutJSON:      layoutJSON,
 		HeroBadge:       hBadge,
 		HeroTitle:       hTitle,
 		HeroSubtitle:    hSub,

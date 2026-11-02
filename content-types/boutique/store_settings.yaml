@@ -25,3 +25,4 @@ fields:
   - {id: hero_banner_image, label: Ana Vitrin Görseli, kind: media}
   - {id: hero_title, label: Vitrin Başlığı, kind: text}
   - {id: hero_cta_text, label: Vitrin Buton Yazısı, kind: text}
+  - {id: layout_json, label: Özel Bölüm Düzeni (JSON), kind: textarea}

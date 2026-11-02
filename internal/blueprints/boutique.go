@@ -57,6 +57,7 @@ func BoutiqueDefinitions() []contenttypes.Definition {
 				{ID: "atelier_address", Label: "Atölye Adresi", Kind: "text"},
 				{ID: "atelier_hours", Label: "Çalışma Saatleri", Kind: "text"},
 				{ID: "instagram", Label: "Instagram Hesabı", Kind: "text"},
+				{ID: "layout_json", Label: "Özel Bölüm Düzeni (JSON)", Kind: "textarea"},
 			},
 		},
 		{

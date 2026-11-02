@@ -283,3 +283,101 @@ func TestServeFont(t *testing.T) {
 		t.Errorf("expected font/woff2, got %s", recG.Header().Get("Content-Type"))
 	}
 }
+
+func TestRenderStorefront_CustomLayout(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	layoutJSON := `[
+		{
+			"type": "hero",
+			"props": {
+				"title": "Özel Tasarım Vitrin",
+				"subtitle": "Benzersiz el yapımı seramikler",
+				"badge": "YENİ KOLEKSİYON"
+			}
+		},
+		{
+			"type": "newsletter",
+			"props": {
+				"title": "Bültenimize Abone Olun",
+				"subtitle": "İlk siz haberdar olun"
+			}
+		}
+	]`
+
+	data := StorefrontData{
+		StoreName:  "Vera Atelier",
+		LayoutJSON: layoutJSON,
+	}
+
+	if err := Render(rec, req, data); err != nil {
+		t.Fatalf("Render with custom layout failed: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Özel Tasarım Vitrin") {
+		t.Errorf("expected custom hero title in body")
+	}
+	if !strings.Contains(body, "YENİ KOLEKSİYON") {
+		t.Errorf("expected custom hero badge in body")
+	}
+	if !strings.Contains(body, "Bültenimize Abone Olun") {
+		t.Errorf("expected custom newsletter section in body")
+	}
+
+	// Verify ordering: hero must appear before newsletter
+	heroIdx := strings.Index(body, "Özel Tasarım Vitrin")
+	newsIdx := strings.Index(body, "Bültenimize Abone Olun")
+	if heroIdx >= newsIdx {
+		t.Errorf("expected hero section to render before newsletter section (fidelity)")
+	}
+}
+
+func TestRenderStorefront_UnknownSectionFallback(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	layoutJSON := `[
+		{"type": "unknown_future_section", "props": {"foo": "bar"}},
+		{"type": "hero", "props": {"title": "Sağlam Vitrin"}}
+	]`
+
+	data := StorefrontData{
+		StoreName:  "Vera Atelier",
+		LayoutJSON: layoutJSON,
+	}
+
+	if err := Render(rec, req, data); err != nil {
+		t.Fatalf("Render should not fail on unknown section type: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Sağlam Vitrin") {
+		t.Errorf("expected known hero section to render properly")
+	}
+	if strings.Contains(body, "unknown_future_section") {
+		t.Errorf("unknown section should not be rendered into markup")
+	}
+}
+
+func TestRenderStorefront_MalformedLayoutJSONFallback(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	data := StorefrontData{
+		StoreName:  "Vera Atelier",
+		LayoutJSON: "{invalid-json-string-malformed",
+		HeroTitle:  "Varsayılan Kahraman",
+	}
+
+	// Should not crash or fail; falls back to default layout gracefully
+	if err := Render(rec, req, data); err != nil {
+		t.Fatalf("Render should not fail on malformed layout_json: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Varsayılan Kahraman") {
+		t.Errorf("expected fallback default hero title")
+	}
+}
