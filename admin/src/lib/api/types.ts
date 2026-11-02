@@ -262,8 +262,36 @@ export interface CopilotActionLog {
   tokens_used: number;
   operations: CopilotOperation[];
   undone: boolean;
+  prompt_id?: string;
+  prompt_version?: string;
+  prompt_hash?: string;
   created_at: string;
   undone_at?: string;
+}
+
+export interface SitePlan {
+  brief: string;
+  theme: {
+    preset: string;
+    font_preset: string;
+    bg_color?: string;
+    text_color?: string;
+    accent_color?: string;
+    border_radius?: string;
+  };
+  layout: Array<{ type: string; props?: Record<string, unknown> }>;
+  store_settings: Record<string, unknown>;
+  products: Array<{
+    title: string;
+    slug: string;
+    price: number;
+    description?: string;
+    badge?: string;
+    image_url?: string;
+  }>;
+  prompt_id?: string;
+  prompt_version?: string;
+  prompt_hash?: string;
 }
 
 export interface SuperadminMetrics {
