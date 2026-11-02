@@ -21,23 +21,29 @@ type CopilotOperation struct {
 
 // CopilotPlan is the structured JSON response produced by the AI adapter for a workspace instruction.
 type CopilotPlan struct {
-	Reply      string             `json:"reply"`
-	Operations []CopilotOperation `json:"operations"`
+	Reply         string             `json:"reply"`
+	Operations    []CopilotOperation `json:"operations"`
+	PromptID      string             `json:"prompt_id,omitempty"`
+	PromptVersion string             `json:"prompt_version,omitempty"`
+	PromptHash    string             `json:"prompt_hash,omitempty"`
 }
 
 // CopilotActionLog records an executed Copilot turn along with pre-mutation snapshots for one-click Undo.
 type CopilotActionLog struct {
-	ID         string             `json:"id"`
-	TenantID   string             `json:"tenant_id"`
-	Prompt     string             `json:"prompt"`
-	Reply      string             `json:"reply"`
-	Provider   string             `json:"provider"`
-	Model      string             `json:"model"`
-	TokensUsed int64              `json:"tokens_used"`
-	Operations []CopilotOperation `json:"operations"`
-	Undone     bool               `json:"undone"`
-	CreatedAt  time.Time          `json:"created_at"`
-	UndoneAt   *time.Time         `json:"undone_at,omitempty"`
+	ID            string             `json:"id"`
+	TenantID      string             `json:"tenant_id"`
+	Prompt        string             `json:"prompt"`
+	Reply         string             `json:"reply"`
+	Provider      string             `json:"provider"`
+	Model         string             `json:"model"`
+	TokensUsed    int64              `json:"tokens_used"`
+	Operations    []CopilotOperation `json:"operations"`
+	Undone        bool               `json:"undone"`
+	PromptID      string             `json:"prompt_id,omitempty"`
+	PromptVersion string             `json:"prompt_version,omitempty"`
+	PromptHash    string             `json:"prompt_hash,omitempty"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UndoneAt      *time.Time         `json:"undone_at,omitempty"`
 }
 
 // BuildCopilotSystemPrompt constructs the system instruction for the tenant's Workspace Copilot from the prompt registry.
