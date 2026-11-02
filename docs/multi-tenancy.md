@@ -42,11 +42,14 @@ through every query (`RequireTenantScope` on the `Store`, the
 `tenantFilter`/`s.p(n)` pattern you'll see repeated across
 `modules/*/repository/sqlstore`). On PostgreSQL, every one of those
 tables additionally gets row-level security
-(`202609200003_postgres_tenant_rls` and later additive migrations) as a
-second, independent enforcement layer -- a bug in application-level
-filtering still can't cross a tenant boundary on Postgres, because the
-database itself refuses the row. SQLite and MySQL rely on the
-application-level filtering alone (there's no equivalent RLS mechanism).
+(`202609200003_postgres_tenant_rls` and `202611020002_postgres_rls_fail_closed`)
+as a second, independent enforcement layer. RLS policies are strictly fail-closed:
+`tenant_id = nullif(current_setting('app.current_tenant_id', true), '')`. If the
+tenant setting is absent or empty, queries return zero rows and write checks fail.
+Furthermore, the connection pool automatically executes `DISCARD TEMP; RESET ALL;`
+upon releasing connections back to `pgxpool`, eliminating any risk of cross-transaction
+tenant context leakage. SQLite and MySQL rely on application-level filtering alone
+(there's no equivalent native RLS mechanism).
 
 A table that's missing from both the per-module repository filtering and
 the RLS table list is a real cross-tenant data leak, not just a style
