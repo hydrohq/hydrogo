@@ -364,6 +364,31 @@
       font-size: 12.5px;
       font-weight: 500;
       color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .chip:hover {
+      border-color: var(--primary);
+    }
+    .chip.selected {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .secondary-card-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      pointer-events: none;
+    }
+    .product-card:hover .secondary-card-img {
+      opacity: 1;
+      transform: scale(1.03);
     }
     .actions-stack {
       display: flex;
@@ -551,37 +576,42 @@
         {{end}}
       </div>
 
-      {{if .Product.Sizes}}
-      <div class="options-row">
-        <span class="options-label">Boyut / Ölçü Seçenekleri</span>
-        <div class="chips-group">
-          <span class="chip">{{.Product.Sizes}}</span>
+      <!-- Options & Variants Selection Matrix -->
+      <div id="optionsMatrix">
+        {{range $optIdx, $opt := .Product.Options}}
+        <div class="options-row" data-option-name="{{$opt.Name}}">
+          <span class="options-label">{{$opt.Name}}</span>
+          <div class="chips-group">
+            {{range $valIdx, $val := $opt.Values}}
+            <button
+              type="button"
+              class="chip {{if eq $valIdx 0}}selected{{end}}"
+              data-opt-name="{{$opt.Name}}"
+              data-opt-val="{{$val}}"
+              onclick="onSelectOption('{{$opt.Name}}', '{{$val}}', this)"
+            >
+              {{$val}}
+            </button>
+            {{end}}
+          </div>
         </div>
+        {{end}}
       </div>
-      {{end}}
-
-      {{if .Product.Colors}}
-      <div class="options-row">
-        <span class="options-label">Renk & Malzeme</span>
-        <div class="chips-group">
-          <span class="chip">{{.Product.Colors}}</span>
-        </div>
-      </div>
-      {{end}}
 
       <!-- Action Buttons -->
       <div class="actions-stack">
-        <a
-          href="https://wa.me/{{.CleanPhone}}?text={{urlquery (printf "Merhaba %s! '%s' (%.0f TL) ürününüz hakkında bilgi almak ve sipariş vermek istiyorum." .StoreName .Product.Title .Product.Price)}}"
-          target="_blank"
+        <button
+          type="button"
+          id="detailWaBtn"
           class="btn btn-whatsapp"
-          style="height: 48px; font-size: 15px;"
+          onclick="submitDetailWhatsAppOrder()"
+          style="height: 48px; font-size: 15px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/>
           </svg>
-          WhatsApp ile Doğrudan Sipariş Ver ↗
-        </a>
+          <span id="detailWaBtnText">WhatsApp ile Doğrudan Sipariş Ver ↗</span>
+        </button>
 
         {{if .Product.PaymentLink}}
         <a
@@ -650,6 +680,9 @@
       <a href="/urun/{{.Slug}}" class="product-card">
         <div class="card-img-wrap">
           <img class="card-img" src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy" />
+          {{if .SecondaryImage}}
+          <img class="secondary-card-img" src="{{.SecondaryImage}}" alt="{{.Title}}" loading="lazy" />
+          {{end}}
         </div>
         <div class="card-body">
           <h3 class="card-title">{{.Title}}</h3>
@@ -682,5 +715,135 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    const detailProduct = {
+      id: {{.Product.ID}},
+      title: {{.Product.Title}},
+      price: {{.Product.Price}},
+      options: {{.Product.OptionsJSON}},
+      variants: {{.Product.VariantsJSON}}
+    };
+    const storeWhatsapp = "{{.CleanPhone}}";
+    const storeName = "{{.StoreName}}";
+
+    let selectedOptions = {};
+    if (detailProduct.options && detailProduct.options.length > 0) {
+      detailProduct.options.forEach(opt => {
+        if (opt.values && opt.values.length > 0) {
+          selectedOptions[opt.name] = opt.values[0];
+        }
+      });
+    }
+
+    function findMatchingVariant() {
+      if (!detailProduct.variants || detailProduct.variants.length === 0) return null;
+      return detailProduct.variants.find(v => {
+        if (!v.options || v.options.length === 0) return true;
+        return Object.values(selectedOptions).every(val => v.options.includes(val));
+      }) || detailProduct.variants[0];
+    }
+
+    function updateVariantUI() {
+      const activeVariant = findMatchingVariant();
+      const priceElem = document.querySelector('.product-price');
+      const waBtn = document.getElementById('detailWaBtn');
+      const waBtnText = document.getElementById('detailWaBtnText');
+      const stockBadge = document.querySelector('.stock-badge');
+
+      let currentPrice = detailProduct.price;
+      if (activeVariant) {
+        currentPrice += (activeVariant.price_diff || 0);
+      }
+      if (priceElem) {
+        priceElem.textContent = Number(currentPrice).toLocaleString('tr-TR') + ' TL';
+      }
+
+      if (activeVariant && activeVariant.stock <= 0) {
+        if (waBtn) {
+          waBtn.disabled = true;
+          waBtn.style.opacity = '0.5';
+          waBtn.style.pointerEvents = 'none';
+        }
+        if (waBtnText) {
+          waBtnText.textContent = 'Tükendi - Stokta Yok';
+        }
+        if (stockBadge) {
+          stockBadge.innerHTML = '<span class="stock-dot" style="background:#EF4444;"></span> Bu Varyant Tükendi';
+        }
+      } else {
+        if (waBtn) {
+          waBtn.disabled = false;
+          waBtn.style.opacity = '1';
+          waBtn.style.pointerEvents = 'auto';
+        }
+        if (waBtnText) {
+          waBtnText.textContent = 'WhatsApp ile Doğrudan Sipariş Ver ↗';
+        }
+        if (stockBadge) {
+          const stockCount = (activeVariant && activeVariant.stock) ? activeVariant.stock : 5;
+          stockBadge.innerHTML = '<span class="stock-dot"></span> Stokta Var (' + stockCount + ' Adet) · Hemen Kargoda';
+        }
+      }
+    }
+
+    function onSelectOption(name, val, elem) {
+      selectedOptions[name] = val;
+      const row = elem.closest('.options-row');
+      if (row) {
+        row.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        elem.classList.add('selected');
+      }
+      updateVariantUI();
+    }
+
+    async function submitDetailWhatsAppOrder() {
+      const activeVariant = findMatchingVariant();
+      let currentPrice = detailProduct.price;
+      if (activeVariant) {
+        currentPrice += (activeVariant.price_diff || 0);
+      }
+
+      let orderCode = '#HYD-' + Math.floor(1000 + Math.random() * 9000);
+      const optSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
+
+      try {
+        const res = await fetch('/api/v1/store/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: detailProduct.id,
+            product_title: detailProduct.title,
+            price: currentPrice,
+            sku: activeVariant ? activeVariant.sku : '',
+            variant_title: activeVariant ? activeVariant.title : optSummary
+          })
+        });
+        if (res.ok) {
+          const body = await res.json();
+          if (body.data && body.data.order_code) {
+            orderCode = body.data.order_code;
+          }
+        }
+      } catch (e) {
+        console.warn('Order dispatch fallback:', e);
+      }
+
+      let msg = `Merhaba, ${detailProduct.title} için sipariş vermek istiyorum.\n\n`;
+      msg += `Sipariş No: ${orderCode}\n`;
+      msg += `Ürün: ${detailProduct.title}\n`;
+      if (optSummary) msg += `Seçenekler: ${optSummary}\n`;
+      if (activeVariant && activeVariant.sku) msg += `SKU: ${activeVariant.sku}\n`;
+      msg += `Tutar: ${Number(currentPrice).toLocaleString('tr-TR')} TL\n\n`;
+      msg += `Siparişimi onaylar mısınız?`;
+
+      const targetWa = storeWhatsapp || '905550000000';
+      const waUrl = `https://wa.me/${targetWa}?text=${encodeURIComponent(msg)}`;
+      window.open(waUrl, '_blank');
+    }
+
+    // Initialize variant UI on load
+    updateVariantUI();
+  </script>
 </body>
 </html>

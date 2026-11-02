@@ -85,6 +85,15 @@ func TestRenderStorefront(t *testing.T) {
 	if !strings.Contains(body, "Bulaşık makinesinde yıkanabilir mi?") {
 		t.Errorf("expected FAQ question in body")
 	}
+	if !strings.Contains(body, `const storeWhatsapp = "905551234567";`) {
+		t.Errorf("expected quoted storeWhatsapp in script")
+	}
+	if !strings.Contains(body, "secondary-img") {
+		t.Errorf("expected secondary-img hover support")
+	}
+	if !strings.Contains(body, "/api/v1/store/orders") {
+		t.Errorf("expected /api/v1/store/orders endpoint in storefront order script")
+	}
 }
 
 func TestRenderSuspended(t *testing.T) {
@@ -126,6 +135,14 @@ func TestRenderProductDetail(t *testing.T) {
 			Description: "1240 derecede fırınlanmış özel tasarım kupa.",
 			InStock:     true,
 			Badge:       "Çok Satan",
+			Options: []OptionDef{
+				{Name: "Renk", Values: []string{"Taba", "Siyah"}},
+				{Name: "Beden", Values: []string{"Standart", "Büyük"}},
+			},
+			Variants: []VariantDef{
+				{SKU: "TB-STD", Title: "Taba / Standart", PriceDiff: 0, Stock: 5},
+				{SKU: "SY-BYK", Title: "Siyah / Büyük", PriceDiff: 50, Stock: 0},
+			},
 		},
 		RelatedProducts: []ProductView{
 			{ID: "prod-2", Title: "Espresso Fincanı", Slug: "espresso-fincani", Price: 320, InStock: true},
@@ -146,6 +163,12 @@ func TestRenderProductDetail(t *testing.T) {
 	}
 	if !strings.Contains(body, "WhatsApp ile Doğrudan Sipariş Ver") {
 		t.Errorf("expected WhatsApp order button in body")
+	}
+	if !strings.Contains(body, "Taba") || !strings.Contains(body, "Standart") {
+		t.Errorf("expected option values in product detail body")
+	}
+	if !strings.Contains(body, "/api/v1/store/orders") {
+		t.Errorf("expected /api/v1/store/orders in detail page script")
 	}
 }
 
@@ -379,5 +402,42 @@ func TestRenderStorefront_MalformedLayoutJSONFallback(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "Varsayılan Kahraman") {
 		t.Errorf("expected fallback default hero title")
+	}
+}
+
+func TestRenderStorefront_ConditionalGET(t *testing.T) {
+	data := StorefrontData{
+		StoreName: "Vera Atelier",
+		HeroTitle: "Zarif Seramik",
+	}
+
+	rec1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+	if err := Render(rec1, req1, data); err != nil {
+		t.Fatalf("first Render: %v", err)
+	}
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec1.Code)
+	}
+	etag := rec1.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("expected ETag header in response")
+	}
+	if !strings.Contains(rec1.Header().Get("Cache-Control"), "stale-while-revalidate") {
+		t.Errorf("expected Cache-Control header with stale-while-revalidate, got %s", rec1.Header().Get("Cache-Control"))
+	}
+
+	// Conditional GET request with If-None-Match
+	rec2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2.Header.Set("If-None-Match", etag)
+	if err := Render(rec2, req2, data); err != nil {
+		t.Fatalf("second Render: %v", err)
+	}
+	if rec2.Code != http.StatusNotModified {
+		t.Fatalf("expected 304 Not Modified, got %d", rec2.Code)
+	}
+	if rec2.Body.Len() != 0 {
+		t.Errorf("expected empty body for 304 Not Modified, got %d bytes", rec2.Body.Len())
 	}
 }

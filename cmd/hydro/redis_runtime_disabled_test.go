@@ -13,7 +13,7 @@ func TestNoRedisRuntimeKeepsBoundedLocalLimiter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	limiter := newRuntimeRateLimiter(runtime, "", 1, time.Minute, false)
+	limiter := newRuntimeRateLimiter(runtime, nil, "", 1, time.Minute, false)
 	if !limiter.Allow("request") || limiter.Allow("request") {
 		t.Fatal("local fallback limiter did not enforce its configured bound")
 	}

@@ -140,6 +140,27 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("HYDRO_CONTENT_TYPES_DIR"); ok && value != "" {
 		result.ContentTypesDir = value
 	}
+	if value, ok := lookup("HYDRO_BACKUP_ENABLED"); ok && value != "" {
+		if enabled, err := strconv.ParseBool(value); err == nil {
+			result.Backup.Enabled = enabled
+		}
+	}
+	if value, ok := lookup("HYDRO_BACKUP_HOUR"); ok && value != "" {
+		if hour, err := strconv.Atoi(value); err == nil {
+			result.Backup.HourUTC = hour
+		}
+	}
+	if value, ok := lookup("HYDRO_BACKUP_RETENTION_DAYS"); ok && value != "" {
+		if days, err := strconv.Atoi(value); err == nil {
+			result.Backup.RetentionDays = days
+		}
+	}
+	if value, ok := lookup("HYDRO_BACKUP_PREFIX"); ok && value != "" {
+		result.Backup.Prefix = value
+	}
+	if value, ok := lookup("HYDRO_BACKUP_DIR"); ok && value != "" {
+		result.Backup.LocalDir = value
+	}
 	if value, ok := lookup("HYDRO_BACKUP_SIGNING_SEED"); ok && value != "" {
 		result.Backup.SigningSeed = value
 	}

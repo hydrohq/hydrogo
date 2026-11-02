@@ -26,7 +26,7 @@ func TestBindPostgresTransactionUsesTransactionLocalScope(t *testing.T) {
 	if err := BindPostgresTransaction(context.Background(), stub, scope); err != nil {
 		t.Fatal(err)
 	}
-	if stub.query != "SELECT set_config('app.tenant_rls_enforced', 'true', true), set_config('app.current_tenant_id', $1, true)" || len(stub.args) != 1 || stub.args[0] != "tenant-a" {
+	if stub.query != "SELECT set_config('app.current_tenant_id', $1, true)" || len(stub.args) != 1 || stub.args[0] != "tenant-a" {
 		t.Fatalf("RLS binding = %q %#v", stub.query, stub.args)
 	}
 }
@@ -36,7 +36,7 @@ func TestBindPostgresSingleTenantTransactionDisablesRLS(t *testing.T) {
 	if err := BindPostgresSingleTenantTransaction(context.Background(), stub); err != nil {
 		t.Fatal(err)
 	}
-	if stub.query != "SELECT set_config('app.tenant_rls_enforced', 'false', true)" || len(stub.args) != 0 {
+	if stub.query != "SELECT set_config('app.current_tenant_id', '', true)" || len(stub.args) != 0 {
 		t.Fatalf("single-tenant RLS binding = %q %#v", stub.query, stub.args)
 	}
 }

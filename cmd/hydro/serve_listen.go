@@ -137,6 +137,14 @@ func (a *serveApp) mailerRoutes() []router.Route {
 // serverConfig assembles server.Config: security headers, panic reporting,
 // maintenance mode and readiness checks.
 // readiness is the check behind /readyz and the admin health endpoint.
+// health is the active database ping behind /healthz.
+func (a *serveApp) health(checkCtx context.Context) error {
+	if a.db == nil {
+		return nil
+	}
+	return a.db.PingContext(checkCtx)
+}
+
 func (a *serveApp) readiness(checkCtx context.Context) error {
 	if err := a.db.PingContext(checkCtx); err != nil {
 		return err
@@ -260,6 +268,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		TenantGovernor: a.tenantGovernor,
 		Routes:         routes,
 		Ready:          a.readiness,
+		Health:         a.health,
 	}, nil
 }
 

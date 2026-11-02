@@ -106,6 +106,29 @@ func TestBackupSigningSeedIsEnvironmentOnlyAndValidated(t *testing.T) {
 	}
 }
 
+func TestBackupLocalDirValidationAndEnvLoading(t *testing.T) {
+	path := writeConfig(t, "backup:\n  enabled: true\n  local_dir: /var/backups\n")
+	cfg, err := Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN": "file:test.sqlite",
+		"HYDRO_BACKUP_HOUR":  "4",
+	}), Overrides{})
+	if err != nil {
+		t.Fatalf("Load with local backup dir failed: %v", err)
+	}
+	if !cfg.Backup.Enabled {
+		t.Errorf("expected backup enabled")
+	}
+	if cfg.Backup.LocalDir != "/var/backups" {
+		t.Errorf("expected local_dir /var/backups, got %s", cfg.Backup.LocalDir)
+	}
+	if cfg.Backup.HourUTC != 4 {
+		t.Errorf("expected hour_utc 4, got %d", cfg.Backup.HourUTC)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Validate failed on valid local_dir backup: %v", err)
+	}
+}
+
 func TestLoadNormalizesModuleNamesBeforeRuntimeComposition(t *testing.T) {
 	path := writeConfig(t, "modules: [ Core, ' pages ', MEDIA ]\n")
 	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})

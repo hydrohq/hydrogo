@@ -36,12 +36,12 @@ func (r redisRuntime) Close() error {
 	return r.client.Close()
 }
 
-func newRuntimeRateLimiter(r redisRuntime, keyPrefix string, limit int, window time.Duration, requireTenantScope bool) security.RateLimiter {
+func newRuntimeRateLimiter(r redisRuntime, store *cache.MemoryStore, keyPrefix string, limit int, window time.Duration, requireTenantScope bool) security.RateLimiter {
 	var limiter security.RateLimiter
 	if r.client != nil {
 		limiter = security.RedisRateLimiter{Client: r.client, Prefix: keyPrefix + "hydro:ratelimit:", Limit: limit, Window: window}
 	} else {
-		limiter = security.NewAttemptLimiter(10000, limit, window)
+		limiter = cache.NewMemoryRateLimiter(store, "rl:", limit, window)
 	}
 	if requireTenantScope {
 		return security.TenantScopedRateLimiter{Inner: limiter}

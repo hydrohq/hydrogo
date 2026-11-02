@@ -353,4 +353,13 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected transactor to reject context without tenant when RequireTenantScope is true")
 	}
+
+	// Step H: Verify raw connection without app.current_tenant_id returns 0 rows (Fail-Closed)
+	var rawPageCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = 'page-alpha'`).Scan(&rawPageCount); err != nil {
+		t.Fatalf("fail-closed raw query failed: %v", err)
+	}
+	if rawPageCount != 0 {
+		t.Fatalf("fail-closed violation: raw query without tenant context saw %d rows", rawPageCount)
+	}
 }

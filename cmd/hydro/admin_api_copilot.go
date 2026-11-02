@@ -229,7 +229,6 @@ func (a *serveApp) buildCopilotWorkspaceContext(ctx context.Context, defs []cont
 		Fields []fieldDesc `json:"fields"`
 	}
 	schemas := make([]schemaDesc, 0, len(defs))
-	recordsByCollection := make(map[string][]collections.Record, len(defs))
 
 	for _, def := range defs {
 		fields := make([]fieldDesc, 0, len(def.Fields))
@@ -245,16 +244,12 @@ func (a *serveApp) buildCopilotWorkspaceContext(ctx context.Context, defs []cont
 			Label:  def.Label,
 			Fields: fields,
 		})
-		if a.collectionService.Repository != nil {
-			if recs, err := a.collectionService.QueryRecords(ctx, def.ID, collections.Query{Limit: 25}); err == nil {
-				recordsByCollection[def.ID] = recs
-			}
-		}
 	}
 
 	schemasJSON, _ := json.Marshal(schemas)
-	recordsJSON, _ := json.Marshal(recordsByCollection)
-	return string(schemasJSON), string(recordsJSON)
+	// Live customer records, order notes, and phone numbers are excluded from the prompt
+	// to protect customer privacy and prevent indirect prompt injection.
+	return string(schemasJSON), "{}"
 }
 
 func (a *serveApp) generateWorkspaceCopilotPlan(

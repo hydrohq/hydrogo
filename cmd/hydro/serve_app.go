@@ -16,6 +16,7 @@ import (
 	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
+	"github.com/ardaozyildirim/hydrogo/internal/cache"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/config"
@@ -67,11 +68,13 @@ type serveApp struct {
 	// with a partial file left behind.
 	workers sync.WaitGroup
 
-	tenantResolver     *tenant.HostResolver
-	tenantGovernor     *tenant.Governor
-	tenantScopes       []tenant.Scope
-	requireTenantScope bool
-	modules            map[string]bool
+	tenantResolver      *tenant.HostResolver
+	tenantGovernor      *tenant.Governor
+	tenantScopes        []tenant.Scope
+	requireTenantScope  bool
+	memoryStore         *cache.MemoryStore
+	negativeDomainCache *cache.Cache[bool]
+	modules             map[string]bool
 
 	// Database and security core.
 	budget        capacity.Budget
@@ -170,10 +173,21 @@ func (a *serveApp) close() error {
 	return err
 }
 
+func (a *serveApp) getMemoryStore() *cache.MemoryStore {
+	if a.memoryStore == nil {
+		a.memoryStore = cache.NewMemoryStore(cache.MemoryStoreOptions{
+			MaxEntries:      10000,
+			JanitorInterval: time.Minute,
+		})
+		a.onClose(a.memoryStore.Close)
+	}
+	return a.memoryStore
+}
+
 // newRateLimiter returns a Redis-backed limiter when Redis is configured and
-// an in-memory one otherwise, tenant-scoped when tenancy is on.
+// an in-memory MemoryStore limiter otherwise, tenant-scoped when tenancy is on.
 func (a *serveApp) newRateLimiter(limit int, window time.Duration) security.RateLimiter {
-	return newRuntimeRateLimiter(a.redisClient, a.cfg.Redis.KeyPrefix, limit, window, a.requireTenantScope)
+	return newRuntimeRateLimiter(a.redisClient, a.getMemoryStore(), a.cfg.Redis.KeyPrefix, limit, window, a.requireTenantScope)
 }
 
 // activeStudioCollections lists the admin studio collections of enabled modules.

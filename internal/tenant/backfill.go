@@ -130,7 +130,7 @@ func ExecuteBackfill(ctx context.Context, db *sql.DB, dialect string, targetTena
 	defer tx.Rollback()
 
 	if dialect == "postgres" {
-		if _, err := tx.ExecContext(ctx, "SELECT set_config('app.tenant_rls_enforced', 'false', true)"); err != nil {
+		if _, err := tx.ExecContext(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", targetTenantID); err != nil {
 			return nil, err
 		}
 	}

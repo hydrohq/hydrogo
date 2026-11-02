@@ -138,6 +138,7 @@ type Backup struct {
 	Prefix        string `yaml:"prefix"`
 	RetentionDays int    `yaml:"retention_days"`
 	HourUTC       int    `yaml:"hour_utc"`
+	LocalDir      string `yaml:"local_dir"`
 	SigningSeed   string `yaml:"-" json:"-"`
 }
 
