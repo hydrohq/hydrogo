@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html fonts/*
+//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html sections/*.html fonts/*
 var templateFS embed.FS
 
 // ResolveFontFamilies returns CSS font families (heading, body) for a given typography preset.
