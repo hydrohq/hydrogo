@@ -166,6 +166,11 @@ type StorefrontData struct {
 	Products         []ProductView
 	FeaturedProducts []ProductView
 	ProductsJSON     template.JS
+
+	// Dynamic Sectional Architecture (ADR-0031)
+	LayoutJSON       string
+	RenderedSections []template.HTML
+	HasCustomLayout  bool
 }
 
 // ProductDetailData carries data for dedicated product page.
@@ -279,6 +284,14 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 		data.ProductsJSON = template.JS(prodsJSON) // #nosec G203 -- sanitized JSON of product catalog
 	} else {
 		data.ProductsJSON = template.JS("[]")
+	}
+
+	if strings.TrimSpace(data.LayoutJSON) != "" {
+		secs, err := ParseAndRenderSections(data.LayoutJSON, data)
+		if err == nil && len(secs) > 0 {
+			data.RenderedSections = secs
+			data.HasCustomLayout = true
+		}
 	}
 
 	var buf bytes.Buffer
