@@ -13,6 +13,7 @@ import (
 	"time"
 
 	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
+	"github.com/ardaozyildirim/hydrogo/internal/ai/prompts"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
@@ -116,17 +117,31 @@ func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	pMeta, _ := prompts.Load("copilot_system")
+	var pID, pVer, pHash string
+	if pMeta != nil {
+		pID = pMeta.ID
+		pVer = pMeta.Version
+		pHash = pMeta.Hash
+	}
+	plan.PromptID = pID
+	plan.PromptVersion = pVer
+	plan.PromptHash = pHash
+
 	actionLog := aicore.CopilotActionLog{
-		ID:         newCopilotActionID(),
-		TenantID:   tenantID,
-		Prompt:     prompt,
-		Reply:      plan.Reply,
-		Operations: executedOps,
-		Provider:   gov.AIProvider,
-		Model:      gov.AIModel,
-		TokensUsed: tokensUsed,
-		Undone:     false,
-		CreatedAt:  time.Now().UTC(),
+		ID:            newCopilotActionID(),
+		TenantID:      tenantID,
+		Prompt:        prompt,
+		Reply:         plan.Reply,
+		Operations:    executedOps,
+		Provider:      gov.AIProvider,
+		Model:         gov.AIModel,
+		TokensUsed:    tokensUsed,
+		Undone:        false,
+		PromptID:      pID,
+		PromptVersion: pVer,
+		PromptHash:    pHash,
+		CreatedAt:     time.Now().UTC(),
 	}
 	a.prependCopilotActionLog(r.Context(), tenantID, actionLog)
 
