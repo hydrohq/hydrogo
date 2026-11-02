@@ -38,13 +38,24 @@ An invitation (`POST /api/v1/admin/users/invites`, needs SMTP) and a password re
 
 See [`deploy/hosting/README.md`](../deploy/hosting/README.md). Use PostgreSQL or MySQL once traffic grows beyond a small site.
 
-## Databases
+## Databases and In-Memory Cache
 
-SQLite (default) for small sites; PostgreSQL or MySQL/MariaDB for more traffic or several instances (`database.dialect`, `HYDRO_DATABASE_DSN`). Add Redis (`HYDRO_REDIS_URL`) for shared rate limits and caches when you run more than one instance.
+SQLite (default) for small sites; PostgreSQL or MySQL/MariaDB for more traffic or several instances (`database.dialect`, `HYDRO_DATABASE_DSN`).
+
+HydroGo includes a built-in, zero-dependency embedded `MemoryStore` (`internal/cache`) providing thread-safe TTL caching, atomic counters, rate limiting, pub/sub, and worker pools out of the box without requiring external daemons. For clustered deployments running across multiple instances, set `HYDRO_REDIS_URL` to synchronize rate limits and caches across nodes.
+
+## Health and Readiness Probes
+
+HydroGo exposes `/healthz` for load balancers and orchestrators. It actively pings the connected database (`db.PingContext`), returning HTTP 200 `OK` when healthy and HTTP 503 `database unavailable` if the database connection fails.
+
+For reverse proxies like Caddy or Nginx, internal endpoints under `/api/v1/internal/*` (such as the On-Demand TLS `check-domain` route) should be restricted to loopback traffic only. In-memory negative caching protects the database from brute-force domain queries.
 
 ## Backups
 
-`hydro backup sqlite --destination backups/ --media-dir data/media` (or `postgres`), and test `hydro restore` on a scratch copy before you need it. Run it from cron or a systemd timer.
+Backups can run automatically via HydroGo's built-in background scheduler or manually via the CLI:
+
+- **Automated Nightly Backups**: Enable with `HYDRO_BACKUP_ENABLED=true` (or `backup.enabled: true` in `config.yaml`). Configured by default to run at 03:00 local time (`HYDRO_BACKUP_HOUR=3`) saving snapshots to `data/backups/` (`HYDRO_BACKUP_DIR` or `backup.local_dir`), with optional S3/Cloudflare R2 archival (`backup.s3_bucket`).
+- **CLI Trigger**: Run `hydro backup auto` to trigger the configured automatic routine immediately, or run manual dialect backups: `hydro backup sqlite --destination backups/ --media-dir data/media` (or `postgres` / `mysql`). Always test `hydro restore` on a scratch copy before you need it.
 
 On PostgreSQL the audit tables use forced row-level security, so the application's own database user cannot dump or restore them. Set `HYDRO_PG_PRIVILEGED_ROLE` to a role that user may `SET ROLE` to: for backups, one with `BYPASSRLS` and `pg_read_all_data`; for `hydro restore postgres` into an empty database, one that can also create objects there. Without it the command stops with a hint instead of writing an incomplete backup.
 

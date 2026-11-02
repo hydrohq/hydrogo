@@ -30,6 +30,10 @@
 | [0026](0026-sveltekit-starter-static-adapter.md) | `sveltekit-starter` converted to a static SPA (adapter-static) | Accepted |
 | [0027](0027-realtime-baas-and-row-level-access-rules.md) | Realtime BaaS (PocketBase Parity) and Row-Level Access Rules | Accepted |
 | [0028](0028-ai-agent-control-plane-and-mcp.md) | AI-Agent Control Plane & Model Context Protocol (MCP) Architecture | Accepted |
+| [0029](0029-platform-orchestrator-and-resource-governor.md) | Platform Orchestrator & Resource Governor | Accepted |
+| [0030](0030-ai-workspace-copilot-and-boutique-factory.md) | AI Workspace Copilot & 60-Second Boutique Store Factory | Accepted |
+| [0031](0031-ai-generation-and-prompt-registry.md) | AI Generation Engine, Prompt Registry, and Section-Based Storefront | Accepted |
+| [0032](0032-fail-closed-rls-and-zero-dependency-memory-engine.md) | Fail-Closed PostgreSQL RLS, Zero-Dependency In-Memory Engine, and Storefront Resilience | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.

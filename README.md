@@ -34,20 +34,23 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 - **Content:** pages with blocks, news with categories and tags, media
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
   scheduled news publishing, and audit log.
-- **Commerce:** an opt-in module -- catalog (as content types), cart,
-  checkout, orders, Yurtiçi Kargo shipping. See
+- **Commerce & Storefront:** opt-in commerce module (catalog as content types, cart,
+  checkout, orders, Yurtiçi Kargo shipping) plus built-in sectional boutique storefronts
+  with WhatsApp order tracking, product variants, and slide-over cart drawers. See
   [docs/commerce.md](docs/commerce.md).
 - **Multi-tenancy:** an opt-in, cross-cutting feature -- serve several
-  customers from one shared database instead of one deployment per
-  customer. See [docs/multi-tenancy.md](docs/multi-tenancy.md).
+  customers from one shared database with strict fail-closed PostgreSQL Row-Level
+  Security (RLS) and connection pool lifecycle isolation. See [docs/multi-tenancy.md](docs/multi-tenancy.md).
 - **Zero build on publish:** a publish in the admin is live on the next API
   request; frontends never need a rebuild.
+- **Zero-Dependency Engine:** embedded thread-safe memory store with TTL, background
+  janitor, atomic rate limiting, and pub/sub. Redis is optional, only needed for multi-instance clusters.
 - **Project scaffolding:** `hydro new mysite --preset blog` creates a ready
   project (config, content types, database, admin user) in one command.
 - **Frontends:** a typed client ([`@hydrogo/client`](packages/client)) and a
   server-rendered SvelteKit starter ([`examples/sveltekit-starter`](examples/sveltekit-starter)).
-- **Operations:** migrations with rollback snapshots, backups and restore,
-  health/readiness probes, Prometheus metrics, optional Redis and S3.
+- **Operations:** migrations with rollback snapshots, automated nightly backups and restore,
+  active database readiness probes (`/healthz`), Prometheus metrics, and S3/R2 archival.
 
 ## Install
 
