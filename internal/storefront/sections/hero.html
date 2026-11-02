@@ -1,0 +1,22 @@
+<section class="hero-section">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        {{if .Badge}}
+        <span class="hero-badge">{{.Badge}}</span>
+        {{end}}
+        <h2 class="hero-title">{{.Title}}</h2>
+        <p class="hero-subtitle">{{.Subtitle}}</p>
+        <div class="hero-actions">
+          <a href="{{.CTALink}}" class="btn-primary">{{.CTAText}}</a>
+          <a href="{{.SecondaryCTALink}}" class="btn-secondary">{{.SecondaryCTAText}}</a>
+        </div>
+      </div>
+      <div>
+        <div class="hero-visual">
+          <img src="{{.ImageURL}}" alt="{{.StoreName}}" loading="eager">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

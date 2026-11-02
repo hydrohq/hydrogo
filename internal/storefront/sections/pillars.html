@@ -1,0 +1,13 @@
+<section class="pillars-section" id="ilkeler">
+  <div class="container">
+    <h3 class="section-title text-center" style="margin-bottom: 40px;">{{.Title}}</h3>
+    <div class="pillars-grid">
+      {{range .Items}}
+      <div class="pillar-card">
+        <h4 class="pillar-title">{{.Title}}</h4>
+        <p class="pillar-desc">{{.Desc}}</p>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</section>
