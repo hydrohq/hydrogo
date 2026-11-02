@@ -27,8 +27,8 @@ func newRedisRuntime(_ context.Context, rawURL string) (redisRuntime, error) {
 
 func (redisRuntime) Close() error { return nil }
 
-func newRuntimeRateLimiter(_ redisRuntime, _ string, limit int, window time.Duration, requireTenantScope bool) security.RateLimiter {
-	var limiter security.RateLimiter = security.NewAttemptLimiter(10000, limit, window)
+func newRuntimeRateLimiter(_ redisRuntime, store *cache.MemoryStore, _ string, limit int, window time.Duration, requireTenantScope bool) security.RateLimiter {
+	var limiter security.RateLimiter = cache.NewMemoryRateLimiter(store, "rl:", limit, window)
 	if requireTenantScope {
 		return security.TenantScopedRateLimiter{Inner: limiter}
 	}

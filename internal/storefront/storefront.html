@@ -501,9 +501,32 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transition: transform 0.3s ease;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .product-card:hover .product-visual img {
+    .product-visual .primary-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+      z-index: 1;
+    }
+    .product-visual .secondary-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 2;
+    }
+    .product-card:hover .product-visual .secondary-img {
+      opacity: 1;
+      transform: scale(1.03);
+    }
+    .product-card:hover .product-visual .primary-img {
       transform: scale(1.03);
     }
     .badge {
@@ -769,16 +792,17 @@
       }
     }
 
-    /* Bottom Sheet Drawer */
+    /* Slide-over Luxury Drawer */
     .drawer-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(4px);
+      background: rgba(18, 18, 18, 0.45);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       z-index: 200;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.25s ease;
+      transition: opacity 0.3s ease;
     }
     .drawer-overlay.active {
       opacity: 1;
@@ -786,31 +810,29 @@
     }
     .drawer {
       position: fixed;
-      left: 0;
+      top: 0;
       right: 0;
       bottom: 0;
-      background: #FFFFFF;
-      border-radius: 16px 16px 0 0;
-      max-height: 90vh;
+      width: 100%;
+      max-width: 460px;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-left: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: -15px 0 50px rgba(0, 0, 0, 0.15);
       display: flex;
       flex-direction: column;
       z-index: 210;
-      transform: translateY(100%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
-      max-width: 540px;
-      margin: 0 auto;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      margin: 0;
     }
     .drawer.active {
-      transform: translateY(0);
+      transform: translateX(0);
     }
     .drawer-handle {
-      width: 40px;
-      height: 4px;
-      background: #E5E5E5;
-      border-radius: 9999px;
-      margin: 12px auto 6px;
-      flex-shrink: 0;
+      display: none;
     }
     .drawer-header {
       padding: 12px 20px 14px;
@@ -1052,7 +1074,10 @@
             <span class="badge">{{.Badge}}</span>
             {{end}}
             {{if .ImageURL}}
-            <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy">
+            <img src="{{.ImageURL}}" alt="{{.Title}}" class="primary-img" loading="lazy">
+            {{if .SecondaryImage}}
+            <img src="{{.SecondaryImage}}" alt="{{.Title}} - İkinci Görsel" class="secondary-img" loading="lazy">
+            {{end}}
             {{else}}
             <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#A8A29E; font-family:var(--font-serif); font-size:42px;">
               ✦
@@ -1204,7 +1229,10 @@
             <span class="badge">{{.Badge}}</span>
             {{end}}
             {{if .ImageURL}}
-            <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy">
+            <img src="{{.ImageURL}}" alt="{{.Title}}" class="primary-img" loading="lazy">
+            {{if .SecondaryImage}}
+            <img src="{{.SecondaryImage}}" alt="{{.Title}} - İkinci Görsel" class="secondary-img" loading="lazy">
+            {{end}}
             {{else}}
             <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#A8A29E; font-family:var(--font-serif); font-size:42px;">
               ✦
@@ -1352,6 +1380,8 @@
     <div class="drawer-body">
       <p class="drawer-prod-desc" id="dDesc"></p>
 
+      <div id="dynamicOptionsContainer"></div>
+
       <div class="form-group" id="sizeGroup" style="display:none;">
         <label class="form-label">Seçenek / Ebat</label>
         <div class="pill-group" id="dSizes"></div>
@@ -1389,15 +1419,20 @@
 
   <script>
     const productsData = {{.ProductsJSON}};
-    const storeWhatsapp = {{.CleanPhone}};
-    const storeShopier = {{.ShopierURL}};
+    const storeWhatsapp = "{{.CleanPhone}}";
+    const storeShopier = "{{.ShopierURL}}";
     let activeProduct = null;
+    let selectedOptions = {};
+    let activeVariant = null;
     let selectedSize = '';
     let selectedColor = '';
 
     function openDrawer(id) {
       activeProduct = productsData.find(p => p.id === id);
       if (!activeProduct) return;
+
+      selectedOptions = {};
+      activeVariant = null;
 
       document.getElementById('dTitle').textContent = activeProduct.title;
       document.getElementById('dPrice').textContent = Number(activeProduct.price).toLocaleString('tr-TR') + ' TL';
@@ -1408,55 +1443,105 @@
         dedicatedLink.href = '/urun/' + (activeProduct.slug || activeProduct.id);
       }
 
-      // Sizes
+      // Check dynamic options
+      const container = document.getElementById('dynamicOptionsContainer');
+      container.innerHTML = '';
       const sizeGroup = document.getElementById('sizeGroup');
-      const dSizes = document.getElementById('dSizes');
-      dSizes.innerHTML = '';
-      const sizes = (activeProduct.sizes || '').split(',').map(s => s.trim()).filter(Boolean);
-      if (sizes.length > 0) {
-        sizeGroup.style.display = 'block';
-        selectedSize = sizes[0];
-        sizes.forEach(s => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'pill-btn' + (s === selectedSize ? ' selected' : '');
-          btn.textContent = s;
-          btn.onclick = () => {
-            selectedSize = s;
-            dSizes.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-          };
-          dSizes.appendChild(btn);
+      const colorGroup = document.getElementById('colorGroup');
+
+      if (activeProduct.options && activeProduct.options.length > 0) {
+        sizeGroup.style.display = 'none';
+        colorGroup.style.display = 'none';
+
+        activeProduct.options.forEach(opt => {
+          const grp = document.createElement('div');
+          grp.className = 'form-group';
+          const lbl = document.createElement('label');
+          lbl.className = 'form-label';
+          lbl.textContent = opt.name;
+          grp.appendChild(lbl);
+
+          const pillGrp = document.createElement('div');
+          pillGrp.className = 'pill-group';
+
+          if (!selectedOptions[opt.name] && opt.values && opt.values.length > 0) {
+            selectedOptions[opt.name] = opt.values[0];
+          }
+
+          (opt.values || []).forEach(val => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pill-btn' + (selectedOptions[opt.name] === val ? ' selected' : '');
+            btn.textContent = val;
+            btn.onclick = () => {
+              selectedOptions[opt.name] = val;
+              pillGrp.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected'));
+              btn.classList.add('selected');
+              syncVariantState();
+            };
+            pillGrp.appendChild(btn);
+          });
+
+          grp.appendChild(pillGrp);
+          container.appendChild(grp);
         });
       } else {
-        sizeGroup.style.display = 'none';
-        selectedSize = 'Standart';
+        // Fallback sizes
+        const dSizes = document.getElementById('dSizes');
+        dSizes.innerHTML = '';
+        const sizes = (activeProduct.sizes || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (sizes.length > 0) {
+          sizeGroup.style.display = 'block';
+          selectedSize = sizes[0];
+          selectedOptions['Beden'] = selectedSize;
+          sizes.forEach(s => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pill-btn' + (s === selectedSize ? ' selected' : '');
+            btn.textContent = s;
+            btn.onclick = () => {
+              selectedSize = s;
+              selectedOptions['Beden'] = s;
+              dSizes.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected'));
+              btn.classList.add('selected');
+              syncVariantState();
+            };
+            dSizes.appendChild(btn);
+          });
+        } else {
+          sizeGroup.style.display = 'none';
+          selectedSize = 'Standart';
+        }
+
+        // Fallback colors
+        const dColors = document.getElementById('dColors');
+        dColors.innerHTML = '';
+        const colors = (activeProduct.colors || '').split(',').map(c => c.trim()).filter(Boolean);
+        if (colors.length > 0) {
+          colorGroup.style.display = 'block';
+          selectedColor = colors[0];
+          selectedOptions['Renk'] = selectedColor;
+          colors.forEach(c => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pill-btn' + (c === selectedColor ? ' selected' : '');
+            btn.textContent = c;
+            btn.onclick = () => {
+              selectedColor = c;
+              selectedOptions['Renk'] = c;
+              dColors.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected'));
+              btn.classList.add('selected');
+              syncVariantState();
+            };
+            dColors.appendChild(btn);
+          });
+        } else {
+          colorGroup.style.display = 'none';
+          selectedColor = '';
+        }
       }
 
-      // Colors
-      const colorGroup = document.getElementById('colorGroup');
-      const dColors = document.getElementById('dColors');
-      dColors.innerHTML = '';
-      const colors = (activeProduct.colors || '').split(',').map(c => c.trim()).filter(Boolean);
-      if (colors.length > 0) {
-        colorGroup.style.display = 'block';
-        selectedColor = colors[0];
-        colors.forEach(c => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'pill-btn' + (c === selectedColor ? ' selected' : '');
-          btn.textContent = c;
-          btn.onclick = () => {
-            selectedColor = c;
-            dColors.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-          };
-          dColors.appendChild(btn);
-        });
-      } else {
-        colorGroup.style.display = 'none';
-        selectedColor = '';
-      }
+      syncVariantState();
 
       // Shopier button
       const shopierBtn = document.getElementById('shopierBtn');
@@ -1473,15 +1558,58 @@
       document.body.style.overflow = 'hidden';
     }
 
+    function syncVariantState() {
+      if (!activeProduct) return;
+      const variants = activeProduct.variants || [];
+      let basePrice = Number(activeProduct.price) || 0;
+      let matched = null;
+
+      if (variants.length > 0) {
+        const selectedVals = Object.values(selectedOptions).map(v => String(v).trim().toLowerCase());
+        matched = variants.find(v => {
+          const t = (v.title || '').toLowerCase();
+          return selectedVals.every(val => t.includes(val));
+        }) || variants[0];
+      }
+
+      activeVariant = matched;
+      let currentPrice = basePrice;
+      if (matched && matched.price_diff) {
+        currentPrice += Number(matched.price_diff);
+      }
+
+      document.getElementById('dPrice').textContent = Number(currentPrice).toLocaleString('tr-TR') + ' TL';
+
+      const waBtn = document.querySelector('.btn-whatsapp-order');
+      if (waBtn) {
+        if (matched && matched.stock !== undefined && matched.stock <= 0) {
+          waBtn.disabled = true;
+          waBtn.style.opacity = '0.5';
+          waBtn.style.cursor = 'not-allowed';
+          waBtn.innerHTML = '<span>Tükendi (Stokta Yok)</span>';
+        } else {
+          waBtn.disabled = false;
+          waBtn.style.opacity = '1';
+          waBtn.style.cursor = 'pointer';
+          waBtn.innerHTML = '<span>WhatsApp ile Siparişi Tamamla</span>';
+        }
+      }
+    }
+
     function closeDrawer() {
       document.getElementById('drawerOverlay').classList.remove('active');
       document.getElementById('orderDrawer').classList.remove('active');
       document.body.style.overflow = '';
       activeProduct = null;
+      selectedOptions = {};
+      activeVariant = null;
     }
 
     async function submitWhatsAppOrder() {
       if (!activeProduct) return;
+      const waBtn = document.querySelector('.btn-whatsapp-order');
+      if (waBtn && waBtn.disabled) return;
+
       const name = document.getElementById('custName').value.trim();
       const phone = document.getElementById('custPhone').value.trim();
       const addr = document.getElementById('custAddr').value.trim();
@@ -1491,21 +1619,28 @@
         return;
       }
 
+      let currentPrice = Number(activeProduct.price) || 0;
+      if (activeVariant && activeVariant.price_diff) {
+        currentPrice += Number(activeVariant.price_diff);
+      }
+
       const orderPayload = {
         product_id: activeProduct.id,
         product_title: activeProduct.title,
-        price: activeProduct.price,
-        size: selectedSize,
-        color: selectedColor,
+        price: currentPrice,
+        sku: activeVariant ? activeVariant.sku : '',
+        variant_title: activeVariant ? activeVariant.title : '',
+        size: selectedOptions['Beden'] || selectedSize || '',
+        color: selectedOptions['Renk'] || selectedColor || '',
         customer_name: name,
         customer_phone: phone,
         customer_address: addr
       };
 
-      let orderCode = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+      let orderCode = 'HYD-' + Math.floor(1000 + Math.random() * 9000);
 
       try {
-        const res = await fetch('/api/v1/storefront/order', {
+        const res = await fetch('/api/v1/store/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload)
@@ -1517,16 +1652,22 @@
           }
         }
       } catch (e) {
-        console.warn('Local order record fallback:', e);
+        console.warn('Store order dispatch error, using fallback code:', e);
       }
+
+      const formattedCode = orderCode.startsWith('#') ? orderCode : '#' + orderCode;
 
       // Format WhatsApp Message (Clean, no emoji clutter)
       let msg = `Merhaba, ${activeProduct.title} için sipariş vermek istiyorum.\n\n`;
-      msg += `Sipariş No: #${orderCode}\n`;
+      msg += `Sipariş Kodu: ${formattedCode}\n`;
       msg += `Ürün: ${activeProduct.title}\n`;
-      if (selectedSize && selectedSize !== 'Standart') msg += `Seçenek: ${selectedSize}\n`;
-      if (selectedColor) msg += `Renk: ${selectedColor}\n`;
-      msg += `Tutar: ${Number(activeProduct.price).toLocaleString('tr-TR')} TL\n\n`;
+      if (activeVariant && activeVariant.title) {
+        msg += `Seçenek: ${activeVariant.title}${activeVariant.sku ? ' (' + activeVariant.sku + ')' : ''}\n`;
+      } else {
+        if (orderPayload.size && orderPayload.size !== 'Standart') msg += `Seçenek: ${orderPayload.size}\n`;
+        if (orderPayload.color) msg += `Renk: ${orderPayload.color}\n`;
+      }
+      msg += `Tutar: ${Number(currentPrice).toLocaleString('tr-TR')} TL\n\n`;
       msg += `Müşteri: ${name}\n`;
       msg += `Telefon: ${phone}\n`;
       msg += `Teslimat Adresi:\n${addr}\n\n`;

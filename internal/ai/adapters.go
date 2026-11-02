@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -61,7 +62,13 @@ func NewAdapter(cfg AdapterConfig) Adapter {
 	model := strings.TrimSpace(cfg.Model)
 	client := cfg.Client
 	if client == nil {
-		client = &http.Client{Timeout: 25 * time.Second}
+		allowLoopback := false
+		if raw := strings.TrimSpace(cfg.Endpoint); raw != "" {
+			if u, err := url.Parse(raw); err == nil && u.Scheme == "http" {
+				allowLoopback = true
+			}
+		}
+		client = NewSSRFProtectedClient(25*time.Second, allowLoopback)
 	}
 	// Custom endpoints (HYDRO_AI_BASE_URL) pass the same SSRF gate on every
 	// adapter, not only the OpenAI-compatible one.

@@ -422,44 +422,93 @@ func (a *serveApp) initPublicCaches() error {
 	return nil
 }
 
-// startScheduledBackup uploads a daily signed snapshot to S3-compatible
-// storage when cloud backups are enabled.
+// startScheduledBackup uploads a daily signed snapshot to S3/Cloudflare R2
+// or stores it in the configured local backup directory when backups are enabled.
 func (a *serveApp) startScheduledBackup() error {
 	ctx, cfg, db := a.ctx, a.cfg, a.db
 	if cfg.Backup.Enabled && !cfg.SafeMode && !a.opts.cgi && !a.opts.fastCGI {
-		dispatcher, backupErr := backupstore.NewS3Dispatcher(backupstore.S3Config{Endpoint: cfg.Media.S3Endpoint, Bucket: cfg.Media.S3Bucket, Region: cfg.Media.S3Region, AccessKey: cfg.Media.S3AccessKey, SecretKey: cfg.Media.S3SecretKey, Prefix: cfg.Backup.Prefix, Secure: cfg.Media.S3UseSSL, ForcePathStyle: cfg.Media.S3ForcePathStyle})
-		if backupErr != nil {
-			return fmt.Errorf("configure scheduled cloud backup: %w", backupErr)
+		var dispatcher *backupstore.S3Dispatcher
+		hasS3 := cfg.Media.S3Endpoint != "" && cfg.Media.S3Bucket != "" && cfg.Media.S3AccessKey != "" && cfg.Media.S3SecretKey != ""
+		if hasS3 {
+			d, backupErr := backupstore.NewS3Dispatcher(backupstore.S3Config{
+				Endpoint:       cfg.Media.S3Endpoint,
+				Bucket:         cfg.Media.S3Bucket,
+				Region:         cfg.Media.S3Region,
+				AccessKey:      cfg.Media.S3AccessKey,
+				SecretKey:      cfg.Media.S3SecretKey,
+				Prefix:         cfg.Backup.Prefix,
+				Secure:         cfg.Media.S3UseSSL,
+				ForcePathStyle: cfg.Media.S3ForcePathStyle,
+			})
+			if backupErr != nil {
+				return fmt.Errorf("configure scheduled cloud backup: %w", backupErr)
+			}
+			dispatcher = d
 		}
+
+		localDir := strings.TrimSpace(cfg.Backup.LocalDir)
+		if !hasS3 && localDir == "" {
+			localDir = "data/backups"
+		}
+
 		a.spawn(func() {
 			backupstore.RunDaily(ctx, cfg.Backup.HourUTC, func(backupCtx context.Context) error {
-				root, err := os.MkdirTemp("", "hydrogo-backup-")
-				if err != nil {
-					return err
-				}
-				defer os.RemoveAll(root)
-				snapshot := filepath.Join(root, "snapshot")
-				if cfg.Database.Dialect == database.SQLite {
-					_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
-				} else if cfg.Database.Dialect == database.Postgres {
-					var tools backupstore.PostgresTools
-					tools, err = backupstore.LocatePostgresTools()
-					if err == nil {
-						_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+				timestamp := time.Now().UTC().Format("20060102T150405Z")
+				if dispatcher != nil {
+					root, err := os.MkdirTemp("", "hydrogo-backup-")
+					if err != nil {
+						return err
 					}
-				} else {
-					err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
-				}
-				if err != nil {
+					defer os.RemoveAll(root)
+					snapshot := filepath.Join(root, "snapshot")
+					if cfg.Database.Dialect == database.SQLite {
+						_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, snapshot)
+					} else if cfg.Database.Dialect == database.Postgres {
+						var tools backupstore.PostgresTools
+						tools, err = backupstore.LocatePostgresTools()
+						if err == nil {
+							_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, snapshot)
+						}
+					} else {
+						err = errors.New("scheduled cloud backups support SQLite and PostgreSQL")
+					}
+					if err != nil {
+						return err
+					}
+					name := fmt.Sprintf("hydrogo-%s.tar.gz", timestamp)
+					if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
+						return err
+					}
+					_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
 					return err
 				}
-				name := fmt.Sprintf("hydrogo-%s.tar.gz", time.Now().UTC().Format("20060102T150405Z"))
-				if err = dispatcher.UploadSnapshot(backupCtx, snapshot, name); err != nil {
-					return err
+
+				if localDir != "" {
+					targetDir := filepath.Join(localDir, "hydrogo-"+timestamp)
+					if err := os.MkdirAll(localDir, 0o750); err != nil {
+						return err
+					}
+					var err error
+					if cfg.Database.Dialect == database.SQLite {
+						_, err = backupstore.SnapshotSQLite(backupCtx, db, cfg.Media.Dir, targetDir)
+					} else if cfg.Database.Dialect == database.Postgres {
+						var tools backupstore.PostgresTools
+						tools, err = backupstore.LocatePostgresTools()
+						if err == nil {
+							_, err = backupstore.SnapshotPostgres(backupCtx, tools, cfg.Database.DSN, cfg.Media.Dir, targetDir)
+						}
+					} else {
+						err = errors.New("scheduled backups support SQLite and PostgreSQL")
+					}
+					if err != nil {
+						return err
+					}
+					if cfg.Backup.RetentionDays > 0 {
+						_, _ = backupstore.PruneSnapshots(localDir, backupstore.SnapshotRetention{Keep: cfg.Backup.RetentionDays})
+					}
 				}
-				_, err = dispatcher.Prune(backupCtx, time.Duration(cfg.Backup.RetentionDays)*24*time.Hour, time.Now().UTC())
-				return err
-			}, func(err error) { slog.Error("scheduled cloud backup failed", "error", err) })
+				return nil
+			}, func(err error) { slog.Error("scheduled backup failed", "error", err) })
 		})
 	}
 	return nil

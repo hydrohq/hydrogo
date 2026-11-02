@@ -37,6 +37,7 @@ type Config struct {
 	TLSCacheDir                string
 	ShutdownTimeout            time.Duration
 	Ready                      func(context.Context) error
+	Health                     func(context.Context) error
 	AuthSvc                    *auth.AuthService
 	Routes                     []router.Route
 	Authorizer                 router.Authorizer
@@ -135,10 +136,18 @@ func serveListener(ctx context.Context, config Config, listener net.Listener) er
 }
 
 func NewHandler(config Config) http.Handler {
-	health := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	health := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Pragma", "no-cache")
+		if config.Health != nil {
+			checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := config.Health(checkCtx); err != nil {
+				http.Error(w, "unhealthy: database unreachable", http.StatusServiceUnavailable)
+				return
+			}
+		}
 		_, _ = w.Write([]byte("ok\n"))
 	})
 	readiness := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

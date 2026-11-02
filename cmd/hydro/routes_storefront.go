@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
@@ -30,6 +30,7 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "GET /contact", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
 		{Pattern: "GET /storefront/fonts/{name}", Access: router.Public, Handler: http.HandlerFunc(storefront.ServeFont)},
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
+		{Pattern: "POST /api/v1/store/orders", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 	}
 }
 
@@ -337,6 +338,100 @@ func (a *serveApp) loadTenantStoreProducts(ctx context.Context) []storefront.Pro
 	return prods
 }
 
+func parseOrSynthesizeVariants(d map[string]any, basePrice float64, sizesStr, colorsStr, defaultImg string) ([]storefront.OptionDef, []storefront.VariantDef, string) {
+	var options []storefront.OptionDef
+	var variants []storefront.VariantDef
+	secImg := ""
+
+	if s, ok := d["secondary_image"].(string); ok && s != "" {
+		secImg = s
+	}
+
+	// 1. Try options_json / options
+	if optRaw, ok := d["options_json"].(string); ok && strings.TrimSpace(optRaw) != "" {
+		_ = json.Unmarshal([]byte(optRaw), &options)
+	} else if optList, ok := d["options"].([]any); ok {
+		if b, err := json.Marshal(optList); err == nil {
+			_ = json.Unmarshal(b, &options)
+		}
+	}
+
+	// 2. Try variants_json / variants
+	if varRaw, ok := d["variants_json"].(string); ok && strings.TrimSpace(varRaw) != "" {
+		_ = json.Unmarshal([]byte(varRaw), &variants)
+	} else if varList, ok := d["variants"].([]any); ok {
+		if b, err := json.Marshal(varList); err == nil {
+			_ = json.Unmarshal(b, &variants)
+		}
+	}
+
+	// 3. If neither parsed, synthesize options and variants from colors & sizes
+	if len(options) == 0 && len(variants) == 0 {
+		var colors, sizes []string
+		if strings.TrimSpace(colorsStr) != "" {
+			for _, c := range strings.Split(colorsStr, ",") {
+				if trimmed := strings.TrimSpace(c); trimmed != "" {
+					colors = append(colors, trimmed)
+				}
+			}
+		}
+		if strings.TrimSpace(sizesStr) != "" {
+			for _, s := range strings.Split(sizesStr, ",") {
+				if trimmed := strings.TrimSpace(s); trimmed != "" {
+					sizes = append(sizes, trimmed)
+				}
+			}
+		}
+
+		if len(colors) == 0 {
+			colors = []string{"Taba", "Siyah"}
+		}
+		if len(sizes) == 0 {
+			sizes = []string{"Standart", "Büyük"}
+		}
+
+		options = append(options, storefront.OptionDef{Name: "Renk", Values: colors})
+		options = append(options, storefront.OptionDef{Name: "Beden", Values: sizes})
+
+		for i, c := range colors {
+			for j, s := range sizes {
+				skuPrefix := "TB"
+				if len(c) >= 2 {
+					skuPrefix = strings.ToUpper(c[:2])
+				}
+				skuSuffix := "STD"
+				if len(s) >= 2 {
+					skuSuffix = strings.ToUpper(s[:2])
+				}
+				sku := fmt.Sprintf("%s-%s", skuPrefix, skuSuffix)
+				title := fmt.Sprintf("%s / %s", c, s)
+				priceDiff := 0.0
+				if j > 0 {
+					priceDiff = 150.0 // Slight premium on secondary sizing
+				}
+				stock := 5
+				// Demo out-of-stock on the last variant combination
+				if i == len(colors)-1 && j == len(sizes)-1 {
+					stock = 0
+				}
+				variants = append(variants, storefront.VariantDef{
+					SKU:       sku,
+					Title:     title,
+					PriceDiff: priceDiff,
+					Stock:     stock,
+					Options:   []string{c, s},
+				})
+			}
+		}
+	}
+
+	if secImg == "" && defaultImg != "" {
+		secImg = defaultImg
+	}
+
+	return options, variants, secImg
+}
+
 func mapRecordToProductView(r collections.Record) storefront.ProductView {
 	pv := storefront.ProductView{
 		ID:      r.ID,
@@ -376,6 +471,19 @@ func mapRecordToProductView(r collections.Record) storefront.ProductView {
 	if is, ok := d["in_stock"].(bool); ok {
 		pv.InStock = is
 	}
+
+	opts, vars, sec := parseOrSynthesizeVariants(d, pv.Price, pv.Sizes, pv.Colors, pv.ImageURL)
+	pv.Options = opts
+	pv.Variants = vars
+	pv.SecondaryImage = sec
+
+	if b, err := json.Marshal(pv.Options); err == nil {
+		pv.OptionsJSON = template.JS(b)
+	}
+	if b, err := json.Marshal(pv.Variants); err == nil {
+		pv.VariantsJSON = template.JS(b)
+	}
+
 	return pv
 }
 
@@ -392,7 +500,7 @@ func (a *serveApp) fallbackCatalog(gov tenant.Governance) (map[string]any, []sto
 		sizes, _ := p["sizes"].(string)
 		colors, _ := p["colors"].(string)
 
-		views = append(views, storefront.ProductView{
+		pv := storefront.ProductView{
 			ID:          fmt.Sprintf("mock-%d", i+1),
 			Title:       title,
 			Slug:        slug,
@@ -403,7 +511,21 @@ func (a *serveApp) fallbackCatalog(gov tenant.Governance) (map[string]any, []sto
 			Sizes:       sizes,
 			Colors:      colors,
 			InStock:     true,
-		})
+		}
+
+		opts, vars, sec := parseOrSynthesizeVariants(p, price, sizes, colors, img)
+		pv.Options = opts
+		pv.Variants = vars
+		pv.SecondaryImage = sec
+
+		if b, err := json.Marshal(pv.Options); err == nil {
+			pv.OptionsJSON = template.JS(b)
+		}
+		if b, err := json.Marshal(pv.Variants); err == nil {
+			pv.VariantsJSON = template.JS(b)
+		}
+
+		views = append(views, pv)
 	}
 	return settings, views
 }
@@ -419,6 +541,8 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 		Price           float64 `json:"price"`
 		Size            string  `json:"size"`
 		Color           string  `json:"color"`
+		SKU             string  `json:"sku"`
+		VariantTitle    string  `json:"variant_title"`
 		CustomerName    string  `json:"customer_name"`
 		CustomerPhone   string  `json:"customer_phone"`
 		CustomerAddress string  `json:"customer_address"`
@@ -443,14 +567,31 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	var codeBytes [3]byte
+	var codeBytes [2]byte
 	_, _ = rand.Read(codeBytes[:])
-	orderCode := fmt.Sprintf("ORD-%s", strings.ToUpper(hex.EncodeToString(codeBytes[:])))
+	codeNum := 1000 + (int(codeBytes[0])<<8|int(codeBytes[1]))%9000
+	orderCode := fmt.Sprintf("#HYD-%04d", codeNum)
+
+	variantSummary := in.Size
+	if in.Color != "" {
+		if variantSummary != "" {
+			variantSummary = in.Color + " / " + variantSummary
+		} else {
+			variantSummary = in.Color
+		}
+	}
+	if in.VariantTitle != "" {
+		variantSummary = in.VariantTitle
+	}
+
+	itemsSummary := in.ProductTitle
+	if variantSummary != "" {
+		itemsSummary = fmt.Sprintf("%s (%s)", in.ProductTitle, variantSummary)
+	}
 
 	if tenantFound && scope.TenantID != "" {
 		tenantCtx := tenant.WithScope(r.Context(), scope)
 
-		itemsSummary := fmt.Sprintf("%s (%s / %s)", in.ProductTitle, in.Size, in.Color)
 		orderData := map[string]any{
 			"order_code":       orderCode,
 			"order_no":         orderCode,
@@ -462,8 +603,9 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 			"items_summary":    itemsSummary,
 			"total_price":      in.Price,
 			"total_amount":     in.Price,
-			"status":           "yeni",
-			"order_status":     "yeni",
+			"status":           "PENDING_WHATSAPP",
+			"order_status":     "PENDING_WHATSAPP",
+			"payment_status":   "pending",
 			"order_channel":    "WhatsApp",
 		}
 
@@ -475,6 +617,6 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 
 	api.WriteData(w, http.StatusOK, map[string]any{
 		"order_code": orderCode,
-		"status":     "created",
+		"status":     "PENDING_WHATSAPP",
 	}, nil)
 }

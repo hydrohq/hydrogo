@@ -1,0 +1,28 @@
+id: "202611020002_postgres_rls_fail_closed"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "df0dfe80de9c6ea650f688a9471511da3a5249c38fddc44cf8f0e8a9c479d364"
+  postgres: "13cb5450db8c7731ba31a9ccd16588784bf687717bb760e1c7a7a8ff547ed904"
+  mysql: "aa399c33de23576a8a6948a02a973e6ad2d28d733d5f5f9548f5fff0ee8b2744"
+dependencies:
+  - "202611020001_ai_token_period"
+schema:
+  readable_epoch: 10
+  writable_epoch: 10
+preconditions:
+  - "202611020001_ai_token_period is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Re-creates hydrogo_tenant_isolation RLS policies as strict fail-closed"
+compatibility: "Transitions PostgreSQL Row-Level Security from opt-in to strict fail-closed without bypass logic."
+smoke:
+  - "Unscoped queries on tenant tables return zero rows under PostgreSQL RLS."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

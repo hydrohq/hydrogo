@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
 	"github.com/ardaozyildirim/hydrogo/internal/capacity"
@@ -174,10 +175,13 @@ func validatePortableInputPath(path string) error {
 
 func backupCommand(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("backup command requires a subcommand (sqlite or postgres)")
+		return errors.New("backup command requires a subcommand (sqlite, postgres, auto, or prune)")
 	}
 	if args[0] == "prune" {
 		return pruneBackups(args[1:], stdout, stderr)
+	}
+	if args[0] == "auto" || args[0] == "now" {
+		return runAutoBackup(args[1:], stdout, stderr)
 	}
 	if args[0] != "sqlite" && args[0] != "postgres" {
 		return fmt.Errorf("unknown backup subcommand %q", args[0])
@@ -237,6 +241,83 @@ func backupCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	_, err = fmt.Fprintf(stdout, "backup-created destination=%s database-bytes=%d media-files=%d\n", *destination, manifest.Database.Bytes, len(manifest.Media))
 	return err
+}
+
+func runAutoBackup(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("backup auto", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	values := addRuntimeFlags(flags)
+	destination := flags.String("destination", "", "Snapshot directory (defaults to configured backup dir or data/backups)")
+	uploadS3 := flags.Bool("upload-s3", true, "Upload snapshot archive to S3/R2 if credentials are configured")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	cfg, err := loadMaintenanceConfig(flags, values)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	timestamp := time.Now().UTC().Format("20060102T150405Z")
+	target := *destination
+	if target == "" {
+		baseDir := cfg.Backup.LocalDir
+		if baseDir == "" {
+			baseDir = "data/backups"
+		}
+		target = filepath.Join(baseDir, "hydrogo-"+timestamp)
+	}
+
+	var manifest backupstore.Manifest
+	if cfg.Database.Dialect == database.Postgres {
+		tools, err := backupstore.LocatePostgresTools()
+		if err != nil {
+			return err
+		}
+		manifest, err = backupstore.SnapshotPostgres(ctx, tools, cfg.Database.DSN, cfg.Media.Dir, target)
+		if err != nil {
+			return fmt.Errorf("create PostgreSQL backup: %w", err)
+		}
+	} else if cfg.Database.Dialect == database.SQLite {
+		budget, err := capacity.Defaults(cfg.Profile)
+		if err != nil {
+			return err
+		}
+		db, err := database.OpenWithOptions(ctx, cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		manifest, err = backupstore.SnapshotSQLite(ctx, db, cfg.Media.Dir, target)
+		if err != nil {
+			return fmt.Errorf("create SQLite backup: %w", err)
+		}
+	} else {
+		return fmt.Errorf("automatic backup is unsupported for dialect %q", cfg.Database.Dialect)
+	}
+
+	_, _ = fmt.Fprintf(stdout, "backup-created dialect=%s destination=%s database-bytes=%d media-files=%d\n", cfg.Database.Dialect, target, manifest.Database.Bytes, len(manifest.Media))
+
+	if *uploadS3 && cfg.Media.S3Endpoint != "" && cfg.Media.S3Bucket != "" && cfg.Media.S3AccessKey != "" && cfg.Media.S3SecretKey != "" {
+		dispatcher, err := backupstore.NewS3Dispatcher(backupstore.S3Config{
+			Endpoint:       cfg.Media.S3Endpoint,
+			Bucket:         cfg.Media.S3Bucket,
+			Region:         cfg.Media.S3Region,
+			AccessKey:      cfg.Media.S3AccessKey,
+			SecretKey:      cfg.Media.S3SecretKey,
+			Prefix:         cfg.Backup.Prefix,
+			Secure:         cfg.Media.S3UseSSL,
+			ForcePathStyle: cfg.Media.S3ForcePathStyle,
+		})
+		if err == nil {
+			archiveName := fmt.Sprintf("hydrogo-%s.tar.gz", timestamp)
+			if err := dispatcher.UploadSnapshot(ctx, target, archiveName); err != nil {
+				_, _ = fmt.Fprintf(stderr, "warning: cloud upload failed: %v\n", err)
+			} else {
+				_, _ = fmt.Fprintf(stdout, "backup-uploaded bucket=%s object=%s\n", cfg.Media.S3Bucket, archiveName)
+			}
+		}
+	}
+	return nil
 }
 
 func pruneBackups(args []string, stdout, stderr io.Writer) error {

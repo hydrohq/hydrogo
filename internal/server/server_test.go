@@ -18,6 +18,25 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/security"
 )
 
+func TestHealthzDatabasePingFailure(t *testing.T) {
+	handler := NewHandler(Config{
+		Health: func(ctx context.Context) error {
+			return errors.New("db connection refused")
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 Service Unavailable, got %d", res.Code)
+	}
+	if !strings.Contains(res.Body.String(), "service_unavailable") {
+		t.Errorf("expected service_unavailable in body, got %q", res.Body.String())
+	}
+}
+
 func TestOperationalRoutesAreExplicit(t *testing.T) {
 	handler := NewHandler(Config{})
 

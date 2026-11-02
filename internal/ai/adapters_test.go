@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEncryptAndDecryptBYOKAPIKey(t *testing.T) {
@@ -59,6 +60,39 @@ func TestAdapterEndpointsRejectNonLoopbackHTTP(t *testing.T) {
 	_, err := NewAdapter(AdapterConfig{Provider: "gemini", APIKey: "k", Endpoint: "http://127.0.0.1:11434"}).Generate(ctx, ChatRequest{})
 	if err != nil && (strings.Contains(err.Error(), "provider endpoint") || strings.Contains(err.Error(), "loopback")) {
 		t.Fatalf("loopback endpoint rejected by security policy: %v", err)
+	}
+}
+
+func TestSSRFControlAndEndpointHardening(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. Static endpoint hardening: HTTPS literal private IPs and localhost are rejected
+	blockedHTTPS := []string{
+		"https://169.254.169.254/latest/meta-data",
+		"https://10.0.0.1/admin",
+		"https://172.16.0.1:8443/",
+		"https://192.168.1.1/",
+		"https://127.0.0.1:8443/",
+		"https://localhost:8443/",
+	}
+	for _, endpoint := range blockedHTTPS {
+		if _, err := endpointSecurityCheck(endpoint); err == nil {
+			t.Fatalf("expected endpointSecurityCheck to reject %q", endpoint)
+		}
+	}
+
+	// 2. Socket-level net.Dialer.Control blocks connection to private/loopback/link-local destinations
+	client := NewSSRFProtectedClient(2*time.Second, false)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://127.0.0.1:9999", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.Do(req)
+	if err == nil {
+		t.Fatal("expected socket dial to be rejected for 127.0.0.1")
+	}
+	if !strings.Contains(err.Error(), "restricted address") && !strings.Contains(err.Error(), "ssrf") {
+		t.Fatalf("expected SSRF error, got: %v", err)
 	}
 }
 

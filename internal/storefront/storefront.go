@@ -2,7 +2,9 @@ package storefront
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"html/template"
 	"net/http"
@@ -12,6 +14,34 @@ import (
 
 //go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html sections/*.html fonts/*
 var templateFS embed.FS
+
+var (
+	preloadedFonts     map[string][]byte
+	preloadedFontsOnce sync.Once
+)
+
+func initFonts() {
+	preloadedFontsOnce.Do(func() {
+		preloadedFonts = make(map[string][]byte)
+		entries, err := templateFS.ReadDir("fonts")
+		if err != nil {
+			return
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			data, err := templateFS.ReadFile("fonts/" + entry.Name())
+			if err == nil {
+				preloadedFonts[entry.Name()] = data
+			}
+		}
+	})
+}
+
+func init() {
+	initFonts()
+}
 
 // ResolveFontFamilies returns CSS font families (heading, body) for a given typography preset.
 func ResolveFontFamilies(preset string) (heading, body template.CSS) {
@@ -34,15 +64,16 @@ func ResolveFontFamilies(preset string) (heading, body template.CSS) {
 	}
 }
 
-// ServeFont serves locally embedded font files with immutable caching.
+// ServeFont serves locally embedded font files from preloaded memory with immutable caching.
 func ServeFont(w http.ResponseWriter, r *http.Request) {
+	initFonts()
 	name := strings.TrimSpace(r.PathValue("name"))
 	if name == "" || strings.Contains(name, "/") || strings.Contains(name, "..") {
 		http.NotFound(w, r)
 		return
 	}
-	content, err := templateFS.ReadFile("fonts/" + name)
-	if err != nil {
+	content, ok := preloadedFonts[name]
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
@@ -50,6 +81,28 @@ func ServeFont(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	_, _ = w.Write(content)
+}
+
+func writeHTMLWithConditionalCache(w http.ResponseWriter, r *http.Request, body []byte) error {
+	sum := sha256.Sum256(body)
+	etag := `W/"` + hex.EncodeToString(sum[:16]) + `"`
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+
+	if r != nil {
+		if match := r.Header.Get("If-None-Match"); match != "" {
+			if match == etag || match == "*" || strings.Contains(match, etag) {
+				w.WriteHeader(http.StatusNotModified)
+				return nil
+			}
+		}
+	}
+
+	_, err := w.Write(body)
+	return err
 }
 
 var (
@@ -93,21 +146,41 @@ func initTemplates() {
 	})
 }
 
+// OptionDef represents an option dimension (e.g. Renk, Beden).
+type OptionDef struct {
+	Name   string   `json:"name"`
+	Values []string `json:"values"`
+}
+
+// VariantDef represents a specific SKU with pricing adjustment and stock.
+type VariantDef struct {
+	SKU       string   `json:"sku"`
+	Title     string   `json:"title"`
+	PriceDiff float64  `json:"price_diff"`
+	Stock     int      `json:"stock"`
+	Options   []string `json:"options,omitempty"`
+}
+
 // ProductView represents a single catalog item for storefront rendering.
 type ProductView struct {
-	ID             string  `json:"id"`
-	Title          string  `json:"title"`
-	Slug           string  `json:"slug"`
-	Price          float64 `json:"price"`
-	CompareAtPrice float64 `json:"compare_at_price,omitempty"`
-	Description    string  `json:"description,omitempty"`
-	ImageURL       string  `json:"image_url,omitempty"`
-	Sizes          string  `json:"sizes,omitempty"`
-	Colors         string  `json:"colors,omitempty"`
-	Badge          string  `json:"badge,omitempty"`
-	Category       string  `json:"category,omitempty"`
-	PaymentLink    string  `json:"payment_link,omitempty"`
-	InStock        bool    `json:"in_stock"`
+	ID             string       `json:"id"`
+	Title          string       `json:"title"`
+	Slug           string       `json:"slug"`
+	Price          float64      `json:"price"`
+	CompareAtPrice float64      `json:"compare_at_price,omitempty"`
+	Description    string       `json:"description,omitempty"`
+	ImageURL       string       `json:"image_url,omitempty"`
+	SecondaryImage string       `json:"secondary_image,omitempty"`
+	Sizes          string       `json:"sizes,omitempty"`
+	Colors         string       `json:"colors,omitempty"`
+	Badge          string       `json:"badge,omitempty"`
+	Category       string       `json:"category,omitempty"`
+	PaymentLink    string       `json:"payment_link,omitempty"`
+	InStock        bool         `json:"in_stock"`
+	Options        []OptionDef  `json:"options,omitempty"`
+	Variants       []VariantDef `json:"variants,omitempty"`
+	OptionsJSON    template.JS  `json:"-"`
+	VariantsJSON   template.JS  `json:"-"`
 }
 
 // FeaturePillar represents a single craft pillar card.
@@ -298,12 +371,7 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 	if err := storefrontTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
-	_, err = buf.WriteTo(w)
-	return err
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 // RenderProductDetail renders dedicated product detail view.
@@ -330,12 +398,7 @@ func RenderProductDetail(w http.ResponseWriter, r *http.Request, data ProductDet
 	if err := productDetailTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
-	_, err := buf.WriteTo(w)
-	return err
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 // RenderCategory renders category collections view.
@@ -362,12 +425,7 @@ func RenderCategory(w http.ResponseWriter, r *http.Request, data CategoryData) e
 	if err := categoryTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
-	_, err := buf.WriteTo(w)
-	return err
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 // RenderAbout renders dedicated atelier story view.
@@ -394,12 +452,7 @@ func RenderAbout(w http.ResponseWriter, r *http.Request, data AboutData) error {
 	if err := aboutTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
-	_, err := buf.WriteTo(w)
-	return err
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 // RenderContact renders dedicated contact and showroom view.
@@ -426,12 +479,7 @@ func RenderContact(w http.ResponseWriter, r *http.Request, data ContactData) err
 	if err := contactTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
-	_, err := buf.WriteTo(w)
-	return err
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 // RenderSuspended writes the luxury suspended/maintenance HTML to w.

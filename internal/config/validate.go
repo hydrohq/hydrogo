@@ -34,8 +34,12 @@ func (c Config) Validate() error {
 	if c.Security.PreviewSigningKey != "" && len(c.Security.PreviewSigningKey) < 32 {
 		return errors.New("preview signing key must contain at least 32 bytes")
 	}
-	if c.Backup.Enabled && (c.Media.S3Endpoint == "" || c.Media.S3Bucket == "" || c.Media.S3AccessKey == "" || c.Media.S3SecretKey == "") {
-		return errors.New("scheduled cloud backup requires configured S3-compatible storage credentials")
+	if c.Backup.Enabled {
+		hasS3 := c.Media.S3Endpoint != "" && c.Media.S3Bucket != "" && c.Media.S3AccessKey != "" && c.Media.S3SecretKey != ""
+		hasLocal := strings.TrimSpace(c.Backup.LocalDir) != ""
+		if !hasS3 && !hasLocal {
+			return errors.New("scheduled backup requires configured S3-compatible storage credentials or a local backup directory")
+		}
 	}
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
