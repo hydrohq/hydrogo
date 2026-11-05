@@ -71,6 +71,28 @@ type sessionCleanupObserver interface {
 	RecordSessionCleanupError()
 }
 
+type tenantScopedCleaner struct {
+	cleaner   expiredSessionCleaner
+	getScopes func() []tenant.Scope
+}
+
+func (t *tenantScopedCleaner) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
+	if t.cleaner == nil {
+		return 0, nil
+	}
+	scopes := t.getScopes()
+	var total int64
+	for _, scope := range scopes {
+		scopedCtx := tenant.WithScope(ctx, scope)
+		n, err := t.cleaner.DeleteExpired(scopedCtx, now)
+		if err != nil {
+			return total, err
+		}
+		total += n
+	}
+	return total, nil
+}
+
 // newServeLogger logs JSON, or the readable development format in dev mode.
 func newServeLogger(stderr io.Writer) *slog.Logger {
 	logWriter := stderr
@@ -90,9 +112,17 @@ func (a *serveApp) startWorkers() {
 	requireTenantScope, tenantScopes, logger := a.requireTenantScope, a.tenantScopes, a.logger
 	cgiMode, metrics := a.opts.cgi, a.metrics
 	if !cgiMode {
-		a.spawn(func() { runSessionCleanupObserved(ctx, a.sessionStore, stderr, metrics) })
-		if modules["members"] {
-			a.spawn(func() { runSessionCleanup(ctx, a.memberSessions, stderr) })
+		var storeCleaner expiredSessionCleaner = a.sessionStore
+		var memberCleaner expiredSessionCleaner = a.memberSessions
+		if requireTenantScope {
+			storeCleaner = &tenantScopedCleaner{cleaner: a.sessionStore, getScopes: a.getTenantScopes}
+			if a.memberSessions != nil {
+				memberCleaner = &tenantScopedCleaner{cleaner: a.memberSessions, getScopes: a.getTenantScopes}
+			}
+		}
+		a.spawn(func() { runSessionCleanupObserved(ctx, storeCleaner, stderr, metrics) })
+		if modules["members"] && memberCleaner != nil {
+			a.spawn(func() { runSessionCleanup(ctx, memberCleaner, stderr) })
 		}
 	}
 	if modules["media"] && !cgiMode {
