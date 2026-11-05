@@ -186,7 +186,16 @@ func (g *Governor) Middleware(next http.Handler) http.Handler {
 		}
 
 		bucket := g.bucketFor(scope.TenantID)
-		if !bucket.allowRPS(gov.RateLimitRPS, now) {
+		// For safe read methods (GET/HEAD), provide a 5x headroom multiplier (minimum 150 RPS)
+		// so public viral traffic is not throttled while keeping strict limits on mutating methods (POST/PUT/DELETE).
+		rps := gov.RateLimitRPS
+		if !isMutatingMethod(r.Method) && rps > 0 {
+			rps = rps * 5
+			if rps < 150 {
+				rps = 150
+			}
+		}
+		if !bucket.allowRPS(rps, now) {
 			writeGovernorError(w, r, http.StatusTooManyRequests, "tenant_rate_limit_exceeded", "Workspace request rate limit exceeded; please slow down.", storeName)
 			return
 		}

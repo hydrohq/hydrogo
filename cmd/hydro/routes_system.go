@@ -14,5 +14,6 @@ func (a *serveApp) assetRoutes() ([]router.Route, error) {
 		{Pattern: "GET /csrf-token", Access: router.Public, Handler: http.HandlerFunc(security.TokenHandler)},
 		{Pattern: "GET /api/v1/system/domain-check", Access: router.Public, Handler: http.HandlerFunc(a.systemDomainCheckHandler)},
 		{Pattern: "GET /api/v1/internal/check-domain", Access: router.Public, Handler: http.HandlerFunc(a.systemDomainCheckHandler)},
+		{Pattern: "POST /api/v1/internal/ai-proxy", Access: router.Public, Handler: http.HandlerFunc(a.internalAIProxyHandler)},
 	}, nil
 }

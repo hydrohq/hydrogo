@@ -6,6 +6,24 @@
   <title>{{.BrandName}} — {{.Tagline}}</title>
   <meta name="description" content="{{.HeroSubtitle}}">
 
+  <!-- Open Graph & SoftwareApplication JSON-LD -->
+  <meta property="og:title" content="{{.BrandName}} — {{.Tagline}}">
+  <meta property="og:description" content="{{.HeroSubtitle}}">
+  <meta property="og:image" content="{{.HeroImage}}">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "{{.BrandName}}",
+    "description": "{{.HeroSubtitle}}",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "All"
+  }
+  </script>
+
   {{template "embedded_fonts" .}}
 
   <style>

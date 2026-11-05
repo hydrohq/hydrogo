@@ -6,6 +6,29 @@
   <title>{{.BrandName}} — {{.Tagline}}</title>
   <meta name="description" content="{{.HeroSubtitle}}">
 
+  <!-- Open Graph & Schema.org LocalBusiness / Restaurant -->
+  <meta property="og:title" content="{{.BrandName}} — {{.Tagline}}">
+  <meta property="og:description" content="{{.HeroSubtitle}}">
+  <meta property="og:image" content="{{.HeroImage}}">
+  <meta property="og:type" content="restaurant">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    "name": "{{.BrandName}}",
+    "description": "{{.HeroSubtitle}}",
+    "image": "{{.HeroImage}}",
+    "telephone": "{{.Phone}}",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "{{.Address}}"
+    },
+    "openingHours": "{{.OpeningHours}}"
+  }
+  </script>
+
   {{template "embedded_fonts" .}}
 
   <style>
