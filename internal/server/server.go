@@ -82,6 +82,10 @@ type Config struct {
 	// request signature is the real security boundary. See
 	// security.CSRFMiddleware's own doc comment.
 	CSRFExemptPaths []string
+	// CSRFSkipCookieFor optionally extends publicContentCacheEligible to skip
+	// minting the hydro_csrf cookie on additional anonymous GET routes (such as
+	// public tenant storefronts) so CDN and edge caches can store the response.
+	CSRFSkipCookieFor func(*http.Request) bool
 }
 
 func Serve(ctx context.Context, config Config) error {
@@ -262,7 +266,14 @@ func NewHandler(config Config) http.Handler {
 	// Individual pages and news articles always render a cookie-consent or
 	// helpful-feedback widget bound to the CSRF cookie, so they keep today's
 	// behavior unchanged.
-	handler = security.CSRFMiddleware(config.SecureCookie, publicContentCacheEligible, config.CSRFExemptPaths...)(handler)
+	skipCSRFCookie := publicContentCacheEligible
+	if config.CSRFSkipCookieFor != nil {
+		extraSkip := config.CSRFSkipCookieFor
+		skipCSRFCookie = func(r *http.Request) bool {
+			return publicContentCacheEligible(r) || extraSkip(r)
+		}
+	}
+	handler = security.CSRFMiddleware(config.SecureCookie, skipCSRFCookie, config.CSRFExemptPaths...)(handler)
 
 	if config.Maintenance.Enabled != nil {
 		handler = MaintenanceMiddleware(config.Maintenance)(handler)

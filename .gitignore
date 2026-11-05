@@ -41,6 +41,9 @@ examples/admin-news-compare/htmx/node_modules/
 examples/admin-news-compare/react/dist/
 examples/admin-news-compare/react/*.tsbuildinfo
 examples/admin-news-compare/react/.vite/
+examples/boutique-starter/node_modules/
+examples/boutique-starter/dist/
+examples/boutique-starter/.vite/
 /tmp/
 /.tmp/
 /coverage/

@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/blueprints"
@@ -122,8 +123,22 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 		return tenant.Scope{}, gov, nil, nil, false
 	}
 
-	// 5. Query tenant store_settings and products
+	// 5. Query tenant store_settings and products with in-memory caching for high-traffic scalability
 	tenantCtx := tenant.WithScope(r.Context(), scope)
+
+	type cachedStorefrontData struct {
+		Settings map[string]any
+		Products []storefront.ProductView
+	}
+
+	cacheKey := "storefront:ctx:" + scope.TenantID
+	if a.memoryStore != nil {
+		if cached, ok := a.memoryStore.Get(cacheKey); ok {
+			if data, valid := cached.(cachedStorefrontData); valid {
+				return scope, gov, data.Settings, data.Products, true
+			}
+		}
+	}
 
 	settings := a.loadTenantStoreSettings(tenantCtx, gov)
 	products := a.loadTenantStoreProducts(tenantCtx)
@@ -132,6 +147,13 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 	if len(products) == 0 {
 		_, defaultProds := a.fallbackCatalog(gov)
 		products = defaultProds
+	}
+
+	if a.memoryStore != nil {
+		a.memoryStore.Set(cacheKey, cachedStorefrontData{
+			Settings: settings,
+			Products: products,
+		}, 30*time.Second)
 	}
 
 	return scope, gov, settings, products, true

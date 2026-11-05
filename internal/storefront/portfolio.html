@@ -6,6 +6,28 @@
   <title>{{.ArtistName}} — {{.Tagline}}</title>
   <meta name="description" content="{{.HeroSubtitle}}">
 
+  <!-- Open Graph & Schema.org CreativeWork / Person -->
+  <meta property="og:title" content="{{.ArtistName}} — {{.Tagline}}">
+  <meta property="og:description" content="{{.HeroSubtitle}}">
+  <meta property="og:type" content="profile">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "{{.ArtistName}}",
+    "jobTitle": "{{.Tagline}}",
+    "description": "{{.HeroSubtitle}}",
+    "email": "{{.ContactEmail}}",
+    "telephone": "{{.Phone}}",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "{{.Location}}"
+    }
+  }
+  </script>
+
   {{template "embedded_fonts" .}}
 
   <style>

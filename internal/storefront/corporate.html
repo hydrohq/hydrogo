@@ -6,6 +6,27 @@
   <title>{{.BrandName}} — {{.Tagline}}</title>
   <meta name="description" content="{{.HeroSubtitle}}">
 
+  <!-- Open Graph & Social Cards -->
+  <meta property="og:title" content="{{.BrandName}} — {{.Tagline}}">
+  <meta property="og:description" content="{{.HeroSubtitle}}">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "{{.BrandName}}",
+    "description": "{{.HeroSubtitle}}",
+    "telephone": "{{.Phone}}",
+    "email": "{{.Email}}",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "{{.Address}}"
+    }
+  }
+  </script>
+
   {{template "embedded_fonts" .}}
 
   <style>

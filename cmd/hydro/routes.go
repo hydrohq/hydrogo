@@ -38,6 +38,7 @@ func (a *serveApp) routes() ([]router.Route, error) {
 	routes = append(routes, a.commerceRoutes()...)
 	routes = append(routes, a.superadminRoutes()...)
 	routes = append(routes, a.storefrontRoutes()...)
+	routes = append(routes, a.billingRoutes()...)
 	routes = append(routes, adminui.Routes()...)
 	assetRoutes, err := a.assetRoutes()
 	if err != nil {

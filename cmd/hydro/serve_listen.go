@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
@@ -211,7 +212,18 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		IPBlocklist:          a.ipBlocklist,
 		AnomalyFilterEnabled: cfg.Security.EnableAnomalyFilter,
 		AnomalyBypassPaths:   cfg.Security.AnomalyBypassPaths,
-		CSRFExemptPaths:      append(commerceCSRFExemptPaths(modules, cfg.Commerce), "/api/v1/public/onboard"),
+		CSRFExemptPaths:      append(commerceCSRFExemptPaths(modules, cfg.Commerce), "/api/v1/public/onboard", "/api/v1/webhooks/shopier"),
+		CSRFSkipCookieFor: func(r *http.Request) bool {
+			// Skip CSRF cookie for public storefront pages so Cloudflare / CDN edge caches can cache them.
+			p := r.URL.Path
+			return p == "/" || p == "/showcase" || p == "/demo" ||
+				strings.HasPrefix(p, "/urun/") || strings.HasPrefix(p, "/products/") ||
+				strings.HasPrefix(p, "/kategori/") || strings.HasPrefix(p, "/collections/") ||
+				strings.HasPrefix(p, "/hakkimizda") || strings.HasPrefix(p, "/about") ||
+				strings.HasPrefix(p, "/iletisim") || strings.HasPrefix(p, "/contact") ||
+				strings.HasPrefix(p, "/siparis-takip") || strings.HasPrefix(p, "/order-tracking") ||
+				strings.HasPrefix(p, "/storefront/") || p == "/robots.txt" || p == "/sitemap.xml" || p == "/llms.txt"
+		},
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
 				target := rule + " from " + requestmeta.ClientIP(r)
