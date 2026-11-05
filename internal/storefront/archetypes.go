@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -109,6 +110,12 @@ type CorporateData struct {
 	Projects     []CorporateProject
 	Testimonials []CorporateTestimonial
 	Team         []CorporateTeamMember
+	IsDark       bool
+	CardBG       string
+	BorderColor  string
+	TextColor    string
+	MutedColor   string
+	HeaderBG     string
 }
 
 // RestaurantCategory represents a menu category.
@@ -152,6 +159,12 @@ type RestaurantData struct {
 	HeroImage      string
 	Categories     []RestaurantCategory
 	Items          []RestaurantItem
+	IsDark         bool
+	CardBG         string
+	BorderColor    string
+	TextColor      string
+	MutedColor     string
+	HeaderBG       string
 }
 
 // SaaSFeature represents a core feature card in Bento grid.
@@ -203,6 +216,12 @@ type SaaSData struct {
 	Features     []SaaSFeature
 	PricingTiers []SaaSPricingTier
 	FAQs         []SaaSFAQ
+	IsDark       bool
+	CardBG       string
+	BorderColor  string
+	TextColor    string
+	MutedColor   string
+	HeaderBG     string
 }
 
 // PortfolioWork represents a project or artwork in portfolio.
@@ -243,6 +262,12 @@ type PortfolioData struct {
 	HeroSubtitle string
 	Works        []PortfolioWork
 	Awards       []PortfolioAward
+	IsDark       bool
+	CardBG       string
+	BorderColor  string
+	TextColor    string
+	MutedColor   string
+	HeaderBG     string
 }
 
 // ShowcaseSite represents an active demo site shown in the showcase gallery.
@@ -279,6 +304,14 @@ func RenderCorporate(w http.ResponseWriter, r *http.Request, data CorporateData)
 	if data.BGTone == "" {
 		data.BGTone = "#F8FAFC"
 	}
+	tokens := computeThemeTokens(data.BGTone)
+	data.IsDark = tokens.IsDark
+	data.CardBG = tokens.CardBG
+	data.BorderColor = tokens.BorderColor
+	data.TextColor = tokens.TextColor
+	data.MutedColor = tokens.MutedColor
+	data.HeaderBG = tokens.HeaderBG
+
 	if data.FontPreset == "" {
 		data.FontPreset = "v0_geist"
 	}
@@ -308,6 +341,14 @@ func RenderRestaurant(w http.ResponseWriter, r *http.Request, data RestaurantDat
 	if data.BGTone == "" {
 		data.BGTone = "#18181B"
 	}
+	tokens := computeThemeTokens(data.BGTone)
+	data.IsDark = tokens.IsDark
+	data.CardBG = tokens.CardBG
+	data.BorderColor = tokens.BorderColor
+	data.TextColor = tokens.TextColor
+	data.MutedColor = tokens.MutedColor
+	data.HeaderBG = tokens.HeaderBG
+
 	if data.FontPreset == "" {
 		data.FontPreset = "artisan_garamond"
 	}
@@ -338,6 +379,14 @@ func RenderSaaS(w http.ResponseWriter, r *http.Request, data SaaSData) error {
 	if data.BGTone == "" {
 		data.BGTone = "#09090B"
 	}
+	tokens := computeThemeTokens(data.BGTone)
+	data.IsDark = tokens.IsDark
+	data.CardBG = tokens.CardBG
+	data.BorderColor = tokens.BorderColor
+	data.TextColor = tokens.TextColor
+	data.MutedColor = tokens.MutedColor
+	data.HeaderBG = tokens.HeaderBG
+
 	if data.FontPreset == "" {
 		data.FontPreset = "v0_geist"
 	}
@@ -367,6 +416,14 @@ func RenderPortfolio(w http.ResponseWriter, r *http.Request, data PortfolioData)
 	if data.BGTone == "" {
 		data.BGTone = "#F8FAFC"
 	}
+	tokens := computeThemeTokens(data.BGTone)
+	data.IsDark = tokens.IsDark
+	data.CardBG = tokens.CardBG
+	data.BorderColor = tokens.BorderColor
+	data.TextColor = tokens.TextColor
+	data.MutedColor = tokens.MutedColor
+	data.HeaderBG = tokens.HeaderBG
+
 	if data.FontPreset == "" {
 		data.FontPreset = "monumental_cinzel"
 	}
@@ -379,6 +436,64 @@ func RenderPortfolio(w http.ResponseWriter, r *http.Request, data PortfolioData)
 		return err
 	}
 	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
+}
+
+type ThemeTokens struct {
+	IsDark      bool
+	CardBG      string
+	BorderColor string
+	TextColor   string
+	MutedColor  string
+	HeaderBG    string
+}
+
+func computeThemeTokens(bgHex string) ThemeTokens {
+	if isDarkHex(bgHex) {
+		return ThemeTokens{
+			IsDark:      true,
+			CardBG:      "#18181B",
+			BorderColor: "#27272A",
+			TextColor:   "#FAFAFA",
+			MutedColor:  "#A1A1AA",
+			HeaderBG:    "rgba(9, 9, 11, 0.85)",
+		}
+	}
+	return ThemeTokens{
+		IsDark:      false,
+		CardBG:      "#FFFFFF",
+		BorderColor: "#E2E8F0",
+		TextColor:   "#0F172A",
+		MutedColor:  "#64748B",
+		HeaderBG:    "rgba(255, 255, 255, 0.90)",
+	}
+}
+
+func isDarkHex(hexStr string) bool {
+	hexStr = strings.TrimPrefix(strings.TrimSpace(hexStr), "#")
+	if len(hexStr) == 3 {
+		hexStr = string([]byte{hexStr[0], hexStr[0], hexStr[1], hexStr[1], hexStr[2], hexStr[2]})
+	}
+	if len(hexStr) != 6 {
+		return true
+	}
+	r := hexVal(hexStr[0])*16 + hexVal(hexStr[1])
+	g := hexVal(hexStr[2])*16 + hexVal(hexStr[3])
+	b := hexVal(hexStr[4])*16 + hexVal(hexStr[5])
+	lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
+	return lum < 140
+}
+
+func hexVal(c byte) int {
+	if c >= '0' && c <= '9' {
+		return int(c - '0')
+	}
+	if c >= 'a' && c <= 'f' {
+		return int(c - 'a' + 10)
+	}
+	if c >= 'A' && c <= 'F' {
+		return int(c - 'A' + 10)
+	}
+	return 0
 }
 
 // RenderShowcase writes the official platform showcase and onboarding landing HTML to w.

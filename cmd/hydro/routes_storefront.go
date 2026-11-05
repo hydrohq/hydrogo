@@ -355,14 +355,36 @@ func buildStorefrontEditorial(settings map[string]any, storeName, notes string) 
 }
 
 func (a *serveApp) loadTenantStoreSettings(ctx context.Context, gov tenant.Governance) map[string]any {
+	primary := "#8C6D46"
+	bg := "#FAF8F5"
+	switch gov.Blueprint {
+	case blueprints.ArchetypeSaaS:
+		primary = "#2563EB"
+		bg = "#09090B"
+	case blueprints.ArchetypeRestaurant:
+		primary = "#B45309"
+		bg = "#18181B"
+	case blueprints.ArchetypeCorporate:
+		primary = "#1E3A8A"
+		bg = "#F8FAFC"
+	case blueprints.ArchetypePortfolio:
+		primary = "#0F172A"
+		bg = "#F8FAFC"
+	}
+
 	out := map[string]any{
 		"brand_name":       gov.DisplayName,
 		"whatsapp_number":  gov.OwnerPhone,
-		"primary_color":    "#8C6D46",
-		"bg_tone":          "#FAF8F5",
+		"primary_color":    primary,
+		"bg_tone":          bg,
 		"announcement_bar": "1500 TL ve Üzeri Siparişlerde Ücretsiz Kargo · WhatsApp ile Hızlı Sipariş",
 	}
-	recs, err := a.collectionService.ListRecords(ctx, "store_settings", 1, 0)
+
+	// Look up site_settings first (for corporate/restaurant/saas/portfolio), then store_settings (boutique)
+	recs, err := a.collectionService.ListRecords(ctx, "site_settings", 1, 0)
+	if err != nil || len(recs) == 0 {
+		recs, err = a.collectionService.ListRecords(ctx, "store_settings", 1, 0)
+	}
 	if err == nil && len(recs) > 0 {
 		for k, v := range recs[0].Data {
 			out[k] = v

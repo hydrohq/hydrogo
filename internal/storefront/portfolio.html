@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" {{if .IsDark}}class="dark"{{end}}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,10 +12,10 @@
     :root {
       --primary: {{.PrimaryColor}};
       --bg: {{.BGTone}};
-      --card-bg: #FFFFFF;
-      --border: #E2E8F0;
-      --text: #0F172A;
-      --muted: #64748B;
+      --card-bg: {{.CardBG}};
+      --border: {{.BorderColor}};
+      --text: {{.TextColor}};
+      --muted: {{.MutedColor}};
       --font-heading: {{.FontHeading}};
       --font-body: {{.FontBody}};
     }
