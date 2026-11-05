@@ -218,10 +218,7 @@ func (g *Governor) Middleware(next http.Handler) http.Handler {
 }
 
 func isOrchestratorBypassPath(path string) bool {
-	return strings.HasPrefix(path, "/api/v1/admin/orchestrator") ||
-		strings.HasPrefix(path, "/api/v1/system/") ||
-		path == "/healthz" ||
-		path == "/readyz"
+	return IsPlatformControlPlanePath(path)
 }
 
 func isAuthSessionPath(path string) bool {
