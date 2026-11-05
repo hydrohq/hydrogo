@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html sections/*.html fonts/*
+//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html order_tracking.html sections/*.html fonts/*
 var templateFS embed.FS
 
 var (
@@ -113,6 +113,7 @@ var (
 	categoryTmpl      *template.Template
 	aboutTmpl         *template.Template
 	contactTmpl       *template.Template
+	orderTrackingTmpl *template.Template
 	tmplErr           error
 )
 
@@ -122,7 +123,7 @@ func initTemplates() {
 			"add":      func(a, b int) int { return a + b },
 			"urlquery": func(s string) string { return template.URLQueryEscaper(s) },
 		}
-		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html")
+		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html", "sections/*.html")
 		if tmplErr != nil {
 			return
 		}
@@ -130,19 +131,23 @@ func initTemplates() {
 		if tmplErr != nil {
 			return
 		}
-		productDetailTmpl, tmplErr = template.New("product_detail.html").Funcs(funcs).ParseFS(templateFS, "product_detail.html")
+		productDetailTmpl, tmplErr = template.New("product_detail.html").Funcs(funcs).ParseFS(templateFS, "product_detail.html", "sections/*.html")
 		if tmplErr != nil {
 			return
 		}
-		categoryTmpl, tmplErr = template.New("category_view.html").Funcs(funcs).ParseFS(templateFS, "category_view.html")
+		categoryTmpl, tmplErr = template.New("category_view.html").Funcs(funcs).ParseFS(templateFS, "category_view.html", "sections/*.html")
 		if tmplErr != nil {
 			return
 		}
-		aboutTmpl, tmplErr = template.New("about_view.html").Funcs(funcs).ParseFS(templateFS, "about_view.html")
+		aboutTmpl, tmplErr = template.New("about_view.html").Funcs(funcs).ParseFS(templateFS, "about_view.html", "sections/*.html")
 		if tmplErr != nil {
 			return
 		}
-		contactTmpl, tmplErr = template.New("contact_view.html").Funcs(funcs).ParseFS(templateFS, "contact_view.html")
+		contactTmpl, tmplErr = template.New("contact_view.html").Funcs(funcs).ParseFS(templateFS, "contact_view.html", "sections/*.html")
+		if tmplErr != nil {
+			return
+		}
+		orderTrackingTmpl, tmplErr = template.New("order_tracking.html").Funcs(funcs).ParseFS(templateFS, "order_tracking.html", "sections/*.html")
 	})
 }
 
@@ -259,6 +264,7 @@ type ProductDetailData struct {
 	FontBody        template.CSS
 	Product         ProductView
 	RelatedProducts []ProductView
+	ProductsJSON    template.JS
 }
 
 // CategoryData carries data for category listing page.
@@ -268,6 +274,7 @@ type CategoryData struct {
 	PrimaryColor    string
 	BGTone          string
 	CleanPhone      string
+	ShopierURL      string
 	FontPreset      string
 	FontHeading     template.CSS
 	FontBody        template.CSS
@@ -275,6 +282,7 @@ type CategoryData struct {
 	Categories      []string
 	Products        []ProductView
 	TotalCount      int
+	ProductsJSON    template.JS
 }
 
 // AboutData carries data for dedicated atelier/story page.
@@ -284,6 +292,7 @@ type AboutData struct {
 	PrimaryColor string
 	BGTone       string
 	CleanPhone   string
+	ShopierURL   string
 	FontPreset   string
 	FontHeading  template.CSS
 	FontBody     template.CSS
@@ -294,6 +303,7 @@ type AboutData struct {
 	StoryImage   string
 	PillarsTitle string
 	Pillars      []FeaturePillar
+	ProductsJSON template.JS
 }
 
 // ContactData carries data for dedicated contact page.
@@ -303,12 +313,40 @@ type ContactData struct {
 	PrimaryColor   string
 	BGTone         string
 	CleanPhone     string
+	ShopierURL     string
 	FontPreset     string
 	FontHeading    template.CSS
 	FontBody       template.CSS
 	AtelierAddress string
 	AtelierHours   string
 	FAQs           []FAQItem
+	ProductsJSON   template.JS
+}
+
+// OrderTrackingData carries data for order status tracking page.
+type OrderTrackingData struct {
+	StoreName       string
+	Slogan          string
+	PrimaryColor    string
+	BGTone          string
+	CleanPhone      string
+	ShopierURL      string
+	FontPreset      string
+	FontHeading     template.CSS
+	FontBody        template.CSS
+	QueryCode       string
+	OrderFound      bool
+	OrderCode       string
+	OrderStatus     string // yeni, onaylandi, kargolandi, teslim_edildi, iptal
+	CustomerName    string
+	CustomerPhone   string
+	CustomerAddress string
+	ItemsSummary    string
+	TotalAmount     float64
+	TrackingCode    string
+	Carrier         string
+	OrderDate       string
+	ProductsJSON    template.JS
 }
 
 // SuspendedData carries data to render the maintenance/suspended page.
@@ -480,6 +518,38 @@ func RenderContact(w http.ResponseWriter, r *http.Request, data ContactData) err
 		return err
 	}
 	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
+}
+
+// RenderOrderTracking renders dedicated order tracking view.
+func RenderOrderTracking(w http.ResponseWriter, r *http.Request, data OrderTrackingData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Boutique Atelier"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := orderTrackingTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none';")
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 // RenderSuspended writes the luxury suspended/maintenance HTML to w.

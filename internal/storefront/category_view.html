@@ -362,10 +362,9 @@
         <a href="/kategori/tumu" class="nav-link active">Koleksiyon</a>
         <a href="/hakkimizda" class="nav-link">Hikayemiz</a>
         <a href="/iletisim" class="nav-link">İletişim</a>
+        <a href="/siparis-takip" class="nav-link">Sipariş Takibi</a>
       </nav>
-      <a href="https://wa.me/{{.CleanPhone}}" target="_blank" class="btn btn-whatsapp">
-        WhatsApp Sipariş ↗
-      </a>
+      {{template "header_actions" .}}
     </div>
   </header>
 
@@ -418,7 +417,10 @@
                 <span style="font-size: 13px; color: var(--text-muted); text-decoration: line-through;">{{printf "%.0f" .CompareAtPrice}} TL</span>
               {{end}}
             </div>
-            <span class="card-cta">Detayları İncele →</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+              <span class="card-cta">Detayları İncele →</span>
+              <button type="button" class="btn-quick-add" onclick="event.preventDefault(); event.stopPropagation(); quickAddProduct('{{.ID}}')" style="background:var(--text-primary); color:#FFFFFF; border:none; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">+ Çanta</button>
+            </div>
           </div>
         </a>
         {{end}}
@@ -438,6 +440,7 @@
           <a href="/kategori/tumu" style="color: #A8A29E; text-decoration: none;">Koleksiyon</a>
           <a href="/hakkimizda" style="color: #A8A29E; text-decoration: none;">Hikayemiz</a>
           <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim</a>
+          <a href="/siparis-takip" style="color: #A8A29E; text-decoration: none;">Sipariş Takibi</a>
         </div>
       </div>
       <div class="footer-bottom">
@@ -446,5 +449,9 @@
       </div>
     </div>
   </footer>
+
+  {{template "cart_drawer" .}}
+  {{template "search_modal" .}}
+  {{template "ecommerce_scripts" .}}
 </body>
 </html>

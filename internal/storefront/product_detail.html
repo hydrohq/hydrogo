@@ -11,6 +11,27 @@
   <meta property="og:description" content="{{.Product.Description}}">
   <meta property="og:image" content="{{.Product.ImageURL}}">
   <meta property="og:type" content="product">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": "{{.Product.Title}}",
+    "image": "{{.Product.ImageURL}}",
+    "description": "{{.Product.Description}}",
+    "brand": {
+      "@type": "Brand",
+      "name": "{{.StoreName}}"
+    },
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "TRY",
+      "price": "{{printf "%.2f" .Product.Price}}",
+      "availability": "https://schema.org/InStock"
+    }
+  }
+  </script>
 
   <style>
     @font-face {
@@ -523,10 +544,9 @@
         <a href="/kategori/tumu" class="nav-link">Koleksiyon</a>
         <a href="/hakkimizda" class="nav-link">Hikayemiz</a>
         <a href="/iletisim" class="nav-link">İletişim</a>
+        <a href="/siparis-takip" class="nav-link">Sipariş Takibi</a>
       </nav>
-      <a href="https://wa.me/{{.CleanPhone}}" target="_blank" class="btn btn-whatsapp" style="padding: 9px 18px; font-size: 13px;">
-        WhatsApp Destek ↗
-      </a>
+      {{template "header_actions" .}}
     </div>
   </header>
 
@@ -600,6 +620,23 @@
 
       <!-- Action Buttons -->
       <div class="actions-stack">
+        <!-- Quantity Stepper & Add to Bag -->
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 4px;">
+          <div class="qty-stepper" style="height: 48px; border-radius: 10px; padding: 0 4px; background: #FFFFFF; border: 1px solid var(--border-hover);">
+            <button type="button" class="qty-btn" style="width: 36px; height: 36px; font-size: 16px;" onclick="updateDetailPageQty(-1)">-</button>
+            <span class="qty-val" id="detailQty" style="font-size: 15px; padding: 0 12px;">1</span>
+            <button type="button" class="qty-btn" style="width: 36px; height: 36px; font-size: 16px;" onclick="updateDetailPageQty(1)">+</button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary"
+            style="flex: 1; height: 48px; font-size: 15px; font-weight: 600;"
+            onclick="addCurrentProductToBag()"
+          >
+            <span>Alışveriş Çantasına Ekle</span>
+          </button>
+        </div>
+
         <button
           type="button"
           id="detailWaBtn"
@@ -716,7 +753,17 @@
     </div>
   </footer>
 
+  {{template "cart_drawer" .}}
+  {{template "search_modal" .}}
+  {{template "ecommerce_scripts" .}}
+
   <script>
+    let detailPageQty = 1;
+    function updateDetailPageQty(delta) {
+      detailPageQty = Math.max(1, detailPageQty + delta);
+      document.getElementById('detailQty').textContent = detailPageQty;
+    }
+
     const detailProduct = {
       id: {{.Product.ID}},
       title: {{.Product.Title}},
@@ -795,6 +842,25 @@
         elem.classList.add('selected');
       }
       updateVariantUI();
+    }
+
+    function addCurrentProductToBag() {
+      const activeVariant = findMatchingVariant();
+      let currentPrice = detailProduct.price;
+      if (activeVariant && activeVariant.price_diff) {
+        currentPrice += activeVariant.price_diff;
+      }
+      const optSummary = Object.entries(selectedOptions).map(([k, v]) => v).join(' / ');
+      addToBag({
+        id: '{{.Product.ID}}',
+        title: '{{.Product.Title}}' + (optSummary ? ' (' + optSummary + ')' : ''),
+        price: currentPrice,
+        image_url: '{{.Product.ImageURL}}',
+        slug: '{{.Product.Slug}}',
+        size: optSummary || '{{if .Product.Sizes}}{{.Product.Sizes}}{{else}}Standart{{end}}',
+        color: '{{if .Product.Colors}}{{.Product.Colors}}{{end}}',
+        qty: detailPageQty
+      });
     }
 
     async function submitDetailWhatsAppOrder() {

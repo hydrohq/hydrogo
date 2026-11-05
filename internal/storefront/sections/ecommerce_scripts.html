@@ -1,0 +1,786 @@
+{{define "ecommerce_scripts"}}
+<style>
+  /* --- Shared Luxury E-Commerce Styles --- */
+  .cart-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .cart-drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .cart-drawer {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 440px;
+    background: #FFFFFF;
+    box-shadow: -8px 0 36px rgba(0, 0, 0, 0.12);
+    z-index: 510;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .cart-drawer.active {
+    transform: translateX(0);
+  }
+  .cart-drawer-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #FAF8F5;
+  }
+  .cart-drawer-title {
+    font-family: var(--font-serif);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .cart-count-pill {
+    background: var(--text-primary);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 9999px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cart-drawer-close {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--text-muted);
+    line-height: 1;
+    padding: 4px;
+  }
+  .cart-drawer-close:hover { color: var(--text-primary); }
+
+  .cart-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cart-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+  }
+  .btn-cart-browse {
+    display: inline-block;
+    background: var(--text-primary);
+    color: #FFFFFF;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+  .btn-cart-browse:hover { background: #292524; }
+
+  .cart-item-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .cart-item-img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: #F5F5F4;
+    flex-shrink: 0;
+  }
+  .cart-item-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .cart-item-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cart-item-variant {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .cart-item-price {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    margin-top: 4px;
+  }
+  .qty-stepper {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #D6D3D1;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 6px;
+    background: #FAF8F5;
+  }
+  .qty-btn {
+    background: transparent;
+    border: none;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .qty-btn:hover { background: #E7E5E4; }
+  .qty-val {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cart-item-remove {
+    background: transparent;
+    border: none;
+    color: #A8A29E;
+    cursor: pointer;
+    padding: 6px;
+    font-size: 16px;
+    transition: color 0.15s ease;
+  }
+  .cart-item-remove:hover { color: #DC2626; }
+
+  .cart-drawer-footer {
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--border);
+    background: #FAF8F5;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .promo-box {
+    margin-bottom: 4px;
+  }
+  .promo-input {
+    flex: 1;
+    border: 1px solid #D6D3D1;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    font-family: inherit;
+    background: #FFFFFF;
+    text-transform: uppercase;
+  }
+  .promo-input:focus { outline: none; border-color: var(--text-primary); }
+  .btn-promo-apply {
+    background: var(--text-primary);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .promo-msg {
+    font-size: 11.5px;
+    margin-top: 4px;
+  }
+
+  .summary-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-bottom: 1px dashed var(--border);
+    padding-bottom: 10px;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .summary-row.total-row {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding-top: 4px;
+  }
+  .num-val {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .checkout-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cart-input, .cart-textarea {
+    width: 100%;
+    border: 1px solid #D6D3D1;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #FFFFFF;
+    color: var(--text-primary);
+  }
+  .cart-input:focus, .cart-textarea:focus {
+    outline: none;
+    border-color: var(--text-primary);
+  }
+  .cart-textarea {
+    resize: none;
+    min-height: 52px;
+  }
+
+  .checkout-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .btn-cart-whatsapp {
+    width: 100%;
+    background: #15803D;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 8px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s ease;
+  }
+  .btn-cart-whatsapp:hover { background: #166534; }
+  .btn-cart-shopier {
+    width: 100%;
+    background: var(--text-primary);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 8px;
+    padding: 11px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    transition: background 0.15s ease;
+  }
+  .btn-cart-shopier:hover { background: #292524; }
+
+  /* --- Instant Search Modal Styles --- */
+  .search-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 80px 16px 20px;
+  }
+  .search-modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .search-modal-card {
+    width: 100%;
+    max-width: 560px;
+    background: #FFFFFF;
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .search-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .search-icon-muted { color: var(--text-muted); flex-shrink: 0; }
+  .search-modal-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: transparent;
+  }
+  .search-modal-close {
+    background: #F5F5F4;
+    border: 1px solid #E7E5E4;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .search-modal-results {
+    max-height: 380px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .search-empty-prompt {
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .search-item-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s ease;
+  }
+  .search-item-row:hover { background: #FAF8F5; }
+  .search-item-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #F5F5F4;
+    flex-shrink: 0;
+  }
+  .search-item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .search-item-cat {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .search-item-price {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .search-modal-footer {
+    padding: 10px 18px;
+    background: #FAF8F5;
+    border-top: 1px solid var(--border);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Header action button enhancements */
+  .header-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-header-action {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+  .btn-header-action:hover {
+    background: var(--bg-surface);
+    border-color: var(--border-hover);
+  }
+  .btn-header-action kbd {
+    font-size: 10px;
+    background: #F5F5F4;
+    border: 1px solid #E7E5E4;
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-family: inherit;
+    color: var(--text-muted);
+  }
+  .header-badge {
+    background: var(--text-primary);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<script>
+  // --- Universal E-Commerce Bag & Search State ---
+  let hydroGlobalProducts = [];
+  try {
+    hydroGlobalProducts = {{.ProductsJSON}} || [];
+  } catch(e) { hydroGlobalProducts = []; }
+
+  const storeWaNumber = "{{.CleanPhone}}";
+  let hydroCart = [];
+  let appliedDiscount = 0;
+  let appliedPromoCodeStr = '';
+
+  function loadCart() {
+    try {
+      hydroCart = JSON.parse(localStorage.getItem('hydro_cart') || '[]');
+    } catch(e) { hydroCart = []; }
+    updateCartBadges();
+  }
+
+  function saveCart() {
+    localStorage.setItem('hydro_cart', JSON.stringify(hydroCart));
+    updateCartBadges();
+    renderCart();
+  }
+
+  function updateCartBadges() {
+    const totalCount = hydroCart.reduce((sum, it) => sum + (it.qty || 1), 0);
+    document.querySelectorAll('.cart-badge-count, #cartBadge, #headerCartCount, #cartDrawerCount').forEach(el => {
+      el.textContent = totalCount;
+      if (el.id !== 'cartDrawerCount') {
+        el.style.display = totalCount > 0 ? 'inline-flex' : 'none';
+      }
+    });
+  }
+
+  function openCartDrawer() {
+    loadCart();
+    renderCart();
+    document.getElementById('cartDrawerOverlay').classList.add('active');
+    document.getElementById('cartDrawer').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCartDrawer() {
+    document.getElementById('cartDrawerOverlay').classList.remove('active');
+    document.getElementById('cartDrawer').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  function addToBag(item) {
+    loadCart();
+    const existing = hydroCart.find(it => it.id === item.id && (it.size || '') === (item.size || '') && (it.color || '') === (item.color || ''));
+    if (existing) {
+      existing.qty = (existing.qty || 1) + (item.qty || 1);
+    } else {
+      hydroCart.push({ ...item, qty: item.qty || 1 });
+    }
+    saveCart();
+    openCartDrawer();
+  }
+
+  function quickAddProduct(id) {
+    const prod = (hydroGlobalProducts || []).find(p => p.id === id);
+    if (!prod) return;
+    addToBag({
+      id: prod.id,
+      title: prod.title,
+      price: prod.price,
+      image_url: prod.image_url || '',
+      slug: prod.slug || prod.id,
+      size: 'Standart',
+      color: '',
+      qty: 1
+    });
+  }
+
+  function changeItemQty(index, delta) {
+    if (!hydroCart[index]) return;
+    hydroCart[index].qty = (hydroCart[index].qty || 1) + delta;
+    if (hydroCart[index].qty <= 0) {
+      hydroCart.splice(index, 1);
+    }
+    saveCart();
+  }
+
+  function removeItem(index) {
+    if (!hydroCart[index]) return;
+    hydroCart.splice(index, 1);
+    saveCart();
+  }
+
+  function applyPromoCode() {
+    const input = document.getElementById('promoInput');
+    if (!input) return;
+    const code = input.value.trim().toUpperCase();
+    const msgEl = document.getElementById('promoMsg');
+    if (code === 'HOSGELDIN10' || code === 'BUTIK10') {
+      appliedDiscount = 0.10;
+      appliedPromoCodeStr = code;
+      msgEl.innerHTML = '<span style="color:#15803D; font-weight:600;">✓ %10 İndirim uygulandı!</span>';
+    } else if (code === 'BUTIK20' || code === 'VIP20') {
+      appliedDiscount = 0.20;
+      appliedPromoCodeStr = code;
+      msgEl.innerHTML = '<span style="color:#15803D; font-weight:600;">✓ %20 Butik VIP İndirimi uygulandı!</span>';
+    } else {
+      appliedDiscount = 0;
+      appliedPromoCodeStr = '';
+      msgEl.innerHTML = '<span style="color:#DC2626;">Geçersiz kupon kodu.</span>';
+    }
+    renderCart();
+  }
+
+  function renderCart() {
+    const body = document.getElementById('cartDrawerBody');
+    const footer = document.getElementById('cartDrawerFooter');
+    if (!body || !footer) return;
+
+    if (hydroCart.length === 0) {
+      body.innerHTML = `
+        <div class="cart-empty-state">
+          <div style="font-size:32px; margin-bottom:12px; opacity:0.6;">✦</div>
+          <p style="font-weight:600; font-size:15px; margin-bottom:6px;">Çantanız henüz boş</p>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Atölyemizin özenle hazırlanan seçkilerini keşfedin.</p>
+          <a href="/kategori/tumu" class="btn-cart-browse" onclick="closeCartDrawer()">Koleksiyona Göz At &rarr;</a>
+        </div>
+      `;
+      footer.style.display = 'none';
+      return;
+    }
+
+    footer.style.display = 'flex';
+    let html = '';
+    let subtotal = 0;
+
+    hydroCart.forEach((item, idx) => {
+      const lineTotal = item.price * (item.qty || 1);
+      subtotal += lineTotal;
+      html += `
+        <div class="cart-item-row">
+          <img src="${item.image_url || ''}" class="cart-item-img" alt="${item.title}" />
+          <div class="cart-item-info">
+            <div class="cart-item-title">${item.title}</div>
+            <div class="cart-item-variant">${item.size && item.size !== 'Standart' ? item.size : ''} ${item.color ? '· ' + item.color : ''}</div>
+            <div class="cart-item-price">${Number(lineTotal).toLocaleString('tr-TR')} TL</div>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn" onclick="changeItemQty(${idx}, -1)">-</button>
+              <span class="qty-val">${item.qty || 1}</span>
+              <button type="button" class="qty-btn" onclick="changeItemQty(${idx}, 1)">+</button>
+            </div>
+          </div>
+          <button type="button" class="cart-item-remove" onclick="removeItem(${idx})" title="Sil">&times;</button>
+        </div>
+      `;
+    });
+    body.innerHTML = html;
+
+    const discountAmount = subtotal * appliedDiscount;
+    const shipping = (subtotal - discountAmount >= 1000) ? 0 : 49;
+    const grandTotal = (subtotal - discountAmount) + shipping;
+
+    document.getElementById('cartSubtotal').textContent = Number(subtotal).toLocaleString('tr-TR') + ' TL';
+    const discRow = document.getElementById('cartDiscountRow');
+    if (discountAmount > 0) {
+      discRow.style.display = 'flex';
+      document.getElementById('cartDiscountLabel').textContent = 'İndirim (' + appliedPromoCodeStr + ')';
+      document.getElementById('cartDiscountVal').textContent = '-' + Number(discountAmount).toLocaleString('tr-TR') + ' TL';
+    } else {
+      discRow.style.display = 'none';
+    }
+    document.getElementById('cartShipping').textContent = shipping === 0 ? 'Ücretsiz' : shipping + ' TL';
+    document.getElementById('cartGrandTotal').textContent = Number(grandTotal).toLocaleString('tr-TR') + ' TL';
+  }
+
+  async function submitWhatsAppCartOrder() {
+    if (hydroCart.length === 0) return;
+    const name = document.getElementById('cartCustName').value.trim();
+    const phone = document.getElementById('cartCustPhone').value.trim();
+    const addr = document.getElementById('cartCustAddr').value.trim();
+
+    if (!name || !phone || !addr) {
+      alert('Lütfen teslimat için ad, telefon ve adres bilgilerinizi giriniz.');
+      return;
+    }
+
+    let subtotal = 0;
+    hydroCart.forEach(it => { subtotal += it.price * (it.qty || 1); });
+    const discountAmount = subtotal * appliedDiscount;
+    const shipping = (subtotal - discountAmount >= 1000) ? 0 : 49;
+    const grandTotal = (subtotal - discountAmount) + shipping;
+
+    const payload = {
+      items: hydroCart,
+      discount: discountAmount,
+      promo_code: appliedPromoCodeStr,
+      price: grandTotal,
+      customer_name: name,
+      customer_phone: phone,
+      customer_address: addr
+    };
+
+    let orderCode = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+
+    try {
+      const res = await fetch('/api/v1/storefront/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const b = await res.json();
+        if (b.data && b.data.order_code) {
+          orderCode = b.data.order_code;
+        }
+      }
+    } catch(e) {
+      console.warn('Order dispatch error:', e);
+    }
+
+    let msg = `Merhaba, sipariş vermek istiyorum.\n\n`;
+    msg += `Sipariş No: #${orderCode}\n`;
+    msg += `---------------------------\n`;
+    hydroCart.forEach(it => {
+      let line = `${it.qty}x ${it.title}`;
+      if (it.size && it.size !== 'Standart') line += ` (${it.size})`;
+      if (it.color) line += ` (${it.color})`;
+      line += ` - ${(it.price * it.qty).toLocaleString('tr-TR')} TL`;
+      msg += line + '\n';
+    });
+    msg += `---------------------------\n`;
+    msg += `Ara Toplam: ${subtotal.toLocaleString('tr-TR')} TL\n`;
+    if (discountAmount > 0) {
+      msg += `İndirim (${appliedPromoCodeStr}): -${discountAmount.toLocaleString('tr-TR')} TL\n`;
+    }
+    msg += `Kargo: ${shipping === 0 ? 'Ücretsiz' : shipping + ' TL'}\n`;
+    msg += `Genel Toplam: ${grandTotal.toLocaleString('tr-TR')} TL\n\n`;
+    msg += `Müşteri: ${name}\n`;
+    msg += `Telefon: ${phone}\n`;
+    msg += `Teslimat Adresi:\n${addr}\n\n`;
+    msg += `Siparişimi onaylar mısınız?`;
+
+    const targetWa = storeWaNumber || '905550000000';
+    window.open(`https://wa.me/${targetWa}?text=${encodeURIComponent(msg)}`, '_blank');
+
+    hydroCart = [];
+    saveCart();
+    closeCartDrawer();
+    window.location.href = `/siparis-takip?code=${orderCode}`;
+  }
+
+  // --- Instant Search Modal Logic ---
+  function openSearchModal() {
+    const overlay = document.getElementById('searchModalOverlay');
+    if (!overlay) return;
+    overlay.classList.add('active');
+    const input = document.getElementById('searchModalInput');
+    input.value = '';
+    input.focus();
+    renderSearchResults('');
+  }
+
+  function closeSearchModal() {
+    const overlay = document.getElementById('searchModalOverlay');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  function closeSearchModalOnBackdrop(e) {
+    if (e.target && e.target.id === 'searchModalOverlay') {
+      closeSearchModal();
+    }
+  }
+
+  function onSearchInput(val) {
+    renderSearchResults(val.trim());
+  }
+
+  function renderSearchResults(query) {
+    const container = document.getElementById('searchResults');
+    if (!container) return;
+    if (!query) {
+      container.innerHTML = '<div class="search-empty-prompt">Aramak istediğiniz ürün veya kategoriyi yazın...</div>';
+      return;
+    }
+    const qLower = query.toLowerCase();
+    const matched = (hydroGlobalProducts || []).filter(p =>
+      (p.title || '').toLowerCase().includes(qLower) ||
+      (p.description || '').toLowerCase().includes(qLower) ||
+      (p.category || '').toLowerCase().includes(qLower)
+    );
+
+    if (matched.length === 0) {
+      container.innerHTML = '<div class="search-empty-prompt">"<strong>' + query + '</strong>" ile eşleşen ürün bulunamadı.</div>';
+      return;
+    }
+
+    let html = '';
+    matched.forEach(p => {
+      html += `
+        <a href="/urun/${p.slug || p.id}" class="search-item-row">
+          <img src="${p.image_url || ''}" class="search-item-thumb" alt="${p.title}" />
+          <div style="flex:1;">
+            <div class="search-item-title">${p.title}</div>
+            <div class="search-item-cat">${p.category || ''}</div>
+          </div>
+          <div class="search-item-price">${Number(p.price).toLocaleString('tr-TR')} TL</div>
+        </a>
+      `;
+    });
+    container.innerHTML = html;
+  }
+
+  // Global listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    loadCart();
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openCart') === '1') {
+      openCartDrawer();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      openSearchModal();
+    }
+    if (e.key === 'Escape') {
+      closeSearchModal();
+      closeCartDrawer();
+    }
+  });
+</script>
+{{end}}
