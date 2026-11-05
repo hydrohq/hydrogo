@@ -390,10 +390,11 @@ func (a *serveApp) storefrontOrderTrackingHandler(w http.ResponseWriter, r *http
 			if code == "" {
 				code, _ = d["order_no"].(string)
 			}
+			cleanCode := strings.ToUpper(strings.TrimPrefix(code, "#"))
 			phone, _ := d["customer_phone"].(string)
 			cleanRecPhone := strings.ReplaceAll(phone, " ", "")
 
-			if strings.EqualFold(code, cleanQ) || (cleanPhoneQ != "" && strings.Contains(cleanRecPhone, cleanPhoneQ)) {
+			if strings.EqualFold(cleanCode, cleanQ) || strings.EqualFold(code, cleanQ) || (cleanPhoneQ != "" && strings.Contains(cleanRecPhone, cleanPhoneQ)) {
 				trackingData.OrderFound = true
 				trackingData.OrderCode = code
 				if trackingData.OrderCode == "" {
@@ -469,10 +470,11 @@ func (a *serveApp) storefrontTrackOrderAPIHandler(w http.ResponseWriter, r *http
 		if code == "" {
 			code, _ = d["order_no"].(string)
 		}
+		cleanCode := strings.ToUpper(strings.TrimPrefix(code, "#"))
 		phone, _ := d["customer_phone"].(string)
 		cleanRecPhone := strings.ReplaceAll(phone, " ", "")
 
-		if strings.EqualFold(code, cleanQ) || (cleanPhoneQ != "" && strings.Contains(cleanRecPhone, cleanPhoneQ)) {
+		if strings.EqualFold(cleanCode, cleanQ) || strings.EqualFold(code, cleanQ) || (cleanPhoneQ != "" && strings.Contains(cleanRecPhone, cleanPhoneQ)) {
 			status, _ := d["order_status"].(string)
 			if status == "" {
 				status, _ = d["status"].(string)

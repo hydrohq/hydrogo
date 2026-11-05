@@ -677,17 +677,21 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 			"items_summary":    itemsSummary,
 			"total_price":      totalPrice,
 			"total_amount":     totalPrice,
-			"promo_code":       in.PromoCode,
-			"discount_amount":  in.Discount,
-			"status":           "PENDING_WHATSAPP",
-			"order_status":     "PENDING_WHATSAPP",
-			"payment_status":   "pending",
+			"status":           "yeni",
 			"order_channel":    "WhatsApp",
 		}
 
 		// Try orders collection, then boutique_orders
-		if _, err := a.collectionService.CreateRecord(tenantCtx, "orders", orderData); err != nil {
-			_, _ = a.collectionService.CreateRecord(tenantCtx, "boutique_orders", orderData)
+		created, err := a.collectionService.CreateRecord(tenantCtx, "orders", orderData)
+		if err != nil {
+			fmt.Printf("[storefrontOrderHandler] CreateRecord orders failed: %v\n", err)
+			created, err = a.collectionService.CreateRecord(tenantCtx, "boutique_orders", orderData)
+			if err != nil {
+				fmt.Printf("[storefrontOrderHandler] CreateRecord boutique_orders failed: %v\n", err)
+			}
+		}
+		if codeVal, ok := created.Data["order_code"].(string); ok && codeVal != "" {
+			orderCode = codeVal
 		}
 	}
 
