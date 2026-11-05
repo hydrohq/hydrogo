@@ -1,0 +1,24 @@
+{{define "header_actions"}}
+<div class="header-actions-group">
+  <button type="button" class="btn-header-action" onclick="openSearchModal()" title="Ürün Ara (Cmd+K)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"></circle>
+      <path d="m21 21-4.3-4.3"></path>
+    </svg>
+    <span style="font-size: 12.5px;">Ara</span>
+    <kbd>⌘K</kbd>
+  </button>
+  <button type="button" class="btn-header-action" onclick="openCartDrawer()" title="Alışveriş Çantası">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+      <path d="M3 6h18"></path>
+      <path d="M16 10a4 4 0 0 1-8 0"></path>
+    </svg>
+    <span style="font-size: 12.5px;">Çanta</span>
+    <span class="header-badge cart-badge-count" id="headerCartCount" style="display:none;">0</span>
+  </button>
+  <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="btn-header-action" style="background:var(--text-primary); color:#FFFFFF; border-color:var(--text-primary);">
+    <span>WhatsApp Destek</span>
+  </a>
+</div>
+{{end}}

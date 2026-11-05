@@ -28,10 +28,38 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "GET /about", Access: router.Public, Handler: http.HandlerFunc(a.storefrontAboutHandler)},
 		{Pattern: "GET /iletisim", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
 		{Pattern: "GET /contact", Access: router.Public, Handler: http.HandlerFunc(a.storefrontContactHandler)},
+		{Pattern: "GET /siparis-takip", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
+		{Pattern: "GET /order-tracking", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
+		{Pattern: "GET /robots.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontRobotsHandler)},
 		{Pattern: "GET /storefront/fonts/{name}", Access: router.Public, Handler: http.HandlerFunc(storefront.ServeFont)},
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 		{Pattern: "POST /api/v1/store/orders", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
+		{Pattern: "POST /api/v1/storefront/track-order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontTrackOrderAPIHandler)},
 	}
+}
+
+func (a *serveApp) isStorefrontTenant(r *http.Request) bool {
+	host := strings.ToLower(strings.TrimSpace(r.Host))
+	if i := strings.IndexByte(host, ':'); i > 0 {
+		host = host[:i]
+	}
+	consoleHost := strings.ToLower(strings.TrimSpace(a.cfg.Factory.ConsoleHost))
+	if consoleHost == "" {
+		consoleHost = "console.example.com"
+	}
+	if host == consoleHost {
+		return false
+	}
+	scope, err := tenant.FromContext(r.Context())
+	if err == nil && scope.TenantID != "" && scope.TenantID != "default" && scope.TenantID != "platform" {
+		return true
+	}
+	if a.db != nil {
+		if _, ok := tenant.ResolveTenantByDomain(r.Context(), a.db, string(a.cfg.Database.Dialect), host); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Request) (tenant.Scope, tenant.Governance, map[string]any, []storefront.ProductView, bool) {
@@ -535,17 +563,29 @@ func (a *serveApp) defaultCatalogGen(name, phone, prompt string) (map[string]any
 }
 
 func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request) {
+	type cartItemIn struct {
+		ID    string  `json:"id"`
+		Title string  `json:"title"`
+		Price float64 `json:"price"`
+		Qty   int     `json:"qty"`
+		Size  string  `json:"size"`
+		Color string  `json:"color"`
+	}
+
 	var in struct {
-		ProductID       string  `json:"product_id"`
-		ProductTitle    string  `json:"product_title"`
-		Price           float64 `json:"price"`
-		Size            string  `json:"size"`
-		Color           string  `json:"color"`
-		SKU             string  `json:"sku"`
-		VariantTitle    string  `json:"variant_title"`
-		CustomerName    string  `json:"customer_name"`
-		CustomerPhone   string  `json:"customer_phone"`
-		CustomerAddress string  `json:"customer_address"`
+		ProductID       string       `json:"product_id"`
+		ProductTitle    string       `json:"product_title"`
+		Price           float64      `json:"price"`
+		Size            string       `json:"size"`
+		Color           string       `json:"color"`
+		SKU             string       `json:"sku"`
+		VariantTitle    string       `json:"variant_title"`
+		Items           []cartItemIn `json:"items"`
+		Discount        float64      `json:"discount"`
+		PromoCode       string       `json:"promo_code"`
+		CustomerName    string       `json:"customer_name"`
+		CustomerPhone   string       `json:"customer_phone"`
+		CustomerAddress string       `json:"customer_address"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -572,21 +612,55 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 	codeNum := 1000 + (int(codeBytes[0])<<8|int(codeBytes[1]))%9000
 	orderCode := fmt.Sprintf("#HYD-%04d", codeNum)
 
-	variantSummary := in.Size
-	if in.Color != "" {
-		if variantSummary != "" {
-			variantSummary = in.Color + " / " + variantSummary
-		} else {
-			variantSummary = in.Color
-		}
-	}
-	if in.VariantTitle != "" {
-		variantSummary = in.VariantTitle
-	}
+	var totalPrice float64 = in.Price
+	var itemsSummary string
 
-	itemsSummary := in.ProductTitle
-	if variantSummary != "" {
-		itemsSummary = fmt.Sprintf("%s (%s)", in.ProductTitle, variantSummary)
+	if len(in.Items) > 0 {
+		var sb strings.Builder
+		totalPrice = 0
+		for i, item := range in.Items {
+			qty := item.Qty
+			if qty <= 0 {
+				qty = 1
+			}
+			totalPrice += item.Price * float64(qty)
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			detail := item.Title
+			if item.Size != "" && item.Size != "Standart" {
+				detail += " (" + item.Size + ")"
+			}
+			if item.Color != "" {
+				detail += " (" + item.Color + ")"
+			}
+			sb.WriteString(fmt.Sprintf("%dx %s", qty, detail))
+		}
+		if in.Discount > 0 {
+			totalPrice -= in.Discount
+			if totalPrice < 0 {
+				totalPrice = 0
+			}
+			sb.WriteString(fmt.Sprintf(" [Kupon: %s -%.2f TL]", in.PromoCode, in.Discount))
+		}
+		itemsSummary = sb.String()
+	} else {
+		variantSummary := in.Size
+		if in.Color != "" {
+			if variantSummary != "" {
+				variantSummary = in.Color + " / " + variantSummary
+			} else {
+				variantSummary = in.Color
+			}
+		}
+		if in.VariantTitle != "" {
+			variantSummary = in.VariantTitle
+		}
+		if variantSummary != "" {
+			itemsSummary = fmt.Sprintf("%s (%s)", in.ProductTitle, variantSummary)
+		} else {
+			itemsSummary = in.ProductTitle
+		}
 	}
 
 	if tenantFound && scope.TenantID != "" {
@@ -601,8 +675,10 @@ func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request
 			"shipping_address": in.CustomerAddress,
 			"items_json":       itemsSummary,
 			"items_summary":    itemsSummary,
-			"total_price":      in.Price,
-			"total_amount":     in.Price,
+			"total_price":      totalPrice,
+			"total_amount":     totalPrice,
+			"promo_code":       in.PromoCode,
+			"discount_amount":  in.Discount,
 			"status":           "PENDING_WHATSAPP",
 			"order_status":     "PENDING_WHATSAPP",
 			"payment_status":   "pending",

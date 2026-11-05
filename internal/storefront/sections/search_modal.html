@@ -1,0 +1,28 @@
+{{define "search_modal"}}
+<!-- Instant Search Modal Overlay -->
+<div class="search-modal-overlay" id="searchModalOverlay" onclick="closeSearchModalOnBackdrop(event)">
+  <div class="search-modal-card">
+    <div class="search-modal-header">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon-muted">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input
+        type="text"
+        id="searchModalInput"
+        class="search-modal-input"
+        placeholder="Ürün adı, koleksiyon veya malzeme ara..."
+        autocomplete="off"
+        oninput="onSearchInput(this.value)"
+      />
+      <button type="button" class="search-modal-close" onclick="closeSearchModal()">Esc</button>
+    </div>
+    <div class="search-modal-results" id="searchResults">
+      <div class="search-empty-prompt">Aramak istediğiniz ürün veya kategoriyi yazın...</div>
+    </div>
+    <div class="search-modal-footer">
+      <span>Gezinmek için ↑↓, açmak için Enter, kapatmak için Esc</span>
+    </div>
+  </div>
+</div>
+{{end}}

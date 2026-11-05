@@ -200,6 +200,17 @@ func (a *serveApp) siteRoutes() []router.Route {
 	}
 	siteRoutes := siteRouterRoutes(a.siteHTTP.Routes())
 	for i := range siteRoutes {
+		if siteRoutes[i].Pattern == "GET /sitemap.xml" {
+			origSitemap := siteRoutes[i].Handler
+			siteRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if a.isStorefrontTenant(r) {
+					a.storefrontSitemapHandler(w, r)
+					return
+				}
+				origSitemap.ServeHTTP(w, r)
+			})
+			continue
+		}
 		if !strings.HasPrefix(siteRoutes[i].Pattern, "GET ") {
 			original := siteRoutes[i].Handler
 			siteRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

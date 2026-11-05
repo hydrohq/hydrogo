@@ -253,6 +253,36 @@ func TestRenderContact(t *testing.T) {
 	}
 }
 
+func TestRenderOrderTracking(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/siparis-takip?code=ORD-9988", nil)
+
+	data := OrderTrackingData{
+		StoreName:    "Vera Seramik",
+		CleanPhone:   "05551234567",
+		QueryCode:    "ORD-9988",
+		OrderFound:   true,
+		OrderCode:    "ORD-9988",
+		OrderStatus:  "kargolandi",
+		CustomerName: "Deniz Kaya",
+		TrackingCode: "TR987654321",
+		TotalAmount:  1450,
+	}
+
+	err := RenderOrderTracking(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderOrderTracking error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "#ORD-9988") {
+		t.Errorf("expected order code in body")
+	}
+	if !strings.Contains(body, "TR987654321") {
+		t.Errorf("expected tracking code in body")
+	}
+}
+
 func TestResolveFontFamilies(t *testing.T) {
 	hg, bg := ResolveFontFamilies("v0_geist")
 	if !strings.Contains(string(hg), "Geist") || !strings.Contains(string(bg), "Geist") {
