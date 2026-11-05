@@ -165,6 +165,10 @@ func (g *Governor) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		if IsPlatformTenant(scope.TenantID) {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		now := g.nowFn()
 		gov := g.loadGovernance(r.Context(), scope.TenantID, now)

@@ -167,6 +167,7 @@ func IsPlatformControlPlanePath(path string) bool {
 		path == "/readyz" ||
 		strings.HasPrefix(path, "/api/v1/system/") ||
 		strings.HasPrefix(path, "/api/v1/admin/orchestrator") ||
+		strings.HasPrefix(path, "/api/v1/superadmin") ||
 		strings.HasPrefix(path, "/api/v1/webhooks/") ||
 		strings.HasPrefix(path, "/api/v1/internal/")
 }
