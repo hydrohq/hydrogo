@@ -160,11 +160,22 @@ func (r HostResolver) Matches(raw string) bool {
 	return ok
 }
 
-// Middleware resolves the host before downstream auth/repository code. Health
-// and readiness endpoints remain tenant-neutral for load balancers.
+// IsPlatformControlPlanePath returns true for system, webhook, orchestrator, or probe endpoints
+// that operate at the platform level rather than within an individual tenant store.
+func IsPlatformControlPlanePath(path string) bool {
+	return path == "/healthz" ||
+		path == "/readyz" ||
+		strings.HasPrefix(path, "/api/v1/system/") ||
+		strings.HasPrefix(path, "/api/v1/admin/orchestrator") ||
+		strings.HasPrefix(path, "/api/v1/webhooks/") ||
+		strings.HasPrefix(path, "/api/v1/internal/")
+}
+
+// Middleware resolves the host before downstream auth/repository code. Health,
+// readiness, orchestrator, and webhook endpoints remain tenant-neutral.
 func (r HostResolver) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/healthz" || req.URL.Path == "/readyz" {
+		if IsPlatformControlPlanePath(req.URL.Path) {
 			next.ServeHTTP(w, req)
 			return
 		}
