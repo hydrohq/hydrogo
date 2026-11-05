@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.ArtistName}} — {{.Tagline}}</title>
+  <meta name="description" content="{{.HeroSubtitle}}">
+
+  {{template "embedded_fonts" .}}
+
+  <style>
+    :root {
+      --primary: {{.PrimaryColor}};
+      --bg: {{.BGTone}};
+      --card-bg: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --muted: #64748B;
+      --font-heading: {{.FontHeading}};
+      --font-body: {{.FontBody}};
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 {
+      font-family: var(--font-heading);
+      letter-spacing: -0.01em;
+      font-weight: 600;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(248, 250, 252, 0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-logo {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* Hero */
+    .hero {
+      padding: 100px 0 80px;
+      max-width: 880px;
+    }
+    .hero-meta {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 5vw, 4.5rem);
+      line-height: 1.1;
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* Works Grid */
+    .works-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 40px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .works-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
+      margin-bottom: 100px;
+    }
+    @media (max-width: 768px) {
+      .works-grid { grid-template-columns: 1fr; gap: 32px; }
+    }
+    .work-card {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .work-img {
+      position: relative;
+      height: 440px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      background: #E2E8F0;
+    }
+    .work-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .work-card:hover .work-img img {
+      transform: scale(1.04);
+    }
+    .work-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .work-title {
+      font-size: 1.35rem;
+      font-weight: 600;
+    }
+    .work-year {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .work-category {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Manifesto / Bio */
+    .manifesto-section {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 60px;
+      margin-bottom: 100px;
+      padding: 60px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    @media (max-width: 800px) {
+      .manifesto-section { grid-template-columns: 1fr; gap: 24px; }
+    }
+    .manifesto-title {
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .manifesto-body {
+      font-size: 1.35rem;
+      line-height: 1.8;
+      font-family: var(--font-heading);
+    }
+
+    /* Awards List */
+    .awards-section {
+      margin-bottom: 100px;
+    }
+    .award-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 1fr;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      font-size: 0.95rem;
+    }
+    @media (max-width: 600px) {
+      .award-row { grid-template-columns: 60px 1fr; }
+      .award-project { display: none; }
+    }
+
+    /* Inquiries Form */
+    .contact-section {
+      max-width: 680px;
+      margin: 0 auto 100px;
+    }
+    .form-group {
+      margin-bottom: 24px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+      font-family: inherit;
+      font-size: 1rem;
+      border-radius: 0;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 60px 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    @media (max-width: 600px) {
+      .footer-inner { flex-direction: column; gap: 16px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container header-inner">
+      <a href="/" class="brand-logo">{{.ArtistName}}</a>
+      <ul class="nav-links">
+        <li><a href="#isler">İşler</a></li>
+        <li><a href="#manifesto">Manifesto</a></li>
+        <li><a href="#oduller">Ödüller</a></li>
+        <li><a href="#iletisim">İletişim</a></li>
+      </ul>
+      <a href="#iletisim" class="btn btn-primary">Proje Talebi</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-meta">{{.Location}} · {{.Tagline}}</div>
+      <h1>{{.HeroTitle}}</h1>
+      <p>{{.HeroSubtitle}}</p>
+    </section>
+
+    <!-- Works Grid -->
+    <section id="isler">
+      <div class="works-header">
+        <h2 style="font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Seçilmiş Projeler</h2>
+        <span style="color: var(--muted); font-size: 0.85rem;">2023 — 2026</span>
+      </div>
+
+      <div class="works-grid">
+        {{range .Works}}
+        <div class="work-card">
+          <div class="work-img">
+            <img src="{{.CoverImage}}" alt="{{.Title}}">
+          </div>
+          <div class="work-meta">
+            <h3 class="work-title">{{.Title}}</h3>
+            <span class="work-year">{{.Year}}</span>
+          </div>
+          <div class="work-category">{{.Category}} {{if .Client}}· {{.Client}}{{end}}</div>
+        </div>
+        {{end}}
+      </div>
+    </section>
+
+    <!-- Manifesto / Statement -->
+    <section class="manifesto-section" id="manifesto">
+      <div class="manifesto-title">Tasarım Manifestosu</div>
+      <div class="manifesto-body">
+        {{.Bio}}
+      </div>
+    </section>
+
+    <!-- Awards -->
+    {{if .Awards}}
+    <section class="awards-section" id="oduller">
+      <h2 style="font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 32px;">Ödüller & Tanınma</h2>
+      <div>
+        {{range .Awards}}
+        <div class="award-row">
+          <span style="font-weight: 600; color: var(--muted);">{{.Year}}</span>
+          <div>
+            <strong>{{.Title}}</strong>
+            <div style="font-size: 0.85rem; color: var(--muted);">{{.Organization}}</div>
+          </div>
+          <div class="award-project" style="color: var(--muted); text-align: right;">{{.ProjectName}}</div>
+        </div>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Project Inquiry Form -->
+    <section class="contact-section" id="iletisim">
+      <div style="text-align: center; margin-bottom: 40px;">
+        <h2 style="font-size: 2rem; margin-bottom: 8px;">Yeni Bir Proje Başlatın</h2>
+        <p style="color: var(--muted);">Mimari ve tasarım projeleriniz için doğrudan bizimle iletişime geçin.</p>
+      </div>
+
+      <form id="portfolio-inq-form" onsubmit="handlePortfolioInq(event)">
+        <div class="form-group">
+          <label>Adınız / Kurum Adı</label>
+          <input type="text" id="pf-name" required placeholder="İsim veya Kurum">
+        </div>
+
+        <div class="form-group">
+          <label>E-Posta Adresi</label>
+          <input type="email" id="pf-email" required placeholder="iletisim@alanadiniz.com">
+        </div>
+
+        <div class="form-group">
+          <label>Proje Tipi & Kapsamı</label>
+          <input type="text" id="pf-type" placeholder="Konut Mimarisi, İç Mekan, Sergi vb.">
+        </div>
+
+        <div class="form-group">
+          <label>Proje Hikayesi & Notlar</label>
+          <textarea id="pf-message" rows="4" required placeholder="Arsa konumu, metrekare, vizyonunuz veya hedefleriniz..."></textarea>
+        </div>
+
+        <button type="submit" id="pf-btn" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 0.95rem;">
+          Talebi İlet →
+        </button>
+        <div id="pf-status" style="display: none; padding: 14px; margin-top: 16px; text-align: center; font-size: 0.9rem;"></div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-inner">
+      <div>
+        <strong>{{.ArtistName}}</strong>
+        <div style="font-size: 0.8rem; margin-top: 4px;">{{.Location}} · {{.ContactEmail}}</div>
+      </div>
+      <div>
+        <span>{{.Instagram}}</span> · <span>© 2026 Tüm Hakları Saklıdır.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    async function handlePortfolioInq(e) {
+      e.preventDefault();
+      const btn = document.getElementById('pf-btn');
+      const status = document.getElementById('pf-status');
+      btn.disabled = true;
+      btn.innerText = 'İletiliyor...';
+
+      const payload = {
+        client_name: document.getElementById('pf-name').value.trim(),
+        email: document.getElementById('pf-email').value.trim(),
+        project_type: document.getElementById('pf-type').value.trim(),
+        message: document.getElementById('pf-message').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/v1/inquire', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          status.style.display = 'block';
+          status.style.background = '#F1F5F9';
+          status.style.color = '#0F172A';
+          status.innerText = 'Proje talebiniz stüdyomuza ulaştı. En kısa sürede sizinle iletişime geçeceğiz.';
+          document.getElementById('portfolio-inq-form').reset();
+          btn.innerText = 'İletildi!';
+        } else {
+          status.style.display = 'block';
+          status.style.background = '#FEE2E2';
+          status.style.color = '#B91C1C';
+          status.innerText = 'Bir hata oluştu. Lütfen doğrudan e-posta ile ulaşın.';
+          btn.disabled = false;
+          btn.innerText = 'Tekrar Dene';
+        }
+      } catch (err) {
+        status.style.display = 'block';
+        status.style.background = '#FEE2E2';
+        status.style.color = '#B91C1C';
+        status.innerText = 'Bağlantı hatası: ' + err.message;
+        btn.disabled = false;
+        btn.innerText = 'Tekrar Dene';
+      }
+    }
+  </script>
+</body>
+</html>
