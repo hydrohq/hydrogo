@@ -165,6 +165,12 @@ func ValidLifecycleState(state string) bool {
 	}
 }
 
+// IsPlatformTenant returns true if the tenant identifier represents the platform itself.
+func IsPlatformTenant(id string) bool {
+	clean := strings.ToLower(strings.TrimSpace(id))
+	return clean == "platform" || clean == "default"
+}
+
 // UpsertGovernance creates or updates a tenant's governance record.
 func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov Governance) error {
 	if db == nil {
@@ -173,6 +179,12 @@ func UpsertGovernance(ctx context.Context, db SQLExecutor, dialect string, gov G
 	gov.TenantID = strings.TrimSpace(gov.TenantID)
 	if _, err := NewScope(gov.TenantID, gov.TenantID); err != nil {
 		return err
+	}
+	if IsPlatformTenant(gov.TenantID) {
+		if gov.LifecycleState == LifecycleSuspended || gov.LifecycleState == LifecycleArchived {
+			gov.LifecycleState = LifecycleActive
+			gov.EffectiveState = LifecycleActive
+		}
 	}
 	if !ValidLifecycleState(gov.LifecycleState) {
 		gov.LifecycleState = LifecycleActive
