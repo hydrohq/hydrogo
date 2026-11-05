@@ -309,7 +309,7 @@ const selectGovernanceColumns = `tenant_id, display_name, subdomain, custom_doma
 	trial_ends_at, subscription_ends_at, max_storage_bytes, max_records, rate_limit_rps,
 	max_concurrent_reqs, max_upload_bytes, ai_enabled, ai_provider, ai_model,
 	COALESCE(ai_encrypted_api_key, ''), ai_monthly_token_limit, ai_tokens_used,
-	COALESCE(ai_token_period, ''), owner_phone, COALESCE(notes, ''), created_at, updated_at, COALESCE(dns_verified, 0)`
+	COALESCE(ai_token_period, ''), owner_phone, COALESCE(notes, ''), created_at, updated_at, dns_verified`
 
 type rowScanner interface {
 	Scan(dest ...any) error
