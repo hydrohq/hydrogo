@@ -1,10 +1,10 @@
 {{define "cart_drawer"}}
-<!-- Slide-over Shopping Bag Drawer -->
+<!-- Slide-over Shopping Bag/Cart Drawer -->
 <div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="closeCartDrawer()"></div>
 <div class="cart-drawer" id="cartDrawer">
   <div class="cart-drawer-header">
     <div style="display:flex; align-items:center; gap:8px;">
-      <h3 class="cart-drawer-title">Alışveriş Çantası</h3>
+      <h3 class="cart-drawer-title">Alışveriş Sepeti</h3>
       <span class="cart-count-pill" id="cartDrawerCount">0</span>
     </div>
     <button class="cart-drawer-close" onclick="closeCartDrawer()" aria-label="Kapat">&times;</button>
@@ -14,13 +14,21 @@
     <!-- Populated by JavaScript -->
     <div class="cart-empty-state">
       <div style="font-size:32px; margin-bottom:12px; opacity:0.6;">✦</div>
-      <p style="font-weight:600; font-size:15px; margin-bottom:6px;">Çantanız henüz boş</p>
+      <p style="font-weight:600; font-size:15px; margin-bottom:6px;">Sepetiniz henüz boş</p>
       <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Atölyemizin özenle hazırlanan seçkilerini keşfedin.</p>
       <a href="/kategori/tumu" class="btn-cart-browse">Koleksiyona Göz At &rarr;</a>
     </div>
   </div>
 
   <div class="cart-drawer-footer" id="cartDrawerFooter" style="display:none;">
+    <!-- Free Shipping Progress -->
+    <div class="shipping-progress-box" id="shippingProgressBox">
+      <div class="shipping-progress-text" id="shippingProgressText">1500 TL üzeri kargo ücretsiz</div>
+      <div class="shipping-progress-track">
+        <div class="shipping-progress-bar" id="shippingProgressBar" style="width: 0%;"></div>
+      </div>
+    </div>
+
     <!-- Promo Code Area -->
     <div class="promo-box">
       <div style="display:flex; gap:8px;">
