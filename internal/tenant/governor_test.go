@@ -246,14 +246,11 @@ func TestGovernorConcurrencyAndAITokenMetering(t *testing.T) {
 	// Test concurrency semaphore
 	governor := NewGovernor(db, "sqlite")
 	scope, _ := NewScope("busy-shop", "busy-shop")
-	inHandler := make(chan struct{})
+	inHandler := make(chan struct{}, 1)
 	releaseHandler := make(chan struct{})
 
 	handler := governor.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case inHandler <- struct{}{}:
-		default:
-		}
+		inHandler <- struct{}{}
 		<-releaseHandler
 		w.WriteHeader(http.StatusOK)
 	}))
