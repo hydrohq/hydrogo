@@ -560,3 +560,33 @@ func (a *serveApp) storefrontRobotsHandler(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	fmt.Fprintf(w, "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n", base)
 }
+
+func (a *serveApp) storefrontLLMsHandler(w http.ResponseWriter, r *http.Request) {
+	_, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	name := gov.DisplayName
+	if n, ok := settings["brand_name"].(string); ok && n != "" {
+		name = n
+	}
+	tagline := gov.Notes
+	if t, ok := settings["tagline"].(string); ok && t != "" {
+		tagline = t
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# %s\n\n> %s\n\n## Hakkında\nBu web sitesi HydroGo Cloud AI üzerinde çalışan modern bir işletmedir.\n\n## Ürünler ve Hizmetler\n", name, tagline))
+	for _, p := range products {
+		if p.Title != "" {
+			sb.WriteString(fmt.Sprintf("- **%s**: %.2f TL\n", p.Title, p.Price))
+		}
+	}
+	sb.WriteString(fmt.Sprintf("\n## İletişim\nTelefon: %s\n", gov.OwnerPhone))
+	_, _ = w.Write([]byte(sb.String()))
+}

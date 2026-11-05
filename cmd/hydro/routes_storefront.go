@@ -34,6 +34,8 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "GET /siparis-takip", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
 		{Pattern: "GET /order-tracking", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
 		{Pattern: "GET /robots.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontRobotsHandler)},
+		{Pattern: "GET /sitemap.xml", Access: router.Public, Handler: http.HandlerFunc(a.storefrontSitemapHandler)},
+		{Pattern: "GET /llms.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontLLMsHandler)},
 		{Pattern: "GET /storefront/fonts/{name}", Access: router.Public, Handler: http.HandlerFunc(storefront.ServeFont)},
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 		{Pattern: "POST /api/v1/store/orders", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
