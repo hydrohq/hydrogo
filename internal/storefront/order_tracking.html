@@ -6,50 +6,9 @@
   <title>Sipariş Takibi — {{.StoreName}}</title>
   <meta name="description" content="{{.StoreName}} siparişinizin güncel kargo ve hazırlık durumunu anlık takip edin.">
 
-  <style>
-    @font-face {
-      font-family: 'Playfair Display';
-      font-style: normal;
-      font-weight: 500 700;
-      font-display: swap;
-      src: url('/storefront/fonts/playfair-display.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'Geist';
-      font-style: normal;
-      font-weight: 400;
-      font-display: swap;
-      src: url('/storefront/fonts/geist-regular.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'Geist';
-      font-style: normal;
-      font-weight: 500;
-      font-display: swap;
-      src: url('/storefront/fonts/geist-medium.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'Geist';
-      font-style: normal;
-      font-weight: 600;
-      font-display: swap;
-      src: url('/storefront/fonts/geist-semibold.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'Geist';
-      font-style: normal;
-      font-weight: 700;
-      font-display: swap;
-      src: url('/storefront/fonts/geist-bold.woff2') format('woff2');
-    }
-    @font-face {
-      font-family: 'Geist Mono';
-      font-style: normal;
-      font-weight: 400 600;
-      font-display: swap;
-      src: url('/storefront/fonts/geist-mono.woff2') format('woff2');
-    }
+  {{template "embedded_fonts" .}}
 
+  <style>
     :root {
       --bg-primary: {{.BGTone}};
       --bg-surface: #FFFFFF;
@@ -371,7 +330,7 @@
       </nav>
       <div class="header-actions">
         <button class="btn-icon" onclick="openCart()">
-          <span>Çanta</span>
+          <span>Sepet</span>
           <span class="cart-badge" id="cartBadge">0</span>
         </button>
         <a href="https://wa.me/{{.CleanPhone}}" target="_blank" class="btn-icon" style="background:var(--text-primary); color:#FFFFFF; border:none;">
