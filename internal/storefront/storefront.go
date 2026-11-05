@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-//go:embed storefront.html suspended.html product_detail.html category_view.html about_view.html contact_view.html order_tracking.html sections/*.html fonts/*
+//go:embed *.html sections/*.html fonts/*
 var templateFS embed.FS
 
 var (

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.BrandName}} — {{.Tagline}}</title>
+  <meta name="description" content="{{.HeroSubtitle}}">
+
+  {{template "embedded_fonts" .}}
+
+  <style>
+    :root {
+      --primary: {{.PrimaryColor}};
+      --bg: {{.BGTone}};
+      --card-bg: #27272A;
+      --border: #3F3F46;
+      --text: #FAFAFA;
+      --muted: #A1A1AA;
+      --font-heading: {{.FontHeading}};
+      --font-body: {{.FontBody}};
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 {
+      font-family: var(--font-heading);
+      letter-spacing: -0.01em;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(24, 24, 27, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-logo {
+      font-family: var(--font-heading);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-whatsapp {
+      background: #25D366;
+      color: #FFFFFF;
+    }
+    .btn-whatsapp:hover { opacity: 0.9; }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 24px 0 40px;
+      height: 420px;
+      display: flex;
+      align-items: flex-end;
+      padding: 40px;
+      border: 1px solid var(--border);
+    }
+    .hero-bg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      filter: brightness(0.45);
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 640px;
+    }
+    .hero-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--primary);
+      color: #FFFFFF;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      color: #D4D4D8;
+      font-size: 1.05rem;
+      margin-bottom: 20px;
+    }
+
+    /* Category Nav */
+    .category-nav {
+      position: sticky;
+      top: 65px;
+      z-index: 40;
+      background: var(--bg);
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      white-space: nowrap;
+      margin-bottom: 32px;
+    }
+    .cat-pill {
+      padding: 8px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .cat-pill:hover, .cat-pill.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+    }
+
+    /* Menu Grid */
+    .menu-section {
+      margin-bottom: 48px;
+    }
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .menu-grid { grid-template-columns: 1fr; }
+    }
+    .dish-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      gap: 16px;
+      transition: border-color 0.15s;
+    }
+    .dish-card:hover { border-color: var(--primary); }
+    .dish-img {
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .dish-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .dish-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+    .dish-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      font-family: var(--font-heading);
+    }
+    .dish-price {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1.1rem;
+      white-space: nowrap;
+    }
+    .dish-desc {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+      flex: 1;
+    }
+    .dish-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tag-badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #D4D4D8;
+    }
+
+    /* Reservation Box */
+    .reservation-card {
+      background: #18181B;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      margin: 60px 0 80px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #E4E4E7;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      background: #09090B;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      color: #FAFAFA;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container header-inner">
+      <a href="/" class="brand-logo">{{.BrandName}}</a>
+      <div style="display: flex; gap: 10px;">
+        {{if .WhatsAppNumber}}
+        <a href="https://wa.me/{{.CleanPhone}}?text=Merhaba,%20rezervasyon%20veya%20menü%20hakkında%20bilgi%20almak%20istiyorum." target="_blank" class="btn btn-whatsapp">
+          WhatsApp Menü & Sipariş
+        </a>
+        {{end}}
+        <a href="#rezervasyon" class="btn btn-primary">Masa Rezervasyonu</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero -->
+    <section class="hero">
+      {{if .HeroImage}}<img src="{{.HeroImage}}" alt="{{.BrandName}}" class="hero-bg">{{end}}
+      <div class="hero-content">
+        {{if .HeroBadge}}<div class="hero-badge">{{.HeroBadge}}</div>{{end}}
+        <h1>{{.HeroTitle}}</h1>
+        <p>{{.HeroSubtitle}}</p>
+        <div style="font-size: 0.85rem; color: #A1A1AA; display: flex; flex-direction: column; gap: 4px;">
+          <div>📍 {{.Address}}</div>
+          <div>🕒 {{.OpeningHours}}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category Nav -->
+    <nav class="category-nav">
+      {{range .Categories}}
+      <a href="#cat-{{.Slug}}" class="cat-pill">{{.Name}}</a>
+      {{end}}
+    </nav>
+
+    <!-- Menu Items by Category -->
+    {{range $cat := .Categories}}
+    <section class="menu-section" id="cat-{{$cat.Slug}}">
+      <div class="section-title">{{$cat.Name}}</div>
+      <div class="menu-grid">
+        {{range $.Items}}
+        {{if eq .CategorySlug $cat.Slug}}
+        <div class="dish-card">
+          {{if .ImageURL}}
+          <img src="{{.ImageURL}}" alt="{{.Name}}" class="dish-img">
+          {{end}}
+          <div class="dish-info">
+            <div class="dish-header">
+              <span class="dish-name">{{.Name}}</span>
+              <span class="dish-price">{{printf "%.0f" .Price}} TL</span>
+            </div>
+            <p class="dish-desc">{{.Description}}</p>
+            <div class="dish-tags">
+              {{if .IsChefSpecial}}<span class="tag-badge" style="background: rgba(245, 158, 11, 0.2); color: #FBBF24;">Şefin İmzası ⭐</span>{{end}}
+              {{if .IsVegetarian}}<span class="tag-badge" style="background: rgba(16, 185, 129, 0.2); color: #34D399;">Vejetaryen 🌱</span>{{end}}
+              {{if .IsGlutenFree}}<span class="tag-badge" style="background: rgba(59, 130, 246, 0.2); color: #60A5FA;">Glutensiz 🌾</span>{{end}}
+            </div>
+          </div>
+        </div>
+        {{end}}
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
+    <!-- Reservation Card -->
+    <section class="reservation-card" id="rezervasyon">
+      <div style="text-align: center; max-width: 500px; margin: 0 auto 32px;">
+        <h2 style="font-size: 2rem; margin-bottom: 8px;">Masa Rezervasyonu</h2>
+        <p style="color: var(--muted); font-size: 0.95rem;">Özel akşam yemekleri ve kutlamalarınız için online rezervasyon yapın.</p>
+      </div>
+
+      <form id="reservation-form" onsubmit="handleReservationSubmit(event)" style="max-width: 600px; margin: 0 auto;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Misafir Adı Soyadı</label>
+            <input type="text" id="res-name" required placeholder="Can Demir">
+          </div>
+          <div class="form-group">
+            <label>Telefon Numarası</label>
+            <input type="tel" id="res-phone" required placeholder="0555 123 4567">
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Kişi Sayısı</label>
+            <select id="res-party">
+              <option value="2">2 Kişi</option>
+              <option value="3">3 Kişi</option>
+              <option value="4">4 Kişi</option>
+              <option value="5">5-6 Kişi</option>
+              <option value="8">Grup (8+ Kişi)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rezervasyon Saati</label>
+            <select id="res-time">
+              <option value="18:30">18:30</option>
+              <option value="19:30">19:30</option>
+              <option value="20:30" selected>20:30</option>
+              <option value="21:30">21:30</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Tarih</label>
+          <input type="date" id="res-date" required>
+        </div>
+
+        <div class="form-group">
+          <label>Özel İstek / Notlar</label>
+          <textarea id="res-notes" rows="3" placeholder="Pencere kenarı, doğum günü kutlaması vb."></textarea>
+        </div>
+
+        <button type="submit" id="res-btn" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 1rem;">
+          Rezervasyon Talebini Onayla →
+        </button>
+        <div id="res-status" style="display: none; padding: 12px; margin-top: 16px; border-radius: 8px; text-align: center;"></div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p style="font-weight: 700; font-size: 1.1rem; color: #FAFAFA; margin-bottom: 6px;">{{.BrandName}}</p>
+      <p style="margin-bottom: 12px;">{{.Address}} · Tel: {{.Phone}}</p>
+      <p style="font-size: 0.8rem; color: #71717A;">© 2026 {{.BrandName}}. QR Menü & Restoran Sistemi.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Set today as default min date
+    document.getElementById('res-date').valueAsDate = new Date();
+
+    async function handleReservationSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('res-btn');
+      const status = document.getElementById('res-status');
+      btn.disabled = true;
+      btn.innerText = 'İşleniyor...';
+
+      const payload = {
+        guest_name: document.getElementById('res-name').value.trim(),
+        phone: document.getElementById('res-phone').value.trim(),
+        party_size: parseInt(document.getElementById('res-party').value, 10),
+        reservation_date: document.getElementById('res-date').value,
+        reservation_time: document.getElementById('res-time').value,
+        special_requests: document.getElementById('res-notes').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/v1/reserve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          status.style.display = 'block';
+          status.style.background = 'rgba(16, 185, 129, 0.2)';
+          status.style.color = '#34D399';
+          status.innerText = 'Rezervasyon talebiniz alındı! Rezervasyon ekibimiz telefonla onaylayacaktır.';
+          document.getElementById('reservation-form').reset();
+          btn.innerText = 'Talebiniz Alındı!';
+        } else {
+          status.style.display = 'block';
+          status.style.background = 'rgba(239, 68, 68, 0.2)';
+          status.style.color = '#F87171';
+          status.innerText = 'Bir hata oluştu. Lütfen bizi doğrudan arayarak rezervasyon yaptırınız.';
+          btn.disabled = false;
+          btn.innerText = 'Tekrar Dene';
+        }
+      } catch (err) {
+        status.style.display = 'block';
+        status.style.background = 'rgba(239, 68, 68, 0.2)';
+        status.style.color = '#F87171';
+        status.innerText = 'Bağlantı hatası: ' + err.message;
+        btn.disabled = false;
+        btn.innerText = 'Tekrar Dene';
+      }
+    }
+  </script>
+</body>
+</html>

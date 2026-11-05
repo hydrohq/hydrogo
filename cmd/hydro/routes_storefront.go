@@ -20,6 +20,8 @@ import (
 func (a *serveApp) storefrontRoutes() []router.Route {
 	return []router.Route{
 		{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
+		{Pattern: "GET /showcase", Access: router.Public, Handler: http.HandlerFunc(a.showcasePageHandler)},
+		{Pattern: "GET /demo", Access: router.Public, Handler: http.HandlerFunc(a.showcasePageHandler)},
 		{Pattern: "GET /urun/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontProductHandler)},
 		{Pattern: "GET /products/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontProductHandler)},
 		{Pattern: "GET /kategori/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontCategoryHandler)},
@@ -35,6 +37,9 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 		{Pattern: "POST /api/v1/store/orders", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 		{Pattern: "POST /api/v1/storefront/track-order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontTrackOrderAPIHandler)},
+		{Pattern: "POST /api/v1/inquire", Access: router.Public, Handler: http.HandlerFunc(a.storefrontInquireHandler)},
+		{Pattern: "POST /api/v1/reserve", Access: router.Public, Handler: http.HandlerFunc(a.storefrontReserveHandler)},
+		{Pattern: "POST /api/v1/waitlist", Access: router.Public, Handler: http.HandlerFunc(a.storefrontWaitlistHandler)},
 	}
 }
 
@@ -89,8 +94,14 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	// If not on a tenant host, fallback to admin redirect
+	// If not on a tenant host, show showcase for root or redirect
 	if !tenantFound || scope.TenantID == "" {
+		if r.URL.Path == "/" || r.URL.Path == "" {
+			_ = storefront.RenderShowcase(w, r, storefront.ShowcaseData{
+				BaseDomain: a.getBaseDomain(),
+			})
+			return tenant.Scope{}, tenant.Governance{}, nil, nil, false
+		}
 		http.Redirect(w, r, "/admin", http.StatusTemporaryRedirect)
 		return tenant.Scope{}, tenant.Governance{}, nil, nil, false
 	}
@@ -127,9 +138,22 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *serveApp) storefrontHandler(w http.ResponseWriter, r *http.Request) {
-	_, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
+	scope, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
 	if !ok {
 		return
+	}
+
+	archetype := blueprints.NormalizeArchetype(gov.Blueprint)
+	if at, ok := settings["archetype"].(string); ok && at != "" {
+		archetype = blueprints.NormalizeArchetype(at)
+	} else if st, ok := settings["site_type"].(string); ok && st != "" {
+		archetype = blueprints.NormalizeArchetype(st)
+	}
+
+	if archetype != blueprints.ArchetypeBoutique {
+		if a.renderArchetypeStorefront(w, r, gov, settings, scope, archetype) {
+			return
+		}
 	}
 
 	cleanPhone := gov.OwnerPhone
