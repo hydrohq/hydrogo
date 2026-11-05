@@ -156,6 +156,17 @@ func (a *serveApp) pageRoutes() []router.Route {
 	}
 	pageRoutes := pageRouterRoutes(a.pageHTTP.Routes())
 	for i := range pageRoutes {
+		if pageRoutes[i].Pattern == "GET /llms.txt" {
+			origLLMs := pageRoutes[i].Handler
+			pageRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if a.isStorefrontTenant(r) {
+					a.storefrontLLMsHandler(w, r)
+					return
+				}
+				origLLMs.ServeHTTP(w, r)
+			})
+			continue
+		}
 		if pageRoutes[i].Pattern == "GET /api/v1/pages/{locale}/{slug}" {
 			if modules["analytics"] {
 				pageRoutes[i].Handler = analytics.NoCookieMiddleware(analytics.ContentViewMiddleware(pageRoutes[i].Handler, contentViewQueue, "page"), noCookieQueue, noCookieHasher)

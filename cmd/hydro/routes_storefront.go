@@ -19,7 +19,7 @@ import (
 )
 
 func (a *serveApp) storefrontRoutes() []router.Route {
-	return []router.Route{
+	routes := []router.Route{
 		{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
 		{Pattern: "GET /showcase", Access: router.Public, Handler: http.HandlerFunc(a.showcasePageHandler)},
 		{Pattern: "GET /demo", Access: router.Public, Handler: http.HandlerFunc(a.showcasePageHandler)},
@@ -34,8 +34,6 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "GET /siparis-takip", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
 		{Pattern: "GET /order-tracking", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
 		{Pattern: "GET /robots.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontRobotsHandler)},
-		{Pattern: "GET /sitemap.xml", Access: router.Public, Handler: http.HandlerFunc(a.storefrontSitemapHandler)},
-		{Pattern: "GET /llms.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontLLMsHandler)},
 		{Pattern: "GET /storefront/fonts/{name}", Access: router.Public, Handler: http.HandlerFunc(storefront.ServeFont)},
 		{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
 		{Pattern: "POST /api/v1/store/orders", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
@@ -44,6 +42,13 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "POST /api/v1/reserve", Access: router.Public, Handler: http.HandlerFunc(a.storefrontReserveHandler)},
 		{Pattern: "POST /api/v1/waitlist", Access: router.Public, Handler: http.HandlerFunc(a.storefrontWaitlistHandler)},
 	}
+	if !a.modules["site"] {
+		routes = append(routes, router.Route{Pattern: "GET /sitemap.xml", Access: router.Public, Handler: http.HandlerFunc(a.storefrontSitemapHandler)})
+	}
+	if !a.modules["pages"] {
+		routes = append(routes, router.Route{Pattern: "GET /llms.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontLLMsHandler)})
+	}
+	return routes
 }
 
 func (a *serveApp) isStorefrontTenant(r *http.Request) bool {
