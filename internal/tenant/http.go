@@ -173,23 +173,29 @@ func IsPlatformControlPlanePath(path string) bool {
 }
 
 // Middleware resolves the host before downstream auth/repository code. Health,
-// readiness, orchestrator, and webhook endpoints remain tenant-neutral.
+// readiness, orchestrator, and webhook endpoints remain tenant-neutral or fallback to platform.
 func (r HostResolver) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if IsPlatformControlPlanePath(req.URL.Path) {
-			next.ServeHTTP(w, req)
+		scope, ok := r.Resolve(req.Context(), req.Host)
+		if ok {
+			next.ServeHTTP(w, req.WithContext(WithScope(req.Context(), scope)))
 			return
 		}
-		scope, ok := r.Resolve(req.Context(), req.Host)
-		if !ok {
-			if r.require {
-				http.Error(w, "tenant unavailable", http.StatusMisdirectedRequest)
+		// If host did not resolve to a tenant scope, platform control plane endpoints
+		// (e.g. health checks, webhooks, orchestrator, superadmin) should not fail closed with 421.
+		if IsPlatformControlPlanePath(req.URL.Path) {
+			if platformScope, err := NewScope("platform", "platform"); err == nil {
+				next.ServeHTTP(w, req.WithContext(WithScope(req.Context(), platformScope)))
 				return
 			}
 			next.ServeHTTP(w, req)
 			return
 		}
-		next.ServeHTTP(w, req.WithContext(WithScope(req.Context(), scope)))
+		if r.require {
+			http.Error(w, "tenant unavailable", http.StatusMisdirectedRequest)
+			return
+		}
+		next.ServeHTTP(w, req)
 	})
 }
 func normalizeHost(raw string) string {
