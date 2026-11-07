@@ -53,9 +53,11 @@ Beklenen JSON Şeması:
 
 Kurallar:
 1. İçerikler tamamen Türkçe, profesyonel, sektöre ve konsepte özel olmalıdır. Klişe şablon veya genel geçer "lorem ipsum" cümleler yazma.
-2. En az 4, en fazla 8 adet konsepte tam uyan ürün oluştur.
-3. Layout bölümleri sırasıyla ziyaretçiyi karşılayan, hikayeyi anlatan, ürünleri sergileyen ve iletişime yönlendiren mantıklı bir akışta olmalıdır.
-4. Gelen brief ve marka verileri şunlardır:
+2. SIFIR EMOJİ KURALI (ZERO EMOJI RULE): Buton metinlerinde (`cta_text`), başlıklarda, rozetlerde (`badge`) ve duyuru bantlarında ASLA emoji (✨, 🚀, 📦, 🔒, 🛍️, 🔥 vb.) KULLANMA. Arayüzün ucuz ve yapay zeka tarafından üretilmiş gibi durmaması için tüm aksiyon ve etiketler saf, net tipografiden oluşmalıdır (Örn: "Koleksiyonu Keşfet", "Yeni Sezon", "Siparişe Başla").
+3. CANLILIK VE DERİNLİK (LIVELINESS & CRAFT): Cansız ve tekdüze metinlerden kaçın; markaya özgü karakter ve editoryal ağırlık taşıyan akıcı bir dil kullan.
+4. En az 4, en fazla 8 adet konsepte tam uyan, gerçekçi fiyatlı ve yüksek kaliteli ürün oluştur.
+5. Layout bölümleri sırasıyla ziyaretçiyi karşılayan, hikayeyi anlatan, ürünleri sergileyen ve iletişime yönlendiren mantıklı bir akışta olmalıdır.
+6. Gelen brief ve marka verileri şunlardır:
 Marka Adı: {BRAND_NAME}
 Telefon: {PHONE}
 Brief / Konsept: {BRIEF}

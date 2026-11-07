@@ -91,6 +91,11 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
     news article, or content record must never require a frontend rebuild step,
     static pre-rendering pipeline, or CI/CD re-deployment. Content changes must be
     live immediately via the API and database.
+13. **Unslop Design Standard: Zero emojis in UI buttons, badges, headers, or chrome.**
+    Never use emojis (✨, 🚀, 👤, 🛒, 🔒, 💬, etc.) in buttons, action pills, navigation,
+    or headings. Use clean typography or monochromatic SVG line icons (14–16px, 1.5–2px stroke).
+    Keep interfaces alive through editorial rhythm, typography contrast, reading indicators,
+    and micro-interactions rather than cheap visual noise.
 
 ## Admin UI work
 
