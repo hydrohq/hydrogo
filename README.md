@@ -2,7 +2,7 @@
 
 **A single-binary headless content management system written in Go.**
 
-[![CI](https://github.com/ardaozyildirim/hydrogo/actions/workflows/ci.yml/badge.svg)](https://github.com/ardaozyildirim/hydrogo/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions)](https://github.com/ardaozyildirim/hydrogo/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/ardaozyildirim/hydrogo)](https://github.com/ardaozyildirim/hydrogo/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/ardaozyildirim/hydrogo.svg)](https://pkg.go.dev/github.com/ardaozyildirim/hydrogo)
