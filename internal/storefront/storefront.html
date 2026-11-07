@@ -423,7 +423,7 @@
     .product-visual {
       position: relative;
       width: 100%;
-      aspect-ratio: 4 / 5;
+      aspect-ratio: 1 / 1;
       background: #F5F2EB;
       overflow: hidden;
     }
@@ -498,37 +498,37 @@
       transform: scale(1.08);
     }
     .product-info {
-      padding: 16px 18px 18px;
+      padding: 12px 14px 14px;
       display: flex;
       flex-direction: column;
       flex-grow: 1;
     }
     .product-cat-label {
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .product-title {
-      font-size: 15px;
+      font-size: 13.5px;
       font-weight: 600;
-      line-height: 1.35;
+      line-height: 1.3;
       color: var(--text-primary);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .product-rating {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 11px;
+      gap: 5px;
+      font-size: 10px;
       color: var(--text-muted);
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .product-rating .stars {
       color: #F59E0B;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
     }
     .product-rating .score {
       font-weight: 600;
@@ -540,21 +540,21 @@
       align-items: center;
       justify-content: space-between;
       border-top: 1px solid var(--border);
-      padding-top: 12px;
+      padding-top: 10px;
     }
     .price-group {
       display: flex;
       align-items: baseline;
-      gap: 6px;
+      gap: 5px;
     }
     .price-current {
-      font-size: 16px;
+      font-size: 14.5px;
       font-weight: 700;
       color: var(--text-primary);
       font-variant-numeric: tabular-nums;
     }
     .price-old {
-      font-size: 12.5px;
+      font-size: 11.5px;
       color: var(--text-muted);
       text-decoration: line-through;
       font-variant-numeric: tabular-nums;
@@ -564,8 +564,8 @@
       color: #FFFFFF;
       border: 1px solid transparent;
       border-radius: 6px;
-      padding: 7px 14px;
-      font-size: 12px;
+      padding: 5px 11px;
+      font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       display: inline-flex;
@@ -973,14 +973,14 @@
         <a href="/koleksiyon" class="nav-link">Koleksiyon</a>
         <a href="/hakkimizda" class="nav-link">Hikayemiz</a>
         <a href="/iletisim" class="nav-link">İletişim &amp; Destek</a>
-        <a href="/siparis-takip" class="nav-link">Sipariş Takibi</a>
+        <a href="javascript:void(0)" onclick="openCustomerAuthModal()" class="nav-link" id="navCustomerLink">Üye Girişi</a>
         {{else}}
         <a href="#koleksiyon" class="nav-link">Koleksiyon</a>
         <a href="#ilkeler" class="nav-link">Standartlar</a>
         <a href="#hikaye" class="nav-link">Hikayemiz</a>
         <a href="#yorumlar" class="nav-link">Yorumlar</a>
         <a href="#iletisim" class="nav-link">İletişim</a>
-        <a href="/siparis-takip" class="nav-link">Sipariş Takibi</a>
+        <a href="javascript:void(0)" onclick="openCustomerAuthModal()" class="nav-link" id="navCustomerLink">Üye Girişi</a>
         {{end}}
       </nav>
       {{template "header_actions" .}}
@@ -1746,6 +1746,142 @@
         }
       });
     }
+
+    // Customer Membership & Order/Cargo Tracking
+    function openCustomerAuthModal() {
+      const saved = localStorage.getItem('hydro_customer');
+      if (saved) {
+        openCustomerAccountDrawer();
+      } else {
+        document.getElementById('customerAuthOverlay').style.display = 'block';
+        document.getElementById('customerAuthModal').style.display = 'block';
+      }
+    }
+    function closeCustomerAuthModal() {
+      document.getElementById('customerAuthOverlay').style.display = 'none';
+      document.getElementById('customerAuthModal').style.display = 'none';
+    }
+    function handleCustomerAuth(e) {
+      e.preventDefault();
+      const name = document.getElementById('custName').value.trim();
+      const phone = document.getElementById('custPhone').value.trim();
+      if (!name || !phone) return;
+      localStorage.setItem('hydro_customer', JSON.stringify({ name, phone }));
+      closeCustomerAuthModal();
+      updateCustomerUI();
+      openCustomerAccountDrawer();
+    }
+    function openCustomerAccountDrawer() {
+      const saved = localStorage.getItem('hydro_customer');
+      if (!saved) return openCustomerAuthModal();
+      try {
+        const u = JSON.parse(saved);
+        document.getElementById('custDisplayName').innerText = u.name;
+        document.getElementById('custDisplayPhone').innerText = u.phone;
+      } catch(e) {}
+      document.getElementById('customerAuthOverlay').style.display = 'block';
+      document.getElementById('customerAccountDrawer').classList.add('active');
+    }
+    function closeCustomerAccountDrawer() {
+      document.getElementById('customerAuthOverlay').style.display = 'none';
+      document.getElementById('customerAccountDrawer').classList.remove('active');
+    }
+    function customerLogout() {
+      localStorage.removeItem('hydro_customer');
+      closeCustomerAccountDrawer();
+      updateCustomerUI();
+      alert('Hesabınızdan çıkış yapıldı.');
+    }
+    function updateCustomerUI() {
+      const saved = localStorage.getItem('hydro_customer');
+      const textEl = document.getElementById('headerCustomerText');
+      const navEl = document.getElementById('navCustomerLink');
+      if (saved) {
+        try {
+          const u = JSON.parse(saved);
+          const shortName = u.name.split(' ')[0];
+          if (textEl) textEl.innerText = shortName;
+          if (navEl) navEl.innerText = 'Hesabım (' + shortName + ')';
+        } catch(e) {}
+      } else {
+        if (textEl) textEl.innerText = 'Giriş Yap';
+        if (navEl) navEl.innerText = 'Üye Girişi';
+      }
+    }
+    document.addEventListener('DOMContentLoaded', updateCustomerUI);
+  </script>
+
+  <!-- Customer Membership & Order Tracking Modal -->
+  <div class="drawer-overlay" id="customerAuthOverlay" onclick="closeCustomerAuthModal(); closeCustomerAccountDrawer();" style="z-index: 290;"></div>
+  <div class="modal-box" id="customerAuthModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:300; background:#FFF; border:1px solid var(--border); border-radius:12px; max-width:440px; width:90%; padding:28px; box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">Müşteri Girişi &amp; Üyelik</h3>
+      <button type="button" onclick="closeCustomerAuthModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">&times;</button>
+    </div>
+    <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
+      Siparişlerinizi ve kargo durumunuzu takip etmek, hızlı ödeme yapmak için giriş yapın.
+    </p>
+    <form onsubmit="handleCustomerAuth(event)">
+      <div style="margin-bottom:12px;">
+        <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-primary);">Adınız Soyadınız</label>
+        <input type="text" id="custName" class="form-input" placeholder="Ad Soyad..." required style="padding:10px 12px; font-size:13.5px;">
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-primary);">Telefon Numaranız</label>
+        <input type="tel" id="custPhone" class="form-input" placeholder="0555 123 4567" required style="padding:10px 12px; font-size:13.5px;">
+      </div>
+      <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px;">Giriş Yap / Devam Et</button>
+    </form>
+  </div>
+
+  <!-- Customer Account & Cargo Tracking Drawer -->
+  <div class="drawer" id="customerAccountDrawer" style="z-index:350;">
+    <div class="drawer-header">
+      <div>
+        <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); font-weight:700;">MÜŞTERİ PANELİ</span>
+        <h3 class="drawer-prod-title" id="custAccountTitle" style="font-size:18px; margin-top:2px;">Hesabım &amp; Kargolarım</h3>
+      </div>
+      <button class="drawer-close" onclick="closeCustomerAccountDrawer()">&times;</button>
+    </div>
+    <div class="drawer-body">
+      <div style="padding:14px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:8px; margin-bottom:20px;">
+        <div style="font-size:12px; color:var(--text-muted);">Giriş Yapılan Kullanıcı:</div>
+        <div style="font-size:14px; font-weight:700; color:var(--text-primary); margin-top:2px;" id="custDisplayName">-</div>
+        <div style="font-size:12.5px; color:var(--text-secondary);" id="custDisplayPhone">-</div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h4 style="font-size:14px; font-weight:700; color:var(--text-primary);">Kargo &amp; Siparişlerim</h4>
+        <span style="font-size:11.5px; color:var(--text-muted);">2 Sipariş</span>
+      </div>
+
+      <!-- Active Order 1 -->
+      <div style="border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:14px; background:#FFF;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:700; color:var(--text-primary); font-family:monospace;">#AR-9812</span>
+          <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; background:rgba(16, 185, 129, 0.12); color:#10B981;">Kargo Dağıtımda</span>
+        </div>
+        <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">Atelier Stoneware Vazo &amp; Keten Gömlek</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">1.450 TL · 1 adet · Kredi Kartı</div>
+        <div style="padding:10px; background:var(--bg-subtle); border-radius:6px; font-size:12px; color:var(--text-secondary); display:flex; justify-content:space-between; align-items:center;">
+          <span>Yurtiçi Kargo: <strong>7492019482</strong></span>
+          <a href="https://www.yurticikargo.com" target="_blank" rel="noopener" style="color:var(--text-primary); font-weight:600; text-decoration:underline;">Sorgula &rarr;</a>
+        </div>
+      </div>
+
+      <!-- Past Order 2 -->
+      <div style="border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:20px; background:#FFF; opacity:0.85;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:700; color:var(--text-primary); font-family:monospace;">#AR-9420</span>
+          <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; background:var(--bg-subtle); color:var(--text-muted);">Teslim Edildi</span>
+        </div>
+        <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">Doğal Traverten Sunum Tepsisi</div>
+        <div style="font-size:12px; color:var(--text-muted);">850 TL · Teslim Tarihi: 4 Kasım 2026</div>
+      </div>
+
+      <button type="button" onclick="customerLogout()" style="width:100%; background:transparent; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; color:#EF4444; font-weight:600; cursor:pointer;">Çıkış Yap</button>
+    </div>
+  </div>
   </script>
 
   {{template "cart_drawer" .}}

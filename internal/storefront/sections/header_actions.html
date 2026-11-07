@@ -1,12 +1,10 @@
 {{define "header_actions"}}
 <div class="header-actions-group">
-  <button type="button" class="btn-header-action" onclick="openSearchModal()" title="Ürün Ara (Cmd+K)">
+  <button type="button" class="btn-header-action" onclick="openCustomerAuthModal()" id="headerCustomerBtn" title="Üye Girişi / Siparişlerim & Kargo Takibi">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="8"></circle>
-      <path d="m21 21-4.3-4.3"></path>
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
     </svg>
-    <span class="btn-text-long" style="font-size: 12.5px;">Ara</span>
-    <kbd>⌘K</kbd>
+    <span class="btn-text-long" id="headerCustomerText" style="font-size: 12.5px;">Giriş Yap</span>
   </button>
   <button type="button" class="btn-header-action" onclick="openCartDrawer()" title="Alışveriş Sepeti">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
