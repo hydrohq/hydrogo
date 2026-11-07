@@ -1,6 +1,6 @@
 <script lang="ts">
   import { roleLabel } from '$lib/i18n/labels';
-  import { t } from '$lib/i18n/index.svelte';
+  import { t, i18n } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -64,7 +64,7 @@
 {#if sidebar.mobileOpen}
   <button
     type="button"
-    class="fixed inset-0 z-40 bg-black/80 backdrop-blur-xs md:hidden"
+    class="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
     onclick={() => sidebar.closeMobile()}
     aria-label={t('nav.closeOverlay')}
   ></button>
@@ -99,7 +99,7 @@
           href="/admin/console"
           onclick={() => handleNavigate('/console')}
           class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors {isActive('/console') || isActive('/orchestrator') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
-          title="Mağaza Fabrikası"
+          title={t('nav.console')}
         >
           <svg class="size-4 shrink-0 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -107,7 +107,7 @@
             <path d="M9 21V9" />
           </svg>
           {#if sidebar.open}
-            <span class="truncate">Mağaza Fabrikası</span>
+            <span class="truncate">{t('nav.console')}</span>
           {/if}
         </a>
 
@@ -117,7 +117,7 @@
           href="/admin/users"
           onclick={() => handleNavigate('/users')}
           class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/users') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-          title="Yöneticiler"
+          title={t('nav.users')}
         >
           <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
@@ -131,14 +131,14 @@
           href="/admin/roles"
           onclick={() => handleNavigate('/roles')}
           class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/roles') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-          title="Roller"
+          title={t('nav.roles')}
         >
           <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="18" height="18" x="3" y="3" rx="2" />
             <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
           </svg>
           {#if sidebar.open}
-            <span class="truncate">Roller</span>
+            <span class="truncate">{t('nav.rolesShort')}</span>
           {/if}
         </a>
         {/if}
@@ -149,7 +149,7 @@
           href="/admin/audit"
           onclick={() => handleNavigate('/audit')}
           class="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-all duration-150 {isActive('/audit') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-          title="Denetim Günlüğü"
+          title={t('nav.auditLog')}
         >
           <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect width="20" height="16" x="2" y="4" rx="2"></rect>
@@ -500,14 +500,14 @@
         href="/admin/roles"
         onclick={() => handleNavigate('/roles')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/roles') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Roles & Permissions"
+        title={t('nav.roles')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="3" rx="2" />
           <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Roles</span>
+          <span class="truncate">{t('nav.rolesShort')}</span>
         {/if}
       </a>
       {/if}
@@ -517,13 +517,13 @@
         href="/admin/console"
         onclick={() => handleNavigate('/console')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/console') || isActive('/orchestrator') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Mağaza Fabrikası"
+        title={t('nav.console')}
       >
         <svg class="size-4 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Mağaza Fabrikası</span>
+          <span class="truncate">{t('nav.console')}</span>
         {/if}
       </a>
       {/if}
@@ -613,6 +613,22 @@
               <span>{t('nav.theme')}</span>
             </div>
             <span class="text-[11px] text-muted-foreground capitalize">{theme.isDark ? t('nav.dark') : t('nav.light')}</span>
+          </button>
+          <button
+            type="button"
+            onclick={() => i18n.setUserLocale(i18n.locale === 'tr' ? 'en' : 'tr')}
+            class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+            title={t('language.title')}
+          >
+            <div class="flex items-center gap-2">
+              <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+              <span>{t('language.title')}</span>
+            </div>
+            <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded border border-border bg-muted/60 text-foreground font-semibold">{i18n.locale === 'tr' ? 'Türkçe' : 'English'}</span>
           </button>
         </div>
         <div class="border-t border-border/80 pt-1">

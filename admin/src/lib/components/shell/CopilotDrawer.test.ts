@@ -24,6 +24,7 @@ vi.mock('$lib/api/client', () => ({
 }));
 
 import CopilotDrawer from './CopilotDrawer.svelte';
+import { t } from '$lib/i18n/index.svelte';
 
 describe('CopilotDrawer', () => {
   beforeEach(() => {
@@ -66,7 +67,7 @@ describe('CopilotDrawer', () => {
     render(CopilotDrawer, { open: true });
 
     await waitFor(() => {
-      expect(screen.getByText('AI Mağaza Asistanı')).toBeTruthy();
+      expect(screen.getByText(t('copilot.title'))).toBeTruthy();
       expect(screen.getByText('Fiyat 1450 TL olarak güncellendi.')).toBeTruthy();
     });
 
@@ -91,12 +92,12 @@ describe('CopilotDrawer', () => {
       }
     });
 
-    const undoBtn = screen.getByText('↺ Geri Al (Undo)');
+    const undoBtn = screen.getByText(t('copilot.undo'));
     await fireEvent.click(undoBtn);
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/api/v1/admin/ai/actions/act_101/undo', {});
-      expect(screen.getByText('↺ Geri alındı')).toBeTruthy();
+      expect(screen.getByText(t('copilot.undone'))).toBeTruthy();
     });
   });
 });

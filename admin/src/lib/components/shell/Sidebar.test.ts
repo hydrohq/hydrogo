@@ -6,6 +6,7 @@ import { schema } from '$lib/stores/schema.svelte';
 import { sidebar } from '$lib/stores/sidebar.svelte';
 import { auth } from '$lib/stores/auth.svelte';
 import { api } from '$lib/api/client';
+import { t } from '$lib/i18n/index.svelte';
 import Sidebar from './Sidebar.svelte';
 
 vi.mock('$lib/api/client', () => ({
@@ -103,7 +104,7 @@ describe('Sidebar', () => {
     render(Sidebar, { props: {} });
 
     // Assert
-    expect(screen.getByTitle('Mağaza Fabrikası')).toBeTruthy();
+    expect(screen.getByTitle(t('nav.console'))).toBeTruthy();
     expect(screen.queryByTitle('Pages')).toBeNull();
     expect(screen.queryByTitle('Quick Create')).toBeNull();
   });

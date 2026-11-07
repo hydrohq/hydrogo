@@ -82,6 +82,8 @@
     InFlight?: number;
     Views?: number;
     Errors?: number;
+    Errors4xx?: number;
+    Errors5xx?: number;
     AvgLatencyMS?: number;
     UniqueVisitors?: number;
     Goroutines?: number;
@@ -280,9 +282,18 @@
             {t('system.avgLatency', { ms: metrics?.AvgLatencyMS || 0 })}
           </span>
         </div>
-        <p class="text-[11px] text-muted-foreground">
-          {t('system.errors')}: <span class="font-mono text-destructive font-medium">{metrics?.Errors || 0}</span>
-        </p>
+        <div class="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+          <span>{t('system.errors')}:</span>
+          <div class="font-mono flex items-center gap-1.5 text-[11px]">
+            <span class={metrics?.Errors5xx ? 'text-destructive font-semibold' : 'text-emerald-600 dark:text-emerald-400 font-medium'}>
+              5xx: {metrics?.Errors5xx || 0}
+            </span>
+            <span class="text-muted-foreground/60">·</span>
+            <span class="text-muted-foreground">
+              4xx: {metrics?.Errors4xx ?? metrics?.Errors ?? 0}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
 

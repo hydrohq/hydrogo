@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '$lib/i18n/index.svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
   interface Props {
@@ -28,10 +29,10 @@
 
     <div class="space-y-1.5">
       <h2 class="text-xl font-semibold tracking-tight text-foreground">
-        {isSuspended ? 'Mağaza Askıya Alındı' : 'Bir Hata Oluştu'}
+        {isSuspended ? t('error.suspendedTitle') : t('error.genericTitle')}
       </h2>
       <p class="text-xs text-muted-foreground leading-relaxed">
-        {error?.message || 'Yönetim paneline bağlanırken beklenmeyen bir hata meydana geldi.'}
+        {error?.message || t('error.genericSub')}
       </p>
     </div>
 
@@ -39,13 +40,13 @@
       <div class="p-3 rounded-lg bg-muted/40 border border-border font-mono text-[11px] text-left space-y-1">
         {#if error.code}
           <div class="flex justify-between">
-            <span class="text-muted-foreground">Hata Kodu:</span>
+            <span class="text-muted-foreground">{t('error.code')}</span>
             <span class="text-foreground font-medium">{error.code}</span>
           </div>
         {/if}
         {#if error.requestId}
           <div class="flex justify-between">
-            <span class="text-muted-foreground">İstek ID:</span>
+            <span class="text-muted-foreground">{t('error.requestId')}</span>
             <span class="text-foreground select-all">{error.requestId}</span>
           </div>
         {/if}
@@ -55,14 +56,14 @@
     <div class="pt-2 flex items-center justify-center gap-2.5">
       {#if onretry}
         <Button variant="outline" class="h-9 text-xs" onclick={onretry}>
-          Yeniden Dene
+          {t('error.retry')}
         </Button>
       {/if}
       <a
         href="https://console.example.com"
         class="inline-flex items-center justify-center h-9 px-4 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
       >
-        Platform Konsolu
+        Platform Console
       </a>
     </div>
   </div>

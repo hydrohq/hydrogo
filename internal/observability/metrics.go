@@ -105,6 +105,8 @@ type RuntimeSnapshot struct {
 	InFlight          int64
 	Views             uint64
 	Errors            uint64
+	Errors4xx         uint64
+	Errors5xx         uint64
 	AvgLatencyMS      uint64
 	UniqueVisitors    int
 	Goroutines        int
@@ -239,6 +241,8 @@ func (m *Metrics) Snapshot() RuntimeSnapshot {
 		InFlight:          m.InFlight(),
 		Views:             m.TotalViews(),
 		Errors:            m.TotalErrors(),
+		Errors4xx:         m.responses[4].Load(),
+		Errors5xx:         m.responses[5].Load(),
 		AvgLatencyMS:      m.AvgLatencyMS(),
 		UniqueVisitors:    m.UniqueVisitorsCount(),
 		Goroutines:        runtime.NumGoroutine(),
