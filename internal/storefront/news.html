@@ -41,6 +41,9 @@
       transition: background-color 0.2s ease, color 0.2s ease; overflow-x: hidden;
     }
     .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+
+    /* Reading Progress Bar */
+    #readingProgress { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 1000; transition: width 0.08s ease-out; }
     
     /* Live Market Ticker */
     .market-bar { background: var(--secondary); border-bottom: 1px solid var(--border); font-size: 0.75rem; padding: 6px 0; overflow-x: auto; white-space: nowrap; }
@@ -48,9 +51,14 @@
     .market-list { display: flex; align-items: center; gap: 20px; }
     .market-item { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
     .market-item .symbol { color: var(--muted); }
-    .market-item .price { color: var(--foreground); font-weight: 600; }
-    .market-item .up { color: #10B981; }
-    .market-item .down { color: #EF4444; }
+    .market-item .price { color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ticker-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+    .ticker-badge.up { background: rgba(16, 185, 129, 0.12); color: #10B981; }
+    .ticker-badge.down { background: rgba(239, 68, 68, 0.12); color: #EF4444; }
+
+    .live-pulse-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; color: var(--foreground); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #EF4444; animation: pulseDot 1.8s infinite; }
+    @keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
 
     /* Breaking Ribbon */
     .breaking-bar { background: var(--background); border-bottom: 1px solid var(--border); font-size: 0.8rem; padding: 8px 0; }
@@ -59,13 +67,13 @@
     .breaking-text { color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 
     /* Header */
-    header { position: sticky; top: 0; z-index: 50; background: rgba(9, 9, 11, 0.92); border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); }
-    html:not(.dark) header { background: rgba(255, 255, 255, 0.94); }
-    .header-top { display: flex; align-items: center; justify-content: space-between; height: 76px; border-bottom: 1px solid var(--border); }
+    header { position: sticky; top: 0; z-index: 50; background: rgba(9, 9, 11, 0.94); border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); }
+    html:not(.dark) header { background: rgba(255, 255, 255, 0.96); }
+    .header-top { display: flex; align-items: center; justify-content: space-between; height: 74px; border-bottom: 1px solid var(--border); }
     .brand-wrap { text-decoration: none; color: var(--foreground); text-align: center; }
     .brand-title { font-family: var(--font-serif); font-size: 2.1rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
     .brand-motto { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 3px; font-weight: 500; }
-    .header-nav { display: flex; align-items: center; justify-content: center; gap: 26px; height: 44px; overflow-x: auto; white-space: nowrap; }
+    .header-nav { display: flex; align-items: center; justify-content: center; gap: 26px; height: 42px; overflow-x: auto; white-space: nowrap; }
     .header-nav a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 600; transition: color 0.15s ease; padding: 6px 0; position: relative; }
     .header-nav a:hover, .header-nav a.active { color: var(--foreground); }
     .header-nav a.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--primary); }
@@ -84,22 +92,23 @@
     
     /* Sticky Sidebar */
     .sidebar-col { position: relative; }
-    .sticky-box { position: sticky; top: 130px; display: flex; flex-direction: column; gap: 32px; }
-    .sidebar-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
-    .sidebar-title { font-size: 0.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-    .sidebar-title::before { content: ''; display: inline-block; width: 4px; height: 14px; background: var(--primary); border-radius: 2px; }
+    .sticky-box { position: sticky; top: 124px; display: flex; flex-direction: column; gap: 28px; }
+    .sidebar-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 22px; }
+    .sidebar-title { font-size: 0.825rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .sidebar-title::before { content: ''; display: inline-block; width: 3px; height: 13px; background: var(--primary); border-radius: 2px; }
 
-    /* Trending list */
-    .trending-list { display: flex; flex-direction: column; gap: 16px; }
-    .trending-item { display: flex; gap: 14px; text-decoration: none; color: inherit; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); }
-    .trending-num { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 800; color: var(--muted); line-height: 1; width: 24px; flex-shrink: 0; }
-    .trending-info h4 { font-size: 0.875rem; font-weight: 600; line-height: 1.35; margin-bottom: 4px; transition: color 0.15s; }
+    /* Trending list (Numbering removed, sleek editorial layout) */
+    .trending-list { display: flex; flex-direction: column; gap: 14px; }
+    .trending-item { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: inherit; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); }
+    .trending-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .trending-tag { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); }
+    .trending-item h4 { font-size: 0.9rem; font-weight: 600; line-height: 1.35; color: var(--foreground); transition: color 0.15s; }
     .trending-item:hover h4 { color: var(--primary); }
-    .trending-time { font-size: 0.725rem; color: var(--muted); }
+    .trending-meta { font-size: 0.725rem; color: var(--muted); }
 
     /* Trending Tags */
     .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
-    .tag-pill { font-size: 0.75rem; padding: 4px 10px; border-radius: 9999px; background: var(--secondary); color: var(--foreground); text-decoration: none; border: 1px solid var(--border); transition: all 0.15s; }
+    .tag-pill { font-size: 0.725rem; font-weight: 500; padding: 4px 10px; border-radius: 4px; background: var(--secondary); color: var(--foreground); text-decoration: none; border: 1px solid var(--border); transition: all 0.15s; }
     .tag-pill:hover { border-color: var(--primary); color: var(--primary); }
 
     /* Article Reader Content */
@@ -112,16 +121,19 @@
     
     /* Social Share Bar */
     .share-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 24px; font-size: 0.8rem; color: var(--muted); }
+    .share-meta { display: flex; align-items: center; gap: 12px; }
+    .audio-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--secondary); padding: 3px 8px; border-radius: 4px; font-size: 0.725rem; color: var(--foreground); font-weight: 600; cursor: pointer; border: 1px solid var(--border); }
     .share-btns { display: flex; align-items: center; gap: 8px; }
-    .share-btn { padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--secondary); color: var(--foreground); font-size: 0.775rem; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .share-btn { padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--secondary); color: var(--foreground); font-size: 0.775rem; font-weight: 500; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
     .share-btn:hover { border-color: var(--primary); }
 
-    .reader-hero-img { width: 100%; max-height: 460px; border-radius: 8px; overflow: hidden; margin-bottom: 28px; }
-    .reader-hero-img img { width: 100%; height: 100%; object-fit: cover; }
-    .fig-caption { font-size: 0.75rem; color: var(--muted); margin-top: 8px; text-align: center; }
+    .reader-hero-img { width: 100%; max-height: 480px; border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
+    .reader-hero-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    .reader-hero-img:hover img { transform: scale(1.03); }
+    .fig-caption { font-size: 0.75rem; color: var(--muted); margin-top: -16px; margin-bottom: 28px; }
 
-    .takeaways-box { background: var(--secondary); border-left: 4px solid var(--primary); padding: 18px 22px; border-radius: 0 6px 6px 0; margin-bottom: 32px; }
-    .takeaways-box h4 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: var(--foreground); }
+    .takeaways-box { background: var(--secondary); border-left: 3px solid var(--primary); padding: 18px 22px; border-radius: 0 6px 6px 0; margin-bottom: 32px; }
+    .takeaways-box h4 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; color: var(--foreground); }
     .takeaways-box p { font-size: 0.95rem; color: var(--muted); line-height: 1.6; }
 
     .reader-body { font-size: 1.1rem; line-height: 1.85; color: var(--foreground); margin-bottom: 48px; }
@@ -129,13 +141,13 @@
 
     /* Author Bio Card */
     .author-card { display: flex; gap: 18px; align-items: center; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 48px; }
-    .author-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: #FFF; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700; flex-shrink: 0; }
-    .author-info h4 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
-    .author-info p { font-size: 0.825rem; color: var(--muted); }
+    .author-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--secondary); border: 1px solid var(--border); color: var(--foreground); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; flex-shrink: 0; }
+    .author-info h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+    .author-info p { font-size: 0.8rem; color: var(--muted); }
 
     /* Comments Section */
     .comments-sec { border-top: 1px solid var(--border); padding-top: 40px; margin-bottom: 48px; }
-    .comments-sec h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+    .comments-sec h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
     .comment-form { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 32px; }
     .comment-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     @media (max-width: 600px) { .comment-form-grid { grid-template-columns: 1fr; } }
@@ -147,10 +159,9 @@
     .comment-date { color: var(--muted); }
     .comment-body { font-size: 0.9rem; line-height: 1.5; color: var(--foreground); }
 
-    /* Infinite Stream Next Article Banner */
-    .next-stream-banner { background: var(--secondary); border: 1px solid var(--border); border-radius: 8px; padding: 28px; text-align: center; margin-bottom: 64px; }
-    .next-stream-banner h4 { font-size: 0.8rem; text-transform: uppercase; color: var(--primary); letter-spacing: 0.08em; font-weight: 700; margin-bottom: 8px; }
-    .next-stream-banner h3 { font-family: var(--font-serif); font-size: 1.4rem; font-weight: 700; margin-bottom: 16px; }
+    /* Stream Next Article Separator */
+    .stream-divider { margin: 64px 0 48px; border-top: 2px dashed var(--border); position: relative; text-align: center; }
+    .stream-divider-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--background); padding: 0 16px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); }
 
     /* Homepage Lead & Grid */
     .lead-section { padding: 32px 0 44px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
@@ -159,7 +170,7 @@
     .lead-main { text-decoration: none; color: inherit; display: flex; flex-direction: column; }
     .lead-img-wrap { width: 100%; height: 420px; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
     @media (max-width: 600px) { .lead-img-wrap { height: 240px; } }
-    .lead-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+    .lead-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
     .lead-main:hover .lead-img-wrap img { transform: scale(1.02); }
     .lead-title { font-family: var(--font-serif); font-size: clamp(1.75rem, 3vw, 2.4rem); font-weight: 800; line-height: 1.16; letter-spacing: -0.02em; margin-bottom: 12px; }
     .lead-excerpt { font-size: 1.05rem; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
@@ -169,7 +180,8 @@
     .article-card { text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform 0.2s ease; }
     .article-card:hover { transform: translateY(-3px); }
     .article-thumb { width: 100%; height: 190px; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
-    .article-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .article-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+    .article-card:hover .article-thumb img { transform: scale(1.03); }
     .article-card h3 { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }
     .article-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin-bottom: 10px; flex: 1; }
 
@@ -193,6 +205,9 @@
 </head>
 <body>
 
+  <!-- Top Reading Progress Indicator -->
+  <div id="readingProgress"></div>
+
   <!-- Live Market Tickers Ribbon -->
   <div class="market-bar">
     <div class="container market-inner">
@@ -201,11 +216,20 @@
         <div class="market-item">
           <span class="symbol">{{.Symbol}}</span>
           <span class="price">{{.Price}}</span>
-          <span class="{{if .IsUp}}up{{else}}down{{end}}">{{.Change}}</span>
+          <span class="ticker-badge {{if .IsUp}}up{{else}}down{{end}}">
+            {{if .IsUp}}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>
+            {{else}}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+            {{end}}
+            {{.Change}}
+          </span>
         </div>
         {{end}}
       </div>
-      <div style="color: var(--muted); font-size: 0.7rem;">● Canlı Veri Akışı</div>
+      <div class="live-pulse-tag">
+        <span class="live-dot"></span> CANLI AKIŞ
+      </div>
     </div>
   </div>
 
@@ -231,10 +255,13 @@
         </a>
 
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button type="button" class="btn btn-outline btn-sm" onclick="openAuthModal()" id="userAuthBtn">👤 Giriş Yap / Abone Ol</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openAuthModal()" id="userAuthBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Giriş Yap / Abone Ol</span>
+          </button>
           
-          <button type="button" class="btn btn-outline btn-sm" onclick="toggleTheme()" aria-label="Tema">
-            <span id="theme-icon">☀️ / 🌙</span>
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleTheme()" aria-label="Tema Değiştir">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           </button>
         </div>
       </div>
@@ -254,103 +281,112 @@
       <!-- ARTICLE READER VIEW WITH STICKY SIDEBAR -->
       {{with .ActiveArticle}}
       <div class="article-layout">
-        <article class="reader-article">
-          <div class="breadcrumbs">
-            <a href="/">Ana Sayfa</a> <span>/</span>
-            <a href="/kategori/{{.CategorySlug}}" style="text-transform: capitalize;">{{.CategorySlug}}</a> <span>/</span>
-            <span>Haber Detayı</span>
-          </div>
-
-          <span class="category-badge">{{.CategorySlug}}</span>
-          <h1 class="reader-title">{{.Title}}</h1>
-          <p class="reader-excerpt">{{.Excerpt}}</p>
-
-          <!-- Share bar -->
-          <div class="share-bar">
-            <span><strong>{{.AuthorName}}</strong> · {{.PublishedAt}} · {{.ReadingTime}} dk okuma</span>
-            <div class="share-btns">
-              <a href="https://api.whatsapp.com/send?text={{.Title}}" target="_blank" class="share-btn">WhatsApp</a>
-              <a href="https://twitter.com/intent/tweet?text={{.Title}}" target="_blank" class="share-btn">X</a>
-              <button type="button" class="share-btn" onclick="copyArticleLink()">🔗 Kopyala</button>
+        <div id="articleStream" data-active-slug="{{.Slug}}">
+          <!-- Primary Article Unit -->
+          <article class="reader-article article-unit" id="article-{{.Slug}}" data-slug="{{.Slug}}" data-title="{{.Title}}">
+            <div class="breadcrumbs">
+              <a href="/">Ana Sayfa</a> <span>/</span>
+              <a href="/kategori/{{.CategorySlug}}" style="text-transform: capitalize;">{{.CategorySlug}}</a> <span>/</span>
+              <span>Haber Detayı</span>
             </div>
-          </div>
 
-          {{if .ImageURL}}
-          <div class="reader-hero-img">
-            <img src="{{.ImageURL}}" alt="{{.Title}}">
-          </div>
-          <div class="fig-caption">Görsel: Özel Dosya Analizi & Arşiv Kaynağı</div>
-          {{end}}
+            <span class="category-badge">{{.CategorySlug}}</span>
+            <h1 class="reader-title">{{.Title}}</h1>
+            <p class="reader-excerpt">{{.Excerpt}}</p>
 
-          <div class="takeaways-box">
-            <h4>Öne Çıkan Başlıklar & Ana Fikir</h4>
-            <p>{{.Excerpt}}</p>
-          </div>
-
-          <div class="reader-body">
-            <p>{{.Body}}</p>
-          </div>
-
-          <!-- Author Bio -->
-          <div class="author-card">
-            <div class="author-avatar">{{slice .AuthorName 0 1}}</div>
-            <div class="author-info">
-              <h4>{{.AuthorName}}</h4>
-              <p>Kıdemli Teknoloji ve Analiz Muhabiri · Nexus Haber Araştırma Masası</p>
-            </div>
-          </div>
-
-          <!-- Reader Comments Section -->
-          <section class="comments-sec">
-            <h3>💬 Okuyucu Yorumları (<span id="commentCount">{{len $.Comments}}</span>)</h3>
-            
-            <form class="comment-form" onsubmit="handleCommentSubmit(event)">
-              <div class="comment-form-grid">
-                <input type="text" id="commAuthor" class="input-field" placeholder="Adınız Soyadınız..." required>
-                <input type="email" id="commEmail" class="input-field" placeholder="E-posta adresiniz..." required>
+            <!-- Share bar -->
+            <div class="share-bar">
+              <div class="share-meta">
+                <span><strong>{{.AuthorName}}</strong> · {{.PublishedAt}}</span>
+                <span class="audio-badge" onclick="alert('Sesli makale oynatılıyor...')">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>{{.ReadingTime}} dk Dinle</span>
+                </span>
               </div>
-              <textarea id="commBody" class="input-field" rows="3" placeholder="Bu analiz hakkındaki düşünceleriniz..." style="margin-bottom: 12px; resize: vertical;" required></textarea>
-              <button type="submit" class="btn btn-primary btn-sm">Yorumu Yayınla</button>
-            </form>
+              <div class="share-btns">
+                <a href="https://api.whatsapp.com/send?text={{.Title}}" target="_blank" class="share-btn">WhatsApp</a>
+                <a href="https://twitter.com/intent/tweet?text={{.Title}}" target="_blank" class="share-btn">X</a>
+                <button type="button" class="share-btn" onclick="copyArticleLink()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>Kopyala</span>
+                </button>
+              </div>
+            </div>
 
-            <div class="comment-list" id="commentList">
-              {{range $.Comments}}
-              <div class="comment-card">
-                <div class="comment-head">
-                  <span class="comment-author">{{.AuthorName}}</span>
-                  <span class="comment-date">{{.CreatedAt}}</span>
+            {{if .ImageURL}}
+            <div class="reader-hero-img">
+              <img src="{{.ImageURL}}" alt="{{.Title}}">
+            </div>
+            <div class="fig-caption">Görsel: Özel Dosya Analizi &amp; Arşiv Masası</div>
+            {{end}}
+
+            <div class="takeaways-box">
+              <h4>Öne Çıkan Başlıklar &amp; Ana Fikir</h4>
+              <p>{{.Excerpt}}</p>
+            </div>
+
+            <div class="reader-body">
+              <p>{{.Body}}</p>
+            </div>
+
+            <!-- Author Bio -->
+            <div class="author-card">
+              <div class="author-avatar">{{slice .AuthorName 0 1}}</div>
+              <div class="author-info">
+                <h4>{{.AuthorName}}</h4>
+                <p>Kıdemli Teknoloji ve Analiz Muhabiri · Nexus Haber Araştırma Masası</p>
+              </div>
+            </div>
+
+            <!-- Reader Comments Section -->
+            <section class="comments-sec">
+              <h3>Okuyucu Yorumları (<span id="commentCount">{{len $.Comments}}</span>)</h3>
+              
+              <form class="comment-form" onsubmit="handleCommentSubmit(event)">
+                <div class="comment-form-grid">
+                  <input type="text" id="commAuthor" class="input-field" placeholder="Adınız Soyadınız..." required>
+                  <input type="email" id="commEmail" class="input-field" placeholder="E-posta adresiniz..." required>
                 </div>
-                <div class="comment-body">{{.Content}}</div>
-              </div>
-              {{end}}
-            </div>
-          </section>
+                <textarea id="commBody" class="input-field" rows="3" placeholder="Bu analiz hakkındaki düşünceleriniz..." style="margin-bottom: 12px; resize: vertical;" required></textarea>
+                <button type="submit" class="btn btn-primary btn-sm">Yorumu Yayınla</button>
+              </form>
 
-          <!-- Infinite Stream Next Story -->
+              <div class="comment-list" id="commentList">
+                {{range $.Comments}}
+                <div class="comment-card">
+                  <div class="comment-head">
+                    <span class="comment-author">{{.AuthorName}}</span>
+                    <span class="comment-date">{{.CreatedAt}}</span>
+                  </div>
+                  <div class="comment-body">{{.Content}}</div>
+                </div>
+                {{end}}
+              </div>
+            </section>
+          </article>
+
+          <!-- Dynamic Container for Infinite Scroll Stream -->
+          <div id="infiniteStream"></div>
+
           {{if $.NextArticle}}
-          <div class="next-stream-banner" id="nextStoryTrigger">
-            <h4>Sıradaki Haber</h4>
-            <h3>{{$.NextArticle.Title}}</h3>
-            <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 16px;">{{$.NextArticle.Excerpt}}</p>
-            <a href="/haber/{{$.NextArticle.Slug}}" class="btn btn-primary">Habere Geç →</a>
+          <div id="infiniteTrigger" data-next-slug="{{$.NextArticle.Slug}}" style="padding: 24px 0; text-align: center; color: var(--muted); font-size: 0.85rem;">
+            <span>Sıradaki haber yükleniyor...</span>
           </div>
           {{end}}
-        </article>
+        </div>
 
         <!-- STICKY SIDEBAR -->
         <aside class="sidebar-col">
           <div class="sticky-box">
-            <!-- Popular Trending -->
+            <!-- Popular Trending (Clean editorial list, numbers removed) -->
             <div class="sidebar-card">
               <div class="sidebar-title">Çok Okunanlar</div>
               <div class="trending-list">
-                {{range $i, $tr := $.Trending}}
-                <a href="/haber/{{$tr.Slug}}" class="trending-item">
-                  <span class="trending-num">0{{add $i 1}}</span>
-                  <div class="trending-info">
-                    <h4>{{$tr.Title}}</h4>
-                    <div class="trending-time">{{$tr.PublishedAt}} · {{$tr.ReadingTime}} dk</div>
-                  </div>
+                {{range $.Trending}}
+                <a href="/haber/{{.Slug}}" class="trending-item">
+                  <span class="trending-tag">{{.CategorySlug}}</span>
+                  <h4>{{.Title}}</h4>
+                  <div class="trending-meta">{{.PublishedAt}} · {{.ReadingTime}} dk okuma</div>
                 </a>
                 {{end}}
               </div>
@@ -371,7 +407,7 @@
               <div class="sidebar-title">Sabah Bülteni</div>
               <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Günün en önemli 5 manşeti sabah 07:30'da posta kutunuzda.</p>
               <form onsubmit="event.preventDefault(); alert('Bültene kaydoldunuz!');">
-                <input type="email" class="input-field" placeholder="E-posta..." style="margin-bottom: 8px;" required>
+                <input type="email" class="input-field" placeholder="E-posta adresiniz..." style="margin-bottom: 8px;" required>
                 <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">Abone Ol</button>
               </form>
             </div>
@@ -400,7 +436,7 @@
             <span class="category-badge">{{.CategorySlug}}</span>
             <h3>{{.Title}}</h3>
             <p>{{.Excerpt}}</p>
-            <div style="font-size: 0.75rem; color: var(--muted);">{{.AuthorName}} · {{.ReadingTime}} dk</div>
+            <div style="font-size: 0.75rem; color: var(--muted);">{{.AuthorName}} · {{.ReadingTime}} dk okuma</div>
           </a>
           {{end}}
         </div>
@@ -424,13 +460,11 @@
           <div style="border-left: 1px solid var(--border); padding-left: 32px;">
             <div class="sidebar-title">Günün Çok Okunanları</div>
             <div class="trending-list">
-              {{range $i, $tr := .Trending}}
-              <a href="/haber/{{$tr.Slug}}" class="trending-item">
-                <span class="trending-num">0{{add $i 1}}</span>
-                <div class="trending-info">
-                  <h4>{{$tr.Title}}</h4>
-                  <div class="trending-time">{{$tr.PublishedAt}} · {{$tr.ReadingTime}} dk</div>
-                </div>
+              {{range .Trending}}
+              <a href="/haber/{{.Slug}}" class="trending-item">
+                <span class="trending-tag">{{.CategorySlug}}</span>
+                <h4>{{.Title}}</h4>
+                <div class="trending-meta">{{.PublishedAt}} · {{.ReadingTime}} dk okuma</div>
               </a>
               {{end}}
             </div>
@@ -441,7 +475,7 @@
 
       <!-- 3-Column Latest Grid -->
       <section style="margin-bottom: 64px;">
-        <div class="sidebar-title" style="margin-bottom: 24px;">Son Gelişmeler & Özel Haberler</div>
+        <div class="sidebar-title" style="margin-bottom: 24px;">Son Gelişmeler &amp; Özel Haberler</div>
         <div class="articles-grid">
           {{range .Articles}}
           <a href="/haber/{{.Slug}}" class="article-card">
@@ -468,7 +502,7 @@
       <form onsubmit="handleAuthSubmit(event)">
         <input type="text" id="authName" class="input-field" placeholder="Adınız Soyadınız..." style="margin-bottom: 10px;" required>
         <input type="email" id="authEmail" class="input-field" placeholder="E-posta adresiniz..." style="margin-bottom: 16px;" required>
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Hemen Katıl / Giriş Yap</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Giriş Yap</button>
       </form>
     </div>
   </div>
@@ -498,7 +532,7 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Yasal & Güvenlik</h4>
+          <h4>Yasal &amp; Güvenlik</h4>
           <ul>
             <li><a href="/">Gizlilik</a></li>
             <li><a href="/">Çerezler</a></li>
@@ -522,12 +556,20 @@
       if (saved === 'light') document.documentElement.classList.remove('dark');
     })();
 
+    // Reading progress calculation
+    window.addEventListener('scroll', () => {
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? (window.scrollY / docHeight) * 100 : 0;
+      const bar = document.getElementById('readingProgress');
+      if (bar) bar.style.width = Math.min(100, Math.max(0, progress)) + '%';
+    });
+
     function copyArticleLink() {
       navigator.clipboard.writeText(window.location.href);
-      alert('Haber bağlantısı panoya kopyalandı!');
+      alert('Haber bağlantısı panoya kopyalandı.');
     }
 
-    // Auth
+    // Auth Modal
     function openAuthModal() { document.getElementById('authModal').style.display = 'flex'; }
     function closeAuthModal() { document.getElementById('authModal').style.display = 'none'; }
     function handleAuthSubmit(e) {
@@ -544,7 +586,9 @@
         try {
           const u = JSON.parse(uStr);
           const btn = document.getElementById('userAuthBtn');
-          if (btn && u.name) btn.innerText = '👤 ' + u.name;
+          if (btn && u.name) {
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>${u.name}</span>`;
+          }
           const commAuth = document.getElementById('commAuthor');
           const commMail = document.getElementById('commEmail');
           if (commAuth && !commAuth.value) commAuth.value = u.name;
@@ -573,17 +617,77 @@
       if (countEl) countEl.innerText = parseInt(countEl.innerText || '0') + 1;
 
       document.getElementById('commBody').value = '';
-      alert('Yorumunuz başarıyla yayınlandı.');
+      alert('Yorumunuz yayına alındı.');
     }
 
-    // Infinite Stream Trigger
+    // Infinite Scroll Implementation with IntersectionObserver
+    let isLoadingArticle = false;
+    let nextStorySlug = document.getElementById('infiniteTrigger')?.dataset.nextSlug;
+
+    function observeArticleHeaders() {
+      const articles = document.querySelectorAll('.article-unit');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.4) {
+            const slug = entry.target.dataset.slug;
+            const title = entry.target.dataset.title;
+            if (slug && window.location.pathname !== `/haber/${slug}`) {
+              window.history.replaceState(null, title, `/haber/${slug}`);
+              document.title = `${title} — {{.BrandName}}`;
+            }
+          }
+        });
+      }, { threshold: [0.4] });
+      articles.forEach(a => observer.observe(a));
+    }
+    document.addEventListener('DOMContentLoaded', observeArticleHeaders);
+
+    async function loadNextArticle() {
+      if (isLoadingArticle || !nextStorySlug) return;
+      isLoadingArticle = true;
+      const trigger = document.getElementById('infiniteTrigger');
+      if (trigger) trigger.innerHTML = '<span>Sıradaki haber yükleniyor...</span>';
+
+      try {
+        const res = await fetch(`/haber/${nextStorySlug}`);
+        if (!res.ok) throw new Error('Haber yüklenemedi');
+        const text = await res.text();
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        const newArt = doc.querySelector('.article-unit');
+
+        if (newArt) {
+          const divider = document.createElement('div');
+          divider.className = 'stream-divider';
+          divider.innerHTML = `<span class="stream-divider-tag">Sıradaki Haber Akışı</span>`;
+          
+          const stream = document.getElementById('infiniteStream');
+          stream.appendChild(divider);
+          stream.appendChild(newArt);
+
+          const newNextSlug = doc.getElementById('infiniteTrigger')?.dataset.nextSlug;
+          nextStorySlug = (newNextSlug && newNextSlug !== nextStorySlug) ? newNextSlug : null;
+
+          observeArticleHeaders();
+        }
+
+        if (!nextStorySlug && trigger) {
+          trigger.style.display = 'none';
+        } else if (trigger) {
+          trigger.innerHTML = '<span>Daha fazla haber için kaydırın</span>';
+        }
+      } catch (err) {
+        if (trigger) trigger.style.display = 'none';
+      } finally {
+        isLoadingArticle = false;
+      }
+    }
+
     window.addEventListener('scroll', () => {
-      const trigger = document.getElementById('nextStoryTrigger');
-      if (!trigger) return;
+      const trigger = document.getElementById('infiniteTrigger');
+      if (!trigger || !nextStorySlug || isLoadingArticle) return;
       const rect = trigger.getBoundingClientRect();
-      if (rect.top <= window.innerHeight + 100 && !trigger.dataset.triggered) {
-        trigger.dataset.triggered = 'true';
-        trigger.style.borderColor = 'var(--primary)';
+      if (rect.top <= window.innerHeight + 400) {
+        loadNextArticle();
       }
     });
   </script>
