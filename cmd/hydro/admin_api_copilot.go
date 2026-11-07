@@ -328,29 +328,108 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 	lower := strings.ToLower(prompt)
 	var ops []aicore.CopilotOperation
 
-	// Check if there is a store_settings collection and the user asks for theme/color/whatsapp changes.
+	// Check for settings collections (either store_settings or site_settings)
 	for _, def := range defs {
-		if def.ID == "store_settings" && a.collectionService.Repository != nil {
-			recs, _ := a.collectionService.QueryRecords(ctx, "store_settings", collections.Query{Limit: 1})
+		if (def.ID == "store_settings" || def.ID == "site_settings") && a.collectionService.Repository != nil {
+			recs, _ := a.collectionService.QueryRecords(ctx, def.ID, collections.Query{Limit: 1})
 			if len(recs) > 0 {
 				rec := recs[0]
 				updates := map[string]any{}
+
+				// Available fields in definition
+				hasField := make(map[string]bool, len(def.Fields))
+				for _, f := range def.Fields {
+					hasField[f.ID] = true
+				}
+
+				// 1. Theme and color palette
 				if strings.Contains(lower, "koyu") || strings.Contains(lower, "dark") || strings.Contains(lower, "siyah") {
-					updates["bg_tone"] = "#121212"
-					updates["primary_color"] = "#F9F6F0"
+					if hasField["bg_tone"] {
+						updates["bg_tone"] = "#09090B"
+					}
+					if hasField["primary_color"] {
+						updates["primary_color"] = "#FAFAFA"
+					}
+				} else if strings.Contains(lower, "açık") || strings.Contains(lower, "light") || strings.Contains(lower, "krem") || strings.Contains(lower, "beyaz") {
+					if hasField["bg_tone"] {
+						updates["bg_tone"] = "#FAF8F5"
+					}
+					if hasField["primary_color"] {
+						updates["primary_color"] = "#18181B"
+					}
 				}
+
 				if strings.Contains(lower, "altın") || strings.Contains(lower, "gold") {
-					updates["accent_color"] = "#D4AF37"
+					if hasField["primary_color"] {
+						updates["primary_color"] = "#D4AF37"
+					}
+					if hasField["accent_color"] {
+						updates["accent_color"] = "#D4AF37"
+					}
+				} else if strings.Contains(lower, "zümrüt") || strings.Contains(lower, "yeşil") || strings.Contains(lower, "emerald") {
+					if hasField["primary_color"] {
+						updates["primary_color"] = "#059669"
+					}
+				} else if strings.Contains(lower, "mavi") || strings.Contains(lower, "kobalt") || strings.Contains(lower, "blue") {
+					if hasField["primary_color"] {
+						updates["primary_color"] = "#2563EB"
+					}
+				} else if strings.Contains(lower, "kehribar") || strings.Contains(lower, "amber") || strings.Contains(lower, "turuncu") {
+					if hasField["primary_color"] {
+						updates["primary_color"] = "#D97706"
+					}
 				}
+
+				// Check for explicit hex color (#xxxxxx)
+				for _, word := range strings.Fields(prompt) {
+					if strings.HasPrefix(word, "#") && (len(word) == 7 || len(word) == 4) {
+						if hasField["primary_color"] {
+							updates["primary_color"] = word
+						}
+						break
+					}
+				}
+
+				// 2. Typography presets
+				if hasField["font_preset"] {
+					if strings.Contains(lower, "geist") || strings.Contains(lower, "v0") {
+						updates["font_preset"] = "v0_geist"
+					} else if strings.Contains(lower, "playfair") {
+						updates["font_preset"] = "editorial_playfair"
+					} else if strings.Contains(lower, "garamond") {
+						updates["font_preset"] = "artisan_garamond"
+					} else if strings.Contains(lower, "cinzel") {
+						updates["font_preset"] = "monumental_cinzel"
+					} else if strings.Contains(lower, "syne") {
+						updates["font_preset"] = "avantgarde_syne"
+					} else if strings.Contains(lower, "jakarta") || strings.Contains(lower, "grotesk") {
+						updates["font_preset"] = "modern_grotesk"
+					}
+				}
+
+				// 3. Title / Slogan extraction if provided in quotes
+				if strings.Contains(lower, "başlık") || strings.Contains(lower, "başlığ") || strings.Contains(lower, "baslik") || strings.Contains(lower, "title") {
+					if start := strings.Index(prompt, "\""); start != -1 {
+						if end := strings.Index(prompt[start+1:], "\""); end != -1 {
+							quoted := prompt[start+1 : start+1+end]
+							if hasField["hero_title"] {
+								updates["hero_title"] = quoted
+							} else if hasField["title"] {
+								updates["title"] = quoted
+							}
+						}
+					}
+				}
+
 				if len(updates) > 0 {
 					ops = append(ops, aicore.CopilotOperation{
 						Op:           "update",
-						CollectionID: "store_settings",
+						CollectionID: def.ID,
 						RecordID:     rec.ID,
 						Data:         updates,
 					})
 					return aicore.CopilotPlan{
-						Reply:      "Mağaza görünüm ve tema ayarlarınız isteğinize göre güncellendi. Beğenmezseniz tek tıkla geri alabilirsiniz.",
+						Reply:      "Tasarım ve tema ayarlarınız isteğinize tam uyumlu olarak güncellendi. İstediğiniz zaman panelden tek tıkla geri alabilirsiniz.",
 						Operations: ops,
 					}
 				}

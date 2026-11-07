@@ -52,6 +52,7 @@ Today's backend ecosystem leaves digital agencies, SaaS startups, and AI-assiste
 
 ### Pillar 2: Deterministic AI Control Plane (Agent-First Architecture)
 * **Zero-Downtime Runtime Schema API**: AI agents can define, modify, or archive content types via `POST /api/v1/admin/content-types` without terminating or restarting the running server.
+* **Precision Copilot with Strict Intent Adherence**: In-admin assistant operates strictly deterministically without unsolicited edits, respecting user design intent with unslop studio principles (Quiet Chrome, archetypal typography & colors, transactional undo).
 * **Machine-Readable CLI (`--json`)**: Every CLI operation supports deterministic, structured JSON input and output (`hydro content-type diff --json`, `validate --json`, `apply --dry-run`).
 * **Safe Idempotent Operations**: Declarative schema migrations with dry-run verification so autonomous agents never leave databases in inconsistent states.
 

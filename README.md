@@ -25,8 +25,13 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 
 - **Headless Core:** pure JSON REST APIs with OpenAPI schema for pages, news,
   members, media, settings, and custom YAML content types.
-- **Admin Panel:** embedded single-page application built with Svelte 5,
-  TypeScript, Tailwind CSS, and shadcn-svelte (`admin/` embedded in Go binary).
+- **Admin Panel & Svelte 5 Embedded UI:** embedded single-page application built with Svelte 5,
+  TypeScript, Tailwind CSS, and shadcn-svelte (`admin/` embedded into Go binary via `embed.FS`).
+  No Node.js runtime required in production; 100% self-contained single binary.
+- **Precision AI Copilot & Studio-Grade Design Engine:** tenant admin copilot with strict intent adherence
+  (non-destructive modifications, exact token mapping, zero hallucinations) and studio-grade unslop design
+  principles (Quiet Chrome, archetypal color spaces, tailored typography presets: Geist, Cinzel, Garamond,
+  Playfair, Modern Grotesk) and atomic undo capabilities.
 - **Custom Content Types & Realtime BaaS:** declarative YAML definitions (`content-types/*.yaml`)
   instantly provide admin screens, full CRUD REST APIs, declarative row-level access rules
   (`access_rules:` evaluated over `@auth.id`, `@auth.role`, `record.*`), and Server-Sent Events (SSE)
@@ -35,7 +40,7 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
   library (WebP conversion, focal-point crops, BlurHash), drafts, revisions,
   scheduled news publishing, and audit log.
 - **Commerce & Storefront:** opt-in commerce module (catalog as content types, cart,
-  checkout, orders, Yurtiçi Kargo shipping) plus built-in sectional boutique storefronts
+  checkout, orders, shipping) plus built-in responsive boutique storefronts
   with WhatsApp order tracking, product variants, and slide-over cart drawers. See
   [docs/commerce.md](docs/commerce.md).
 - **Multi-tenancy:** an opt-in, cross-cutting feature -- serve several
