@@ -48,6 +48,19 @@ func (a *serveApp) renderArchetypeStorefront(w http.ResponseWriter, r *http.Requ
 
 	case blueprints.ArchetypeSaaS:
 		data := a.loadSaaSData(tenantCtx, gov, settings)
+		p := strings.Trim(r.URL.Path, "/")
+		switch p {
+		case "features", "ozellikler":
+			data.ActivePage = "features"
+		case "pricing", "fiyat":
+			data.ActivePage = "pricing"
+		case "about", "hakkimizda":
+			data.ActivePage = "about"
+		case "contact", "iletisim":
+			data.ActivePage = "contact"
+		default:
+			data.ActivePage = "home"
+		}
 		if err := storefront.RenderSaaS(w, r, data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

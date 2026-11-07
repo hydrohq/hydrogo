@@ -213,6 +213,7 @@ type SaaSData struct {
 	HeroImage    string
 	CTALabel     string
 	CTALink      string
+	ActivePage   string
 	Features     []SaaSFeature
 	PricingTiers []SaaSPricingTier
 	FAQs         []SaaSFAQ
