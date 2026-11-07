@@ -627,11 +627,18 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 	p := strings.Trim(r.URL.Path, "/")
 	if strings.HasPrefix(p, "haber/") || strings.HasPrefix(p, "news/") {
 		slug := strings.TrimPrefix(strings.TrimPrefix(p, "haber/"), "news/")
-		for _, a := range allArticles {
+		for idx, a := range allArticles {
 			if strings.EqualFold(a.Slug, slug) {
 				artCopy := a
 				data.ActiveArticle = &artCopy
 				data.ActivePage = "article"
+				if idx+1 < len(allArticles) {
+					nextCopy := allArticles[idx+1]
+					data.NextArticle = &nextCopy
+				} else if len(allArticles) > 1 {
+					nextCopy := allArticles[0]
+					data.NextArticle = &nextCopy
+				}
 				break
 			}
 		}
@@ -639,6 +646,32 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 		catSlug := strings.TrimPrefix(strings.TrimPrefix(p, "kategori/"), "category/")
 		data.ActiveCategory = catSlug
 		data.ActivePage = "category"
+	}
+
+	data.MarketTickers = []storefront.MarketTicker{
+		{Symbol: "BIST 100", Price: "9.245,30", Change: "+%1.42", IsUp: true},
+		{Symbol: "USD/TRY", Price: "34,28", Change: "+%0.08", IsUp: true},
+		{Symbol: "EUR/TRY", Price: "37,15", Change: "-%0.12", IsUp: false},
+		{Symbol: "Gram Altın", Price: "3.020 TL", Change: "+%0.65", IsUp: true},
+		{Symbol: "BTC/USD", Price: "76.420 $", Change: "+%3.18", IsUp: true},
+	}
+	data.TrendingTags = []string{"YapayZeka", "FinansMimarisi", "AkdenizMinimalizmi", "KuantumCip", "KatiHalPili", "JamesWebb", "Uzay"}
+	data.EnableMemberships = true
+	data.EnableComments = true
+
+	if data.ActiveArticle != nil {
+		data.Comments = []storefront.NewsComment{
+			{
+				ID: "c1", ArticleSlug: data.ActiveArticle.Slug, AuthorName: "Ahmet Yılmaz",
+				CreatedAt: "2 saat önce", Content: "Sistem mimarisindeki bu paradigmatik sıçrama, yazılım ekiplerinin organizasyon yapısını da doğrudan etkileyecek. Çok başarılı bir analiz.",
+				AvatarInitials: "AY",
+			},
+			{
+				ID: "c2", ArticleSlug: data.ActiveArticle.Slug, AuthorName: "Dr. Zeynep Kaya",
+				CreatedAt: "4 saat önce", Content: "Ajanik döngülerin denetlenmesi ve güvenlik sınırlarının belirlenmesi önümüzdeki dönemin en kritik konusu olacak.",
+				AvatarInitials: "ZK",
+			},
+		}
 	}
 
 	for i := range allArticles {
