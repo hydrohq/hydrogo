@@ -518,6 +518,24 @@ type NewsArticle struct {
 	IsTrending   bool   `json:"is_trending"`
 }
 
+// MarketTicker represents a live market indicator (BIST, USD, EUR, Gold, BTC)
+type MarketTicker struct {
+	Symbol string `json:"symbol"`
+	Price  string `json:"price"`
+	Change string `json:"change"`
+	IsUp   bool   `json:"is_up"`
+}
+
+// NewsComment represents a reader comment on a story.
+type NewsComment struct {
+	ID             string `json:"id"`
+	ArticleSlug    string `json:"article_slug"`
+	AuthorName     string `json:"author_name"`
+	CreatedAt      string `json:"created_at"`
+	Content        string `json:"content"`
+	AvatarInitials string `json:"avatar_initials"`
+}
+
 // NewsCategory represents a topic section (Teknoloji, Ekonomi, etc.).
 type NewsCategory struct {
 	Name string `json:"name"`
@@ -526,20 +544,28 @@ type NewsCategory struct {
 
 // NewsData contains all data required to render the digital news portal.
 type NewsData struct {
-	BrandName      string         `json:"brand_name"`
-	Tagline        string         `json:"tagline"`
-	PrimaryColor   string         `json:"primary_color"`
-	BGTone         string         `json:"bg_tone"`
-	FontPreset     string         `json:"font_preset"`
-	BreakingNews   string         `json:"breaking_news"`
-	ContactEmail   string         `json:"contact_email"`
-	ActivePage     string         `json:"active_page"` // "home", "category", "article"
-	ActiveCategory string         `json:"active_category"`
-	ActiveArticle  *NewsArticle   `json:"active_article"`
-	LeadArticle    *NewsArticle   `json:"lead_article"`
-	Trending       []NewsArticle  `json:"trending"`
-	Articles       []NewsArticle  `json:"articles"`
-	Categories     []NewsCategory `json:"categories"`
+	BrandName         string         `json:"brand_name"`
+	Tagline           string         `json:"tagline"`
+	PrimaryColor      string         `json:"primary_color"`
+	BGTone            string         `json:"bg_tone"`
+	FontPreset        string         `json:"font_preset"`
+	BreakingNews      string         `json:"breaking_news"`
+	ContactEmail      string         `json:"contact_email"`
+	ActivePage        string         `json:"active_page"` // "home", "category", "article"
+	ActiveCategory    string         `json:"active_category"`
+	ActiveArticle     *NewsArticle   `json:"active_article"`
+	NextArticle       *NewsArticle   `json:"next_article"`
+	LeadArticle       *NewsArticle   `json:"lead_article"`
+	Trending          []NewsArticle  `json:"trending"`
+	Articles          []NewsArticle  `json:"articles"`
+	RelatedArticles   []NewsArticle  `json:"related_articles"`
+	Categories        []NewsCategory `json:"categories"`
+	MarketTickers     []MarketTicker `json:"market_tickers"`
+	TrendingTags      []string       `json:"trending_tags"`
+	Comments          []NewsComment  `json:"comments"`
+	EnableMemberships bool           `json:"enable_memberships"`
+	EnableComments    bool           `json:"enable_comments"`
+	LayoutMode        string         `json:"layout_mode"`
 }
 
 // RenderNews writes the news portal HTML to w.

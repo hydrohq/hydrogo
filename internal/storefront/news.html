@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{if .ActiveArticle}}{{.ActiveArticle.Title}} — {{.BrandName}}{{else}}{{.BrandName}} — {{.Tagline}}{{end}}</title>
+  <title>{{if .ActiveArticle}}{{.ActiveArticle.Title}} — {{.BrandName}}{{else if eq .ActivePage "category"}}{{.ActiveCategory}} Haberleri — {{.BrandName}}{{else}}{{.BrandName}} — {{.Tagline}}{{end}}</title>
   <meta name="description" content="{{if .ActiveArticle}}{{.ActiveArticle.Excerpt}}{{else}}{{.Tagline}}{{end}}">
 
   <meta property="og:title" content="{{if .ActiveArticle}}{{.ActiveArticle.Title}}{{else}}{{.BrandName}}{{end}}">
@@ -11,30 +11,27 @@
   <meta property="og:type" content="article">
   <meta name="twitter:card" content="summary_large_image">
 
-  {{template "embedded_fonts" .}}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
 
   <style>
     :root {
       --background: #FFFFFF; --foreground: #09090B; --card: #FFFFFF; --card-foreground: #09090B;
-      --popover: #FFFFFF; --popover-foreground: #09090B; --primary: #DC2626; --primary-foreground: #FFFFFF;
-      --secondary: #F4F4F5; --secondary-foreground: #18181B; --muted: #71717A; --muted-bg: #F4F4F5;
-      --accent: #F4F4F5; --accent-foreground: #18181B; --border: #E4E4E7; --border-subtle: #F4F4F5;
-      --input: #E4E4E7; --ring: #DC2626; --radius: 0.375rem;
+      --primary: #DC2626; --primary-foreground: #FFFFFF; --secondary: #F4F4F5; --secondary-foreground: #18181B;
+      --muted: #71717A; --muted-bg: #F4F4F5; --accent: #F4F4F5; --border: #E4E4E7; --border-subtle: #F4F4F5;
       --font-serif: 'Playfair Display', Georgia, serif;
       --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
       --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
       --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+      --radius: 0.375rem;
     }
     html.dark {
       --background: #09090B; --foreground: #FAFAFA; --card: #111113; --card-foreground: #FAFAFA;
-      --popover: #111113; --popover-foreground: #FAFAFA; --primary: #EF4444; --primary-foreground: #FFFFFF;
-      --secondary: #1F1F23; --secondary-foreground: #FAFAFA; --muted: #A1A1AA; --muted-bg: #18181B;
-      --accent: #1F1F23; --accent-foreground: #FAFAFA; --border: #27272A; --border-subtle: #1F1F23;
-      --input: #27272A; --ring: #EF4444;
+      --primary: #EF4444; --primary-foreground: #FFFFFF; --secondary: #18181B; --secondary-foreground: #FAFAFA;
+      --muted: #A1A1AA; --muted-bg: #141416; --accent: #1F1F23; --border: #27272A; --border-subtle: #1F1F23;
       --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
       --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -43,132 +40,177 @@
       font-family: var(--font-sans); line-height: 1.5; -webkit-font-smoothing: antialiased;
       transition: background-color 0.2s ease, color 0.2s ease; overflow-x: hidden;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-    .breaking-bar { background: var(--secondary); border-bottom: 1px solid var(--border); font-size: 0.8rem; padding: 8px 0; }
+    .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+    
+    /* Live Market Ticker */
+    .market-bar { background: var(--secondary); border-bottom: 1px solid var(--border); font-size: 0.75rem; padding: 6px 0; overflow-x: auto; white-space: nowrap; }
+    .market-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .market-list { display: flex; align-items: center; gap: 20px; }
+    .market-item { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+    .market-item .symbol { color: var(--muted); }
+    .market-item .price { color: var(--foreground); font-weight: 600; }
+    .market-item .up { color: #10B981; }
+    .market-item .down { color: #EF4444; }
+
+    /* Breaking Ribbon */
+    .breaking-bar { background: var(--background); border-bottom: 1px solid var(--border); font-size: 0.8rem; padding: 8px 0; }
     .breaking-inner { display: flex; align-items: center; gap: 12px; }
-    .breaking-badge {
-      background: var(--primary); color: #FFFFFF; font-weight: 700; padding: 2px 8px;
-      border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.7rem; flex-shrink: 0;
-    }
+    .breaking-badge { background: var(--primary); color: #FFF; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-size: 0.7rem; flex-shrink: 0; }
     .breaking-text { color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-    header {
-      position: sticky; top: 0; z-index: 50; background: rgba(255, 255, 255, 0.88);
-      border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      transition: background-color 0.2s ease, border-color 0.2s ease;
-    }
-    html.dark header { background: rgba(9, 9, 11, 0.88); }
-    .header-top { display: flex; align-items: center; justify-content: space-between; height: 72px; border-bottom: 1px solid var(--border); }
+
+    /* Header */
+    header { position: sticky; top: 0; z-index: 50; background: rgba(9, 9, 11, 0.92); border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); }
+    html:not(.dark) header { background: rgba(255, 255, 255, 0.94); }
+    .header-top { display: flex; align-items: center; justify-content: space-between; height: 76px; border-bottom: 1px solid var(--border); }
     .brand-wrap { text-decoration: none; color: var(--foreground); text-align: center; }
-    .brand-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-    .brand-motto { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
-    .date-badge { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
-    .header-nav { display: flex; align-items: center; justify-content: center; gap: 28px; height: 44px; overflow-x: auto; white-space: nowrap; }
-    .header-nav a {
-      color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 600;
-      letter-spacing: 0.02em; transition: color 0.15s ease; padding: 4px 0; position: relative;
-    }
+    .brand-title { font-family: var(--font-serif); font-size: 2.1rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+    .brand-motto { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 3px; font-weight: 500; }
+    .header-nav { display: flex; align-items: center; justify-content: center; gap: 26px; height: 44px; overflow-x: auto; white-space: nowrap; }
+    .header-nav a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 600; transition: color 0.15s ease; padding: 6px 0; position: relative; }
     .header-nav a:hover, .header-nav a.active { color: var(--foreground); }
-    .header-nav a.active::after { content: ''; position: absolute; bottom: -4px; left: 0; right: 0; height: 2px; background: var(--primary); }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 8px 16px; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600;
-      text-decoration: none; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid transparent; line-height: 1;
-    }
+    .header-nav a.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--primary); }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; border-radius: var(--radius); font-size: 0.825rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); border: 1px solid transparent; }
     .btn:active { transform: scale(0.97); }
-    .btn-primary { background: var(--primary); color: #FFFFFF; }
+    .btn-primary { background: var(--primary); color: #FFF; }
     .btn-outline { background: transparent; color: var(--foreground); border-color: var(--border); }
     .btn-outline:hover { background: var(--secondary); }
-    .theme-toggle-btn {
-      width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
-      border-radius: var(--radius); border: 1px solid var(--border); background: transparent;
-      color: var(--foreground); cursor: pointer; transition: all 0.15s ease;
-    }
-    .theme-toggle-btn:hover { background: var(--secondary); }
-    .lead-section { padding: 32px 0 48px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+    .btn-sm { padding: 6px 12px; font-size: 0.775rem; }
+
+    /* Layout Grids */
+    .article-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 48px; margin: 40px 0 96px; }
+    @media (max-width: 960px) { .article-layout { grid-template-columns: 1fr; } }
+    
+    /* Sticky Sidebar */
+    .sidebar-col { position: relative; }
+    .sticky-box { position: sticky; top: 130px; display: flex; flex-direction: column; gap: 32px; }
+    .sidebar-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+    .sidebar-title { font-size: 0.875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .sidebar-title::before { content: ''; display: inline-block; width: 4px; height: 14px; background: var(--primary); border-radius: 2px; }
+
+    /* Trending list */
+    .trending-list { display: flex; flex-direction: column; gap: 16px; }
+    .trending-item { display: flex; gap: 14px; text-decoration: none; color: inherit; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); }
+    .trending-num { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 800; color: var(--muted); line-height: 1; width: 24px; flex-shrink: 0; }
+    .trending-info h4 { font-size: 0.875rem; font-weight: 600; line-height: 1.35; margin-bottom: 4px; transition: color 0.15s; }
+    .trending-item:hover h4 { color: var(--primary); }
+    .trending-time { font-size: 0.725rem; color: var(--muted); }
+
+    /* Trending Tags */
+    .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag-pill { font-size: 0.75rem; padding: 4px 10px; border-radius: 9999px; background: var(--secondary); color: var(--foreground); text-decoration: none; border: 1px solid var(--border); transition: all 0.15s; }
+    .tag-pill:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Article Reader Content */
+    .reader-article { max-width: 100%; }
+    .breadcrumbs { font-size: 0.8rem; color: var(--muted); margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
+    .breadcrumbs a { color: var(--muted); text-decoration: none; }
+    .category-badge { display: inline-block; font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .reader-title { font-family: var(--font-serif); font-size: clamp(2rem, 3.5vw, 2.75rem); font-weight: 800; line-height: 1.18; letter-spacing: -0.02em; margin-bottom: 16px; }
+    .reader-excerpt { font-size: 1.15rem; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    
+    /* Social Share Bar */
+    .share-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 24px; font-size: 0.8rem; color: var(--muted); }
+    .share-btns { display: flex; align-items: center; gap: 8px; }
+    .share-btn { padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--secondary); color: var(--foreground); font-size: 0.775rem; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .share-btn:hover { border-color: var(--primary); }
+
+    .reader-hero-img { width: 100%; max-height: 460px; border-radius: 8px; overflow: hidden; margin-bottom: 28px; }
+    .reader-hero-img img { width: 100%; height: 100%; object-fit: cover; }
+    .fig-caption { font-size: 0.75rem; color: var(--muted); margin-top: 8px; text-align: center; }
+
+    .takeaways-box { background: var(--secondary); border-left: 4px solid var(--primary); padding: 18px 22px; border-radius: 0 6px 6px 0; margin-bottom: 32px; }
+    .takeaways-box h4 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; color: var(--foreground); }
+    .takeaways-box p { font-size: 0.95rem; color: var(--muted); line-height: 1.6; }
+
+    .reader-body { font-size: 1.1rem; line-height: 1.85; color: var(--foreground); margin-bottom: 48px; }
+    .reader-body p { margin-bottom: 20px; }
+
+    /* Author Bio Card */
+    .author-card { display: flex; gap: 18px; align-items: center; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 48px; }
+    .author-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: #FFF; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700; flex-shrink: 0; }
+    .author-info h4 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .author-info p { font-size: 0.825rem; color: var(--muted); }
+
+    /* Comments Section */
+    .comments-sec { border-top: 1px solid var(--border); padding-top: 40px; margin-bottom: 48px; }
+    .comments-sec h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+    .comment-form { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 32px; }
+    .comment-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    @media (max-width: 600px) { .comment-form-grid { grid-template-columns: 1fr; } }
+    .input-field { width: 100%; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 0.875rem; outline: none; }
+    .comment-list { display: flex; flex-direction: column; gap: 16px; }
+    .comment-card { padding: 16px; background: var(--secondary); border: 1px solid var(--border-subtle); border-radius: 6px; }
+    .comment-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.8rem; }
+    .comment-author { font-weight: 700; color: var(--foreground); }
+    .comment-date { color: var(--muted); }
+    .comment-body { font-size: 0.9rem; line-height: 1.5; color: var(--foreground); }
+
+    /* Infinite Stream Next Article Banner */
+    .next-stream-banner { background: var(--secondary); border: 1px solid var(--border); border-radius: 8px; padding: 28px; text-align: center; margin-bottom: 64px; }
+    .next-stream-banner h4 { font-size: 0.8rem; text-transform: uppercase; color: var(--primary); letter-spacing: 0.08em; font-weight: 700; margin-bottom: 8px; }
+    .next-stream-banner h3 { font-family: var(--font-serif); font-size: 1.4rem; font-weight: 700; margin-bottom: 16px; }
+
+    /* Homepage Lead & Grid */
+    .lead-section { padding: 32px 0 44px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
     .lead-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 36px; }
     @media (max-width: 900px) { .lead-grid { grid-template-columns: 1fr; } }
     .lead-main { text-decoration: none; color: inherit; display: flex; flex-direction: column; }
-    .lead-img-wrap { width: 100%; height: 420px; border-radius: 8px; overflow: hidden; margin-bottom: 20px; position: relative; }
+    .lead-img-wrap { width: 100%; height: 420px; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
     @media (max-width: 600px) { .lead-img-wrap { height: 240px; } }
-    .lead-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-    .lead-main:hover .lead-img-wrap img { transform: scale(1.03); }
-    .category-badge { display: inline-block; font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-    .lead-title {
-      font-family: var(--font-serif); font-size: clamp(1.75rem, 3vw, 2.5rem);
-      font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 14px;
-      color: var(--foreground); transition: color 0.15s ease;
-    }
-    .lead-main:hover .lead-title { color: var(--primary); }
-    .lead-excerpt { font-size: 1.05rem; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
-    .meta-byline { display: flex; align-items: center; gap: 12px; font-size: 0.8rem; color: var(--muted); font-weight: 500; }
-    .trending-col { border-left: 1px solid var(--border); padding-left: 36px; }
-    @media (max-width: 900px) { .trending-col { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 32px; } }
-    .trending-header {
-      font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 24px; display: flex; align-items: center; gap: 8px;
-    }
-    .trending-header::before { content: ''; display: inline-block; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; }
-    .trending-list { display: flex; flex-direction: column; gap: 20px; }
-    .trending-item { display: flex; gap: 16px; text-decoration: none; color: inherit; padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
-    .trending-num { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 800; color: var(--muted); line-height: 1; width: 28px; }
-    .trending-info h4 { font-size: 0.95rem; font-weight: 600; line-height: 1.4; margin-bottom: 6px; transition: color 0.15s ease; }
-    .trending-item:hover h4 { color: var(--primary); }
-    .trending-time { font-size: 0.75rem; color: var(--muted); }
-    .articles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-bottom: 64px; }
+    .lead-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+    .lead-main:hover .lead-img-wrap img { transform: scale(1.02); }
+    .lead-title { font-family: var(--font-serif); font-size: clamp(1.75rem, 3vw, 2.4rem); font-weight: 800; line-height: 1.16; letter-spacing: -0.02em; margin-bottom: 12px; }
+    .lead-excerpt { font-size: 1.05rem; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+    .articles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-bottom: 64px; }
     @media (max-width: 900px) { .articles-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px) { .articles-grid { grid-template-columns: 1fr; } }
-    .article-card { text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-    .article-card:hover { transform: translateY(-4px); }
-    .article-thumb { width: 100%; height: 200px; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
-    .article-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
-    .article-card:hover .article-thumb img { transform: scale(1.04); }
-    .article-card h3 { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin-bottom: 8px; transition: color 0.15s ease; }
-    .article-card:hover h3 { color: var(--primary); }
-    .article-card p { font-size: 0.875rem; color: var(--muted); line-height: 1.5; margin-bottom: 12px; flex: 1; }
-    .reader-container { max-width: 780px; margin: 40px auto 96px; }
-    .reader-header { margin-bottom: 32px; }
-    .reader-title { font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin: 12px 0 16px; }
-    .reader-excerpt { font-size: 1.2rem; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
-    .reader-byline { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--muted); }
-    .reader-hero-img { width: 100%; height: 440px; border-radius: 8px; overflow: hidden; margin: 32px 0; }
-    @media (max-width: 600px) { .reader-hero-img { height: 260px; } }
-    .reader-hero-img img { width: 100%; height: 100%; object-fit: cover; }
-    .takeaways-box { background: var(--secondary); border-left: 4px solid var(--primary); padding: 20px 24px; border-radius: 0 8px 8px 0; margin-bottom: 36px; }
-    .takeaways-box h4 { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; color: var(--foreground); }
-    .takeaways-box p { font-size: 0.95rem; color: var(--muted); line-height: 1.6; }
-    .reader-body { font-size: 1.125rem; line-height: 1.8; color: var(--foreground); }
-    .reader-body p { margin-bottom: 24px; }
-    .newsletter-card { background: var(--secondary); border: 1px solid var(--border); border-radius: 12px; padding: 48px 32px; text-align: center; max-width: 640px; margin: 64px auto 96px; }
-    .newsletter-card h3 { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 800; margin-bottom: 8px; }
-    .newsletter-card p { color: var(--muted); font-size: 0.95rem; margin-bottom: 24px; }
-    .newsletter-form { display: flex; gap: 8px; max-width: 440px; margin: 0 auto; }
-    @media (max-width: 500px) { .newsletter-form { flex-direction: column; } }
-    .input-mail { flex: 1; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 0.875rem; outline: none; }
+    .article-card { text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform 0.2s ease; }
+    .article-card:hover { transform: translateY(-3px); }
+    .article-thumb { width: 100%; height: 190px; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+    .article-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .article-card h3 { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }
+    .article-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin-bottom: 10px; flex: 1; }
+
+    /* Category Dedicated Hero */
+    .category-hero { padding: 40px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+    .category-hero h1 { font-family: var(--font-serif); font-size: 2.25rem; font-weight: 800; text-transform: capitalize; margin-bottom: 8px; }
+
+    /* Modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; width: 100%; max-width: 400px; padding: 28px; box-shadow: var(--shadow-md); position: relative; }
+    .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 1.25rem; color: var(--muted); cursor: pointer; }
+    
     footer { border-top: 1px solid var(--border); padding: 48px 0 32px; background: var(--background); color: var(--muted); font-size: 0.85rem; }
-    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 40px; }
-    @media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr; gap: 24px; } }
-    .footer-col h4 { font-size: 0.875rem; font-weight: 700; color: var(--foreground); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-    .footer-col a { color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 36px; }
+    @media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr; gap: 20px; } }
+    .footer-col h4 { font-size: 0.85rem; font-weight: 700; color: var(--foreground); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .footer-col a { color: var(--muted); text-decoration: none; }
     .footer-col a:hover { color: var(--foreground); }
   </style>
-
-  <script>
-    (function() {
-      const saved = localStorage.getItem('hydro_news_theme');
-      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      } else if (saved === 'light') {
-        document.documentElement.classList.remove('dark');
-      }
-    })();
-  </script>
 </head>
 <body>
 
+  <!-- Live Market Tickers Ribbon -->
+  <div class="market-bar">
+    <div class="container market-inner">
+      <div class="market-list">
+        {{range .MarketTickers}}
+        <div class="market-item">
+          <span class="symbol">{{.Symbol}}</span>
+          <span class="price">{{.Price}}</span>
+          <span class="{{if .IsUp}}up{{else}}down{{end}}">{{.Change}}</span>
+        </div>
+        {{end}}
+      </div>
+      <div style="color: var(--muted); font-size: 0.7rem;">● Canlı Veri Akışı</div>
+    </div>
+  </div>
+
   {{if .BreakingNews}}
-  <!-- Breaking News Ticker Ribbon -->
+  <!-- Breaking News Ribbon -->
   <div class="breaking-bar">
     <div class="container breaking-inner">
       <span class="breaking-badge">Son Dakika</span>
@@ -181,29 +223,25 @@
   <header>
     <div class="container">
       <div class="header-top">
-        <div class="date-badge" id="currentDate">İstanbul, 2026</div>
+        <div style="font-size: 0.8rem; color: var(--muted); font-weight: 500;">İstanbul, 2026</div>
 
         <a href="/" class="brand-wrap">
           <div class="brand-title">{{.BrandName}}</div>
           <div class="brand-motto">{{.Tagline}}</div>
         </a>
 
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <!-- Theme Switcher -->
-          <button type="button" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Temayı Değiştir">
-            <svg id="theme-sun" style="display: none; width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-            <svg id="theme-moon" style="display: inline-block; width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openAuthModal()" id="userAuthBtn">👤 Giriş Yap / Abone Ol</button>
+          
+          <button type="button" class="btn btn-outline btn-sm" onclick="toggleTheme()" aria-label="Tema">
+            <span id="theme-icon">☀️ / 🌙</span>
           </button>
         </div>
       </div>
 
-      <!-- Categories Navigation Bar -->
+      <!-- Categories Nav -->
       <nav class="header-nav">
-        <a href="/" class="{{if eq .ActiveCategory ""}}active{{end}}">Tüm Haberler</a>
+        <a href="/" class="{{if and (eq .ActiveCategory "") (ne .ActivePage "article")}}active{{end}}">Tüm Haberler</a>
         {{range .Categories}}
         <a href="/kategori/{{.Slug}}" class="{{if eq $.ActiveCategory .Slug}}active{{end}}">{{.Name}}</a>
         {{end}}
@@ -213,63 +251,178 @@
 
   <main class="container">
     {{if eq .ActivePage "article"}}
-      <!-- ARTICLE READER VIEW -->
+      <!-- ARTICLE READER VIEW WITH STICKY SIDEBAR -->
       {{with .ActiveArticle}}
-      <article class="reader-container">
-        <div class="reader-header">
+      <div class="article-layout">
+        <article class="reader-article">
+          <div class="breadcrumbs">
+            <a href="/">Ana Sayfa</a> <span>/</span>
+            <a href="/kategori/{{.CategorySlug}}" style="text-transform: capitalize;">{{.CategorySlug}}</a> <span>/</span>
+            <span>Haber Detayı</span>
+          </div>
+
           <span class="category-badge">{{.CategorySlug}}</span>
           <h1 class="reader-title">{{.Title}}</h1>
           <p class="reader-excerpt">{{.Excerpt}}</p>
-          <div class="reader-byline">
-            <span><strong>{{.AuthorName}}</strong> · {{.PublishedAt}}</span>
-            <span>{{.ReadingTime}} dk okuma süresi</span>
+
+          <!-- Share bar -->
+          <div class="share-bar">
+            <span><strong>{{.AuthorName}}</strong> · {{.PublishedAt}} · {{.ReadingTime}} dk okuma</span>
+            <div class="share-btns">
+              <a href="https://api.whatsapp.com/send?text={{.Title}}" target="_blank" class="share-btn">WhatsApp</a>
+              <a href="https://twitter.com/intent/tweet?text={{.Title}}" target="_blank" class="share-btn">X</a>
+              <button type="button" class="share-btn" onclick="copyArticleLink()">🔗 Kopyala</button>
+            </div>
           </div>
-        </div>
 
-        {{if .ImageURL}}
-        <div class="reader-hero-img">
-          <img src="{{.ImageURL}}" alt="{{.Title}}">
-        </div>
-        {{end}}
+          {{if .ImageURL}}
+          <div class="reader-hero-img">
+            <img src="{{.ImageURL}}" alt="{{.Title}}">
+          </div>
+          <div class="fig-caption">Görsel: Özel Dosya Analizi & Arşiv Kaynağı</div>
+          {{end}}
 
-        <div class="takeaways-box">
-          <h4>Öne Çıkan Başlıklar</h4>
-          <p>{{.Excerpt}}</p>
-        </div>
+          <div class="takeaways-box">
+            <h4>Öne Çıkan Başlıklar & Ana Fikir</h4>
+            <p>{{.Excerpt}}</p>
+          </div>
 
-        <div class="reader-body">
-          <p>{{.Body}}</p>
-        </div>
-      </article>
+          <div class="reader-body">
+            <p>{{.Body}}</p>
+          </div>
+
+          <!-- Author Bio -->
+          <div class="author-card">
+            <div class="author-avatar">{{slice .AuthorName 0 1}}</div>
+            <div class="author-info">
+              <h4>{{.AuthorName}}</h4>
+              <p>Kıdemli Teknoloji ve Analiz Muhabiri · Nexus Haber Araştırma Masası</p>
+            </div>
+          </div>
+
+          <!-- Reader Comments Section -->
+          <section class="comments-sec">
+            <h3>💬 Okuyucu Yorumları (<span id="commentCount">{{len $.Comments}}</span>)</h3>
+            
+            <form class="comment-form" onsubmit="handleCommentSubmit(event)">
+              <div class="comment-form-grid">
+                <input type="text" id="commAuthor" class="input-field" placeholder="Adınız Soyadınız..." required>
+                <input type="email" id="commEmail" class="input-field" placeholder="E-posta adresiniz..." required>
+              </div>
+              <textarea id="commBody" class="input-field" rows="3" placeholder="Bu analiz hakkındaki düşünceleriniz..." style="margin-bottom: 12px; resize: vertical;" required></textarea>
+              <button type="submit" class="btn btn-primary btn-sm">Yorumu Yayınla</button>
+            </form>
+
+            <div class="comment-list" id="commentList">
+              {{range $.Comments}}
+              <div class="comment-card">
+                <div class="comment-head">
+                  <span class="comment-author">{{.AuthorName}}</span>
+                  <span class="comment-date">{{.CreatedAt}}</span>
+                </div>
+                <div class="comment-body">{{.Content}}</div>
+              </div>
+              {{end}}
+            </div>
+          </section>
+
+          <!-- Infinite Stream Next Story -->
+          {{if $.NextArticle}}
+          <div class="next-stream-banner" id="nextStoryTrigger">
+            <h4>Sıradaki Haber</h4>
+            <h3>{{$.NextArticle.Title}}</h3>
+            <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 16px;">{{$.NextArticle.Excerpt}}</p>
+            <a href="/haber/{{$.NextArticle.Slug}}" class="btn btn-primary">Habere Geç →</a>
+          </div>
+          {{end}}
+        </article>
+
+        <!-- STICKY SIDEBAR -->
+        <aside class="sidebar-col">
+          <div class="sticky-box">
+            <!-- Popular Trending -->
+            <div class="sidebar-card">
+              <div class="sidebar-title">Çok Okunanlar</div>
+              <div class="trending-list">
+                {{range $i, $tr := $.Trending}}
+                <a href="/haber/{{$tr.Slug}}" class="trending-item">
+                  <span class="trending-num">0{{add $i 1}}</span>
+                  <div class="trending-info">
+                    <h4>{{$tr.Title}}</h4>
+                    <div class="trending-time">{{$tr.PublishedAt}} · {{$tr.ReadingTime}} dk</div>
+                  </div>
+                </a>
+                {{end}}
+              </div>
+            </div>
+
+            <!-- Trending Tags -->
+            <div class="sidebar-card">
+              <div class="sidebar-title">Gündemdeki Konular</div>
+              <div class="tag-cloud">
+                {{range $.TrendingTags}}
+                <a href="/kategori/teknoloji" class="tag-pill">#{{.}}</a>
+                {{end}}
+              </div>
+            </div>
+
+            <!-- Mini Newsletter -->
+            <div class="sidebar-card" style="background: var(--secondary);">
+              <div class="sidebar-title">Sabah Bülteni</div>
+              <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 12px;">Günün en önemli 5 manşeti sabah 07:30'da posta kutunuzda.</p>
+              <form onsubmit="event.preventDefault(); alert('Bültene kaydoldunuz!');">
+                <input type="email" class="input-field" placeholder="E-posta..." style="margin-bottom: 8px;" required>
+                <button type="submit" class="btn btn-primary btn-sm" style="width: 100%;">Abone Ol</button>
+              </form>
+            </div>
+          </div>
+        </aside>
+      </div>
       {{end}}
 
+    {{else if eq .ActivePage "category"}}
+      <!-- DEDICATED CATEGORY ARCHIVE VIEW -->
+      <section class="category-hero">
+        <div class="breadcrumbs">
+          <a href="/">Ana Sayfa</a> <span>/</span> <span>Kategoriler</span> <span>/</span> <span style="text-transform: capitalize;">{{.ActiveCategory}}</span>
+        </div>
+        <h1 style="text-transform: capitalize;">{{.ActiveCategory}} Haberleri</h1>
+        <p style="color: var(--muted);">{{.ActiveCategory}} alanında yayımlanmış en son manşetler, özel haberler ve derinlemesine sektör analizleri.</p>
+      </section>
+
+      <section style="margin-bottom: 64px;">
+        <div class="articles-grid">
+          {{range .Articles}}
+          <a href="/haber/{{.Slug}}" class="article-card">
+            {{if .ImageURL}}
+            <div class="article-thumb"><img src="{{.ImageURL}}" alt="{{.Title}}"></div>
+            {{end}}
+            <span class="category-badge">{{.CategorySlug}}</span>
+            <h3>{{.Title}}</h3>
+            <p>{{.Excerpt}}</p>
+            <div style="font-size: 0.75rem; color: var(--muted);">{{.AuthorName}} · {{.ReadingTime}} dk</div>
+          </a>
+          {{end}}
+        </div>
+      </section>
+
     {{else}}
-      <!-- PORTAL HOMEPAGE / CATEGORY VIEW -->
+      <!-- PORTAL HOMEPAGE -->
       {{if .LeadArticle}}
       <section class="lead-section">
         <div class="lead-grid">
-          <!-- Main Lead Story -->
           <a href="/haber/{{.LeadArticle.Slug}}" class="lead-main">
             {{if .LeadArticle.ImageURL}}
-            <div class="lead-img-wrap">
-              <img src="{{.LeadArticle.ImageURL}}" alt="{{.LeadArticle.Title}}">
-            </div>
+            <div class="lead-img-wrap"><img src="{{.LeadArticle.ImageURL}}" alt="{{.LeadArticle.Title}}"></div>
             {{end}}
             <span class="category-badge">{{.LeadArticle.CategorySlug}}</span>
             <h2 class="lead-title">{{.LeadArticle.Title}}</h2>
             <p class="lead-excerpt">{{.LeadArticle.Excerpt}}</p>
-            <div class="meta-byline">
-              <span><strong>{{.LeadArticle.AuthorName}}</strong></span>
-              <span>·</span>
-              <span>{{.LeadArticle.PublishedAt}}</span>
-              <span>·</span>
-              <span>{{.LeadArticle.ReadingTime}} dk okuma</span>
-            </div>
+            <div style="font-size: 0.8rem; color: var(--muted);">{{.LeadArticle.AuthorName}} · {{.LeadArticle.PublishedAt}} · {{.LeadArticle.ReadingTime}} dk okuma</div>
           </a>
 
-          <!-- Trending List Column -->
-          <div class="trending-col">
-            <div class="trending-header">Çok Okunanlar</div>
+          <div style="border-left: 1px solid var(--border); padding-left: 32px;">
+            <div class="sidebar-title">Günün Çok Okunanları</div>
             <div class="trending-list">
               {{range $i, $tr := .Trending}}
               <a href="/haber/{{$tr.Slug}}" class="trending-item">
@@ -286,43 +439,39 @@
       </section>
       {{end}}
 
-      <!-- 3-Column Latest News Section -->
+      <!-- 3-Column Latest Grid -->
       <section style="margin-bottom: 64px;">
-        <div class="trending-header" style="margin-bottom: 28px;">
-          {{if .ActiveCategory}}{{.ActiveCategory}} Haberleri{{else}}Son Gelişmeler{{end}}
-        </div>
+        <div class="sidebar-title" style="margin-bottom: 24px;">Son Gelişmeler & Özel Haberler</div>
         <div class="articles-grid">
           {{range .Articles}}
           <a href="/haber/{{.Slug}}" class="article-card">
             {{if .ImageURL}}
-            <div class="article-thumb">
-              <img src="{{.ImageURL}}" alt="{{.Title}}">
-            </div>
+            <div class="article-thumb"><img src="{{.ImageURL}}" alt="{{.Title}}"></div>
             {{end}}
             <span class="category-badge">{{.CategorySlug}}</span>
             <h3>{{.Title}}</h3>
             <p>{{.Excerpt}}</p>
-            <div class="meta-byline">
-              <span>{{.AuthorName}}</span>
-              <span>·</span>
-              <span>{{.ReadingTime}} dk</span>
-            </div>
+            <div style="font-size: 0.75rem; color: var(--muted);">{{.AuthorName}} · {{.ReadingTime}} dk okuma</div>
           </a>
           {{end}}
         </div>
       </section>
-
-      <!-- Newsletter Subscribe -->
-      <section class="newsletter-card">
-        <h3>Günün Özeti E-Postanıza Gelsin</h3>
-        <p>Her sabah 07:30'da günün en kritik 5 haberini ve özel analizlerimizi bülten olarak alın.</p>
-        <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Bültene başarıyla kaydoldunuz.');">
-          <input type="email" class="input-mail" placeholder="E-posta adresiniz..." required>
-          <button type="submit" class="btn btn-primary">Abone Ol</button>
-        </form>
-      </section>
     {{end}}
   </main>
+
+  <!-- Auth / Membership Modal -->
+  <div class="modal-backdrop" id="authModal" onclick="if(event.target===this) closeAuthModal()">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeAuthModal()">✕</button>
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Okuyucu Üyeliği</h3>
+      <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 20px;">Özel analizler, yorum yapma ve sabah bülteni için giriş yapın.</p>
+      <form onsubmit="handleAuthSubmit(event)">
+        <input type="text" id="authName" class="input-field" placeholder="Adınız Soyadınız..." style="margin-bottom: 10px;" required>
+        <input type="email" id="authEmail" class="input-field" placeholder="E-posta adresiniz..." style="margin-bottom: 16px;" required>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Hemen Katıl / Giriş Yap</button>
+      </form>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer>
@@ -330,9 +479,7 @@
       <div class="footer-grid">
         <div class="footer-col">
           <h4 style="font-family: var(--font-serif); font-size: 1.25rem;">{{.BrandName}}</h4>
-          <p style="line-height: 1.6; max-width: 320px;">
-            Bağımsız dijital gazetecilik, derinlemesine teknoloji, ekonomi ve kültür analizleri.
-          </p>
+          <p style="line-height: 1.6; max-width: 320px;">Bağımsız dijital gazetecilik, teknoloji, küresel piyasalar ve çağdaş kültür analizleri.</p>
         </div>
         <div class="footer-col">
           <h4>Kategoriler</h4>
@@ -343,18 +490,18 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Kurumsal</h4>
+          <h4>Yayın Politikası</h4>
           <ul>
-            <li><a href="/">Künye & İletişim</a></li>
             <li><a href="/">Yayın İlkeleri</a></li>
+            <li><a href="/">Künye</a></li>
             <li><a href="/">Kariyer</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>Yasal & Güvenlik</h4>
           <ul>
-            <li><a href="/">Gizlilik Politikası</a></li>
-            <li><a href="/">Çerez Tercihleri</a></li>
+            <li><a href="/">Gizlilik</a></li>
+            <li><a href="/">Çerezler</a></li>
             <li><a href="/">Kullanım Şartları</a></li>
           </ul>
         </div>
@@ -366,22 +513,78 @@
   </footer>
 
   <script>
-    // Theme Switcher
-    function updateThemeIcons(isDark) {
-      const sun = document.getElementById('theme-sun');
-      const moon = document.getElementById('theme-moon');
-      if (sun && moon) {
-        sun.style.display = isDark ? 'inline-block' : 'none';
-        moon.style.display = isDark ? 'none' : 'inline-block';
-      }
-    }
     function toggleTheme() {
       const isDark = document.documentElement.classList.toggle('dark');
       localStorage.setItem('hydro_news_theme', isDark ? 'dark' : 'light');
-      updateThemeIcons(isDark);
     }
-    document.addEventListener('DOMContentLoaded', () => {
-      updateThemeIcons(document.documentElement.classList.contains('dark'));
+    (function() {
+      const saved = localStorage.getItem('hydro_news_theme');
+      if (saved === 'light') document.documentElement.classList.remove('dark');
+    })();
+
+    function copyArticleLink() {
+      navigator.clipboard.writeText(window.location.href);
+      alert('Haber bağlantısı panoya kopyalandı!');
+    }
+
+    // Auth
+    function openAuthModal() { document.getElementById('authModal').style.display = 'flex'; }
+    function closeAuthModal() { document.getElementById('authModal').style.display = 'none'; }
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('authName').value.trim();
+      const email = document.getElementById('authEmail').value.trim();
+      localStorage.setItem('hydro_news_user', JSON.stringify({ name, email }));
+      updateUserUI();
+      closeAuthModal();
+    }
+    function updateUserUI() {
+      const uStr = localStorage.getItem('hydro_news_user');
+      if (uStr) {
+        try {
+          const u = JSON.parse(uStr);
+          const btn = document.getElementById('userAuthBtn');
+          if (btn && u.name) btn.innerText = '👤 ' + u.name;
+          const commAuth = document.getElementById('commAuthor');
+          const commMail = document.getElementById('commEmail');
+          if (commAuth && !commAuth.value) commAuth.value = u.name;
+          if (commMail && !commMail.value) commMail.value = u.email;
+        } catch(e) {}
+      }
+    }
+    document.addEventListener('DOMContentLoaded', updateUserUI);
+
+    // Comments
+    function handleCommentSubmit(e) {
+      e.preventDefault();
+      const author = document.getElementById('commAuthor').value.trim();
+      const email = document.getElementById('commEmail').value.trim();
+      const body = document.getElementById('commBody').value.trim();
+      if (!author || !body) return;
+
+      const card = document.createElement('div');
+      card.className = 'comment-card';
+      card.innerHTML = `<div class="comment-head"><span class="comment-author">${author}</span><span class="comment-date">Şimdi</span></div><div class="comment-body">${body}</div>`;
+      
+      const list = document.getElementById('commentList');
+      if (list) list.prepend(card);
+
+      const countEl = document.getElementById('commentCount');
+      if (countEl) countEl.innerText = parseInt(countEl.innerText || '0') + 1;
+
+      document.getElementById('commBody').value = '';
+      alert('Yorumunuz başarıyla yayınlandı.');
+    }
+
+    // Infinite Stream Trigger
+    window.addEventListener('scroll', () => {
+      const trigger = document.getElementById('nextStoryTrigger');
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      if (rect.top <= window.innerHeight + 100 && !trigger.dataset.triggered) {
+        trigger.dataset.triggered = 'true';
+        trigger.style.borderColor = 'var(--primary)';
+      }
     });
   </script>
 </body>

@@ -145,7 +145,7 @@ func (a *serveApp) storefrontCategoryHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	var filtered []storefront.ProductView
-	if slug == "tumu" || slug == "all" || slug == "koleksiyon" {
+	if slug == "tumu" || slug == "all" || slug == "koleksiyon" || slug == "urunler" || slug == "catalog" || slug == "products" {
 		filtered = products
 	} else {
 		for _, p := range products {
