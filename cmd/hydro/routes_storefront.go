@@ -35,6 +35,8 @@ func (a *serveApp) storefrontRoutes() []router.Route {
 		{Pattern: "GET /ozellikler", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
 		{Pattern: "GET /pricing", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
 		{Pattern: "GET /fiyat", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
+		{Pattern: "GET /haber/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
+		{Pattern: "GET /news/{slug}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
 		{Pattern: "GET /siparis-takip", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
 		{Pattern: "GET /order-tracking", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderTrackingHandler)},
 		{Pattern: "GET /robots.txt", Access: router.Public, Handler: http.HandlerFunc(a.storefrontRobotsHandler)},

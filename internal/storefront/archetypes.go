@@ -14,6 +14,7 @@ var (
 	restaurantTmpl *template.Template
 	saasTmpl       *template.Template
 	portfolioTmpl  *template.Template
+	newsTmpl       *template.Template
 	showcaseTmpl   *template.Template
 	archetypeErr   error
 )
@@ -37,6 +38,10 @@ func initArchetypeTemplates() {
 			return
 		}
 		portfolioTmpl, archetypeErr = template.New("portfolio.html").Funcs(funcs).ParseFS(templateFS, "portfolio.html", "sections/*.html")
+		if archetypeErr != nil {
+			return
+		}
+		newsTmpl, archetypeErr = template.New("news.html").Funcs(funcs).ParseFS(templateFS, "news.html", "sections/*.html")
 		if archetypeErr != nil {
 			return
 		}
@@ -495,6 +500,72 @@ func hexVal(c byte) int {
 		return int(c - 'A' + 10)
 	}
 	return 0
+}
+
+// NewsArticle represents a story/article in the news portal.
+type NewsArticle struct {
+	Title        string `json:"title"`
+	Slug         string `json:"slug"`
+	CategorySlug string `json:"category_slug"`
+	CategoryName string `json:"category_name"`
+	Excerpt      string `json:"excerpt"`
+	Body         string `json:"body"`
+	ImageURL     string `json:"image_url"`
+	AuthorName   string `json:"author_name"`
+	ReadingTime  int    `json:"reading_time"`
+	PublishedAt  string `json:"published_at"`
+	IsLead       bool   `json:"is_lead"`
+	IsTrending   bool   `json:"is_trending"`
+}
+
+// NewsCategory represents a topic section (Teknoloji, Ekonomi, etc.).
+type NewsCategory struct {
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+// NewsData contains all data required to render the digital news portal.
+type NewsData struct {
+	BrandName      string         `json:"brand_name"`
+	Tagline        string         `json:"tagline"`
+	PrimaryColor   string         `json:"primary_color"`
+	BGTone         string         `json:"bg_tone"`
+	FontPreset     string         `json:"font_preset"`
+	BreakingNews   string         `json:"breaking_news"`
+	ContactEmail   string         `json:"contact_email"`
+	ActivePage     string         `json:"active_page"` // "home", "category", "article"
+	ActiveCategory string         `json:"active_category"`
+	ActiveArticle  *NewsArticle   `json:"active_article"`
+	LeadArticle    *NewsArticle   `json:"lead_article"`
+	Trending       []NewsArticle  `json:"trending"`
+	Articles       []NewsArticle  `json:"articles"`
+	Categories     []NewsCategory `json:"categories"`
+}
+
+// RenderNews writes the news portal HTML to w.
+func RenderNews(w http.ResponseWriter, r *http.Request, data NewsData) error {
+	initArchetypeTemplates()
+	if archetypeErr != nil {
+		return archetypeErr
+	}
+	if data.BrandName == "" {
+		data.BrandName = "Nexus Haber"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#DC2626"
+	}
+	if data.FontPreset == "" {
+		data.FontPreset = "editorial_playfair"
+	}
+	if data.ActivePage == "" {
+		data.ActivePage = "home"
+	}
+
+	var buf bytes.Buffer
+	if err := newsTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 // RenderShowcase writes the official platform showcase and onboarding landing HTML to w.
