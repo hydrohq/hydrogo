@@ -36,11 +36,11 @@
     if (path.startsWith('/commerce')) return t('nav.orders');
     if (path.startsWith('/site')) return t('title.siteSettings');
     if (path.startsWith('/users')) return t('title.users');
-    if (path.startsWith('/roles')) return 'Roller ve İzinler';
+    if (path.startsWith('/roles')) return t('nav.roles');
     if (path.startsWith('/account')) return t('title.account');
     if (path.startsWith('/audit')) return t('title.audit');
     if (path.startsWith('/system')) return t('nav.telemetry');
-    if (path.startsWith('/console') || path.startsWith('/orchestrator')) return 'Mağaza Fabrikası';
+    if (path.startsWith('/console') || path.startsWith('/orchestrator')) return t('nav.console');
     return t('nav.documents');
   });
 
@@ -140,12 +140,12 @@
         type="button"
         onclick={() => (showCopilotDrawer = true)}
         class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/90 h-8 px-2.5 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-150 shadow-xs cursor-pointer"
-        title="AI Mağaza Asistanı (Copilot)"
+        title={t('copilot.title')}
       >
         <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
         </svg>
-        <span class="hidden sm:inline">AI Asistan</span>
+        <span class="hidden sm:inline">{t('copilot.button')}</span>
       </button>
 
       <!-- Notifications Popover -->

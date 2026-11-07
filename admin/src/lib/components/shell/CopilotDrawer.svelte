@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, ApiClientError } from '$lib/api/client';
   import type { CopilotActionLog, TenantGovernance } from '$lib/api/types';
+  import { t, i18n } from '$lib/i18n/index.svelte';
   import Button from '$lib/components/ui/Button.svelte';
 
   interface Props {
@@ -19,11 +20,11 @@
   let errorMsg = $state('');
   let errorRequestId = $state('');
 
-  const quickPrompts = [
-    'Mağaza temasını koyu ve altın rengi yap',
-    'İpek Gömlek fiyatını 1350 TL olarak güncelle',
-    'Yeni ürün ekle: Keten Elbise, fiyat 1650 TL'
-  ];
+  const quickPrompts = $derived([
+    t('copilot.quick1'),
+    t('copilot.quick2'),
+    t('copilot.quick3')
+  ]);
 
   $effect(() => {
     if (open) {
@@ -46,7 +47,7 @@
         errorMsg = err.message;
         errorRequestId = err.requestId ?? '';
       } else {
-        errorMsg = 'AI geçmişi yüklenemedi.';
+        errorMsg = t('copilot.loadError');
       }
     } finally {
       loading = false;
@@ -78,7 +79,7 @@
         errorMsg = err.message;
         errorRequestId = err.requestId ?? '';
       } else {
-        errorMsg = 'AI isteği işlenirken hata oluştu.';
+        errorMsg = t('copilot.requestError');
       }
     } finally {
       sending = false;
@@ -101,7 +102,7 @@
         errorMsg = err.message;
         errorRequestId = err.requestId ?? '';
       } else {
-        errorMsg = 'İşlem geri alınamadı.';
+        errorMsg = t('copilot.undoError');
       }
     } finally {
       undoingId = '';
@@ -115,11 +116,11 @@
 </script>
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs">
+  <div class="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="AI Mağaza Asistanı (Copilot)"
+      aria-label={t('copilot.title')}
       class="flex h-full w-full max-w-md flex-col border-l border-border bg-card text-card-foreground shadow-2xl"
     >
       <!-- Header -->
@@ -131,15 +132,15 @@
             </svg>
           </div>
           <div>
-            <h2 class="text-sm font-semibold text-foreground">AI Mağaza Asistanı</h2>
+            <h2 class="text-sm font-semibold text-foreground">{t('copilot.title')}</h2>
             <p class="text-[11px] text-muted-foreground">
               {#if governance}
-                {governance.ai_provider || 'gemini'} · {governance.ai_model || 'varsayılan'}
+                {governance.ai_provider || 'gemini'} · {governance.ai_model || 'default'}
                 {#if governance.has_custom_api_key}
-                  <span class="text-emerald-600 dark:text-emerald-400">(BYOK)</span>
+                  <span class="text-emerald-600 dark:text-emerald-400 font-medium">(BYOK)</span>
                 {/if}
               {:else}
-                Doğal dil ile ürün, fiyat ve tasarım yönetimi
+                {t('copilot.sub')}
               {/if}
             </p>
           </div>
@@ -147,7 +148,7 @@
         <button
           type="button"
           onclick={closeDrawer}
-          aria-label="Kapat"
+          aria-label={t('copilot.close')}
           class="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
         >
           ✕
@@ -157,11 +158,12 @@
       <!-- Quota Strip -->
       {#if governance && governance.ai_monthly_token_limit > 0}
         {@const pct = Math.min(100, Math.round((governance.ai_tokens_used / governance.ai_monthly_token_limit) * 100))}
+        {@const numLocale = i18n.locale === 'tr' ? 'tr-TR' : 'en-US'}
         <div class="border-b border-border bg-muted/30 px-4 py-2 text-[11px]">
           <div class="flex items-center justify-between text-muted-foreground mb-1">
-            <span>Aylık AI Token Kotası</span>
+            <span>{t('copilot.quota')}</span>
             <span class="font-mono">
-              {governance.ai_tokens_used.toLocaleString('tr-TR')} / {governance.ai_monthly_token_limit.toLocaleString('tr-TR')} (%{pct})
+              {governance.ai_tokens_used.toLocaleString(numLocale)} / {governance.ai_monthly_token_limit.toLocaleString(numLocale)} ({pct}%)
             </span>
           </div>
           <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -182,19 +184,19 @@
       <!-- Action History Feed -->
       <div class="flex-1 space-y-3 overflow-y-auto p-4">
         {#if loading && actions.length === 0}
-          <div class="py-8 text-center text-xs text-muted-foreground">Yükleniyor...</div>
+          <div class="py-8 text-center text-xs text-muted-foreground">{t('copilot.loading')}</div>
         {:else if actions.length === 0}
           <div class="rounded-xl border border-dashed border-border p-5 text-center space-y-2">
-            <p class="text-xs font-medium text-foreground">Henüz bir AI işlemi yok</p>
-            <p class="text-[11px] text-muted-foreground">
-              Mağazanızdaki ürünleri, fiyatları veya görünüm renklerini doğal dille değiştirmek için aşağıdan bir komut yazın.
+            <p class="text-xs font-medium text-foreground">{t('copilot.emptyTitle')}</p>
+            <p class="text-[11px] text-muted-foreground leading-relaxed">
+              {t('copilot.emptySub')}
             </p>
             <div class="flex flex-wrap justify-center gap-1.5 pt-2">
               {#each quickPrompts as chip}
                 <button
                   type="button"
                   onclick={() => (promptText = chip)}
-                  class="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground cursor-pointer"
+                  class="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground cursor-pointer transition-colors"
                 >
                   {chip}
                 </button>
@@ -203,7 +205,7 @@
           </div>
         {:else}
           {#each actions as act (act.id)}
-            <div class="rounded-xl border border-border bg-background p-3 space-y-2 shadow-2xs">
+            <div class="rounded-xl border border-border bg-background p-3 space-y-2 shadow-xs">
               <div class="flex items-start justify-between gap-2">
                 <p class="text-xs font-medium text-foreground">“{act.prompt}”</p>
                 <span class="shrink-0 font-mono text-[10px] text-muted-foreground">
@@ -228,7 +230,7 @@
                 <div class="flex items-center justify-between pt-1">
                   {#if act.undone}
                     <span class="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                      ↺ Geri alındı
+                      {t('copilot.undone')}
                     </span>
                   {:else}
                     <Button
@@ -237,7 +239,7 @@
                       disabled={undoingId === act.id}
                       onclick={() => handleUndo(act.id)}
                     >
-                      {undoingId === act.id ? 'Geri Alınıyor...' : '↺ Geri Al (Undo)'}
+                      {undoingId === act.id ? t('copilot.undoing') : t('copilot.undo')}
                     </Button>
                   {/if}
                 </div>
@@ -252,13 +254,13 @@
         <textarea
           bind:value={promptText}
           rows="2"
-          placeholder="Örn: İpek gömleğin fiyatını 1250 TL yap veya temayı koyu altın yap..."
+          placeholder={t('copilot.placeholder')}
           class="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
         ></textarea>
         <div class="flex items-center justify-between">
-          <span class="text-[10px] text-muted-foreground">Her işlem tek tıkla geri alınabilir.</span>
+          <span class="text-[10px] text-muted-foreground">{t('copilot.undoHint')}</span>
           <Button type="submit" size="sm" disabled={sending || !promptText.trim()}>
-            {sending ? 'Uygulanıyor...' : 'Gönder'}
+            {sending ? t('copilot.sending') : t('copilot.send')}
           </Button>
         </div>
       </form>
