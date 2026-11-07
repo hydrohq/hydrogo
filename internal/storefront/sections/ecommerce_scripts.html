@@ -400,9 +400,147 @@
     border-radius: 9999px;
     font-variant-numeric: tabular-nums;
   }
+  .mobile-menu-trigger {
+    display: none;
+  }
+  @media (max-width: 839px) {
+    .mobile-menu-trigger {
+      display: inline-flex;
+    }
+  }
+  @media (max-width: 640px) {
+    .btn-header-action kbd {
+      display: none;
+    }
+    .btn-header-action .btn-text-long {
+      display: none;
+    }
+    .btn-header-action .btn-icon-wa {
+      display: inline-flex !important;
+    }
+    .btn-header-action {
+      padding: 7px 10px;
+    }
+    .header-actions-group {
+      gap: 6px;
+    }
+  }
+
+  /* Storefront Mobile Navigation Drawer */
+  .store-nav-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 299;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .store-nav-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .store-nav-drawer {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 320px;
+    max-width: 85vw;
+    background: #FFFFFF;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 10px 0 35px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+  }
+  .store-nav-drawer.active {
+    transform: translateX(0);
+  }
+  .store-nav-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #E7E5E4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .store-nav-title {
+    font-family: var(--font-serif, serif);
+    font-size: 19px;
+    font-weight: 700;
+    color: #1C1917;
+  }
+  .store-nav-close {
+    background: transparent;
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    color: #78716C;
+    padding: 4px;
+  }
+  .store-nav-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+  }
+  .store-nav-link {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1C1917;
+    text-decoration: none;
+    padding: 12px 0;
+    border-bottom: 1px solid #F5F5F4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: color 0.15s ease;
+  }
+  .store-nav-link:hover {
+    color: var(--primary, #000000);
+  }
 </style>
 
+<!-- Storefront Mobile Navigation Drawer HTML -->
+<div class="store-nav-overlay" id="storeNavOverlay" onclick="closeStoreNav()"></div>
+<div class="store-nav-drawer" id="storeNavDrawer">
+  <div class="store-nav-header">
+    <span class="store-nav-title">{{.StoreName}}</span>
+    <button type="button" class="store-nav-close" onclick="closeStoreNav()" aria-label="Kapat">&times;</button>
+  </div>
+  <div class="store-nav-body">
+    <a href="/" class="store-nav-link" onclick="closeStoreNav()">Ana Sayfa <span style="opacity:0.4;">&rarr;</span></a>
+    <a href="/kategori/tumu" class="store-nav-link" onclick="closeStoreNav()">Tüm Koleksiyon <span style="opacity:0.4;">&rarr;</span></a>
+    <a href="/hakkimizda" class="store-nav-link" onclick="closeStoreNav()">Atölye Hikayesi <span style="opacity:0.4;">&rarr;</span></a>
+    <a href="/iletisim" class="store-nav-link" onclick="closeStoreNav()">İletişim &amp; Randevu <span style="opacity:0.4;">&rarr;</span></a>
+    <a href="/siparis-takip" class="store-nav-link" onclick="closeStoreNav()">Sipariş Takibi <span style="opacity:0.4;">&rarr;</span></a>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E7E5E4;">
+      <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="store-nav-link" style="color: #15803D; font-weight: 600;">
+        WhatsApp Destek Hattı <span>💬</span>
+      </a>
+    </div>
+  </div>
+</div>
+
 <script>
+  function toggleStoreNav() {
+    const overlay = document.getElementById('storeNavOverlay');
+    const drawer = document.getElementById('storeNavDrawer');
+    if (overlay && drawer) {
+      overlay.classList.toggle('active');
+      drawer.classList.toggle('active');
+    }
+  }
+  function closeStoreNav() {
+    const overlay = document.getElementById('storeNavOverlay');
+    const drawer = document.getElementById('storeNavDrawer');
+    if (overlay && drawer) {
+      overlay.classList.remove('active');
+      drawer.classList.remove('active');
+    }
+  }
   // --- Universal E-Commerce Bag & Search State ---
   let hydroGlobalProducts = [];
   try {
