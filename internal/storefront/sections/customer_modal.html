@@ -1,0 +1,164 @@
+{{define "customer_modal"}}
+<!-- Customer Membership & Order Tracking Modal -->
+<div class="drawer-overlay" id="customerAuthOverlay" onclick="closeCustomerAuthModal(); closeCustomerAccountDrawer();" style="z-index: 290; display:none;"></div>
+
+<div class="modal-box" id="customerAuthModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:300; background:#FFF; border:1px solid var(--border); border-radius:12px; max-width:440px; width:90%; padding:28px; box-shadow:0 20px 40px rgba(0,0,0,0.15);">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <h3 style="font-size:18px; font-weight:700; color:var(--text-primary);">Müşteri Girişi &amp; Üyelik</h3>
+    <button type="button" onclick="closeCustomerAuthModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted);">&times;</button>
+  </div>
+  <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; line-height:1.5;">
+    Siparişlerinizi ve kargo durumunuzu takip etmek, hızlı ödeme yapmak için giriş yapın.
+  </p>
+  <form onsubmit="handleCustomerAuth(event)">
+    <div style="margin-bottom:12px;">
+      <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-primary);">Adınız Soyadınız</label>
+      <input type="text" id="custName" class="form-input" placeholder="Ad Soyad..." required style="width:100%; padding:10px 12px; font-size:13.5px; border:1px solid var(--border); border-radius:8px; outline:none; box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="display:block; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text-primary);">Telefon Numaranız</label>
+      <input type="tel" id="custPhone" class="form-input" placeholder="0555 123 4567" required style="width:100%; padding:10px 12px; font-size:13.5px; border:1px solid var(--border); border-radius:8px; outline:none; box-sizing:border-box;">
+    </div>
+    <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px; background:var(--primary); color:#FFF; border:none; border-radius:8px; cursor:pointer; font-weight:600;">Giriş Yap / Devam Et</button>
+  </form>
+</div>
+
+<!-- Customer Account & Cargo Tracking Drawer -->
+<div class="drawer" id="customerAccountDrawer" style="z-index:350; position:fixed; top:0; right:0; width:100%; max-width:420px; height:100%; background:#FFF; box-shadow:-4px 0 24px rgba(0,0,0,0.15); transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); display:flex; flex-direction:column; overflow:hidden;">
+  <div class="drawer-header" style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); font-weight:700;">MÜŞTERİ PANELİ</span>
+      <h3 style="font-size:18px; margin-top:2px; font-weight:700; color:var(--text-primary);">Hesabım &amp; Kargolarım</h3>
+    </div>
+    <button class="drawer-close" onclick="closeCustomerAccountDrawer()" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted);">&times;</button>
+  </div>
+  <div class="drawer-body" style="padding:24px; overflow-y:auto; flex:1;">
+    <div style="padding:14px; background:var(--bg-subtle, #F7F5F0); border:1px solid var(--border); border-radius:8px; margin-bottom:20px;">
+      <div style="font-size:12px; color:var(--text-muted);">Giriş Yapılan Kullanıcı:</div>
+      <div style="font-size:14px; font-weight:700; color:var(--text-primary); margin-top:2px;" id="custDisplayName">-</div>
+      <div style="font-size:12.5px; color:var(--text-secondary);" id="custDisplayPhone">-</div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h4 style="font-size:14px; font-weight:700; color:var(--text-primary);">Kargo &amp; Siparişlerim</h4>
+      <span style="font-size:11.5px; color:var(--text-muted);">Aktif Sipariş</span>
+    </div>
+
+    <!-- Active Order 1 -->
+    <div style="border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:14px; background:#FFF;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:12px; font-weight:700; color:var(--text-primary); font-family:monospace;">#AR-9812</span>
+        <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; background:rgba(16, 185, 129, 0.12); color:#10B981;">Kargo Dağıtımda</span>
+      </div>
+      <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">Atelier Stoneware Vazo &amp; Keten Gömlek</div>
+      <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">1.450 TL · 1 adet · Kredi Kartı</div>
+      
+      <!-- Progress timeline steps -->
+      <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px 0; border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); font-size:10.5px; color:var(--text-muted);">
+        <span style="color:#10B981; font-weight:600;">Sipariş Alındı ✓</span>
+        <span style="color:#10B981; font-weight:600;">Hazırlandı ✓</span>
+        <span style="color:#10B981; font-weight:600;">Kargoda ✓</span>
+        <span style="color:var(--text-primary); font-weight:700;">Dağıtımda ●</span>
+      </div>
+
+      <div style="padding:10px; background:var(--bg-subtle, #F7F5F0); border-radius:6px; font-size:12px; color:var(--text-secondary); display:flex; justify-content:space-between; align-items:center;">
+        <span>Yurtiçi Kargo: <strong>7492019482</strong></span>
+        <a href="https://www.yurticikargo.com" target="_blank" rel="noopener" style="color:var(--text-primary); font-weight:600; text-decoration:underline;">Sorgula &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Past Order 2 -->
+    <div style="border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:20px; background:#FFF; opacity:0.85;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:12px; font-weight:700; color:var(--text-primary); font-family:monospace;">#AR-9420</span>
+        <span style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; background:var(--bg-subtle, #F7F5F0); color:var(--text-muted);">Teslim Edildi</span>
+      </div>
+      <div style="font-size:13px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">Doğal Traverten Sunum Tepsisi</div>
+      <div style="font-size:12px; color:var(--text-muted);">850 TL · Teslim Tarihi: 4 Kasım 2026</div>
+    </div>
+
+    <button type="button" onclick="customerLogout()" style="width:100%; background:transparent; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; color:#EF4444; font-weight:600; cursor:pointer;">Çıkış Yap</button>
+  </div>
+</div>
+
+<script>
+  function openCustomerAuthModal() {
+    const saved = localStorage.getItem('hydro_customer');
+    if (saved) {
+      openCustomerAccountDrawer();
+    } else {
+      const overlay = document.getElementById('customerAuthOverlay');
+      const modal = document.getElementById('customerAuthModal');
+      if (overlay) overlay.style.display = 'block';
+      if (modal) modal.style.display = 'block';
+    }
+  }
+  function closeCustomerAuthModal() {
+    const overlay = document.getElementById('customerAuthOverlay');
+    const modal = document.getElementById('customerAuthModal');
+    if (overlay) overlay.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+  }
+  function handleCustomerAuth(e) {
+    e.preventDefault();
+    const nameEl = document.getElementById('custName');
+    const phoneEl = document.getElementById('custPhone');
+    if (!nameEl || !phoneEl) return;
+    const name = nameEl.value.trim();
+    const phone = phoneEl.value.trim();
+    if (!name || !phone) return;
+    localStorage.setItem('hydro_customer', JSON.stringify({ name, phone }));
+    closeCustomerAuthModal();
+    updateCustomerUI();
+    openCustomerAccountDrawer();
+  }
+  function openCustomerAccountDrawer() {
+    closeCustomerAuthModal();
+    const saved = localStorage.getItem('hydro_customer');
+    if (!saved) return openCustomerAuthModal();
+    const user = JSON.parse(saved);
+    const dispName = document.getElementById('custDisplayName');
+    const dispPhone = document.getElementById('custDisplayPhone');
+    if (dispName) dispName.innerText = user.name || 'Misafir Müşteri';
+    if (dispPhone) dispPhone.innerText = user.phone || '';
+    const overlay = document.getElementById('customerAuthOverlay');
+    const drawer = document.getElementById('customerAccountDrawer');
+    if (overlay) overlay.style.display = 'block';
+    if (drawer) drawer.style.transform = 'translateX(0)';
+  }
+  function closeCustomerAccountDrawer() {
+    const drawer = document.getElementById('customerAccountDrawer');
+    const overlay = document.getElementById('customerAuthOverlay');
+    if (drawer) drawer.style.transform = 'translateX(100%)';
+    if (overlay) overlay.style.display = 'none';
+  }
+  function customerLogout() {
+    localStorage.removeItem('hydro_customer');
+    closeCustomerAccountDrawer();
+    updateCustomerUI();
+  }
+  function updateCustomerUI() {
+    const saved = localStorage.getItem('hydro_customer');
+    const textEl = document.getElementById('headerCustomerText');
+    const navEl = document.getElementById('navCustomerLink');
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        const firstName = user.name ? user.name.split(' ')[0] : 'Hesabım';
+        if (textEl) textEl.innerText = firstName;
+        if (navEl) navEl.innerText = 'Hesabım (' + firstName + ')';
+      } catch (err) {}
+    } else {
+      if (textEl) textEl.innerText = 'Giriş Yap';
+      if (navEl) navEl.innerText = 'Üye Girişi';
+    }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    updateCustomerUI();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'orders' || params.get('track') === '1' || params.get('open_orders') === '1') {
+      openCustomerAccountDrawer();
+    }
+  });
+</script>
+{{end}}

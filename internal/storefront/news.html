@@ -42,8 +42,6 @@
     }
     .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
 
-    #readingProgress { position: fixed; top: 0; left: 0; height: 3px; background: var(--primary); width: 0%; z-index: 1000; transition: width 0.08s ease-out; }
-    
     /* Live Service Ribbon (Weather, Prayer & Markets) */
     .market-bar { background: var(--secondary); border-bottom: 1px solid var(--border); font-size: 0.75rem; padding: 6px 0; overflow-x: auto; white-space: nowrap; }
     .market-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -58,10 +56,17 @@
     .service-info-group { display: flex; align-items: center; gap: 14px; font-size: 0.725rem; color: var(--muted); }
     .service-info-item { display: inline-flex; align-items: center; gap: 5px; }
 
-    .breaking-bar { background: var(--background); border-bottom: 1px solid var(--border); font-size: 0.8rem; padding: 8px 0; }
-    .breaking-inner { display: flex; align-items: center; gap: 12px; }
-    .breaking-badge { background: var(--primary); color: #FFF; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-size: 0.7rem; flex-shrink: 0; }
-    .breaking-text { color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+    .breaking-bar { background: var(--background); border-bottom: 1px solid var(--border); font-size: 0.8rem; padding: 7px 0; overflow: hidden; }
+    .breaking-inner { display: flex; align-items: center; gap: 14px; overflow: hidden; }
+    .breaking-badge { background: var(--primary); color: #FFF; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-size: 0.68rem; flex-shrink: 0; z-index: 2; letter-spacing: 0.04em; }
+    .breaking-marquee { overflow: hidden; white-space: nowrap; flex: 1; position: relative; }
+    .breaking-track { display: inline-flex; align-items: center; gap: 48px; white-space: nowrap; animation: breakingTicker 25s linear infinite; }
+    .breaking-track:hover { animation-play-state: paused; }
+    .breaking-text { color: var(--foreground); font-weight: 500; font-size: 0.8rem; }
+    @keyframes breakingTicker {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
 
     /* Header */
     header { position: sticky; top: 0; z-index: 50; background: rgba(9, 9, 11, 0.94); border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); }
@@ -221,8 +226,6 @@
 </head>
 <body>
 
-  <div id="readingProgress"></div>
-
   <!-- Live Market & Service Ribbon -->
   <div class="market-bar">
     <div class="container market-inner">
@@ -264,7 +267,13 @@
   <div class="breaking-bar">
     <div class="container breaking-inner">
       <span class="breaking-badge">Son Dakika</span>
-      <span class="breaking-text">{{.BreakingNews}}</span>
+      <div class="breaking-marquee">
+        <div class="breaking-track">
+          <span class="breaking-text">{{.BreakingNews}}</span>
+          <span class="breaking-text" aria-hidden="true">·</span>
+          <span class="breaking-text" aria-hidden="true">{{.BreakingNews}}</span>
+        </div>
+      </div>
     </div>
   </div>
   {{end}}
@@ -616,12 +625,7 @@
       if (saved === 'light') document.documentElement.classList.remove('dark');
     })();
 
-    window.addEventListener('scroll', () => {
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = docHeight > 0 ? (window.scrollY / docHeight) * 100 : 0;
-      const bar = document.getElementById('readingProgress');
-      if (bar) bar.style.width = Math.min(100, Math.max(0, progress)) + '%';
-    });
+
 
     function copyArticleLink() {
       navigator.clipboard.writeText(window.location.href);
@@ -760,7 +764,7 @@
         if (!nextStorySlug && trigger) {
           trigger.style.display = 'none';
         } else if (trigger) {
-          trigger.innerHTML = '<span>Daha fazla haber için kaydırın</span>';
+          trigger.innerHTML = '<span>Sıradaki haber yükleniyor...</span>';
         }
       } catch (err) {
         if (trigger) trigger.style.display = 'none';
