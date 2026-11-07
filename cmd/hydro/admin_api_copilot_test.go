@@ -288,3 +288,118 @@ func TestAdminAICopilotRejectsUnknownFieldsAndProdRawPlans(t *testing.T) {
 		t.Fatalf("rejected plan still created %d records", len(prods))
 	}
 }
+
+func TestAdminAICopilotSiteSettingsAndDesignIntent(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "copilot_saas.sqlite")
+	db, err := database.Open(ctx, database.SQLite, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatalf("ApplyMigrations: %v", err)
+	}
+
+	colSvc := collections.Service{
+		Repository: collectionstore.Store{
+			DB:                 db,
+			Dialect:            database.SQLite,
+			RequireTenantScope: true,
+		},
+	}
+
+	siteSettingsDef := contenttypes.Definition{
+		ID:    "site_settings",
+		Label: "Site Settings",
+		Fields: []contenttypes.Field{
+			{ID: "primary_color", Label: "Primary Color", Kind: "text"},
+			{ID: "bg_tone", Label: "Background Tone", Kind: "text"},
+			{ID: "font_preset", Label: "Font Preset", Kind: "text"},
+			{ID: "hero_title", Label: "Hero Title", Kind: "text"},
+		},
+	}
+
+	app := &serveApp{
+		devMode:            true,
+		db:                 db,
+		collectionService:  colSvc,
+		requireTenantScope: true,
+		siteStore: sitestore.Store{
+			Dialect:            database.SQLite,
+			RequireTenantScope: true,
+		},
+		contentTypes: []contenttypes.Definition{siteSettingsDef},
+	}
+
+	app.cfg.Database.Dialect = database.SQLite
+
+	scope, err := tenant.NewScope("t-saas-copilot", "t-saas-copilot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tenantCtx := tenant.WithScope(ctx, scope)
+	storeOwner := &auth.User{
+		ID:     "user-saas-owner",
+		Email:  "saas@example.com",
+		Role:   "admin",
+		Active: true,
+	}
+	tenantCtx = auth.WithUser(tenantCtx, storeOwner)
+
+	gov := tenant.DefaultGovernance("t-saas-copilot")
+	gov.AIEnabled = true
+	gov.AIMonthlyTokenLimit = 10000
+	if err := tenant.UpsertGovernance(ctx, db, "sqlite", gov); err != nil {
+		t.Fatal(err)
+	}
+
+	schemas, err := contenttypes.Schemas(app.contentTypes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := colSvc.SyncSchemas(tenantCtx, schemas); err != nil {
+		t.Fatalf("SyncSchemas: %v", err)
+	}
+
+	// Create initial record
+	created, err := colSvc.CreateRecord(tenantCtx, "site_settings", map[string]any{
+		"primary_color": "#2563EB",
+		"bg_tone":       "#FFFFFF",
+		"font_preset":   "v0_geist",
+		"hero_title":    "Initial Title",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Request: "arka planı koyu yap, ana rengi zümrüt yeşili yap, fontu cinzel olarak ayarla ve başlığı "Yeni Çağ" yap"
+	prompt := `arka planı koyu yap, ana rengi zümrüt yeşili yap, fontu cinzel olarak ayarla ve başlığı "Yeni Çağ" yap`
+	reqBody, _ := json.Marshal(map[string]any{"prompt": prompt})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/ai/copilot", bytes.NewReader(reqBody)).WithContext(tenantCtx)
+	rec := httptest.NewRecorder()
+	app.adminAICopilotHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify the site_settings record was updated accurately
+	updated, err := colSvc.GetRecord(tenantCtx, "site_settings", created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Data["bg_tone"] != "#09090B" {
+		t.Errorf("expected bg_tone #09090B, got %v", updated.Data["bg_tone"])
+	}
+	if updated.Data["primary_color"] != "#059669" {
+		t.Errorf("expected primary_color #059669 (emerald), got %v", updated.Data["primary_color"])
+	}
+	if updated.Data["font_preset"] != "monumental_cinzel" {
+		t.Errorf("expected font_preset monumental_cinzel, got %v", updated.Data["font_preset"])
+	}
+	if updated.Data["hero_title"] != "Yeni Çağ" {
+		t.Errorf("expected hero_title 'Yeni Çağ', got %v", updated.Data["hero_title"])
+	}
+}
