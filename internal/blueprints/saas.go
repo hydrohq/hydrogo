@@ -119,9 +119,9 @@ func GenerateSaaSCatalog(name, phone, prompt string) (map[string]any, []map[stri
 		"bg_tone":       "#09090B", // Pure Zinc Dark
 		"font_preset":   "v0_geist",
 		"contact_email": "hello@" + strings.ToLower(strings.ReplaceAll(brandName, " ", "")) + ".io",
-		"hero_badge":    "NovaFlow v3.0 Şimdi Yayında ✨",
-		"hero_title":    "Takımınızın Hızını 10 Katına Çıkaran Akıllı Otomasyon",
-		"hero_subtitle": "Dağınık araçları tek bir yüksek performanslı kontrol merkezinde birleştirin. Sıfır kodlama ile dakikalar içinde canlıya alın.",
+		"hero_badge":    "v3.0 Kurumsal Dağıtık İş Akışları",
+		"hero_title":    "Dağıtık İş Akışlarınızı Otonom Ajanlarla Yönetin",
+		"hero_subtitle": "Tüm sistemlerinizi tek bir merkezi otomasyon katmanında birleştirin. Sub-3ms P99 gecikme, kriptografik SHA-256 denetim ve sıfır derleme dağıtım hızı.",
 		"cta_label":     "14 Gün Ücretsiz Deneyin",
 		"cta_link":      "#pricing",
 		"hero_image":    "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",

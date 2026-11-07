@@ -81,6 +81,9 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       background-color: var(--background);
       color: var(--foreground);
@@ -102,10 +105,14 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      background: var(--background);
+      background: rgba(255, 255, 255, 0.85);
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    html.dark header {
+      background: rgba(9, 9, 11, 0.85);
     }
     .header-inner {
       display: flex;
@@ -169,10 +176,13 @@
       font-weight: 500;
       text-decoration: none;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       border: 1px solid transparent;
       line-height: 1.25rem;
       white-space: nowrap;
+    }
+    .btn:active {
+      transform: scale(0.97);
     }
     .btn-primary {
       background: var(--primary);
@@ -281,10 +291,22 @@
       border-color: var(--primary);
     }
 
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     /* Hero Section */
     .hero-section {
       padding: 80px 0 60px;
       text-align: center;
+      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
     .hero-section h1 {
       font-size: clamp(2.25rem, 5vw, 3.75rem);
@@ -323,6 +345,14 @@
       background: var(--card);
       box-shadow: var(--shadow-lg);
       overflow: hidden;
+      animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+    }
+    .mockup-container:hover {
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+    }
+    html.dark .mockup-container:hover {
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 255, 255, 0.05);
     }
     .mockup-header {
       padding: 12px 16px;
@@ -417,14 +447,19 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 24px;
-      transition: all 0.2s ease;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.25s ease,
+                  box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
     }
     .bento-card:hover {
       border-color: var(--ring);
-      box-shadow: var(--shadow-md);
-      transform: translateY(-2px);
+      box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.12);
+      transform: translateY(-4px);
+    }
+    html.dark .bento-card:hover {
+      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 255, 255, 0.03);
     }
     .bento-icon {
       width: 40px;
@@ -512,7 +547,13 @@
       display: flex;
       flex-direction: column;
       position: relative;
-      transition: all 0.2s ease;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 0.25s ease,
+                  box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .pricing-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
     }
     .pricing-card.highlighted {
       border: 2px solid var(--primary);
@@ -629,10 +670,12 @@
     .accordion-content {
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.25s cubic-bezier(0.87, 0, 0.13, 1);
+      opacity: 0;
+      transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
     }
     .accordion-item.open .accordion-content {
-      max-height: 300px;
+      max-height: 350px;
+      opacity: 1;
     }
     .accordion-body {
       padding-bottom: 20px;
