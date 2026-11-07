@@ -5,7 +5,7 @@
       <circle cx="11" cy="11" r="8"></circle>
       <path d="m21 21-4.3-4.3"></path>
     </svg>
-    <span style="font-size: 12.5px;">Ara</span>
+    <span class="btn-text-long" style="font-size: 12.5px;">Ara</span>
     <kbd>⌘K</kbd>
   </button>
   <button type="button" class="btn-header-action" onclick="openCartDrawer()" title="Alışveriş Sepeti">
@@ -14,11 +14,21 @@
       <path d="M3 6h18"></path>
       <path d="M16 10a4 4 0 0 1-8 0"></path>
     </svg>
-    <span style="font-size: 12.5px;">Sepet</span>
+    <span class="btn-text-long" style="font-size: 12.5px;">Sepet</span>
     <span class="header-badge cart-badge-count" id="headerCartCount" style="display:none;">0</span>
   </button>
-  <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="btn-header-action" style="background:var(--text-primary); color:#FFFFFF; border-color:var(--text-primary);">
-    <span>WhatsApp Destek</span>
+  <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="btn-header-action" style="background:var(--text-primary); color:#FFFFFF; border-color:var(--text-primary);" title="WhatsApp Destek">
+    <span class="btn-text-long">WhatsApp Destek</span>
+    <span class="btn-icon-wa" style="display:none; align-items:center;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.52 3.48A11.93 11.93 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.18 1.6 6L.5 24l6.19-1.07A11.97 11.97 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.21-1.25-6.22-3.48-8.52z"/>
+      </svg>
+    </span>
   </a>
+  <button type="button" class="btn-header-action mobile-menu-trigger" onclick="toggleStoreNav()" title="Menü" aria-label="Menü">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M4 6h16M4 12h16M4 18h16"></path>
+    </svg>
+  </button>
 </div>
 {{end}}
