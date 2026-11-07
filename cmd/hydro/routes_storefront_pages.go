@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/ardaozyildirim/hydrogo/internal/blueprints"
 	"github.com/ardaozyildirim/hydrogo/internal/storefront"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
@@ -195,9 +196,21 @@ func (a *serveApp) storefrontCategoryHandler(w http.ResponseWriter, r *http.Requ
 
 // Dedicated About & Atelier Story Page (GET /hakkimizda & GET /about)
 func (a *serveApp) storefrontAboutHandler(w http.ResponseWriter, r *http.Request) {
-	_, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
+	scope, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
 	if !ok {
 		return
+	}
+
+	archetype := blueprints.NormalizeArchetype(gov.Blueprint)
+	if at, ok := settings["archetype"].(string); ok && at != "" {
+		archetype = blueprints.NormalizeArchetype(at)
+	} else if st, ok := settings["site_type"].(string); ok && st != "" {
+		archetype = blueprints.NormalizeArchetype(st)
+	}
+	if archetype != blueprints.ArchetypeBoutique {
+		if a.renderArchetypeStorefront(w, r, gov, settings, scope, archetype) {
+			return
+		}
 	}
 
 	storeName := gov.DisplayName
@@ -256,9 +269,21 @@ func (a *serveApp) storefrontAboutHandler(w http.ResponseWriter, r *http.Request
 
 // Dedicated Contact & Showroom Page (GET /iletisim & GET /contact)
 func (a *serveApp) storefrontContactHandler(w http.ResponseWriter, r *http.Request) {
-	_, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
+	scope, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
 	if !ok {
 		return
+	}
+
+	archetype := blueprints.NormalizeArchetype(gov.Blueprint)
+	if at, ok := settings["archetype"].(string); ok && at != "" {
+		archetype = blueprints.NormalizeArchetype(at)
+	} else if st, ok := settings["site_type"].(string); ok && st != "" {
+		archetype = blueprints.NormalizeArchetype(st)
+	}
+	if archetype != blueprints.ArchetypeBoutique {
+		if a.renderArchetypeStorefront(w, r, gov, settings, scope, archetype) {
+			return
+		}
 	}
 
 	storeName := gov.DisplayName
