@@ -197,5 +197,36 @@ func SeedNewsStore(ctx context.Context, colSvc collections.Service, scope tenant
 			return fmt.Errorf("seed news article %q: %w", art["title"], err)
 		}
 	}
+
+	// Seed Columnists
+	colData := []map[string]any{
+		{"name": "Prof. Dr. Melih Arslan", "title": "Kıdemli Başekonomist", "latest_article_title": "Küresel Faiz İndirim Döngüsü ve Gelişen Piyasalara Sermaye Akışının Yönü", "latest_article_slug": "kuresel-faiz-indirim-dongusu", "sort_order": 1},
+		{"name": "Selin Doğan", "title": "Teknoloji & İnovasyon Masası", "latest_article_title": "Yapay Zeka ve Yazılım Ekiplerinin Geleceği: Kod Yazarları mı, Sistem Mimarları mı?", "latest_article_slug": "otonom-yazilim-ajanlari-cagi", "sort_order": 2},
+		{"name": "Barış Yılmaz", "title": "Küresel Güvenlik & Dış Politika", "latest_article_title": "Kritik Hammaddeler Savaşı: Nadir Toprak Elementleri ve Tedarik Zinciri", "latest_article_slug": "kritik-hammadde-savasi", "sort_order": 3},
+		{"name": "Zeynep Erdem", "title": "Kültür, Mimari & Kent Masası", "latest_article_title": "Dijital Göçebelik ve Metropollerin Mekansal Dönüşüm Dinamikleri", "latest_article_slug": "dijital-gocebelik-ve-metropoller", "sort_order": 4},
+	}
+	for _, c := range colData {
+		_, _ = colSvc.CreateRecord(tenantCtx, "columnists", c)
+	}
+
+	// Seed Poll
+	_, _ = colSvc.CreateRecord(tenantCtx, "polls", map[string]any{
+		"question":    "Yapay zeka modellerinin telifli verilerle eğitilmesi küresel bir lisanslama zorunluluğuna bağlanmalı mı?",
+		"options":     "Evet kesinlikle zorunlu olmalı, Hayır açık araştırma serbest kalmalı, Kararsızım Ayrıntılara bağlı",
+		"category":    "Teknoloji & Hukuk",
+		"total_votes": 1420,
+		"is_active":   true,
+	})
+
+	// Seed Galleries
+	galleries := []map[string]any{
+		{"title": "Kuantum İşlemcilerin Temiz Oda Üretim Süreci", "slug": "otonom-yazilim-ajanlari-cagi", "category": "Teknoloji Dosyası", "cover_image": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80", "badge_text": "12 Fotoğraf"},
+		{"title": "James Webb Teleskobu ile Keşfedilen Erken Evren Galaksileri", "slug": "otonom-yazilim-ajanlari-cagi", "category": "Uzay & Bilim", "cover_image": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80", "badge_text": "Özel Dosya"},
+		{"title": "Yeni Nesil Katı Hal Piller ve Batarya Fabrikaları", "slug": "yesil-enerjide-kati-hal-pil-devrimi", "category": "Enerji & Mobilite", "cover_image": "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=800&q=80", "badge_text": "Araştırma"},
+	}
+	for _, g := range galleries {
+		_, _ = colSvc.CreateRecord(tenantCtx, "galleries", g)
+	}
+
 	return nil
 }

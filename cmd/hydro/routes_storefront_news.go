@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ardaozyildirim/hydrogo/internal/blueprints"
+	"github.com/ardaozyildirim/hydrogo/internal/collections"
 	"github.com/ardaozyildirim/hydrogo/internal/storefront"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
@@ -51,6 +53,24 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 	}
 	if s, ok := settings["contact_email"].(string); ok && s != "" {
 		data.ContactEmail = s
+	}
+	if s, ok := settings["weather_city"].(string); ok && s != "" {
+		data.WeatherCity = s
+	}
+	if s, ok := settings["weather_temp"].(string); ok && s != "" {
+		data.WeatherTemp = s
+	}
+	if s, ok := settings["weather_desc"].(string); ok && s != "" {
+		data.WeatherDesc = s
+	}
+	if s, ok := settings["prayer_imsak"].(string); ok && s != "" {
+		data.PrayerImsak = s
+	}
+	if s, ok := settings["prayer_aksam"].(string); ok && s != "" {
+		data.PrayerAksam = s
+	}
+	if s, ok := settings["whatsapp_tip_number"].(string); ok && s != "" {
+		data.WhatsAppTipNumber = s
 	}
 
 	var allArticles []storefront.NewsArticle
@@ -140,70 +160,182 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 	}
 	data.TrendingTags = []string{"YapayZeka", "FinansMimarisi", "AkdenizMinimalizmi", "KuantumCip", "KatiHalPili", "JamesWebb", "Uzay"}
 
-	data.Columnists = []storefront.NewsColumnist{
-		{
-			Name:               "Prof. Dr. Melih Arslan",
-			Title:              "Kıdemli Başekonomist",
-			Initials:           "MA",
-			LatestArticleTitle: "Küresel Faiz İndirim Döngüsü ve Gelişen Piyasalara Sermaye Akışının Yönü",
-			LatestArticleSlug:  "kuresel-faiz-indirim-dongusu",
-		},
-		{
-			Name:               "Selin Doğan",
-			Title:              "Teknoloji & İnovasyon Masası",
-			Initials:           "SD",
-			LatestArticleTitle: "Yapay Zeka ve Yazılım Ekiplerinin Geleceği: Kod Yazarları mı, Sistem Mimarları mı?",
-			LatestArticleSlug:  "otonom-yazilim-ajanlari-cagi",
-		},
-		{
-			Name:               "Barış Yılmaz",
-			Title:              "Küresel Güvenlik & Dış Politika",
-			Initials:           "BY",
-			LatestArticleTitle: "Kritik Hammaddeler Savaşı: Nadir Toprak Elementleri ve Tedarik Zinciri",
-			LatestArticleSlug:  "kritik-hammadde-savasi",
-		},
-		{
-			Name:               "Zeynep Erdem",
-			Title:              "Kültür, Mimari & Kent Masası",
-			Initials:           "ZE",
-			LatestArticleTitle: "Dijital Göçebelik ve Metropollerin Mekansal Dönüşüm Dinamikleri",
-			LatestArticleSlug:  "dijital-gocebelik-ve-metropoller",
-		},
+	// Load Columnists from DB collection if exists, else fallback
+	if a.collectionService.Repository != nil {
+		if recs, err := a.collectionService.ListRecords(ctx, "columnists", 20, 0); err == nil && len(recs) > 0 {
+			var colList []storefront.NewsColumnist
+			for _, rec := range recs {
+				name := strVal(rec.Data["name"])
+				initials := ""
+				for _, p := range strings.Fields(name) {
+					if r, _ := utf8.DecodeRuneInString(p); r != utf8.RuneError {
+						initials += string(r)
+					}
+				}
+				if len(initials) > 2 {
+					initials = initials[:2]
+				}
+				slug := strVal(rec.Data["latest_article_slug"])
+				if slug == "" {
+					slug = strVal(rec.Data["slug"])
+				}
+				colList = append(colList, storefront.NewsColumnist{
+					Name:               name,
+					Title:              strVal(rec.Data["title"]),
+					Initials:           strings.ToUpper(initials),
+					LatestArticleTitle: strVal(rec.Data["latest_article_title"]),
+					LatestArticleSlug:  slug,
+				})
+			}
+			if len(colList) > 0 {
+				data.Columnists = colList
+			}
+		}
+	}
+	if len(data.Columnists) == 0 {
+		data.Columnists = []storefront.NewsColumnist{
+			{
+				Name:               "Prof. Dr. Melih Arslan",
+				Title:              "Kıdemli Başekonomist",
+				Initials:           "MA",
+				LatestArticleTitle: "Küresel Faiz İndirim Döngüsü ve Gelişen Piyasalara Sermaye Akışının Yönü",
+				LatestArticleSlug:  "kuresel-faiz-indirim-dongusu",
+			},
+			{
+				Name:               "Selin Doğan",
+				Title:              "Teknoloji & İnovasyon Masası",
+				Initials:           "SD",
+				LatestArticleTitle: "Yapay Zeka ve Yazılım Ekiplerinin Geleceği: Kod Yazarları mı, Sistem Mimarları mı?",
+				LatestArticleSlug:  "otonom-yazilim-ajanlari-cagi",
+			},
+			{
+				Name:               "Barış Yılmaz",
+				Title:              "Küresel Güvenlik & Dış Politika",
+				Initials:           "BY",
+				LatestArticleTitle: "Kritik Hammaddeler Savaşı: Nadir Toprak Elementleri ve Tedarik Zinciri",
+				LatestArticleSlug:  "kritik-hammadde-savasi",
+			},
+			{
+				Name:               "Zeynep Erdem",
+				Title:              "Kültür, Mimari & Kent Masası",
+				Initials:           "ZE",
+				LatestArticleTitle: "Dijital Göçebelik ve Metropollerin Mekansal Dönüşüm Dinamikleri",
+				LatestArticleSlug:  "dijital-gocebelik-ve-metropoller",
+			},
+		}
 	}
 
-	data.Poll = &storefront.NewsPoll{
-		ID:         "poll-2026-ai",
-		Question:   "Yapay zeka modellerinin telifli verilerle eğitilmesi küresel bir lisanslama zorunluluğuna bağlanmalı mı?",
-		TotalVotes: 1420,
-		Options: []storefront.NewsPollOption{
-			{Text: "Evet, kesinlikle zorunlu olmalı", Percentage: 64, Votes: 908},
-			{Text: "Hayır, açık araştırma serbest kalmalı", Percentage: 28, Votes: 398},
-			{Text: "Kararsızım / Ayrıntılara bağlı", Percentage: 8, Votes: 114},
-		},
+	// Load Poll from DB collection if exists, else fallback
+	if a.collectionService.Repository != nil {
+		if recs, err := a.collectionService.ListRecords(ctx, "polls", 5, 0); err == nil && len(recs) > 0 {
+			var activeRec *collections.Record
+			for idx := range recs {
+				if boolVal(recs[idx].Data["is_active"]) {
+					activeRec = &recs[idx]
+					break
+				}
+			}
+			if activeRec == nil {
+				activeRec = &recs[0]
+			}
+			rawOpts := strVal(activeRec.Data["options"])
+			tot := intVal(activeRec.Data["total_votes"])
+			if tot <= 0 {
+				tot = 1420
+			}
+			var pOpts []storefront.NewsPollOption
+			for idx, opt := range strings.Split(rawOpts, ",") {
+				opt = strings.TrimSpace(opt)
+				if opt == "" {
+					continue
+				}
+				pct := 33
+				if idx == 0 {
+					pct = 64
+				} else if idx == 1 {
+					pct = 28
+				} else {
+					pct = 8
+				}
+				pOpts = append(pOpts, storefront.NewsPollOption{
+					Text:       opt,
+					Percentage: pct,
+					Votes:      int(float64(tot) * float64(pct) / 100.0),
+				})
+			}
+			if len(pOpts) > 0 {
+				data.Poll = &storefront.NewsPoll{
+					ID:         activeRec.ID,
+					Question:   strVal(activeRec.Data["question"]),
+					TotalVotes: tot,
+					Options:    pOpts,
+				}
+			}
+		}
+	}
+	if data.Poll == nil {
+		data.Poll = &storefront.NewsPoll{
+			ID:         "poll-2026-ai",
+			Question:   "Yapay zeka modellerinin telifli verilerle eğitilmesi küresel bir lisanslama zorunluluğuna bağlanmalı mı?",
+			TotalVotes: 1420,
+			Options: []storefront.NewsPollOption{
+				{Text: "Evet, kesinlikle zorunlu olmalı", Percentage: 64, Votes: 908},
+				{Text: "Hayır, açık araştırma serbest kalmalı", Percentage: 28, Votes: 398},
+				{Text: "Kararsızım / Ayrıntılara bağlı", Percentage: 8, Votes: 114},
+			},
+		}
 	}
 
-	data.GalleryItems = []storefront.NewsGalleryItem{
-		{
-			Title:     "Kuantum İşlemcilerin Temiz Oda Üretim Süreci",
-			Category:  "Teknoloji Dosyası",
-			ImageURL:  "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
-			Slug:      "otonom-yazilim-ajanlari-cagi",
-			BadgeText: "12 Fotoğraf",
-		},
-		{
-			Title:     "James Webb Teleskobu ile Keşfedilen Erken Evren Galaksileri",
-			Category:  "Uzay & Bilim",
-			ImageURL:  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
-			Slug:      "otonom-yazilim-ajanlari-cagi",
-			BadgeText: "Özel Dosya",
-		},
-		{
-			Title:     "Yeni Nesil Katı Hal Piller ve Batarya Fabrikaları",
-			Category:  "Enerji & Mobilite",
-			ImageURL:  "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=800&q=80",
-			Slug:      "yesil-enerjide-kati-hal-pil-devrimi",
-			BadgeText: "Araştırma",
-		},
+	// Load Galleries from DB collection if exists, else fallback
+	if a.collectionService.Repository != nil {
+		if recs, err := a.collectionService.ListRecords(ctx, "galleries", 10, 0); err == nil && len(recs) > 0 {
+			var gallList []storefront.NewsGalleryItem
+			for _, rec := range recs {
+				img := strVal(rec.Data["cover_image"])
+				if img == "" {
+					img = strVal(rec.Data["image_url"])
+				}
+				badge := strVal(rec.Data["badge_text"])
+				if badge == "" {
+					badge = "Özel Dosya"
+				}
+				gallList = append(gallList, storefront.NewsGalleryItem{
+					Title:     strVal(rec.Data["title"]),
+					Category:  strVal(rec.Data["category"]),
+					ImageURL:  img,
+					Slug:      strVal(rec.Data["slug"]),
+					BadgeText: badge,
+				})
+			}
+			if len(gallList) > 0 {
+				data.GalleryItems = gallList
+			}
+		}
+	}
+	if len(data.GalleryItems) == 0 {
+		data.GalleryItems = []storefront.NewsGalleryItem{
+			{
+				Title:     "Kuantum İşlemcilerin Temiz Oda Üretim Süreci",
+				Category:  "Teknoloji Dosyası",
+				ImageURL:  "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+				Slug:      "otonom-yazilim-ajanlari-cagi",
+				BadgeText: "12 Fotoğraf",
+			},
+			{
+				Title:     "James Webb Teleskobu ile Keşfedilen Erken Evren Galaksileri",
+				Category:  "Uzay & Bilim",
+				ImageURL:  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+				Slug:      "otonom-yazilim-ajanlari-cagi",
+				BadgeText: "Özel Dosya",
+			},
+			{
+				Title:     "Yeni Nesil Katı Hal Piller ve Batarya Fabrikaları",
+				Category:  "Enerji & Mobilite",
+				ImageURL:  "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=800&q=80",
+				Slug:      "yesil-enerjide-kati-hal-pil-devrimi",
+				BadgeText: "Araştırma",
+			},
+		}
 	}
 
 	if data.ActiveArticle != nil {

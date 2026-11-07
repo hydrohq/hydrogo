@@ -120,7 +120,23 @@ var (
 func initTemplates() {
 	templatesOnce.Do(func() {
 		funcs := template.FuncMap{
-			"add":      func(a, b int) int { return a + b },
+			"add": func(a, b any) float64 {
+				toFloat := func(x any) float64 {
+					switch v := x.(type) {
+					case int:
+						return float64(v)
+					case int64:
+						return float64(v)
+					case float64:
+						return v
+					case float32:
+						return float64(v)
+					default:
+						return 0
+					}
+				}
+				return toFloat(a) + toFloat(b)
+			},
 			"urlquery": func(s string) string { return template.URLQueryEscaper(s) },
 		}
 		storefrontTmpl, tmplErr = template.New("storefront.html").Funcs(funcs).ParseFS(templateFS, "storefront.html", "sections/*.html")

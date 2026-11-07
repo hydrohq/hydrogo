@@ -36,17 +36,16 @@
   {{template "embedded_fonts" .}}
 
   <style>
-
     :root {
       --bg-primary: {{.BGTone}};
       --bg-surface: #FFFFFF;
-      --bg-subtle: #F3EFEA;
+      --bg-subtle: #F5F2EB;
       --text-primary: #1C1917;
       --text-secondary: #57534E;
       --text-muted: #78716C;
       --primary: {{.PrimaryColor}};
       --border: rgba(28, 25, 23, 0.08);
-      --border-hover: rgba(28, 25, 23, 0.18);
+      --border-hover: rgba(28, 25, 23, 0.2);
       --font-serif: {{.FontHeading}};
       --font-sans: {{.FontBody}};
     }
@@ -63,7 +62,6 @@
       flex-direction: column;
     }
 
-    /* Header & Navigation */
     .header {
       position: sticky;
       top: 0;
@@ -72,12 +70,11 @@
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
-      transition: all 0.2s ease;
     }
     .header-inner {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 18px 24px;
+      padding: 16px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -90,301 +87,114 @@
       text-decoration: none;
       letter-spacing: -0.01em;
     }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 28px;
-    }
-    .nav-link {
-      font-size: 13.5px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      text-decoration: none;
-      transition: color 0.15s ease;
-    }
+    .nav-links { display: flex; align-items: center; gap: 26px; }
+    .nav-link { font-size: 13.5px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 0.15s ease; }
     .nav-link:hover { color: var(--text-primary); }
 
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s ease; border: none; }
-    .btn-primary { background: var(--text-primary); color: #FAF8F5; }
-    .btn-primary:hover { background: #292524; transform: translateY(-1px); }
-    .btn-whatsapp { background: #15803D; color: #FFFFFF; }
-    .btn-whatsapp:hover { background: #166534; transform: translateY(-1px); }
-    .btn-outline { background: transparent; color: var(--text-primary); border: 1px solid var(--border-hover); }
-    .btn-outline:hover { background: var(--bg-subtle); }
-
-    /* Breadcrumbs */
-    .breadcrumb-row { max-width: 1200px; margin: 24px auto 0; padding: 0 24px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+    .breadcrumb-row { max-width: 1200px; margin: 20px auto 0; padding: 0 24px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
     .breadcrumb-row a { color: var(--text-muted); text-decoration: none; }
     .breadcrumb-row a:hover { color: var(--text-primary); }
 
-    /* Product Detail Section */
-    .product-section { max-width: 1200px; margin: 24px auto 60px; padding: 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
-    @media (max-width: 900px) {
-      .product-section { grid-template-columns: 1fr; gap: 32px; margin-top: 16px; }
-    }
+    /* Product Section Grid */
+    .product-section { max-width: 1200px; margin: 24px auto 60px; padding: 0 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 52px; align-items: start; }
+    @media (max-width: 900px) { .product-section { grid-template-columns: 1fr; gap: 32px; margin-top: 16px; } }
 
     /* Gallery */
-    .product-gallery {
-      position: sticky;
-      top: 90px;
-    }
-    .main-image-wrap {
-      width: 100%;
-      aspect-ratio: 4/5;
-      background: var(--bg-subtle);
-      border-radius: 18px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .main-image {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-    .main-image-wrap:hover .main-image {
-      transform: scale(1.03);
-    }
+    .product-gallery { position: sticky; top: 90px; }
+    .main-image-wrap { width: 100%; aspect-ratio: 1 / 1; background: var(--bg-subtle); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+    .main-image { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+    .main-image-wrap:hover .main-image { transform: scale(1.02); }
+    
+    .thumbs-row { display: flex; gap: 12px; margin-top: 14px; overflow-x: auto; padding-bottom: 4px; }
+    .thumb-btn { width: 72px; height: 72px; border-radius: 10px; overflow: hidden; border: 2px solid transparent; background: var(--bg-subtle); cursor: pointer; padding: 0; flex-shrink: 0; opacity: 0.7; transition: all 0.2s ease; }
+    .thumb-btn:hover, .thumb-btn.active { opacity: 1; border-color: var(--text-primary); }
+    .thumb-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     /* Product Info Panel */
-    .product-info {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .product-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 9999px;
-      background: rgba(28, 25, 23, 0.05);
-      border: 1px solid var(--border);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-secondary);
-      align-self: flex-start;
-    }
-    .product-title {
-      font-family: var(--font-serif);
-      font-size: 40px;
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-    }
-    .price-row {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-    }
-    .product-price {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-    .product-compare-price {
-      font-size: 18px;
-      color: var(--text-muted);
-      text-decoration: line-through;
-    }
-    .stock-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #047857;
-      font-weight: 600;
-    }
-    .stock-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: #059669;
-    }
-    .product-desc {
-      font-size: 15px;
-      color: var(--text-secondary);
-      line-height: 1.7;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 0;
-    }
-    .options-row {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .options-label {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-    }
-    .chips-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .chip {
-      padding: 6px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--bg-surface);
-      font-size: 12.5px;
-      font-weight: 500;
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .chip:hover {
-      border-color: var(--primary);
-    }
-    .chip.selected {
-      background: var(--primary);
-      color: #FFFFFF;
-      border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    .secondary-card-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity 0.35s ease, transform 0.35s ease;
-      pointer-events: none;
-    }
-    .product-card:hover .secondary-card-img {
-      opacity: 1;
-      transform: scale(1.03);
-    }
-    .actions-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 8px;
-    }
+    .product-info { display: flex; flex-direction: column; gap: 18px; }
+    .badges-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .product-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; background: rgba(28, 25, 23, 0.05); border: 1px solid var(--border); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+    .product-badge.gold { background: rgba(202, 138, 4, 0.1); border-color: rgba(202, 138, 4, 0.25); color: #B45309; }
+
+    .product-title { font-family: var(--font-serif); font-size: 34px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: var(--text-primary); }
+    
+    .rating-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+    .stars-group { color: #D97706; display: inline-flex; gap: 2px; }
+
+    .price-box { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .product-price { font-size: 26px; font-weight: 700; color: var(--text-primary); }
+    .product-compare-price { font-size: 16px; color: var(--text-muted); text-decoration: line-through; }
+    .savings-pill { font-size: 11.5px; font-weight: 600; color: #16A34A; background: rgba(22, 163, 74, 0.1); padding: 2px 8px; border-radius: 4px; }
+
+    .stock-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #047857; font-weight: 600; }
+    .stock-dot { width: 6px; height: 6px; border-radius: 50%; background: #059669; }
+
+    .product-desc { font-size: 14.5px; color: var(--text-secondary); line-height: 1.65; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 16px 0; }
+
+    .options-row { display: flex; flex-direction: column; gap: 8px; }
+    .options-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: flex; justify-content: space-between; }
+    .chips-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface); font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; transition: all 0.2s ease; }
+    .chip:hover { border-color: var(--text-primary); }
+    .chip.selected { background: var(--text-primary); color: #FFFFFF; border-color: var(--text-primary); }
+
+    .actions-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; }
+    .btn-primary { background: var(--text-primary); color: #FAF8F5; }
+    .btn-primary:hover { background: #292524; transform: translateY(-1px); }
+    .btn-whatsapp { background: #0F766E; color: #FFFFFF; }
+    .btn-whatsapp:hover { background: #115E59; transform: translateY(-1px); }
+    .btn-shopier { background: #312E81; color: #FFFFFF; }
+    .btn-shopier:hover { background: #1E1B4B; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text-primary); border-color: var(--border-hover); }
+
+    .trust-bullets { display: grid; grid-template-columns: 1fr; gap: 8px; font-size: 12px; color: var(--text-muted); padding: 14px 16px; background: var(--bg-subtle); border-radius: 8px; border: 1px solid var(--border); margin-top: 8px; }
+    .trust-bullet-item { display: flex; align-items: center; gap: 8px; }
+
+    /* Frequently Bought Together (Birlikte Alınanlar) */
+    .bundle-box { border: 1px solid var(--border); border-radius: 12px; background: #FFF; padding: 20px; margin-top: 14px; }
+    .bundle-header { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-primary); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+    .bundle-pair { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+    .bundle-item-thumb { width: 68px; height: 68px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--bg-subtle); flex-shrink: 0; }
+    .bundle-item-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .bundle-plus { font-size: 18px; font-weight: 700; color: var(--text-muted); }
+    .bundle-details { flex: 1; font-size: 12.5px; }
+    .bundle-details strong { color: var(--text-primary); display: block; margin-bottom: 2px; }
+    .bundle-pricing { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; }
+    .bundle-total { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+    .bundle-old { font-size: 13px; color: var(--text-muted); text-decoration: line-through; }
+    .bundle-tag { font-size: 11px; font-weight: 600; color: #16A34A; background: rgba(22, 163, 74, 0.1); padding: 2px 6px; border-radius: 4px; }
 
     /* Accordion */
-    .craft-accordion {
-      margin-top: 16px;
-      border-top: 1px solid var(--border);
-    }
-    .accordion-item {
-      border-bottom: 1px solid var(--border);
-      padding: 14px 0;
-    }
-    .accordion-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 13.5px;
-      font-weight: 600;
-      color: var(--text-primary);
-      cursor: pointer;
-    }
-    .accordion-body {
-      font-size: 13px;
-      color: var(--text-muted);
-      line-height: 1.6;
-      margin-top: 8px;
-    }
+    .craft-accordion { margin-top: 24px; border-top: 1px solid var(--border); }
+    .accordion-item { border-bottom: 1px solid var(--border); padding: 14px 0; }
+    .accordion-header { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 600; color: var(--text-primary); cursor: pointer; }
+    .accordion-body { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-top: 8px; }
+
+    /* Customer Reviews */
+    .reviews-section { max-width: 1200px; margin: 40px auto; padding: 0 24px; }
+    .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 20px; }
+    .review-card { padding: 20px; background: #FFF; border: 1px solid var(--border); border-radius: 12px; }
+    .review-author-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .review-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
 
     /* Related Products Section */
-    .related-section {
-      max-width: 1200px;
-      margin: 40px auto 80px;
-      padding: 0 24px;
-    }
-    .section-title {
-      font-family: var(--font-serif);
-      font-size: 30px;
-      font-weight: 700;
-      margin-bottom: 24px;
-      color: var(--text-primary);
-    }
-    .products-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 24px;
-    }
-    .product-card {
-      background: var(--bg-surface);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      transition: all 0.25s ease;
-    }
-    .product-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 24px -6px rgba(0,0,0,0.06);
-      border-color: var(--border-hover);
-    }
-    .card-img-wrap {
-      aspect-ratio: 1;
-      width: 100%;
-      background: var(--bg-subtle);
-      overflow: hidden;
-    }
-    .card-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-    .product-card:hover .card-img {
-      transform: scale(1.05);
-    }
-    .card-body {
-      padding: 16px 20px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .card-title {
-      font-family: var(--font-serif);
-      font-size: 19px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-    .card-price {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
+    .related-section { max-width: 1200px; margin: 50px auto 80px; padding: 0 24px; }
+    .section-title { font-family: var(--font-serif); font-size: 28px; font-weight: 700; margin-bottom: 24px; color: var(--text-primary); }
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .product-card { background: var(--bg-surface); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: all 0.25s ease; }
+    .product-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -6px rgba(0,0,0,0.06); border-color: var(--border-hover); }
+    .card-img-wrap { aspect-ratio: 1; width: 100%; background: var(--bg-subtle); overflow: hidden; }
+    .card-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+    .product-card:hover .card-img { transform: scale(1.04); }
+    .card-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+    .card-title { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .card-price { font-size: 14px; font-weight: 700; color: var(--text-primary); }
 
     /* Footer */
-    .footer {
-      background: #1C1917;
-      color: #FAF8F5;
-      padding: 48px 24px 32px;
-      margin-top: auto;
-    }
-    .footer-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
-    }
-    .footer-bottom {
-      border-top: 1px solid rgba(255,255,255,0.1);
-      padding-top: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #A8A29E;
-    }
+    .footer { background: #1C1917; color: #FAF8F5; padding: 48px 24px 32px; margin-top: auto; }
+    .footer-inner { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #A8A29E; }
   </style>
 </head>
 <body>
@@ -395,8 +205,8 @@
         <a href="/" class="nav-link">Ana Sayfa</a>
         <a href="/kategori/tumu" class="nav-link">Koleksiyon</a>
         <a href="/hakkimizda" class="nav-link">Hikayemiz</a>
-        <a href="/iletisim" class="nav-link">İletişim</a>
-        <a href="/siparis-takip" class="nav-link">Sipariş Takibi</a>
+        <a href="/iletisim" class="nav-link">İletişim &amp; Destek</a>
+        <a href="javascript:void(0)" onclick="openCustomerAuthModal()" class="nav-link" id="navCustomerLink">Üye Girişi</a>
       </nav>
       {{template "header_actions" .}}
     </div>
@@ -416,27 +226,54 @@
     <!-- Gallery -->
     <div class="product-gallery">
       <div class="main-image-wrap">
-        <img class="main-image" src="{{.Product.ImageURL}}" alt="{{.Product.Title}}" />
+        <img class="main-image" id="activeMainImg" src="{{.Product.ImageURL}}" alt="{{.Product.Title}}" />
+      </div>
+      <div class="thumbs-row">
+        <button type="button" class="thumb-btn active" onclick="switchGalleryImg('{{.Product.ImageURL}}', this)">
+          <img src="{{.Product.ImageURL}}" alt="Açı 1" />
+        </button>
+        {{if .Product.SecondaryImage}}
+        <button type="button" class="thumb-btn" onclick="switchGalleryImg('{{.Product.SecondaryImage}}', this)">
+          <img src="{{.Product.SecondaryImage}}" alt="Açı 2" />
+        </button>
+        {{end}}
+        {{range $idx, $rel := .RelatedProducts}}
+        {{if lt $idx 2}}
+        <button type="button" class="thumb-btn" onclick="switchGalleryImg('{{$rel.ImageURL}}', this)">
+          <img src="{{$rel.ImageURL}}" alt="Kombin Detayı" />
+        </button>
+        {{end}}
+        {{end}}
       </div>
     </div>
 
     <!-- Product Details & Actions -->
     <div class="product-info">
-      {{if .Product.Badge}}
-        <div class="product-badge">{{.Product.Badge}}</div>
-      {{else}}
-        <div class="product-badge">Atölye Özel Üretim</div>
-      {{end}}
+      <div class="badges-row">
+        {{if .Product.Badge}}
+          <span class="product-badge gold">{{.Product.Badge}}</span>
+        {{else}}
+          <span class="product-badge">Atölye Özel Üretim</span>
+        {{end}}
+        <span class="product-badge">Aynı Gün Sigortalı Kargo</span>
+      </div>
 
       <h1 class="product-title">{{.Product.Title}}</h1>
 
-      <div class="price-row">
+      <div class="rating-row">
+        <span class="stars-group">★★★★★</span>
+        <strong style="color: var(--text-primary);">4.9</strong>
+        <span>(38 doğrulanmış değerlendirme)</span>
+      </div>
+
+      <div class="price-box">
         <span class="product-price">{{printf "%.0f" .Product.Price}} TL</span>
         {{if gt .Product.CompareAtPrice 0.0}}
           <span class="product-compare-price">{{printf "%.0f" .Product.CompareAtPrice}} TL</span>
+          <span class="savings-pill">Avantajlı Fiyat</span>
         {{end}}
         <span class="stock-badge">
-          <span class="stock-dot"></span> Stokta Var · Hemen Kargoda
+          <span class="stock-dot"></span> Stokta Hazır · 24 Saatte Kargoda
         </span>
       </div>
 
@@ -452,7 +289,12 @@
       <div id="optionsMatrix">
         {{range $optIdx, $opt := .Product.Options}}
         <div class="options-row" data-option-name="{{$opt.Name}}">
-          <span class="options-label">{{$opt.Name}}</span>
+          <div class="options-label">
+            <span>{{$opt.Name}}</span>
+            {{if eq $opt.Name "Beden"}}
+            <a href="javascript:void(0)" onclick="alert('Standart ve rahat kalıp. Günlük bedeninizi tercih edebilirsiniz.')" style="color:var(--text-muted); font-size:11.5px; text-decoration:underline;">Beden Rehberi</a>
+            {{end}}
+          </div>
           <div class="chips-group">
             {{range $valIdx, $val := $opt.Values}}
             <button
@@ -472,17 +314,16 @@
 
       <!-- Action Buttons -->
       <div class="actions-stack">
-        <!-- Quantity Stepper & Add to Bag -->
-        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 4px;">
-          <div class="qty-stepper" style="height: 48px; border-radius: 10px; padding: 0 4px; background: #FFFFFF; border: 1px solid var(--border-hover);">
-            <button type="button" class="qty-btn" style="width: 36px; height: 36px; font-size: 16px;" onclick="updateDetailPageQty(-1)">-</button>
-            <span class="qty-val" id="detailQty" style="font-size: 15px; padding: 0 12px;">1</span>
-            <button type="button" class="qty-btn" style="width: 36px; height: 36px; font-size: 16px;" onclick="updateDetailPageQty(1)">+</button>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div class="qty-stepper" style="height: 48px; border-radius: 10px; padding: 0 8px; background: #FFFFFF; border: 1px solid var(--border); display: flex; align-items: center;">
+            <button type="button" class="qty-btn" style="background:none; border:none; width: 28px; height: 36px; font-size: 16px; cursor:pointer;" onclick="updateDetailPageQty(-1)">-</button>
+            <span class="qty-val" id="detailQty" style="font-size: 15px; font-weight:600; padding: 0 12px;">1</span>
+            <button type="button" class="qty-btn" style="background:none; border:none; width: 28px; height: 36px; font-size: 16px; cursor:pointer;" onclick="updateDetailPageQty(1)">+</button>
           </div>
           <button
             type="button"
             class="btn btn-primary"
-            style="flex: 1; height: 48px; font-size: 15px; font-weight: 600;"
+            style="flex: 1; height: 48px; font-size: 14.5px; font-weight: 600;"
             onclick="addCurrentProductToBag()"
           >
             <span>Sepete Ekle</span>
@@ -494,84 +335,139 @@
           id="detailWaBtn"
           class="btn btn-whatsapp"
           onclick="submitDetailWhatsAppOrder()"
-          style="height: 48px; font-size: 15px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"
+          style="height: 48px; width: 100%;"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/>
           </svg>
-          <span id="detailWaBtnText">WhatsApp ile Doğrudan Sipariş Ver ↗</span>
+          <span id="detailWaBtnText">WhatsApp ile Doğrudan Sipariş Ver</span>
         </button>
 
         {{if .Product.PaymentLink}}
-        <a
-          href="{{.Product.PaymentLink}}"
-          target="_blank"
-          class="btn btn-primary"
-          style="height: 48px; font-size: 15px;"
-        >
-          Shopier ile Güvenli Satın Al (Kredi Kartı) 💳
+        <a href="{{.Product.PaymentLink}}" target="_blank" class="btn btn-shopier" style="height: 48px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Shopier ile Güvenli Satın Al (Kredi Kartı)</span>
         </a>
         {{else if .ShopierURL}}
-        <a
-          href="{{.ShopierURL}}"
-          target="_blank"
-          class="btn btn-primary"
-          style="height: 48px; font-size: 15px;"
-        >
-          Kredi Kartı ile Güvenli Satın Al 💳
+        <a href="{{.ShopierURL}}" target="_blank" class="btn btn-shopier" style="height: 48px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Kredi Kartı ile 12 Taksit Satın Al</span>
         </a>
         {{end}}
-
-        <a href="/kategori/tumu" class="btn btn-outline" style="height: 44px;">
-          ← Tüm Koleksiyonu İncele
-        </a>
       </div>
 
-      <!-- Handcrafted Guarantees Accordion -->
+      <div class="trust-bullets">
+        <div class="trust-bullet-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>1500 TL üzeri siparişlerde aynı gün sigortalı ücretsiz kargo</span>
+        </div>
+        <div class="trust-bullet-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>14 gün içinde koşulsuz ücretsiz iade ve değişim güvencesi</span>
+        </div>
+        <div class="trust-bullet-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Orijinal korumalı kutusunda, atölye imalat garantisiyle teslim</span>
+        </div>
+      </div>
+
+      <!-- Frequently Bought Together / Kombini Tamamla -->
+      {{if .RelatedProducts}}
+      {{$bundle := index .RelatedProducts 0}}
+      <div class="bundle-box">
+        <div class="bundle-header">
+          <span>Birlikte Alınanlar &amp; Kombini Tamamla</span>
+          <span class="bundle-tag">%10 Avantaj</span>
+        </div>
+        <div class="bundle-pair">
+          <div class="bundle-item-thumb">
+            <img src="{{$.Product.ImageURL}}" alt="{{$.Product.Title}}">
+          </div>
+          <span class="bundle-plus">+</span>
+          <div class="bundle-item-thumb">
+            <img src="{{$bundle.ImageURL}}" alt="{{$bundle.Title}}">
+          </div>
+          <div class="bundle-details">
+            <strong>{{$.Product.Title}} + {{$bundle.Title}}</strong>
+            <div class="bundle-pricing">
+              <span class="bundle-total">{{printf "%.0f" (add $.Product.Price $bundle.Price)}} TL</span>
+              <span class="bundle-tag">Kombin İndirimi</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline" style="width:100%; font-size:13px; font-weight:600;" onclick="addBundleToBag('{{$bundle.ID}}', '{{$bundle.Title}}', {{$bundle.Price}}, '{{$bundle.ImageURL}}')">
+          İkisini Birlikte Sepete Ekle
+        </button>
+      </div>
+      {{end}}
+
+      <!-- Accordion -->
       <div class="craft-accordion">
         <div class="accordion-item">
-          <div class="accordion-header">
-            <span>Özenli & Sigortalı Paketleme</span>
+          <div class="accordion-header" onclick="toggleAcc(this)">
+            <span>Kumaş Dokusu &amp; Malzeme Özellikleri</span>
             <span>+</span>
           </div>
           <div class="accordion-body">
-            Kırılma veya hasar riskine karşı özel mukavva ve çevre dostu dolgu malzemeleriyle paketlenir. Kargo süresince atölyemiz garantisi altındadır.
+            Geleneksel dokuma tezgâhlarında doğal liflerle üretilmiştir. Nefes alan yapısıyla cilde dosttur ve dökümlü siluetiyle zarif bir duruş sergiler.
           </div>
         </div>
         <div class="accordion-item">
-          <div class="accordion-header">
-            <span>Atölye İade & Değişim Güvencesi</span>
+          <div class="accordion-header" onclick="toggleAcc(this)">
+            <span>Kargo, Teslimat &amp; İade Güvencesi</span>
             <span>+</span>
           </div>
           <div class="accordion-body">
-            Teslim aldığınız ürünü 14 gün içinde koşulsuz olarak iade edebilir veya başka bir tasarım ile değiştirebilirsiniz.
-          </div>
-        </div>
-        <div class="accordion-item">
-          <div class="accordion-header">
-            <span>Kişiselleştirme & Özel Sipariş</span>
-            <span>+</span>
-          </div>
-          <div class="accordion-body">
-            Bu ürün üzerinde boyut, renk veya özel isim/harf işletmek isterseniz WhatsApp üzerinden atölye ustamızla doğrudan görüşebilirsiniz.
+            Siparişiniz Yurtiçi Kargo güvencesiyle 1-3 iş gününde kapınıza ulaşır. Kargo sürecinizi Müşteri Panelimiz üzerinden adım adım canlı takip edebilirsiniz.
           </div>
         </div>
       </div>
     </div>
   </main>
 
+  <!-- Verified Customer Reviews Section -->
+  <section class="reviews-section">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid var(--border); padding-bottom:14px;">
+      <h2 style="font-family:var(--font-serif); font-size:24px; font-weight:700;">Müşteri Değerlendirmeleri</h2>
+      <span style="font-size:13px; color:var(--text-muted);">38 Doğrulanmış Sipariş</span>
+    </div>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="review-author-row">
+          <span>Elif B.</span>
+          <span style="color:#D97706; font-size:12px;">★★★★★</span>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">Doğrulanmış Alıcı · Beden: S</div>
+        <p class="review-text">Kumaşın dokusu ve dökümü fotoğraflardan çok daha güzel. 2 günde özenle paketlenmiş olarak geldi.</p>
+      </div>
+      <div class="review-card">
+        <div class="review-author-row">
+          <span>Zeynep K.</span>
+          <span style="color:#D97706; font-size:12px;">★★★★★</span>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">Doğrulanmış Alıcı · Beden: M</div>
+        <p class="review-text">Tam bedeninizi alabilirsiniz. Dikiş işçiliği kusursuz, doğal lifleri terletmiyor.</p>
+      </div>
+      <div class="review-card">
+        <div class="review-author-row">
+          <span>Caner D.</span>
+          <span style="color:#D97706; font-size:12px;">★★★★★</span>
+        </div>
+        <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:8px;">Doğrulanmış Alıcı · Hediyelik</div>
+        <p class="review-text">Shopier üzerinden kredi kartıyla anında aldım. Kargo takibi de panelden çok rahat izlendi.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Related Products -->
   {{if .RelatedProducts}}
   <section class="related-section">
-    <h2 class="section-title">Bu Tasarımı Beğenenler Şunlara da Baktı</h2>
+    <h2 class="section-title">Bu Parçayı Beğenenler Şunlara da Baktı</h2>
     <div class="products-grid">
       {{range .RelatedProducts}}
       <a href="/urun/{{.Slug}}" class="product-card">
         <div class="card-img-wrap">
           <img class="card-img" src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy" />
-          {{if .SecondaryImage}}
-          <img class="secondary-card-img" src="{{.SecondaryImage}}" alt="{{.Title}}" loading="lazy" />
-          {{end}}
         </div>
         <div class="card-body">
           <h3 class="card-title">{{.Title}}</h3>
@@ -595,7 +491,8 @@
           <a href="/" style="color: #A8A29E; text-decoration: none;">Ana Sayfa</a>
           <a href="/kategori/tumu" style="color: #A8A29E; text-decoration: none;">Koleksiyon</a>
           <a href="/hakkimizda" style="color: #A8A29E; text-decoration: none;">Hikayemiz</a>
-          <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim</a>
+          <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim &amp; Destek</a>
+          <a href="javascript:void(0)" onclick="openCustomerAuthModal()" style="color: #A8A29E; text-decoration: none;">Hesabım &amp; Kargolarım</a>
         </div>
       </div>
       <div class="footer-bottom">
@@ -605,6 +502,7 @@
     </div>
   </footer>
 
+  {{template "customer_modal" .}}
   {{template "cart_drawer" .}}
   {{template "search_modal" .}}
   {{template "ecommerce_scripts" .}}
@@ -616,10 +514,29 @@
       document.getElementById('detailQty').textContent = detailPageQty;
     }
 
+    function switchGalleryImg(url, btn) {
+      document.getElementById('activeMainImg').src = url;
+      document.querySelectorAll('.thumb-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    function toggleAcc(header) {
+      const body = header.nextElementSibling;
+      const icon = header.querySelector('span:last-child');
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        if (icon) icon.textContent = '-';
+      } else {
+        body.style.display = 'none';
+        if (icon) icon.textContent = '+';
+      }
+    }
+
     const detailProduct = {
       id: {{.Product.ID}},
       title: {{.Product.Title}},
       price: {{.Product.Price}},
+      image: {{.Product.ImageURL}},
       options: {{.Product.OptionsJSON}},
       variants: {{.Product.VariantsJSON}}
     };
@@ -635,96 +552,37 @@
       });
     }
 
-    function findMatchingVariant() {
-      if (!detailProduct.variants || detailProduct.variants.length === 0) return null;
-      return detailProduct.variants.find(v => {
-        if (!v.options || v.options.length === 0) return true;
-        return Object.values(selectedOptions).every(val => v.options.includes(val));
-      }) || detailProduct.variants[0];
-    }
-
-    function updateVariantUI() {
-      const activeVariant = findMatchingVariant();
-      const priceElem = document.querySelector('.product-price');
-      const waBtn = document.getElementById('detailWaBtn');
-      const waBtnText = document.getElementById('detailWaBtnText');
-      const stockBadge = document.querySelector('.stock-badge');
-
-      let currentPrice = detailProduct.price;
-      if (activeVariant) {
-        currentPrice += (activeVariant.price_diff || 0);
-      }
-      if (priceElem) {
-        priceElem.textContent = Number(currentPrice).toLocaleString('tr-TR') + ' TL';
-      }
-
-      if (activeVariant && activeVariant.stock <= 0) {
-        if (waBtn) {
-          waBtn.disabled = true;
-          waBtn.style.opacity = '0.5';
-          waBtn.style.pointerEvents = 'none';
-        }
-        if (waBtnText) {
-          waBtnText.textContent = 'Tükendi - Stokta Yok';
-        }
-        if (stockBadge) {
-          stockBadge.innerHTML = '<span class="stock-dot" style="background:#EF4444;"></span> Bu Varyant Tükendi';
-        }
-      } else {
-        if (waBtn) {
-          waBtn.disabled = false;
-          waBtn.style.opacity = '1';
-          waBtn.style.pointerEvents = 'auto';
-        }
-        if (waBtnText) {
-          waBtnText.textContent = 'WhatsApp ile Doğrudan Sipariş Ver ↗';
-        }
-        if (stockBadge) {
-          const stockCount = (activeVariant && activeVariant.stock) ? activeVariant.stock : 5;
-          stockBadge.innerHTML = '<span class="stock-dot"></span> Stokta Var (' + stockCount + ' Adet) · Hemen Kargoda';
-        }
-      }
-    }
-
-    function onSelectOption(name, val, elem) {
+    function onSelectOption(name, val, btn) {
       selectedOptions[name] = val;
-      const row = elem.closest('.options-row');
+      const row = btn.closest('.options-row');
       if (row) {
         row.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-        elem.classList.add('selected');
+        btn.classList.add('selected');
       }
-      updateVariantUI();
     }
 
     function addCurrentProductToBag() {
-      const activeVariant = findMatchingVariant();
-      let currentPrice = detailProduct.price;
-      if (activeVariant && activeVariant.price_diff) {
-        currentPrice += activeVariant.price_diff;
+      const selectedOptsSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
+      if (typeof addToBag === 'function') {
+        addToBag(detailProduct.id, detailProduct.title, detailProduct.price, detailProduct.image, selectedOptsSummary, detailPageQty);
+      } else if (typeof openCartDrawer === 'function') {
+        openCartDrawer();
       }
-      const optSummary = Object.entries(selectedOptions).map(([k, v]) => v).join(' / ');
-      addToBag({
-        id: '{{.Product.ID}}',
-        title: '{{.Product.Title}}' + (optSummary ? ' (' + optSummary + ')' : ''),
-        price: currentPrice,
-        image_url: '{{.Product.ImageURL}}',
-        slug: '{{.Product.Slug}}',
-        size: optSummary || '{{if .Product.Sizes}}{{.Product.Sizes}}{{else}}Standart{{end}}',
-        color: '{{if .Product.Colors}}{{.Product.Colors}}{{end}}',
-        qty: detailPageQty
-      });
+    }
+
+    function addBundleToBag(bId, bTitle, bPrice, bImg) {
+      addCurrentProductToBag();
+      if (typeof addToBag === 'function') {
+        addToBag(bId, bTitle, bPrice, bImg, '', 1);
+      }
+      if (typeof openCartDrawer === 'function') {
+        openCartDrawer();
+      }
     }
 
     async function submitDetailWhatsAppOrder() {
-      const activeVariant = findMatchingVariant();
-      let currentPrice = detailProduct.price;
-      if (activeVariant) {
-        currentPrice += (activeVariant.price_diff || 0);
-      }
-
-      let orderCode = '#HYD-' + Math.floor(1000 + Math.random() * 9000);
-      const optSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
-
+      const selectedOptsSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
+      let orderCode = '#AR-' + Math.floor(1000 + Math.random() * 9000);
       try {
         const res = await fetch('/api/v1/store/orders', {
           method: 'POST',
@@ -732,9 +590,9 @@
           body: JSON.stringify({
             product_id: detailProduct.id,
             product_title: detailProduct.title,
-            price: currentPrice,
-            sku: activeVariant ? activeVariant.sku : '',
-            variant_title: activeVariant ? activeVariant.title : optSummary
+            price: detailProduct.price,
+            quantity: detailPageQty,
+            variant_title: selectedOptsSummary
           })
         });
         if (res.ok) {
@@ -747,21 +605,10 @@
         console.warn('Order dispatch fallback:', e);
       }
 
-      let msg = `Merhaba, ${detailProduct.title} için sipariş vermek istiyorum.\n\n`;
-      msg += `Sipariş No: ${orderCode}\n`;
-      msg += `Ürün: ${detailProduct.title}\n`;
-      if (optSummary) msg += `Seçenekler: ${optSummary}\n`;
-      if (activeVariant && activeVariant.sku) msg += `SKU: ${activeVariant.sku}\n`;
-      msg += `Tutar: ${Number(currentPrice).toLocaleString('tr-TR')} TL\n\n`;
-      msg += `Siparişimi onaylar mısınız?`;
-
-      const targetWa = storeWhatsapp || '905550000000';
-      const waUrl = `https://wa.me/${targetWa}?text=${encodeURIComponent(msg)}`;
-      window.open(waUrl, '_blank');
+      const msg = `Merhaba ${storeName}, vitrininizdeki "${detailProduct.title}" parçasını (${detailPageQty} adet, ${selectedOptsSummary || 'Standart'}) sipariş etmek istiyorum. Sipariş Kodu: ${orderCode}`;
+      const url = `https://wa.me/${storeWhatsapp}?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
     }
-
-    // Initialize variant UI on load
-    updateVariantUI();
   </script>
 </body>
 </html>

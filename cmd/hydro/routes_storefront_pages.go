@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -356,118 +357,13 @@ func (a *serveApp) storefrontContactHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *serveApp) storefrontOrderTrackingHandler(w http.ResponseWriter, r *http.Request) {
-	scope, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
-	if !ok {
-		return
+	target := "/?action=orders"
+	if q := r.URL.Query().Get("code"); q != "" {
+		target += "&code=" + url.QueryEscape(q)
+	} else if q := r.URL.Query().Get("q"); q != "" {
+		target += "&code=" + url.QueryEscape(q)
 	}
-
-	storeName := gov.DisplayName
-	if name, ok := settings["brand_name"].(string); ok && strings.TrimSpace(name) != "" {
-		storeName = strings.TrimSpace(name)
-	}
-
-	slogan := "Özgün Zanaat & Lüks Butik"
-	if s, ok := settings["tagline"].(string); ok {
-		slogan = s
-	} else if s, ok := settings["slogan"].(string); ok {
-		slogan = s
-	}
-
-	primaryColor := "#8C6D46"
-	if c, ok := settings["primary_color"].(string); ok && strings.TrimSpace(c) != "" {
-		primaryColor = strings.TrimSpace(c)
-	}
-
-	bgTone := "#FAF8F5"
-	if bg, ok := settings["bg_tone"].(string); ok && strings.TrimSpace(bg) != "" {
-		bgTone = strings.TrimSpace(bg)
-	}
-
-	cleanPhone := gov.OwnerPhone
-	if phone, ok := settings["whatsapp_number"].(string); ok && strings.TrimSpace(phone) != "" {
-		cleanPhone = strings.TrimSpace(phone)
-	}
-
-	fontPreset := "v0_geist"
-	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
-		fontPreset = strings.TrimSpace(fp)
-	}
-
-	prodsBytes, _ := json.Marshal(products)
-
-	queryCode := strings.TrimSpace(r.URL.Query().Get("code"))
-	if queryCode == "" {
-		queryCode = strings.TrimSpace(r.URL.Query().Get("q"))
-	}
-
-	trackingData := storefront.OrderTrackingData{
-		StoreName:    storeName,
-		Slogan:       slogan,
-		PrimaryColor: primaryColor,
-		BGTone:       bgTone,
-		CleanPhone:   cleanPhone,
-		FontPreset:   fontPreset,
-		QueryCode:    queryCode,
-		ProductsJSON: template.JS(prodsBytes),
-	}
-
-	if queryCode != "" {
-		cleanQ := strings.ToUpper(strings.TrimPrefix(queryCode, "#"))
-		cleanPhoneQ := strings.ReplaceAll(queryCode, " ", "")
-
-		tenantCtx := tenant.WithScope(r.Context(), scope)
-		recs, err := a.collectionService.ListRecords(tenantCtx, "orders", 100, 0)
-		if err != nil || len(recs) == 0 {
-			recs, _ = a.collectionService.ListRecords(tenantCtx, "boutique_orders", 100, 0)
-		}
-
-		for _, r := range recs {
-			d := r.Data
-			code, _ := d["order_code"].(string)
-			if code == "" {
-				code, _ = d["order_no"].(string)
-			}
-			cleanCode := strings.ToUpper(strings.TrimPrefix(code, "#"))
-			phone, _ := d["customer_phone"].(string)
-			cleanRecPhone := strings.ReplaceAll(phone, " ", "")
-
-			if strings.EqualFold(cleanCode, cleanQ) || strings.EqualFold(code, cleanQ) || (cleanPhoneQ != "" && strings.Contains(cleanRecPhone, cleanPhoneQ)) {
-				trackingData.OrderFound = true
-				trackingData.OrderCode = code
-				if trackingData.OrderCode == "" {
-					trackingData.OrderCode = r.ID
-				}
-				if st, ok := d["order_status"].(string); ok && st != "" {
-					trackingData.OrderStatus = st
-				} else if st, ok := d["status"].(string); ok && st != "" {
-					trackingData.OrderStatus = st
-				} else {
-					trackingData.OrderStatus = "yeni"
-				}
-				trackingData.CustomerName, _ = d["customer_name"].(string)
-				trackingData.CustomerPhone, _ = d["customer_phone"].(string)
-				trackingData.CustomerAddress, _ = d["customer_address"].(string)
-				if trackingData.CustomerAddress == "" {
-					trackingData.CustomerAddress, _ = d["shipping_address"].(string)
-				}
-				trackingData.ItemsSummary, _ = d["items_summary"].(string)
-				if trackingData.ItemsSummary == "" {
-					trackingData.ItemsSummary, _ = d["items_json"].(string)
-				}
-				if tot, ok := d["total_amount"].(float64); ok {
-					trackingData.TotalAmount = tot
-				} else if tot, ok := d["total_price"].(float64); ok {
-					trackingData.TotalAmount = tot
-				}
-				trackingData.TrackingCode, _ = d["tracking_code"].(string)
-				trackingData.Carrier, _ = d["carrier"].(string)
-				trackingData.OrderDate = r.CreatedAt.Format("02.01.2006 15:04")
-				break
-			}
-		}
-	}
-
-	_ = storefront.RenderOrderTracking(w, r, trackingData)
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 func (a *serveApp) storefrontTrackOrderAPIHandler(w http.ResponseWriter, r *http.Request) {

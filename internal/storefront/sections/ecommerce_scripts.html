@@ -515,7 +515,7 @@
     <a href="/kategori/tumu" class="store-nav-link" onclick="closeStoreNav()">Tüm Koleksiyon <span style="opacity:0.4;">&rarr;</span></a>
     <a href="/hakkimizda" class="store-nav-link" onclick="closeStoreNav()">Atölye Hikayesi <span style="opacity:0.4;">&rarr;</span></a>
     <a href="/iletisim" class="store-nav-link" onclick="closeStoreNav()">İletişim &amp; Randevu <span style="opacity:0.4;">&rarr;</span></a>
-    <a href="/siparis-takip" class="store-nav-link" onclick="closeStoreNav()">Sipariş Takibi <span style="opacity:0.4;">&rarr;</span></a>
+    <a href="javascript:void(0)" class="store-nav-link" onclick="closeStoreNav(); openCustomerAuthModal();">Hesabım &amp; Siparişlerim <span style="opacity:0.4;">&rarr;</span></a>
     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E7E5E4;">
       <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="store-nav-link" style="color: #15803D; font-weight: 600;">
         WhatsApp Destek Hattı <span>💬</span>
@@ -803,7 +803,7 @@
     hydroCart = [];
     saveCart();
     closeCartDrawer();
-    window.location.href = `/siparis-takip?code=${orderCode}`;
+    window.location.href = `/?action=orders&code=${orderCode}`;
   }
 
   // --- Instant Search Modal Logic ---
