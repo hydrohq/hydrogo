@@ -390,19 +390,14 @@ func buildStorefrontEditorial(settings map[string]any, storeName, notes string) 
 func (a *serveApp) loadTenantStoreSettings(ctx context.Context, gov tenant.Governance) map[string]any {
 	primary := "#8C6D46"
 	bg := "#FAF8F5"
-	switch gov.Blueprint {
-	case blueprints.ArchetypeSaaS:
-		primary = "#2563EB"
-		bg = "#09090B"
-	case blueprints.ArchetypeRestaurant:
-		primary = "#B45309"
-		bg = "#18181B"
-	case blueprints.ArchetypeCorporate:
-		primary = "#1E3A8A"
-		bg = "#F8FAFC"
-	case blueprints.ArchetypePortfolio:
-		primary = "#0F172A"
-		bg = "#F8FAFC"
+	colors := map[string][2]string{
+		blueprints.ArchetypeSaaS:       {"#2563EB", "#09090B"},
+		blueprints.ArchetypeRestaurant: {"#B45309", "#18181B"},
+		blueprints.ArchetypeCorporate:  {"#1E3A8A", "#F8FAFC"},
+		blueprints.ArchetypePortfolio:  {"#0F172A", "#F8FAFC"},
+	}
+	if c, ok := colors[gov.Blueprint]; ok {
+		primary, bg = c[0], c[1]
 	}
 
 	out := map[string]any{
@@ -413,7 +408,6 @@ func (a *serveApp) loadTenantStoreSettings(ctx context.Context, gov tenant.Gover
 		"announcement_bar": "1500 TL ve Üzeri Siparişlerde Ücretsiz Kargo · WhatsApp ile Hızlı Sipariş",
 	}
 
-	// Look up site_settings first (for corporate/restaurant/saas/portfolio), then store_settings (boutique)
 	recs, err := a.collectionService.ListRecords(ctx, "site_settings", 1, 0)
 	if err != nil || len(recs) == 0 {
 		recs, err = a.collectionService.ListRecords(ctx, "store_settings", 1, 0)
@@ -421,6 +415,23 @@ func (a *serveApp) loadTenantStoreSettings(ctx context.Context, gov tenant.Gover
 	if err == nil && len(recs) > 0 {
 		for k, v := range recs[0].Data {
 			out[k] = v
+		}
+	}
+	if a.db != nil {
+		if scope, sErr := tenant.FromContext(ctx); sErr == nil && scope.TenantID != "" {
+			q := "SELECT key, value FROM site_settings WHERE tenant_id = ?"
+			if string(a.cfg.Database.Dialect) == "postgres" {
+				q = "SELECT key, value FROM site_settings WHERE tenant_id = $1"
+			}
+			if rows, rErr := a.db.QueryContext(ctx, q, scope.TenantID); rErr == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var k, v string
+					if rows.Scan(&k, &v) == nil {
+						out[k] = v
+					}
+				}
+			}
 		}
 	}
 	return out
