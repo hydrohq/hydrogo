@@ -72,6 +72,13 @@ func (a *serveApp) renderArchetypeStorefront(w http.ResponseWriter, r *http.Requ
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		return true
+
+	case blueprints.ArchetypeNews:
+		data := a.loadNewsData(tenantCtx, gov, settings, r)
+		if err := storefront.RenderNews(w, r, data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return true
 	}
 
 	return false
@@ -527,6 +534,134 @@ func (a *serveApp) storefrontWaitlistHandler(w http.ResponseWriter, r *http.Requ
 		_, _ = a.collectionService.CreateRecord(tenantCtx, "waitlist", req)
 	}
 	api.WriteData(w, http.StatusOK, map[string]any{"success": true, "message": "Erken erişim kaydınız alındı."}, nil)
+}
+
+func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, settings map[string]any, r *http.Request) storefront.NewsData {
+	data := storefront.NewsData{
+		BrandName:    gov.DisplayName,
+		Tagline:      "Bağımsız Dijital Gazete, Derinlemesine Analiz & Teknoloji",
+		PrimaryColor: "#DC2626",
+		BGTone:       "#09090B",
+		FontPreset:   "editorial_playfair",
+		BreakingNews: "Yapay Zeka Regülasyonlarında Yeni Dönem: Küresel Açık Kaynak Standartları Kabul Edildi",
+		ContactEmail: fmt.Sprintf("editor@%s.%s", gov.TenantID, a.getBaseDomain()),
+		ActivePage:   "home",
+	}
+
+	if s, ok := settings["brand_name"].(string); ok && s != "" {
+		data.BrandName = s
+	}
+	if s, ok := settings["tagline"].(string); ok && s != "" {
+		data.Tagline = s
+	}
+	if s, ok := settings["primary_color"].(string); ok && s != "" {
+		data.PrimaryColor = s
+	}
+	if s, ok := settings["bg_tone"].(string); ok && s != "" {
+		data.BGTone = s
+	}
+	if s, ok := settings["font_preset"].(string); ok && s != "" {
+		data.FontPreset = s
+	}
+	if s, ok := settings["breaking_news"].(string); ok && s != "" {
+		data.BreakingNews = s
+	}
+	if s, ok := settings["contact_email"].(string); ok && s != "" {
+		data.ContactEmail = s
+	}
+
+	var allArticles []storefront.NewsArticle
+	if a.collectionService.Repository != nil {
+		if recs, err := a.collectionService.ListRecords(ctx, "news_categories", 20, 0); err == nil {
+			for _, rec := range recs {
+				data.Categories = append(data.Categories, storefront.NewsCategory{
+					Name: strVal(rec.Data["name"]),
+					Slug: strVal(rec.Data["slug"]),
+				})
+			}
+		}
+		if recs, err := a.collectionService.ListRecords(ctx, "news_articles", 50, 0); err == nil {
+			for _, rec := range recs {
+				allArticles = append(allArticles, storefront.NewsArticle{
+					Title:        strVal(rec.Data["title"]),
+					Slug:         strVal(rec.Data["slug"]),
+					CategorySlug: strVal(rec.Data["category_slug"]),
+					Excerpt:      strVal(rec.Data["excerpt"]),
+					Body:         strVal(rec.Data["body"]),
+					ImageURL:     strVal(rec.Data["image_url"]),
+					AuthorName:   strVal(rec.Data["author_name"]),
+					ReadingTime:  intVal(rec.Data["reading_time"]),
+					PublishedAt:  strVal(rec.Data["published_at"]),
+					IsLead:       boolVal(rec.Data["is_lead"]),
+					IsTrending:   boolVal(rec.Data["is_trending"]),
+				})
+			}
+		}
+	}
+
+	if len(allArticles) == 0 {
+		_, defaultCats, defaultArts := blueprints.GenerateNewsCatalog(data.BrandName, "", "")
+		for _, c := range defaultCats {
+			data.Categories = append(data.Categories, storefront.NewsCategory{
+				Name: strVal(c["name"]),
+				Slug: strVal(c["slug"]),
+			})
+		}
+		for _, art := range defaultArts {
+			allArticles = append(allArticles, storefront.NewsArticle{
+				Title:        strVal(art["title"]),
+				Slug:         strVal(art["slug"]),
+				CategorySlug: strVal(art["category_slug"]),
+				Excerpt:      strVal(art["excerpt"]),
+				Body:         strVal(art["body"]),
+				ImageURL:     strVal(art["image_url"]),
+				AuthorName:   strVal(art["author_name"]),
+				ReadingTime:  intVal(art["reading_time"]),
+				PublishedAt:  strVal(art["published_at"]),
+				IsLead:       boolVal(art["is_lead"]),
+				IsTrending:   boolVal(art["is_trending"]),
+			})
+		}
+	}
+
+	p := strings.Trim(r.URL.Path, "/")
+	if strings.HasPrefix(p, "haber/") || strings.HasPrefix(p, "news/") {
+		slug := strings.TrimPrefix(strings.TrimPrefix(p, "haber/"), "news/")
+		for _, a := range allArticles {
+			if strings.EqualFold(a.Slug, slug) {
+				artCopy := a
+				data.ActiveArticle = &artCopy
+				data.ActivePage = "article"
+				break
+			}
+		}
+	} else if strings.HasPrefix(p, "kategori/") || strings.HasPrefix(p, "category/") {
+		catSlug := strings.TrimPrefix(strings.TrimPrefix(p, "kategori/"), "category/")
+		data.ActiveCategory = catSlug
+		data.ActivePage = "category"
+	}
+
+	for i := range allArticles {
+		art := allArticles[i]
+		if data.ActiveCategory != "" && !strings.EqualFold(art.CategorySlug, data.ActiveCategory) {
+			continue
+		}
+		if art.IsLead && data.LeadArticle == nil {
+			leadCopy := art
+			data.LeadArticle = &leadCopy
+		} else {
+			data.Articles = append(data.Articles, art)
+		}
+		if art.IsTrending && len(data.Trending) < 5 {
+			data.Trending = append(data.Trending, art)
+		}
+	}
+	if data.LeadArticle == nil && len(allArticles) > 0 {
+		leadCopy := allArticles[0]
+		data.LeadArticle = &leadCopy
+	}
+
+	return data
 }
 
 func strVal(v any) string {

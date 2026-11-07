@@ -16,6 +16,7 @@ const (
 	ArchetypeRestaurant = "restaurant"
 	ArchetypeSaaS       = "saas"
 	ArchetypePortfolio  = "portfolio"
+	ArchetypeNews       = "news"
 )
 
 // NormalizeArchetype standardizes an incoming archetype/site_type string.
@@ -30,6 +31,8 @@ func NormalizeArchetype(s string) string {
 		return ArchetypeSaaS
 	case "portfolio", "portfolyo", "studio", "stüdyo", "architect", "artist", "sanatci":
 		return ArchetypePortfolio
+	case "news", "haber", "portal", "medya", "gazete", "dergi", "press":
+		return ArchetypeNews
 	case "boutique", "eticaret", "e-ticaret", "ecommerce", "store", "magaza":
 		return ArchetypeBoutique
 	default:
@@ -44,6 +47,9 @@ func NormalizeArchetype(s string) string {
 		}
 		if strings.Contains(lower, "portfolyo") || strings.Contains(lower, "portfolio") || strings.Contains(lower, "sanat") || strings.Contains(lower, "mimar") || strings.Contains(lower, "studio") {
 			return ArchetypePortfolio
+		}
+		if strings.Contains(lower, "haber") || strings.Contains(lower, "gazete") || strings.Contains(lower, "news") || strings.Contains(lower, "portal") || strings.Contains(lower, "medya") {
+			return ArchetypeNews
 		}
 		return ArchetypeBoutique
 	}
@@ -60,6 +66,8 @@ func ArchetypeDefinitions(archetype string) []contenttypes.Definition {
 		return SaaSDefinitions()
 	case ArchetypePortfolio:
 		return PortfolioDefinitions()
+	case ArchetypeNews:
+		return NewsDefinitions()
 	default:
 		return BoutiqueDefinitions()
 	}
@@ -92,6 +100,8 @@ func SeedArchetypeSite(ctx context.Context, colSvc collections.Service, scope te
 		return SeedSaaSStore(ctx, colSvc, scope, name, phone, prompt)
 	case ArchetypePortfolio:
 		return SeedPortfolioStore(ctx, colSvc, scope, name, phone, prompt)
+	case ArchetypeNews:
+		return SeedNewsStore(ctx, colSvc, scope, name, phone, prompt)
 	default:
 		settings, products := GenerateLuxuryCatalog(name, phone, prompt)
 		return SeedBoutiqueStore(ctx, colSvc, scope, settings, products)

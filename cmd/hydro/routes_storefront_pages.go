@@ -108,9 +108,21 @@ func (a *serveApp) storefrontProductHandler(w http.ResponseWriter, r *http.Reque
 
 // Category Listing Page (GET /kategori/{slug} & GET /collections/{slug})
 func (a *serveApp) storefrontCategoryHandler(w http.ResponseWriter, r *http.Request) {
-	_, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
+	scope, gov, settings, products, ok := a.resolveStorefrontContext(w, r)
 	if !ok {
 		return
+	}
+
+	archetype := blueprints.NormalizeArchetype(gov.Blueprint)
+	if at, ok := settings["archetype"].(string); ok && at != "" {
+		archetype = blueprints.NormalizeArchetype(at)
+	} else if st, ok := settings["site_type"].(string); ok && st != "" {
+		archetype = blueprints.NormalizeArchetype(st)
+	}
+	if archetype != blueprints.ArchetypeBoutique {
+		if a.renderArchetypeStorefront(w, r, gov, settings, scope, archetype) {
+			return
+		}
 	}
 
 	slug := strings.TrimSpace(r.PathValue("slug"))
