@@ -613,6 +613,8 @@ type NewsData struct {
 	MarketTickers        []MarketTicker        `json:"market_tickers"`
 	TrendingTags         []string              `json:"trending_tags"`
 	Comments             []NewsComment         `json:"comments"`
+	SearchQuery          string                `json:"search_query"`
+	SearchResults        []NewsArticle         `json:"search_results"`
 	WeatherCity          string                `json:"weather_city"`
 	WeatherTemp          string                `json:"weather_temp"`
 	WeatherDesc          string                `json:"weather_desc"`

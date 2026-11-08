@@ -1,5 +1,20 @@
 {{define "news_scripts"}}
 <script>
+window.__HP_ARTICLES__ = [
+  {{range .FeaturedManset}}
+  { title: {{.Title}}, slug: {{.Slug}}, category: {{.CategorySlug}}, excerpt: {{.Excerpt}}, image: {{.ImageURL}}, author: {{.AuthorName}} },
+  {{end}}
+  {{range .Articles}}
+  { title: {{.Title}}, slug: {{.Slug}}, category: {{.CategorySlug}}, excerpt: {{.Excerpt}}, image: {{.ImageURL}}, author: {{.AuthorName}} },
+  {{end}}
+  {{range .PopularNews}}
+  { title: {{.Title}}, slug: {{.Slug}}, category: {{.CategorySlug}}, excerpt: {{.Excerpt}}, image: {{.ImageURL}}, author: {{.AuthorName}} },
+  {{end}}
+  {{range .SideManset}}
+  { title: {{.Title}}, slug: {{.Slug}}, category: {{.CategorySlug}}, excerpt: {{.Excerpt}}, image: {{.ImageURL}}, author: {{.AuthorName}} },
+  {{end}}
+];
+
 // --- 1. Manşet Carousel Auto-Rotation & Tab Switching ---
 let currentMansetIndex = 0;
 let mansetTimer = null;
@@ -182,16 +197,28 @@ function toggleReaction(type) {
   el.parentElement.classList.add('active');
 }
 
-// --- 7. Comments Form Submission ---
+// --- 7. Comments Form Submission & KVKK Validation ---
 function submitComment(e) {
   e.preventDefault();
+  const consent = document.getElementById('hpCommentConsent');
+  if (consent && !consent.checked) {
+    alert('Lütfen yorumunuzu göndermeden önce Yayın İlkeleri ve KVKK onay kutusunu işaretleyiniz.');
+    return;
+  }
+
   const nameInput = document.getElementById('hpCommentAuthor');
+  const emailInput = document.getElementById('hpCommentEmail');
   const textInput = document.getElementById('hpCommentBody');
   if (!nameInput || !textInput) return;
 
   const author = nameInput.value.trim();
+  const email = emailInput ? emailInput.value.trim() : '';
   const content = textInput.value.trim();
   if (!author || !content) return;
+
+  // Persist reader info for frictionless return
+  localStorage.setItem('hp_reader_name', author);
+  if (email) localStorage.setItem('hp_reader_email', email);
 
   const initials = author.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'OK';
 
@@ -204,6 +231,7 @@ function submitComment(e) {
       <div class="hp-comment-content">
         <div class="hp-comment-meta">
           <span class="hp-comment-author">${author}</span>
+          <span class="hp-reader-badge" style="font-size:10px; font-weight:800; color:var(--hp-primary); background:var(--hp-primary-light); padding:2px 6px; border-radius:4px;">Doğrulanmış Okur</span>
           <span class="hp-comment-time">Az önce</span>
         </div>
         <p class="hp-comment-text">${content}</p>
@@ -219,8 +247,24 @@ function submitComment(e) {
   }
 
   textInput.value = '';
-  nameInput.value = '';
-  alert('Yorumunuz kaydedildi ve yayına alındı.');
+  alert('Yorumunuz editöryal inceleme sırasına alındı ve önizlemeniz eklendi.');
+}
+
+// Prefill reader credentials if available
+function initCommentReader() {
+  const savedName = localStorage.getItem('hp_reader_name');
+  const savedEmail = localStorage.getItem('hp_reader_email');
+  const nameEl = document.getElementById('hpCommentAuthor');
+  const emailEl = document.getElementById('hpCommentEmail');
+  const statusEl = document.getElementById('hpCommentReaderStatus');
+
+  if (savedName && nameEl) {
+    nameEl.value = savedName;
+    if (savedEmail && emailEl) emailEl.value = savedEmail;
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="hp-reader-hint">Hoş geldiniz <strong>${savedName}</strong>, yorumunuz doğrulanmış okur kimliğinizle yayımlanacaktır.</span>`;
+    }
+  }
 }
 
 // --- 8. Daily Poll Voting with Animated Results ---
@@ -262,26 +306,58 @@ function submitNewsletter(e) {
   alert('Aboneliğiniz başarıyla oluşturuldu.');
 }
 
-// --- 10. Infinite Scroll Sentinel for Next Article ---
+// --- 10. Continuous Infinite Scroll with Viewport URL Sync ---
+function trackArticleReadingStream() {
+  const articles = document.querySelectorAll('.hp-article-root');
+  if (!articles.length) return;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.25) {
+        const slug = entry.getAttribute('data-slug');
+        const title = entry.getAttribute('data-title');
+        if (slug && window.location.pathname !== `/haber/${slug}`) {
+          window.history.replaceState({ slug: slug }, '', `/haber/${slug}`);
+          if (title) {
+            const parts = document.title.split('—');
+            const brand = parts.length > 1 ? parts[parts.length - 1].trim() : 'Nexus Haber';
+            document.title = `${title} — ${brand}`;
+          }
+        }
+      }
+    });
+  }, { threshold: [0.25, 0.5] });
+
+  articles.forEach(art => observer.observe(art));
+}
+
 function initInfiniteScroll() {
   const sentinel = document.getElementById('hpInfiniteSentinel');
   if (!sentinel) return;
 
-  let loaded = false;
+  trackArticleReadingStream();
+
+  let isLoading = false;
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting && !loaded) {
-        loaded = true;
+      if (entry.isIntersecting && !isLoading) {
         const nextSlug = sentinel.getAttribute('data-next-slug');
-        if (!nextSlug) return;
+        if (!nextSlug) {
+          sentinel.style.display = 'none';
+          return;
+        }
 
-        // Fetch next article HTML fragment or transition
+        isLoading = true;
         fetch(`/haber/${nextSlug}`)
-          .then(res => res.text())
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.text();
+          })
           .then(html => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const nextArticle = doc.getElementById(`article-${nextSlug}`) || doc.querySelector('.hp-article-root');
+
             if (nextArticle) {
               const stream = document.getElementById('hpArticleStream');
               if (stream) {
@@ -290,32 +366,171 @@ function initInfiniteScroll() {
                 divider.innerHTML = `<span class="hp-divider-tag">SIRADAKİ HABER</span><div class="hp-divider-line"></div>`;
                 stream.insertBefore(divider, sentinel);
                 stream.insertBefore(nextArticle, sentinel);
-                window.history.pushState({}, '', `/haber/${nextSlug}`);
-                document.title = nextArticle.getAttribute('data-title') || document.title;
+                trackArticleReadingStream();
               }
             }
-            sentinel.style.display = 'none';
+
+            // Look for the next article sentinel in the fetched page
+            const newSentinel = doc.getElementById('hpInfiniteSentinel');
+            if (newSentinel && newSentinel.getAttribute('data-next-slug') && newSentinel.getAttribute('data-next-slug') !== nextSlug) {
+              const newerSlug = newSentinel.getAttribute('data-next-slug');
+              const newerTitle = newSentinel.getAttribute('data-next-title');
+              sentinel.setAttribute('data-next-slug', newerSlug);
+              sentinel.setAttribute('data-next-title', newerTitle || '');
+              const indicator = sentinel.querySelector('.hp-infinite-indicator strong');
+              if (indicator && newerTitle) indicator.textContent = newerTitle;
+              isLoading = false;
+            } else {
+              sentinel.style.display = 'none';
+            }
           })
-          .catch(err => console.error('Next article load error:', err));
+          .catch(err => {
+            console.error('Infinite scroll fetch error:', err);
+            sentinel.style.display = 'none';
+          });
       }
     });
-  }, { rootMargin: '300px' });
+  }, { rootMargin: '400px' });
 
   observer.observe(sentinel);
 }
 
-// Search Modal
+// --- 11. In-Page Modern Search Modal (Instant Client Autocomplete) ---
 function openSearchModal() {
-  const q = prompt('Aramak istediğiniz anahtar kelimeyi yazınız:');
-  if (q && q.trim()) {
-    window.location.href = `/?q=${encodeURIComponent(q.trim())}`;
+  const overlay = document.getElementById('hpSearchModalOverlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    const input = document.getElementById('hpLiveSearchInput');
+    if (input) {
+      setTimeout(() => input.focus(), 60);
+    }
   }
 }
+
+function closeSearchModal() {
+  const overlay = document.getElementById('hpSearchModalOverlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function closeSearchModalOnBackdrop(e) {
+  if (e.target && e.target.id === 'hpSearchModalOverlay') {
+    closeSearchModal();
+  }
+}
+
+function clearNewsSearch() {
+  const input = document.getElementById('hpLiveSearchInput');
+  if (input) {
+    input.value = '';
+    onNewsSearchInput('');
+    input.focus();
+  }
+}
+
+function searchTag(tag) {
+  const input = document.getElementById('hpLiveSearchInput');
+  if (input) {
+    input.value = tag;
+    onNewsSearchInput(tag);
+  }
+}
+
+function onNewsSearchKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const input = document.getElementById('hpLiveSearchInput');
+    const val = input ? input.value.trim() : '';
+    if (val) {
+      window.location.href = `/?q=${encodeURIComponent(val)}`;
+    }
+  } else if (e.key === 'Escape') {
+    closeSearchModal();
+  }
+}
+
+function onNewsSearchInput(val) {
+  const clearBtn = document.getElementById('hpSearchClearBtn');
+  const promptBox = document.getElementById('hpSearchPrompt');
+  const resultsBox = document.getElementById('hpSearchResultsList');
+  const emptyBox = document.getElementById('hpSearchEmpty');
+  const fullLink = document.getElementById('hpSearchFullLink');
+
+  const q = (val || '').trim().toLowerCase();
+  if (clearBtn) clearBtn.classList.toggle('hidden', !q);
+  if (fullLink) fullLink.href = `/?q=${encodeURIComponent(val || '')}`;
+
+  if (!q) {
+    if (promptBox) promptBox.classList.remove('hidden');
+    if (resultsBox) resultsBox.classList.add('hidden');
+    if (emptyBox) emptyBox.classList.add('hidden');
+    return;
+  }
+
+  // Search through articles
+  const articles = window.__HP_ARTICLES__ || [];
+  const seen = new Set();
+  const matched = [];
+
+  for (let i = 0; i < articles.length; i++) {
+    const art = articles[i];
+    if (!art || !art.slug || seen.has(art.slug)) continue;
+    const titleMatch = (art.title || '').toLowerCase().includes(q);
+    const excerptMatch = (art.excerpt || '').toLowerCase().includes(q);
+    const catMatch = (art.category || '').toLowerCase().includes(q);
+    const authorMatch = (art.author || '').toLowerCase().includes(q);
+
+    if (titleMatch || excerptMatch || catMatch || authorMatch) {
+      seen.add(art.slug);
+      matched.push(art);
+      if (matched.length >= 8) break;
+    }
+  }
+
+  if (promptBox) promptBox.classList.add('hidden');
+
+  if (matched.length > 0) {
+    if (emptyBox) emptyBox.classList.add('hidden');
+    if (resultsBox) {
+      resultsBox.classList.remove('hidden');
+      resultsBox.innerHTML = matched.map(art => `
+        <a href="/haber/${art.slug}" class="hp-search-res-item">
+          <div class="hp-search-res-thumb">
+            <img src="${art.image || 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=300&q=80'}" alt="${art.title}">
+          </div>
+          <div class="hp-search-res-info">
+            <span class="hp-search-res-cat">${art.category || 'Gündem'}</span>
+            <h4 class="hp-search-res-title">${art.title}</h4>
+            <p class="hp-search-res-excerpt">${art.excerpt || ''}</p>
+          </div>
+        </a>
+      `).join('');
+    }
+  } else {
+    if (resultsBox) resultsBox.classList.add('hidden');
+    if (emptyBox) emptyBox.classList.remove('hidden');
+  }
+}
+
+// Global keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeSearchModal();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openSearchModal();
+  }
+});
 
 // Boot
 document.addEventListener('DOMContentLoaded', () => {
   initMansetCarousel();
   initInfiniteScroll();
+  initCommentReader();
 });
 </script>
 {{end}}
