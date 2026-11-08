@@ -115,6 +115,7 @@ var (
 	contactTmpl       *template.Template
 	orderTrackingTmpl *template.Template
 	policyTmpl        *template.Template
+	accountTmpl       *template.Template
 	tmplErr           error
 )
 
@@ -169,6 +170,10 @@ func initTemplates() {
 			return
 		}
 		policyTmpl, tmplErr = template.New("policy_view.html").Funcs(funcs).ParseFS(templateFS, "policy_view.html", "sections/*.html")
+		if tmplErr != nil {
+			return
+		}
+		accountTmpl, tmplErr = template.New("account_view.html").Funcs(funcs).ParseFS(templateFS, "account_view.html", "sections/*.html")
 	})
 }
 
@@ -635,6 +640,48 @@ func RenderPolicy(w http.ResponseWriter, r *http.Request, data PolicyData) error
 
 	var buf bytes.Buffer
 	if err := policyTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
+}
+
+// AccountData carries context for customer account and order tracking portal.
+type AccountData struct {
+	StoreName    string
+	Slogan       string
+	PrimaryColor string
+	BGTone       string
+	CleanPhone   string
+	ShopierURL   string
+	ContactEmail string
+	FontPreset   string
+	FontHeading  template.CSS
+	FontBody     template.CSS
+	ProductsJSON template.JS
+}
+
+// RenderAccount renders customer membership portal and order history.
+func RenderAccount(w http.ResponseWriter, r *http.Request, data AccountData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Atelier Riviera"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := accountTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
 	return writeHTMLWithConditionalCache(w, r, buf.Bytes())

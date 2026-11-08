@@ -6,7 +6,7 @@ let mansetTimer = null;
 let isMansetPaused = false;
 
 function initMansetCarousel() {
-  const slides = document.querySelectorAll('.hp-carousel-slide');
+  const slides = document.querySelectorAll('.hp-feature-slide, .hp-carousel-slide');
   if (slides.length <= 1) return;
   startMansetTimer();
 }
@@ -15,32 +15,32 @@ function startMansetTimer() {
   clearInterval(mansetTimer);
   mansetTimer = setInterval(() => {
     if (!isMansetPaused) {
-      const slides = document.querySelectorAll('.hp-carousel-slide');
+      const slides = document.querySelectorAll('.hp-feature-slide, .hp-carousel-slide');
       if (!slides.length) return;
       const nextIndex = (currentMansetIndex + 1) % slides.length;
       goToMansetSlide(nextIndex);
     }
-  }, 5000);
+  }, 6000);
 }
 
 function goToMansetSlide(index) {
-  const slides = document.querySelectorAll('.hp-carousel-slide');
-  const tabs = document.querySelectorAll('.hp-tab-btn');
+  const slides = document.querySelectorAll('.hp-feature-slide, .hp-carousel-slide');
+  const dots = document.querySelectorAll('.hp-dot-btn, .hp-tab-btn');
   if (index < 0 || index >= slides.length) return;
 
   slides.forEach((s, i) => s.classList.toggle('active', i === index));
-  tabs.forEach((b, i) => b.classList.toggle('active', i === index));
+  dots.forEach((b, i) => b.classList.toggle('active', i === index));
   currentMansetIndex = index;
 }
 
 function nextMansetSlide() {
-  const slides = document.querySelectorAll('.hp-carousel-slide');
+  const slides = document.querySelectorAll('.hp-feature-slide, .hp-carousel-slide');
   if (!slides.length) return;
   goToMansetSlide((currentMansetIndex + 1) % slides.length);
 }
 
 function prevMansetSlide() {
-  const slides = document.querySelectorAll('.hp-carousel-slide');
+  const slides = document.querySelectorAll('.hp-feature-slide, .hp-carousel-slide');
   if (!slides.length) return;
   goToMansetSlide((currentMansetIndex - 1 + slides.length) % slides.length);
 }

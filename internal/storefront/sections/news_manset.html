@@ -1,100 +1,127 @@
 {{define "news_manset"}}
-<section class="hp-manset-hero" aria-label="Günün Manşetleri">
+<section class="hp-manset-hero" aria-label="Günün Manşetleri ve Analiz Masası">
   <div class="hp-container">
-    <!-- 1. Sürmanşet (Top 4 Breaking News Tiles) -->
-    {{if .Trending}}
-    <div class="hp-surmanset-row" aria-label="Sürmanşet Gelişmeleri">
-      {{range $i, $item := .Trending}}
-      {{if lt $i 4}}
-      <article class="hp-surmanset-card">
-        <a href="/haber/{{$item.Slug}}" class="hp-surmanset-link" aria-label="{{$item.Title}}">
-          <div class="hp-surmanset-media">
-            <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-surmanset-img" loading="eager" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
-            <span class="hp-surmanset-badge">{{$item.CategorySlug}}</span>
-          </div>
-          <div class="hp-surmanset-body">
-            <h3 class="hp-surmanset-title">{{$item.Title}}</h3>
-          </div>
-        </a>
-      </article>
-      {{end}}
-      {{end}}
-    </div>
-    {{end}}
+    <div class="hp-hero-3col-grid">
+      
+      <!-- COLUMN 1: Günün Gelişmeleri (Curated Lead Stories - 25% width) -->
+      <aside class="hp-col-digest" aria-label="Günün Öne Çıkan Gelişmeleri">
+        <div class="hp-block-header">
+          <span class="hp-block-tag">ÖNE ÇIKANLAR</span>
+          <span class="hp-block-sub">Son 24 Saat</span>
+        </div>
 
-    <!-- 2. Main Hero Grid: Left Ana Manşet Carousel + Right Günün Başlıkları -->
-    {{if .FeaturedManset}}
-    <div class="hp-manset-grid">
-      <!-- Ana Manşet Rotating Carousel (70% Width) -->
-      <div class="hp-carousel-card" id="hpFeaturedCarousel" onmouseenter="pauseManset()" onmouseleave="resumeManset()">
-        <!-- Slide Viewport -->
-        <div class="hp-carousel-viewport">
-          {{range $i, $item := .FeaturedManset}}
-          <a href="/haber/{{$item.Slug}}" class="hp-carousel-slide {{if eq $i 0}}active{{end}}" data-index="{{$i}}" aria-label="{{$item.Title}}">
-            <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-carousel-img" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=80'">
-            <!-- Dark Gradient Overlay with Bold Headline Directly ON Image (TGRT Standard) -->
-            <div class="hp-carousel-overlay">
-              <div class="hp-carousel-kicker">
-                <span class="hp-kicker-badge">{{$item.CategorySlug}}</span>
-                <span class="hp-kicker-time">{{$item.PublishedAt}}</span>
-              </div>
-              <h2 class="hp-carousel-heading">{{$item.Title}}</h2>
-              <p class="hp-carousel-excerpt">{{$item.Excerpt}}</p>
+        <div class="hp-digest-list">
+          {{range $i, $item := .Trending}}
+          {{if lt $i 3}}
+          <article class="hp-digest-card">
+            <div class="hp-digest-meta">
+              <a href="/kategori/{{$item.CategorySlug}}" class="hp-cat-tag">{{$item.CategorySlug}}</a>
+              <span class="hp-sep">·</span>
+              <span class="hp-meta-time">{{$item.PublishedAt}}</span>
             </div>
-          </a>
-          {{end}}
-
-          <!-- Prev & Next Carousel Arrow Controls -->
-          <button type="button" class="hp-carousel-nav-btn prev" onclick="prevMansetSlide()" aria-label="Önceki Slayt">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
-          </button>
-          <button type="button" class="hp-carousel-nav-btn next" onclick="nextMansetSlide()" aria-label="Sonraki Slayt">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
-          </button>
-        </div>
-
-        <!-- TGRT Haber Signature: 1..16 Numbered Slider Bar Attached Under Image -->
-        <div class="hp-carousel-tabs" role="tablist" aria-label="Manşet Slaytları">
-          {{range $i, $item := .FeaturedManset}}
-          <button type="button" class="hp-tab-btn {{if eq $i 0}}active{{end}}" data-btn-index="{{$i}}" onclick="goToMansetSlide({{$i}})" onmouseenter="goToMansetSlide({{$i}})" aria-label="Manşet {{add $i 1}}">
-            <span class="hp-tab-num">{{add $i 1}}</span>
-          </button>
-          {{end}}
-        </div>
-      </div>
-
-      <!-- Right Column: "Günün Başlıkları" / Yan Manşet (30% Width) -->
-      <aside class="hp-side-manset-col" aria-label="Günün Başlıkları">
-        <div class="hp-side-header">
-          <div class="hp-side-header-title">
-            <span class="hp-side-accent-bar"></span>
-            <h3>GÜNÜN BAŞLIKLARI</h3>
-          </div>
-          <span class="hp-side-live-badge">CANLI AKIŞ</span>
-        </div>
-
-        <div class="hp-side-list">
-          {{range $i, $item := .SideManset}}
-          <article class="hp-side-item">
-            <a href="/haber/{{$item.Slug}}" class="hp-side-item-link" aria-label="{{$item.Title}}">
-              <div class="hp-side-item-thumb">
-                <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=300&q=80'">
-              </div>
-              <div class="hp-side-item-content">
-                <div class="hp-side-item-meta">
-                  <span class="hp-side-cat">{{$item.CategorySlug}}</span>
-                  <span class="hp-sep">·</span>
-                  <span class="hp-side-time">{{$item.PublishedAt}}</span>
-                </div>
-                <h4 class="hp-side-item-title">{{$item.Title}}</h4>
-              </div>
+            <a href="/haber/{{$item.Slug}}" class="hp-digest-title-link">
+              <h3 class="hp-digest-title">{{$item.Title}}</h3>
             </a>
+            <p class="hp-digest-excerpt">{{$item.Excerpt}}</p>
+            <div class="hp-digest-footer">
+              <span class="hp-meta-author">{{$item.AuthorName}}</span>
+              <span class="hp-meta-rt">{{$item.ReadingTime}} dk okuma</span>
+            </div>
           </article>
+          {{end}}
           {{end}}
         </div>
       </aside>
+
+      <!-- COLUMN 2: Ana Manşet (Center Hero Showcase - 50% width) -->
+      <main class="hp-col-main-feature" aria-label="Günün Ana Manşeti">
+        <div class="hp-feature-carousel" id="hpFeaturedCarousel" onmouseenter="pauseManset()" onmouseleave="resumeManset()">
+          <div class="hp-feature-slides">
+            {{range $i, $item := .FeaturedManset}}
+            {{if lt $i 5}}
+            <article class="hp-feature-slide {{if eq $i 0}}active{{end}}" data-index="{{$i}}">
+              <a href="/haber/{{$item.Slug}}" class="hp-feature-media" aria-label="{{$item.Title}}">
+                <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-feature-img" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80'">
+                <span class="hp-feature-cat-pill">{{$item.CategorySlug}}</span>
+              </a>
+
+              <div class="hp-feature-body">
+                <div class="hp-feature-meta">
+                  <span class="hp-feature-time">{{$item.PublishedAt}}</span>
+                  <span class="hp-sep">·</span>
+                  <span class="hp-feature-author">{{$item.AuthorName}}</span>
+                  <span class="hp-sep">·</span>
+                  <span class="hp-feature-readtime">{{$item.ReadingTime}} dk okuma</span>
+                </div>
+
+                <a href="/haber/{{$item.Slug}}" class="hp-feature-headline-link">
+                  <h2 class="hp-feature-headline">{{$item.Title}}</h2>
+                </a>
+
+                <p class="hp-feature-lead">{{$item.Excerpt}}</p>
+
+                <div class="hp-feature-actions">
+                  <a href="/haber/{{$item.Slug}}" class="hp-read-more-btn">Haberi Oku &rarr;</a>
+                  <div class="hp-slide-indicator">
+                    <span class="hp-curr-slide">{{add $i 1}}</span> / <span>5</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+            {{end}}
+            {{end}}
+          </div>
+
+          <!-- Carousel Controls -->
+          <div class="hp-carousel-controls">
+            <button type="button" class="hp-ctrl-btn prev" onclick="prevMansetSlide()" aria-label="Önceki Manşet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div class="hp-carousel-dots">
+              {{range $i, $item := .FeaturedManset}}
+              {{if lt $i 5}}
+              <button type="button" class="hp-dot-btn {{if eq $i 0}}active{{end}}" data-btn-index="{{$i}}" onclick="goToMansetSlide({{$i}})" aria-label="Slayt {{add $i 1}}"></button>
+              {{end}}
+              {{end}}
+            </div>
+            <button type="button" class="hp-ctrl-btn next" onclick="nextMansetSlide()" aria-label="Sonraki Manşet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- COLUMN 3: Günün Nabzı & Analiz (Right Column - 25% width) -->
+      <aside class="hp-col-pulse" aria-label="Günün Nabzı ve Analizler">
+        <div class="hp-block-header">
+          <span class="hp-block-tag">ANALİZ &amp; NABIZ</span>
+          <span class="hp-live-indicator"><span class="hp-live-pulse-dot"></span> Canlı</span>
+        </div>
+
+        <div class="hp-pulse-list">
+          {{range $i, $item := .SideManset}}
+          {{if lt $i 4}}
+          <article class="hp-pulse-card">
+            {{if eq $i 0}}
+            <a href="/haber/{{$item.Slug}}" class="hp-pulse-lead-media">
+              <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-pulse-lead-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80'">
+            </a>
+            {{end}}
+            <div class="hp-pulse-meta">
+              <a href="/kategori/{{$item.CategorySlug}}" class="hp-pulse-cat">{{$item.CategorySlug}}</a>
+              <span class="hp-sep">·</span>
+              <span class="hp-pulse-time">{{$item.PublishedAt}}</span>
+            </div>
+            <a href="/haber/{{$item.Slug}}" class="hp-pulse-title-link">
+              <h4 class="hp-pulse-title">{{$item.Title}}</h4>
+            </a>
+          </article>
+          {{end}}
+          {{end}}
+        </div>
+      </aside>
+
     </div>
-    {{end}}
   </div>
 </section>
 {{end}}
