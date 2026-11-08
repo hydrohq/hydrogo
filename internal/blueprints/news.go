@@ -102,7 +102,7 @@ func GenerateNewsCatalog(brandName, phone, prompt string) (map[string]any, []map
 			"category_slug": "teknoloji",
 			"excerpt":       "Geliştirici ekipleri artık satır satır kod yazmaktan ziyade, hedefleri tanımlayan ve otonom döngüleri denetleyen sistem mimarlarına dönüşüyor.",
 			"body":          "Yapay zeka modellerinin basit metin tamamlama seviyesinden çok adımlı planlama ve kendi kendine hata ayıklama yeteneğine evrilmesi, yazılım mühendisliğini kökten dönüştürüyor.\n\nYeni nesil ajanik çerçeveler, veritabanı şemalarından uçtan uca mikroservis entegrasyonlarına kadar tüm yaşam döngüsünü otonom yönetebiliyor. Sektör liderleri, 2027 yılına kadar kurumsal yazılımların %70'inin otonom ajan koordinasyonuyla inşa edileceğini öngörüyor.",
-			"image_url":     "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80",
+			"image_url":     "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=80",
 			"author_name":   "Deniz Aksoy",
 			"reading_time":  4,
 			"published_at":  "Bugün 14:30",

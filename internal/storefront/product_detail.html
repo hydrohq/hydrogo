@@ -167,21 +167,35 @@
 
     /* Accordion */
     .craft-accordion { margin-top: 24px; border-top: 1px solid var(--border); }
-    .accordion-item { border-bottom: 1px solid var(--border); padding: 14px 0; }
-    .accordion-header { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 600; color: var(--text-primary); cursor: pointer; }
-    .accordion-body { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-top: 8px; }
+    .accordion-item { border-bottom: 1px solid var(--border); }
+    .accordion-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+      cursor: pointer; padding: 14px 0; user-select: none;
+    }
+    .accordion-header:hover { color: #000; }
+    .accordion-icon { font-size: 16px; font-weight: 500; color: var(--text-muted); }
+    .accordion-body {
+      display: none; font-size: 13px; color: var(--text-muted); line-height: 1.6;
+      padding-bottom: 14px;
+    }
+    .accordion-item.open .accordion-body { display: block; }
+    .accordion-item.open .accordion-header { color: var(--text-primary); }
 
     /* Customer Reviews */
-    .reviews-section { max-width: 1200px; margin: 40px auto; padding: 0 24px; }
-    .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 20px; }
-    .review-card { padding: 20px; background: #FFF; border: 1px solid var(--border); border-radius: 12px; }
+    .reviews-section { max-width: 1200px; margin: 48px auto; padding: 0 24px; width: 100%; box-sizing: border-box; }
+    .reviews-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
+    @media (max-width: 900px) { .reviews-grid { grid-template-columns: 1fr; } }
+    .review-card { padding: 22px; background: #FFF; border: 1px solid var(--border); border-radius: 12px; }
     .review-author-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--text-primary); }
     .review-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
 
     /* Related Products Section */
-    .related-section { max-width: 1200px; margin: 50px auto 80px; padding: 0 24px; }
-    .section-title { font-family: var(--font-serif); font-size: 28px; font-weight: 700; margin-bottom: 24px; color: var(--text-primary); }
-    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .related-section { max-width: 1200px; margin: 56px auto 80px; padding: 0 24px; width: 100%; box-sizing: border-box; }
+    .section-title { font-family: var(--font-serif); font-size: 26px; font-weight: 700; margin-bottom: 24px; color: var(--text-primary); }
+    .products-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+    @media (max-width: 1024px) { .products-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; } }
+    @media (max-width: 600px) { .products-grid { grid-template-columns: 1fr; } }
     .product-card { background: var(--bg-surface); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: all 0.25s ease; }
     .product-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -6px rgba(0,0,0,0.06); border-color: var(--border-hover); }
     .card-img-wrap { aspect-ratio: 1; width: 100%; background: var(--bg-subtle); overflow: hidden; }
@@ -406,7 +420,7 @@
         <div class="accordion-item">
           <div class="accordion-header" onclick="toggleAcc(this)">
             <span>Kumaş Dokusu &amp; Malzeme Özellikleri</span>
-            <span>+</span>
+            <span class="accordion-icon">+</span>
           </div>
           <div class="accordion-body">
             Geleneksel dokuma tezgâhlarında doğal liflerle üretilmiştir. Nefes alan yapısıyla cilde dosttur ve dökümlü siluetiyle zarif bir duruş sergiler.
@@ -415,7 +429,7 @@
         <div class="accordion-item">
           <div class="accordion-header" onclick="toggleAcc(this)">
             <span>Kargo, Teslimat &amp; İade Güvencesi</span>
-            <span>+</span>
+            <span class="accordion-icon">+</span>
           </div>
           <div class="accordion-body">
             Siparişiniz Yurtiçi Kargo güvencesiyle 1-3 iş gününde kapınıza ulaşır. Kargo sürecinizi Müşteri Panelimiz üzerinden adım adım canlı takip edebilirsiniz.
@@ -577,6 +591,17 @@
       }
       if (typeof openCartDrawer === 'function') {
         openCartDrawer();
+      }
+    }
+
+    function toggleAcc(header) {
+      const item = header.closest('.accordion-item');
+      if (!item) return;
+      const isOpen = item.classList.contains('open');
+      item.classList.toggle('open', !isOpen);
+      const icon = header.querySelector('.accordion-icon');
+      if (icon) {
+        icon.textContent = isOpen ? '+' : '−';
       }
     }
 
