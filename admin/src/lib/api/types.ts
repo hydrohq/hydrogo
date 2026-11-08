@@ -338,3 +338,78 @@ export interface SuperadminWorkspace {
   created_at: string;
   expires_at?: string;
 }
+
+// SaaS Subscription & Shopier Billing Types
+export interface BillingPlan {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  price_cents: number;
+  currency: string;
+  billing_interval: 'month' | 'year';
+  interval_count: number;
+  trial_days: number;
+  features: string[];
+  active: boolean;
+}
+
+export interface BillingOrder {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  order_number: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  amount_cents: number;
+  currency: string;
+  billing_interval: string;
+  idempotency_key?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface BillingPayment {
+  id: string;
+  order_id: string;
+  user_id: string;
+  payment_provider: string;
+  provider_payment_id?: string;
+  amount_cents: number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed';
+  error_message?: string;
+  paid_at?: string;
+  created_at: string;
+}
+
+export interface BillingSubscription {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  status: 'pending' | 'active' | 'past_due' | 'cancelled' | 'expired';
+  current_period_start: string;
+  current_period_end: string;
+  cancel_at_period_end: boolean;
+  cancelled_at?: string;
+  plan?: BillingPlan;
+  days_remaining: number;
+  is_active: boolean;
+}
+
+export interface BillingOrderWithPayment {
+  order: BillingOrder;
+  plan?: BillingPlan;
+  payments: BillingPayment[];
+}
+
+export interface ShopierFormOutput {
+  action_url: string;
+  method: string;
+  fields: Record<string, string>;
+}
+
+export interface BillingCheckoutResponse {
+  order: BillingOrder;
+  payment: BillingPayment;
+  shopier_form: ShopierFormOutput;
+}

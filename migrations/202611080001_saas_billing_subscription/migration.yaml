@@ -1,0 +1,28 @@
+id: "202611080001_saas_billing_subscription"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "d5f806abfb590fbbdb4096211a60e8c8e7c0b32774a19f070dc6fcae13d05e70"
+  postgres: "466007ba0d0ad41bae30018d51d997e714d771030506daced659e62841b46ede"
+  mysql: "878737337bf37537c6d442459d77586936ba74db09ef85512c6620f8c70afed9"
+dependencies:
+  - "202611020002_postgres_rls_fail_closed"
+schema:
+  readable_epoch: 11
+  writable_epoch: 11
+preconditions:
+  - "202611020002_postgres_rls_fail_closed is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "SaaS subscription and Shopier billing tables (plans, orders, payments, subscriptions, payment_events)"
+compatibility: "Adds digital SaaS subscription billing and Shopier payment lifecycle tables."
+smoke:
+  - "Users can create subscription orders and receive verified Shopier payment callbacks."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "DROP TABLE payment_events; DROP TABLE payments; DROP TABLE subscriptions; DROP TABLE orders; DROP TABLE plans;"

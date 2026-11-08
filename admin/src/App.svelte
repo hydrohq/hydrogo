@@ -32,6 +32,7 @@
   const loadContentTypesView = () => import('./routes/contenttypes/ContentTypesView.svelte');
   const loadOrchestratorView = () => import('./routes/orchestrator/OrchestratorView.svelte');
   const loadConsoleView = () => import('./routes/console/ConsoleView.svelte');
+  const loadSubscriptionView = () => import('./routes/subscription/SubscriptionView.svelte');
 
   import { i18n, isLocale } from '$lib/i18n/index.svelte';
   import { applyBrandColor } from '$lib/branding';
@@ -194,6 +195,8 @@
         <LazyView load={loadSystemView} />
       {:else if routeInfo.module === 'account'}
         <LazyView load={loadAccountView} />
+      {:else if routeInfo.module === 'subscription' || routeInfo.module === 'billing'}
+        <LazyView load={loadSubscriptionView} />
       {:else if routeInfo.module === 'console' || routeInfo.module === 'superadmin'}
         <LazyView load={loadConsoleView} />
       {:else if routeInfo.module === 'orchestrator'}

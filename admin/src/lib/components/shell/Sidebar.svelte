@@ -528,6 +528,22 @@
       </a>
       {/if}
 
+      <!-- Abonelik & Ödeme -->
+      <a
+        href="/admin/subscription"
+        onclick={() => handleNavigate('/subscription')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/subscription') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title="Abonelik & Ödeme"
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+          <line x1="2" x2="22" y1="10" y2="10"></line>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">Abonelik & Ödeme</span>
+        {/if}
+      </a>
+
       <a
         href="/admin/system"
         onclick={() => handleNavigate('/system')}
@@ -590,6 +606,14 @@
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             <span>{t('nav.account')}</span>
+          </a>
+          <a
+            href="/admin/subscription"
+            onclick={() => handleNavigate('/subscription')}
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+            <span>Abonelik & Ödeme</span>
           </a>
           <a
             href="/admin/system"
