@@ -27,29 +27,29 @@
     </div>
   </div>
 
-  <!-- 2. Prestigious Newspaper Masthead -->
+  <!-- 2. High-Impact TGRT News Masthead -->
   <div class="hp-masthead">
     <div class="hp-container hp-masthead-inner">
-      <div class="hp-masthead-center">
-        <a href="/" class="hp-masthead-logo" aria-label="{{.BrandName}} Anasayfa">
-          <span class="hp-masthead-title">{{.BrandName}}</span>
+      <div class="hp-masthead-left">
+        <a href="/" class="hp-brand-logo" aria-label="{{.BrandName}} Anasayfa">
+          <span class="hp-logo-accent">NEXUS</span><span class="hp-logo-main">HABER</span>
         </a>
-        <p class="hp-masthead-tagline">{{.Tagline}}</p>
+        <span class="hp-masthead-tagline">DOĞRU VE HIZLI HABERİN MERKEZİ</span>
       </div>
-    </div>
-  </div>
 
-  <!-- 3. Main Navigation Bar with Clean Double Rule -->
-  <div class="hp-main-nav">
-    <div class="hp-container hp-nav-inner">
-      <nav class="hp-nav-links" aria-label="Ana Menü">
-        <a href="/" class="hp-nav-link {{if eq .ActivePage "home"}}active{{end}}">Anasayfa</a>
-        {{range .Categories}}
-        <a href="/kategori/{{.Slug}}" class="hp-nav-link {{if eq $.ActiveCategory .Slug}}active{{end}}">{{.Name}}</a>
-        {{end}}
-      </nav>
+      <div class="hp-masthead-right">
+        <!-- Live Broadcast Indicator -->
+        <a href="/kategori/gundem" class="hp-live-btn" aria-label="Canlı Yayın">
+          <span class="hp-live-dot"></span>
+          <span>CANLI YAYIN</span>
+        </a>
 
-      <div class="hp-nav-actions">
+        <!-- Breaking News Pill -->
+        <a href="/kategori/gundem" class="hp-breaking-pill" aria-label="Son Dakika">
+          <span>SON DAKİKA</span>
+        </a>
+
+        <!-- Search Button -->
         <button type="button" class="hp-search-btn" onclick="openSearchModal()" aria-label="Haber Ara">
           <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <span>Ara</span>
@@ -58,7 +58,29 @@
     </div>
   </div>
 
-  <!-- 4. Sleek Breaking News Ticker -->
+  <!-- 3. High-Contrast Main Navigation Bar -->
+  <div class="hp-main-nav">
+    <div class="hp-container hp-nav-inner">
+      <nav class="hp-nav-links" aria-label="Ana Menü">
+        <a href="/" class="hp-nav-link {{if eq .ActivePage "home"}}active{{end}}">Anasayfa</a>
+        <a href="/kategori/gundem" class="hp-nav-link {{if eq $.ActiveCategory "gundem"}}active{{end}}">Gündem</a>
+        <a href="/kategori/ekonomi" class="hp-nav-link {{if eq $.ActiveCategory "ekonomi"}}active{{end}}">Ekonomi</a>
+        <a href="/kategori/spor" class="hp-nav-link {{if eq $.ActiveCategory "spor"}}active{{end}}">Spor</a>
+        <a href="/kategori/dunya" class="hp-nav-link {{if eq $.ActiveCategory "dunya"}}active{{end}}">Dünya</a>
+        <a href="/kategori/teknoloji" class="hp-nav-link {{if eq $.ActiveCategory "teknoloji"}}active{{end}}">Teknoloji</a>
+        <a href="/kategori/yasam" class="hp-nav-link {{if eq $.ActiveCategory "yasam"}}active{{end}}">Yaşam</a>
+        {{range .Categories}}
+          {{if and (ne .Slug "gundem") (ne .Slug "ekonomi") (ne .Slug "spor") (ne .Slug "dunya") (ne .Slug "teknoloji") (ne .Slug "yasam")}}
+          <a href="/kategori/{{.Slug}}" class="hp-nav-link {{if eq $.ActiveCategory .Slug}}active{{end}}">{{.Name}}</a>
+          {{end}}
+        {{end}}
+        <a href="#hpColumnistsSection" class="hp-nav-link">Yazarlar</a>
+        <a href="#hpGallerySection" class="hp-nav-link">Foto Galeri</a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- 4. Son Dakika Marquee Ticker -->
   {{if or .BreakingNews .BreakingArticles}}
   <div class="hp-breaking-bar" role="region" aria-label="Son Dakika Gelişmeleri">
     <div class="hp-container hp-breaking-inner">
@@ -103,7 +125,7 @@
           </div>
         </div>
       </div>
-      <a href="/kategori/gundem" class="hp-breaking-all-link">Tümü &rarr;</a>
+      <a href="/kategori/gundem" class="hp-breaking-all-link">Tüm Son Dakika &rarr;</a>
     </div>
   </div>
   {{end}}

@@ -25,14 +25,24 @@ function startMansetTimer() {
 
 function goToMansetSlide(index) {
   const slides = document.querySelectorAll('.hp-carousel-slide');
-  const texts = document.querySelectorAll('.hp-carousel-text-item');
   const tabs = document.querySelectorAll('.hp-tab-btn');
   if (index < 0 || index >= slides.length) return;
 
   slides.forEach((s, i) => s.classList.toggle('active', i === index));
-  texts.forEach((t, i) => t.classList.toggle('active', i === index));
   tabs.forEach((b, i) => b.classList.toggle('active', i === index));
   currentMansetIndex = index;
+}
+
+function nextMansetSlide() {
+  const slides = document.querySelectorAll('.hp-carousel-slide');
+  if (!slides.length) return;
+  goToMansetSlide((currentMansetIndex + 1) % slides.length);
+}
+
+function prevMansetSlide() {
+  const slides = document.querySelectorAll('.hp-carousel-slide');
+  if (!slides.length) return;
+  goToMansetSlide((currentMansetIndex - 1 + slides.length) % slides.length);
 }
 
 function pauseManset() {

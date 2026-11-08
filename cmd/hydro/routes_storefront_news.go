@@ -407,24 +407,38 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 		data.LeadArticle = &leadCopy
 	}
 
-	// 1. Featured Manset Carousel (1..10)
+	// 1. Featured Manset Carousel (1..16)
 	mansetCount := len(allArticles)
-	if mansetCount > 10 {
-		mansetCount = 10
+	if mansetCount > 16 {
+		mansetCount = 16
 	}
 	if mansetCount > 0 {
 		data.FeaturedManset = append(data.FeaturedManset, allArticles[:mansetCount]...)
 	}
 
-	// 2. Side Manset Cards (2 items)
-	if len(allArticles) > 10 {
-		endIdx := len(allArticles)
-		if endIdx > 12 {
-			endIdx = 12
+	// 2. Side Manset Cards (up to 5 items for Günün Başlıkları)
+	for _, a := range allArticles {
+		if len(data.SideManset) >= 5 {
+			break
 		}
-		data.SideManset = append(data.SideManset, allArticles[10:endIdx]...)
-	} else if len(allArticles) >= 3 {
-		data.SideManset = append(data.SideManset, allArticles[1:3]...)
+		data.SideManset = append(data.SideManset, a)
+	}
+
+	// 3. Trending / Sürmanşet (4 items for top bar)
+	for _, a := range allArticles {
+		if len(data.Trending) >= 4 {
+			break
+		}
+		already := false
+		for _, t := range data.Trending {
+			if t.Slug == a.Slug {
+				already = true
+				break
+			}
+		}
+		if !already {
+			data.Trending = append(data.Trending, a)
+		}
 	}
 
 	// 3. Breaking Articles for Top Marquee Ticker
