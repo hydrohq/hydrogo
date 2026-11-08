@@ -684,4 +684,3 @@ func (a *serveApp) fallbackCatalog(gov tenant.Governance) (map[string]any, []sto
 func (a *serveApp) defaultCatalogGen(name, phone, prompt string) (map[string]any, []map[string]any) {
 	return blueprints.GenerateLuxuryCatalog(name, phone, prompt)
 }
-

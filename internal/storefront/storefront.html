@@ -23,6 +23,7 @@
   }
   </script>
   {{template "embedded_fonts" .}}
+  {{.StorefrontAssets}}
 
   <style>
     :root {
@@ -1808,5 +1809,9 @@
   {{template "cart_drawer" .}}
   {{template "search_modal" .}}
   {{template "ecommerce_scripts" .}}
+  <div id="storefront-app"></div>
+  <script id="__HYDRO_DATA__" type="application/json">
+    {"store":{"name":{{.StoreName}},"tagline":{{.Slogan}},"phone":{{.CleanPhone}},"announcement":{{.AnnouncementBar}}},"products":{{.ProductsJSON}}}
+  </script>
 </body>
 </html>
