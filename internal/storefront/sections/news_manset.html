@@ -1,0 +1,75 @@
+{{define "news_manset"}}
+{{if .FeaturedManset}}
+<section class="hp-manset-hero my-6" aria-label="Öne Çıkan Manşetler">
+  <div class="hp-container">
+    <div class="hp-manset-grid">
+      <!-- Big Rotating Hero Carousel (Classic 1..10 Manşet) -->
+      <div class="hp-carousel-card" id="hpFeaturedCarousel" onmouseenter="pauseManset()" onmouseleave="resumeManset()">
+        <!-- Slide Viewport -->
+        <div class="hp-carousel-viewport">
+          {{range $i, $item := .FeaturedManset}}
+          <a href="/haber/{{$item.Slug}}" class="hp-carousel-slide {{if eq $i 0}}active{{end}}" data-index="{{$i}}" aria-label="{{$item.Title}}">
+            <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-carousel-img" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80'">
+            <div class="hp-slide-overlay-tag">
+              <span class="hp-badge-crimson">{{$item.CategorySlug}}</span>
+            </div>
+          </a>
+          {{end}}
+        </div>
+
+        <!-- Headline & Excerpt Box -->
+        <div class="hp-carousel-info">
+          {{range $i, $item := .FeaturedManset}}
+          <div class="hp-carousel-text-item {{if eq $i 0}}active{{end}}" data-text-index="{{$i}}">
+            <div class="hp-carousel-meta">
+              <span class="hp-carousel-cat">{{$item.CategorySlug}}</span>
+              <span class="hp-sep">·</span>
+              <span class="hp-carousel-time">{{$item.PublishedAt}}</span>
+              <span class="hp-sep">·</span>
+              <span class="hp-carousel-read">{{$item.ReadingTime}} dk okuma</span>
+            </div>
+            <a href="/haber/{{$item.Slug}}" class="hp-carousel-title-link">
+              <h2 class="hp-carousel-heading">{{$item.Title}}</h2>
+            </a>
+            <p class="hp-carousel-excerpt">{{$item.Excerpt}}</p>
+          </div>
+          {{end}}
+        </div>
+
+        <!-- Classic 1..10 Numbered Tab Strip -->
+        <div class="hp-carousel-tabs" role="tablist" aria-label="Manşet Slaytları">
+          {{range $i, $item := .FeaturedManset}}
+          <button type="button" class="hp-tab-btn {{if eq $i 0}}active{{end}}" data-btn-index="{{$i}}" onclick="goToMansetSlide({{$i}})" onmouseenter="goToMansetSlide({{$i}})" aria-label="Slayt {{add $i 1}}">
+            <span>{{add $i 1}}</span>
+          </button>
+          {{end}}
+        </div>
+      </div>
+
+      <!-- Two Fixed Side Cards (Yan Manşet) -->
+      <div class="hp-side-manset-col">
+        {{range $i, $item := .SideManset}}
+        <article class="hp-side-card">
+          <a href="/haber/{{$item.Slug}}" class="hp-side-card-media" aria-label="{{$item.Title}}">
+            <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-side-card-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+            <span class="hp-side-badge">{{$item.CategorySlug}}</span>
+          </a>
+          <div class="hp-side-card-body">
+            <div class="hp-card-meta">
+              <span>{{$item.PublishedAt}}</span>
+              <span class="hp-sep">·</span>
+              <span>{{$item.ReadingTime}} dk okuma</span>
+            </div>
+            <a href="/haber/{{$item.Slug}}" class="hp-side-title-link">
+              <h3 class="hp-side-card-title">{{$item.Title}}</h3>
+            </a>
+            <p class="hp-side-card-excerpt">{{$item.Excerpt}}</p>
+          </div>
+        </article>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}
+{{end}}

@@ -576,39 +576,52 @@ type NewsGalleryItem struct {
 	BadgeText string `json:"badge_text"`
 }
 
+// NewsCategorySection models a category showcase block on the news homepage.
+type NewsCategorySection struct {
+	Category    NewsCategory  `json:"category"`
+	LeadArticle NewsArticle   `json:"lead_article"`
+	Articles    []NewsArticle `json:"articles"`
+}
+
 // NewsData contains all data required to render the digital news portal.
 type NewsData struct {
-	BrandName         string            `json:"brand_name"`
-	Tagline           string            `json:"tagline"`
-	PrimaryColor      string            `json:"primary_color"`
-	BGTone            string            `json:"bg_tone"`
-	FontPreset        string            `json:"font_preset"`
-	BreakingNews      string            `json:"breaking_news"`
-	ContactEmail      string            `json:"contact_email"`
-	ActivePage        string            `json:"active_page"` // "home", "category", "article"
-	ActiveCategory    string            `json:"active_category"`
-	ActiveArticle     *NewsArticle      `json:"active_article"`
-	NextArticle       *NewsArticle      `json:"next_article"`
-	LeadArticle       *NewsArticle      `json:"lead_article"`
-	Trending          []NewsArticle     `json:"trending"`
-	Articles          []NewsArticle     `json:"articles"`
-	RelatedArticles   []NewsArticle     `json:"related_articles"`
-	Categories        []NewsCategory    `json:"categories"`
-	Columnists        []NewsColumnist   `json:"columnists"`
-	Poll              *NewsPoll         `json:"poll"`
-	GalleryItems      []NewsGalleryItem `json:"gallery_items"`
-	MarketTickers     []MarketTicker    `json:"market_tickers"`
-	TrendingTags      []string          `json:"trending_tags"`
-	Comments          []NewsComment     `json:"comments"`
-	WeatherCity       string            `json:"weather_city"`
-	WeatherTemp       string            `json:"weather_temp"`
-	WeatherDesc       string            `json:"weather_desc"`
-	PrayerImsak       string            `json:"prayer_imsak"`
-	PrayerAksam       string            `json:"prayer_aksam"`
-	WhatsAppTipNumber string            `json:"whatsapp_tip_number"`
-	EnableMemberships bool              `json:"enable_memberships"`
-	EnableComments    bool              `json:"enable_comments"`
-	LayoutMode        string            `json:"layout_mode"`
+	BrandName            string                `json:"brand_name"`
+	Tagline              string                `json:"tagline"`
+	PrimaryColor         string                `json:"primary_color"`
+	BGTone               string                `json:"bg_tone"`
+	FontPreset           string                `json:"font_preset"`
+	BreakingNews         string                `json:"breaking_news"`
+	ContactEmail         string                `json:"contact_email"`
+	ActivePage           string                `json:"active_page"` // "home", "category", "article"
+	ActiveCategory       string                `json:"active_category"`
+	ActiveArticle        *NewsArticle          `json:"active_article"`
+	NextArticle          *NewsArticle          `json:"next_article"`
+	LeadArticle          *NewsArticle          `json:"lead_article"`
+	FeaturedManset       []NewsArticle         `json:"featured_manset"`
+	SideManset           []NewsArticle         `json:"side_manset"`
+	PopularNews          []NewsArticle         `json:"popular_news"`
+	CategorySections     []NewsCategorySection `json:"category_sections"`
+	BreakingArticles     []NewsArticle         `json:"breaking_articles"`
+	CurrentDateFormatted string                `json:"current_date_formatted"`
+	Trending             []NewsArticle         `json:"trending"`
+	Articles             []NewsArticle         `json:"articles"`
+	RelatedArticles      []NewsArticle         `json:"related_articles"`
+	Categories           []NewsCategory        `json:"categories"`
+	Columnists           []NewsColumnist       `json:"columnists"`
+	Poll                 *NewsPoll             `json:"poll"`
+	GalleryItems         []NewsGalleryItem     `json:"gallery_items"`
+	MarketTickers        []MarketTicker        `json:"market_tickers"`
+	TrendingTags         []string              `json:"trending_tags"`
+	Comments             []NewsComment         `json:"comments"`
+	WeatherCity          string                `json:"weather_city"`
+	WeatherTemp          string                `json:"weather_temp"`
+	WeatherDesc          string                `json:"weather_desc"`
+	PrayerImsak          string                `json:"prayer_imsak"`
+	PrayerAksam          string                `json:"prayer_aksam"`
+	WhatsAppTipNumber    string                `json:"whatsapp_tip_number"`
+	EnableMemberships    bool                  `json:"enable_memberships"`
+	EnableComments       bool                  `json:"enable_comments"`
+	LayoutMode           string                `json:"layout_mode"`
 }
 
 // RenderNews writes the news portal HTML to w.
