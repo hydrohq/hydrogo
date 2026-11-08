@@ -65,5 +65,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        index: path.resolve(__dirname, 'index.html'),
+        storefront: path.resolve(__dirname, 'storefront.html'),
+      },
+    },
   },
 });

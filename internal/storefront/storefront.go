@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/ardaozyildirim/hydrogo/internal/adminui"
 )
 
 //go:embed *.html sections/*.html fonts/*
@@ -275,6 +277,7 @@ type StorefrontData struct {
 	LayoutJSON       string
 	RenderedSections []template.HTML
 	HasCustomLayout  bool
+	StorefrontAssets template.HTML
 }
 
 // ProductDetailData carries data for dedicated product page.
@@ -429,6 +432,10 @@ func Render(w http.ResponseWriter, r *http.Request, data StorefrontData) error {
 			data.RenderedSections = secs
 			data.HasCustomLayout = true
 		}
+	}
+
+	if data.StorefrontAssets == "" {
+		data.StorefrontAssets = template.HTML(adminui.StorefrontAssetTags())
 	}
 
 	var buf bytes.Buffer
