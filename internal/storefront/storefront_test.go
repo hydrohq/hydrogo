@@ -274,6 +274,25 @@ func TestRenderPolicy(t *testing.T) {
 	}
 }
 
+func TestRenderAccount(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/hesabim", nil)
+
+	data := AccountData{
+		StoreName: "Atelier Riviera",
+	}
+
+	err := RenderAccount(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderAccount error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "Hesabım") {
+		t.Errorf("expected Hesabım in body, got: %s", body)
+	}
+}
+
 func TestRenderOrderTracking(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/siparis-takip?code=ORD-9988", nil)

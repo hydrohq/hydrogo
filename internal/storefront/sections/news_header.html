@@ -18,7 +18,7 @@
             <span class="hp-ticker-sym">{{.Symbol}}</span>
             <span class="hp-ticker-val">{{.Price}}</span>
             <span class="hp-ticker-change {{if .IsUp}}up{{else}}down{{end}}">
-              {{if .IsUp}}+{{else}}-{{end}}{{.Change}}
+              {{.Change}}
             </span>
           </div>
           {{end}}
@@ -34,7 +34,10 @@
         <a href="/" class="hp-brand-logo" aria-label="{{.BrandName}} Anasayfa">
           <span class="hp-logo-accent">NEXUS</span><span class="hp-logo-main">HABER</span>
         </a>
-        <span class="hp-masthead-tagline">DOĞRU VE HIZLI HABERİN MERKEZİ</span>
+        <div class="hp-masthead-motto-wrap hidden-mobile">
+          <span class="hp-masthead-divider">|</span>
+          <span class="hp-masthead-tagline">BAĞIMSIZ DİJİTAL GAZETE &amp; DERİNLEMESİNE ANALİZ</span>
+        </div>
       </div>
 
       <div class="hp-masthead-right">
@@ -44,16 +47,16 @@
           <span>CANLI YAYIN</span>
         </a>
 
-        <!-- Breaking News Pill -->
-        <a href="/kategori/gundem" class="hp-breaking-pill" aria-label="Son Dakika">
-          <span>SON DAKİKA</span>
-        </a>
-
         <!-- Search Button -->
         <button type="button" class="hp-search-btn" onclick="openSearchModal()" aria-label="Haber Ara">
           <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <span>Ara</span>
         </button>
+
+        <!-- Newsletter Quick Link -->
+        <a href="#hpPollWidget" class="hp-newsletter-quick-link hidden-mobile" aria-label="E-Bülten">
+          <span>E-Bülten</span>
+        </a>
       </div>
     </div>
   </div>
