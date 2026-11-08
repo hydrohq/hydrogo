@@ -1,23 +1,23 @@
 {{define "news_manset"}}
 {{if .FeaturedManset}}
-<section class="hp-manset-hero my-6" aria-label="Öne Çıkan Manşetler">
+<section class="hp-manset-hero" aria-label="Öne Çıkan Manşetler">
   <div class="hp-container">
     <div class="hp-manset-grid">
-      <!-- Big Rotating Hero Carousel (Classic 1..10 Manşet) -->
+      <!-- Big Rotating Hero Carousel -->
       <div class="hp-carousel-card" id="hpFeaturedCarousel" onmouseenter="pauseManset()" onmouseleave="resumeManset()">
         <!-- Slide Viewport -->
         <div class="hp-carousel-viewport">
           {{range $i, $item := .FeaturedManset}}
           <a href="/haber/{{$item.Slug}}" class="hp-carousel-slide {{if eq $i 0}}active{{end}}" data-index="{{$i}}" aria-label="{{$item.Title}}">
-            <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-carousel-img" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80'">
+            <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-carousel-img" loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1400&q=80'">
             <div class="hp-slide-overlay-tag">
-              <span class="hp-badge-crimson">{{$item.CategorySlug}}</span>
+              <span class="hp-badge-cat">{{$item.CategorySlug}}</span>
             </div>
           </a>
           {{end}}
         </div>
 
-        <!-- Headline & Excerpt Box -->
+        <!-- Headline & Excerpt Box with Editorial Whitespace -->
         <div class="hp-carousel-info">
           {{range $i, $item := .FeaturedManset}}
           <div class="hp-carousel-text-item {{if eq $i 0}}active{{end}}" data-text-index="{{$i}}">
@@ -36,11 +36,11 @@
           {{end}}
         </div>
 
-        <!-- Classic 1..10 Numbered Tab Strip -->
+        <!-- Refined Editorial Pagination Strip (01..10) -->
         <div class="hp-carousel-tabs" role="tablist" aria-label="Manşet Slaytları">
           {{range $i, $item := .FeaturedManset}}
           <button type="button" class="hp-tab-btn {{if eq $i 0}}active{{end}}" data-btn-index="{{$i}}" onclick="goToMansetSlide({{$i}})" onmouseenter="goToMansetSlide({{$i}})" aria-label="Slayt {{add $i 1}}">
-            <span>{{add $i 1}}</span>
+            <span class="hp-tab-num">{{if lt (add $i 1) 10}}0{{end}}{{add $i 1}}</span>
           </button>
           {{end}}
         </div>
@@ -58,7 +58,7 @@
             <div class="hp-card-meta">
               <span>{{$item.PublishedAt}}</span>
               <span class="hp-sep">·</span>
-              <span>{{$item.ReadingTime}} dk okuma</span>
+              <span>{{$item.ReadingTime}} dk</span>
             </div>
             <a href="/haber/{{$item.Slug}}" class="hp-side-title-link">
               <h3 class="hp-side-card-title">{{$item.Title}}</h3>

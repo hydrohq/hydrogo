@@ -1,20 +1,20 @@
 {{define "news_sections"}}
-<!-- 1. "Çok Okunanlar" Horizontal Ranked Carousel (PopularReadList) -->
+<!-- 1. "Çok Okunanlar" Editorial Ranked Carousel -->
 {{if .PopularNews}}
 <section class="hp-popular-section" aria-label="Çok Okunan Haberler">
   <div class="hp-container">
     <div class="hp-section-header">
       <div class="hp-header-title-wrap">
-        <span class="hp-section-indicator"></span>
-        <h2 class="hp-section-title hp-title-crimson">Çok Okunanlar</h2>
+        <span class="hp-section-accent-dot"></span>
+        <h2 class="hp-section-title">Çok Okunanlar</h2>
       </div>
       <div class="hp-header-rule"></div>
       <div class="hp-slider-controls">
         <button type="button" class="hp-arrow-btn" onclick="scrollPopular(-1)" aria-label="Önceki Popüler Haberler">
-          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <button type="button" class="hp-arrow-btn" onclick="scrollPopular(1)" aria-label="Sonraki Popüler Haberler">
-          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </button>
       </div>
     </div>
@@ -24,7 +24,7 @@
       <article class="hp-popular-card">
         <a href="/haber/{{$item.Slug}}" class="hp-popular-thumb-wrap" aria-label="{{$item.Title}}">
           <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-popular-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
-          <span class="hp-rank-badge">{{add $i 1}}</span>
+          <span class="hp-rank-badge">{{if lt (add $i 1) 10}}0{{end}}{{add $i 1}}</span>
         </a>
         <div class="hp-popular-info">
           <span class="hp-popular-cat">{{$item.CategorySlug}}</span>
@@ -45,11 +45,11 @@
   <div class="hp-container">
     <div class="hp-section-header">
       <div class="hp-header-title-wrap">
-        <span class="hp-section-indicator"></span>
-        <h2 class="hp-section-title">Son Haberler</h2>
+        <span class="hp-section-accent-dot"></span>
+        <h2 class="hp-section-title">Son Gelişmeler</h2>
       </div>
       <div class="hp-header-rule"></div>
-      <a href="/kategori/gundem" class="hp-section-more-btn">Tümünü Gör</a>
+      <a href="/kategori/gundem" class="hp-section-more-link">Tümünü Gör &rarr;</a>
     </div>
 
     <div class="hp-news-grid-4">
@@ -85,11 +85,10 @@
   <div class="hp-container">
     <div class="hp-section-header">
       <div class="hp-header-title-wrap">
-        <span class="hp-cat-pill-badge">{{.Category.Name}}</span>
         <h2 class="hp-section-title">{{.Category.Name}} Gündemi</h2>
       </div>
       <div class="hp-header-rule"></div>
-      <a href="/kategori/{{.Category.Slug}}" class="hp-section-more-btn">Tüm {{.Category.Name}} Haberleri</a>
+      <a href="/kategori/{{.Category.Slug}}" class="hp-section-more-link">Tüm {{.Category.Name}} &rarr;</a>
     </div>
 
     <div class="hp-category-showcase-grid">
@@ -136,14 +135,14 @@
 </section>
 {{end}}
 
-<!-- 4. Köşe Yazarları & Fikir Masası (ColumnistsSection) -->
+<!-- 4. Köşe Yazarları & Fikir Masası -->
 {{if .Columnists}}
 <section class="hp-columnists-section" aria-label="Köşe Yazarları ve Analistler">
   <div class="hp-container">
     <div class="hp-section-header">
       <div class="hp-header-title-wrap">
-        <span class="hp-section-indicator"></span>
-        <h2 class="hp-section-title">Köşe Yazarları & Analiz</h2>
+        <span class="hp-section-accent-dot"></span>
+        <h2 class="hp-section-title">Yazarlar &amp; Analiz</h2>
       </div>
       <div class="hp-header-rule"></div>
     </div>
@@ -172,14 +171,14 @@
 </section>
 {{end}}
 
-<!-- 5. Özel Dosyalar & Görsel Galeri (MediaGallerySection) -->
+<!-- 5. Özel Dosyalar & Görsel Galeri -->
 {{if .GalleryItems}}
 <section class="hp-gallery-section" aria-label="Özel Dosyalar ve Foto Galeri">
   <div class="hp-container">
     <div class="hp-section-header">
       <div class="hp-header-title-wrap">
-        <span class="hp-section-indicator"></span>
-        <h2 class="hp-section-title">Özel Dosyalar & Görsel Galeri</h2>
+        <span class="hp-section-accent-dot"></span>
+        <h2 class="hp-section-title">Özel Dosyalar &amp; Galeri</h2>
       </div>
       <div class="hp-header-rule"></div>
     </div>
@@ -201,14 +200,14 @@
 </section>
 {{end}}
 
-<!-- 6. Günün Anketi & E-Bülten (PollWidget & NewsletterSignup) -->
+<!-- 6. Günün Anketi & E-Bülten -->
 <section class="hp-interactive-section" aria-label="Anket ve E-Bülten">
   <div class="hp-container">
     <div class="hp-interactive-grid">
       <!-- Daily Poll Widget -->
       {{if .Poll}}
       <div class="hp-poll-card" id="hpPollWidget">
-        <div class="hp-card-tag-pill">Günün Anketi</div>
+        <div class="hp-card-tag-quiet">GÜNÜN ANKETİ</div>
         <h3 class="hp-poll-question">{{.Poll.Question}}</h3>
         <p class="hp-poll-stats" id="hpPollTotalVotes">Toplam {{.Poll.TotalVotes}} oy kullanıldı</p>
 
@@ -225,7 +224,7 @@
           {{end}}
           <div class="hp-poll-action">
             <button type="submit" id="hpPollVoteBtn" class="hp-poll-btn">Oy Ver</button>
-            <span id="hpPollVotedMsg" class="hp-poll-voted-msg hidden">Oyunuz başarıyla kaydedildi. Teşekkürler.</span>
+            <span id="hpPollVotedMsg" class="hp-poll-voted-msg hidden">Oyunuz başarıyla kaydedildi.</span>
           </div>
         </form>
       </div>
@@ -233,18 +232,17 @@
 
       <!-- Morning Newsletter Card -->
       <div class="hp-newsletter-card">
-        <div class="hp-card-tag-pill">Sabah Bülteni</div>
-        <h3 class="hp-newsletter-heading">Günün En Önemli Gelişmeleri Her Sabah E-Postanızda</h3>
+        <div class="hp-card-tag-quiet">EDİTÖRYAL BÜLTEN</div>
+        <h3 class="hp-newsletter-heading">Günün En Önemli Gelişmeleri Her Sabah Posta Kutunuzda</h3>
         <p class="hp-newsletter-desc">Ekonomi, teknoloji ve derinlemesine küresel analizler; her sabah saat 07:30'da uzman editör kadromuzun derlemesiyle gelen kutunuzda.</p>
 
         <form onsubmit="submitNewsletter(event)" class="hp-newsletter-form">
           <div class="hp-newsletter-input-wrap">
-            <svg class="hp-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            <input type="email" id="hpNewsletterEmail" placeholder="E-posta adresinizi giriniz..." required class="hp-newsletter-input">
+            <input type="email" id="hpNewsletterEmail" placeholder="E-posta adresiniz..." required class="hp-newsletter-input">
           </div>
-          <button type="submit" class="hp-newsletter-btn">Bültene Abone Ol</button>
+          <button type="submit" class="hp-newsletter-btn">Abone Ol</button>
         </form>
-        <span id="hpNewsletterSuccess" class="hp-newsletter-success-msg hidden">Aboneliğiniz tamamlandı. İlk bülteniniz yarın sabah iletilecektir.</span>
+        <span id="hpNewsletterSuccess" class="hp-newsletter-success-msg hidden">Aboneliğiniz tamamlandı.</span>
       </div>
     </div>
   </div>
