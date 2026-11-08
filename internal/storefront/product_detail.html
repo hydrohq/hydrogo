@@ -326,6 +326,18 @@
         {{end}}
       </div>
 
+      <!-- KVKK & Legal Consents -->
+      <div class="legal-consent-box" style="margin: 14px 0 10px; padding: 12px 14px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; color: var(--text-secondary); line-height: 1.4;">
+          <input type="checkbox" id="consentMesafe" checked style="margin-top: 2px; accent-color: var(--text-primary); cursor: pointer;">
+          <span><a href="javascript:void(0)" onclick="openLegalModal('mesafe')" style="font-weight: 600; text-decoration: underline; color: var(--text-primary);">Ön Bilgilendirme Koşulları</a> ve <a href="javascript:void(0)" onclick="openLegalModal('mesafe')" style="font-weight: 600; text-decoration: underline; color: var(--text-primary);">Mesafeli Satış Sözleşmesi</a>'ni okudum, onaylıyorum.</span>
+        </label>
+        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; color: var(--text-secondary); line-height: 1.4;">
+          <input type="checkbox" id="consentKvkk" checked style="margin-top: 2px; accent-color: var(--text-primary); cursor: pointer;">
+          <span><a href="javascript:void(0)" onclick="openLegalModal('kvkk')" style="font-weight: 600; text-decoration: underline; color: var(--text-primary);">KVKK Aydınlatma Metni</a>'ni ve Kişisel Veri İşleme Şartları'nı kabul ediyorum.</span>
+        </label>
+      </div>
+
       <!-- Action Buttons -->
       <div class="actions-stack">
         <div style="display: flex; gap: 12px; align-items: center;">
@@ -441,11 +453,21 @@
 
   <!-- Verified Customer Reviews Section -->
   <section class="reviews-section">
-    <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid var(--border); padding-bottom:14px;">
-      <h2 style="font-family:var(--font-serif); font-size:24px; font-weight:700;">Müşteri Değerlendirmeleri</h2>
-      <span style="font-size:13px; color:var(--text-muted);">38 Doğrulanmış Sipariş</span>
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 14px; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <h2 style="font-family: var(--font-serif); font-size: 24px; font-weight: 700; margin: 0;">Müşteri Değerlendirmeleri</h2>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+          <span style="color: #D97706; font-size: 13px;">★★★★★</span>
+          <strong style="font-size: 14px; color: var(--text-primary);">4.9</strong>
+          <span style="font-size: 12.5px; color: var(--text-muted);">(38 Doğrulanmış Sipariş)</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-outline" onclick="openAddReviewModal()" style="font-size: 12.5px; padding: 7px 14px;">Değerlendirme Yap</button>
+        <button type="button" class="btn btn-primary" onclick="openAllReviewsModal()" style="font-size: 12.5px; padding: 7px 16px;">Tüm Yorumları Gör (38)</button>
+      </div>
     </div>
-    <div class="reviews-grid">
+    <div class="reviews-grid" id="detailFeaturedReviews">
       <div class="review-card">
         <div class="review-author-row">
           <span>Elif B.</span>
@@ -516,124 +538,12 @@
     </div>
   </footer>
 
+  {{template "kvkk_modal" .}}
+  {{template "reviews_modal" .}}
   {{template "customer_modal" .}}
   {{template "cart_drawer" .}}
   {{template "search_modal" .}}
   {{template "ecommerce_scripts" .}}
-
-  <script>
-    let detailPageQty = 1;
-    function updateDetailPageQty(delta) {
-      detailPageQty = Math.max(1, detailPageQty + delta);
-      document.getElementById('detailQty').textContent = detailPageQty;
-    }
-
-    function switchGalleryImg(url, btn) {
-      document.getElementById('activeMainImg').src = url;
-      document.querySelectorAll('.thumb-btn').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-    }
-
-    function toggleAcc(header) {
-      const body = header.nextElementSibling;
-      const icon = header.querySelector('span:last-child');
-      if (body.style.display === 'none') {
-        body.style.display = 'block';
-        if (icon) icon.textContent = '-';
-      } else {
-        body.style.display = 'none';
-        if (icon) icon.textContent = '+';
-      }
-    }
-
-    const detailProduct = {
-      id: {{.Product.ID}},
-      title: {{.Product.Title}},
-      price: {{.Product.Price}},
-      image: {{.Product.ImageURL}},
-      options: {{.Product.OptionsJSON}},
-      variants: {{.Product.VariantsJSON}}
-    };
-    const storeWhatsapp = "{{.CleanPhone}}";
-    const storeName = "{{.StoreName}}";
-
-    let selectedOptions = {};
-    if (detailProduct.options && detailProduct.options.length > 0) {
-      detailProduct.options.forEach(opt => {
-        if (opt.values && opt.values.length > 0) {
-          selectedOptions[opt.name] = opt.values[0];
-        }
-      });
-    }
-
-    function onSelectOption(name, val, btn) {
-      selectedOptions[name] = val;
-      const row = btn.closest('.options-row');
-      if (row) {
-        row.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-        btn.classList.add('selected');
-      }
-    }
-
-    function addCurrentProductToBag() {
-      const selectedOptsSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
-      if (typeof addToBag === 'function') {
-        addToBag(detailProduct.id, detailProduct.title, detailProduct.price, detailProduct.image, selectedOptsSummary, detailPageQty);
-      } else if (typeof openCartDrawer === 'function') {
-        openCartDrawer();
-      }
-    }
-
-    function addBundleToBag(bId, bTitle, bPrice, bImg) {
-      addCurrentProductToBag();
-      if (typeof addToBag === 'function') {
-        addToBag(bId, bTitle, bPrice, bImg, '', 1);
-      }
-      if (typeof openCartDrawer === 'function') {
-        openCartDrawer();
-      }
-    }
-
-    function toggleAcc(header) {
-      const item = header.closest('.accordion-item');
-      if (!item) return;
-      const isOpen = item.classList.contains('open');
-      item.classList.toggle('open', !isOpen);
-      const icon = header.querySelector('.accordion-icon');
-      if (icon) {
-        icon.textContent = isOpen ? '+' : '−';
-      }
-    }
-
-    async function submitDetailWhatsAppOrder() {
-      const selectedOptsSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
-      let orderCode = '#AR-' + Math.floor(1000 + Math.random() * 9000);
-      try {
-        const res = await fetch('/api/v1/store/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            product_id: detailProduct.id,
-            product_title: detailProduct.title,
-            price: detailProduct.price,
-            quantity: detailPageQty,
-            variant_title: selectedOptsSummary
-          })
-        });
-        if (res.ok) {
-          const body = await res.json();
-          if (body.data && body.data.order_code) {
-            orderCode = body.data.order_code;
-          }
-        }
-      } catch (e) {
-        console.warn('Order dispatch fallback:', e);
-      }
-
-      const msg = `Merhaba ${storeName}, vitrininizdeki "${detailProduct.title}" parçasını (${detailPageQty} adet, ${selectedOptsSummary || 'Standart'}) sipariş etmek istiyorum. Sipariş Kodu: ${orderCode}`;
-      const url = `https://wa.me/${storeWhatsapp}?text=${encodeURIComponent(msg)}`;
-      window.open(url, '_blank');
-    }
-  </script>
+  {{template "product_detail_scripts" .}}
 </body>
 </html>

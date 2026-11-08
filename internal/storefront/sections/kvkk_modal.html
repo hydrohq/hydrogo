@@ -1,0 +1,56 @@
+{{define "kvkk_modal"}}
+<!-- KVKK & Mesafeli Satış Sözleşmesi Modal -->
+<div id="kvkkLegalModal" class="legal-modal-backdrop" onclick="handleLegalBackdrop(event)" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); align-items:center; justify-content:center; padding:16px;">
+  <div class="legal-modal-card" style="background:#FFFFFF; width:100%; max-width:680px; max-height:85vh; border-radius:14px; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.2); overflow:hidden;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid #E5E7EB; background:#FAF8F5;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1917" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <h3 id="legalModalTitle" style="font-size:16px; font-weight:700; color:#1C1917; margin:0;">KVKK &amp; Yasal Bilgilendirme</h3>
+      </div>
+      <button type="button" onclick="closeLegalModal()" style="background:none; border:none; cursor:pointer; font-size:20px; color:#6B7280; padding:4px;">&times;</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex; border-bottom:1px solid #E5E7EB; background:#F9FAFB;">
+      <button type="button" id="tabBtnKvkk" onclick="switchLegalTab('kvkk')" style="flex:1; padding:12px; font-size:13px; font-weight:700; border:none; background:#FFFFFF; color:#1C1917; border-bottom:2px solid #1C1917; cursor:pointer;">KVKK Aydınlatma Metni</button>
+      <button type="button" id="tabBtnMesafe" onclick="switchLegalTab('mesafe')" style="flex:1; padding:12px; font-size:13px; font-weight:600; border:none; background:transparent; color:#6B7280; border-bottom:2px solid transparent; cursor:pointer;">Mesafeli Satış Sözleşmesi</button>
+      <button type="button" id="tabBtnIade" onclick="switchLegalTab('iade')" style="flex:1; padding:12px; font-size:13px; font-weight:600; border:none; background:transparent; color:#6B7280; border-bottom:2px solid transparent; cursor:pointer;">İade &amp; Değişim</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="legalModalBody" style="padding:22px 24px; overflow-y:auto; font-size:13.5px; line-height:1.65; color:#374151;">
+      <!-- KVKK Tab Content -->
+      <div id="tabContentKvkk">
+        <h4 style="font-size:14.5px; font-weight:700; color:#111827; margin-bottom:8px;">6698 Sayılı Kişisel Verilerin Korunması Kanunu (KVKK) Kapsamında Bilgilendirme</h4>
+        <p style="margin-bottom:12px;">{{.StoreName}} olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu uyarınca, veri sorumlusu sıfatıyla tarafımıza iletmiş olduğunuz ad, soyad, telefon numarası, teslimat adresi ve e-posta gibi kişisel verilerinizin güvenliğine ve gizliliğine azami hassasiyet göstermekteyiz.</p>
+        <p style="margin-bottom:12px;"><strong>Verilerin İşlenme Amacı:</strong> Kişisel verileriniz; siparişlerin işlenmesi, kargo ve teslimat süreçlerinin yürütülmesi, müşteri destek taleplerinizin karşılanması ve yasal faturalandırma yükümlülüklerimizin ifası amacıyla işlenmektedir.</p>
+        <p style="margin-bottom:12px;"><strong>Üçüncü Kişilerle Paylaşım:</strong> Verileriniz yalnızca siparişinizin kapınıza güvenle teslim edilebilmesi adına anlaşmalı kargo kuruluşu (Yurtiçi Kargo) ve ödeme altyapısı sağlayıcısı ile kanunun izin verdiği sınırlar dahilinde paylaşılır. Asla ticari amaçla üçüncü taraflara satılmaz veya kiralanmaz.</p>
+        <p><strong>Haklarınız:</strong> Kanunun 11. maddesi uyarınca, verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme ve silinmesini isteme hakkına sahipsiniz. Başvurularınızı destek e-posta adresimiz üzerinden iletebilirsiniz.</p>
+      </div>
+
+      <!-- Mesafeli Satış Tab Content -->
+      <div id="tabContentMesafe" style="display:none;">
+        <h4 style="font-size:14.5px; font-weight:700; color:#111827; margin-bottom:8px;">Mesafeli Satış Sözleşmesi ve Ön Bilgilendirme Koşulları</h4>
+        <p style="margin-bottom:12px;"><strong>Madde 1 - Taraflar:</strong> İşbu sözleşme, alıcı ile {{.StoreName}} atölyesi arasında 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri gereğince akdedilmiştir.</p>
+        <p style="margin-bottom:12px;"><strong>Madde 2 - Konu:</strong> Alıcının satıcıya ait web sitesinden elektronik ortamda siparişini yaptığı ürünün satışı, teslimi ve cayma hakkı ile ilgili usul ve esasları düzenler.</p>
+        <p style="margin-bottom:12px;"><strong>Madde 3 - Teslimat:</strong> Ürünler, sipariş onayından itibaren yasal 30 günlük süreyi aşmamak kaydıyla, genellikle 1-3 iş günü içinde sigortalı olarak kargoya verilir.</p>
+        <p><strong>Madde 4 - Cayma Hakkı:</strong> Alıcı, hiçbir gerekçe göstermeksizin ve cezai şart ödemeksizin, ürünün kendisine veya gösterdiği adresteki kişiye tesliminden itibaren 14 (ondört) gün içinde cayma hakkına sahiptir.</p>
+      </div>
+
+      <!-- İade & Değişim Tab Content -->
+      <div id="tabContentIade" style="display:none;">
+        <h4 style="font-size:14.5px; font-weight:700; color:#111827; margin-bottom:8px;">14 Gün Koşulsuz İade ve Beden Değişim Güvencesi</h4>
+        <p style="margin-bottom:12px;">Sipariş ettiğiniz parçadan herhangi bir sebeple memnun kalmamanız durumunda, ürünün teslim alındığı tarihten itibaren 14 gün içerisinde ücretsiz iade edebilir veya beden değişimi talebinde bulunabilirsiniz.</p>
+        <p style="margin-bottom:12px;"><strong>İade Şartları:</strong> İade edilecek ürünün kullanılmamış, yıkanmamış, etiketi koparılmamış ve orijinal korumalı ambalajında olması gerekmektedir.</p>
+        <p><strong>İade Süreci:</strong> Müşteri Paneli üzerinden veya WhatsApp destek hattımızdan alacağınız anlaşmalı iade kargo koduyla herhangi bir Yurtiçi Kargo şubesinden bedelsiz olarak tarafımıza gönderebilirsiniz. Ürün atölyemize ulaştıktan sonra 2 iş günü içinde ücret iadeniz tamamlanır.</p>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-top:1px solid #E5E7EB; background:#FAF8F5;">
+      <span style="font-size:12px; color:#6B7280;">6502 &amp; 6698 Sayılı Kanunlara Tam Uyumlu</span>
+      <button type="button" onclick="acceptAndCloseLegalModal()" class="btn btn-primary" style="padding:9px 22px; font-size:13px; font-weight:600; border-radius:8px;">Okudum ve Onaylıyorum</button>
+    </div>
+  </div>
+</div>
+{{end}}

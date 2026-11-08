@@ -518,7 +518,7 @@
     <a href="javascript:void(0)" class="store-nav-link" onclick="closeStoreNav(); openCustomerAuthModal();">Hesabım &amp; Siparişlerim <span style="opacity:0.4;">&rarr;</span></a>
     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #E7E5E4;">
       <a href="https://wa.me/{{.CleanPhone}}" target="_blank" rel="noopener noreferrer" class="store-nav-link" style="color: #15803D; font-weight: 600;">
-        WhatsApp Destek Hattı <span>💬</span>
+        WhatsApp Destek Hattı
       </a>
     </div>
   </div>
@@ -589,8 +589,23 @@
     document.body.style.overflow = '';
   }
 
-  function addToBag(item) {
+  function addToBag(itemOrId, maybeTitle, maybePrice, maybeImg, maybeVariant, maybeQty) {
     loadCart();
+    let item;
+    if (typeof itemOrId === 'object' && itemOrId !== null) {
+      item = { ...itemOrId };
+    } else {
+      item = {
+        id: itemOrId,
+        title: maybeTitle || 'Ürün',
+        price: Number(maybePrice) || 0,
+        image_url: maybeImg || '',
+        slug: String(itemOrId),
+        size: maybeVariant || 'Standart',
+        color: '',
+        qty: Number(maybeQty) || 1
+      };
+    }
     const existing = hydroCart.find(it => it.id === item.id && (it.size || '') === (item.size || '') && (it.color || '') === (item.color || ''));
     if (existing) {
       existing.qty = (existing.qty || 1) + (item.qty || 1);
@@ -705,7 +720,7 @@
     const progBar = document.getElementById('shippingProgressBar');
     if (progText && progBar) {
       if (subtotal >= freeShippingThreshold) {
-        progText.innerHTML = '🎉 <strong>Tebrikler!</strong> Ücretsiz kargo hakkı kazandınız.';
+        progText.innerHTML = '<strong>Tebrikler!</strong> Ücretsiz kargo hakkı kazandınız.';
         progBar.style.width = '100%';
         progBar.style.backgroundColor = '#15803D';
       } else {
