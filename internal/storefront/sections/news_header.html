@@ -1,0 +1,121 @@
+{{define "news_header"}}
+<header class="hp-header-root">
+  <!-- Top Utility Bar: Date, Weather, Prayer, Market Tickers -->
+  <div class="hp-top-bar">
+    <div class="hp-container hp-top-bar-inner">
+      <div class="hp-top-left">
+        <span class="hp-date-badge">{{if .CurrentDateFormatted}}{{.CurrentDateFormatted}}{{else}}8 Kasım 2026, Pazar{{end}}</span>
+        <span class="hp-sep">|</span>
+        <div class="hp-weather-pill">
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <span>{{.WeatherCity}} {{.WeatherTemp}} ({{.WeatherDesc}})</span>
+        </div>
+        <span class="hp-sep hidden-mobile">|</span>
+        <div class="hp-prayer-pill hidden-mobile">
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <span>İmsak {{.PrayerImsak}} · Akşam {{.PrayerAksam}}</span>
+        </div>
+      </div>
+
+      <div class="hp-top-right">
+        <div class="hp-tickers-strip">
+          {{range .MarketTickers}}
+          <div class="hp-ticker-item">
+            <span class="hp-ticker-sym">{{.Symbol}}</span>
+            <span class="hp-ticker-val">{{.Price}}</span>
+            <span class="hp-ticker-change {{if .IsUp}}up{{else}}down{{end}}">
+              {{if .IsUp}}▲{{else}}▼{{end}} {{.Change}}
+            </span>
+          </div>
+          {{end}}
+        </div>
+        {{if .WhatsAppTipNumber}}
+        <a href="https://wa.me/{{.WhatsAppTipNumber}}?text=Haber%20ihbar%C4%B1nda%20bulunmak%20istiyorum" target="_blank" rel="noopener noreferrer" class="hp-whatsapp-top-btn" aria-label="Haber İhbar Hattı">
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="currentColor"><path d="M12.02 2C6.5 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l5.1-1.33A10 10 0 0 0 12.02 22C17.5 22 22 17.52 22 12S17.5 2 12.02 2Zm5.78 14.17c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.8-.11-.42-.13-.95-.3-1.64-.58-2.88-1.24-4.76-4.13-4.9-4.33-.14-.2-1.17-1.56-1.17-2.97 0-1.42.74-2.11 1-2.4.26-.29.57-.36.76-.36h.54c.18 0 .42-.02.65.5.24.55.8 1.92.87 2.06.07.14.11.3.02.49-.09.19-.14.3-.28.46-.14.16-.29.36-.42.48-.14.14-.28.29-.12.57.16.28.7 1.17 1.52 1.9 1.05.94 1.93 1.23 2.21 1.37.28.14.44.12.6-.07.16-.19.68-.79.86-1.07.18-.28.36-.23.6-.14.24.09 1.53.73 1.8.86.26.14.44.2.5.3.07.12.07.65-.17 1.33Z"/></svg>
+          <span>İhbar Hattı</span>
+        </a>
+        {{end}}
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Navbar -->
+  <div class="hp-main-nav">
+    <div class="hp-container hp-nav-inner">
+      <div class="hp-nav-left">
+        <a href="/" class="hp-brand-logo" aria-label="{{.BrandName}} Anasayfa">
+          <div class="hp-brand-mark">N</div>
+          <div class="hp-brand-text">
+            <span class="hp-brand-title">{{.BrandName}}</span>
+            <span class="hp-brand-sub">{{.Tagline}}</span>
+          </div>
+        </a>
+      </div>
+
+      <nav class="hp-nav-links" aria-label="Ana Menü">
+        <a href="/" class="hp-nav-link {{if eq .ActivePage "home"}}active{{end}}">Anasayfa</a>
+        {{range .Categories}}
+        <a href="/kategori/{{.Slug}}" class="hp-nav-link {{if eq $.ActiveCategory .Slug}}active{{end}}">{{.Name}}</a>
+        {{end}}
+      </nav>
+
+      <div class="hp-nav-actions">
+        <button type="button" class="hp-search-btn" onclick="openSearchModal()" aria-label="Haber Ara">
+          <svg class="hp-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <span class="hidden-mobile">Ara</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breaking News Ticker (Son Dakika Marquee) -->
+  {{if or .BreakingNews .BreakingArticles}}
+  <div class="hp-breaking-bar" role="region" aria-label="Son Dakika Gelişmeleri">
+    <div class="hp-container hp-breaking-inner">
+      <div class="hp-breaking-tag">
+        <span class="hp-pulse-dot"></span>
+        <span>SON DAKİKA</span>
+      </div>
+      <div class="hp-breaking-scroller-wrap">
+        <div class="hp-marquee-track">
+          <div class="hp-marquee-content">
+            {{if .BreakingArticles}}
+              {{range .BreakingArticles}}
+              <a href="/haber/{{.Slug}}" class="hp-marquee-item">
+                <span class="hp-marquee-time">{{.PublishedAt}}</span>
+                <span class="hp-marquee-title">{{.Title}}</span>
+              </a>
+              <span class="hp-marquee-sep">///</span>
+              {{end}}
+            {{else}}
+              <span class="hp-marquee-item">
+                <span class="hp-marquee-time">Canlı</span>
+                <span class="hp-marquee-title">{{.BreakingNews}}</span>
+              </span>
+            {{end}}
+          </div>
+          <!-- Duplicate for seamless 100% infinite loop -->
+          <div class="hp-marquee-content" aria-hidden="true">
+            {{if .BreakingArticles}}
+              {{range .BreakingArticles}}
+              <a href="/haber/{{.Slug}}" class="hp-marquee-item">
+                <span class="hp-marquee-time">{{.PublishedAt}}</span>
+                <span class="hp-marquee-title">{{.Title}}</span>
+              </a>
+              <span class="hp-marquee-sep">///</span>
+              {{end}}
+            {{else}}
+              <span class="hp-marquee-item">
+                <span class="hp-marquee-time">Canlı</span>
+                <span class="hp-marquee-title">{{.BreakingNews}}</span>
+              </span>
+            {{end}}
+          </div>
+        </div>
+      </div>
+      <a href="/kategori/gundem" class="hp-breaking-all-link">Tümü →</a>
+    </div>
+  </div>
+  {{end}}
+</header>
+{{end}}

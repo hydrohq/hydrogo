@@ -149,7 +149,41 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 		catSlug := strings.TrimPrefix(strings.TrimPrefix(p, "kategori/"), "category/")
 		data.ActiveCategory = catSlug
 		data.ActivePage = "category"
+	} else if strings.Contains(p, "/") {
+		parts := strings.Split(p, "/")
+		if len(parts) == 2 {
+			for _, cat := range data.Categories {
+				if strings.EqualFold(cat.Slug, parts[0]) {
+					for idx, a := range allArticles {
+						if strings.EqualFold(a.Slug, parts[1]) {
+							artCopy := a
+							data.ActiveArticle = &artCopy
+							data.ActivePage = "article"
+							if idx+1 < len(allArticles) {
+								nextCopy := allArticles[idx+1]
+								data.NextArticle = &nextCopy
+							} else if len(allArticles) > 1 {
+								nextCopy := allArticles[0]
+								data.NextArticle = &nextCopy
+							}
+							break
+						}
+					}
+					break
+				}
+			}
+		}
+	} else if p != "" && p != "home" && p != "anasayfa" {
+		for _, cat := range data.Categories {
+			if strings.EqualFold(cat.Slug, p) {
+				data.ActiveCategory = cat.Slug
+				data.ActivePage = "category"
+				break
+			}
+		}
 	}
+
+	data.CurrentDateFormatted = "8 Kasım 2026, Pazar"
 
 	data.MarketTickers = []storefront.MarketTicker{
 		{Symbol: "BIST 100", Price: "9.245,30", Change: "+%1.42", IsUp: true},
@@ -371,6 +405,83 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 	if data.LeadArticle == nil && len(allArticles) > 0 {
 		leadCopy := allArticles[0]
 		data.LeadArticle = &leadCopy
+	}
+
+	// 1. Featured Manset Carousel (1..10)
+	mansetCount := len(allArticles)
+	if mansetCount > 10 {
+		mansetCount = 10
+	}
+	if mansetCount > 0 {
+		data.FeaturedManset = append(data.FeaturedManset, allArticles[:mansetCount]...)
+	}
+
+	// 2. Side Manset Cards (2 items)
+	if len(allArticles) > 10 {
+		endIdx := len(allArticles)
+		if endIdx > 12 {
+			endIdx = 12
+		}
+		data.SideManset = append(data.SideManset, allArticles[10:endIdx]...)
+	} else if len(allArticles) >= 3 {
+		data.SideManset = append(data.SideManset, allArticles[1:3]...)
+	}
+
+	// 3. Breaking Articles for Top Marquee Ticker
+	breakCount := len(allArticles)
+	if breakCount > 6 {
+		breakCount = 6
+	}
+	if breakCount > 0 {
+		data.BreakingArticles = append(data.BreakingArticles, allArticles[:breakCount]...)
+	}
+
+	// 4. Popular News (Top 6 ranked for horizontal carousel)
+	for _, a := range allArticles {
+		if a.IsTrending && len(data.PopularNews) < 6 {
+			data.PopularNews = append(data.PopularNews, a)
+		}
+	}
+	for _, a := range allArticles {
+		if len(data.PopularNews) >= 6 {
+			break
+		}
+		already := false
+		for _, pop := range data.PopularNews {
+			if pop.Slug == a.Slug {
+				already = true
+				break
+			}
+		}
+		if !already {
+			data.PopularNews = append(data.PopularNews, a)
+		}
+	}
+
+	// 5. Category Showcase Sections (1 lead + up to 4 sub cards per category)
+	for _, cat := range data.Categories {
+		var catArts []storefront.NewsArticle
+		for _, a := range allArticles {
+			if strings.EqualFold(a.CategorySlug, cat.Slug) {
+				catArts = append(catArts, a)
+			}
+		}
+		if len(catArts) >= 2 {
+			lead := catArts[0]
+			var rest []storefront.NewsArticle
+			if len(catArts) > 1 {
+				limit := len(catArts)
+				if limit > 5 {
+					limit = 5
+				}
+				rest = catArts[1:limit]
+			}
+			data.CategorySections = append(data.CategorySections, storefront.NewsCategorySection{
+				Category:    cat,
+				LeadArticle: lead,
+				Articles:    rest,
+			})
+		}
 	}
 
 	return data

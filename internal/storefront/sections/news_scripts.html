@@ -1,0 +1,311 @@
+{{define "news_scripts"}}
+<script>
+// --- 1. Manşet Carousel Auto-Rotation & Tab Switching ---
+let currentMansetIndex = 0;
+let mansetTimer = null;
+let isMansetPaused = false;
+
+function initMansetCarousel() {
+  const slides = document.querySelectorAll('.hp-carousel-slide');
+  if (slides.length <= 1) return;
+  startMansetTimer();
+}
+
+function startMansetTimer() {
+  clearInterval(mansetTimer);
+  mansetTimer = setInterval(() => {
+    if (!isMansetPaused) {
+      const slides = document.querySelectorAll('.hp-carousel-slide');
+      if (!slides.length) return;
+      const nextIndex = (currentMansetIndex + 1) % slides.length;
+      goToMansetSlide(nextIndex);
+    }
+  }, 5000);
+}
+
+function goToMansetSlide(index) {
+  const slides = document.querySelectorAll('.hp-carousel-slide');
+  const texts = document.querySelectorAll('.hp-carousel-text-item');
+  const tabs = document.querySelectorAll('.hp-tab-btn');
+  if (index < 0 || index >= slides.length) return;
+
+  slides.forEach((s, i) => s.classList.toggle('active', i === index));
+  texts.forEach((t, i) => t.classList.toggle('active', i === index));
+  tabs.forEach((b, i) => b.classList.toggle('active', i === index));
+  currentMansetIndex = index;
+}
+
+function pauseManset() {
+  isMansetPaused = true;
+}
+
+function resumeManset() {
+  isMansetPaused = false;
+}
+
+// --- 2. Popular News Horizontal Carousel Scroller ---
+function scrollPopular(direction) {
+  const track = document.getElementById('hpPopularTrack');
+  if (!track) return;
+  const scrollAmount = 260 * direction;
+  track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+}
+
+// --- 3. Font Size Controls ---
+let currentFontScale = 0; // -1: small, 0: normal, 1: large
+function adjustFontSize(delta) {
+  const prose = document.getElementById('hpArticleProse');
+  if (!prose) return;
+  currentFontScale = Math.max(-1, Math.min(2, currentFontScale + delta));
+  if (currentFontScale === -1) {
+    prose.style.fontSize = '0.95rem';
+    prose.style.lineHeight = '1.75';
+  } else if (currentFontScale === 0) {
+    prose.style.fontSize = '1.05rem';
+    prose.style.lineHeight = '1.85';
+  } else if (currentFontScale === 1) {
+    prose.style.fontSize = '1.18rem';
+    prose.style.lineHeight = '1.95';
+  } else if (currentFontScale === 2) {
+    prose.style.fontSize = '1.30rem';
+    prose.style.lineHeight = '2.05';
+  }
+}
+
+// --- 4. Text to Speech (TTS) Audio Narration ---
+let isSpeaking = false;
+let speechSynth = null;
+let speechUtterance = null;
+
+function toggleAudioNarration() {
+  if (!('speechSynthesis' in window)) {
+    alert('Tarayıcınız sesli okuma özelliğini desteklemiyor.');
+    return;
+  }
+  const btn = document.getElementById('hpTTSButton');
+  const playIcon = document.getElementById('hpTTSPlayIcon');
+  const pauseIcon = document.getElementById('hpTTSPauseIcon');
+  const label = document.getElementById('hpTTSText');
+
+  if (isSpeaking) {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    playIcon.classList.remove('hidden');
+    pauseIcon.classList.add('hidden');
+    label.textContent = 'Haberi Dinle';
+    return;
+  }
+
+  const headline = document.querySelector('.hp-article-headline')?.innerText || '';
+  const lead = document.querySelector('.hp-article-lead-spot')?.innerText || '';
+  const body = document.getElementById('hpArticleProse')?.innerText || '';
+  const textToRead = `${headline}. ${lead}. ${body}`;
+
+  speechUtterance = new SpeechSynthesisUtterance(textToRead);
+  speechUtterance.rate = 1.0;
+  speechUtterance.pitch = 1.0;
+  speechUtterance.lang = 'tr-TR';
+
+  // Pick Turkish voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const trVoice = voices.find(v => v.lang.startsWith('tr') || v.name.toLowerCase().includes('turkish'));
+  if (trVoice) speechUtterance.voice = trVoice;
+
+  speechUtterance.onend = () => {
+    isSpeaking = false;
+    playIcon.classList.remove('hidden');
+    pauseIcon.classList.add('hidden');
+    label.textContent = 'Haberi Dinle';
+  };
+
+  speechUtterance.onerror = () => {
+    isSpeaking = false;
+    playIcon.classList.remove('hidden');
+    pauseIcon.classList.add('hidden');
+    label.textContent = 'Haberi Dinle';
+  };
+
+  window.speechSynthesis.speak(speechUtterance);
+  isSpeaking = true;
+  playIcon.classList.add('hidden');
+  pauseIcon.classList.remove('hidden');
+  label.textContent = 'Durdur';
+}
+
+// --- 5. Share Article & Copy Link ---
+function shareArticle(network) {
+  const url = encodeURIComponent(window.location.href);
+  const title = encodeURIComponent(document.title);
+  if (network === 'twitter') {
+    window.open(`https://twitter.com/intent/tweet?text=${title}&url=${url}`, '_blank', 'width=600,height=400');
+  } else if (network === 'whatsapp') {
+    window.open(`https://api.whatsapp.com/send?text=${title}%20${url}`, '_blank');
+  }
+}
+
+function copyArticleLink() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    alert('Haber bağlantısı panoya kopyalandı.');
+  }).catch(() => {
+    const input = document.createElement('input');
+    input.value = window.location.href;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    alert('Haber bağlantısı kopyalandı.');
+  });
+}
+
+// --- 6. Reader Reactions with localStorage ---
+function toggleReaction(type) {
+  const el = document.getElementById(`react-count-${type}`);
+  if (!el) return;
+  const key = `hp_react_${type}_${window.location.pathname}`;
+  if (localStorage.getItem(key)) {
+    return; // Already reacted
+  }
+  let count = parseInt(el.textContent, 10) || 0;
+  count += 1;
+  el.textContent = count;
+  localStorage.setItem(key, '1');
+  el.parentElement.classList.add('active');
+}
+
+// --- 7. Comments Form Submission ---
+function submitComment(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('hpCommentAuthor');
+  const textInput = document.getElementById('hpCommentBody');
+  if (!nameInput || !textInput) return;
+
+  const author = nameInput.value.trim();
+  const content = textInput.value.trim();
+  if (!author || !content) return;
+
+  const initials = author.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'OK';
+
+  const list = document.getElementById('hpCommentsList');
+  if (list) {
+    const item = document.createElement('div');
+    item.className = 'hp-comment-item';
+    item.innerHTML = `
+      <div class="hp-comment-avatar"><span>${initials}</span></div>
+      <div class="hp-comment-content">
+        <div class="hp-comment-meta">
+          <span class="hp-comment-author">${author}</span>
+          <span class="hp-comment-time">Az önce</span>
+        </div>
+        <p class="hp-comment-text">${content}</p>
+      </div>
+    `;
+    list.prepend(item);
+  }
+
+  const badge = document.getElementById('hpCommentsBadge');
+  if (badge) {
+    const count = (list ? list.children.length : 1);
+    badge.textContent = `${count} Yorum`;
+  }
+
+  textInput.value = '';
+  nameInput.value = '';
+  alert('Yorumunuz kaydedildi ve yayına alındı.');
+}
+
+// --- 8. Daily Poll Voting with Animated Results ---
+function submitPollVote(e, pollId) {
+  e.preventDefault();
+  const form = document.getElementById('hpPollForm');
+  if (!form) return;
+  const selected = form.querySelector('input[name="poll_choice"]:checked');
+  if (!selected) return;
+
+  const labels = form.querySelectorAll('.hp-poll-label');
+  labels.forEach(lbl => {
+    const radio = lbl.querySelector('.hp-poll-radio');
+    if (radio) radio.disabled = true;
+    const bar = lbl.querySelector('.hp-poll-result-bar');
+    if (bar) {
+      bar.classList.remove('hidden');
+      const fill = bar.querySelector('.hp-poll-fill');
+      const pct = bar.getAttribute('data-pct') || '33';
+      setTimeout(() => { if (fill) fill.style.width = pct + '%'; }, 50);
+    }
+  });
+
+  const btn = document.getElementById('hpPollVoteBtn');
+  if (btn) btn.classList.add('hidden');
+  const msg = document.getElementById('hpPollVotedMsg');
+  if (msg) msg.classList.remove('hidden');
+
+  localStorage.setItem(`hp_poll_voted_${pollId}`, selected.value);
+}
+
+// --- 9. Morning Newsletter Subscription ---
+function submitNewsletter(e) {
+  e.preventDefault();
+  const input = e.target.querySelector('input[type="email"]');
+  if (input) input.value = '';
+  const success = document.getElementById('hpNewsletterSuccess');
+  if (success) success.classList.remove('hidden');
+  alert('Aboneliğiniz başarıyla oluşturuldu.');
+}
+
+// --- 10. Infinite Scroll Sentinel for Next Article ---
+function initInfiniteScroll() {
+  const sentinel = document.getElementById('hpInfiniteSentinel');
+  if (!sentinel) return;
+
+  let loaded = false;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !loaded) {
+        loaded = true;
+        const nextSlug = sentinel.getAttribute('data-next-slug');
+        if (!nextSlug) return;
+
+        // Fetch next article HTML fragment or transition
+        fetch(`/haber/${nextSlug}`)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextArticle = doc.getElementById(`article-${nextSlug}`) || doc.querySelector('.hp-article-root');
+            if (nextArticle) {
+              const stream = document.getElementById('hpArticleStream');
+              if (stream) {
+                const divider = document.createElement('div');
+                divider.className = 'hp-article-stream-divider';
+                divider.innerHTML = `<span class="hp-divider-tag">SIRADAKİ HABER</span><div class="hp-divider-line"></div>`;
+                stream.insertBefore(divider, sentinel);
+                stream.insertBefore(nextArticle, sentinel);
+                window.history.pushState({}, '', `/haber/${nextSlug}`);
+                document.title = nextArticle.getAttribute('data-title') || document.title;
+              }
+            }
+            sentinel.style.display = 'none';
+          })
+          .catch(err => console.error('Next article load error:', err));
+      }
+    });
+  }, { rootMargin: '300px' });
+
+  observer.observe(sentinel);
+}
+
+// Search Modal
+function openSearchModal() {
+  const q = prompt('Aramak istediğiniz anahtar kelimeyi yazınız:');
+  if (q && q.trim()) {
+    window.location.href = `/?q=${encodeURIComponent(q.trim())}`;
+  }
+}
+
+// Boot
+document.addEventListener('DOMContentLoaded', () => {
+  initMansetCarousel();
+  initInfiniteScroll();
+});
+</script>
+{{end}}

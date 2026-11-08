@@ -1,0 +1,252 @@
+{{define "news_sections"}}
+<!-- 1. "Çok Okunanlar" Horizontal Ranked Carousel (PopularReadList) -->
+{{if .PopularNews}}
+<section class="hp-popular-section" aria-label="Çok Okunan Haberler">
+  <div class="hp-container">
+    <div class="hp-section-header">
+      <div class="hp-header-title-wrap">
+        <span class="hp-section-indicator"></span>
+        <h2 class="hp-section-title hp-title-crimson">Çok Okunanlar</h2>
+      </div>
+      <div class="hp-header-rule"></div>
+      <div class="hp-slider-controls">
+        <button type="button" class="hp-arrow-btn" onclick="scrollPopular(-1)" aria-label="Önceki Popüler Haberler">
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button type="button" class="hp-arrow-btn" onclick="scrollPopular(1)" aria-label="Sonraki Popüler Haberler">
+          <svg class="hp-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="hp-popular-track" id="hpPopularTrack">
+      {{range $i, $item := .PopularNews}}
+      <article class="hp-popular-card">
+        <a href="/haber/{{$item.Slug}}" class="hp-popular-thumb-wrap" aria-label="{{$item.Title}}">
+          <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-popular-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+          <span class="hp-rank-badge">{{add $i 1}}</span>
+        </a>
+        <div class="hp-popular-info">
+          <span class="hp-popular-cat">{{$item.CategorySlug}}</span>
+          <a href="/haber/{{$item.Slug}}" class="hp-popular-title-link">
+            <h3 class="hp-popular-card-title">{{$item.Title}}</h3>
+          </a>
+        </div>
+      </article>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- 2. "Son Haberler" 4-Column Grid -->
+{{if .Articles}}
+<section class="hp-latest-section" aria-label="Son Haberler">
+  <div class="hp-container">
+    <div class="hp-section-header">
+      <div class="hp-header-title-wrap">
+        <span class="hp-section-indicator"></span>
+        <h2 class="hp-section-title">Son Haberler</h2>
+      </div>
+      <div class="hp-header-rule"></div>
+      <a href="/kategori/gundem" class="hp-section-more-btn">Tümünü Gör</a>
+    </div>
+
+    <div class="hp-news-grid-4">
+      {{range $i, $item := .Articles}}
+      {{if lt $i 8}}
+      <article class="hp-grid-card">
+        <a href="/haber/{{$item.Slug}}" class="hp-grid-card-media" aria-label="{{$item.Title}}">
+          <img src="{{$item.ImageURL}}" alt="{{$item.Title}}" class="hp-grid-card-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+          <span class="hp-grid-cat-badge">{{$item.CategorySlug}}</span>
+        </a>
+        <div class="hp-grid-card-body">
+          <div class="hp-card-meta">
+            <span>{{$item.PublishedAt}}</span>
+            <span class="hp-sep">·</span>
+            <span>{{$item.ReadingTime}} dk</span>
+          </div>
+          <a href="/haber/{{$item.Slug}}" class="hp-grid-title-link">
+            <h3 class="hp-grid-card-title">{{$item.Title}}</h3>
+          </a>
+          <p class="hp-grid-card-excerpt">{{$item.Excerpt}}</p>
+        </div>
+      </article>
+      {{end}}
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- 3. Category Showcase Sections (1 Lead + 4 Sub Cards) -->
+{{range .CategorySections}}
+<section class="hp-category-showcase-section" aria-label="{{.Category.Name}} Haberleri">
+  <div class="hp-container">
+    <div class="hp-section-header">
+      <div class="hp-header-title-wrap">
+        <span class="hp-cat-pill-badge">{{.Category.Name}}</span>
+        <h2 class="hp-section-title">{{.Category.Name}} Gündemi</h2>
+      </div>
+      <div class="hp-header-rule"></div>
+      <a href="/kategori/{{.Category.Slug}}" class="hp-section-more-btn">Tüm {{.Category.Name}} Haberleri</a>
+    </div>
+
+    <div class="hp-category-showcase-grid">
+      <!-- Big Lead Card on Left -->
+      <article class="hp-cat-lead-card">
+        <a href="/haber/{{.LeadArticle.Slug}}" class="hp-cat-lead-media" aria-label="{{.LeadArticle.Title}}">
+          <img src="{{.LeadArticle.ImageURL}}" alt="{{.LeadArticle.Title}}" class="hp-cat-lead-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+        </a>
+        <div class="hp-cat-lead-body">
+          <div class="hp-card-meta">
+            <span>{{.LeadArticle.PublishedAt}}</span>
+            <span class="hp-sep">·</span>
+            <span>{{.LeadArticle.AuthorName}}</span>
+            <span class="hp-sep">·</span>
+            <span>{{.LeadArticle.ReadingTime}} dk okuma</span>
+          </div>
+          <a href="/haber/{{.LeadArticle.Slug}}" class="hp-cat-lead-title-link">
+            <h3 class="hp-cat-lead-title">{{.LeadArticle.Title}}</h3>
+          </a>
+          <p class="hp-cat-lead-excerpt">{{.LeadArticle.Excerpt}}</p>
+        </div>
+      </article>
+
+      <!-- 2x2 Grid (4 Secondary Cards) on Right -->
+      <div class="hp-cat-sub-grid">
+        {{range .Articles}}
+        <article class="hp-cat-sub-card">
+          <a href="/haber/{{.Slug}}" class="hp-cat-sub-media" aria-label="{{.Title}}">
+            <img src="{{.ImageURL}}" alt="{{.Title}}" class="hp-cat-sub-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+          </a>
+          <div class="hp-cat-sub-body">
+            <div class="hp-card-meta">
+              <span>{{.PublishedAt}}</span>
+            </div>
+            <a href="/haber/{{.Slug}}" class="hp-cat-sub-title-link">
+              <h4 class="hp-cat-sub-title">{{.Title}}</h4>
+            </a>
+          </div>
+        </article>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- 4. Köşe Yazarları & Fikir Masası (ColumnistsSection) -->
+{{if .Columnists}}
+<section class="hp-columnists-section" aria-label="Köşe Yazarları ve Analistler">
+  <div class="hp-container">
+    <div class="hp-section-header">
+      <div class="hp-header-title-wrap">
+        <span class="hp-section-indicator"></span>
+        <h2 class="hp-section-title">Köşe Yazarları & Analiz</h2>
+      </div>
+      <div class="hp-header-rule"></div>
+    </div>
+
+    <div class="hp-columnists-grid">
+      {{range .Columnists}}
+      <article class="hp-columnist-card">
+        <div class="hp-columnist-header">
+          <div class="hp-columnist-avatar">
+            <span>{{.Initials}}</span>
+          </div>
+          <div class="hp-columnist-author">
+            <h3 class="hp-columnist-name">{{.Name}}</h3>
+            <span class="hp-columnist-role">{{.Title}}</span>
+          </div>
+        </div>
+        <div class="hp-columnist-quote">
+          <a href="/haber/{{.LatestArticleSlug}}" class="hp-columnist-link">
+            <h4 class="hp-columnist-title">"{{.LatestArticleTitle}}"</h4>
+          </a>
+        </div>
+      </article>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- 5. Özel Dosyalar & Görsel Galeri (MediaGallerySection) -->
+{{if .GalleryItems}}
+<section class="hp-gallery-section" aria-label="Özel Dosyalar ve Foto Galeri">
+  <div class="hp-container">
+    <div class="hp-section-header">
+      <div class="hp-header-title-wrap">
+        <span class="hp-section-indicator"></span>
+        <h2 class="hp-section-title">Özel Dosyalar & Görsel Galeri</h2>
+      </div>
+      <div class="hp-header-rule"></div>
+    </div>
+
+    <div class="hp-gallery-grid">
+      {{range .GalleryItems}}
+      <a href="/haber/{{.Slug}}" class="hp-gallery-card" aria-label="{{.Title}}">
+        <img src="{{.ImageURL}}" alt="{{.Title}}" class="hp-gallery-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+        <div class="hp-gallery-gradient"></div>
+        <div class="hp-gallery-content">
+          <span class="hp-gallery-badge">{{.BadgeText}}</span>
+          <span class="hp-gallery-cat">{{.Category}}</span>
+          <h3 class="hp-gallery-title">{{.Title}}</h3>
+        </div>
+      </a>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- 6. Günün Anketi & E-Bülten (PollWidget & NewsletterSignup) -->
+<section class="hp-interactive-section" aria-label="Anket ve E-Bülten">
+  <div class="hp-container">
+    <div class="hp-interactive-grid">
+      <!-- Daily Poll Widget -->
+      {{if .Poll}}
+      <div class="hp-poll-card" id="hpPollWidget">
+        <div class="hp-card-tag-pill">Günün Anketi</div>
+        <h3 class="hp-poll-question">{{.Poll.Question}}</h3>
+        <p class="hp-poll-stats" id="hpPollTotalVotes">Toplam {{.Poll.TotalVotes}} oy kullanıldı</p>
+
+        <form id="hpPollForm" onsubmit="submitPollVote(event, '{{.Poll.ID}}')" class="hp-poll-options">
+          {{range $idx, $opt := .Poll.Options}}
+          <label class="hp-poll-label">
+            <input type="radio" name="poll_choice" value="{{$idx}}" required class="hp-poll-radio">
+            <span class="hp-poll-text">{{$opt.Text}}</span>
+            <div class="hp-poll-result-bar hidden" data-pct="{{$opt.Percentage}}">
+              <div class="hp-poll-fill" style="width: 0%"></div>
+              <span class="hp-poll-pct-text">%{{$opt.Percentage}}</span>
+            </div>
+          </label>
+          {{end}}
+          <div class="hp-poll-action">
+            <button type="submit" id="hpPollVoteBtn" class="hp-poll-btn">Oy Ver</button>
+            <span id="hpPollVotedMsg" class="hp-poll-voted-msg hidden">Oyunuz başarıyla kaydedildi. Teşekkürler.</span>
+          </div>
+        </form>
+      </div>
+      {{end}}
+
+      <!-- Morning Newsletter Card -->
+      <div class="hp-newsletter-card">
+        <div class="hp-card-tag-pill">Sabah Bülteni</div>
+        <h3 class="hp-newsletter-heading">Günün En Önemli Gelişmeleri Her Sabah E-Postanızda</h3>
+        <p class="hp-newsletter-desc">Ekonomi, teknoloji ve derinlemesine küresel analizler; her sabah saat 07:30'da uzman editör kadromuzun derlemesiyle gelen kutunuzda.</p>
+
+        <form onsubmit="submitNewsletter(event)" class="hp-newsletter-form">
+          <div class="hp-newsletter-input-wrap">
+            <svg class="hp-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <input type="email" id="hpNewsletterEmail" placeholder="E-posta adresinizi giriniz..." required class="hp-newsletter-input">
+          </div>
+          <button type="submit" class="hp-newsletter-btn">Bültene Abone Ol</button>
+        </form>
+        <span id="hpNewsletterSuccess" class="hp-newsletter-success-msg hidden">Aboneliğiniz tamamlandı. İlk bülteniniz yarın sabah iletilecektir.</span>
+      </div>
+    </div>
+  </div>
+</section>
+{{end}}
