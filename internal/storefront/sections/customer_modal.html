@@ -1,6 +1,6 @@
 {{define "customer_modal"}}
 <!-- Customer Membership & Order Tracking Modal -->
-<div class="drawer-overlay" id="customerAuthOverlay" onclick="closeCustomerAuthModal(); closeCustomerAccountDrawer();" style="z-index: 290; display:none;"></div>
+<div class="drawer-overlay" id="customerAuthOverlay" onclick="closeCustomerAuthModal(); closeCustomerAccountDrawer();" style="position:fixed; inset:0; background:rgba(0,0,0,0.65) !important; backdrop-filter:blur(6px) !important; z-index:290; display:none; opacity:1 !important; pointer-events:auto !important;"></div>
 
 <div class="modal-box" id="customerAuthModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:300; background:#FFF; border:1px solid var(--border); border-radius:14px; max-width:440px; width:92%; padding:28px 24px; box-shadow:0 24px 48px rgba(0,0,0,0.18);">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -216,7 +216,10 @@
       const overlay = document.getElementById('customerAuthOverlay');
       const modal = document.getElementById('customerAuthModal');
       if (preferredTab) switchAuthTab(preferredTab);
-      if (overlay) overlay.style.display = 'block';
+      if (overlay) {
+        overlay.style.display = 'block';
+        overlay.classList.add('active');
+      }
       if (modal) modal.style.display = 'block';
     }
   }
@@ -224,7 +227,10 @@
   function closeCustomerAuthModal() {
     const overlay = document.getElementById('customerAuthOverlay');
     const modal = document.getElementById('customerAuthModal');
-    if (overlay) overlay.style.display = 'none';
+    if (overlay) {
+      overlay.style.display = 'none';
+      overlay.classList.remove('active');
+    }
     if (modal) modal.style.display = 'none';
   }
 

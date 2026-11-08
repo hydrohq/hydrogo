@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{if eq .AuthMode "register"}}Yeni Müşteri Kaydı — {{.StoreName}}{{else}}Müşteri Girişi — {{.StoreName}}{{end}}</title>
+  <meta name="description" content="{{.StoreName}} müşteri üyelik ve giriş portalı. Sipariş takibi, kargo sorgulama ve avantajlı üyelik ayrıcalıkları.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-canvas: {{if .BGTone}}{{.BGTone}}{{else}}#FAF8F5{{end}};
+      --surface: #FFFFFF;
+      --surface-sunken: #F5F2EB;
+      --border: #E8E2D9;
+      --border-strong: #D1C7B7;
+      --primary: {{if .PrimaryColor}}{{.PrimaryColor}}{{else}}#8C6D46{{end}};
+      --primary-dark: #6E5333;
+      --primary-light: #F4EFEA;
+      --text-primary: #1C1917;
+      --text-secondary: #57534E;
+      --text-muted: #8C827A;
+      --font-heading: {{.FontHeading}};
+      --font-body: {{.FontBody}};
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .auth-page-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 32px 20px;
+    }
+
+    .auth-top-nav {
+      max-width: 520px;
+      margin: 0 auto 24px auto;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .auth-back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: color 0.15s;
+    }
+    .auth-back-link:hover { color: var(--text-primary); }
+
+    .auth-brand-logo {
+      font-family: var(--font-heading);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .auth-card {
+      max-width: 520px;
+      width: 100%;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.04);
+    }
+    @media (max-width: 600px) {
+      .auth-card { padding: 28px 20px; border-radius: 12px; }
+      .auth-page-wrapper { padding: 20px 14px; }
+    }
+
+    .auth-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    .auth-heading {
+      font-family: var(--font-heading);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+
+    .auth-subheading {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 28px;
+    }
+
+    .auth-switch-tabs {
+      display: flex;
+      background: var(--surface-sunken);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .auth-tab-link {
+      flex: 1;
+      text-align: center;
+      padding: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 7px;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .auth-tab-link.active {
+      background: var(--surface);
+      color: var(--text-primary);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 13.5px;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #FFFFFF;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(140, 109, 70, 0.12);
+    }
+
+    .legal-consent-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 20px 0 24px;
+      padding: 14px;
+      background: var(--surface-sunken);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .consent-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .consent-label input[type="checkbox"] {
+      margin-top: 2px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+    .consent-link {
+      font-weight: 700;
+      color: var(--text-primary);
+      text-decoration: underline;
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+      background: var(--text-primary);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-submit:hover { background: #000; }
+    .btn-submit:active { transform: scale(0.99); }
+
+    .auth-footer-prompt {
+      text-align: center;
+      margin-top: 22px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .auth-footer-prompt a {
+      color: var(--text-primary);
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    .auth-benefits-strip {
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      text-align: center;
+    }
+    .benefit-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .benefit-title { font-size: 11.5px; font-weight: 700; color: var(--text-primary); }
+    .benefit-desc { font-size: 10.5px; color: var(--text-muted); line-height: 1.3; }
+
+    .auth-page-foot {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 32px;
+    }
+    .auth-page-foot a { text-decoration: underline; margin: 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="auth-page-wrapper">
+    <!-- Top Navigation -->
+    <header class="auth-top-nav">
+      <a href="/" class="auth-back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+        <span>Mağazaya Dön</span>
+      </a>
+      <a href="/" class="auth-brand-logo">{{.StoreName}}</a>
+    </header>
+
+    <!-- Center Card -->
+    <main class="auth-card">
+      <!-- Switch Tabs -->
+      <nav class="auth-switch-tabs" aria-label="Giriş veya Kayıt Seçimi">
+        <a href="/giris" class="auth-tab-link {{if eq .AuthMode "login"}}active{{end}}">Üye Girişi</a>
+        <a href="/kayit" class="auth-tab-link {{if eq .AuthMode "register"}}active{{end}}">Yeni Kayıt Ol</a>
+      </nav>
+
+      {{if eq .AuthMode "register"}}
+      <!-- REGISTER FORM -->
+      <div class="auth-badge">YENİ MÜŞTERİ HESABI</div>
+      <h1 class="auth-heading">{{.StoreName}} Ailesine Katılın</h1>
+      <p class="auth-subheading">Siparişlerinizi ve kargonuzu canlı takip etmek, kayıtlı adreslerinizle tek tıkla ödeme yapmak için hemen üye olun.</p>
+
+      <form id="standaloneRegisterForm" onsubmit="handleStandaloneRegister(event)">
+        <div class="form-group">
+          <label class="form-label" for="stdRegName">Adınız Soyadınız</label>
+          <input type="text" id="stdRegName" class="form-input" placeholder="Örn: Melisa Erdem" required autocomplete="name">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="stdRegEmail">E-posta Adresiniz</label>
+          <input type="email" id="stdRegEmail" class="form-input" placeholder="ornek@email.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="stdRegPhone">Telefon Numaranız</label>
+          <input type="tel" id="stdRegPhone" class="form-input" placeholder="0555 123 4567" required autocomplete="tel">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="stdRegPass">Parolanız</label>
+          <input type="password" id="stdRegPass" class="form-input" placeholder="En az 6 karakter" minlength="6" required autocomplete="new-password">
+        </div>
+
+        <!-- Legal Compliance Checkboxes -->
+        <div class="legal-consent-group">
+          <label class="consent-label">
+            <input type="checkbox" id="stdConsentTerms" checked required>
+            <span><a href="/mesafeli-satis-sozlesmesi" target="_blank" class="consent-link">Kullanıcı Sözleşmesi</a> ve <a href="/teslimat-ve-iade" target="_blank" class="consent-link">Teslimat &amp; İade Koşulları</a>'nı okudum, kabul ediyorum.</span>
+          </label>
+          <label class="consent-label">
+            <input type="checkbox" id="stdConsentKvkk" checked required>
+            <span><a href="/kvkk" target="_blank" class="consent-link">KVKK Aydınlatma Metni</a> ve <a href="/gizlilik-politikasi" target="_blank" class="consent-link">Gizlilik Politikası</a>'nı okudum, verilerimin işlenmesini onaylıyorum.</span>
+          </label>
+          <label class="consent-label">
+            <input type="checkbox" id="stdConsentMarketing" checked>
+            <span>Özel koleksiyon duyuruları ve kişiye özel indirim kodları için ticari elektronik ileti almayı kabul ediyorum.</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn-submit">Hesap Oluştur ve Üye Ol</button>
+
+        <p class="auth-footer-prompt">
+          Zaten kayıtlı bir hesabınız var mı? <a href="/giris">Giriş Yapın</a>
+        </p>
+      </form>
+
+      {{else}}
+      <!-- LOGIN FORM -->
+      <div class="auth-badge">MÜŞTERİ PANELİ</div>
+      <h1 class="auth-heading">Hesabınıza Giriş Yapın</h1>
+      <p class="auth-subheading">Kayıtlı sipariş geçmişinize, canlı kargo takip bilgilerinize ve profilinize erişin.</p>
+
+      <form id="standaloneLoginForm" onsubmit="handleStandaloneLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="stdLoginIdent">Telefon Numaranız veya E-posta</label>
+          <input type="text" id="stdLoginIdent" class="form-input" placeholder="0555 123 4567 veya ornek@email.com" required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">
+            <label for="stdLoginPass">Parolanız</label>
+            <a href="javascript:void(0)" onclick="demoLoginFill()" style="font-size:11px; color:var(--text-muted); text-decoration:underline;">Demo Doldur</a>
+          </div>
+          <input type="password" id="stdLoginPass" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn-submit">Giriş Yap</button>
+
+        <p class="auth-footer-prompt">
+          Henüz hesabınız yok mu? <a href="/kayit">Hemen Ücretsiz Kayıt Olun</a>
+        </p>
+      </form>
+      {{end}}
+
+      <!-- Trust Pillars -->
+      <div class="auth-benefits-strip">
+        <div class="benefit-item">
+          <span class="benefit-title">Canlı Kargo</span>
+          <span class="benefit-desc">Anlık sipariş ve kurye takip</span>
+        </div>
+        <div class="benefit-item">
+          <span class="benefit-title">256-Bit SSL</span>
+          <span class="benefit-desc">Uçtan uca şifreli güvenlik</span>
+        </div>
+        <div class="benefit-item">
+          <span class="benefit-title">%10 Hoş Geldin</span>
+          <span class="benefit-desc">Üyelere özel ilk sipariş kodu</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer Copyright & Legal Links -->
+    <footer class="auth-page-foot">
+      <span>&copy; 2026 {{.StoreName}}. Tüm hakları saklıdır.</span>
+      <span style="margin: 0 6px;">·</span>
+      <a href="/gizlilik-politikasi">Gizlilik Politikası</a>
+      <a href="/kvkk">KVKK</a>
+      <a href="/cerez-politikasi">Çerezler</a>
+      <a href="/iletisim">Müşteri Destek</a>
+    </footer>
+  </div>
+
+  <script>
+    function demoLoginFill() {
+      const idEl = document.getElementById('stdLoginIdent');
+      const passEl = document.getElementById('stdLoginPass');
+      if (idEl) idEl.value = '0555 123 4567';
+      if (passEl) passEl.value = 'demo123';
+    }
+
+    function handleStandaloneRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('stdRegName').value.trim();
+      const email = document.getElementById('stdRegEmail').value.trim();
+      const phone = document.getElementById('stdRegPhone').value.trim();
+
+      const user = {
+        name: name,
+        email: email,
+        phone: phone,
+        joinedDate: '8 Kasım 2026'
+      };
+      localStorage.setItem('hydro_customer', JSON.stringify(user));
+      window.location.href = '/hesabim';
+    }
+
+    function handleStandaloneLogin(e) {
+      e.preventDefault();
+      const identEl = document.getElementById('stdLoginIdent');
+      const ident = identEl ? identEl.value.trim() : '';
+      const name = ident.includes('@') ? ident.split('@')[0] : 'Melisa Erdem';
+      const phone = ident.includes('@') ? '0555 123 4567' : ident;
+      const email = ident.includes('@') ? ident : 'melisa.erdem@ornek.com';
+
+      const user = {
+        name: name,
+        email: email,
+        phone: phone,
+        joinedDate: '8 Kasım 2026'
+      };
+      localStorage.setItem('hydro_customer', JSON.stringify(user));
+      window.location.href = '/hesabim';
+    }
+
+    // If already logged in, redirect straight to account dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('hydro_customer');
+      const params = new URLSearchParams(window.location.search);
+      if (saved && params.get('force') !== '1') {
+        window.location.href = '/hesabim';
+      }
+    });
+  </script>
+</body>
+</html>

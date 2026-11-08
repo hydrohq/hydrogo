@@ -241,3 +241,52 @@
   </div>
 </div>
 {{end}}
+
+{{define "news_search_results"}}
+<div class="hp-aux-page">
+  <div class="hp-container hp-aux-content">
+    <header class="hp-aux-header">
+      <div class="hp-aux-badge">ARAMA SONUÇLARI</div>
+      <h1 class="hp-aux-title">{{if .SearchQuery}}"{{.SearchQuery}}" Arama Sonuçları{{else}}Tüm Haberler{{end}}</h1>
+      <p class="hp-aux-lead">{{len .SearchResults}} haber kaydı listeleniyor.</p>
+    </header>
+
+    {{if .SearchResults}}
+    <div class="hp-search-page-grid">
+      {{range .SearchResults}}
+      <article class="hp-search-card">
+        <a href="/haber/{{.Slug}}" class="hp-search-card-thumb">
+          <img src="{{.ImageURL}}" alt="{{.Title}}" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80'">
+        </a>
+        <div class="hp-search-card-body">
+          <div class="hp-search-card-meta">
+            <span class="hp-search-card-cat">{{.CategorySlug}}</span>
+            <span class="hp-sep">·</span>
+            <span>{{.PublishedAt}}</span>
+            <span class="hp-sep">·</span>
+            <span>{{.ReadingTime}} dk</span>
+          </div>
+          <a href="/haber/{{.Slug}}">
+            <h2 class="hp-search-card-title">{{.Title}}</h2>
+          </a>
+          <p class="hp-search-card-excerpt">{{.Excerpt}}</p>
+          <div class="hp-search-card-author">
+            <span>Yazar: <strong>{{.AuthorName}}</strong></span>
+          </div>
+        </div>
+      </article>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="hp-search-no-results">
+      <h3>Aradığınız kelimeye uygun haber bulunamadı.</h3>
+      <p>Lütfen farklı anahtar kelimelerle arama yapmayı deneyin veya trend kategorileri inceleyin.</p>
+      <div class="hp-search-fallback-actions">
+        <a href="/" class="hp-btn-fallback">Anasayfaya Dön</a>
+        <button type="button" class="hp-btn-fallback-search" onclick="openSearchModal()">Yeni Arama Yap</button>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}

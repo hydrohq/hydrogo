@@ -72,3 +72,65 @@ func (a *serveApp) storefrontAccountHandler(w http.ResponseWriter, r *http.Reque
 
 	_ = storefront.RenderAccount(w, r, data)
 }
+
+// storefrontAuthHandler serves dedicated full-screen customer registration and login screens.
+func (a *serveApp) storefrontAuthHandler(w http.ResponseWriter, r *http.Request) {
+	_, gov, settings, _, ok := a.resolveStorefrontContext(w, r)
+	if !ok {
+		return
+	}
+
+	storeName := gov.DisplayName
+	if name, ok := settings["brand_name"].(string); ok && strings.TrimSpace(name) != "" {
+		storeName = strings.TrimSpace(name)
+	}
+
+	slogan := "Akdeniz zanaatı ve zamansız tasarım parçaları."
+	if s, ok := settings["tagline"].(string); ok && strings.TrimSpace(s) != "" {
+		slogan = strings.TrimSpace(s)
+	}
+
+	primaryColor := "#8C6D46"
+	if c, ok := settings["primary_color"].(string); ok && strings.TrimSpace(c) != "" {
+		primaryColor = strings.TrimSpace(c)
+	}
+
+	bgTone := "#FAF8F5"
+	if bg, ok := settings["bg_tone"].(string); ok && strings.TrimSpace(bg) != "" {
+		bgTone = strings.TrimSpace(bg)
+	}
+
+	cleanPhone := gov.OwnerPhone
+	if phone, ok := settings["whatsapp_number"].(string); ok && strings.TrimSpace(phone) != "" {
+		cleanPhone = strings.TrimSpace(phone)
+	}
+
+	fontPreset := "v0_geist"
+	if fp, ok := settings["font_preset"].(string); ok && strings.TrimSpace(fp) != "" {
+		fontPreset = strings.TrimSpace(fp)
+	}
+
+	contactEmail := fmt.Sprintf("destek@%s.%s", gov.TenantID, a.getBaseDomain())
+	if email, ok := settings["contact_email"].(string); ok && strings.TrimSpace(email) != "" {
+		contactEmail = strings.TrimSpace(email)
+	}
+
+	mode := "register"
+	p := strings.Trim(r.URL.Path, "/")
+	if p == "giris" || p == "login" || p == "sign-in" || r.URL.Query().Get("mode") == "login" {
+		mode = "login"
+	}
+
+	data := storefront.AuthData{
+		StoreName:    storeName,
+		Slogan:       slogan,
+		PrimaryColor: primaryColor,
+		BGTone:       bgTone,
+		CleanPhone:   cleanPhone,
+		ContactEmail: contactEmail,
+		FontPreset:   fontPreset,
+		AuthMode:     mode,
+	}
+
+	_ = storefront.RenderAuth(w, r, data)
+}

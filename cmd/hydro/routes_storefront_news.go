@@ -173,6 +173,15 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 				}
 			}
 		}
+	} else if p == "ara" || p == "search" || (r.URL.Query().Get("q") != "" && (p == "" || p == "home")) {
+		data.ActivePage = "search"
+		data.SearchQuery = strings.TrimSpace(r.URL.Query().Get("q"))
+		qLower := strings.ToLower(data.SearchQuery)
+		for _, art := range allArticles {
+			if qLower == "" || strings.Contains(strings.ToLower(art.Title), qLower) || strings.Contains(strings.ToLower(art.Excerpt), qLower) || strings.Contains(strings.ToLower(art.CategorySlug), qLower) || strings.Contains(strings.ToLower(art.AuthorName), qLower) {
+				data.SearchResults = append(data.SearchResults, art)
+			}
+		}
 	} else if p == "yazarlar" {
 		data.ActivePage = "columnists"
 	} else if p == "galeri" {

@@ -1,19 +1,6 @@
 {{define "news_detail"}}
 {{if .ActiveArticle}}
 <div class="hp-article-page" id="hpArticlePage">
-  <!-- Article Breadcrumb -->
-  <nav class="hp-breadcrumb-bar" aria-label="Sayfa Konumu">
-    <div class="hp-container">
-      <ol class="hp-breadcrumb-list">
-        <li><a href="/" class="hp-crumb-link">Anasayfa</a></li>
-        <li class="hp-crumb-sep">/</li>
-        <li><a href="/kategori/{{.ActiveArticle.CategorySlug}}" class="hp-crumb-link">{{.ActiveArticle.CategorySlug}}</a></li>
-        <li class="hp-crumb-sep">/</li>
-        <li class="hp-crumb-active" aria-current="page">{{.ActiveArticle.Title}}</li>
-      </ol>
-    </div>
-  </nav>
-
   <div class="hp-container hp-article-layout">
     <!-- Main Article Column -->
     <main class="hp-article-main-col" id="hpArticleStream">
@@ -129,11 +116,20 @@
 
           <!-- Comment Submission Form -->
           <form class="hp-comment-form" onsubmit="submitComment(event)">
+            <div class="hp-comment-reader-status" id="hpCommentReaderStatus">
+              <span class="hp-reader-hint">Okur Yorum Alanı: Yorumunuz editoryal ilkeler doğrultusunda moderasyon sonrası yayımlanır.</span>
+            </div>
             <div class="hp-comment-inputs">
               <input type="text" id="hpCommentAuthor" placeholder="Adınız Soyadınız" required class="hp-comment-input">
               <input type="email" id="hpCommentEmail" placeholder="E-posta Adresiniz (yayımlanmaz)" required class="hp-comment-input">
             </div>
             <textarea id="hpCommentBody" rows="3" placeholder="Bu habere dair görüşünüzü paylaşın..." required class="hp-comment-textarea"></textarea>
+            <div class="hp-comment-consent-wrap">
+              <label class="hp-comment-consent-label">
+                <input type="checkbox" id="hpCommentConsent" required>
+                <span>Yorumumun <a href="/yayin-ilkeleri" target="_blank" style="text-decoration:underline;">Yayın İlkeleri</a> ve <a href="/kvkk" target="_blank" style="text-decoration:underline;">KVKK Aydınlatma Metni</a> kapsamında moderasyon süzgecinden geçerek yayımlanmasını kabul ediyorum.</span>
+              </label>
+            </div>
             <div class="hp-comment-form-actions">
               <button type="submit" class="hp-comment-submit-btn">Yorum Gönder</button>
             </div>

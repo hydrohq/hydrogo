@@ -628,6 +628,8 @@
     {{template "news_columnists" .}}
   {{else if eq .ActivePage "gallery"}}
     {{template "news_gallery" .}}
+  {{else if eq .ActivePage "search"}}
+    {{template "news_search_results" .}}
   {{else if or (eq .ActivePage "kunye") (eq .ActivePage "yayin-ilkeleri") (eq .ActivePage "gizlilik") (eq .ActivePage "cerez") (eq .ActivePage "kvkk")}}
     {{template "news_policy" .}}
   {{else}}
@@ -679,6 +681,9 @@
     <span>Haber İhbar</span>
   </a>
   {{end}}
+
+  <!-- In-Page Search Modal Overlay -->
+  {{template "news_search_modal" .}}
 
   <!-- Interactive Scripts -->
   {{template "news_scripts" .}}
