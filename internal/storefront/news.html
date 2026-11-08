@@ -566,6 +566,70 @@
     }
     .hp-floating-tip-btn:hover { background: #047857; transform: translateY(-2px); }
 
+    /* Auxiliary Pages: Columnists, Gallery, Policy */
+    .hp-aux-page { margin-bottom: 60px; min-height: 60vh; }
+    .hp-aux-header { margin-bottom: 32px; border-bottom: 1px solid var(--hp-border); padding-bottom: 20px; }
+    .hp-aux-badge { font-size: 0.72rem; font-weight: 900; color: var(--hp-primary); letter-spacing: 0.08em; margin-bottom: 6px; }
+    .hp-aux-title { font-size: 2rem; font-weight: 900; color: var(--hp-ink); letter-spacing: -0.02em; margin-bottom: 8px; }
+    .hp-aux-lead { font-size: 1rem; color: var(--hp-muted); max-width: 680px; }
+
+    .hp-columnists-page-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    @media (max-width: 900px) { .hp-columnists-page-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .hp-columnists-page-grid { grid-template-columns: 1fr; } }
+    .hp-columnist-full-card { background: #fff; border: 1px solid var(--hp-border); border-radius: 8px; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
+    .hp-col-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .hp-col-avatar-lg { width: 56px; height: 56px; border-radius: 50%; background: var(--hp-surface-sunken); border: 1px solid var(--hp-border); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem; color: var(--hp-ink); flex-shrink: 0; }
+    .hp-col-name-lg { font-size: 1.05rem; font-weight: 900; color: var(--hp-ink); margin-bottom: 2px; }
+    .hp-col-title-lg { font-size: 0.75rem; color: var(--hp-muted); font-weight: 600; }
+    .hp-col-card-body { margin-bottom: 20px; }
+    .hp-col-label { font-size: 0.68rem; font-weight: 800; color: var(--hp-primary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .hp-col-headline { font-size: 0.92rem; font-weight: 700; color: var(--hp-ink); line-height: 1.4; }
+    .hp-col-article-link:hover .hp-col-headline { color: var(--hp-primary); }
+    .hp-col-read-btn { font-size: 0.78rem; font-weight: 800; color: var(--hp-ink); display: inline-flex; align-items: center; gap: 4px; border-top: 1px solid var(--hp-border); padding-top: 12px; width: 100%; }
+    .hp-col-read-btn:hover { color: var(--hp-primary); }
+
+    .hp-gallery-page-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    @media (max-width: 900px) { .hp-gallery-page-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .hp-gallery-page-grid { grid-template-columns: 1fr; } }
+    .hp-gallery-full-card { background: #fff; border: 1px solid var(--hp-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+    .hp-gallery-full-media { position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; display: block; background: #eee; }
+    .hp-gallery-full-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+    .hp-gallery-full-media:hover .hp-gallery-full-img { transform: scale(1.04); }
+    .hp-gallery-full-badge { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.75); color: #fff; font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 4px; backdrop-filter: blur(4px); }
+    .hp-gallery-full-cat { position: absolute; bottom: 12px; left: 12px; background: var(--hp-primary); color: #fff; font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
+    .hp-gallery-full-body { padding: 18px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
+    .hp-gallery-full-title { font-size: 0.95rem; font-weight: 800; color: var(--hp-ink); line-height: 1.4; margin-bottom: 14px; }
+    .hp-gallery-view-btn { font-size: 0.78rem; font-weight: 800; color: var(--hp-primary); align-self: flex-start; }
+
+    .hp-policy-layout { display: grid; grid-template-columns: 280px 1fr; gap: 40px; align-items: start; }
+    @media (max-width: 860px) { .hp-policy-layout { grid-template-columns: 1fr; } }
+    .hp-policy-sidebar { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 80px; }
+    .hp-policy-nav-box { background: #fff; border: 1px solid var(--hp-border); border-radius: 8px; padding: 16px; }
+    .hp-policy-nav-title { font-size: 0.72rem; font-weight: 900; color: var(--hp-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--hp-border); }
+    .hp-policy-nav { display: flex; flex-direction: column; gap: 4px; }
+    .hp-policy-link { padding: 8px 12px; font-size: 0.82rem; font-weight: 700; color: var(--hp-ink-soft); border-radius: 6px; transition: all 0.15s; }
+    .hp-policy-link:hover, .hp-policy-link.active { background: var(--hp-surface-sunken); color: var(--hp-primary); }
+    .hp-policy-contact-box { background: var(--hp-surface-sunken); border: 1px solid var(--hp-border); border-radius: 8px; padding: 16px; }
+    .hp-contact-title { font-size: 0.8rem; font-weight: 900; color: var(--hp-ink); margin-bottom: 6px; }
+    .hp-contact-text { font-size: 0.75rem; color: var(--hp-muted); line-height: 1.5; margin-bottom: 8px; }
+    .hp-contact-email { font-size: 0.8rem; font-weight: 800; color: var(--hp-primary); word-break: break-all; }
+
+    .hp-policy-main { background: #fff; border: 1px solid var(--hp-border); border-radius: 8px; padding: 36px 40px; }
+    @media (max-width: 640px) { .hp-policy-main { padding: 24px 20px; } }
+    .hp-policy-tag { font-size: 0.7rem; font-weight: 900; color: var(--hp-primary); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+    .hp-policy-heading { font-size: 1.85rem; font-weight: 900; color: var(--hp-ink); letter-spacing: -0.02em; line-height: 1.25; margin-bottom: 12px; }
+    .hp-policy-lead { font-size: 0.95rem; color: var(--hp-ink-soft); line-height: 1.6; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--hp-border); }
+    .hp-policy-prose h2 { font-size: 1.15rem; font-weight: 900; color: var(--hp-ink); margin: 24px 0 10px; }
+    .hp-policy-prose p { font-size: 0.88rem; line-height: 1.7; color: var(--hp-ink-soft); margin-bottom: 14px; }
+    .hp-policy-prose a { color: var(--hp-primary); font-weight: 600; text-decoration: underline; }
+
+    .hp-kunye-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px; background: var(--hp-surface-sunken); padding: 18px; border-radius: 6px; }
+    .hp-kunye-row { display: grid; grid-template-columns: 200px 1fr; gap: 12px; font-size: 0.85rem; padding-bottom: 8px; border-bottom: 1px solid var(--hp-border); }
+    @media (max-width: 600px) { .hp-kunye-row { grid-template-columns: 1fr; gap: 2px; } }
+    .hp-kunye-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .hp-kunye-label { font-weight: 800; color: var(--hp-ink); }
+    .hp-kunye-value { color: var(--hp-ink-soft); }
+
     /* Mobile Responsive Header */
     @media (max-width: 768px) {
       .hp-top-right { display: none !important; }
@@ -585,6 +649,12 @@
   <!-- Main Content -->
   {{if eq .ActivePage "article"}}
     {{template "news_detail" .}}
+  {{else if eq .ActivePage "columnists"}}
+    {{template "news_columnists" .}}
+  {{else if eq .ActivePage "gallery"}}
+    {{template "news_gallery" .}}
+  {{else if or (eq .ActivePage "kunye") (eq .ActivePage "yayin-ilkeleri") (eq .ActivePage "gizlilik") (eq .ActivePage "cerez") (eq .ActivePage "kvkk")}}
+    {{template "news_policy" .}}
   {{else}}
     {{template "news_manset" .}}
     {{template "news_sections" .}}
@@ -611,10 +681,12 @@
         <div>
           <h4 class="hp-footer-col-title">Yayın İlkeleri & Künye</h4>
           <nav class="hp-footer-nav">
-            <a href="/sayfa/kunye">Künye & Yönetim</a>
-            <a href="/sayfa/yayin-ilkeleri">Yayın İlkeleri</a>
-            <a href="/sayfa/gizlilik">Gizlilik ve Çerez Politikası</a>
-            <a href="/sayfa/iletisim">Haber İhbar & İletişim</a>
+            <a href="/kunye">Künye & Yönetim</a>
+            <a href="/yayin-ilkeleri">Yayın İlkeleri</a>
+            <a href="/gizlilik-politikasi">Gizlilik Politikası</a>
+            <a href="/cerez-politikasi">Çerez Politikası</a>
+            <a href="/kvkk">KVKK Aydınlatma Metni</a>
+            <a href="/iletisim">Haber İhbar & İletişim</a>
           </nav>
         </div>
       </div>

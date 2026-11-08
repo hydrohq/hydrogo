@@ -244,13 +244,6 @@
   }
 
   async function submitDetailWhatsAppOrder() {
-    const mCb = document.getElementById('consentMesafe');
-    const kCb = document.getElementById('consentKvkk');
-    if ((mCb && !mCb.checked) || (kCb && !kCb.checked)) {
-      openLegalModal('mesafe');
-      return;
-    }
-
     const selectedOptsSummary = Object.entries(selectedOptions).map(([k, v]) => `${k}: ${v}`).join(', ');
     let orderCode = '#AR-' + Math.floor(1000 + Math.random() * 9000);
     try {

@@ -1,0 +1,243 @@
+{{define "news_columnists"}}
+<div class="hp-aux-page">
+  <div class="hp-breadcrumb-bar">
+    <div class="hp-container">
+      <ul class="hp-breadcrumb-list">
+        <li><a href="/" class="hp-crumb-link">Anasayfa</a></li>
+        <li><span class="hp-sep">/</span></li>
+        <li class="hp-crumb-active">Yazarlar &amp; Analistler</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hp-container hp-aux-content">
+    <header class="hp-aux-header">
+      <div class="hp-aux-badge">EDİTÖRYAL KADRO</div>
+      <h1 class="hp-aux-title">Yazarlar ve Fikir Masası</h1>
+      <p class="hp-aux-lead">Teknoloji, küresel ekonomi, jeopolitik dengeler ve kurumsal stratejiler üzerine derinlemesine analizler sunan bağımsız yazar kadromuz.</p>
+    </header>
+
+    <div class="hp-columnists-page-grid">
+      {{range .Columnists}}
+      <article class="hp-columnist-full-card">
+        <div class="hp-col-card-head">
+          <div class="hp-col-avatar-lg">
+            <span>{{.Initials}}</span>
+          </div>
+          <div class="hp-col-info">
+            <h2 class="hp-col-name-lg">{{.Name}}</h2>
+            <span class="hp-col-title-lg">{{.Title}}</span>
+          </div>
+        </div>
+        <div class="hp-col-card-body">
+          <span class="hp-col-label">Son Yazısı</span>
+          <a href="/haber/{{.LatestArticleSlug}}" class="hp-col-article-link">
+            <h3 class="hp-col-headline">"{{.LatestArticleTitle}}"</h3>
+          </a>
+        </div>
+        <div class="hp-col-card-foot">
+          <a href="/haber/{{.LatestArticleSlug}}" class="hp-col-read-btn">Yazıyı Oku &rarr;</a>
+        </div>
+      </article>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "news_gallery"}}
+<div class="hp-aux-page">
+  <div class="hp-breadcrumb-bar">
+    <div class="hp-container">
+      <ul class="hp-breadcrumb-list">
+        <li><a href="/" class="hp-crumb-link">Anasayfa</a></li>
+        <li><span class="hp-sep">/</span></li>
+        <li class="hp-crumb-active">Foto Galeri &amp; Özel Dosyalar</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hp-container hp-aux-content">
+    <header class="hp-aux-header">
+      <div class="hp-aux-badge">GÖRSEL HABERCİLİK</div>
+      <h1 class="hp-aux-title">Özel Dosyalar &amp; Foto Galeri</h1>
+      <p class="hp-aux-lead">Olay yerinden en çarpıcı kareler, bilim ve teknoloji araştırmaları, arşiv belgeleri ve yüksek çözünürlüklü tematik haber dosyaları.</p>
+    </header>
+
+    <div class="hp-gallery-page-grid">
+      {{range .GalleryItems}}
+      <article class="hp-gallery-full-card">
+        <a href="/haber/{{.Slug}}" class="hp-gallery-full-media" aria-label="{{.Title}}">
+          <img src="{{.ImageURL}}" alt="{{.Title}}" class="hp-gallery-full-img" loading="lazy" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80'">
+          <span class="hp-gallery-full-badge">{{.BadgeText}}</span>
+          <span class="hp-gallery-full-cat">{{.Category}}</span>
+        </a>
+        <div class="hp-gallery-full-body">
+          <a href="/haber/{{.Slug}}" class="hp-gallery-title-link">
+            <h2 class="hp-gallery-full-title">{{.Title}}</h2>
+          </a>
+          <a href="/haber/{{.Slug}}" class="hp-gallery-view-btn">Galeriyi İncele &rarr;</a>
+        </div>
+      </article>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "news_policy"}}
+<div class="hp-aux-page">
+  <div class="hp-breadcrumb-bar">
+    <div class="hp-container">
+      <ul class="hp-breadcrumb-list">
+        <li><a href="/" class="hp-crumb-link">Anasayfa</a></li>
+        <li><span class="hp-sep">/</span></li>
+        <li class="hp-crumb-active">
+          {{if eq .ActivePage "kunye"}}Künye &amp; Yönetim
+          {{else if eq .ActivePage "yayin-ilkeleri"}}Yayın İlkeleri
+          {{else if eq .ActivePage "gizlilik"}}Gizlilik Politikası
+          {{else if eq .ActivePage "cerez"}}Çerez Politikası
+          {{else if eq .ActivePage "kvkk"}}KVKK Aydınlatma Metni
+          {{else}}Yasal Bilgilendirme{{end}}
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hp-container hp-policy-layout">
+    <!-- Policy Navigation Sidebar -->
+    <aside class="hp-policy-sidebar">
+      <div class="hp-policy-nav-box">
+        <h3 class="hp-policy-nav-title">Yasal &amp; Kurumsal</h3>
+        <nav class="hp-policy-nav">
+          <a href="/kunye" class="hp-policy-link {{if eq .ActivePage "kunye"}}active{{end}}">Künye &amp; Yönetim</a>
+          <a href="/yayin-ilkeleri" class="hp-policy-link {{if eq .ActivePage "yayin-ilkeleri"}}active{{end}}">Yayın İlkeleri</a>
+          <a href="/kvkk" class="hp-policy-link {{if eq .ActivePage "kvkk"}}active{{end}}">KVKK Aydınlatma Metni</a>
+          <a href="/gizlilik-politikasi" class="hp-policy-link {{if eq .ActivePage "gizlilik"}}active{{end}}">Gizlilik Politikası</a>
+          <a href="/cerez-politikasi" class="hp-policy-link {{if eq .ActivePage "cerez"}}active{{end}}">Çerez Politikası</a>
+          <a href="/iletisim" class="hp-policy-link">Haber İhbar &amp; İletişim</a>
+        </nav>
+      </div>
+
+      <div class="hp-policy-contact-box">
+        <h4 class="hp-contact-title">Basın Danışma &amp; İhbar</h4>
+        <p class="hp-contact-text">Haber bültenleri, basın toplantısı davetleri ve editoryal görüşleriniz için:</p>
+        <a href="mailto:{{.ContactEmail}}" class="hp-contact-email">{{.ContactEmail}}</a>
+      </div>
+    </aside>
+
+    <!-- Main Editorial Document Column -->
+    <main class="hp-policy-main">
+      {{if eq .ActivePage "kunye"}}
+      <article class="hp-policy-prose">
+        <span class="hp-policy-tag">5187 SAYILI BASIN KANUNU GEREĞİNCE</span>
+        <h1 class="hp-policy-heading">Künye ve Yönetim Kadrosu</h1>
+        <p class="hp-policy-lead">{{.BrandName}}, bağımsız yayıncılık ilkeleri doğrultusunda faaliyet gösteren ulusal dijital haber ve analiz mecrasıdır.</p>
+
+        <div class="hp-kunye-grid">
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">İmtiyaz Sahibi</span>
+            <span class="hp-kunye-value">{{.BrandName}} Medya ve Yayıncılık A.Ş.</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">Genel Yayın Yönetmeni</span>
+            <span class="hp-kunye-value">Murat Dağdeviren</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">Sorumlu Yazı İşleri Müdürü</span>
+            <span class="hp-kunye-value">Banu Çelik</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">Ekonomi &amp; Teknoloji Editörü</span>
+            <span class="hp-kunye-value">Barış Demirel</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">Hukuk Müşaviri</span>
+            <span class="hp-kunye-value">Av. Selin Gökmen (İstanbul Barosu)</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">Yazılım ve Altyapı</span>
+            <span class="hp-kunye-value">HydroGo High-Performance Headless CMS Core</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">İletişim &amp; Basın İhbar</span>
+            <span class="hp-kunye-value">{{.ContactEmail}}</span>
+          </div>
+          <div class="hp-kunye-row">
+            <span class="hp-kunye-label">WhatsApp Haber Hattı</span>
+            <span class="hp-kunye-value">+{{.WhatsAppTipNumber}}</span>
+          </div>
+        </div>
+
+        <h2>Telif Hakları ve Alıntı Şartları</h2>
+        <p>{{.BrandName}} sitesinde yayımlanan haber, makale, görsel ve grafikler izin alınmaksızın ve aktif kaynak bağlantısı verilmeksizin kopyalanamaz, çoğaltılamaz ya da ticari amaçla kullanılamaz. 5846 sayılı Fikir ve Sanat Eserleri Kanunu hükümleri saklıdır.</p>
+      </article>
+
+      {{else if eq .ActivePage "yayin-ilkeleri"}}
+      <article class="hp-policy-prose">
+        <span class="hp-policy-tag">EDİTÖRYAL BAĞIMSIZLIK</span>
+        <h1 class="hp-policy-heading">Yayın İlkeleri ve Basın Ahlak Sözleşmesi</h1>
+        <p class="hp-policy-lead">{{.BrandName}}, kamuoyunun haber alma hakkını en üst değer kabul eden tarafsız, araştırmacı ve sorumlu habercilik çizgisini benimser.</p>
+
+        <h2>1. Doğruluk ve Kaynak Teyidi</h2>
+        <p>Yayımlanacak her bilgi ve iddia, en az iki bağımsız kaynaktan teyit edilmedikçe servis edilmez. Şüphe duyulan durumlarda haberde iddia niteliği açıkça vurgulanır.</p>
+
+        <h2>2. Tarafsızlık ve Fikir Çeşitliliği</h2>
+        <p>Haber aktarımında öznel yargılardan kaçınılır; haber konusu olan tüm tarafların görüşlerine yer verilmesi editoryal zorunluluktur.</p>
+
+        <h2>3. Kişilik Hakları ve Masumiyet Karinesi</h2>
+        <p>Yargı kararı kesinleşmedikçe hiç kimse suçlu ilan edilemez; sanıkların ve mağdurların kişilik hakları, özel yaşamın gizliliği ve çocukların korunması kırmızı çizgimizdir.</p>
+
+        <h2>4. Düzeltme ve Cevap Hakkı (Tekzip)</h2>
+        <p>Hatalı veya eksik olduğu sonradan anlaşılan haberlerde derhal düzeltme şerhi yayımlanır. Muhatapların yasal tekzip hakları gecikmeksizin ve haberle aynı mecrada duyurulur.</p>
+      </article>
+
+      {{else if eq .ActivePage "kvkk"}}
+      <article class="hp-policy-prose">
+        <span class="hp-policy-tag">6698 SAYILI KANUN</span>
+        <h1 class="hp-policy-heading">KVKK Aydınlatma Metni</h1>
+        <p class="hp-policy-lead">Bu aydınlatma metni, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 10. maddesi uyarınca veri sorumlusu sıfatıyla {{.BrandName}} tarafından hazırlanmıştır.</p>
+
+        <h2>1. İşlenen Kişisel Verileriniz</h2>
+        <p>Bülten aboneliği, haber yorumları, iletişim formları veya anket katılımları esnasında ad, soyad, e-posta adresi, IP adresi ve işlem güvenliği verileriniz işlenmektedir.</p>
+
+        <h2>2. Kişisel Verilerin İşlenme Amaçları</h2>
+        <p>Toplanan kişisel veriler; haber bültenlerimizin iletilmesi, yorum denetiminin sağlanması, 5651 sayılı kanun kapsamındaki yasal log kayıtlarının tutulması ve meşru menfaatlerimiz doğrultusunda işlenir.</p>
+
+        <h2>3. Veri Güvenliği ve Haklarınız</h2>
+        <p>KVKK'nın 11. maddesi kapsamındaki haklarınızı kullanmak ve verilerinizin silinmesini talep etmek için <a href="mailto:{{.ContactEmail}}">{{.ContactEmail}}</a> adresi üzerinden bize ulaşabilirsiniz.</p>
+      </article>
+
+      {{else if eq .ActivePage "gizlilik"}}
+      <article class="hp-policy-prose">
+        <span class="hp-policy-tag">GÜVENLİK STANDARTLARI</span>
+        <h1 class="hp-policy-heading">Gizlilik ve Veri Güvenliği Politikası</h1>
+        <p class="hp-policy-lead">{{.BrandName}}, okuyucularının gizliliğini en üst düzey teknolojik tedbirlerle korur.</p>
+
+        <h2>1. 256-bit SSL ve Güvenli İletişim</h2>
+        <p>Platformumuz üzerindeki tüm veri transferleri endüstri standardı 256-bit TLS/SSL şifreleme protokolleri ile güvence altına alınmıştır.</p>
+
+        <h2>2. Üçüncü Taraflarla Paylaşım Yasağı</h2>
+        <p>Okurlarımızın e-posta adresleri veya etkileşim verileri hiçbir koşulda ticari amaçla üçüncü taraf reklam ağlarıyla satılmaz veya paylaşılmaz.</p>
+      </article>
+
+      {{else if eq .ActivePage "cerez"}}
+      <article class="hp-policy-prose">
+        <span class="hp-policy-tag">ÇEREZ YÖNETİMİ</span>
+        <h1 class="hp-policy-heading">Çerez (Cookie) Politikası</h1>
+        <p class="hp-policy-lead">Web sitemizde kullanıcı deneyimini iyileştirmek, okuma tercihlerinizi hatırlamak ve anonim trafik istatistikleri üretmek amacıyla çerezler kullanılmaktadır.</p>
+
+        <h2>1. Zorunlu Çerezler</h2>
+        <p>Sitemizin temel fonksiyonlarının çalışması, oturum yönetimi ve güvenlik doğrulamaları için kesinlikle gerekli olan çerezlerdir.</p>
+
+        <h2>2. Performans ve Analitik Çerezleri</h2>
+        <p>Hangi haberlerin daha çok okunduğunu anonim olarak tespit etmemize ve sunucu performansımızı optimize etmemize yarar.</p>
+
+        <h2>3. Çerezleri Nasıl Devre Dışı Bırakabilirsiniz?</h2>
+        <p>Tarayıcınızın ayarlar menüsünden (Chrome, Safari, Firefox vb.) dilediğiniz zaman çerez kullanım tercihlerini değiştirebilir veya mevcut çerezleri silebilirsiniz.</p>
+      </article>
+      {{end}}
+    </main>
+  </div>
+</div>
+{{end}}

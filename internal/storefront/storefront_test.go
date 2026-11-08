@@ -253,6 +253,27 @@ func TestRenderContact(t *testing.T) {
 	}
 }
 
+func TestRenderPolicy(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/kvkk", nil)
+
+	data := PolicyData{
+		StoreName:   "Atelier Riviera",
+		PolicyType:  "kvkk",
+		PolicyTitle: "KVKK Aydınlatma Metni",
+	}
+
+	err := RenderPolicy(rec, req, data)
+	if err != nil {
+		t.Fatalf("unexpected RenderPolicy error: %v", err)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "KVKK") {
+		t.Errorf("expected KVKK in body, got: %s", body)
+	}
+}
+
 func TestRenderOrderTracking(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/siparis-takip?code=ORD-9988", nil)

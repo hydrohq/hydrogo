@@ -173,6 +173,20 @@ func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, sett
 				}
 			}
 		}
+	} else if p == "yazarlar" {
+		data.ActivePage = "columnists"
+	} else if p == "galeri" {
+		data.ActivePage = "gallery"
+	} else if p == "kunye" || p == "imprint" {
+		data.ActivePage = "kunye"
+	} else if p == "yayin-ilkeleri" {
+		data.ActivePage = "yayin-ilkeleri"
+	} else if p == "gizlilik-politikasi" || p == "gizlilik" || p == "privacy" {
+		data.ActivePage = "gizlilik"
+	} else if p == "cerez-politikasi" || p == "cerezler" || p == "cookies" {
+		data.ActivePage = "cerez"
+	} else if p == "kvkk" || p == "kvkk-aydinlatma-metni" {
+		data.ActivePage = "kvkk"
 	} else if p != "" && p != "home" && p != "anasayfa" {
 		for _, cat := range data.Categories {
 			if strings.EqualFold(cat.Slug, p) {
