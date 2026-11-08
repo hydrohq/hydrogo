@@ -74,8 +74,9 @@
           <a href="/kategori/{{.Slug}}" class="hp-nav-link {{if eq $.ActiveCategory .Slug}}active{{end}}">{{.Name}}</a>
           {{end}}
         {{end}}
-        <a href="#hpColumnistsSection" class="hp-nav-link">Yazarlar</a>
-        <a href="#hpGallerySection" class="hp-nav-link">Foto Galeri</a>
+        <a href="/yazarlar" class="hp-nav-link {{if eq .ActivePage "columnists"}}active{{end}}">Yazarlar</a>
+        <a href="/galeri" class="hp-nav-link {{if eq .ActivePage "gallery"}}active{{end}}">Foto Galeri</a>
+        <a href="/kunye" class="hp-nav-link {{if eq .ActivePage "kunye"}}active{{end}}">Künye</a>
       </nav>
     </div>
   </div>

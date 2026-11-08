@@ -326,18 +326,6 @@
         {{end}}
       </div>
 
-      <!-- KVKK & Legal Consents -->
-      <div class="legal-consent-box" style="margin: 14px 0 10px; padding: 12px 14px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 8px;">
-        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; color: var(--text-secondary); line-height: 1.4;">
-          <input type="checkbox" id="consentMesafe" checked style="margin-top: 2px; accent-color: var(--text-primary); cursor: pointer;">
-          <span><a href="javascript:void(0)" onclick="openLegalModal('mesafe')" style="font-weight: 600; text-decoration: underline; color: var(--text-primary);">Ön Bilgilendirme Koşulları</a> ve <a href="javascript:void(0)" onclick="openLegalModal('mesafe')" style="font-weight: 600; text-decoration: underline; color: var(--text-primary);">Mesafeli Satış Sözleşmesi</a>'ni okudum, onaylıyorum.</span>
-        </label>
-        <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; color: var(--text-secondary); line-height: 1.4;">
-          <input type="checkbox" id="consentKvkk" checked style="margin-top: 2px; accent-color: var(--text-primary); cursor: pointer;">
-          <span><a href="javascript:void(0)" onclick="openLegalModal('kvkk')" style="font-weight: 600; text-decoration: underline; color: var(--text-primary);">KVKK Aydınlatma Metni</a>'ni ve Kişisel Veri İşleme Şartları'nı kabul ediyorum.</span>
-        </label>
-      </div>
-
       <!-- Action Buttons -->
       <div class="actions-stack">
         <div style="display: flex; gap: 12px; align-items: center;">
@@ -523,11 +511,16 @@
           <span style="font-family: var(--font-serif); font-size: 24px; font-weight: 700;">{{.StoreName}}</span>
           <p style="font-size: 13px; color: #A8A29E; margin-top: 4px;">{{.Slogan}}</p>
         </div>
-        <div style="display: flex; gap: 20px; font-size: 13px;">
+        <div style="display: flex; gap: 18px; font-size: 13px; flex-wrap: wrap;">
           <a href="/" style="color: #A8A29E; text-decoration: none;">Ana Sayfa</a>
           <a href="/kategori/tumu" style="color: #A8A29E; text-decoration: none;">Koleksiyon</a>
           <a href="/hakkimizda" style="color: #A8A29E; text-decoration: none;">Hikayemiz</a>
-          <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim &amp; Destek</a>
+          <a href="/iletisim" style="color: #A8A29E; text-decoration: none;">İletişim</a>
+          <a href="/kvkk" style="color: #A8A29E; text-decoration: none;">KVKK Metni</a>
+          <a href="/gizlilik-politikasi" style="color: #A8A29E; text-decoration: none;">Gizlilik</a>
+          <a href="/cerez-politikasi" style="color: #A8A29E; text-decoration: none;">Çerezler</a>
+          <a href="/mesafeli-satis-sozlesmesi" style="color: #A8A29E; text-decoration: none;">Mesafeli Satış</a>
+          <a href="/teslimat-ve-iade" style="color: #A8A29E; text-decoration: none;">Teslimat &amp; İade</a>
           <a href="javascript:void(0)" onclick="openCustomerAuthModal()" style="color: #A8A29E; text-decoration: none;">Hesabım &amp; Kargolarım</a>
         </div>
       </div>

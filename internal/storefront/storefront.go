@@ -114,6 +114,7 @@ var (
 	aboutTmpl         *template.Template
 	contactTmpl       *template.Template
 	orderTrackingTmpl *template.Template
+	policyTmpl        *template.Template
 	tmplErr           error
 )
 
@@ -164,6 +165,10 @@ func initTemplates() {
 			return
 		}
 		orderTrackingTmpl, tmplErr = template.New("order_tracking.html").Funcs(funcs).ParseFS(templateFS, "order_tracking.html", "sections/*.html")
+		if tmplErr != nil {
+			return
+		}
+		policyTmpl, tmplErr = template.New("policy_view.html").Funcs(funcs).ParseFS(templateFS, "policy_view.html", "sections/*.html")
 	})
 }
 
@@ -586,6 +591,53 @@ func RenderSuspended(w http.ResponseWriter, r *http.Request, data SuspendedData)
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; frame-ancestors 'none';")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	return suspendedTmpl.Execute(w, data)
+}
+
+// PolicyData carries context for dedicated legal, privacy and compliance views.
+type PolicyData struct {
+	StoreName      string
+	Slogan         string
+	PrimaryColor   string
+	BGTone         string
+	CleanPhone     string
+	ShopierURL     string
+	ContactEmail   string
+	FontPreset     string
+	FontHeading    template.CSS
+	FontBody       template.CSS
+	PolicyType     string // "kvkk", "gizlilik", "cerez", "mesafe", "iade", "kunye"
+	PolicyTitle    string
+	PolicySubtitle string
+	PolicyBody     template.HTML
+	LastUpdated    string
+	ProductsJSON   template.JS
+}
+
+// RenderPolicy renders dedicated legal/policy documents.
+func RenderPolicy(w http.ResponseWriter, r *http.Request, data PolicyData) error {
+	initTemplates()
+	if tmplErr != nil {
+		return tmplErr
+	}
+	if data.StoreName == "" {
+		data.StoreName = "Atelier Riviera"
+	}
+	if data.PrimaryColor == "" {
+		data.PrimaryColor = "#8C6D46"
+	}
+	if data.BGTone == "" {
+		data.BGTone = "#FAF8F5"
+	}
+	if data.FontHeading == "" || data.FontBody == "" {
+		data.FontHeading, data.FontBody = ResolveFontFamilies(data.FontPreset)
+	}
+	data.CleanPhone = cleanPhoneNumber(data.CleanPhone)
+
+	var buf bytes.Buffer
+	if err := policyTmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
 }
 
 func cleanPhoneNumber(phone string) string {
