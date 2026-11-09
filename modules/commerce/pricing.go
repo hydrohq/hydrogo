@@ -23,6 +23,24 @@ type PricingConfig struct {
 	// pre-discount subtotal reaches it. Zero means no free-shipping
 	// threshold (shipping, if configured, always applies).
 	ShippingFreeAboveCents int64
+	// MethodDiscountPercent maps a payment method to a percentage taken off
+	// the subtotal when the shopper chooses it at checkout (for example a
+	// bank-transfer discount). It never combines with a discount code, and
+	// the order records it as MethodDiscountPrefix + method so a payment
+	// provider can refuse to start a different method on that order.
+	MethodDiscountPercent map[string]float64
+}
+
+// MethodDiscountPrefix marks Order.DiscountCode as a payment-method discount.
+const MethodDiscountPrefix = "method:"
+
+// methodDiscount returns the discount for method on subtotalCents, or 0.
+func (p PricingConfig) methodDiscount(method string, subtotalCents int64) int64 {
+	percent := p.MethodDiscountPercent[method]
+	if percent <= 0 || percent > 100 {
+		return 0
+	}
+	return int64(math.Round(float64(subtotalCents) * percent / 100))
 }
 
 // PricingBreakdown is what Checkout stores on the order and what the

@@ -146,6 +146,7 @@ payments:
     bank_name: ""
     account_holder: ""
     whatsapp: ""         # where the shopper sends the receipt, e.g. 905551234567
+    discount_percent: 0  # taken off the subtotal when this method is chosen (no discount code)
 # Operator alerts: a new order and a non-clean `hydro commerce reconcile`
 # report are posted here when configured. Both bot_token and chat_id are
 # required together. bot_token is a secret: set it only in an

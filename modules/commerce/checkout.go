@@ -37,6 +37,9 @@ type CheckoutRequest struct {
 	// below-minimum code returns ErrDiscountCodeInvalid rather than
 	// silently checking out at full price.
 	DiscountCode string
+	// PaymentMethod is the method the shopper chose; a configured method
+	// discount applies when no discount code was given.
+	PaymentMethod string
 }
 
 var (
@@ -150,6 +153,13 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 		if err != nil {
 			return err
 		}
+		methodMarker := ""
+		if discountCode == nil && discountCents == 0 {
+			if methodDiscount := s.Pricing.methodDiscount(req.PaymentMethod, subtotal); methodDiscount > 0 {
+				discountCents = methodDiscount
+				methodMarker = MethodDiscountPrefix + req.PaymentMethod
+			}
+		}
 		breakdown := s.Pricing.Price(subtotal, discountCents)
 
 		order := Order{
@@ -163,6 +173,8 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 		}
 		if discountCode != nil {
 			order.DiscountCode = discountCode.Code
+		} else if methodMarker != "" {
+			order.DiscountCode = methodMarker
 		}
 		stored, isNew, err := s.Repository.CreateOrder(ctx, tx, order, orderItems)
 		if err != nil {

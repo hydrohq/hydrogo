@@ -80,3 +80,19 @@ func TestPricingDiscountCannotMakeTheTaxableBaseNegative(t *testing.T) {
 		t.Fatalf("an over-large discount should floor the total at 0, got %+v", got)
 	}
 }
+
+func TestMethodDiscount(t *testing.T) {
+	p := PricingConfig{MethodDiscountPercent: map[string]float64{"havale": 5}}
+	if got := p.methodDiscount("havale", 100000); got != 5000 {
+		t.Fatalf("havale discount = %d, want 5000", got)
+	}
+	if got := p.methodDiscount("card", 100000); got != 0 {
+		t.Fatalf("a method without a discount got %d", got)
+	}
+	if got := (PricingConfig{MethodDiscountPercent: map[string]float64{"x": 150}}).methodDiscount("x", 1000); got != 0 {
+		t.Fatalf("an out-of-range percent must be ignored, got %d", got)
+	}
+	if b := p.Price(100000, 5000); b.TotalCents != 95000 {
+		t.Fatalf("total = %d, want 95000", b.TotalCents)
+	}
+}

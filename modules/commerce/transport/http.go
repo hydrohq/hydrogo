@@ -213,6 +213,7 @@ func (h Handler) getCheckoutConfig(w http.ResponseWriter, r *http.Request) {
 		"shipping_flat_rate_cents":  pricing.ShippingFlatRateCents,
 		"shipping_free_above_cents": pricing.ShippingFreeAboveCents,
 		"payment_methods":           []string{},
+		"method_discount_percent":   pricing.MethodDiscountPercent,
 	}
 	// A provider that multiplexes methods (the payments module's Router)
 	// says which ones a shopper can choose from.
