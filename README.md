@@ -2,10 +2,10 @@
 
 **A single-binary headless content management system written in Go.**
 
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions)](https://github.com/ardaozyildirim/hydrogo/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/ardaozyildirim/hydrogo)](https://github.com/ardaozyildirim/hydrogo/releases/latest)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions)](https://github.com/hydrohq/hydrogo/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hydrohq/hydrogo)](https://github.com/hydrohq/hydrogo/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/ardaozyildirim/hydrogo.svg)](https://pkg.go.dev/github.com/ardaozyildirim/hydrogo)
+[![Go Reference](https://pkg.go.dev/badge/github.com/hydrohq/hydrogo.svg)](https://pkg.go.dev/github.com/hydrohq/hydrogo)
 
 HydroGo manages pages, news, media, members, and custom content types, exposing
 everything over a unified REST API with an embedded modern admin panel. It runs
@@ -59,14 +59,14 @@ as one self-contained binary on SQLite, PostgreSQL or MySQL/MariaDB.
 
 ## Install
 
-Download from the [latest release](https://github.com/ardaozyildirim/hydrogo/releases/latest):
+Download from the [latest release](https://github.com/hydrohq/hydrogo/releases/latest):
 
 | Platform | How |
 |---|---|
 | Windows | Run `HydroGo-Setup-<version>-windows-amd64.exe` (or `arm64`). It installs `hydro` and adds it to PATH; open a new terminal afterwards. |
-| Windows (PowerShell) | `irm https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.ps1 \| iex` |
-| Linux / macOS | `curl -fsSL https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.sh \| sh` |
-| Docker | `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/ardaozyildirim/hydrogo:latest` (see [deployment](docs/deployment.md)) |
+| Windows (PowerShell) | `irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 \| iex` |
+| Linux / macOS | `curl -fsSL https://github.com/hydrohq/hydrogo/releases/latest/download/install.sh \| sh` |
+| Docker | `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest` (see [deployment](docs/deployment.md)) |
 | From source | `go build -o bin/hydro ./cmd/hydro` (Go 1.27.2+) |
 
 Checksums are in `SHA256SUMS` on every release; the install scripts verify them.
