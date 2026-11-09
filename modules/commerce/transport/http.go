@@ -65,6 +65,8 @@ type Handler struct {
 	// starts a payment and the response says where to send the shopper. A
 	// failed StartPayment never fails the checkout; the order already exists.
 	PaymentProvider commerce.PaymentProvider
+	// Refunder is optional; without it the refund endpoint answers 503.
+	Refunder commerce.PaymentRefunder
 	// DisplayCurrencies/CurrencyRates back GET .../currencies. Display only:
 	// checkout always charges DefaultCurrency.
 	DisplayCurrencies []string
@@ -97,6 +99,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/commerce/orders/{id}/payment", Handler: http.HandlerFunc(h.startOrderPayment)},
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/discount-codes", Handler: http.HandlerFunc(h.createDiscountCode), Protected: true, Permission: PermissionWrite},
+		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/refund", Handler: http.HandlerFunc(h.refundOrder), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true, Permission: PermissionRead},
@@ -186,6 +189,10 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "the store has no price source configured", nil)
 	case errors.Is(err, commerce.ErrOrderNotPayable):
 		api.WriteError(w, r, http.StatusConflict, "this order is no longer awaiting payment", nil)
+	case errors.Is(err, commerce.ErrOrderNotRefundable):
+		api.WriteError(w, r, http.StatusConflict, "only a paid order can be refunded", nil)
+	case errors.Is(err, commerce.ErrNoPaymentCharge):
+		api.WriteError(w, r, http.StatusConflict, "no payment is recorded for this order; refund it from the provider panel", nil)
 	case errors.Is(err, commerce.ErrOrderNotShippable):
 		api.WriteError(w, r, http.StatusConflict, "only paid, unshipped orders can be handed to a carrier", nil)
 	default:

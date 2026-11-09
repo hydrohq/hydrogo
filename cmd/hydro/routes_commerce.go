@@ -146,6 +146,9 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		provider, paymentRoutes = a.buildPayments(handler.Service, handler.Notifier)
 	}
 	handler.PaymentProvider = provider
+	if refunder, ok := provider.(commerce.PaymentRefunder); ok {
+		handler.Refunder = refunder
+	}
 	handler.ShippingProvider = a.commerceShippingProvider()
 
 	transportRoutes := append(handler.Routes(), paymentRoutes...)

@@ -166,6 +166,24 @@
   let carrierName = $state('');
   let trackingNumber = $state('');
 
+  async function refundSelected() {
+    if (!selected || !window.confirm(t('commerce.order.refundConfirm'))) return;
+    actionLoading = true;
+    feedback = null;
+    try {
+      const res = await api.post<{ data: Order }>(`/api/v1/admin/commerce/orders/${encodeURIComponent(selected.id)}/refund`);
+      if (res?.data) {
+        selected = { ...selected, ...res.data };
+        orders = orders.map((o) => (o.id === res.data.id ? { ...o, ...res.data } : o));
+        feedback = { type: 'success', text: t('commerce.order.refundDone') };
+      }
+    } catch (err) {
+      feedback = { type: 'error', text: errorText(err, t('commerce.order.refundFailed')) };
+    } finally {
+      actionLoading = false;
+    }
+  }
+
   async function createShipment() {
     if (!selected) return;
     actionLoading = true;
@@ -285,6 +303,9 @@
       </dl>
 
       <div class="pt-3 border-t border-border space-y-3">
+        {#if canWrite && selected.payment_status === 'paid'}
+          <Button variant="secondary" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>{t('commerce.order.refund')}</Button>
+        {/if}
         {#if selected.shipping_tracking_number}
           <div class="p-4 rounded-lg bg-muted/50 border border-border text-xs space-y-1">
             <div class="flex justify-between gap-3"><span class="text-muted-foreground">{t('commerce.order.carrier')}</span><span class="text-foreground">{selected.shipping_carrier}</span></div>

@@ -39,6 +39,11 @@ type Repository interface {
 	ListOrders(ctx context.Context, db database.Executor, paymentStatus PaymentStatus, fulfillmentStatus FulfillmentStatus, limit, offset int) ([]Order, error)
 	UpdatePaymentStatus(ctx context.Context, db database.Executor, orderID string, from, to PaymentStatus) (bool, error)
 	RecordPaymentNotification(ctx context.Context, db database.Executor, provider, eventID string) (bool, error)
+	// RecordPaymentCharge stores the provider payment behind a paid order (a
+	// repeat of the same provider payment is a no-op); LatestPaymentCharge
+	// reads it back for a refund. ErrNoPaymentCharge when there is none.
+	RecordPaymentCharge(ctx context.Context, db database.Executor, charge PaymentCharge) error
+	LatestPaymentCharge(ctx context.Context, db database.Executor, orderID string) (PaymentCharge, error)
 	// ListNotifiedOrdersNotPaid and StockReservationDrift back
 	// Service.Reconcile -- a read-only consistency sweep, not part of the
 	// checkout/payment path itself. See reconcile.go.

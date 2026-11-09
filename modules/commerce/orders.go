@@ -39,6 +39,9 @@ type Payment struct {
 	// EventID is the provider's own redelivery key; a repeat is a no-op.
 	EventID string
 	OrderID string
+	// ProviderPaymentID is the provider's own id for the payment (what a
+	// refund needs); EventID is used when it is empty.
+	ProviderPaymentID string
 	// AmountCents is what the provider says it collected. It must cover the
 	// order total; more is allowed (installment interest is added by some
 	// providers on top of the order amount).
@@ -95,6 +98,17 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 			if err := s.Repository.CommitReservation(ctx, tx, item.VariantID, item.Quantity); err != nil {
 				return err
 			}
+		}
+		providerPaymentID := payment.ProviderPaymentID
+		if providerPaymentID == "" {
+			providerPaymentID = payment.EventID
+		}
+		chargeID, err := newID("chg_")
+		if err != nil {
+			return err
+		}
+		if err := s.Repository.RecordPaymentCharge(ctx, tx, PaymentCharge{ID: chargeID, OrderID: payment.OrderID, Provider: payment.Provider, ProviderPaymentID: providerPaymentID, AmountCents: payment.AmountCents, Currency: order.Currency, Status: PaymentPaid}); err != nil {
+			return err
 		}
 		if err := s.emit(ctx, tx, "order.paid", payment.OrderID); err != nil {
 			return err
