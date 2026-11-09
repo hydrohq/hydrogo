@@ -249,6 +249,10 @@ type Security struct {
 	PreviewSigningKey   string   `yaml:"preview_signing_key" json:"-"`
 	PasswordResetTTL    string   `yaml:"password_reset_ttl"`
 	InvitationTTL       string   `yaml:"invitation_ttl"`
+	// PublicContentRatePerMinute caps public content reads per client IP
+	// (default 120). A server-rendered frontend reads on behalf of every
+	// visitor from one address, so raise it (or cache) for such a frontend.
+	PublicContentRatePerMinute int `yaml:"public_content_rate_per_minute"`
 }
 
 type I18N struct {
