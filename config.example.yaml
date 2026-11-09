@@ -136,6 +136,18 @@ carriers:
     namespace: ""        # SOAP service namespace, same documents
     tracking_url_template: ""   # public tracking page with {tracking_number}
     language: "TR"
+  # Any carrier or aggregator with an HTTP API, no code: Hydro renders body_template
+  # ({order_id} {name} {email} {phone} {address} {city} {district} {postal_code}
+  # {country} {currency} {total} {items}), sends it, and reads the tracking number
+  # from the JSON response at tracking_path (dot path, e.g. data.0.barcode).
+  http:
+    name: ""             # stored on the order, e.g. "Aras Kargo"
+    url: ""
+    method: "POST"
+    headers: {}          # credentials go here (untracked config only)
+    body_template: ""
+    tracking_path: ""
+    tracking_url_template: ""   # public tracking page with {tracking_number}
 # Optional `payments` module (add `payments` to modules: next to `commerce`).
 # Each method turns on by its own key; secrets belong only in an untracked
 # copy of this file. The shopper picks one with `payment_method` on checkout.

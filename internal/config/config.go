@@ -407,6 +407,7 @@ type Carriers struct {
 	Default string         `yaml:"default"`
 	Manual  ManualCarrier  `yaml:"manual"`
 	Yurtici YurticiCarrier `yaml:"yurtici"`
+	HTTP    HTTPCarrier    `yaml:"http"`
 }
 
 // ManualCarrier records a shipment booked in the carrier's own portal.
@@ -433,3 +434,20 @@ type YurticiCarrier struct {
 
 // Enabled reports whether Yurtiçi is configured.
 func (y YurticiCarrier) Enabled() bool { return y.WSUserName != "" }
+
+// HTTPCarrier connects any carrier or aggregator that takes an HTTP request and
+// answers with a tracking number, with no code: see modules/shipping/httpcarrier.
+// Headers usually carry credentials, so keep them in an untracked config file.
+type HTTPCarrier struct {
+	// Name is stored on the order as the carrier ("Aras Kargo", ...).
+	Name                string            `yaml:"name"`
+	URL                 string            `yaml:"url"`
+	Method              string            `yaml:"method"`
+	Headers             map[string]string `yaml:"headers"`
+	BodyTemplate        string            `yaml:"body_template"`
+	TrackingPath        string            `yaml:"tracking_path"`
+	TrackingURLTemplate string            `yaml:"tracking_url_template"`
+}
+
+// Enabled reports whether an HTTP carrier is configured.
+func (h HTTPCarrier) Enabled() bool { return h.URL != "" }
