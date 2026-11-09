@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Fix: the admin media list always failed.** `GET /api/v1/admin/media` asked the store for a 500-row window while the store caps a list at 200, so every call answered 500 and the cause was never logged. The window is 200 now, and media request failures log their cause.
+- **Fix: `hydro version` reported 0.4.0 on a 0.4.1 build.**
+- **Fix: `/` showed the HydroCloud sales page and public onboarding was on by default.** A project's root now shows a neutral "server is running" page; the platform showcase and the public tenant-creating onboarding endpoint need `HYDRO_ONBOARD_ENABLED=true`.
+- **Opt-in `payments` module** (`modules: [..., commerce, payments]`): PayTR, iyzico Checkout Form and manual bank transfer behind `commerce.PaymentProvider`, with a `payments:` config section, gateway origins taken from config, and an operator confirm action for transfers. See `docs/decisions/0033-payments-module.md`.
+- **Payment-method discount:** `payments.havale.discount_percent` takes a percentage off the subtotal when the shopper picks bank transfer (never combined with a discount code; such an order must be paid that way).
+- **Checkout:** optional `payment_method` on `POST /api/v1/commerce/checkout` and `.../orders/{id}/payment`; `payment` carries `method` and `instructions`; `checkout-config` lists `payment_methods` and `method_discount_percent`.
+- **`security.public_content_rate_per_minute`** raises the per-IP public content read budget for server-rendered frontends (default 120).
+- **Fix: the commerce preset did not create `product_images`**, which the commerce starter reads.
+
 ## [0.4.1] - 2026-11-09
 
 - **Fix: the container images did not build.** The Dockerfile still copied `hydrogo.lock`, removed from the repo as a leftover of an abandoned licensing experiment, into the final image; `container (amd64)`/`(arm64)` CI failed on "not found". That `COPY` is gone.

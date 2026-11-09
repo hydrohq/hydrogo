@@ -2,6 +2,7 @@ package media
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,7 +21,7 @@ import (
 const AdminBasePath = "/api/v1/admin/media"
 
 const (
-	adminListScanLimit = 500
+	adminListScanLimit = 200 // must not exceed the store's list cap (sqlstore: 200)
 	adminListMaxLimit  = 100
 	adminJSONBodyBytes = 8 << 10
 )
@@ -87,6 +88,8 @@ func writeMediaError(w http.ResponseWriter, r *http.Request, err error, message 
 	status := mediaStatus(err)
 	if status == http.StatusInternalServerError {
 		message = "request could not be completed"
+		// The client only sees a generic message; keep the cause for operators.
+		slog.ErrorContext(r.Context(), "media request failed", "method", r.Method, "path", r.URL.Path, "error", err)
 	}
 	api.WriteError(w, r, status, message, nil)
 }

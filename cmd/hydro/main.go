@@ -50,7 +50,7 @@ func clearPublicCaches(page pageCache, newsItems newsCache, html *server.PublicH
 
 var (
 	// version is overridden at release time: -ldflags "-X main.version=v1.2.3".
-	version     = "0.4.0"
+	version     = "0.4.1"
 	buildCommit = "unknown"
 	buildTime   = "unknown"
 )
