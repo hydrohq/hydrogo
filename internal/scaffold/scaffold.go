@@ -84,7 +84,7 @@ var presets = []Preset{
 		Name:         "commerce",
 		Description:  "storefront: category/product/variant catalog plus cart, checkout and payments via the commerce module",
 		Modules:      []string{"core", "auth", "media", "collections", "commerce"},
-		ContentTypes: []string{"commerce/categories", "commerce/products", "commerce/variants"},
+		ContentTypes: []string{"commerce/categories", "commerce/products", "commerce/variants", "commerce/product_images"},
 	},
 }
 
