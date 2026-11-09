@@ -165,3 +165,24 @@ func TestScopedMediaVariantCannotCrossTenant(t *testing.T) {
 		t.Fatalf("scoped variant read = %#v err=%v", got, err)
 	}
 }
+
+// The admin list asks the store for its whole scan window; a window larger
+// than the cap made GET /api/v1/admin/media fail for every request.
+func TestListAcceptsTheLargestAdminScanWindow(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, "file:media-list-window?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	store := Store{Dialect: database.SQLite}
+	if _, err := store.List(ctx, db, 200); err != nil {
+		t.Fatalf("a window of 200 must work: %v", err)
+	}
+	if _, err := store.List(ctx, db, 201); err == nil {
+		t.Fatal("a window over the cap must be refused")
+	}
+}
