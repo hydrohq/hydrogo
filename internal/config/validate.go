@@ -437,10 +437,13 @@ func (c Carriers) validate() error {
 	if c.Yurtici.Enabled() && (c.Yurtici.WSPassword == "" || c.Yurtici.BaseURL == "" || c.Yurtici.Namespace == "") {
 		return errors.New("carriers.yurtici requires ws_password, base_url and namespace once ws_username is set")
 	}
+	if c.HTTP.Enabled() && (c.HTTP.TrackingPath == "" || c.HTTP.BodyTemplate == "" || c.HTTP.Name == "") {
+		return errors.New("carriers.http requires name, body_template and tracking_path once url is set")
+	}
 	switch c.Default {
-	case "", "manual", "yurtici":
+	case "", "manual", "yurtici", "http":
 	default:
-		return errors.New("carriers.default must be manual or yurtici")
+		return errors.New("carriers.default must be manual, yurtici or http")
 	}
 	return nil
 }
