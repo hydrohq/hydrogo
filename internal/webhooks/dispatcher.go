@@ -30,6 +30,9 @@ type Endpoint struct {
 	URL    string
 	Secret string
 	Topics map[string]struct{}
+	// AllowInternal lets this endpoint be a loopback/private address (a
+	// frontend on the same host). Off by default: webhook targets are public.
+	AllowInternal bool
 }
 
 type Event struct {
@@ -132,7 +135,6 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
-	client = safeClient(client, d.AllowInternalAddresses)
 	attempts := d.MaxAttempts
 	if attempts < 1 || attempts > 10 {
 		attempts = 3
@@ -162,9 +164,11 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 		if !endpoint.matches(event.Topic) {
 			continue
 		}
-		if err := validateEndpoint(endpoint, d.AllowInternalAddresses); err != nil {
+		allowInternal := d.AllowInternalAddresses || endpoint.AllowInternal
+		if err := validateEndpoint(endpoint, allowInternal); err != nil {
 			return err
 		}
+		endpointClient := safeClient(client, allowInternal)
 		var delivered bool
 		var lastErr error
 		for attempt := 1; attempt <= attempts; attempt++ {
@@ -181,7 +185,7 @@ func (d Dispatcher) Dispatch(ctx context.Context, event Event) error {
 			request.Header.Set("X-Hydro-Signature", sig)
 			request.Header.Set("X-Hydro-Signature-256", sig)
 			request.Header.Set("X-Hydro-Timestamp", timestamp)
-			response, err := client.Do(request)
+			response, err := endpointClient.Do(request)
 			if err == nil {
 				_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
 				_ = response.Body.Close()

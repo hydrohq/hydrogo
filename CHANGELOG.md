@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Checkout:** optional `payment_method` on `POST /api/v1/commerce/checkout` and `.../orders/{id}/payment`; `payment` carries `method` and `instructions`; `checkout-config` lists `payment_methods` and `method_discount_percent`.
 - **`security.public_content_rate_per_minute`** raises the per-IP public content read budget for server-rendered frontends (default 120).
 - **Opt-in `shipping` module** (`modules: [..., commerce, shipping]`): a manual carrier (the operator types the carrier and tracking number in the admin Orders screen) and the restored Yurtiçi SOAP provider (unverified against the real service). `POST .../orders/{id}/shipment` accepts an optional `{carrier, tracking_number, tracking_url}` body. See `docs/decisions/0034-shipping-module.md`.
+- **Webhooks: `allow_internal`** (or `HYDRO_WEBHOOK_ALLOW_INTERNAL=true`) lets one endpoint point at a loopback/private address, for a frontend on the same host. Off by default.
 - **Fix: the commerce preset did not create `product_images`**, which the commerce starter reads.
 
 ## [0.4.1] - 2026-11-09

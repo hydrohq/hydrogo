@@ -60,7 +60,7 @@ func (a *serveApp) webhookRoutes() []router.Route {
 			for _, topic := range configured.Topics {
 				topics[strings.TrimSpace(topic)] = struct{}{}
 			}
-			webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics})
+			webhookEndpoints = append(webhookEndpoints, webhooks.Endpoint{ID: configured.ID, URL: configured.URL, Secret: configured.Secret, Topics: topics, AllowInternal: configured.AllowInternal})
 		}
 	}
 	a.webhookEndpoints = webhookEndpoints
