@@ -207,10 +207,17 @@ func (h Handler) getCurrencies(w http.ResponseWriter, r *http.Request) {
 // total; the checkout response is authoritative.
 func (h Handler) getCheckoutConfig(w http.ResponseWriter, r *http.Request) {
 	pricing := h.Service.Pricing
-	api.WriteData(w, http.StatusOK, map[string]any{
+	config := map[string]any{
 		"tax_rate":                  pricing.TaxRate,
 		"tax_inclusive":             pricing.TaxInclusive,
 		"shipping_flat_rate_cents":  pricing.ShippingFlatRateCents,
 		"shipping_free_above_cents": pricing.ShippingFreeAboveCents,
-	}, nil)
+		"payment_methods":           []string{},
+	}
+	// A provider that multiplexes methods (the payments module's Router)
+	// says which ones a shopper can choose from.
+	if lister, ok := h.PaymentProvider.(interface{ Names() []string }); ok {
+		config["payment_methods"] = lister.Names()
+	}
+	api.WriteData(w, http.StatusOK, config, nil)
 }

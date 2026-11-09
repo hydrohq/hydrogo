@@ -127,6 +127,7 @@ payments:
     merchant_id: ""
     merchant_key: ""
     merchant_salt: ""
+    base_url: ""         # gateway origin, from PayTR merchant docs
     test_mode: true
     no_installment: false
     max_installment: 0
@@ -135,7 +136,7 @@ payments:
   iyzico:
     api_key: ""
     secret_key: ""
-    base_url: ""         # empty = sandbox; https://api.iyzipay.com for live
+    base_url: ""         # API origin from iyzico docs (sandbox or live)
     callback_url: ""     # https://<hydro host>/api/v1/payments/iyzico/callback
     ok_url: ""
     fail_url: ""
