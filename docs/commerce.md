@@ -63,6 +63,24 @@ stock-reservation drift. The same sweep also runs in the background every
 five minutes and logs a warning when a report is not clean. See
 `docs/decisions/0018-commerce-reconciliation.md`.
 
+## Payments module
+
+The opt-in `payments` module (`modules: [..., commerce, payments]`) ships
+three methods behind `commerce.PaymentProvider`: **PayTR** (hosted iFrame),
+**iyzico** (hosted Checkout Form) and **havale** (manual bank transfer). See
+`docs/decisions/0033-payments-module.md` and the `payments:` section of
+`config.example.yaml`. The shopper's choice travels as `payment_method` on
+`POST /api/v1/commerce/checkout` (and on `POST .../orders/{id}/payment` to
+retry or switch); the response's `payment` carries `method` plus either a
+`redirect_url`/`token` or, for havale, `instructions` (IBAN, reference, amount).
+
+| Route | Notes |
+|---|---|
+| `POST /api/v1/commerce/payments/paytr/callback` | PayTR server notification, HMAC-verified, answers `OK` |
+| `POST /api/v1/payments/iyzico/callback` | Browser return after 3-D Secure; the result is re-fetched from iyzico, never read from the browser |
+| `POST /api/v1/payments/iyzico/webhook` | `X-IYZ-SIGNATURE-V3` verified |
+| `POST /api/v1/admin/commerce/orders/{id}/confirm-transfer` | Operator marks a havale as received (`admin.commerce.write`) |
+
 ## Provider Interfaces & Decoupled Architecture
 
 In accordance with core architectural guidelines (no customer-specific or domestic courier/gateway implementations in core binary), payment and shipping carriers are decoupled into clean Go interfaces:

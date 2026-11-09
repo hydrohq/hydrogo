@@ -23,6 +23,9 @@ type checkoutRequest struct {
 	GuestPostalCode string `json:"guest_postal_code"`
 	IdempotencyKey  string `json:"idempotency_key"`
 	DiscountCode    string `json:"discount_code"`
+	// PaymentMethod picks one of the methods a multiplexing PaymentProvider
+	// offers (optional; the provider's default applies when empty).
+	PaymentMethod string `json:"payment_method"`
 	// ItemTitles/ItemSKUs (keyed by variant_id) are receipt text supplied by
 	// the storefront. They never affect price.
 	ItemTitles map[string]string `json:"item_titles"`
@@ -88,7 +91,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	response := checkoutResponse{Order: order}
 	if order.PaymentStatus == commerce.PaymentPending && h.PaymentProvider != nil {
 		// Also on an idempotent retry: the shopper still needs somewhere to pay.
-		paymentCtx := commerce.WithClientIP(r.Context(), h.clientIP(r))
+		paymentCtx := commerce.WithPaymentMethod(commerce.WithClientIP(r.Context(), h.clientIP(r)), strings.TrimSpace(input.PaymentMethod))
 		if start, startErr := h.Service.StartPayment(paymentCtx, h.PaymentProvider, order.ID); startErr == nil {
 			response.Payment = &start
 		}
@@ -152,7 +155,13 @@ func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "no payment provider is configured", nil)
 		return
 	}
-	paymentCtx := commerce.WithClientIP(r.Context(), h.clientIP(r))
+	var input struct {
+		PaymentMethod string `json:"payment_method"`
+	}
+	if r.ContentLength != 0 && !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+		return
+	}
+	paymentCtx := commerce.WithPaymentMethod(commerce.WithClientIP(r.Context(), h.clientIP(r)), strings.TrimSpace(input.PaymentMethod))
 	start, err := h.Service.StartPayment(paymentCtx, h.PaymentProvider, r.PathValue("id"))
 	if err != nil {
 		switch {

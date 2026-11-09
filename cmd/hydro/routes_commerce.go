@@ -44,6 +44,11 @@ func (a *serveApp) commercePaymentProviderName() string {
 	if registeredPaymentProvider != nil {
 		return "custom"
 	}
+	// Reconcile's notified-but-unpaid check keys on PayTR's redelivery id
+	// (the order id); iyzico confirms under its own payment id.
+	if paymentsEnabled(a.modules, a.cfg.Payments) && a.cfg.Payments.PayTR.Enabled() {
+		return "paytr"
+	}
 	return ""
 }
 
@@ -123,10 +128,14 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		handler.MemberID = commerceMemberIDResolver(a.memberService)
 	}
 	provider := a.commercePaymentProvider()
+	var paymentRoutes []commercetransport.Route
+	if provider == nil {
+		provider, paymentRoutes = a.buildPayments(handler.Service, handler.Notifier)
+	}
 	handler.PaymentProvider = provider
 	handler.ShippingProvider = a.commerceShippingProvider()
 
-	transportRoutes := handler.Routes()
+	transportRoutes := append(handler.Routes(), paymentRoutes...)
 	routes := make([]router.Route, 0, len(transportRoutes))
 	for _, route := range transportRoutes {
 		access := router.Protected
