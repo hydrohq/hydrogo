@@ -1,6 +1,12 @@
 {
   "modules/members": [],
   "modules/news": [],
-  "modules/pages": ["modules/seo", "modules/site"],
+  "modules/pages": [
+    "modules/seo",
+    "modules/site"
+  ],
+  "modules/payments": [
+    "modules/commerce"
+  ],
   "modules/site": []
 }
