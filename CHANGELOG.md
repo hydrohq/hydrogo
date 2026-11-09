@@ -6,7 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-09
+
 - **Fix: the container images did not build.** The Dockerfile still copied `hydrogo.lock`, removed from the repo as a leftover of an abandoned licensing experiment, into the final image; `container (amd64)`/`(arm64)` CI failed on "not found". That `COPY` is gone.
+- **Fix: `go run ./tools/check` failed on macOS.** Packages that reject symlinked path components on purpose (`internal/pathguard`: backup, erasure, release, the static HTML cache, `cmd/hydro`) failed their tests because the macOS temp dir lives under `/var`, a symlink to `/private/var`. The check now runs every step with a symlink-free `TMPDIR`; the guard itself is unchanged.
 - **Fix: `go` and `windows-go` CI failed govulncheck.** `golang.org/x/net` was on v0.61.0, vulnerable to GO-2026-6866 and GO-2026-6860 (reachable from `internal/mailer` and `internal/linkcheck`); bumped to v0.62.0.
 
 ## [0.4.0] - 2026-10-26
