@@ -347,9 +347,11 @@ type Payments struct {
 
 // PayTR is one merchant's PayTR (hosted iFrame) credentials.
 type PayTR struct {
-	MerchantID     string `yaml:"merchant_id"`
-	MerchantKey    string `yaml:"merchant_key"`
-	MerchantSalt   string `yaml:"merchant_salt"`
+	MerchantID   string `yaml:"merchant_id"`
+	MerchantKey  string `yaml:"merchant_key"`
+	MerchantSalt string `yaml:"merchant_salt"`
+	// BaseURL is the gateway origin from the merchant documentation.
+	BaseURL        string `yaml:"base_url"`
 	TestMode       bool   `yaml:"test_mode"`
 	NoInstallment  bool   `yaml:"no_installment"`
 	MaxInstallment int    `yaml:"max_installment"`
@@ -364,7 +366,7 @@ func (p PayTR) Enabled() bool { return p.MerchantID != "" }
 type Iyzico struct {
 	APIKey    string `yaml:"api_key"`
 	SecretKey string `yaml:"secret_key"`
-	// BaseURL defaults to iyzico's sandbox; use https://api.iyzipay.com live.
+	// BaseURL is the API origin from iyzico's docs (sandbox or live).
 	BaseURL string `yaml:"base_url"`
 	// CallbackURL is this server's public .../api/v1/payments/iyzico/callback.
 	CallbackURL         string `yaml:"callback_url"`

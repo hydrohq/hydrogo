@@ -410,11 +410,11 @@ func (c Config) Validate() error {
 }
 
 func (p Payments) validate() error {
-	if p.PayTR.Enabled() && (p.PayTR.MerchantKey == "" || p.PayTR.MerchantSalt == "") {
-		return errors.New("payments.paytr requires merchant_key and merchant_salt once merchant_id is set")
+	if p.PayTR.Enabled() && (p.PayTR.MerchantKey == "" || p.PayTR.MerchantSalt == "" || p.PayTR.BaseURL == "") {
+		return errors.New("payments.paytr requires merchant_key, merchant_salt and base_url once merchant_id is set")
 	}
-	if p.Iyzico.Enabled() && (p.Iyzico.SecretKey == "" || p.Iyzico.CallbackURL == "") {
-		return errors.New("payments.iyzico requires secret_key and callback_url once api_key is set")
+	if p.Iyzico.Enabled() && (p.Iyzico.SecretKey == "" || p.Iyzico.CallbackURL == "" || p.Iyzico.BaseURL == "") {
+		return errors.New("payments.iyzico requires secret_key, callback_url and base_url once api_key is set")
 	}
 	switch p.Default {
 	case "", "paytr", "iyzico", "havale":
