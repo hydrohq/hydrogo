@@ -78,6 +78,10 @@ audit:
   # hydro audit head, hydro audit verify. Off by default.
   chain: false
 security:
+  # Public content reads allowed per client IP per minute (default 120). A
+  # server-rendered frontend reads for every visitor from one address: raise
+  # this (and cache) for such a frontend.
+  # public_content_rate_per_minute: 120
   # Keep false for local HTTP development; enable both for HTTPS deployments.
   secure_cookies: false
   enable_hsts: false

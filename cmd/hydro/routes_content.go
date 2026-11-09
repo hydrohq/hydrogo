@@ -37,7 +37,7 @@ func (a *serveApp) collectionRoutes() ([]router.Route, error) {
 	collectionService := collections.Service{Repository: collectionDB}
 	a.collectionService = collectionService
 	a.contentLocales = contenttypes.NewLocales(cfg.I18N.Enabled, cfg.I18N.DefaultLocale, cfg.I18N.Locales)
-	definitions, contentRoutes, err := contentTypeRoutesWithContext(ctx, cfg.ContentTypesDir, collectionService, a.getTenantScopes(), a.contentLocales, a.editPresence, a.hookCaller(), a.newRateLimiter(120, time.Minute), a.realtimeHub, a.resolveContentPrincipal, a.getContentTypes, a.contentTypesForContext)
+	definitions, contentRoutes, err := contentTypeRoutesWithContext(ctx, cfg.ContentTypesDir, collectionService, a.getTenantScopes(), a.contentLocales, a.editPresence, a.hookCaller(), a.newRateLimiter(publicContentRate(cfg.Security.PublicContentRatePerMinute), time.Minute), a.realtimeHub, a.resolveContentPrincipal, a.getContentTypes, a.contentTypesForContext)
 	if err != nil {
 		return nil, err
 	}
@@ -271,4 +271,12 @@ func (a *serveApp) newsRoutes() []router.Route {
 		}
 	}
 	return newsRoutes
+}
+
+// publicContentRate is the per-IP public content read budget per minute.
+func publicContentRate(configured int) int {
+	if configured > 0 {
+		return configured
+	}
+	return 120
 }

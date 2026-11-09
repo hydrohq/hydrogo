@@ -44,6 +44,9 @@ func (c Config) Validate() error {
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
 	}
+	if c.Security.PublicContentRatePerMinute < 0 {
+		return errors.New("security.public_content_rate_per_minute must not be negative")
+	}
 	if err := c.Payments.validate(); err != nil {
 		return err
 	}
