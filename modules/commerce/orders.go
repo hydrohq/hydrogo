@@ -175,7 +175,11 @@ func (s Service) CreateShipment(ctx context.Context, provider ShippingProvider, 
 
 	var shipped Order
 	err = s.Transactions.Within(ctx, func(tx database.Executor) error {
-		applied, err := s.Repository.RecordShipment(ctx, tx, orderID, provider.Name(), result.TrackingNumber, result.TrackingURL, time.Now().UTC())
+		carrier := result.Carrier
+		if carrier == "" {
+			carrier = provider.Name()
+		}
+		applied, err := s.Repository.RecordShipment(ctx, tx, orderID, carrier, result.TrackingNumber, result.TrackingURL, time.Now().UTC())
 		if err != nil {
 			return err
 		}

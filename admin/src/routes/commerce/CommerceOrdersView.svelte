@@ -162,12 +162,16 @@
     !!selected && selected.payment_status === 'paid' && (selected.fulfillment_status === 'unfulfilled' || selected.fulfillment_status === 'preparing')
   );
 
+  // Carrier booked outside the system (manual carrier): the operator types what the carrier's portal gave.
+  let carrierName = $state('');
+  let trackingNumber = $state('');
+
   async function createShipment() {
     if (!selected) return;
     actionLoading = true;
     feedback = null;
     try {
-      const res = await api.post<{ data: Order }>(`/api/v1/admin/commerce/orders/${encodeURIComponent(selected.id)}/shipment`);
+      const res = await api.post<{ data: Order }>(`/api/v1/admin/commerce/orders/${encodeURIComponent(selected.id)}/shipment`, carrierName.trim() || trackingNumber.trim() ? { carrier: carrierName.trim(), tracking_number: trackingNumber.trim() } : undefined);
       if (res?.data) {
         selected = { ...selected, ...res.data };
         orders = orders.map((o) => (o.id === res.data.id ? { ...o, ...res.data } : o));
@@ -294,6 +298,8 @@
           </div>
         {:else if canWrite}
           <p class="text-xs text-muted-foreground">{t('commerce.order.createShipmentHint')}</p>
+          <input class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm" placeholder={t('commerce.order.carrierName')} aria-label={t('commerce.order.carrierName')} bind:value={carrierName} />
+          <input class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono" placeholder={t('commerce.order.trackingNumber')} aria-label={t('commerce.order.trackingNumber')} bind:value={trackingNumber} />
           <Button variant="primary" size="sm" class="w-full" disabled={!canShipSelected} loading={actionLoading} onclick={createShipment}>
             {t('commerce.order.createShipment')}
           </Button>

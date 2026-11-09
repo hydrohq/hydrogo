@@ -44,6 +44,9 @@ func (c Config) Validate() error {
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
 	}
+	if err := c.Carriers.validate(); err != nil {
+		return err
+	}
 	if c.Security.PublicContentRatePerMinute < 0 {
 		return errors.New("security.public_content_rate_per_minute must not be negative")
 	}
@@ -426,6 +429,18 @@ func (p Payments) validate() error {
 	case "", "paytr", "iyzico", "havale":
 	default:
 		return errors.New("payments.default must be paytr, iyzico or havale")
+	}
+	return nil
+}
+
+func (c Carriers) validate() error {
+	if c.Yurtici.Enabled() && (c.Yurtici.WSPassword == "" || c.Yurtici.BaseURL == "") {
+		return errors.New("carriers.yurtici requires ws_password and base_url once ws_username is set")
+	}
+	switch c.Default {
+	case "", "manual", "yurtici":
+	default:
+		return errors.New("carriers.default must be manual or yurtici")
 	}
 	return nil
 }
