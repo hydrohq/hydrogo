@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/collections"
@@ -44,12 +46,19 @@ func (a *serveApp) commercePaymentProviderName() string {
 	if registeredPaymentProvider != nil {
 		return "custom"
 	}
-	// Reconcile's notified-but-unpaid check keys on PayTR's redelivery id
-	// (the order id); iyzico confirms under its own payment id.
-	if paymentsEnabled(a.modules, a.cfg.Payments) && a.cfg.Payments.PayTR.Enabled() {
-		return "paytr"
+	// Every payments-module provider records the order id as its notification
+	// event id, which is what reconcile joins on.
+	if !paymentsEnabled(a.modules, a.cfg.Payments) {
+		return ""
 	}
-	return ""
+	var names []string
+	for name, on := range map[string]bool{"paytr": a.cfg.Payments.PayTR.Enabled(), "iyzico": a.cfg.Payments.Iyzico.Enabled(), "havale": a.cfg.Payments.Havale.Enabled()} {
+		if on {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
 }
 
 // commerceCSRFExemptPaths names the routes a payment provider calls

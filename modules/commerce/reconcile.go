@@ -2,6 +2,7 @@ package commerce
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -80,8 +81,9 @@ func (r ReconcileReport) Clean() bool {
 // Reconcile is a read-only consistency sweep over cart/checkout/payment
 // state, meant to run on a schedule (cmd/hydro's own periodic tick,
 // mirroring Worker.ExpireDue) or on demand (`hydro commerce reconcile`).
-// provider is the payment provider to check NotifiedButNotPaid against;
-// empty skips that check, which is the correct, non-alarming result for a
+// provider is the payment provider (or several, comma separated) to check
+// NotifiedButNotPaid against; a provider must record the order id as its
+// notification event id for the check to find its orders. Empty skips that check, which is the correct, non-alarming result for a
 // project with no payment provider configured at all.
 func (s Service) Reconcile(ctx context.Context, db database.Executor, now time.Time, cfg ReconcileConfig, provider string, limit int) (ReconcileReport, error) {
 	if limit <= 0 {
@@ -93,11 +95,17 @@ func (s Service) Reconcile(ctx context.Context, db database.Executor, now time.T
 		return ReconcileReport{}, err
 	}
 	var notified []Order
-	if provider != "" {
-		notified, err = s.Repository.ListNotifiedOrdersNotPaid(ctx, db, provider, limit)
+	// provider may name several providers, comma separated.
+	for _, name := range strings.Split(provider, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		found, err := s.Repository.ListNotifiedOrdersNotPaid(ctx, db, name, limit)
 		if err != nil {
 			return ReconcileReport{}, err
 		}
+		notified = append(notified, found...)
 	}
 	drift, err := s.Repository.StockReservationDrift(ctx, db, limit)
 	if err != nil {

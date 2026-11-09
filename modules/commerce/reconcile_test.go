@@ -137,3 +137,26 @@ func TestReconcileFlagsReservationDrift(t *testing.T) {
 		t.Fatalf("unexpected drift row: %+v", drift)
 	}
 }
+
+func TestReconcileChecksEveryNamedProvider(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-multi", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-multi", 1, 5000)
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "idem-reconcile-multi"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Repository.RecordPaymentNotification(ctx, db, "iyzico", order.ID); err != nil {
+		t.Fatal(err)
+	}
+	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "paytr, iyzico,havale", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.NotifiedButNotPaid) != 1 || report.NotifiedButNotPaid[0].ID != order.ID {
+		t.Fatalf("an iyzico notification must be found when several providers are named, got %+v", report.NotifiedButNotPaid)
+	}
+}
