@@ -416,6 +416,9 @@ func (p Payments) validate() error {
 	if p.Iyzico.Enabled() && (p.Iyzico.SecretKey == "" || p.Iyzico.CallbackURL == "" || p.Iyzico.BaseURL == "") {
 		return errors.New("payments.iyzico requires secret_key, callback_url and base_url once api_key is set")
 	}
+	if p.Havale.DiscountPercent < 0 || p.Havale.DiscountPercent > 100 {
+		return errors.New("payments.havale.discount_percent must be between 0 and 100")
+	}
 	switch p.Default {
 	case "", "paytr", "iyzico", "havale":
 	default:

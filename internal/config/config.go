@@ -384,6 +384,9 @@ type Havale struct {
 	BankName      string `yaml:"bank_name"`
 	AccountHolder string `yaml:"account_holder"`
 	WhatsApp      string `yaml:"whatsapp"`
+	// DiscountPercent is taken off the subtotal when the shopper picks this
+	// method (0 = none, up to 100).
+	DiscountPercent float64 `yaml:"discount_percent"`
 }
 
 // Enabled reports whether bank transfer is configured.

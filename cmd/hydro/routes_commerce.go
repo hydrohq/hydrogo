@@ -99,6 +99,7 @@ func (a *serveApp) commerceService() commerce.Service {
 		Pricing: commerce.PricingConfig{
 			TaxRate: tax.Rate, TaxInclusive: tax.Inclusive,
 			ShippingFlatRateCents: shipping.FlatRateCents, ShippingFreeAboveCents: shipping.FreeAboveCents,
+			MethodDiscountPercent: a.methodDiscounts(),
 		},
 		Prices: catalogPrices{records: func() collections.Service { return a.collectionService }},
 	}
