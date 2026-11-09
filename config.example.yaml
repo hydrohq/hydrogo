@@ -133,6 +133,8 @@ carriers:
     ws_username: ""
     ws_password: ""
     base_url: ""         # SOAP endpoint from the carrier's integration documents
+    namespace: ""        # SOAP service namespace, same documents
+    tracking_url_template: ""   # public tracking page with {tracking_number}
     language: "TR"
 # Optional `payments` module (add `payments` to modules: next to `commerce`).
 # Each method turns on by its own key; secrets belong only in an untracked

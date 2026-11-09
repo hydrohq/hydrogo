@@ -423,8 +423,12 @@ type YurticiCarrier struct {
 	WSUserName string `yaml:"ws_username"`
 	WSPassword string `yaml:"ws_password"`
 	// BaseURL is the SOAP endpoint from the carrier's integration documents.
-	BaseURL  string `yaml:"base_url"`
-	Language string `yaml:"language"`
+	BaseURL string `yaml:"base_url"`
+	// Namespace is the SOAP service namespace from the same documents.
+	Namespace string `yaml:"namespace"`
+	// TrackingURLTemplate builds the tracking link; "{tracking_number}" is replaced.
+	TrackingURLTemplate string `yaml:"tracking_url_template"`
+	Language            string `yaml:"language"`
 }
 
 // Enabled reports whether Yurtiçi is configured.

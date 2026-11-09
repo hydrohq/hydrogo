@@ -32,7 +32,7 @@ func TestCarriersValidation(t *testing.T) {
 		{"empty is valid", Carriers{}, false},
 		{"manual only", Carriers{Manual: ManualCarrier{Enabled: true}}, false},
 		{"yurtici needs password and base_url", Carriers{Yurtici: YurticiCarrier{WSUserName: "u"}}, true},
-		{"yurtici complete", Carriers{Yurtici: YurticiCarrier{WSUserName: "u", WSPassword: "p", BaseURL: "https://soap.example"}}, false},
+		{"yurtici complete", Carriers{Yurtici: YurticiCarrier{WSUserName: "u", WSPassword: "p", BaseURL: "https://soap.example", Namespace: "urn:example"}}, false},
 		{"unknown default", Carriers{Default: "ups"}, true},
 	}
 	for _, tc := range cases {

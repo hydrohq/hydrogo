@@ -434,8 +434,8 @@ func (p Payments) validate() error {
 }
 
 func (c Carriers) validate() error {
-	if c.Yurtici.Enabled() && (c.Yurtici.WSPassword == "" || c.Yurtici.BaseURL == "") {
-		return errors.New("carriers.yurtici requires ws_password and base_url once ws_username is set")
+	if c.Yurtici.Enabled() && (c.Yurtici.WSPassword == "" || c.Yurtici.BaseURL == "" || c.Yurtici.Namespace == "") {
+		return errors.New("carriers.yurtici requires ws_password, base_url and namespace once ws_username is set")
 	}
 	switch c.Default {
 	case "", "manual", "yurtici":
