@@ -429,3 +429,59 @@ func nullable(value string) any {
 	}
 	return value
 }
+
+// RecordPaymentCharge stores one provider payment; the same (provider,
+// provider_payment_id) twice is a no-op.
+func (s Store) RecordPaymentCharge(ctx context.Context, db database.Executor, c commerce.PaymentCharge) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	tenantID, err := s.tenantID(ctx)
+	if err != nil {
+		return err
+	}
+	now := s.dbTime(s.now())
+	query := `INSERT INTO commerce_payment_charges (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
+	if _, err := db.ExecContext(ctx, query, c.ID, c.OrderID, c.Provider, c.ProviderPaymentID, c.AmountCents, c.Currency, string(c.Status), now, now, tenantID); err != nil {
+		if database.IsUniqueViolation(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// LatestPaymentCharge returns the newest charge recorded for the order.
+func (s Store) LatestPaymentCharge(ctx context.Context, db database.Executor, orderID string) (commerce.PaymentCharge, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return commerce.PaymentCharge{}, err
+	}
+	tenantID, err := s.tenantID(ctx)
+	if err != nil {
+		return commerce.PaymentCharge{}, err
+	}
+	queryer, ok := db.(interface {
+		QueryRowContext(context.Context, string, ...any) *sql.Row
+	})
+	if !ok {
+		return commerce.PaymentCharge{}, errors.New("database executor does not support row queries")
+	}
+	query := `SELECT id, order_id, provider, provider_payment_id, amount_cents, currency, status FROM commerce_payment_charges WHERE order_id = ` + s.p(1)
+	args := []any{orderID}
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = ` + s.p(2)
+		args = append(args, tenantID)
+	}
+	query += ` ORDER BY created_at DESC LIMIT 1`
+	var c commerce.PaymentCharge
+	var status string
+	if err := queryer.QueryRowContext(ctx, query, args...).Scan(&c.ID, &c.OrderID, &c.Provider, &c.ProviderPaymentID, &c.AmountCents, &c.Currency, &status); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return commerce.PaymentCharge{}, commerce.ErrNoPaymentCharge
+		}
+		return commerce.PaymentCharge{}, err
+	}
+	c.Status = commerce.PaymentStatus(status)
+	return c, nil
+}

@@ -178,3 +178,21 @@ func errorsIsAny(err error, targets ...error) bool {
 	}
 	return false
 }
+
+// refundOrder returns a paid order's money through the provider that took it.
+func (h Handler) refundOrder(w http.ResponseWriter, r *http.Request) {
+	if h.Refunder == nil {
+		api.WriteError(w, r, http.StatusServiceUnavailable, "no payment provider that can refund is configured", nil)
+		return
+	}
+	order, err := h.Service.RefundOrder(r.Context(), h.Refunder, r.PathValue("id"))
+	if err != nil {
+		if errorsIsAny(err, commerce.ErrOrderNotFound, commerce.ErrOrderNotRefundable, commerce.ErrNoPaymentCharge) {
+			writeServiceError(w, r, err)
+			return
+		}
+		api.WriteError(w, r, http.StatusBadGateway, "the payment provider did not accept the refund", nil)
+		return
+	}
+	api.WriteData(w, http.StatusOK, order, nil)
+}
