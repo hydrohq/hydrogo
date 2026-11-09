@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -169,5 +170,19 @@ func TestVerifySignature(t *testing.T) {
 	// Empty secret or signature
 	if VerifySignature(body, "", timestamp, sig) || VerifySignature(body, secret, timestamp, "") {
 		t.Fatal("expected empty secret or sig to fail verification")
+	}
+}
+
+func TestEndpointMayAllowAnInternalAddressOnItsOwn(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	defer server.Close()
+	event := Event{ID: "e1", Topic: "order.paid", AggregateID: "o1", PayloadVersion: 1}
+	denied := Dispatcher{Endpoints: []Endpoint{{ID: "a", URL: server.URL, Secret: "s", Topics: map[string]struct{}{"order.paid": {}}}}}
+	if err := denied.Dispatch(context.Background(), event); err == nil {
+		t.Fatal("a loopback target must be refused by default")
+	}
+	allowed := Dispatcher{Endpoints: []Endpoint{{ID: "a", URL: server.URL, Secret: "s", AllowInternal: true, Topics: map[string]struct{}{"order.paid": {}}}}}
+	if err := allowed.Dispatch(context.Background(), event); err != nil {
+		t.Fatalf("an endpoint that allows internal targets must work: %v", err)
 	}
 }

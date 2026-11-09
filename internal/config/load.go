@@ -209,6 +209,12 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		}
 		result.Webhooks[0].Secret = value
 	}
+	if value, ok := lookup("HYDRO_WEBHOOK_ALLOW_INTERNAL"); ok && (value == "true" || value == "1") {
+		if len(result.Webhooks) == 0 {
+			result.Webhooks = []Webhook{{ID: "default"}}
+		}
+		result.Webhooks[0].AllowInternal = true
+	}
 	if value, ok := lookup("HYDRO_WEBHOOK_TOPICS"); ok && value != "" {
 		if len(result.Webhooks) == 0 {
 			result.Webhooks = []Webhook{{ID: "default"}}

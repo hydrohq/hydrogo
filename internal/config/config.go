@@ -175,6 +175,8 @@ type Webhook struct {
 	Secret   string   `yaml:"-"`
 	Topics   []string `yaml:"topics"`
 	AllowPII bool     `yaml:"allow_pii"`
+	// AllowInternal permits a loopback/private target (a frontend on the same host).
+	AllowInternal bool `yaml:"allow_internal"`
 }
 
 // SyncHook is a side service the content types may consult before a change
