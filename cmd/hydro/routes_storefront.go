@@ -142,9 +142,13 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 	// If not on a tenant host, show showcase for root or redirect
 	if !tenantFound || scope.TenantID == "" {
 		if r.URL.Path == "/" || r.URL.Path == "" {
-			_ = storefront.RenderShowcase(w, r, storefront.ShowcaseData{
-				BaseDomain: a.getBaseDomain(),
-			})
+			// The platform showcase is only for a hosted platform that turned
+			// public onboarding on; every other project gets a neutral welcome.
+			if isOnboardEnabled() {
+				_ = storefront.RenderShowcase(w, r, storefront.ShowcaseData{BaseDomain: a.getBaseDomain()})
+			} else {
+				storefront.RenderWelcome(w, r)
+			}
 			return tenant.Scope{}, tenant.Governance{}, nil, nil, false
 		}
 		http.Redirect(w, r, "/admin", http.StatusTemporaryRedirect)
