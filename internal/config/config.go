@@ -38,6 +38,7 @@ type Config struct {
 	Limits          Limits           `yaml:"limits"`
 	Commerce        Commerce         `yaml:"commerce"`
 	Payments        Payments         `yaml:"payments"`
+	Carriers        Carriers         `yaml:"carriers"`
 	Notifications   Notifications    `yaml:"notifications"`
 	Factory         Factory          `yaml:"factory"`
 }
@@ -395,3 +396,34 @@ type Havale struct {
 
 // Enabled reports whether bank transfer is configured.
 func (h Havale) Enabled() bool { return h.IBAN != "" }
+
+// Carriers configures the optional `shipping` module: the carriers a paid
+// order can be handed to from the admin Orders screen. Secrets (ws_password)
+// belong only in a protected, untracked config file.
+type Carriers struct {
+	// Default is the carrier used when the operator names none.
+	Default string         `yaml:"default"`
+	Manual  ManualCarrier  `yaml:"manual"`
+	Yurtici YurticiCarrier `yaml:"yurtici"`
+}
+
+// ManualCarrier records a shipment booked in the carrier's own portal.
+type ManualCarrier struct {
+	Enabled bool `yaml:"enabled"`
+	// TrackingURLTemplate builds a tracking link; "{tracking_number}" is replaced.
+	TrackingURLTemplate string `yaml:"tracking_url_template"`
+}
+
+// YurticiCarrier is one account's Yurtiçi Kargo web service access. The
+// integration is reconstructed from public descriptions and has not been run
+// against the real service: verify it with the carrier before relying on it.
+type YurticiCarrier struct {
+	WSUserName string `yaml:"ws_username"`
+	WSPassword string `yaml:"ws_password"`
+	// BaseURL is the SOAP endpoint from the carrier's integration documents.
+	BaseURL  string `yaml:"base_url"`
+	Language string `yaml:"language"`
+}
+
+// Enabled reports whether Yurtiçi is configured.
+func (y YurticiCarrier) Enabled() bool { return y.WSUserName != "" }

@@ -22,3 +22,23 @@ func TestPaymentsValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestCarriersValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		c       Carriers
+		wantErr bool
+	}{
+		{"empty is valid", Carriers{}, false},
+		{"manual only", Carriers{Manual: ManualCarrier{Enabled: true}}, false},
+		{"yurtici needs password and base_url", Carriers{Yurtici: YurticiCarrier{WSUserName: "u"}}, true},
+		{"yurtici complete", Carriers{Yurtici: YurticiCarrier{WSUserName: "u", WSPassword: "p", BaseURL: "https://soap.example"}}, false},
+		{"unknown default", Carriers{Default: "ups"}, true},
+	}
+	for _, tc := range cases {
+		err := tc.c.validate()
+		if (err != nil) != tc.wantErr {
+			t.Errorf("%s: err = %v, wantErr %v", tc.name, err, tc.wantErr)
+		}
+	}
+}

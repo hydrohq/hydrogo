@@ -104,7 +104,20 @@ func (h Handler) createShipment(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "no shipping provider is configured", nil)
 		return
 	}
-	order, err := h.Service.CreateShipment(r.Context(), h.ShippingProvider, r.PathValue("id"))
+	// Optional body: the operator's carrier / tracking number (manual carrier).
+	var input struct {
+		Carrier        string `json:"carrier"`
+		TrackingNumber string `json:"tracking_number"`
+		TrackingURL    string `json:"tracking_url"`
+	}
+	ctx := r.Context()
+	if r.ContentLength != 0 {
+		if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+			return
+		}
+		ctx = commerce.WithShipmentInput(ctx, commerce.ShipmentInput{Carrier: strings.TrimSpace(input.Carrier), TrackingNumber: strings.TrimSpace(input.TrackingNumber), TrackingURL: strings.TrimSpace(input.TrackingURL)})
+	}
+	order, err := h.Service.CreateShipment(ctx, h.ShippingProvider, r.PathValue("id"))
 	if err != nil {
 		if errorsIsAny(err, commerce.ErrOrderNotFound, commerce.ErrOrderNotShippable) {
 			writeServiceError(w, r, err)

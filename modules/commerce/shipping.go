@@ -26,6 +26,31 @@ type CarrierAdapter interface {
 // it has one; a carrier that only returns a number leaves it empty and the
 // storefront falls back to showing the number alone.
 type ShipmentResult struct {
+	// Carrier names the carrier that took the order when the provider chooses
+	// among several; empty means ShippingProvider.Name().
+	Carrier        string `json:"carrier,omitempty"`
 	TrackingNumber string `json:"tracking_number"`
 	TrackingURL    string `json:"tracking_url,omitempty"`
+}
+
+// ShipmentInput is what an operator supplies when handing an order over:
+// needed by carriers booked outside the system (the shipping module's manual
+// carrier), where the tracking number comes from the operator, not an API.
+type ShipmentInput struct {
+	Carrier        string
+	TrackingNumber string
+	TrackingURL    string
+}
+
+type shipmentInputKey struct{}
+
+// WithShipmentInput attaches the operator's input to ctx for CreateShipment.
+func WithShipmentInput(ctx context.Context, in ShipmentInput) context.Context {
+	return context.WithValue(ctx, shipmentInputKey{}, in)
+}
+
+// ShipmentInputFrom returns what WithShipmentInput attached (zero if none).
+func ShipmentInputFrom(ctx context.Context) ShipmentInput {
+	in, _ := ctx.Value(shipmentInputKey{}).(ShipmentInput)
+	return in
 }

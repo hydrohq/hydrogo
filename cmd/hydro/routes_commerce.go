@@ -80,7 +80,10 @@ func (a *serveApp) commercePaymentProvider() commerce.PaymentProvider {
 // nil when none is set up -- an order can always be paid and fulfilled by
 // hand (no admin shipment-creation endpoint call) without one.
 func (a *serveApp) commerceShippingProvider() commerce.ShippingProvider {
-	return registeredShippingProvider
+	if registeredShippingProvider != nil {
+		return registeredShippingProvider
+	}
+	return a.buildCarriers()
 }
 
 // commerceNotifier builds the configured operational chat alert sender, or

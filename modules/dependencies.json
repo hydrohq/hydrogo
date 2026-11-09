@@ -8,5 +8,8 @@
   "modules/payments": [
     "modules/commerce"
   ],
+  "modules/shipping": [
+    "modules/commerce"
+  ],
   "modules/site": []
 }

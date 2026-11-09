@@ -122,6 +122,18 @@ commerce:
     # operator-maintained rate below, never live FX.
     display: []
     rates: {}
+# Optional `shipping` module (add `shipping` to modules: next to `commerce`):
+# the carriers the admin Orders screen can hand a paid order to.
+carriers:
+  default: ""            # manual | yurtici; first configured if empty
+  manual:
+    enabled: false       # the operator types carrier + tracking number from the carrier's portal
+    tracking_url_template: ""   # e.g. a carrier's tracking page with {tracking_number}
+  yurtici:
+    ws_username: ""
+    ws_password: ""
+    base_url: ""         # SOAP endpoint from the carrier's integration documents
+    language: "TR"
 # Optional `payments` module (add `payments` to modules: next to `commerce`).
 # Each method turns on by its own key; secrets belong only in an untracked
 # copy of this file. The shopper picks one with `payment_method` on checkout.
