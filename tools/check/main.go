@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -87,9 +88,11 @@ func main() {
 	}
 
 	started := time.Now()
+	childEnv := resolvedTempEnv()
 	for _, s := range steps {
 		fmt.Printf("==> %s\n", s.name)
 		cmd := exec.Command(s.args[0], s.args[1:]...) // #nosec G204 -- developer tool running the project's own checks, no shell
+		cmd.Env = childEnv
 		if s.dir != "" {
 			cmd.Dir = s.dir
 		}
@@ -104,6 +107,20 @@ func main() {
 		}
 	}
 	fmt.Printf("PASS: all checks passed in %s\n", time.Since(started).Round(time.Second))
+}
+
+// resolvedTempEnv points TMPDIR at its symlink-free path. Several packages
+// refuse any symlinked path component on purpose (internal/pathguard), and on
+// macOS the default temp dir lives under /var, a symlink to /private/var, so
+// their tests would otherwise fail there for a reason that has nothing to do
+// with the code under test.
+func resolvedTempEnv() []string {
+	env := os.Environ()
+	dir, err := filepath.EvalSymlinks(os.TempDir())
+	if err != nil || dir == os.TempDir() {
+		return env
+	}
+	return append(env, "TMPDIR="+dir)
 }
 
 // starterSteps type-checks, tests and builds the starter frontends that
