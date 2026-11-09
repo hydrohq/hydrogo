@@ -44,6 +44,9 @@ func (c Config) Validate() error {
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
 	}
+	if err := c.Payments.validate(); err != nil {
+		return err
+	}
 	if (c.Notifications.Telegram.BotToken == "") != (c.Notifications.Telegram.ChatID == "") {
 		return errors.New("Telegram notifications require both a bot token and a chat id")
 	}
@@ -402,6 +405,21 @@ func (c Config) Validate() error {
 		if len(c.Analytics.HashKey) < 32 {
 			return errors.New("no-cookie analytics requires an analytics hash key of at least 32 bytes")
 		}
+	}
+	return nil
+}
+
+func (p Payments) validate() error {
+	if p.PayTR.Enabled() && (p.PayTR.MerchantKey == "" || p.PayTR.MerchantSalt == "") {
+		return errors.New("payments.paytr requires merchant_key and merchant_salt once merchant_id is set")
+	}
+	if p.Iyzico.Enabled() && (p.Iyzico.SecretKey == "" || p.Iyzico.CallbackURL == "") {
+		return errors.New("payments.iyzico requires secret_key and callback_url once api_key is set")
+	}
+	switch p.Default {
+	case "", "paytr", "iyzico", "havale":
+	default:
+		return errors.New("payments.default must be paytr, iyzico or havale")
 	}
 	return nil
 }

@@ -118,6 +118,33 @@ commerce:
     # operator-maintained rate below, never live FX.
     display: []
     rates: {}
+# Optional `payments` module (add `payments` to modules: next to `commerce`).
+# Each method turns on by its own key; secrets belong only in an untracked
+# copy of this file. The shopper picks one with `payment_method` on checkout.
+payments:
+  default: ""            # paytr | iyzico | havale; first configured if empty
+  paytr:
+    merchant_id: ""
+    merchant_key: ""
+    merchant_salt: ""
+    test_mode: true
+    no_installment: false
+    max_installment: 0
+    ok_url: ""           # storefront /odeme/sonuc (?oid=<order> is appended)
+    fail_url: ""
+  iyzico:
+    api_key: ""
+    secret_key: ""
+    base_url: ""         # empty = sandbox; https://api.iyzipay.com for live
+    callback_url: ""     # https://<hydro host>/api/v1/payments/iyzico/callback
+    ok_url: ""
+    fail_url: ""
+    enabled_installments: []
+  havale:
+    iban: ""
+    bank_name: ""
+    account_holder: ""
+    whatsapp: ""         # where the shopper sends the receipt, e.g. 905551234567
 # Operator alerts: a new order and a non-clean `hydro commerce reconcile`
 # report are posted here when configured. Both bot_token and chat_id are
 # required together. bot_token is a secret: set it only in an

@@ -37,6 +37,7 @@ type Config struct {
 	Audit           Audit            `yaml:"audit"`
 	Limits          Limits           `yaml:"limits"`
 	Commerce        Commerce         `yaml:"commerce"`
+	Payments        Payments         `yaml:"payments"`
 	Notifications   Notifications    `yaml:"notifications"`
 	Factory         Factory          `yaml:"factory"`
 }
@@ -331,3 +332,57 @@ func (c Config) InvitationDuration() time.Duration {
 	value, _ := time.ParseDuration(c.Security.InvitationTTL)
 	return value
 }
+
+// Payments configures the optional `payments` module: the methods a
+// storefront can offer at checkout. Each is enabled by its own key; secrets
+// (merchant_key, merchant_salt, secret_key) belong only in a protected,
+// untracked config file -- there is no HYDRO_* override for them.
+type Payments struct {
+	// Default is the method used when the shopper sends none.
+	Default string `yaml:"default"`
+	PayTR   PayTR  `yaml:"paytr"`
+	Iyzico  Iyzico `yaml:"iyzico"`
+	Havale  Havale `yaml:"havale"`
+}
+
+// PayTR is one merchant's PayTR (hosted iFrame) credentials.
+type PayTR struct {
+	MerchantID     string `yaml:"merchant_id"`
+	MerchantKey    string `yaml:"merchant_key"`
+	MerchantSalt   string `yaml:"merchant_salt"`
+	TestMode       bool   `yaml:"test_mode"`
+	NoInstallment  bool   `yaml:"no_installment"`
+	MaxInstallment int    `yaml:"max_installment"`
+	OKURL          string `yaml:"ok_url"`
+	FailURL        string `yaml:"fail_url"`
+}
+
+// Enabled reports whether PayTR is configured.
+func (p PayTR) Enabled() bool { return p.MerchantID != "" }
+
+// Iyzico is one merchant's iyzico Checkout Form credentials.
+type Iyzico struct {
+	APIKey    string `yaml:"api_key"`
+	SecretKey string `yaml:"secret_key"`
+	// BaseURL defaults to iyzico's sandbox; use https://api.iyzipay.com live.
+	BaseURL string `yaml:"base_url"`
+	// CallbackURL is this server's public .../api/v1/payments/iyzico/callback.
+	CallbackURL         string `yaml:"callback_url"`
+	OKURL               string `yaml:"ok_url"`
+	FailURL             string `yaml:"fail_url"`
+	EnabledInstallments []int  `yaml:"enabled_installments"`
+}
+
+// Enabled reports whether iyzico is configured.
+func (i Iyzico) Enabled() bool { return i.APIKey != "" }
+
+// Havale is a manual bank transfer, confirmed by an operator.
+type Havale struct {
+	IBAN          string `yaml:"iban"`
+	BankName      string `yaml:"bank_name"`
+	AccountHolder string `yaml:"account_holder"`
+	WhatsApp      string `yaml:"whatsapp"`
+}
+
+// Enabled reports whether bank transfer is configured.
+func (h Havale) Enabled() bool { return h.IBAN != "" }
