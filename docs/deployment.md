@@ -34,6 +34,11 @@ Set `HYDRO_SITE_URL` (or `http.site_url`) to the external frontend/website URL (
 
 ## Production Secret Validation
 
+For PayTR, set `payments.paytr.timeout_limit` in minutes (default 20; valid
+values are 5–29). Keep it below the 30-minute stock reservation period:
+otherwise a shopper may pay after the reservation expires, leaving a payment
+that cannot safely fulfill the order.
+
 When running in production (`HYDRO_ENV=production`, `APP_ENV=production`, or `GO_ENV=production`), HydroGo enforces strict security validation on startup. The process will refuse to start with an explicit error if any critical secret is empty or set to placeholder values (`CHANGE_ME`):
 
 - `HYDRO_JWT_SECRET`: signing key for JWT tokens (must be at least 32 characters).

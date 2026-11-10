@@ -367,6 +367,7 @@ type PayTR struct {
 	MaxInstallment int    `yaml:"max_installment"`
 	OKURL          string `yaml:"ok_url"`
 	FailURL        string `yaml:"fail_url"`
+	TimeoutLimit   int    `yaml:"timeout_limit"`
 }
 
 // Enabled reports whether PayTR is configured.
