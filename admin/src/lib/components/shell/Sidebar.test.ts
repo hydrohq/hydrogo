@@ -108,4 +108,33 @@ describe('Sidebar', () => {
     expect(screen.queryByTitle('Pages')).toBeNull();
     expect(screen.queryByTitle('Quick Create')).toBeNull();
   });
+
+  it('shows the unresolved refund count badge under the commerce item', async () => {
+    // Arrange
+    schema.schema = { modules: { commerce: true }, resources: [] } as any;
+    auth.user = { role: 'admin' } as any;
+    vi.mocked(api.get).mockResolvedValueOnce({ data: { count: 3 } } as any);
+
+    // Act
+    render(Sidebar, { props: {} });
+
+    // Assert
+    expect(await screen.findByText('3')).toBeTruthy();
+    expect(screen.getByTitle('İade Gerekli')).toBeTruthy();
+    expect(api.get).toHaveBeenCalledWith('/api/v1/admin/commerce/refunds-required/count');
+  });
+
+  it('hides the refund item and skips the count request when commerce is off', () => {
+    // Arrange
+    schema.schema = { modules: { commerce: false }, resources: [] } as any;
+    auth.user = { role: 'admin' } as any;
+    vi.mocked(api.get).mockClear();
+
+    // Act
+    render(Sidebar, { props: {} });
+
+    // Assert
+    expect(screen.queryByTitle('İade Gerekli')).toBeNull();
+    expect(api.get).not.toHaveBeenCalledWith('/api/v1/admin/commerce/refunds-required/count');
+  });
 });

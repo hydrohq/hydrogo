@@ -141,6 +141,9 @@
       }
       return { view: 'pages-list' };
     }
+    if (p.startsWith('/commerce/refunds-required')) {
+      return { view: 'custom', module: 'commerce-refunds-required' };
+    }
     if (p.startsWith('/content-types')) {
       const parts = p.split('/');
       const action = parts[2];
@@ -183,6 +186,8 @@
         <LazyView load={loadMembersView} />
       {:else if routeInfo.module === 'commerce'}
         <LazyView load={loadCommerceOrdersView} />
+      {:else if routeInfo.module === 'commerce-refunds-required'}
+        <LazyView load={() => import('./routes/commerce/RefundRequiredView.svelte')} />
       {:else if routeInfo.module === 'users'}
         <LazyView load={loadUsersView} />
       {:else if routeInfo.module === 'roles'}
