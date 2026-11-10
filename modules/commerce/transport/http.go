@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
@@ -235,60 +234,4 @@ func (h Handler) getCheckoutConfig(w http.ResponseWriter, r *http.Request) {
 		config["payment_methods"] = lister.Names()
 	}
 	api.WriteData(w, http.StatusOK, config, nil)
-}
-
-// PendingOrderTracker limits open pending orders per client IP to prevent checkout abandonment attacks.
-type PendingOrderTracker struct {
-	mu     sync.Mutex
-	orders map[string][]pendingOrderEntry
-}
-
-type pendingOrderEntry struct {
-	orderID   string
-	createdAt time.Time
-}
-
-func NewPendingOrderTracker() *PendingOrderTracker {
-	return &PendingOrderTracker{
-		orders: make(map[string][]pendingOrderEntry),
-	}
-}
-
-func (t *PendingOrderTracker) CountPending(ctx context.Context, ip string, svc commerce.Service, now time.Time, window time.Duration) int {
-	if t == nil {
-		return 0
-	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	entries := t.orders[ip]
-	if len(entries) == 0 {
-		return 0
-	}
-
-	var active []pendingOrderEntry
-	for _, e := range entries {
-		if now.Sub(e.createdAt) > window {
-			continue
-		}
-		order, err := svc.Order(ctx, e.orderID)
-		if err != nil || order.PaymentStatus != commerce.PaymentPending {
-			continue
-		}
-		active = append(active, e)
-	}
-	t.orders[ip] = active
-	return len(active)
-}
-
-func (t *PendingOrderTracker) Record(ip, orderID string, createdAt time.Time) {
-	if t == nil {
-		return
-	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.orders[ip] = append(t.orders[ip], pendingOrderEntry{
-		orderID:   orderID,
-		createdAt: createdAt,
-	})
 }

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -157,5 +159,50 @@ func TestCheckoutRateLimit10PerMinute(t *testing.T) {
 	rec11 := performCheckout(h, clientIP, "rate-key-11")
 	if rec11.Code != http.StatusTooManyRequests {
 		t.Fatalf("11th checkout within minute expected 429 Too Many Requests, got %d", rec11.Code)
+	}
+}
+
+func TestConcurrentCheckoutsFromOneIPNeverExceedPendingLimit(t *testing.T) {
+	h, _, _ := setupTestCommerceHandler(t)
+	var checkout http.Handler
+	for _, route := range h.Routes() {
+		if route.Pattern == "POST /api/v1/commerce/checkout" {
+			checkout = route.Handler
+		}
+	}
+	const attempts = 50
+	ctx := context.Background()
+	requests := make([]*http.Request, attempts)
+	for i := range requests {
+		key := fmt.Sprintf("race-%d", i)
+		if _, _, err := h.Service.AddToCart(ctx, commerce.Shopper{AnonymousToken: "anon-" + key, Currency: "TRY"}, "var-item-1", 1); err != nil {
+			t.Fatal(err)
+		}
+		body := fmt.Sprintf(`{"guest_email":"race@example.com","idempotency_key":%q}`, key)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "203.0.113.9:4000"
+		req.AddCookie(&http.Cookie{Name: "hydro_commerce_cart", Value: "anon-" + key})
+		requests[i] = req
+	}
+	var created atomic.Int32
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for _, req := range requests {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			rec := httptest.NewRecorder()
+			checkout.ServeHTTP(rec, req)
+			if rec.Code == http.StatusCreated {
+				created.Add(1)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if got := created.Load(); got != 5 {
+		t.Fatalf("%d checkouts succeeded from one IP, want exactly 5", got)
 	}
 }

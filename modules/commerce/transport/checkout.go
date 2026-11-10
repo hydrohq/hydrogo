@@ -62,6 +62,8 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	if rateLimited(w, h.CheckoutLimiter, "checkout:"+ip) {
 		return
 	}
+	reservation := ""
+	keepReservation := false
 	if h.PendingTracker != nil {
 		maxPending := h.MaxPendingOrdersPerIP
 		if maxPending <= 0 {
@@ -71,6 +73,17 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
 			return
 		}
+		var reserved bool
+		reservation, reserved = h.PendingTracker.TryReserve(ip, maxPending)
+		if !reserved {
+			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
+			return
+		}
+		defer func() {
+			if !keepReservation {
+				h.PendingTracker.Release(ip, reservation)
+			}
+		}()
 	}
 	var input checkoutRequest
 	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
@@ -108,10 +121,11 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			response.Payment = &start
 		}
 	}
+	if reservation != "" && created && order.PaymentStatus == commerce.PaymentPending {
+		h.PendingTracker.Confirm(ip, reservation, order.ID)
+		keepReservation = true
+	}
 	if created {
-		if order.PaymentStatus == commerce.PaymentPending && h.PendingTracker != nil {
-			h.PendingTracker.Record(ip, order.ID, time.Now().UTC())
-		}
 		if _, items, itemsErr := h.Service.OrderWithItems(r.Context(), order.ID); itemsErr == nil {
 			h.notifyNewOrder(r.Context(), order, items)
 		}
