@@ -76,8 +76,71 @@ func TestAdminDashboardShape(t *testing.T) {
 	if body.Data.User.Email != "editor@example.test" || !body.Data.Modules["pages"] || body.Data.Modules["news"] || !body.Data.PushEnabled || body.Data.Runtime != nil {
 		t.Fatalf("dashboard=%+v", body.Data)
 	}
+	if body.Data.Platform {
+		t.Errorf("expected dashboard platform to be false by default, got true")
+	}
+	if body.Data.SiteURL != "" {
+		t.Errorf("expected dashboard site_url to be empty by default, got %q", body.Data.SiteURL)
+	}
+
+	app.cfg.HTTP.SiteURL = "http://localhost:3000"
+	app.cfg.Tenancy.Enabled = true
+	recPlatform := httptest.NewRecorder()
+	app.adminDashboardHandler(recPlatform, adminAPIRequest(http.MethodGet, "/api/v1/admin/dashboard", "", editor))
+	var platformBody struct {
+		Data adminDashboard `json:"data"`
+	}
+	if err := json.Unmarshal(recPlatform.Body.Bytes(), &platformBody); err != nil {
+		t.Fatal(err)
+	}
+	if !platformBody.Data.Platform {
+		t.Errorf("expected dashboard platform to be true, got false")
+	}
+	if platformBody.Data.SiteURL != "http://localhost:3000" {
+		t.Errorf("expected dashboard site_url http://localhost:3000, got %q", platformBody.Data.SiteURL)
+	}
+
 	if strings.Contains(recorder.Body.String(), "password_hash") {
 		t.Fatal("dashboard leaks the password hash")
+	}
+}
+
+func TestPlatformRoutesConditionalRegistration(t *testing.T) {
+	t.Setenv("HYDRO_JWT_SECRET", "super-secret-jwt-key-with-more-than-32-chars")
+	app := &serveApp{modules: map[string]bool{"core": true}}
+
+	// Not platform mode: orchestrator, billing, superadmin routes should be absent
+	adminRoutes := app.adminRoutes()
+	for _, r := range adminRoutes {
+		if strings.Contains(r.Pattern, "/orchestrator/") {
+			t.Errorf("unexpected orchestrator route registered in non-platform mode: %s", r.Pattern)
+		}
+	}
+	if len(app.billingRoutes()) != 0 {
+		t.Errorf("expected no billing routes in non-platform mode, got %d", len(app.billingRoutes()))
+	}
+	if len(app.superadminRoutes()) != 0 {
+		t.Errorf("expected no superadmin routes in non-platform mode, got %d", len(app.superadminRoutes()))
+	}
+
+	// Platform mode enabled: routes should be registered
+	app.cfg.Factory.BaseDomain = "boutique.dev"
+	adminRoutesPlatform := app.adminRoutes()
+	hasOrchestrator := false
+	for _, r := range adminRoutesPlatform {
+		if strings.Contains(r.Pattern, "/orchestrator/") {
+			hasOrchestrator = true
+			break
+		}
+	}
+	if !hasOrchestrator {
+		t.Errorf("expected orchestrator routes to be registered in platform mode")
+	}
+	if len(app.billingRoutes()) == 0 {
+		t.Errorf("expected billing routes to be registered in platform mode")
+	}
+	if len(app.superadminRoutes()) == 0 {
+		t.Errorf("expected superadmin routes to be registered in platform mode")
 	}
 }
 

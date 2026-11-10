@@ -216,6 +216,12 @@ func (c Config) Validate() error {
 		}
 		publicOrigin = parsed
 	}
+	if strings.TrimSpace(c.HTTP.SiteURL) != "" {
+		parsed, err := url.Parse(strings.TrimSpace(c.HTTP.SiteURL))
+		if err != nil || !parsed.IsAbs() || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return fmt.Errorf("invalid site URL %q: must be an absolute http or https URL", c.HTTP.SiteURL)
+		}
+	}
 	if c.Security.EnableHSTS && (publicOrigin == nil || publicOrigin.Scheme != "https") {
 		return errors.New("HSTS requires an HTTPS public origin")
 	}
