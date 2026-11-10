@@ -115,3 +115,67 @@ func TestAdminBrandingIsPublicAndEmptyWithoutTheSiteModule(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminSchemaPlatformAndSiteURL(t *testing.T) {
+	app := &serveApp{modules: map[string]bool{"pages": true}}
+	editor := &auth.User{ID: "u1", Role: auth.RoleEditor, Active: true}
+
+	// 1. Defaults: platform is false, site_url is empty
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/schema", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), editor))
+	rec := httptest.NewRecorder()
+	app.adminSchema(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status: %d", rec.Code)
+	}
+	var res struct {
+		Data adminSchema `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Data.Platform {
+		t.Errorf("expected platform to be false by default, got true")
+	}
+	if res.Data.SiteURL != "" {
+		t.Errorf("expected site_url to be empty by default, got %q", res.Data.SiteURL)
+	}
+
+	// 2. SiteURL from http.site_url
+	app.cfg.HTTP.SiteURL = "http://localhost:3000"
+	app.cfg.HTTP.PublicOrigin = "https://public.example.com"
+	rec = httptest.NewRecorder()
+	app.adminSchema(rec, req)
+	_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	if res.Data.SiteURL != "http://localhost:3000" {
+		t.Errorf("expected site_url http://localhost:3000, got %q", res.Data.SiteURL)
+	}
+
+	// 3. Fallback to public_origin when site_url is empty
+	app.cfg.HTTP.SiteURL = ""
+	rec = httptest.NewRecorder()
+	app.adminSchema(rec, req)
+	_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	if res.Data.SiteURL != "https://public.example.com" {
+		t.Errorf("expected site_url fallback to public_origin, got %q", res.Data.SiteURL)
+	}
+
+	// 4. Platform mode true when Factory.BaseDomain is set
+	app.cfg.Factory.BaseDomain = "boutique.dev"
+	rec = httptest.NewRecorder()
+	app.adminSchema(rec, req)
+	_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	if !res.Data.Platform {
+		t.Errorf("expected platform to be true with BaseDomain, got false")
+	}
+
+	// 5. Platform mode true when Tenancy.Enabled is set
+	app.cfg.Factory.BaseDomain = ""
+	app.cfg.Tenancy.Enabled = true
+	rec = httptest.NewRecorder()
+	app.adminSchema(rec, req)
+	_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	if !res.Data.Platform {
+		t.Errorf("expected platform to be true with Tenancy.Enabled, got false")
+	}
+}

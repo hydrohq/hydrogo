@@ -30,6 +30,8 @@ Order matters on a new database: `hydro migrate`, then `hydro create-admin` (and
 
 Set `HYDRO_PUBLIC_ORIGIN` (or `http.public_origin`) to the address people use. HydroGo answers `421` to any other `Host` header, and the message names the host it expects; a service in the same Docker network that calls `http://hydrogo:8080` must send the public host in its `Host` header.
 
+Set `HYDRO_SITE_URL` (or `http.site_url`) to the external frontend/website URL (e.g. `http://localhost:3000` during local development or `https://www.example.com` in production). The admin panel's "Live" link in the top bar uses this target. If omitted, it falls back to `http.public_origin`; if neither is configured, the button is hidden.
+
 ## Invitations and password resets
 
 An invitation (`POST /api/v1/admin/users/invites`, needs SMTP) and a password reset (`POST /api/v1/admin/users/{id}/password-reset-link`, or the e-mail a person requests) end in a link to the admin panel, `/admin/accept-invite?token=...` and `/admin/reset-password?token=...`. Those pages set the password and send the person to `/admin/login`. Without SMTP, an administrator can still copy the reset link from the Users screen and pass it on, and `hydro create-user` opens accounts directly.

@@ -160,6 +160,8 @@ export interface AdminSchema {
   locales: AdminSchemaLocales;
   permissions: string[];
   branding?: AdminBranding;
+  platform?: boolean;
+  site_url?: string;
 }
 
 export interface ContentItem {

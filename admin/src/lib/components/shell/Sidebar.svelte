@@ -21,6 +21,7 @@
   let activeDocDropdown = $state<string | null>(null);
 
   const isConsoleMode = $derived.by(() => {
+    if (!schema.platform) return false;
     if (typeof window !== 'undefined') {
       const host = window.location.hostname.toLowerCase();
       if (host.startsWith('console.') || host.includes('console.example.com')) return true;
@@ -512,7 +513,7 @@
       </a>
       {/if}
 
-      {#if isAdmin}
+      {#if schema.platform && isAdmin}
       <a
         href="/admin/console"
         onclick={() => handleNavigate('/console')}
@@ -528,6 +529,7 @@
       </a>
       {/if}
 
+      {#if schema.platform}
       <!-- Abonelik & Ödeme -->
       <a
         href="/admin/subscription"
@@ -543,6 +545,7 @@
           <span class="truncate">Abonelik & Ödeme</span>
         {/if}
       </a>
+      {/if}
 
       <a
         href="/admin/system"
@@ -607,6 +610,7 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             <span>{t('nav.account')}</span>
           </a>
+          {#if schema.platform}
           <a
             href="/admin/subscription"
             onclick={() => handleNavigate('/subscription')}
@@ -615,6 +619,7 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
             <span>Abonelik & Ödeme</span>
           </a>
+          {/if}
           <a
             href="/admin/system"
             onclick={() => handleNavigate('/system')}
