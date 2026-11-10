@@ -428,6 +428,9 @@ func (p Payments) validate() error {
 	if p.PayTR.Enabled() && (p.PayTR.MerchantKey == "" || p.PayTR.MerchantSalt == "" || p.PayTR.BaseURL == "") {
 		return errors.New("payments.paytr requires merchant_key, merchant_salt and base_url once merchant_id is set")
 	}
+	if p.PayTR.TimeoutLimit != 0 && (p.PayTR.TimeoutLimit < 5 || p.PayTR.TimeoutLimit >= 30) {
+		return errors.New("payments.paytr.timeout_limit must be between 5 and 29 minutes (less than the 30-minute stock reservation period)")
+	}
 	if p.Iyzico.Enabled() && (p.Iyzico.SecretKey == "" || p.Iyzico.CallbackURL == "" || p.Iyzico.BaseURL == "") {
 		return errors.New("payments.iyzico requires secret_key, callback_url and base_url once api_key is set")
 	}
