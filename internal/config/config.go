@@ -211,7 +211,8 @@ type HTTP struct {
 	// TrustedProxies lists the proxy addresses (CIDR or bare IP) whose
 	// X-Forwarded-For is believed. Empty with behind_proxy means a proxy on
 	// the same host (loopback). Every other peer is taken at face value.
-	TrustedProxies []string `yaml:"trusted_proxies"`
+	TrustedProxies      []string `yaml:"trusted_proxies"`
+	TrustCFConnectingIP bool     `yaml:"trust_cf_connecting_ip"`
 }
 
 type Database struct {

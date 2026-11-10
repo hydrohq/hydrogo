@@ -15,7 +15,7 @@ import (
 // client must ban that client, not the proxy (which would take the whole
 // site down), and a direct caller must not be able to forge its address.
 func TestBehindAProxyTheBlocklistSeesTheForwardedClient(t *testing.T) {
-	extractor, err := requestmeta.NewIPExtractor(true, nil)
+	extractor, err := requestmeta.NewIPExtractor(true, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

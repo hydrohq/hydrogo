@@ -79,7 +79,10 @@ func (c Config) Validate() error {
 	if len(c.HTTP.TrustedProxies) > 64 {
 		return errors.New("http.trusted_proxies allows at most 64 entries")
 	}
-	if _, err := requestmeta.NewIPExtractor(c.HTTP.BehindProxy, c.HTTP.TrustedProxies); err != nil {
+	if c.HTTP.TrustCFConnectingIP && !c.HTTP.BehindProxy {
+		return errors.New("http.trust_cf_connecting_ip requires http.behind_proxy to be true")
+	}
+	if _, err := requestmeta.NewIPExtractor(c.HTTP.BehindProxy, c.HTTP.TrustedProxies, c.HTTP.TrustCFConnectingIP); err != nil {
 		return err
 	}
 	if c.HTTP.AutoTLS {

@@ -42,6 +42,13 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("HYDRO_HTTP_ADDRESS"); ok {
 		result.HTTP.Address = value
 	}
+	if value, ok := lookup("HYDRO_HTTP_TRUST_CF_CONNECTING_IP"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_HTTP_TRUST_CF_CONNECTING_IP: %w", err)
+		}
+		result.HTTP.TrustCFConnectingIP = parsed
+	}
 	if value, ok := lookup("HYDRO_SAFE_MODE"); ok && strings.TrimSpace(value) != "" {
 		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
 		if err != nil {

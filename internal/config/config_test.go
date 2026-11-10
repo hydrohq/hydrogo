@@ -210,6 +210,54 @@ func TestAutoTLSRequiresDomainAndRejectsReverseProxy(t *testing.T) {
 	}
 }
 
+func TestTrustCFConnectingIPRequiresBehindProxy(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", TrustCFConnectingIP: true, BehindProxy: false}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "trust_cf_connecting_ip") {
+		t.Fatalf("trust_cf_connecting_ip without behind_proxy accepted: err=%v", err)
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", TrustCFConnectingIP: true, BehindProxy: true}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("trust_cf_connecting_ip with behind_proxy rejected: %v", err)
+	}
+}
+
+func TestTrustCFConnectingIPEnvOverride(t *testing.T) {
+	path := writeConfig(t, "http:\n  behind_proxy: true\n")
+	cfg, err := Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_HTTP_TRUST_CF_CONNECTING_IP": "true",
+	}), Overrides{})
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if !cfg.HTTP.TrustCFConnectingIP {
+		t.Fatal("expected TrustCFConnectingIP to be true from env")
+	}
+
+	cfg, err = Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_HTTP_TRUST_CF_CONNECTING_IP": "false",
+	}), Overrides{})
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.HTTP.TrustCFConnectingIP {
+		t.Fatal("expected TrustCFConnectingIP to be false from env")
+	}
+
+	_, err = Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_HTTP_TRUST_CF_CONNECTING_IP": "invalid-bool",
+	}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "HYDRO_HTTP_TRUST_CF_CONNECTING_IP") {
+		t.Fatalf("expected invalid bool error, got: %v", err)
+	}
+}
+
 func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	if cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-disabled.sqlite"}), Overrides{}); err != nil || cfg.Analytics.NoCookieEnabled {
 		t.Fatalf("default analytics config=%+v err=%v", cfg.Analytics, err)
