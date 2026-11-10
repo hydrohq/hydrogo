@@ -54,6 +54,7 @@ var expectedRLSTables = []string{
 	"hydro_role_permissions",
 	"admin_user_permissions",
 	"api_tokens",
+	"notification_outbox",
 }
 
 // TestPostgresTenantRLSContract certifies ADR-0156 and ADR-0180:

@@ -429,14 +429,30 @@ func (s Store) RecordPaymentNotification(ctx context.Context, db database.Execut
 	if err != nil {
 		return false, err
 	}
-	query := `INSERT INTO commerce_payment_notifications (provider, provider_event_id, received_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `)`
-	_, err = db.ExecContext(ctx, query, provider, eventID, s.dbTime(s.now()), tenantID)
+	var query string
+	switch s.Dialect {
+	case database.Postgres, database.SQLite:
+		query = `INSERT INTO commerce_payment_notifications (provider, provider_event_id, received_at, tenant_id) VALUES (` +
+			s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `) ON CONFLICT (provider, provider_event_id) DO NOTHING`
+	case database.MySQL:
+		query = `INSERT IGNORE INTO commerce_payment_notifications (provider, provider_event_id, received_at, tenant_id) VALUES (` +
+			s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `)`
+	default:
+		query = `INSERT INTO commerce_payment_notifications (provider, provider_event_id, received_at, tenant_id) VALUES (` +
+			s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `)`
+	}
+	res, err := db.ExecContext(ctx, query, provider, eventID, s.dbTime(s.now()), tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			return false, nil
 		}
 		return false, err
+	}
+	if res != nil {
+		affected, affErr := res.RowsAffected()
+		if affErr == nil && affected == 0 {
+			return false, nil
+		}
 	}
 	return true, nil
 }
@@ -459,8 +475,18 @@ func (s Store) RecordPaymentCharge(ctx context.Context, db database.Executor, c 
 		return err
 	}
 	now := s.dbTime(s.now())
-	query := `INSERT INTO commerce_payment_charges (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
+	var query string
+	switch s.Dialect {
+	case database.Postgres, database.SQLite:
+		query = `INSERT INTO commerce_payment_charges (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at, tenant_id) VALUES (` +
+			s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `) ON CONFLICT (provider, provider_payment_id) DO NOTHING`
+	case database.MySQL:
+		query = `INSERT IGNORE INTO commerce_payment_charges (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at, tenant_id) VALUES (` +
+			s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
+	default:
+		query = `INSERT INTO commerce_payment_charges (id, order_id, provider, provider_payment_id, amount_cents, currency, status, created_at, updated_at, tenant_id) VALUES (` +
+			s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `)`
+	}
 	if _, err := db.ExecContext(ctx, query, c.ID, c.OrderID, c.Provider, c.ProviderPaymentID, c.AmountCents, c.Currency, string(c.Status), now, now, tenantID); err != nil {
 		if database.IsUniqueViolation(err) {
 			return nil

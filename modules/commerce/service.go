@@ -70,6 +70,7 @@ type Repository interface {
 	RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error)
 
 	RecordRefundRequired(ctx context.Context, db database.Executor, item RefundRequired) error
+	CountUnresolvedRefundRequired(ctx context.Context, db database.Executor) (int, error)
 	ListRefundRequired(ctx context.Context, db database.Executor, unresolvedOnly bool, limit, offset int) ([]RefundRequired, error)
 	ResolveRefundRequired(ctx context.Context, db database.Executor, id, note string, resolvedAt time.Time) (bool, error)
 	RecordSMSDedup(ctx context.Context, db database.Executor, dedupKey, orderID, phone, event string, sentAt time.Time) (bool, error)
@@ -212,6 +213,20 @@ func (s Service) RecordRefundRequired(ctx context.Context, item RefundRequired) 
 		}
 		return s.Repository.RecordRefundRequired(ctx, tx, item)
 	})
+}
+
+// CountUnresolvedRefundRequired returns the number of unresolved refund_required items.
+func (s Service) CountUnresolvedRefundRequired(ctx context.Context) (int, error) {
+	if s.Repository == nil {
+		return 0, ErrRepositoryRequired
+	}
+	var count int
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		count, err = s.Repository.CountUnresolvedRefundRequired(ctx, tx)
+		return err
+	})
+	return count, err
 }
 
 // ListRefundsRequired queries recorded manual refund requirements.

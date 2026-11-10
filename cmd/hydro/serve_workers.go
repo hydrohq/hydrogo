@@ -13,6 +13,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/billing"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
+	"github.com/ardaozyildirim/hydrogo/internal/notify"
 	"github.com/ardaozyildirim/hydrogo/internal/observability"
 	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
@@ -147,10 +148,28 @@ func (a *serveApp) startWorkers() {
 		a.spawn(func() {
 			runCommerceReconciliationAlert(ctx, a.commerceService(), db, a.commercePaymentProviderName(), a.commerceNotifier(), logger, stderr)
 		})
+		a.spawn(func() {
+			runCommerceRefundReminder(ctx, a.commerceService(), a.commerceNotifier(), logger, stderr)
+		})
 	}
 	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
 		a.spawn(func() {
 			runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
+		})
+	}
+	if a.cfg.Notifications.Telegram.Enabled() && !cgiMode && !cfg.SafeMode {
+		a.spawn(func() {
+			worker := notify.Worker{
+				DB:                  db,
+				Store:               notify.OutboxStore{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
+				Sender:              notify.Telegram{BotToken: cfg.Notifications.Telegram.BotToken, ChatID: cfg.Notifications.Telegram.ChatID},
+				MaxDeliveryAttempts: 5,
+				InitialBackoff:      time.Second,
+				MaxBackoff:          time.Hour,
+				Logger:              logger,
+				TenantScopes:        tenantScopes,
+			}
+			_ = worker.Run(ctx, 500*time.Millisecond)
 		})
 	}
 	if !cfg.SafeMode && !cgiMode && modules["site"] && a.linkScanManager != nil && a.linkScanOrigin != "" {

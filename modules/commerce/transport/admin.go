@@ -232,6 +232,15 @@ func (h Handler) listRefundsRequired(w http.ResponseWriter, r *http.Request) {
 	api.WriteList(w, items, api.PaginationMeta{Limit: limit, Offset: offset, HasMore: hasMore})
 }
 
+func (h Handler) countRefundsRequired(w http.ResponseWriter, r *http.Request) {
+	count, err := h.Service.CountUnresolvedRefundRequired(r.Context())
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	api.WriteData(w, http.StatusOK, map[string]int{"count": count}, nil)
+}
+
 type resolveRefundRequest struct {
 	Note string `json:"note"`
 }

@@ -49,6 +49,7 @@ var BackfillTables = []string{
 	"commerce_payment_notifications",
 	"refund_required",
 	"customer_sms_dedup",
+	"notification_outbox",
 	"hydro_forms",
 	"hydro_collections",
 	"hydro_collection_records",

@@ -1,0 +1,28 @@
+id: "202611100002_notification_outbox"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "888e16c32685ac496321502a589717729dfd034e059f8ee8ac88838b372c3feb"
+  postgres: "8a7500a682b89e1ec2ec23bc268f1f9d8670fcfd7a0d9417c23d825dff14a741"
+  mysql: "a7f337177d6ecedce0ab25f2dde0f16f7f047974f6924638597e473a3b92b195"
+dependencies:
+  - "202611020002_postgres_rls_fail_closed"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "202611020002_postgres_rls_fail_closed is applied"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Persistent notification outbox table for reliable background operator alerts"
+compatibility: "Additive only; creates notification_outbox table for asynchronous notification delivery."
+smoke:
+  - "Operator notifications can be enqueued and dispatched via background worker."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "DROP TABLE IF EXISTS notification_outbox;"

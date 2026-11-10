@@ -30,6 +30,20 @@ Order matters on a new database: `hydro migrate`, then `hydro create-admin` (and
 
 Set `HYDRO_PUBLIC_ORIGIN` (or `http.public_origin`) to the address people use. HydroGo answers `421` to any other `Host` header, and the message names the host it expects; a service in the same Docker network that calls `http://hydrogo:8080` must send the public host in its `Host` header.
 
+## Production Secret Validation
+
+When running in production (`HYDRO_ENV=production`, `APP_ENV=production`, or `GO_ENV=production`), HydroGo enforces strict security validation on startup. The process will refuse to start with an explicit error if any critical secret is empty or set to placeholder values (`CHANGE_ME`):
+
+- `HYDRO_JWT_SECRET`: signing key for JWT tokens (must be at least 32 characters).
+- `RECOVER_SECRET` (or `HYDRO_RECOVER_SECRET`): salt/secret for password recovery tokens.
+- Webhook secrets: `secret` fields declared under `webhooks` or `HYDRO_WEBHOOK_SECRET`.
+- Enabled payment gateway secrets:
+  - PayTR: `payments.paytr.merchant_key` and `merchant_salt`.
+  - İyzico: `payments.iyzico.api_key` and `secret_key`.
+  - Shopier: `SHOPIER_API_KEY` and `SHOPIER_API_SECRET`.
+
+In non-production environments (development/testing), HydroGo starts normally while logging actionable warnings.
+
 ## Invitations and password resets
 
 An invitation (`POST /api/v1/admin/users/invites`, needs SMTP) and a password reset (`POST /api/v1/admin/users/{id}/password-reset-link`, or the e-mail a person requests) end in a link to the admin panel, `/admin/accept-invite?token=...` and `/admin/reset-password?token=...`. Those pages set the password and send the person to `/admin/login`. Without SMTP, an administrator can still copy the reset link from the Users screen and pass it on, and `hydro create-user` opens accounts directly.

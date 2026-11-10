@@ -1059,6 +1059,25 @@ func TestRefundsRequiredAdminEndpoints(t *testing.T) {
 		t.Fatalf("unexpected list response: %+v", listResp.Data)
 	}
 
+	// 1b. GET /api/v1/admin/commerce/refunds-required/count -> 1
+	reqCount := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/refunds-required/count", nil)
+	recCount := httptest.NewRecorder()
+	h.countRefundsRequired(recCount, reqCount)
+	if recCount.Code != http.StatusOK {
+		t.Fatalf("count status = %d, want 200: %s", recCount.Code, recCount.Body.String())
+	}
+	var countResp struct {
+		Data struct {
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recCount.Body.Bytes(), &countResp); err != nil {
+		t.Fatalf("unmarshal count error: %v", err)
+	}
+	if countResp.Data.Count != 1 {
+		t.Fatalf("expected count 1, got %d", countResp.Data.Count)
+	}
+
 	// 2. POST /api/v1/admin/commerce/refunds-required/{id}/resolve
 	resolveBody := `{"note":"refund sent via bank wire"}`
 	reqResolve := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/refunds-required/rrq-test-1/resolve", strings.NewReader(resolveBody))
@@ -1080,6 +1099,22 @@ func TestRefundsRequiredAdminEndpoints(t *testing.T) {
 	_ = json.Unmarshal(recListAfter.Body.Bytes(), &listAfter)
 	if len(listAfter.Data) != 0 {
 		t.Fatalf("expected 0 unresolved items after resolve, got %d", len(listAfter.Data))
+	}
+
+	// 3b. GET /api/v1/admin/commerce/refunds-required/count -> 0
+	recCountAfter := httptest.NewRecorder()
+	h.countRefundsRequired(recCountAfter, reqCount)
+	if recCountAfter.Code != http.StatusOK {
+		t.Fatalf("count status = %d, want 200: %s", recCountAfter.Code, recCountAfter.Body.String())
+	}
+	var countAfterResp struct {
+		Data struct {
+			Count int `json:"count"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(recCountAfter.Body.Bytes(), &countAfterResp)
+	if countAfterResp.Data.Count != 0 {
+		t.Fatalf("expected count 0 after resolve, got %d", countAfterResp.Data.Count)
 	}
 	_ = db
 }
