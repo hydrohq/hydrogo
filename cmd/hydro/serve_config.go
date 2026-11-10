@@ -82,12 +82,29 @@ func parseServeArgs(args []string, stderr io.Writer) (serveOptions, config.Confi
 	return opts, cfg, nil
 }
 
+// isPlatformMode reports whether the platform / multi-tenant store factory
+// or tenancy mode is active for this configuration.
+func isPlatformMode(cfg config.Config) bool {
+	return cfg.Tenancy.Enabled || strings.TrimSpace(cfg.Factory.BaseDomain) != "" || strings.TrimSpace(os.Getenv("HYDRO_BASE_DOMAIN")) != ""
+}
+
+func (a *serveApp) isPlatformMode() bool {
+	return isPlatformMode(a.cfg)
+}
+
+func (a *serveApp) resolvedSiteURL() string {
+	if s := strings.TrimSpace(a.cfg.HTTP.SiteURL); s != "" {
+		return s
+	}
+	return strings.TrimSpace(a.cfg.HTTP.PublicOrigin)
+}
+
 // configureTenancy builds the host resolver and the sorted list of tenant
 // scopes when tenancy is enabled.
 func configureTenancy(cfg config.Config) (*tenant.HostResolver, []tenant.Scope, error) {
 	var tenantResolver *tenant.HostResolver
 	var tenantScopes []tenant.Scope
-	if cfg.Tenancy.Enabled || cfg.Factory.BaseDomain != "" || os.Getenv("HYDRO_BASE_DOMAIN") != "" {
+	if isPlatformMode(cfg) {
 		hostScopes := make(map[string]tenant.Scope, len(cfg.Tenancy.Hosts))
 		hostNames := make([]string, 0, len(cfg.Tenancy.Hosts))
 		for host := range cfg.Tenancy.Hosts {

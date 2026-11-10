@@ -87,6 +87,40 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 			}
 			if current.PaymentStatus == PaymentFailed {
 				outcome = ErrLatePayment
+				providerPaymentID := payment.ProviderPaymentID
+				if providerPaymentID == "" {
+					providerPaymentID = payment.EventID
+				}
+				chargeID, err := newID("chg_")
+				if err != nil {
+					return err
+				}
+				if err := s.Repository.RecordPaymentCharge(ctx, tx, PaymentCharge{
+					ID:                chargeID,
+					OrderID:           payment.OrderID,
+					Provider:          payment.Provider,
+					ProviderPaymentID: providerPaymentID,
+					AmountCents:       payment.AmountCents,
+					Currency:          current.Currency,
+					Status:            PaymentFailed,
+				}); err != nil {
+					return err
+				}
+				rrqID, err := newID("rrq_")
+				if err != nil {
+					return err
+				}
+				if err := s.Repository.RecordRefundRequired(ctx, tx, RefundRequired{
+					ID:          rrqID,
+					OrderID:     payment.OrderID,
+					Provider:    payment.Provider,
+					AmountCents: payment.AmountCents,
+					Currency:    current.Currency,
+					Reason:      "ErrLatePayment: payment received after order failed or expired",
+					CreatedAt:   time.Now().UTC(),
+				}); err != nil {
+					return err
+				}
 			}
 			return nil
 		}
@@ -117,6 +151,9 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 		return nil
 	})
 	if err != nil {
+		if database.IsUniqueViolation(err) {
+			return false, nil
+		}
 		return false, err
 	}
 	return applied, outcome
@@ -220,6 +257,17 @@ func (s Service) StartPayment(ctx context.Context, provider PaymentProvider, ord
 		return PaymentStart{}, ErrOrderNotPayable
 	}
 	return provider.StartPayment(ctx, order, items)
+}
+
+// Order reads one order by ID.
+func (s Service) Order(ctx context.Context, orderID string) (Order, error) {
+	var order Order
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		order, err = s.Repository.GetOrder(ctx, tx, orderID)
+		return err
+	})
+	return order, err
 }
 
 // OrderWithItems reads one order and its line items.

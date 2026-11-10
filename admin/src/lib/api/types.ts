@@ -160,6 +160,8 @@ export interface AdminSchema {
   locales: AdminSchemaLocales;
   permissions: string[];
   branding?: AdminBranding;
+  platform?: boolean;
+  site_url?: string;
 }
 
 export interface ContentItem {
@@ -413,3 +415,20 @@ export interface BillingCheckoutResponse {
   payment: BillingPayment;
   shopier_form: ShopierFormOutput;
 }
+
+export interface RefundRequired {
+  id: string;
+  order_id: string;
+  provider: string;
+  amount_cents: number;
+  currency: string;
+  reason: string;
+  created_at: string;
+  resolved_at?: string | null;
+  resolved_note?: string;
+}
+
+export interface RefundsRequiredCount {
+  count: number;
+}
+

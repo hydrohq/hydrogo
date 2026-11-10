@@ -185,8 +185,22 @@ func (h Handler) refundOrder(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "no payment provider that can refund is configured", nil)
 		return
 	}
-	order, err := h.Service.RefundOrder(r.Context(), h.Refunder, r.PathValue("id"))
+	var req struct {
+		AllowShipped bool `json:"allow_shipped"`
+	}
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = api.DecodeJSON(w, r, &req, api.DefaultMaxBodyBytes)
+	}
+	var opts []commerce.RefundOption
+	if req.AllowShipped {
+		opts = append(opts, commerce.WithAllowShipped(true))
+	}
+	order, err := h.Service.RefundOrder(r.Context(), h.Refunder, r.PathValue("id"), opts...)
 	if err != nil {
+		if errors.Is(err, commerce.ErrOrderShippedRequiresApproval) {
+			api.WriteError(w, r, http.StatusConflict, err.Error(), nil)
+			return
+		}
 		if errorsIsAny(err, commerce.ErrOrderNotFound, commerce.ErrOrderNotRefundable, commerce.ErrNoPaymentCharge) {
 			writeServiceError(w, r, err)
 			return
@@ -195,4 +209,60 @@ func (h Handler) refundOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteData(w, http.StatusOK, order, nil)
+}
+
+func (h Handler) listRefundsRequired(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	unresolvedOnly := query.Get("unresolved_only") != "false"
+	limit := intQueryParam(query.Get("limit"), 25, 1, 100)
+	offset := intQueryParam(query.Get("offset"), 0, 0, maxListOffset)
+	items, err := h.Service.ListRefundsRequired(r.Context(), unresolvedOnly, limit+1, offset)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	var hasMore bool
+	if len(items) > limit {
+		hasMore = true
+		items = items[:limit]
+	}
+	if items == nil {
+		items = []commerce.RefundRequired{}
+	}
+	api.WriteList(w, items, api.PaginationMeta{Limit: limit, Offset: offset, HasMore: hasMore})
+}
+
+func (h Handler) countRefundsRequired(w http.ResponseWriter, r *http.Request) {
+	count, err := h.Service.CountUnresolvedRefundRequired(r.Context())
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	api.WriteData(w, http.StatusOK, map[string]int{"count": count}, nil)
+}
+
+type resolveRefundRequest struct {
+	Note string `json:"note"`
+}
+
+func (h Handler) resolveRefundRequired(w http.ResponseWriter, r *http.Request) {
+	var input resolveRefundRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes)
+	}
+	id := r.PathValue("id")
+	if strings.TrimSpace(id) == "" {
+		api.WriteError(w, r, http.StatusBadRequest, "id is required", nil)
+		return
+	}
+	ok, err := h.Service.ResolveRefundRequired(r.Context(), id, input.Note)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	if !ok {
+		api.WriteError(w, r, http.StatusNotFound, "refund requirement not found or already resolved", nil)
+		return
+	}
+	api.WriteData(w, http.StatusOK, map[string]any{"resolved": true, "id": id}, nil)
 }

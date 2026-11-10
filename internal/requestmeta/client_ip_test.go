@@ -25,18 +25,28 @@ func TestClientIPAcceptsBareAddress(t *testing.T) {
 
 func TestIPExtractor(t *testing.T) {
 	tests := []struct {
-		name         string
-		behindProxy  bool
-		trustedCIDRs []string
-		remoteAddr   string
-		headers      map[string]string
-		want         string
+		name                string
+		behindProxy         bool
+		trustedCIDRs        []string
+		trustCFConnectingIP bool
+		remoteAddr          string
+		headers             map[string]string
+		want                string
 	}{
 		{name: "no proxy configured ignores headers", remoteAddr: "192.0.2.8:1234", headers: map[string]string{"X-Forwarded-For": "10.0.0.1"}, want: "192.0.2.8"},
 		{name: "behind_proxy without a list trusts only a loopback proxy", behindProxy: true, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"X-Forwarded-For": "203.0.113.3"}, want: "203.0.113.3"},
 		{name: "behind_proxy without a list ignores headers from a public peer", behindProxy: true, remoteAddr: "192.0.2.8:1234", headers: map[string]string{"X-Forwarded-For": "203.0.113.3"}, want: "192.0.2.8"},
 		{name: "a client cannot pick its address through a trusted proxy", behindProxy: true, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"X-Forwarded-For": "6.6.6.6, 203.0.113.3"}, want: "203.0.113.3"},
-		{name: "vendor headers are not trusted", behindProxy: true, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"True-Client-IP": "6.6.6.6", "CF-Connecting-IP": "6.6.6.6"}, want: "127.0.0.1"},
+		{name: "unsupported vendor headers are not trusted", behindProxy: true, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"True-Client-IP": "6.6.6.6"}, want: "127.0.0.1"},
+		{name: "flag off: trusted proxy with CF-Connecting-IP ignores header", behindProxy: true, trustCFConnectingIP: false, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"CF-Connecting-IP": "203.0.113.195"}, want: "127.0.0.1"},
+		{name: "flag off: trusted proxy with CF and XFF ignores CF and uses XFF", behindProxy: true, trustCFConnectingIP: false, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"CF-Connecting-IP": "203.0.113.195", "X-Forwarded-For": "203.0.113.4"}, want: "203.0.113.4"},
+		{name: "flag on: trusted proxy with CF-Connecting-IP uses CF", behindProxy: true, trustCFConnectingIP: true, remoteAddr: "127.0.0.1:1234", headers: map[string]string{"CF-Connecting-IP": "203.0.113.195"}, want: "203.0.113.195"},
+		{name: "flag on: trusted proxy with CF-Connecting-IP IPv6", trustedCIDRs: []string{"::1/128"}, trustCFConnectingIP: true, remoteAddr: "[::1]:1234", headers: map[string]string{"CF-Connecting-IP": "2001:db8::42"}, want: "2001:db8::42"},
+		{name: "flag on: both CF-Connecting-IP and XFF present, CF wins", trustedCIDRs: []string{"10.0.0.0/8"}, trustCFConnectingIP: true, remoteAddr: "10.0.0.2:1234", headers: map[string]string{"CF-Connecting-IP": "203.0.113.195", "X-Forwarded-For": "203.0.113.4"}, want: "203.0.113.195"},
+		{name: "flag on: untrusted peer with CF-Connecting-IP ignores header", trustedCIDRs: []string{"10.0.0.0/8"}, trustCFConnectingIP: true, remoteAddr: "192.0.2.8:1234", headers: map[string]string{"CF-Connecting-IP": "203.0.113.195"}, want: "192.0.2.8"},
+		{name: "flag on: invalid CF-Connecting-IP falls through to XFF", trustedCIDRs: []string{"10.0.0.0/8"}, trustCFConnectingIP: true, remoteAddr: "10.0.0.2:1234", headers: map[string]string{"CF-Connecting-IP": "not-an-ip", "X-Forwarded-For": "203.0.113.4"}, want: "203.0.113.4"},
+		{name: "flag on: comma-separated CF-Connecting-IP falls through to XFF", trustedCIDRs: []string{"10.0.0.0/8"}, trustCFConnectingIP: true, remoteAddr: "10.0.0.2:1234", headers: map[string]string{"CF-Connecting-IP": "1.2.3.4, 5.6.7.8", "X-Forwarded-For": "203.0.113.4"}, want: "203.0.113.4"},
+		{name: "no proxy trusted ignores CF-Connecting-IP", behindProxy: false, trustCFConnectingIP: false, remoteAddr: "192.0.2.8:1234", headers: map[string]string{"CF-Connecting-IP": "203.0.113.195"}, want: "192.0.2.8"},
 		{name: "trusted CIDRs skip every trusted hop", trustedCIDRs: []string{"192.0.2.8/32", "10.0.0.0/8"}, remoteAddr: "192.0.2.8:1234", headers: map[string]string{"X-Forwarded-For": "203.0.113.4, 10.0.0.5, 10.0.0.6"}, want: "203.0.113.4"},
 		{name: "all hops trusted resolves to the originating host", trustedCIDRs: []string{"192.0.2.8/32", "10.0.0.0/8"}, remoteAddr: "192.0.2.8:1234", headers: map[string]string{"X-Forwarded-For": "10.0.0.5, 10.0.0.6"}, want: "10.0.0.5"},
 		{name: "untrusted peer is taken at face value", trustedCIDRs: []string{"10.0.0.0/8"}, remoteAddr: "192.0.2.8:1234", headers: map[string]string{"X-Forwarded-For": "203.0.113.5"}, want: "192.0.2.8"},
@@ -45,7 +55,7 @@ func TestIPExtractor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ext, err := NewIPExtractor(tt.behindProxy, tt.trustedCIDRs)
+			ext, err := NewIPExtractor(tt.behindProxy, tt.trustedCIDRs, tt.trustCFConnectingIP)
 			if err != nil {
 				t.Fatalf("NewIPExtractor failed: %v", err)
 			}
@@ -62,7 +72,7 @@ func TestIPExtractor(t *testing.T) {
 }
 
 func TestMiddlewareMakesClientIPProxyAware(t *testing.T) {
-	ext, err := NewIPExtractor(true, nil)
+	ext, err := NewIPExtractor(true, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,5 +84,20 @@ func TestMiddlewareMakesClientIPProxyAware(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 	if seen != "203.0.113.77" {
 		t.Fatalf("ClientIP behind the middleware = %q, want the forwarded client", seen)
+	}
+}
+
+func TestIPExtractorMultiValuedCFConnectingIPFallsThrough(t *testing.T) {
+	ext, err := NewIPExtractor(true, []string{"10.0.0.0/8"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("GET", "http://example.test", nil)
+	req.RemoteAddr = "10.0.0.2:1234"
+	req.Header.Add("CF-Connecting-IP", "1.1.1.1")
+	req.Header.Add("CF-Connecting-IP", "2.2.2.2")
+	req.Header.Set("X-Forwarded-For", "203.0.113.4")
+	if got := ext.Extract(req); got != "203.0.113.4" {
+		t.Fatalf("Extract() = %q, want %q", got, "203.0.113.4")
 	}
 }

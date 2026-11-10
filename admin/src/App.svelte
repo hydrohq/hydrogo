@@ -50,9 +50,15 @@
       const isAuthed = await auth.checkAuth();
       if (isAuthed) {
         await schema.loadSchema();
-        const isConsole = typeof window !== 'undefined' && (window.location.hostname.startsWith('console.') || window.location.hostname.includes('console.example.com'));
+        const isConsole = schema.platform && typeof window !== 'undefined' && (window.location.hostname.startsWith('console.') || window.location.hostname.includes('console.example.com'));
+        const p = router.path;
+        const isPlatformRoute = p === '/console' || p.startsWith('/console/') ||
+                                p === '/orchestrator' || p.startsWith('/orchestrator/') ||
+                                p === '/subscription' || p.startsWith('/subscription/');
         if (router.path === '/login' || (isConsole && (router.path === '/' || router.path === '/dashboard'))) {
           router.navigate(isConsole ? '/console' : '/dashboard');
+        } else if (isPlatformRoute && !schema.platform) {
+          router.navigate('/dashboard');
         }
       } else {
         if (!isPublicPath(router.path)) {
@@ -99,8 +105,27 @@
     }
   });
 
+  // Redirect to /dashboard if accessing platform-only routes without platform mode
+  $effect(() => {
+    if (auth.isAuthenticated && schema.schema && !schema.isLoading) {
+      const p = router.path;
+      const isPlatformRoute = p === '/console' || p.startsWith('/console/') ||
+                              p === '/orchestrator' || p.startsWith('/orchestrator/') ||
+                              p === '/subscription' || p.startsWith('/subscription/');
+      if (isPlatformRoute && !schema.platform) {
+        router.navigate('/dashboard');
+      }
+    }
+  });
+
   const routeInfo = $derived.by(() => {
     const p = router.path;
+    const isPlatformRoute = p === '/console' || p.startsWith('/console/') ||
+                            p === '/orchestrator' || p.startsWith('/orchestrator/') ||
+                            p === '/subscription' || p.startsWith('/subscription/');
+    if (isPlatformRoute && !schema.platform) {
+      return { view: 'dashboard' };
+    }
     if (p === '/' || p === '/dashboard' || p === '/admin' || p === '/admin/' || p === '') {
       return { view: 'dashboard' };
     }
@@ -140,6 +165,9 @@
         return { view: 'page-editor', id: actionOrId };
       }
       return { view: 'pages-list' };
+    }
+    if (p.startsWith('/commerce/refunds-required')) {
+      return { view: 'custom', module: 'commerce-refunds-required' };
     }
     if (p.startsWith('/content-types')) {
       const parts = p.split('/');
@@ -183,6 +211,8 @@
         <LazyView load={loadMembersView} />
       {:else if routeInfo.module === 'commerce'}
         <LazyView load={loadCommerceOrdersView} />
+      {:else if routeInfo.module === 'commerce-refunds-required'}
+        <LazyView load={() => import('./routes/commerce/RefundRequiredView.svelte')} />
       {:else if routeInfo.module === 'users'}
         <LazyView load={loadUsersView} />
       {:else if routeInfo.module === 'roles'}

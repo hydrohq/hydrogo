@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { api } from '$lib/api/client';
+  import type { RefundsRequiredCount } from '$lib/api/types';
   import { roleLabel } from '$lib/i18n/labels';
   import { t, i18n } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
@@ -19,8 +22,24 @@
   let showQuickCreate = $state(false);
   let showUserMenu = $state(false);
   let activeDocDropdown = $state<string | null>(null);
+  let unresolvedRefundCount = $state(0);
+
+  function loadRefundCount() {
+    if (moduleOn('commerce') && can('admin.commerce.read')) {
+      void Promise.resolve(api.get<{ data: RefundsRequiredCount }>('/api/v1/admin/commerce/refunds-required/count'))
+        .then((response) => { unresolvedRefundCount = response.data.count; })
+        .catch(() => {});
+    }
+  }
+
+  onMount(() => {
+    loadRefundCount();
+    window.addEventListener('refunds-required:changed', loadRefundCount);
+    return () => window.removeEventListener('refunds-required:changed', loadRefundCount);
+  });
 
   const isConsoleMode = $derived.by(() => {
+    if (!schema.platform) return false;
     if (typeof window !== 'undefined') {
       const host = window.location.hostname.toLowerCase();
       if (host.startsWith('console.') || host.includes('console.example.com')) return true;
@@ -366,7 +385,7 @@
       <a
         href="/admin/commerce"
         onclick={() => handleNavigate('/commerce')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') && !isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title={t('nav.orders')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -376,6 +395,17 @@
         </svg>
         {#if sidebar.open}
           <span class="truncate">{t('nav.orders')}</span>
+        {/if}
+      </a>
+      <a
+        href="/admin/commerce/refunds-required"
+        onclick={() => handleNavigate('/commerce/refunds-required')}
+        class="ml-6 flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="İade Gerekli"
+      >
+        <span class="truncate">İade Gerekli</span>
+        {#if unresolvedRefundCount > 0}
+          <span class="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">{unresolvedRefundCount}</span>
         {/if}
       </a>
       {/if}
@@ -512,7 +542,7 @@
       </a>
       {/if}
 
-      {#if isAdmin}
+      {#if schema.platform && isAdmin}
       <a
         href="/admin/console"
         onclick={() => handleNavigate('/console')}
@@ -528,6 +558,7 @@
       </a>
       {/if}
 
+      {#if schema.platform}
       <!-- Abonelik & Ödeme -->
       <a
         href="/admin/subscription"
@@ -543,6 +574,7 @@
           <span class="truncate">Abonelik & Ödeme</span>
         {/if}
       </a>
+      {/if}
 
       <a
         href="/admin/system"
@@ -607,6 +639,7 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             <span>{t('nav.account')}</span>
           </a>
+          {#if schema.platform}
           <a
             href="/admin/subscription"
             onclick={() => handleNavigate('/subscription')}
@@ -615,6 +648,7 @@
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
             <span>Abonelik & Ödeme</span>
           </a>
+          {/if}
           <a
             href="/admin/system"
             onclick={() => handleNavigate('/system')}
