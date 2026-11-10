@@ -121,8 +121,9 @@
         </span>
       {/if}
 
+      {#if schema.siteUrl}
       <a
-        href="/"
+        href={schema.siteUrl}
         target="_blank"
         rel="noopener noreferrer"
         class="group inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:border-primary/40 transition-all duration-150 shadow-xs active:scale-95"
@@ -134,6 +135,7 @@
           <line x1="10" y1="14" x2="21" y2="3"></line>
         </svg>
       </a>
+      {/if}
 
       <!-- Workspace AI Copilot Button -->
       <button

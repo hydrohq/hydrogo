@@ -45,6 +45,8 @@ type adminDashboardBrokenLinks struct {
 type adminDashboard struct {
 	User                auth.User                  `json:"user"`
 	Modules             map[string]bool            `json:"modules"`
+	Platform            bool                       `json:"platform"`
+	SiteURL             string                     `json:"site_url"`
 	SecurityNotice      *auth.LoginSecurityNotice  `json:"security_notice,omitempty"`
 	Members             *members.MemberStats       `json:"members,omitempty"`
 	Content             *adminDashboardContent     `json:"content,omitempty"`
@@ -67,7 +69,15 @@ func (a *serveApp) adminDashboardHandler(w http.ResponseWriter, r *http.Request)
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	modules := a.modules
-	dashboard := adminDashboard{User: *user, Modules: enabledOnly(modules), EmailPreviewEnabled: a.smtpSender != nil, PushEnabled: modules["push"], GeneratedAt: time.Now().UTC()}
+	dashboard := adminDashboard{
+		User:                *user,
+		Modules:             enabledOnly(modules),
+		Platform:            a.isPlatformMode(),
+		SiteURL:             a.resolvedSiteURL(),
+		EmailPreviewEnabled: a.smtpSender != nil,
+		PushEnabled:         modules["push"],
+		GeneratedAt:         time.Now().UTC(),
+	}
 	if a.userStore != nil {
 		if notice, err := a.userStore.LoginSecuritySummary(r.Context(), user.ID); err == nil {
 			dashboard.SecurityNotice = &notice

@@ -97,6 +97,7 @@ describe('Sidebar', () => {
 
   it('renders dedicated factory navigation and hides standard cms items in console mode', () => {
     // Arrange
+    schema.schema = { platform: true, modules: {}, resources: [] } as any;
     router.navigate('/console');
     auth.user = { role: 'admin', email: 'admin@example.com' } as any;
 
@@ -107,5 +108,64 @@ describe('Sidebar', () => {
     expect(screen.getByTitle(t('nav.console'))).toBeTruthy();
     expect(screen.queryByTitle('Pages')).toBeNull();
     expect(screen.queryByTitle('Quick Create')).toBeNull();
+  });
+
+  it('hides console and subscription items when platform is false', () => {
+    // Arrange
+    schema.schema = { platform: false, modules: { pages: true }, resources: [] } as any;
+    auth.user = { role: 'admin', email: 'admin@example.com' } as any;
+
+    // Act
+    render(Sidebar, { props: {} });
+
+    // Assert
+    expect(screen.queryByTitle(t('nav.console'))).toBeNull();
+    expect(screen.queryByTitle('Abonelik & Ödeme')).toBeNull();
+  });
+
+  it('hides console and subscription items before schema is loaded (prevents flash)', () => {
+    // Arrange
+    schema.schema = null as any;
+    auth.user = { role: 'admin', email: 'admin@example.com' } as any;
+
+    // Act
+    render(Sidebar, { props: {} });
+
+    // Assert
+    expect(screen.queryByTitle(t('nav.console'))).toBeNull();
+    expect(screen.queryByTitle('Abonelik & Ödeme')).toBeNull();
+  });
+
+  it('shows console and subscription items when platform is true', () => {
+    // Arrange
+    schema.schema = { platform: true, modules: { pages: true }, resources: [] } as any;
+    auth.user = { role: 'admin', email: 'admin@example.com' } as any;
+
+    // Act
+    render(Sidebar, { props: {} });
+
+    // Assert
+    expect(screen.getByTitle(t('nav.console'))).toBeTruthy();
+    expect(screen.getByTitle('Abonelik & Ödeme')).toBeTruthy();
+  });
+
+  it('gates subscription link in user menu on platform mode', async () => {
+    // Arrange - platform false
+    schema.schema = { platform: false, modules: {}, resources: [] } as any;
+    auth.user = { role: 'admin', email: 'ada@example.com' } as any;
+    const { unmount } = render(Sidebar, { props: {} });
+    await fireEvent.click(screen.getByText('ada@example.com'));
+
+    // Assert - hidden
+    expect(screen.queryByText('Abonelik & Ödeme')).toBeNull();
+    unmount();
+
+    // Arrange - platform true
+    schema.schema = { platform: true, modules: {}, resources: [] } as any;
+    render(Sidebar, { props: {} });
+    await fireEvent.click(screen.getByText('ada@example.com'));
+
+    // Assert - shown in both sidebar navigation and user menu
+    expect(screen.getAllByText('Abonelik & Ödeme').length).toBe(2);
   });
 });
