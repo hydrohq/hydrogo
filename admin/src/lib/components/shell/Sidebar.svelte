@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { api } from '$lib/api/client';
+  import type { RefundsRequiredCount } from '$lib/api/types';
   import { roleLabel } from '$lib/i18n/labels';
   import { t, i18n } from '$lib/i18n/index.svelte';
   import { auth } from '$lib/stores/auth.svelte';
@@ -19,6 +22,21 @@
   let showQuickCreate = $state(false);
   let showUserMenu = $state(false);
   let activeDocDropdown = $state<string | null>(null);
+  let unresolvedRefundCount = $state(0);
+
+  function loadRefundCount() {
+    if (moduleOn('commerce') && can('admin.commerce.read')) {
+      void Promise.resolve(api.get<{ data: RefundsRequiredCount }>('/api/v1/admin/commerce/refunds-required/count'))
+        .then((response) => { unresolvedRefundCount = response.data.count; })
+        .catch(() => {});
+    }
+  }
+
+  onMount(() => {
+    loadRefundCount();
+    window.addEventListener('refunds-required:changed', loadRefundCount);
+    return () => window.removeEventListener('refunds-required:changed', loadRefundCount);
+  });
 
   const isConsoleMode = $derived.by(() => {
     if (typeof window !== 'undefined') {
@@ -366,7 +384,7 @@
       <a
         href="/admin/commerce"
         onclick={() => handleNavigate('/commerce')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') && !isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title={t('nav.orders')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -376,6 +394,17 @@
         </svg>
         {#if sidebar.open}
           <span class="truncate">{t('nav.orders')}</span>
+        {/if}
+      </a>
+      <a
+        href="/admin/commerce/refunds-required"
+        onclick={() => handleNavigate('/commerce/refunds-required')}
+        class="ml-6 flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
+        title="İade Gerekli"
+      >
+        <span class="truncate">İade Gerekli</span>
+        {#if unresolvedRefundCount > 0}
+          <span class="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">{unresolvedRefundCount}</span>
         {/if}
       </a>
       {/if}
