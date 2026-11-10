@@ -133,8 +133,8 @@ commerce:
     # operator-maintained rate below, never live FX.
     display: []
     rates: {}
-  # Max open pending orders per IP within a 30-minute window before HTTP 429 (default: 5)
-  max_pending_orders_per_ip: 5
+  # Max open pending orders per IP within a 30-minute window before HTTP 429 (default: 25)
+  max_pending_orders_per_ip: 25
 # Optional `shipping` module (add `shipping` to modules: next to `commerce`):
 # the carriers the admin Orders screen can hand a paid order to.
 carriers:
@@ -179,6 +179,7 @@ payments:
     max_installment: 0
     ok_url: ""           # storefront /odeme/sonuc (?oid=<order> is appended)
     fail_url: ""
+    timeout_limit: 20    # minutes; keep below the 30-minute stock reservation to prevent late-payment failures (valid: 5–29)
   iyzico:
     api_key: ""
     secret_key: ""

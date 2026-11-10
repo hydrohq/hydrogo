@@ -67,7 +67,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	if h.PendingTracker != nil {
 		maxPending := h.MaxPendingOrdersPerIP
 		if maxPending <= 0 {
-			maxPending = 5
+			maxPending = 25
 		}
 		if h.PendingTracker.CountPending(r.Context(), ip, h.Service, time.Now().UTC(), 30*time.Minute) >= maxPending {
 			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)

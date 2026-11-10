@@ -51,7 +51,7 @@ func setupTestCommerceHandler(t *testing.T) (commercetransport.Handler, commerce
 	tracker := commercetransport.NewPendingOrderTracker()
 	h := commercetransport.Handler{
 		Service:               svc,
-		MaxPendingOrdersPerIP: 5,
+		MaxPendingOrdersPerIP: 25,
 		PendingTracker:        tracker,
 	}
 	return h, svc, db
@@ -86,8 +86,8 @@ func TestAbandonedCheckoutMaxPendingOrdersPerIP(t *testing.T) {
 	const clientIP = "198.51.100.1"
 
 	var orderIDs []string
-	// Perform 5 checkouts from the same IP (within 30 mins) -> all 5 should succeed (201 Created)
-	for i := 1; i <= 5; i++ {
+	// Perform 25 checkouts from the same IP (within 30 mins) -> all should succeed.
+	for i := 1; i <= 25; i++ {
 		rec := performCheckout(h, clientIP, fmt.Sprintf("idem-key-%d", i))
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("checkout %d failed: expected 201 Created, got %d (body: %s)", i, rec.Code, rec.Body.String())
@@ -101,13 +101,13 @@ func TestAbandonedCheckoutMaxPendingOrdersPerIP(t *testing.T) {
 		}
 	}
 
-	// 6th checkout from the same IP must be rejected with 429 Too Many Requests
-	rec6 := performCheckout(h, clientIP, "idem-key-6")
-	if rec6.Code != http.StatusTooManyRequests {
-		t.Fatalf("6th checkout expected 429 Too Many Requests, got %d (body: %s)", rec6.Code, rec6.Body.String())
+	// 26th checkout from the same IP must be rejected with 429 Too Many Requests.
+	rec26 := performCheckout(h, clientIP, "idem-key-26")
+	if rec26.Code != http.StatusTooManyRequests {
+		t.Fatalf("26th checkout expected 429 Too Many Requests, got %d (body: %s)", rec26.Code, rec26.Body.String())
 	}
-	if !strings.Contains(rec6.Body.String(), "too many") {
-		t.Fatalf("expected rate limit response message, got: %s", rec6.Body.String())
+	if !strings.Contains(rec26.Body.String(), "too many") {
+		t.Fatalf("expected rate limit response message, got: %s", rec26.Body.String())
 	}
 
 	// Another IP should NOT be blocked
@@ -130,7 +130,7 @@ func TestAbandonedCheckoutMaxPendingOrdersPerIP(t *testing.T) {
 			t.Fatalf("confirm payment: %v", err)
 		}
 
-		// Now clientIP has only 4 open pending orders, so a new checkout should succeed!
+		// Paying one order frees a slot for a new checkout.
 		recAfterPay := performCheckout(h, clientIP, "idem-key-7")
 		if recAfterPay.Code != http.StatusCreated {
 			t.Fatalf("checkout after order paid expected 201 Created, got %d (body: %s)", recAfterPay.Code, recAfterPay.Body.String())
@@ -202,7 +202,7 @@ func TestConcurrentCheckoutsFromOneIPNeverExceedPendingLimit(t *testing.T) {
 	}
 	close(start)
 	wg.Wait()
-	if got := created.Load(); got != 5 {
-		t.Fatalf("%d checkouts succeeded from one IP, want exactly 5", got)
+	if got := created.Load(); got != 25 {
+		t.Fatalf("%d checkouts succeeded from one IP, want exactly 25", got)
 	}
 }

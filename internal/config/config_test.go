@@ -38,6 +38,25 @@ database:
 	}
 }
 
+func TestLoadCommerceAndPayTRDefaultsAndOverrides(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:defaults.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Payments.PayTR.TimeoutLimit != 20 || cfg.Commerce.MaxPendingOrdersPerIP != 25 {
+		t.Fatalf("defaults: timeout=%d pending=%d", cfg.Payments.PayTR.TimeoutLimit, cfg.Commerce.MaxPendingOrdersPerIP)
+	}
+
+	path := writeConfig(t, "commerce:\n  max_pending_orders_per_ip: 9\npayments:\n  paytr:\n    timeout_limit: 12\n")
+	cfg, err = Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:overrides.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Payments.PayTR.TimeoutLimit != 12 || cfg.Commerce.MaxPendingOrdersPerIP != 9 {
+		t.Fatalf("configured values: timeout=%d pending=%d", cfg.Payments.PayTR.TimeoutLimit, cfg.Commerce.MaxPendingOrdersPerIP)
+	}
+}
+
 func TestSafeModeConfigPrecedenceAndValidation(t *testing.T) {
 	path := writeConfig(t, "safe_mode: true\n")
 	cfg, err := Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:safe.sqlite", "HYDRO_SAFE_MODE": "false"}), Overrides{})
