@@ -245,6 +245,24 @@ func (s Store) CommitReservation(ctx context.Context, db database.Executor, vari
 	return err
 }
 
+// ReturnStock increments available stock when an unshipped order is refunded.
+func (s Store) ReturnStock(ctx context.Context, db database.Executor, variantID string, quantity int) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	if quantity <= 0 {
+		return errors.New("return quantity must be positive")
+	}
+	args := []any{quantity, s.dbTime(s.now()), variantID}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE commerce_stock SET available = available + ` + s.p(1) + `, updated_at = ` + s.p(2) + ` WHERE variant_id = ` + s.p(3) + filter
+	_, err = db.ExecContext(ctx, query, args...)
+	return err
+}
+
 // --- Carts ---------------------------------------------------------------
 
 func (s Store) CreateCart(ctx context.Context, db database.Executor, cart commerce.Cart) error {

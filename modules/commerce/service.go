@@ -19,6 +19,7 @@ type Repository interface {
 	ReserveStock(ctx context.Context, db database.Executor, variantID string, quantity int) (bool, error)
 	ReleaseReservation(ctx context.Context, db database.Executor, variantID string, quantity int) error
 	CommitReservation(ctx context.Context, db database.Executor, variantID string, quantity int) error
+	ReturnStock(ctx context.Context, db database.Executor, variantID string, quantity int) error
 
 	CreateCart(ctx context.Context, db database.Executor, cart Cart) error
 	GetCartByMember(ctx context.Context, db database.Executor, memberID string) (Cart, bool, error)
@@ -67,6 +68,11 @@ type Repository interface {
 	ClaimShipment(ctx context.Context, db database.Executor, orderID string, staleBefore time.Time) (bool, error)
 	ReleaseShipmentClaim(ctx context.Context, db database.Executor, orderID string) error
 	RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error)
+
+	RecordRefundRequired(ctx context.Context, db database.Executor, item RefundRequired) error
+	ListRefundRequired(ctx context.Context, db database.Executor, unresolvedOnly bool, limit, offset int) ([]RefundRequired, error)
+	ResolveRefundRequired(ctx context.Context, db database.Executor, id, note string, resolvedAt time.Time) (bool, error)
+	RecordSMSDedup(ctx context.Context, db database.Executor, dedupKey, orderID, phone, event string, sentAt time.Time) (bool, error)
 }
 
 // OutboxWriter is the subset of internal/outbox/sqlstore.Store the service
@@ -185,4 +191,68 @@ func (s Service) addLine(ctx context.Context, db database.Executor, cart Cart, v
 	now := time.Now().UTC()
 	item := CartItem{ID: id, CartID: cart.ID, VariantID: variantID, Quantity: quantity, UnitPriceCents: unitPrice, CreatedAt: now, UpdatedAt: now}
 	return s.Repository.AddOrUpdateItem(ctx, db, item)
+}
+
+// RecordRefundRequired saves a manual refund requirement row in a transaction.
+// If the item has no ID, one with the "rrq_" prefix is generated.
+func (s Service) RecordRefundRequired(ctx context.Context, item RefundRequired) error {
+	if s.Repository == nil {
+		return ErrRepositoryRequired
+	}
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		if item.ID == "" {
+			var err error
+			item.ID, err = newID("rrq_")
+			if err != nil {
+				return err
+			}
+		}
+		if item.CreatedAt.IsZero() {
+			item.CreatedAt = time.Now().UTC()
+		}
+		return s.Repository.RecordRefundRequired(ctx, tx, item)
+	})
+}
+
+// ListRefundsRequired queries recorded manual refund requirements.
+func (s Service) ListRefundsRequired(ctx context.Context, unresolvedOnly bool, limit, offset int) ([]RefundRequired, error) {
+	if s.Repository == nil {
+		return nil, ErrRepositoryRequired
+	}
+	var results []RefundRequired
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		results, err = s.Repository.ListRefundRequired(ctx, tx, unresolvedOnly, limit, offset)
+		return err
+	})
+	return results, err
+}
+
+// ResolveRefundRequired marks a manual refund as resolved with a note.
+func (s Service) ResolveRefundRequired(ctx context.Context, id, note string) (bool, error) {
+	if s.Repository == nil {
+		return false, ErrRepositoryRequired
+	}
+	var resolved bool
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		resolved, err = s.Repository.ResolveRefundRequired(ctx, tx, id, note, time.Now().UTC())
+		return err
+	})
+	return resolved, err
+}
+
+// RecordSMSDedup records a customer SMS dedup key atomically in the database.
+// Returns false if the SMS was already recorded for this key (duplicate).
+func (s Service) RecordSMSDedup(ctx context.Context, dedupKey, orderID, phone, event string) (bool, error) {
+	if s.Repository == nil {
+		return false, ErrRepositoryRequired
+	}
+	var inserted bool
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		inserted, err = s.Repository.RecordSMSDedup(ctx, tx, dedupKey, orderID, phone, event, time.Now().UTC())
+		return err
+	})
+	return inserted, err
 }

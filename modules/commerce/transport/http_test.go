@@ -9,7 +9,9 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
@@ -358,9 +360,14 @@ func (f *fakeMailer) SendOrderConfirmation(_ context.Context, email, orderID, to
 	return f.err
 }
 
-type fakeNotifier struct{ calls []notify.Message }
+type fakeNotifier struct {
+	mu    sync.Mutex
+	calls []notify.Message
+}
 
 func (f *fakeNotifier) Send(_ context.Context, msg notify.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls = append(f.calls, msg)
 	return nil
 }
@@ -385,6 +392,7 @@ func TestNotifyOrderPaid(t *testing.T) {
 		},
 	}
 	NotifyOrderPaid(context.Background(), notifier, reader, "ord-test-1", "mock-provider", nil)
+	WaitNotifications()
 	if len(notifier.calls) != 1 {
 		t.Fatalf("expected 1 call, got %d", len(notifier.calls))
 	}
@@ -1002,5 +1010,161 @@ func TestAdminRoutesDeclareAPermission(t *testing.T) {
 		if route.Protected && route.Permission == "" {
 			t.Errorf("%s is protected but declares no permission; any signed-in staff user could call it", route.Pattern)
 		}
+	}
+}
+
+type fakeRefunder struct {
+	calls int
+	err   error
+}
+
+func (f *fakeRefunder) Refund(_ context.Context, _ commerce.Order, _ commerce.PaymentCharge) error {
+	f.calls++
+	return f.err
+}
+
+func TestRefundsRequiredAdminEndpoints(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+
+	// Seed a refund requirement
+	rrq := commerce.RefundRequired{
+		ID:          "rrq-test-1",
+		OrderID:     "ord-1",
+		Provider:    "paytr",
+		AmountCents: 5000,
+		Currency:    "TRY",
+		Reason:      "payment currency mismatch",
+		CreatedAt:   time.Now().UTC(),
+	}
+	if err := h.Service.RecordRefundRequired(ctx, rrq); err != nil {
+		t.Fatalf("failed to record refund required: %v", err)
+	}
+
+	// 1. GET /api/v1/admin/commerce/refunds-required
+	reqList := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/refunds-required?unresolved_only=true", nil)
+	recList := httptest.NewRecorder()
+	h.listRefundsRequired(recList, reqList)
+
+	if recList.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want 200: %s", recList.Code, recList.Body.String())
+	}
+	var listResp struct {
+		Data []commerce.RefundRequired `json:"data"`
+	}
+	if err := json.Unmarshal(recList.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if len(listResp.Data) != 1 || listResp.Data[0].ID != "rrq-test-1" {
+		t.Fatalf("unexpected list response: %+v", listResp.Data)
+	}
+
+	// 2. POST /api/v1/admin/commerce/refunds-required/{id}/resolve
+	resolveBody := `{"note":"refund sent via bank wire"}`
+	reqResolve := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/refunds-required/rrq-test-1/resolve", strings.NewReader(resolveBody))
+	reqResolve.Header.Set("Content-Type", "application/json")
+	reqResolve.SetPathValue("id", "rrq-test-1")
+	recResolve := httptest.NewRecorder()
+	h.resolveRefundRequired(recResolve, reqResolve)
+
+	if recResolve.Code != http.StatusOK {
+		t.Fatalf("resolve status = %d, want 200: %s", recResolve.Code, recResolve.Body.String())
+	}
+
+	// 3. GET again with unresolved_only=true should now return 0 items
+	recListAfter := httptest.NewRecorder()
+	h.listRefundsRequired(recListAfter, reqList)
+	var listAfter struct {
+		Data []commerce.RefundRequired `json:"data"`
+	}
+	_ = json.Unmarshal(recListAfter.Body.Bytes(), &listAfter)
+	if len(listAfter.Data) != 0 {
+		t.Fatalf("expected 0 unresolved items after resolve, got %d", len(listAfter.Data))
+	}
+	_ = db
+}
+
+func TestRefundOrderAdminWithShippedStatus(t *testing.T) {
+	h, db := newTestHandler(t)
+	refunder := &fakeRefunder{}
+	h.Refunder = refunder
+	ctx := context.Background()
+
+	// Ensure stock, seed cart, and checkout
+	if err := h.Service.Repository.EnsureStock(ctx, db, "var-shipped-ref", 10); err != nil {
+		t.Fatal(err)
+	}
+	h.Service.Prices.(commerce.StaticPrices)["var-shipped-ref"] = commerce.Price{Cents: 1500}
+	addReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(`{"variant_id":"var-shipped-ref","quantity":2}`))
+	addReq.Header.Set("Content-Type", "application/json")
+	addRec := httptest.NewRecorder()
+	h.addItem(addRec, addReq)
+	if addRec.Code != http.StatusOK {
+		t.Fatalf("add item: %d %s", addRec.Code, addRec.Body)
+	}
+	cookie := addRec.Result().Cookies()[0]
+
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"guest@example.com","idempotency_key":"idem-shipped-ref"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusCreated {
+		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
+	}
+	var created struct {
+		Data commerce.Order `json:"data"`
+	}
+	if err := json.Unmarshal(checkoutRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	order := created.Data
+
+	// Confirm payment
+	if _, err := h.Service.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: order.ID, OrderID: order.ID, AmountCents: order.TotalCents}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Mark shipped
+	shipErr := h.Service.Transactions.Within(ctx, func(tx database.Executor) error {
+		claimed, err := h.Service.Repository.ClaimShipment(ctx, tx, order.ID, time.Time{})
+		if err != nil || !claimed {
+			return err
+		}
+		shipped, err := h.Service.Repository.RecordShipment(ctx, tx, order.ID, "yurtici", "TRK-999", "http://track", time.Now().UTC())
+		if err != nil || !shipped {
+			return err
+		}
+		return nil
+	})
+	if shipErr != nil {
+		t.Fatal(shipErr)
+	}
+
+	// 1. Calling refund without allow_shipped: should fail with 409 Conflict
+	reqRefuse := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/refund", nil)
+	reqRefuse.SetPathValue("id", order.ID)
+	recRefuse := httptest.NewRecorder()
+	h.refundOrder(recRefuse, reqRefuse)
+
+	if recRefuse.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409 Conflict for shipped order without approval", recRefuse.Code)
+	}
+	if refunder.calls != 0 {
+		t.Fatalf("provider must not be called when shipment permission check fails")
+	}
+
+	// 2. Calling refund WITH allow_shipped: true: should succeed
+	reqApprove := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/refund", strings.NewReader(`{"allow_shipped":true}`))
+	reqApprove.Header.Set("Content-Type", "application/json")
+	reqApprove.SetPathValue("id", order.ID)
+	recApprove := httptest.NewRecorder()
+	h.refundOrder(recApprove, reqApprove)
+
+	if recApprove.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 OK: %s", recApprove.Code, recApprove.Body.String())
+	}
+	if refunder.calls != 1 {
+		t.Fatalf("expected 1 refunder call, got %d", refunder.calls)
 	}
 }
