@@ -79,7 +79,10 @@ func (c Config) Validate() error {
 	if len(c.HTTP.TrustedProxies) > 64 {
 		return errors.New("http.trusted_proxies allows at most 64 entries")
 	}
-	if _, err := requestmeta.NewIPExtractor(c.HTTP.BehindProxy, c.HTTP.TrustedProxies); err != nil {
+	if c.HTTP.TrustCFConnectingIP && !c.HTTP.BehindProxy {
+		return errors.New("http.trust_cf_connecting_ip requires http.behind_proxy to be true")
+	}
+	if _, err := requestmeta.NewIPExtractor(c.HTTP.BehindProxy, c.HTTP.TrustedProxies, c.HTTP.TrustCFConnectingIP); err != nil {
 		return err
 	}
 	if c.HTTP.AutoTLS {
@@ -212,6 +215,12 @@ func (c Config) Validate() error {
 			return fmt.Errorf("invalid public origin %q", c.HTTP.PublicOrigin)
 		}
 		publicOrigin = parsed
+	}
+	if strings.TrimSpace(c.HTTP.SiteURL) != "" {
+		parsed, err := url.Parse(strings.TrimSpace(c.HTTP.SiteURL))
+		if err != nil || !parsed.IsAbs() || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return fmt.Errorf("invalid site URL %q: must be an absolute http or https URL", c.HTTP.SiteURL)
+		}
 	}
 	if c.Security.EnableHSTS && (publicOrigin == nil || publicOrigin.Scheme != "https") {
 		return errors.New("HSTS requires an HTTPS public origin")

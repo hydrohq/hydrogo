@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -121,21 +122,39 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 			return err
 		}
 		now := time.Now().UTC()
-		var subtotal int64
-		orderItems := make([]OrderItem, 0, len(items))
+
+		// Verify every item is priced and aggregate quantities per variant.
+		variantQuantities := make(map[string]int)
 		for _, item := range items {
-			unitPrice, ok := prices[item.VariantID]
-			if !ok {
+			if _, ok := prices[item.VariantID]; !ok {
 				// Added after the prices were read; never charge an unpriced line.
 				return ErrCartChanged
 			}
-			ok, err := s.Repository.ReserveStock(ctx, tx, item.VariantID, item.Quantity)
+			variantQuantities[item.VariantID] += item.Quantity
+		}
+
+		// Sort variant IDs deterministically to establish a consistent lock order and prevent deadlocks.
+		variantIDs := make([]string, 0, len(variantQuantities))
+		for vID := range variantQuantities {
+			variantIDs = append(variantIDs, vID)
+		}
+		sort.Strings(variantIDs)
+
+		// Reserve stock in deterministic variant ID order with merged quantities.
+		for _, vID := range variantIDs {
+			ok, err := s.Repository.ReserveStock(ctx, tx, vID, variantQuantities[vID])
 			if err != nil {
 				return err
 			}
 			if !ok {
 				return ErrOutOfStock
 			}
+		}
+
+		var subtotal int64
+		orderItems := make([]OrderItem, 0, len(items))
+		for _, item := range items {
+			unitPrice := prices[item.VariantID]
 			lineTotal := unitPrice * int64(item.Quantity)
 			subtotal += lineTotal
 			itemID, err := newID("oi_")

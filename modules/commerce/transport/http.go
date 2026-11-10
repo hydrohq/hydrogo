@@ -11,9 +11,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 	"net/http"
 	"time"
+
+	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
@@ -51,12 +52,14 @@ const notifyTimeout = 5 * time.Second
 // logged-in visitor's cart is tied to their account; commerce does not import
 // modules/members.
 type Handler struct {
-	Service         commerce.Service
-	Secure          bool
-	DefaultCurrency string
-	CartLimiter     security.RateLimiter
-	CheckoutLimiter security.RateLimiter
-	MemberID        func(*http.Request) (string, bool)
+	Service               commerce.Service
+	Secure                bool
+	DefaultCurrency       string
+	CartLimiter           security.RateLimiter
+	CheckoutLimiter       security.RateLimiter
+	MaxPendingOrdersPerIP int
+	PendingTracker        *PendingOrderTracker
+	MemberID              func(*http.Request) (string, bool)
 	// ClientIP returns the caller's address for rate limiting and for
 	// providers that need it. It must only trust forwarding headers from
 	// configured proxies; nil falls back to the connection's address.
@@ -103,6 +106,9 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true, Permission: PermissionRead},
+		{Pattern: "GET /api/v1/admin/commerce/refunds-required", Handler: http.HandlerFunc(h.listRefundsRequired), Protected: true, Permission: PermissionRead},
+		{Pattern: "GET /api/v1/admin/commerce/refunds-required/count", Handler: http.HandlerFunc(h.countRefundsRequired), Protected: true, Permission: PermissionRead},
+		{Pattern: "POST /api/v1/admin/commerce/refunds-required/{id}/resolve", Handler: http.HandlerFunc(h.resolveRefundRequired), Protected: true, Permission: PermissionWrite},
 	}
 }
 

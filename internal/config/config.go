@@ -76,9 +76,10 @@ func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.Cha
 // Empty is a valid, fully functional configuration: Checkout and
 // ConfirmPayment work without any external provider configured.
 type Commerce struct {
-	Tax        Tax         `yaml:"tax"`
-	Shipping   ShippingFee `yaml:"shipping"`
-	Currencies Currencies  `yaml:"currencies"`
+	Tax                   Tax         `yaml:"tax"`
+	Shipping              ShippingFee `yaml:"shipping"`
+	Currencies            Currencies  `yaml:"currencies"`
+	MaxPendingOrdersPerIP int         `yaml:"max_pending_orders_per_ip"`
 }
 
 // Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds
@@ -205,13 +206,15 @@ type HookSchedule struct {
 type HTTP struct {
 	Address      string `yaml:"address"`
 	PublicOrigin string `yaml:"public_origin"`
+	SiteURL      string `yaml:"site_url"`
 	AutoTLS      bool   `yaml:"auto_tls"`
 	Domain       string `yaml:"domain"`
 	BehindProxy  bool   `yaml:"behind_proxy"`
 	// TrustedProxies lists the proxy addresses (CIDR or bare IP) whose
 	// X-Forwarded-For is believed. Empty with behind_proxy means a proxy on
 	// the same host (loopback). Every other peer is taken at face value.
-	TrustedProxies []string `yaml:"trusted_proxies"`
+	TrustedProxies      []string `yaml:"trusted_proxies"`
+	TrustCFConnectingIP bool     `yaml:"trust_cf_connecting_ip"`
 }
 
 type Database struct {

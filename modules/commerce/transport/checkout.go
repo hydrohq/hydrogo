@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
-	"github.com/ardaozyildirim/hydrogo/internal/notify"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
@@ -57,8 +58,32 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusInternalServerError, "could not resolve cart identity", nil)
 		return
 	}
-	if rateLimited(w, h.CheckoutLimiter, "checkout:"+h.clientIP(r)) {
+	ip := h.clientIP(r)
+	if rateLimited(w, h.CheckoutLimiter, "checkout:"+ip) {
 		return
+	}
+	reservation := ""
+	keepReservation := false
+	if h.PendingTracker != nil {
+		maxPending := h.MaxPendingOrdersPerIP
+		if maxPending <= 0 {
+			maxPending = 5
+		}
+		if h.PendingTracker.CountPending(r.Context(), ip, h.Service, time.Now().UTC(), 30*time.Minute) >= maxPending {
+			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
+			return
+		}
+		var reserved bool
+		reservation, reserved = h.PendingTracker.TryReserve(ip, maxPending)
+		if !reserved {
+			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
+			return
+		}
+		defer func() {
+			if !keepReservation {
+				h.PendingTracker.Release(ip, reservation)
+			}
+		}()
 	}
 	var input checkoutRequest
 	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
@@ -96,6 +121,10 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			response.Payment = &start
 		}
 	}
+	if reservation != "" && created && order.PaymentStatus == commerce.PaymentPending {
+		h.PendingTracker.Confirm(ip, reservation, order.ID)
+		keepReservation = true
+	}
 	if created {
 		if _, items, itemsErr := h.Service.OrderWithItems(r.Context(), order.ID); itemsErr == nil {
 			h.notifyNewOrder(r.Context(), order, items)
@@ -104,30 +133,28 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	api.WriteData(w, http.StatusCreated, response, nil)
 }
 
-// notifyNewOrder sends the customer's receipt and the operator's chat alert,
-// once per order. Best-effort and bounded: a slow mail server or chat API
-// costs at most notifyTimeout each, and the calls outlive a shopper who
-// closes the tab.
+// notifyNewOrder sends the customer's receipt, once per order.
+// Best-effort and bounded: a slow mail server costs at most notifyTimeout,
+// and the call outlives a shopper who closes the tab.
 func (h Handler) notifyNewOrder(ctx context.Context, order commerce.Order, items []commerce.OrderItem) {
 	ctx = context.WithoutCancel(ctx)
-	total := formatMoney(order.TotalCents, order.Currency)
+	total := FormatMoney(order.TotalCents, order.Currency)
 	if h.Mailer != nil && order.GuestEmail != "" {
 		mailItems := make([]mailer.OrderConfirmationItem, 0, len(items))
 		for _, item := range items {
-			mailItems = append(mailItems, mailer.OrderConfirmationItem{Title: item.Title, Quantity: item.Quantity, Total: formatMoney(item.TotalCents, order.Currency)})
+			mailItems = append(mailItems, mailer.OrderConfirmationItem{Title: item.Title, Quantity: item.Quantity, Total: FormatMoney(item.TotalCents, order.Currency)})
 		}
 		mailCtx, cancel := context.WithTimeout(ctx, notifyTimeout)
 		_ = h.Mailer.SendOrderConfirmation(mailCtx, order.GuestEmail, order.ID, total, mailItems)
 		cancel()
 	}
-	if h.Notifier != nil {
-		pingCtx, cancel := context.WithTimeout(ctx, notifyTimeout)
-		_ = h.Notifier.Send(pingCtx, notify.Message{Title: "Yeni sipariş", Body: fmt.Sprintf("%s — %s", order.ID, total)})
-		cancel()
-	}
 }
 
-func formatMoney(cents int64, currency string) string {
+// FormatMoney formats an amount in cents and currency as "XX.YY CUR".
+func FormatMoney(cents int64, currency string) string {
+	if currency == "" {
+		return fmt.Sprintf("%.2f", float64(cents)/100)
+	}
 	return fmt.Sprintf("%.2f %s", float64(cents)/100, currency)
 }
 

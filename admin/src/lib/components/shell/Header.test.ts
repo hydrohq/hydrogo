@@ -101,4 +101,29 @@ describe('Header', () => {
     // Assert
     expect(theme.isDark).toBe(true);
   });
+
+  it('hides the live button when siteUrl is not configured', () => {
+    // Arrange
+    schema.schema = { modules: {}, resources: [] } as any;
+
+    // Act
+    render(Header, { props: {} });
+
+    // Assert
+    expect(screen.queryByText('Live')).toBeNull();
+  });
+
+  it('shows the live button linking to site_url with target _blank when configured', () => {
+    // Arrange
+    schema.schema = { modules: {}, resources: [], site_url: 'http://localhost:3000' } as any;
+
+    // Act
+    render(Header, { props: {} });
+
+    // Assert
+    const link = screen.getByRole('link', { name: /Live/i });
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('http://localhost:3000');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
 });

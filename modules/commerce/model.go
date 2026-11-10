@@ -10,20 +10,25 @@ package commerce
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
 
 var (
-	ErrInvalidCart        = errors.New("invalid cart")
-	ErrInvalidItem        = errors.New("invalid cart item")
-	ErrInvalidOrder       = errors.New("invalid order")
-	ErrCartNotFound       = errors.New("cart not found")
-	ErrItemNotFound       = errors.New("cart item not found")
-	ErrOrderNotFound      = errors.New("order not found")
-	ErrOutOfStock         = errors.New("not enough stock available")
-	ErrVersionConflict    = errors.New("record was changed by someone else")
-	ErrRepositoryRequired = errors.New("commerce repository is required")
+	ErrInvalidCart                  = errors.New("invalid cart")
+	ErrInvalidItem                  = errors.New("invalid cart item")
+	ErrInvalidOrder                 = errors.New("invalid order")
+	ErrCartNotFound                 = errors.New("cart not found")
+	ErrItemNotFound                 = errors.New("cart item not found")
+	ErrOrderNotFound                = errors.New("order not found")
+	ErrOutOfStock                   = errors.New("not enough stock available")
+	ErrVersionConflict              = errors.New("record was changed by someone else")
+	ErrRepositoryRequired           = errors.New("commerce repository is required")
+	ErrNoPaymentCharge              = errors.New("no payment is recorded for this order")
+	ErrOrderNotRefundable           = errors.New("only a paid order can be refunded")
+	ErrRefundAlreadyInProgress      = fmt.Errorf("%w: refund is already in progress or completed", ErrOrderNotRefundable)
+	ErrOrderShippedRequiresApproval = errors.New("order is already shipped or delivered; refund requires explicit approval")
 )
 
 // PaymentStatus and FulfillmentStatus are plain Go enums with guarded
@@ -34,10 +39,11 @@ var (
 type PaymentStatus string
 
 const (
-	PaymentPending  PaymentStatus = "pending"
-	PaymentPaid     PaymentStatus = "paid"
-	PaymentFailed   PaymentStatus = "failed"
-	PaymentRefunded PaymentStatus = "refunded"
+	PaymentPending       PaymentStatus = "pending"
+	PaymentPaid          PaymentStatus = "paid"
+	PaymentFailed        PaymentStatus = "failed"
+	PaymentRefundPending PaymentStatus = "refund_pending"
+	PaymentRefunded      PaymentStatus = "refunded"
 )
 
 type FulfillmentStatus string
@@ -171,6 +177,20 @@ type PaymentCharge struct {
 	Status            PaymentStatus `json:"status"`
 	CreatedAt         time.Time     `json:"created_at"`
 	UpdatedAt         time.Time     `json:"updated_at"`
+}
+
+// RefundRequired records a payment that requires manual refund intervention by an operator,
+// such as a late payment on an expired/failed order, or amount/currency mismatch.
+type RefundRequired struct {
+	ID           string     `json:"id"`
+	OrderID      string     `json:"order_id"`
+	Provider     string     `json:"provider"`
+	AmountCents  int64      `json:"amount_cents"`
+	Currency     string     `json:"currency"`
+	Reason       string     `json:"reason"`
+	CreatedAt    time.Time  `json:"created_at"`
+	ResolvedAt   *time.Time `json:"resolved_at,omitempty"`
+	ResolvedNote string     `json:"resolved_note,omitempty"`
 }
 
 // ValidateCart checks a cart is well-formed before it is persisted.

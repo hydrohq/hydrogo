@@ -7,6 +7,12 @@ http:
   # GO_ENV=production: without it, cookies never get Secure, HSTS stays
   # off, and CSRF has nothing to compare the request origin against.
   public_origin: ""
+  # Optional public website / frontend URL (e.g. "http://localhost:3000" in dev
+  # or "https://www.example.com" in prod). The admin panel "Live" button opens
+  # this address in a new tab. If left empty, it defaults to public_origin.
+  # If both are empty, the "Live" button is hidden.
+  # Can also be set via HYDRO_SITE_URL environment variable.
+  site_url: ""
   # Set when running behind a reverse proxy (Caddy, nginx, a load
   # balancer) so rate limits, login attempt counters and IP bans key on
   # the real client address instead of the proxy's. Empty here with
@@ -16,6 +22,11 @@ http:
   # ban on an abusive client bans the whole site instead.
   behind_proxy: false
   trusted_proxies: []
+  # trust_cf_connecting_ip yalnızca trafiğin Cloudflare üzerinden geldiği ve
+  # yönlendirici proxy'nin (Caddy/nginx) Cloudflare dışı kaynaklardaki
+  # CF-Connecting-IP başlığını sildiği/yok saydığı kurulumlarda açılmalı;
+  # aksi halde IP sahteciliği mümkündür.
+  trust_cf_connecting_ip: false
 # Optional: serve several customers/sites from one shared database instead
 # of one deployment per customer. See docs/multi-tenancy.md. Disabled (the
 # default) means every row's tenant discriminator is empty and this whole
@@ -122,6 +133,8 @@ commerce:
     # operator-maintained rate below, never live FX.
     display: []
     rates: {}
+  # Max open pending orders per IP within a 30-minute window before HTTP 429 (default: 5)
+  max_pending_orders_per_ip: 5
 # Optional `shipping` module (add `shipping` to modules: next to `commerce`):
 # the carriers the admin Orders screen can hand a paid order to.
 carriers:
@@ -150,7 +163,10 @@ carriers:
     tracking_url_template: ""   # public tracking page with {tracking_number}
 # Optional `payments` module (add `payments` to modules: next to `commerce`).
 # Each method turns on by its own key; secrets belong only in an untracked
-# copy of this file. The shopper picks one with `payment_method` on checkout.
+# copy of this file. In production (HYDRO_ENV/APP_ENV/GO_ENV=production),
+# startup halts if required secrets (HYDRO_JWT_SECRET, RECOVER_SECRET, webhook
+# secrets, and enabled payment secrets) are empty or set to CHANGE_ME.
+# In development, startup proceeds with a logged warning.
 payments:
   default: ""            # paytr | iyzico | havale; first configured if empty
   paytr:

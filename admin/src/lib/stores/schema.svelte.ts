@@ -26,6 +26,14 @@ class SchemaState {
     return this.schema?.locales?.default || 'en';
   }
 
+  get platform(): boolean {
+    return Boolean(this.schema?.platform);
+  }
+
+  get siteUrl(): string {
+    return this.schema?.site_url || '';
+  }
+
   getCollection(id: string): Collection | undefined {
     return this.resources.find(r => r.id === id);
   }

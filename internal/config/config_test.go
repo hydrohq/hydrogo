@@ -210,6 +210,54 @@ func TestAutoTLSRequiresDomainAndRejectsReverseProxy(t *testing.T) {
 	}
 }
 
+func TestTrustCFConnectingIPRequiresBehindProxy(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", TrustCFConnectingIP: true, BehindProxy: false}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "trust_cf_connecting_ip") {
+		t.Fatalf("trust_cf_connecting_ip without behind_proxy accepted: err=%v", err)
+	}
+	cfg.HTTP = HTTP{Address: "127.0.0.1:8080", TrustCFConnectingIP: true, BehindProxy: true}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("trust_cf_connecting_ip with behind_proxy rejected: %v", err)
+	}
+}
+
+func TestTrustCFConnectingIPEnvOverride(t *testing.T) {
+	path := writeConfig(t, "http:\n  behind_proxy: true\n")
+	cfg, err := Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_HTTP_TRUST_CF_CONNECTING_IP": "true",
+	}), Overrides{})
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if !cfg.HTTP.TrustCFConnectingIP {
+		t.Fatal("expected TrustCFConnectingIP to be true from env")
+	}
+
+	cfg, err = Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_HTTP_TRUST_CF_CONNECTING_IP": "false",
+	}), Overrides{})
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.HTTP.TrustCFConnectingIP {
+		t.Fatal("expected TrustCFConnectingIP to be false from env")
+	}
+
+	_, err = Load(path, lookup(map[string]string{
+		"HYDRO_DATABASE_DSN":                "file:test.sqlite",
+		"HYDRO_HTTP_TRUST_CF_CONNECTING_IP": "invalid-bool",
+	}), Overrides{})
+	if err == nil || !strings.Contains(err.Error(), "HYDRO_HTTP_TRUST_CF_CONNECTING_IP") {
+		t.Fatalf("expected invalid bool error, got: %v", err)
+	}
+}
+
 func TestNoCookieAnalyticsRequiresExplicitEnablementAndSharedKey(t *testing.T) {
 	if cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:analytics-disabled.sqlite"}), Overrides{}); err != nil || cfg.Analytics.NoCookieEnabled {
 		t.Fatalf("default analytics config=%+v err=%v", cfg.Analytics, err)
@@ -622,6 +670,62 @@ func TestLoadHookSchedulesNeedValidCronExpressions(t *testing.T) {
 	for _, bad := range []string{"      - {name: nightly, cron: \"61 2 * * *\"}\n", "      - {name: Bad Name, cron: \"0 2 * * *\"}\n", "      - {name: a, cron: \"0 2 * * *\"}\n      - {name: a, cron: \"0 3 * * *\"}\n"} {
 		if _, err := Load(writeConfig(t, head+bad), lookup(env), Overrides{}); err == nil {
 			t.Fatalf("accepted: %s", bad)
+		}
+	}
+}
+
+func TestSiteURLConfigAndValidation(t *testing.T) {
+	// From YAML
+	body := "http:\n  site_url: \"http://localhost:3000\"\n"
+	env := map[string]string{"HYDRO_DATABASE_DSN": "file:test.sqlite"}
+	cfg, err := Load(writeConfig(t, body), lookup(env), Overrides{})
+	if err != nil {
+		t.Fatalf("unexpected error loading site_url: %v", err)
+	}
+	if cfg.HTTP.SiteURL != "http://localhost:3000" {
+		t.Fatalf("expected site_url http://localhost:3000, got %q", cfg.HTTP.SiteURL)
+	}
+
+	// From ENV
+	envWithURL := map[string]string{
+		"HYDRO_DATABASE_DSN": "file:test.sqlite",
+		"HYDRO_SITE_URL":     "https://frontend.example.com",
+	}
+	cfgEnv, err := Load("", lookup(envWithURL), Overrides{})
+	if err != nil {
+		t.Fatalf("unexpected error loading HYDRO_SITE_URL: %v", err)
+	}
+	if cfgEnv.HTTP.SiteURL != "https://frontend.example.com" {
+		t.Fatalf("expected site_url https://frontend.example.com, got %q", cfgEnv.HTTP.SiteURL)
+	}
+
+	// Validation: valid URLs
+	for _, valid := range []string{
+		"http://localhost:3000",
+		"https://example.com",
+		"http://127.0.0.1:8080/path",
+		"https://sub.domain.com:8443/app",
+	} {
+		cfgValid := cfg
+		cfgValid.HTTP.SiteURL = valid
+		if err := cfgValid.Validate(); err != nil {
+			t.Errorf("expected valid site URL %q to pass validation, got: %v", valid, err)
+		}
+	}
+
+	// Validation: invalid URLs
+	for _, invalid := range []string{
+		"localhost:3000",
+		"/just/a/path",
+		"ftp://example.com",
+		"javascript:alert(1)",
+		"http://",
+		"http:///bad",
+	} {
+		cfgInvalid := cfg
+		cfgInvalid.HTTP.SiteURL = invalid
+		if err := cfgInvalid.Validate(); err == nil {
+			t.Errorf("expected invalid site URL %q to fail validation, but it passed", invalid)
 		}
 	}
 }

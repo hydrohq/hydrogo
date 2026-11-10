@@ -18,7 +18,7 @@ ExecStart=/usr/local/bin/hydro serve --config config.yaml
 Restart=on-failure
 ```
 
-4. Put Caddy or nginx in front for TLS: see [`deploy/caddy`](../deploy/caddy) and [`deploy/nginx`](../deploy/nginx).
+4. Put Caddy or nginx in front for TLS: see [`deploy/caddy`](../deploy/caddy) and [`deploy/nginx`](../deploy/nginx). When running behind a reverse proxy or CDN, set `http.behind_proxy: true` and list the proxy ranges in `http.trusted_proxies`. `http.trust_cf_connecting_ip` yalnızca trafiğin Cloudflare üzerinden geldiği ve yönlendirici proxy'nin (Caddy/nginx) Cloudflare dışı kaynaklardaki CF-Connecting-IP başlığını sildiği/yok saydığı kurulumlarda açılmalı; aksi halde IP sahteciliği mümkündür.
 
 ## Docker
 
@@ -29,6 +29,22 @@ Building the image yourself needs BuildKit (`docker buildx`, included in current
 Order matters on a new database: `hydro migrate`, then `hydro create-admin` (and, for staff who are not administrators, `hydro create-user --email ... --role viewer --permissions a,b --password-stdin`), then `hydro serve`. With Docker that is `docker compose run --rm -T hydrogo migrate --config /app/config.yaml` before `up`. `serve` refuses an unmigrated database and says so.
 
 Set `HYDRO_PUBLIC_ORIGIN` (or `http.public_origin`) to the address people use. HydroGo answers `421` to any other `Host` header, and the message names the host it expects; a service in the same Docker network that calls `http://hydrogo:8080` must send the public host in its `Host` header.
+
+Set `HYDRO_SITE_URL` (or `http.site_url`) to the external frontend/website URL (e.g. `http://localhost:3000` during local development or `https://www.example.com` in production). The admin panel's "Live" link in the top bar uses this target. If omitted, it falls back to `http.public_origin`; if neither is configured, the button is hidden.
+
+## Production Secret Validation
+
+When running in production (`HYDRO_ENV=production`, `APP_ENV=production`, or `GO_ENV=production`), HydroGo enforces strict security validation on startup. The process will refuse to start with an explicit error if any critical secret is empty or set to placeholder values (`CHANGE_ME`):
+
+- `HYDRO_JWT_SECRET`: signing key for JWT tokens (must be at least 32 characters).
+- `RECOVER_SECRET` (or `HYDRO_RECOVER_SECRET`): salt/secret for password recovery tokens.
+- Webhook secrets: `secret` fields declared under `webhooks` or `HYDRO_WEBHOOK_SECRET`.
+- Enabled payment gateway secrets:
+  - PayTR: `payments.paytr.merchant_key` and `merchant_salt`.
+  - İyzico: `payments.iyzico.api_key` and `secret_key`.
+  - Shopier: `SHOPIER_API_KEY` and `SHOPIER_API_SECRET`.
+
+In non-production environments (development/testing), HydroGo starts normally while logging actionable warnings.
 
 ## Invitations and password resets
 
@@ -62,6 +78,13 @@ On PostgreSQL the audit tables use forced row-level security, so the application
 ## Frontend
 
 Deploy your frontend separately and point it at the API. The SvelteKit starter runs as a Node server (`npm run build && npm start`) next to HydroGo.
+
+## Shipping and Carrier Management
+
+HydroGo supports both manual and provider-driven shipping fulfillment:
+
+- **Yurtiçi Kargo Integration (`modules/shipping/yurtici`)**: The integration uses `order.ID` as the cargo and invoice key (`CargoKey`/`InvoiceKey`) and returns `order.ID` as the default `TrackingNumber`. There is no automated barcode or shipping label generation in this integration; tracking queries reference the `order.ID`.
+- **Manual Carrier Selection (`manual`)**: In production deployments where physical branches generate barcodes or shipping labels at dispatch, operators select the manual carrier option and input the tracking number and tracking URL manually either via the embedded admin panel or via `POST /api/v1/admin/commerce/orders/{id}/shipment`.
 
 ## Tamper-evident audit log
 
