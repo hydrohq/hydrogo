@@ -16,7 +16,7 @@ type BackfillReport struct {
 	TotalRows      int64            `json:"total_rows"`
 }
 
-// BackfillTables lists all 37 tenant-scoped database tables.
+// BackfillTables lists all 39 tenant-scoped database tables.
 var BackfillTables = []string{
 	"pages",
 	"page_revisions",
@@ -47,6 +47,8 @@ var BackfillTables = []string{
 	"commerce_customer_order_items",
 	"commerce_payment_charges",
 	"commerce_payment_notifications",
+	"refund_required",
+	"customer_sms_dedup",
 	"hydro_forms",
 	"hydro_collections",
 	"hydro_collection_records",

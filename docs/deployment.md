@@ -63,6 +63,13 @@ On PostgreSQL the audit tables use forced row-level security, so the application
 
 Deploy your frontend separately and point it at the API. The SvelteKit starter runs as a Node server (`npm run build && npm start`) next to HydroGo.
 
+## Shipping and Carrier Management
+
+HydroGo supports both manual and provider-driven shipping fulfillment:
+
+- **Yurtiçi Kargo Integration (`modules/shipping/yurtici`)**: The integration uses `order.ID` as the cargo and invoice key (`CargoKey`/`InvoiceKey`) and returns `order.ID` as the default `TrackingNumber`. There is no automated barcode or shipping label generation in this integration; tracking queries reference the `order.ID`.
+- **Manual Carrier Selection (`manual`)**: In production deployments where physical branches generate barcodes or shipping labels at dispatch, operators select the manual carrier option and input the tracking number and tracking URL manually either via the embedded admin panel or via `POST /api/v1/admin/commerce/orders/{id}/shipment`.
+
 ## Tamper-evident audit log
 
 Audit events are already immutable in the database (triggers reject updates

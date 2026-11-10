@@ -1,0 +1,29 @@
+id: "202611100001_commerce_refund_required"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "972d184e5c21bc35a941fe9eb052d95185b08497dce6eb7e56b3cd8dcdfec97f"
+  postgres: "c1bc5065505f55d160da70336dd5680f5e95d454171786f8b000ecec5a5ef53b"
+  mysql: "646a181566832d126d95a31f1f15e62dddc664993a64a2d855d9d5e7550b3fc5"
+dependencies:
+  - "202610231303_commerce_payments"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; two small table creations"
+disk_estimate: "Small table for manual refunds and customer SMS deduplication"
+compatibility: "Additive only; no existing table or query affected."
+smoke:
+  - "Repeated callback creates at most one refund_required record"
+  - "Customer SMS dedup key prevents duplicate SMS sends"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "DROP TABLE IF EXISTS customer_sms_dedup; DROP TABLE IF EXISTS refund_required;"

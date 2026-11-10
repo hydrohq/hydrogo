@@ -87,6 +87,37 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 			}
 			if current.PaymentStatus == PaymentFailed {
 				outcome = ErrLatePayment
+				providerPaymentID := payment.ProviderPaymentID
+				if providerPaymentID == "" {
+					providerPaymentID = payment.EventID
+				}
+				chargeID, err := newID("chg_")
+				if err != nil {
+					return err
+				}
+				if err := s.Repository.RecordPaymentCharge(ctx, tx, PaymentCharge{
+					ID:                chargeID,
+					OrderID:           payment.OrderID,
+					Provider:          payment.Provider,
+					ProviderPaymentID: providerPaymentID,
+					AmountCents:       payment.AmountCents,
+					Currency:          current.Currency,
+					Status:            PaymentFailed,
+				}); err != nil {
+					return err
+				}
+				rrqID, err := newID("rrq_")
+				if err == nil {
+					_ = s.Repository.RecordRefundRequired(ctx, tx, RefundRequired{
+						ID:          rrqID,
+						OrderID:     payment.OrderID,
+						Provider:    payment.Provider,
+						AmountCents: payment.AmountCents,
+						Currency:    current.Currency,
+						Reason:      "ErrLatePayment: payment received after order failed or expired",
+						CreatedAt:   time.Now().UTC(),
+					})
+				}
 			}
 			return nil
 		}

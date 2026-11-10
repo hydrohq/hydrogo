@@ -103,6 +103,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true, Permission: PermissionRead},
+		{Pattern: "GET /api/v1/admin/commerce/refunds-required", Handler: http.HandlerFunc(h.listRefundsRequired), Protected: true, Permission: PermissionRead},
+		{Pattern: "POST /api/v1/admin/commerce/refunds-required/{id}/resolve", Handler: http.HandlerFunc(h.resolveRefundRequired), Protected: true, Permission: PermissionWrite},
 	}
 }
 
