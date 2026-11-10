@@ -87,8 +87,9 @@ func (e *IPExtractor) isTrusted(ip net.IP) bool {
 	return false
 }
 
-// Extract returns the client address. X-Forwarded-For is walked from the
-// right, skipping trusted proxies; the first untrusted hop is the client.
+// Extract returns the client address. When arriving from a trusted proxy,
+// a valid CF-Connecting-IP takes precedence; next, X-Forwarded-For is walked
+// from the right skipping trusted proxies; next, X-Real-IP is checked.
 // A request from an untrusted peer is taken at face value: its headers are
 // ignored.
 func (e *IPExtractor) Extract(r *http.Request) string {
@@ -99,6 +100,14 @@ func (e *IPExtractor) Extract(r *http.Request) string {
 	directIP := net.ParseIP(direct)
 	if e == nil || directIP == nil || !e.isTrusted(directIP) {
 		return direct
+	}
+	if cfVals := r.Header.Values("CF-Connecting-IP"); len(cfVals) == 1 {
+		cf := strings.TrimSpace(cfVals[0])
+		if !strings.Contains(cf, ",") {
+			if ip := net.ParseIP(cf); ip != nil {
+				return ip.String()
+			}
+		}
 	}
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		hops := strings.Split(xff, ",")

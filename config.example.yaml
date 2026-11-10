@@ -14,6 +14,7 @@ http:
   # list the proxy's own address/CIDR for anything else. Without this,
   # every caller behind the proxy shares one rate-limit bucket and an IP
   # ban on an abusive client bans the whole site instead.
+  # CF-Connecting-IP, yalnızca güvenilen proxy'den geliyorsa kullanılır.
   behind_proxy: false
   trusted_proxies: []
 # Optional: serve several customers/sites from one shared database instead
