@@ -14,9 +14,13 @@ http:
   # list the proxy's own address/CIDR for anything else. Without this,
   # every caller behind the proxy shares one rate-limit bucket and an IP
   # ban on an abusive client bans the whole site instead.
-  # CF-Connecting-IP, yalnızca güvenilen proxy'den geliyorsa kullanılır.
   behind_proxy: false
   trusted_proxies: []
+  # trust_cf_connecting_ip yalnızca trafiğin Cloudflare üzerinden geldiği ve
+  # yönlendirici proxy'nin (Caddy/nginx) Cloudflare dışı kaynaklardaki
+  # CF-Connecting-IP başlığını sildiği/yok saydığı kurulumlarda açılmalı;
+  # aksi halde IP sahteciliği mümkündür.
+  trust_cf_connecting_ip: false
 # Optional: serve several customers/sites from one shared database instead
 # of one deployment per customer. See docs/multi-tenancy.md. Disabled (the
 # default) means every row's tenant discriminator is empty and this whole

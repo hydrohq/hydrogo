@@ -165,7 +165,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		}
 		a.onClose(func() error { panicReporter.Close(); return nil })
 	}
-	clientIP, err := requestmeta.NewIPExtractor(cfg.HTTP.BehindProxy, cfg.HTTP.TrustedProxies)
+	clientIP, err := requestmeta.NewIPExtractor(cfg.HTTP.BehindProxy, cfg.HTTP.TrustedProxies, cfg.HTTP.TrustCFConnectingIP)
 	if err != nil {
 		return server.Config{}, err
 	}

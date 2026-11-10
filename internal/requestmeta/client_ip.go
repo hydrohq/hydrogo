@@ -37,7 +37,8 @@ func peerIP(r *http.Request) string {
 // IPExtractor resolves the client address from forwarding headers, but only
 // when the request arrived from a trusted proxy.
 type IPExtractor struct {
-	TrustedCIDRs []*net.IPNet
+	TrustedCIDRs        []*net.IPNet
+	TrustCFConnectingIP bool
 }
 
 // loopbackProxies is the default trust set for behind_proxy without an
@@ -49,8 +50,12 @@ var loopbackProxies = []string{"127.0.0.0/8", "::1/128"}
 // With behindProxy true and no list, only a proxy on the same host
 // (loopback) is trusted -- never "every peer", which would let any direct
 // client choose its own address with X-Forwarded-For.
-func NewIPExtractor(behindProxy bool, trustedCIDRs []string) (*IPExtractor, error) {
-	ext := &IPExtractor{}
+// When trustCFConnectingIP is true, CF-Connecting-IP is accepted from trusted
+// proxies.
+func NewIPExtractor(behindProxy bool, trustedCIDRs []string, trustCFConnectingIP bool) (*IPExtractor, error) {
+	ext := &IPExtractor{
+		TrustCFConnectingIP: trustCFConnectingIP,
+	}
 	if len(trustedCIDRs) == 0 {
 		if !behindProxy {
 			return ext, nil
@@ -87,11 +92,12 @@ func (e *IPExtractor) isTrusted(ip net.IP) bool {
 	return false
 }
 
-// Extract returns the client address. When arriving from a trusted proxy,
-// a valid CF-Connecting-IP takes precedence; next, X-Forwarded-For is walked
-// from the right skipping trusted proxies; next, X-Real-IP is checked.
-// A request from an untrusted peer is taken at face value: its headers are
-// ignored.
+// Extract returns the client address. When arriving from a trusted proxy and
+// TrustCFConnectingIP is enabled, a valid CF-Connecting-IP takes precedence;
+// next, X-Forwarded-For is walked from the right skipping trusted proxies;
+// next, X-Real-IP is checked. When TrustCFConnectingIP is disabled,
+// CF-Connecting-IP is ignored completely. A request from an untrusted peer
+// is taken at face value: its headers are ignored.
 func (e *IPExtractor) Extract(r *http.Request) string {
 	if r == nil {
 		return ""
@@ -101,11 +107,13 @@ func (e *IPExtractor) Extract(r *http.Request) string {
 	if e == nil || directIP == nil || !e.isTrusted(directIP) {
 		return direct
 	}
-	if cfVals := r.Header.Values("CF-Connecting-IP"); len(cfVals) == 1 {
-		cf := strings.TrimSpace(cfVals[0])
-		if !strings.Contains(cf, ",") {
-			if ip := net.ParseIP(cf); ip != nil {
-				return ip.String()
+	if e.TrustCFConnectingIP {
+		if cfVals := r.Header.Values("CF-Connecting-IP"); len(cfVals) == 1 {
+			cf := strings.TrimSpace(cfVals[0])
+			if !strings.Contains(cf, ",") {
+				if ip := net.ParseIP(cf); ip != nil {
+					return ip.String()
+				}
 			}
 		}
 	}
