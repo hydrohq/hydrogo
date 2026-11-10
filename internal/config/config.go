@@ -206,6 +206,7 @@ type HookSchedule struct {
 type HTTP struct {
 	Address      string `yaml:"address"`
 	PublicOrigin string `yaml:"public_origin"`
+	SiteURL      string `yaml:"site_url"`
 	AutoTLS      bool   `yaml:"auto_tls"`
 	Domain       string `yaml:"domain"`
 	BehindProxy  bool   `yaml:"behind_proxy"`

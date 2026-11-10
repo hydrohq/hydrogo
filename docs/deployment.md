@@ -30,6 +30,8 @@ Order matters on a new database: `hydro migrate`, then `hydro create-admin` (and
 
 Set `HYDRO_PUBLIC_ORIGIN` (or `http.public_origin`) to the address people use. HydroGo answers `421` to any other `Host` header, and the message names the host it expects; a service in the same Docker network that calls `http://hydrogo:8080` must send the public host in its `Host` header.
 
+Set `HYDRO_SITE_URL` (or `http.site_url`) to the external frontend/website URL (e.g. `http://localhost:3000` during local development or `https://www.example.com` in production). The admin panel's "Live" link in the top bar uses this target. If omitted, it falls back to `http.public_origin`; if neither is configured, the button is hidden.
+
 ## Production Secret Validation
 
 When running in production (`HYDRO_ENV=production`, `APP_ENV=production`, or `GO_ENV=production`), HydroGo enforces strict security validation on startup. The process will refuse to start with an explicit error if any critical secret is empty or set to placeholder values (`CHANGE_ME`):

@@ -37,12 +37,6 @@ func (a *serveApp) adminRoutes() []router.Route {
 	}
 	routes := []router.Route{
 		protected("GET /api/v1/admin/tenant/usage", a.adminTenantUsageHandler),
-		protected("GET /api/v1/admin/orchestrator/tenants", a.adminOrchestratorListHandler),
-		protected("POST /api/v1/admin/orchestrator/tenants", a.adminOrchestratorProvisionHandler),
-		protected("GET /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorGetHandler),
-		protected("PATCH /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorUpdateHandler),
-		protected("POST /api/v1/admin/orchestrator/tenants/{id}/impersonate", a.adminOrchestratorImpersonateHandler),
-		protected("POST /api/v1/admin/orchestrator/tenants/{id}/archive", a.adminOrchestratorArchiveHandler),
 		protected("POST /api/v1/admin/ai/copilot", a.rateLimitedAI("copilot", 20, time.Minute, a.adminAICopilotHandler)),
 		protected("POST /api/v1/admin/ai/generate", a.rateLimitedAI("sitegen", 10, time.Minute, a.adminAIGenerateSiteHandler)),
 		protected("GET /api/v1/admin/ai/actions", a.adminAIActionsListHandler),
@@ -75,6 +69,16 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("POST /api/v1/admin/jobs/dead-letters/{id}/requeue", a.adminJobDeadLetterRequeueHandler),
 		protected("DELETE /api/v1/admin/jobs/dead-letters/{id}", a.adminJobDeadLetterDeleteHandler),
 	}
+	if a.isPlatformMode() {
+		routes = append(routes,
+			protected("GET /api/v1/admin/orchestrator/tenants", a.adminOrchestratorListHandler),
+			protected("POST /api/v1/admin/orchestrator/tenants", a.adminOrchestratorProvisionHandler),
+			protected("GET /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorGetHandler),
+			protected("PATCH /api/v1/admin/orchestrator/tenants/{id}", a.adminOrchestratorUpdateHandler),
+			protected("POST /api/v1/admin/orchestrator/tenants/{id}/impersonate", a.adminOrchestratorImpersonateHandler),
+			protected("POST /api/v1/admin/orchestrator/tenants/{id}/archive", a.adminOrchestratorArchiveHandler),
+		)
+	}
 	if len(a.cfg.Hooks) > 0 {
 		routes = append(routes, protected("GET /api/v1/admin/system/services", a.adminServicesHandler))
 	}
@@ -101,6 +105,8 @@ type adminSchema struct {
 	Locales      adminSchemaLocales       `json:"locales"`
 	Permissions  []string                 `json:"permissions"`
 	Branding     adminBranding            `json:"branding"`
+	Platform     bool                     `json:"platform"`
+	SiteURL      string                   `json:"site_url"`
 }
 
 // adminBranding is the name, logo and accent colour an administrator set in
@@ -202,6 +208,8 @@ func (a *serveApp) buildAdminSchemaForTypes(defs []contenttypes.Definition) admi
 		Modules:      make(map[string]bool, len(a.modules)),
 		Locales:      adminSchemaLocales{Enabled: localized, Default: a.contentLocales.Default, All: append([]string{}, a.contentLocales.All...)},
 		Permissions:  a.authSvc.AvailablePermissions(),
+		Platform:     a.isPlatformMode(),
+		SiteURL:      a.resolvedSiteURL(),
 	}
 	for _, definition := range defs {
 		schema.ContentTypes = append(schema.ContentTypes, adminSchemaContentType{

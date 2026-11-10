@@ -7,6 +7,12 @@ http:
   # GO_ENV=production: without it, cookies never get Secure, HSTS stays
   # off, and CSRF has nothing to compare the request origin against.
   public_origin: ""
+  # Optional public website / frontend URL (e.g. "http://localhost:3000" in dev
+  # or "https://www.example.com" in prod). The admin panel "Live" button opens
+  # this address in a new tab. If left empty, it defaults to public_origin.
+  # If both are empty, the "Live" button is hidden.
+  # Can also be set via HYDRO_SITE_URL environment variable.
+  site_url: ""
   # Set when running behind a reverse proxy (Caddy, nginx, a load
   # balancer) so rate limits, login attempt counters and IP bans key on
   # the real client address instead of the proxy's. Empty here with
