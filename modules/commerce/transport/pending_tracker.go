@@ -15,6 +15,13 @@ const (
 	pendingTrackerSweepInterval = time.Minute
 )
 
+type checkStatus uint8
+
+const (
+	pending checkStatus = iota
+	notPending
+)
+
 // PendingOrderTracker limits open pending orders per client IP to prevent
 // checkout abandonment attacks. The mutex only guards the in-memory map;
 // it is never held across database reads.
@@ -77,14 +84,32 @@ func (t *PendingOrderTracker) CountPending(ctx context.Context, ip string, svc c
 		return 0
 	}
 
-	activeOrders := make(map[string]bool, len(entries))
+	checked := make(map[string]checkStatus, len(entries))
 	for _, e := range entries {
+		resKey := e.reservation
+		if resKey == "" {
+			resKey = e.orderID
+		}
+		if resKey == "" {
+			continue
+		}
 		if e.orderID == "" {
+			checked[resKey] = pending
+			continue
+		}
+		if ctx != nil && ctx.Err() != nil {
+			checked[resKey] = pending
 			continue
 		}
 		order, err := svc.Order(ctx, e.orderID)
-		if err == nil && order.PaymentStatus == commerce.PaymentPending {
-			activeOrders[e.orderID] = true
+		if err != nil {
+			checked[resKey] = pending
+			continue
+		}
+		if order.PaymentStatus == commerce.PaymentPending {
+			checked[resKey] = pending
+		} else {
+			checked[resKey] = notPending
 		}
 	}
 
@@ -93,9 +118,15 @@ func (t *PendingOrderTracker) CountPending(ctx context.Context, ip string, svc c
 	current := t.orders[ip]
 	merged := make([]pendingOrderEntry, 0, len(current))
 	for _, e := range current {
-		if e.orderID == "" || activeOrders[e.orderID] {
-			merged = append(merged, e)
+		resKey := e.reservation
+		if resKey == "" {
+			resKey = e.orderID
 		}
+		status, wasChecked := checked[resKey]
+		if wasChecked && status == notPending {
+			continue
+		}
+		merged = append(merged, e)
 	}
 	if len(merged) == 0 {
 		delete(t.orders, ip)
@@ -171,5 +202,5 @@ func (t *PendingOrderTracker) Record(ip, orderID string, createdAt time.Time) {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.orders[ip] = append(t.orders[ip], pendingOrderEntry{orderID: orderID, createdAt: createdAt})
+	t.orders[ip] = append(t.orders[ip], pendingOrderEntry{reservation: orderID, orderID: orderID, createdAt: createdAt})
 }
