@@ -3,6 +3,7 @@ package contract
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -21,24 +22,35 @@ func TestPostgresModuleFilteringLeavesInactiveModuleSchemaAbsent(t *testing.T) {
 		t.Skip("HYDRO_TEST_POSTGRES_URL is not set")
 	}
 	ctx := context.Background()
-	db, err := database.OpenWithOptions(ctx, database.Postgres, dsn, database.OpenOptions{MaxOpenConns: 1, MaxIdleConns: 1})
+	admin, err := database.Open(ctx, database.Postgres, dsn)
 	if err != nil {
 		t.Fatalf("open postgres: %v", err)
 	}
-	defer db.Close()
+	defer admin.Close()
 
 	schema := fmt.Sprintf("hydro_module_contract_%d", time.Now().UnixNano())
-	if _, err := db.ExecContext(ctx, `CREATE SCHEMA "`+schema+`"`); err != nil {
+	if _, err := admin.ExecContext(ctx, `CREATE SCHEMA "`+schema+`"`); err != nil {
 		t.Fatalf("create isolated schema: %v", err)
 	}
 	defer func() {
-		if _, err := db.ExecContext(ctx, `DROP SCHEMA "`+schema+`" CASCADE`); err != nil {
+		if _, err := admin.ExecContext(context.Background(), `DROP SCHEMA "`+schema+`" CASCADE`); err != nil {
 			t.Errorf("drop isolated schema: %v", err)
 		}
 	}()
-	if _, err := db.ExecContext(ctx, `SET search_path TO "`+schema+`"`); err != nil {
-		t.Fatalf("set isolated search path: %v", err)
+
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
 	}
+	query := parsed.Query()
+	query.Set("options", "-csearch_path="+schema)
+	parsed.RawQuery = query.Encode()
+
+	db, err := database.OpenWithOptions(ctx, database.Postgres, parsed.String(), database.OpenOptions{MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatalf("open isolated db: %v", err)
+	}
+	defer db.Close()
 
 	enabled := map[string]bool{"pages": true, "media": true}
 	if err := database.ApplyMigrationsForModules(ctx, db, database.Postgres, migrations.FS, enabled); err != nil {

@@ -37,6 +37,27 @@ func (s Store) RecordRefundRequired(ctx context.Context, db database.Executor, i
 }
 
 // ListRefundRequired returns recorded refund requirements, optionally filtering for unresolved items.
+func (s Store) CountUnresolvedRefundRequired(ctx context.Context, db database.Executor) (int, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return 0, err
+	}
+	tenantID, err := s.tenantID(ctx)
+	if err != nil {
+		return 0, err
+	}
+	query := `SELECT COUNT(*) FROM refund_required WHERE resolved_at IS NULL`
+	var args []any
+	if s.RequireTenantScope {
+		query += ` AND tenant_id = ` + s.p(1)
+		args = append(args, tenantID)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (s Store) ListRefundRequired(ctx context.Context, db database.Executor, unresolvedOnly bool, limit, offset int) ([]commerce.RefundRequired, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err

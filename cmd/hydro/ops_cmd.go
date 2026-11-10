@@ -210,6 +210,9 @@ func validateCommand(args []string, stdout, stderr io.Writer) error {
 	if err := validateProductionOrigin(cfg); err != nil {
 		return err
 	}
+	if err := validateSecrets(cfg, os.LookupEnv, isProductionEnvironment(), nil); err != nil {
+		return err
+	}
 	if *jsonOutput {
 		payload, err := json.Marshal(struct {
 			Valid        bool     `json:"valid"`

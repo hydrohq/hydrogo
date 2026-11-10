@@ -1,5 +1,7 @@
 id: "202611080001_saas_billing_subscription"
 module: "core"
+requires_modules:
+  - "auth"
 class:
   sqlite: "expand"
   postgres: "expand"
@@ -14,6 +16,7 @@ checksum_sha256:
   mysql: "878737337bf37537c6d442459d77586936ba74db09ef85512c6620f8c70afed9"
 dependencies:
   - "202611020002_postgres_rls_fail_closed"
+  - "202609200002_auth_security_tenant_scope"
 schema:
   readable_epoch: 11
   writable_epoch: 11

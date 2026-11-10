@@ -95,7 +95,17 @@ func (a *serveApp) commerceNotifier() notify.Sender {
 	if !cfg.Enabled() {
 		return nil
 	}
-	return notify.Telegram{BotToken: cfg.BotToken, ChatID: cfg.ChatID}
+	telegramSender := notify.Telegram{BotToken: cfg.BotToken, ChatID: cfg.ChatID}
+	outboxStore := notify.OutboxStore{
+		Dialect:            a.cfg.Database.Dialect,
+		RequireTenantScope: a.requireTenantScope,
+	}
+	return notify.OutboxSender{
+		Store:    outboxStore,
+		DB:       a.db,
+		Channel:  "telegram",
+		Fallback: telegramSender,
+	}
 }
 
 // commerceService builds the commerce module's service, independent of the
@@ -125,14 +135,16 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		return nil
 	}
 	handler := commercetransport.Handler{
-		Service:           a.commerceService(),
-		Secure:            a.cfg.Security.SecureCookies,
-		CartLimiter:       a.newRateLimiter(60, time.Minute), // generous for normal browsing, still bounded
-		CheckoutLimiter:   a.newRateLimiter(10, time.Minute),
-		DefaultCurrency:   a.cfg.Commerce.Currencies.Default,
-		DisplayCurrencies: a.cfg.Commerce.Currencies.Display,
-		CurrencyRates:     a.cfg.Commerce.Currencies.Rates,
-		Notifier:          a.commerceNotifier(),
+		Service:               a.commerceService(),
+		Secure:                a.cfg.Security.SecureCookies,
+		CartLimiter:           a.newRateLimiter(60, time.Minute), // generous for normal browsing, still bounded
+		CheckoutLimiter:       a.newRateLimiter(10, time.Minute),
+		PendingTracker:        commercetransport.NewPendingOrderTracker(),
+		MaxPendingOrdersPerIP: a.cfg.Commerce.MaxPendingOrdersPerIP,
+		DefaultCurrency:       a.cfg.Commerce.Currencies.Default,
+		DisplayCurrencies:     a.cfg.Commerce.Currencies.Display,
+		CurrencyRates:         a.cfg.Commerce.Currencies.Rates,
+		Notifier:              a.commerceNotifier(),
 	}
 	if a.smtpSender != nil {
 		handler.Mailer = mailer.NotificationSender{Sender: a.smtpSender}
@@ -239,6 +251,35 @@ func runCommerceReconciliationAlert(ctx context.Context, service commerce.Servic
 						len(report.StalePendingOrders), len(report.NotifiedButNotPaid), len(report.ReservationDrift)),
 				})
 			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// runCommerceRefundReminder periodically checks for unresolved refund_required
+// records and alerts the operator through notifier (which routes via the outbox).
+func runCommerceRefundReminder(ctx context.Context, service commerce.Service, notifier notify.Sender, logger *slog.Logger, stderr io.Writer) {
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	worker := commerce.RefundReminderWorker{
+		Service:  service,
+		Notifier: notifier,
+		Interval: 6 * time.Hour,
+	}
+	for {
+		count, err := worker.RemindDue(ctx)
+		if err != nil && ctx.Err() == nil {
+			if logger != nil {
+				logger.WarnContext(ctx, "commerce refund reminder failed", "error", err)
+			} else {
+				_, _ = fmt.Fprintf(stderr, "hydro commerce refund reminder: %v\n", err)
+			}
+		} else if count > 0 && logger != nil {
+			logger.InfoContext(ctx, "commerce refund reminder sent", "unresolved_count", count)
 		}
 		select {
 		case <-ctx.Done():

@@ -76,9 +76,10 @@ func (t TelegramNotifications) Enabled() bool { return t.BotToken != "" && t.Cha
 // Empty is a valid, fully functional configuration: Checkout and
 // ConfirmPayment work without any external provider configured.
 type Commerce struct {
-	Tax        Tax         `yaml:"tax"`
-	Shipping   ShippingFee `yaml:"shipping"`
-	Currencies Currencies  `yaml:"currencies"`
+	Tax                   Tax         `yaml:"tax"`
+	Shipping              ShippingFee `yaml:"shipping"`
+	Currencies            Currencies  `yaml:"currencies"`
+	MaxPendingOrdersPerIP int         `yaml:"max_pending_orders_per_ip"`
 }
 
 // Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
 	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	"github.com/ardaozyildirim/hydrogo/internal/security"
 	"github.com/ardaozyildirim/hydrogo/modules/commerce"
 )
 
@@ -56,8 +58,19 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusInternalServerError, "could not resolve cart identity", nil)
 		return
 	}
-	if rateLimited(w, h.CheckoutLimiter, "checkout:"+h.clientIP(r)) {
+	ip := h.clientIP(r)
+	if rateLimited(w, h.CheckoutLimiter, "checkout:"+ip) {
 		return
+	}
+	if h.PendingTracker != nil {
+		maxPending := h.MaxPendingOrdersPerIP
+		if maxPending <= 0 {
+			maxPending = 5
+		}
+		if h.PendingTracker.CountPending(r.Context(), ip, h.Service, time.Now().UTC(), 30*time.Minute) >= maxPending {
+			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
+			return
+		}
 	}
 	var input checkoutRequest
 	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
@@ -96,6 +109,9 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if created {
+		if order.PaymentStatus == commerce.PaymentPending && h.PendingTracker != nil {
+			h.PendingTracker.Record(ip, order.ID, time.Now().UTC())
+		}
 		if _, items, itemsErr := h.Service.OrderWithItems(r.Context(), order.ID); itemsErr == nil {
 			h.notifyNewOrder(r.Context(), order, items)
 		}

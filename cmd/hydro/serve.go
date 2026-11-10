@@ -25,6 +25,9 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	if err != nil {
 		return err
 	}
+	if err := validateSecrets(cfg, os.LookupEnv, isProductionEnvironment(), newServeLogger(stderr)); err != nil {
+		return err
+	}
 	tenantResolver, tenantScopes, err := configureTenancy(cfg)
 	if err != nil {
 		return err

@@ -151,6 +151,9 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 		return nil
 	})
 	if err != nil {
+		if database.IsUniqueViolation(err) {
+			return false, nil
+		}
 		return false, err
 	}
 	return applied, outcome
@@ -254,6 +257,17 @@ func (s Service) StartPayment(ctx context.Context, provider PaymentProvider, ord
 		return PaymentStart{}, ErrOrderNotPayable
 	}
 	return provider.StartPayment(ctx, order, items)
+}
+
+// Order reads one order by ID.
+func (s Service) Order(ctx context.Context, orderID string) (Order, error) {
+	var order Order
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		order, err = s.Repository.GetOrder(ctx, tx, orderID)
+		return err
+	})
+	return order, err
 }
 
 // OrderWithItems reads one order and its line items.
