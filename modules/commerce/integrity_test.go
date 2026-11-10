@@ -222,6 +222,55 @@ func TestAPaymentForAnExpiredOrderIsReportedNotSilentlyDropped(t *testing.T) {
 	}
 }
 
+type failingRefundRepo struct {
+	commerce.Repository
+	err error
+}
+
+func (f *failingRefundRepo) RecordRefundRequired(ctx context.Context, db database.Executor, item commerce.RefundRequired) error {
+	if f.err != nil {
+		return f.err
+	}
+	return f.Repository.RecordRefundRequired(ctx, db, item)
+}
+
+func TestConfirmPaymentLatePaymentFailsWhenRecordRefundRequiredFails(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	_, order := placeOne(t, svc, db, "anon-late-fail", "variant-late-fail", 1000, "idem-late-fail")
+	if _, err := svc.ExpireOrder(ctx, order.ID); err != nil {
+		t.Fatal(err)
+	}
+	errRefund := errors.New("simulated refund recording failure")
+	repo := &failingRefundRepo{Repository: svc.Repository, err: errRefund}
+	svc.Repository = repo
+
+	applied, err := svc.ConfirmPayment(ctx, commerce.Payment{
+		Provider:    "mock-provider",
+		EventID:     "evt-late-fail",
+		OrderID:     order.ID,
+		AmountCents: order.TotalCents,
+	})
+	if applied {
+		t.Fatalf("expected applied=false, got true")
+	}
+	if !errors.Is(err, errRefund) {
+		t.Fatalf("expected error %v, got %v", errRefund, err)
+	}
+
+	// Because the transaction rolled back, a retry after recovery succeeds
+	repo.err = nil
+	applied, err = svc.ConfirmPayment(ctx, commerce.Payment{
+		Provider:    "mock-provider",
+		EventID:     "evt-late-fail",
+		OrderID:     order.ID,
+		AmountCents: order.TotalCents,
+	})
+	if applied || !errors.Is(err, commerce.ErrLatePayment) {
+		t.Fatalf("retried late payment after recovery: applied=%v err=%v, want ErrLatePayment", applied, err)
+	}
+}
+
 type failingCarrier struct{ calls int }
 
 func (f *failingCarrier) Name() string { return "test-carrier" }

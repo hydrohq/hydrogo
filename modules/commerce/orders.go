@@ -107,16 +107,19 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 					return err
 				}
 				rrqID, err := newID("rrq_")
-				if err == nil {
-					_ = s.Repository.RecordRefundRequired(ctx, tx, RefundRequired{
-						ID:          rrqID,
-						OrderID:     payment.OrderID,
-						Provider:    payment.Provider,
-						AmountCents: payment.AmountCents,
-						Currency:    current.Currency,
-						Reason:      "ErrLatePayment: payment received after order failed or expired",
-						CreatedAt:   time.Now().UTC(),
-					})
+				if err != nil {
+					return err
+				}
+				if err := s.Repository.RecordRefundRequired(ctx, tx, RefundRequired{
+					ID:          rrqID,
+					OrderID:     payment.OrderID,
+					Provider:    payment.Provider,
+					AmountCents: payment.AmountCents,
+					Currency:    current.Currency,
+					Reason:      "ErrLatePayment: payment received after order failed or expired",
+					CreatedAt:   time.Now().UTC(),
+				}); err != nil {
+					return err
 				}
 			}
 			return nil

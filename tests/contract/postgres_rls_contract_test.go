@@ -40,6 +40,8 @@ var expectedRLSTables = []string{
 	"commerce_customer_order_items",
 	"commerce_payment_charges",
 	"commerce_payment_notifications",
+	"refund_required",
+	"customer_sms_dedup",
 	"hydro_forms",
 	"hydro_collections",
 	"hydro_collection_records",
