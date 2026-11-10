@@ -37,6 +37,39 @@ func newTestHandler(t *testing.T) (Handler, database.Executor) {
 	return Handler{Service: svc}, db
 }
 
+type blockingOrderRepository struct {
+	commerce.Repository
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (r blockingOrderRepository) GetOrder(ctx context.Context, _ database.Executor, _ string) (commerce.Order, error) {
+	close(r.entered)
+	<-r.release
+	return commerce.Order{PaymentStatus: commerce.PaymentPending}, nil
+}
+
+func TestPendingTrackerDoesNotHoldGlobalLockDuringOrderRead(t *testing.T) {
+	h, _ := newTestHandler(t)
+	entered, release := make(chan struct{}), make(chan struct{})
+	svc := commerce.Service{Transactions: h.Service.Transactions, Repository: blockingOrderRepository{entered: entered, release: release}}
+	tracker := NewPendingOrderTracker()
+	tracker.mu.Lock()
+	tracker.orders["slow-ip"] = []pendingOrderEntry{{reservation: "existing", orderID: "existing", createdAt: time.Now()}}
+	tracker.mu.Unlock()
+	done := make(chan struct{})
+	go func() {
+		tracker.CountPending(context.Background(), "slow-ip", svc, time.Now(), time.Minute)
+		close(done)
+	}()
+	<-entered
+	if _, ok := tracker.TryReserve("other-ip", 1); !ok {
+		t.Fatal("other IP was blocked by a slow order read")
+	}
+	close(release)
+	<-done
+}
+
 func decodeBody(t *testing.T, recorder *httptest.ResponseRecorder, into any) {
 	t.Helper()
 	var envelope struct {
@@ -47,6 +80,44 @@ func decodeBody(t *testing.T, recorder *httptest.ResponseRecorder, into any) {
 	}
 	if err := json.Unmarshal(envelope.Data, into); err != nil {
 		t.Fatalf("decode data: %v (%s)", err, envelope.Data)
+	}
+}
+
+func TestPendingTrackerReservesSlotsAtomically(t *testing.T) {
+	tracker := NewPendingOrderTracker()
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	reserved := 0
+	for range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if token, ok := tracker.TryReserve("same-ip", 5); ok {
+				mu.Lock()
+				reserved++
+				mu.Unlock()
+				tracker.Confirm("same-ip", token, "order")
+			}
+		}()
+	}
+	wg.Wait()
+	if reserved != 5 {
+		t.Fatalf("reserved %d slots, want 5", reserved)
+	}
+}
+
+func TestPendingTrackerLazilyRemovesExpiredIPs(t *testing.T) {
+	tracker := NewPendingOrderTracker()
+	tracker.mu.Lock()
+	tracker.orders["expired"] = []pendingOrderEntry{{reservation: "old", createdAt: time.Unix(1, 0)}}
+	tracker.mu.Unlock()
+	if got := tracker.CountPending(context.Background(), "new-ip", commerce.Service{}, time.Now(), time.Minute); got != 0 {
+		t.Fatalf("pending count = %d, want 0", got)
+	}
+	tracker.mu.Lock()
+	defer tracker.mu.Unlock()
+	if _, ok := tracker.orders["expired"]; ok {
+		t.Fatal("expired IP entry was retained")
 	}
 }
 
