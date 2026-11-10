@@ -365,7 +365,40 @@ func (f *fakeNotifier) Send(_ context.Context, msg notify.Message) error {
 	return nil
 }
 
-func TestCheckoutSendsOrderConfirmationEmailAndOperatorNotification(t *testing.T) {
+type fakeOrderReader struct {
+	order commerce.Order
+	items []commerce.OrderItem
+	err   error
+}
+
+func (f fakeOrderReader) OrderWithItems(_ context.Context, _ string) (commerce.Order, []commerce.OrderItem, error) {
+	return f.order, f.items, f.err
+}
+
+func TestNotifyOrderPaid(t *testing.T) {
+	notifier := &fakeNotifier{}
+	reader := fakeOrderReader{
+		order: commerce.Order{ID: "ord-test-1", TotalCents: 4500, Currency: "TRY"},
+		items: []commerce.OrderItem{
+			{Title: "Tişört", Quantity: 2},
+			{Title: "Şapka", Quantity: 1},
+		},
+	}
+	NotifyOrderPaid(context.Background(), notifier, reader, "ord-test-1", "mock-provider", nil)
+	if len(notifier.calls) != 1 {
+		t.Fatalf("expected 1 call, got %d", len(notifier.calls))
+	}
+	msg := notifier.calls[0]
+	if msg.Title != "Yeni sipariş (ödendi)" {
+		t.Fatalf("unexpected title: %q", msg.Title)
+	}
+	wantBody := "ord-test-1 — 45.00 TRY (mock-provider, 2 kalem (Tişört x2, Şapka x1))"
+	if msg.Body != wantBody {
+		t.Fatalf("body = %q, want %q", msg.Body, wantBody)
+	}
+}
+
+func TestCheckoutSendsOrderConfirmationEmailAndDoesNotNotifyOperatorUntilPaid(t *testing.T) {
 	h, db := newTestHandler(t)
 	mail := &fakeMailer{}
 	notifier := &fakeNotifier{}
@@ -400,8 +433,8 @@ func TestCheckoutSendsOrderConfirmationEmailAndOperatorNotification(t *testing.T
 	if mail.calls[0].email != "guest@example.com" || len(mail.calls[0].items) != 1 || mail.calls[0].items[0].Title != "Deri Kemer" {
 		t.Fatalf("unexpected mail call: %+v", mail.calls[0])
 	}
-	if len(notifier.calls) != 1 || notifier.calls[0].Title != "Yeni sipariş" {
-		t.Fatalf("unexpected notifier calls: %+v", notifier.calls)
+	if len(notifier.calls) != 0 {
+		t.Fatalf("checkout alone must not send operator notification, got %d: %+v", len(notifier.calls), notifier.calls)
 	}
 }
 
