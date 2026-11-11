@@ -13,7 +13,23 @@ import (
 var (
 	autoIncrementValue = regexp.MustCompile(` AUTO_INCREMENT=\d+`)
 	definerClause      = regexp.MustCompile("DEFINER=`[^`]*`@`[^`]*` ")
+	tableCharset       = regexp.MustCompile(`DEFAULT CHARSET=([a-z0-9]+)`)
 )
+
+// normalizeColumnCharset drops the redundant CHARACTER SET clause that MySQL
+// prints for a column declared with only a COLLATE (the form SHOW CREATE TABLE
+// emits for a column whose collation is the table's). Replaying that form
+// records the charset explicitly, so the next SHOW CREATE TABLE prints
+// "CHARACTER SET x COLLATE y"; both spellings are the same column. Only the
+// table's own charset is dropped, so a column with a genuinely different
+// charset keeps it.
+func normalizeColumnCharset(definition string) string {
+	match := tableCharset.FindStringSubmatch(definition)
+	if match == nil {
+		return definition
+	}
+	return strings.ReplaceAll(definition, " CHARACTER SET "+match[1]+" COLLATE "+match[1]+"_", " COLLATE "+match[1]+"_")
+}
 
 func takeMySQL(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 	snapshot := &Snapshot{}
@@ -34,6 +50,7 @@ func takeMySQL(ctx context.Context, db *sql.DB) (*Snapshot, error) {
 			return nil, fmt.Errorf("show create table %s: %w", name, err)
 		}
 		definition = autoIncrementValue.ReplaceAllString(definition, "")
+		definition = normalizeColumnCharset(definition)
 		definition = strings.Replace(definition, "CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", 1)
 		snapshot.Objects = append(snapshot.Objects, Object{Kind: "table", Name: name, Table: name, SQL: definition + ";"})
 	}
