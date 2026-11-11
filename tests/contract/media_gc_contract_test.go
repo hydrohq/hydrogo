@@ -64,10 +64,11 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 	marker := fmt.Sprintf("gc-contract-%d", time.Now().UTC().UnixNano())
 	store := mediastore.Store{Dialect: dialect, RequireTenantScope: true}
 	asset := media.Asset{ID: marker, StorageKey: "sha256/" + marker + ".png", OriginalFilename: marker + ".png", MimeType: "image/png", SizeBytes: 42}
-	if err := database.NewTransactor(db).Within(ctx, func(tx database.Executor) error { return store.CreatePending(ctx, tx, asset) }); err != nil {
+	transactions := database.NewTenantTransactor(db, dialect, true)
+	if err := transactions.Within(ctx, func(tx database.Executor) error { return store.CreatePending(ctx, tx, asset) }); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.MarkReady(ctx, db, asset.ID, media.VisibilityPublic); err != nil {
+	if err := transactions.Within(ctx, func(tx database.Executor) error { return store.MarkReady(ctx, tx, asset.ID, media.VisibilityPublic) }); err != nil {
 		t.Fatal(err)
 	}
 	variantKey := "sha256/" + marker + "-thumb.webp"
@@ -76,14 +77,20 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 		variantInsert = `INSERT INTO media_variants (id,media_id,kind,storage_key,mime_type,size_bytes,status,created_at,updated_at,tenant_id) VALUES ($1,$2,$3,$4,$5,$6,'ready',$7,$8,$9)`
 	}
 	now := time.Now().UTC()
-	if _, err := db.ExecContext(ctx, variantInsert, marker+"-thumb", marker, "thumbnail", variantKey, "image/webp", 16, now, now, scope.TenantID); err != nil {
+	if err := transactions.Within(ctx, func(tx database.Executor) error {
+		_, err := tx.ExecContext(ctx, variantInsert, marker+"-thumb", marker, "thumbnail", variantKey, "image/webp", 16, now, now, scope.TenantID)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
 	query := `UPDATE media_assets SET created_at = ? WHERE id = ?`
 	if dialect == database.Postgres {
 		query = `UPDATE media_assets SET created_at = $1 WHERE id = $2`
 	}
-	if _, err := db.ExecContext(ctx, query, time.Now().UTC().Add(-10*24*time.Hour).Format(time.RFC3339Nano), asset.ID); err != nil {
+	if err := transactions.Within(ctx, func(tx database.Executor) error {
+		_, err := tx.ExecContext(ctx, query, time.Now().UTC().Add(-10*24*time.Hour).Format(time.RFC3339Nano), asset.ID)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
 	storeRepo := mediastore.Store{Dialect: dialect, RequireTenantScope: true}
@@ -98,7 +105,10 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 	if dialect == database.Postgres {
 		pageInsert = `INSERT INTO pages (id,title,locale,slug,body,tenant_id) VALUES ($1,$2,$3,$4,$5,$6)`
 	}
-	if _, err := db.ExecContext(ctx, pageInsert, pageID, "GC reference", "en", pageID, `{"media_asset_id":"`+asset.ID+`"}`, scope.TenantID); err != nil {
+	if err := transactions.Within(ctx, func(tx database.Executor) error {
+		_, err := tx.ExecContext(ctx, pageInsert, pageID, "GC reference", "en", pageID, `{"media_asset_id":"`+asset.ID+`"}`, scope.TenantID)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
 	plan, err = collector.Plan(ctx)
@@ -109,7 +119,10 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 	if dialect == database.Postgres {
 		pageDelete = `DELETE FROM pages WHERE id = $1`
 	}
-	if _, err := db.ExecContext(ctx, pageDelete, pageID); err != nil {
+	if err := transactions.Within(ctx, func(tx database.Executor) error {
+		_, err := tx.ExecContext(ctx, pageDelete, pageID)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
 	// The first delete loses the blob but keeps the metadata in a retryable
@@ -117,18 +130,20 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 	if _, err := collector.Delete(ctx, []string{asset.ID}); len(blobs.deleted) != 1 || blobs.deleted[0] != asset.StorageKey {
 		t.Fatalf("first cleanup blobs=%v err=%v", blobs.deleted, err)
 	}
-	claimed, err := store.Get(ctx, db, asset.ID)
+	claimed, err := getAsset(t, transactions, ctx, store, asset.ID)
 	if err != nil || claimed.Status != "deleting" {
 		t.Fatalf("failed cleanup asset=%+v err=%v, want retryable deleting state", claimed, err)
 	}
 	if _, err := collector.Delete(ctx, []string{asset.ID}); err != nil || len(blobs.deleted) != 3 || blobs.deleted[1] != asset.StorageKey || blobs.deleted[2] != variantKey {
 		t.Fatalf("retry cleanup blobs=%v err=%v", blobs.deleted, err)
 	}
-	if _, err := store.Get(ctx, db, asset.ID); err == nil {
+	if _, err := getAsset(t, transactions, ctx, store, asset.ID); err == nil {
 		t.Fatal("retried cleanup left a media metadata record")
 	}
 	var remainingVariants int
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM media_variants WHERE media_id=`+map[bool]string{true: "$1", false: "?"}[dialect == database.Postgres], asset.ID).Scan(&remainingVariants); err != nil || remainingVariants != 0 {
+	if err := transactions.WithinQuery(ctx, func(tx database.QueryExecutor) error {
+		return tx.QueryRowContext(ctx, `SELECT count(*) FROM media_variants WHERE media_id=`+map[bool]string{true: "$1", false: "?"}[dialect == database.Postgres], asset.ID).Scan(&remainingVariants)
+	}); err != nil || remainingVariants != 0 {
 		t.Fatalf("remaining variants=%d err=%v", remainingVariants, err)
 	}
 	deleted, err := collector.Delete(ctx, []string{asset.ID})
@@ -138,4 +153,17 @@ func runMediaGarbageContract(t *testing.T, dialect database.Dialect, dsn string)
 	if len(blobs.deleted) != 3 {
 		t.Fatalf("duplicate cleanup changed blob deletions: %v", blobs.deleted)
 	}
+}
+
+// getAsset reads a media asset through a tenant-bound transaction, the same
+// path the admin API uses, so PostgreSQL RLS resolves the tenant.
+func getAsset(t *testing.T, transactions database.Transactor, ctx context.Context, store mediastore.Store, id string) (media.Asset, error) {
+	t.Helper()
+	var asset media.Asset
+	err := transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		asset, err = store.Get(ctx, tx, id)
+		return err
+	})
+	return asset, err
 }

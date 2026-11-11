@@ -101,6 +101,11 @@ func (s Store) UpsertTaxonomyTerm(ctx context.Context, tx database.Executor, ter
 	insertQuery := `INSERT INTO news_taxonomy_terms (id,slug,kind,parent_id,labels_json,tenant_id) VALUES (` +
 		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `)`
 	_, err = tx.ExecContext(ctx, insertQuery, term.ID, term.Slug, term.Kind, nullableTaxonomyParent(term.Parent), string(labels), tenantID)
+	if database.IsUniqueViolation(err) {
+		// Row-level security hides another tenant's row from the existence
+		// check above, so the primary key is what reports the taken id.
+		return ErrTaxonomyTermIDTaken
+	}
 	return err
 }
 

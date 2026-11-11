@@ -195,25 +195,47 @@ func runRedirectRuleContract(t *testing.T, db database.QueryExecutor, dialect da
 	alpha, _ := tenant.NewScope("redirect-alpha", "alpha")
 	beta, _ := tenant.NewScope("redirect-beta", "beta")
 	store := Store{Dialect: dialect, RequireTenantScope: true}
+	sqldb, ok := db.(*sql.DB)
+	if !ok {
+		t.Fatal("database executor is not a SQL database")
+	}
+	// Every call runs in a transaction bound to its tenant, as the service does.
+	transactions := database.NewTenantTransactor(sqldb, dialect, true)
+	alphaCtx := tenant.WithScope(ctx, alpha)
+	betaCtx := tenant.WithScope(ctx, beta)
+	within := func(scoped context.Context, fn func(database.Executor) error) error {
+		return transactions.Within(scoped, fn)
+	}
+	list := func(scoped context.Context) ([]site.RedirectRule, error) {
+		var rules []site.RedirectRule
+		err := transactions.WithinQuery(scoped, func(query database.QueryExecutor) error {
+			var err error
+			rules, err = store.ListRedirectRules(scoped, query, 10)
+			return err
+		})
+		return rules, err
+	}
 	rule := site.RedirectRule{ID: "rule-a", TenantID: alpha.TenantID, Pattern: "/old", Kind: "exact", TargetPath: "/new", Status: 301, CreatedAt: time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)}
-	if err := store.UpsertRedirectRule(tenant.WithScope(ctx, alpha), db, rule); err != nil {
+	if err := within(alphaCtx, func(exec database.Executor) error { return store.UpsertRedirectRule(alphaCtx, exec, rule) }); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.UpsertRedirectRule(tenant.WithScope(ctx, beta), db, site.RedirectRule{ID: "rule-b", Pattern: "/old", Kind: "exact", TargetPath: "/beta", Status: 302, CreatedAt: rule.CreatedAt}); err != nil {
+	if err := within(betaCtx, func(exec database.Executor) error {
+		return store.UpsertRedirectRule(betaCtx, exec, site.RedirectRule{ID: "rule-b", Pattern: "/old", Kind: "exact", TargetPath: "/beta", Status: 302, CreatedAt: rule.CreatedAt})
+	}); err != nil {
 		t.Fatal(err)
 	}
-	alphaRules, err := store.ListRedirectRules(tenant.WithScope(ctx, alpha), db, 10)
+	alphaRules, err := list(alphaCtx)
 	if err != nil || len(alphaRules) != 1 || alphaRules[0].TargetPath != "/new" {
 		t.Fatalf("alpha rules = %#v/%v", alphaRules, err)
 	}
-	betaRules, err := store.ListRedirectRules(tenant.WithScope(ctx, beta), db, 10)
+	betaRules, err := list(betaCtx)
 	if err != nil || len(betaRules) != 1 || betaRules[0].TargetPath != "/beta" {
 		t.Fatalf("beta rules = %#v/%v", betaRules, err)
 	}
-	if err := store.DeleteRedirectRule(tenant.WithScope(ctx, alpha), db, "rule-a"); err != nil {
+	if err := within(alphaCtx, func(exec database.Executor) error { return store.DeleteRedirectRule(alphaCtx, exec, "rule-a") }); err != nil {
 		t.Fatal(err)
 	}
-	alphaRules, err = store.ListRedirectRules(tenant.WithScope(ctx, alpha), db, 10)
+	alphaRules, err = list(alphaCtx)
 	if err != nil || len(alphaRules) != 0 {
 		t.Fatalf("deleted alpha rules = %#v/%v", alphaRules, err)
 	}

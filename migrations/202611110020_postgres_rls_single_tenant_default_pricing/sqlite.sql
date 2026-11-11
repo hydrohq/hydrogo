@@ -1,0 +1,1 @@
+-- SQLite does not implement row-level security policies; tenant isolation is enforced at repository layer.
