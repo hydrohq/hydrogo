@@ -54,6 +54,9 @@ class Router {
     } else if (pathname === '/admin') {
       pathname = '/';
     }
+    while (pathname.startsWith('/#') || pathname.startsWith('#')) {
+      pathname = pathname.replace(/^\/?#/, '');
+    }
     return pathname.startsWith('/') ? pathname : `/${pathname}`;
   }
 
@@ -104,7 +107,10 @@ class Router {
           this.navigate(href.slice(1));
         } else if (href.startsWith('/admin')) {
           e.preventDefault();
-          const targetSub = href.slice('/admin'.length);
+          let targetSub = href.slice('/admin'.length);
+          while (targetSub.startsWith('/#') || targetSub.startsWith('#')) {
+            targetSub = targetSub.replace(/^\/?#/, '');
+          }
           this.navigate(targetSub || '/');
         }
       });
@@ -142,9 +148,12 @@ class Router {
   }
 
   navigate(to: string, force = false) {
-    let target = to.startsWith('#') ? to.slice(1) : to;
+    let target = to;
     if (target.startsWith('/admin')) {
       target = target.slice('/admin'.length);
+    }
+    while (target.startsWith('/#') || target.startsWith('#')) {
+      target = target.replace(/^\/?#/, '');
     }
     if (!target.startsWith('/')) {
       target = `/${target}`;

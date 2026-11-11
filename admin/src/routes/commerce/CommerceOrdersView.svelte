@@ -373,7 +373,7 @@
 
         <div class="flex items-center gap-2 w-full sm:w-auto">
           <a
-            href="/admin/#/content/return_requests"
+            href="/admin/content/return_requests"
             class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-xs font-medium text-foreground transition-colors shrink-0 shadow-xs"
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
