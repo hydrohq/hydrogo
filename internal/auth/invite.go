@@ -43,7 +43,7 @@ func (s InvitationService) Issue(ctx context.Context, db database.Executor, emai
 		return "", err
 	}
 	email = NormalizeEmail(email)
-	if !ValidateEmail(email) || (role != RoleEditor && role != RoleViewer) {
+	if !ValidateEmail(email) || IsServiceAccountEmail(email) || (role != RoleEditor && role != RoleViewer) {
 		return "", ErrInviteInvalid
 	}
 	if user, err := s.Users.GetByEmail(ctx, email); err == nil && user != nil {

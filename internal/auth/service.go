@@ -139,11 +139,21 @@ func NewAuthService(users UserRepository, sessions SessionRepository, mobileSess
 }
 
 func (s *AuthService) CreateUser(ctx context.Context, email, password string, role Role) (*User, error) {
+	return s.createUser(ctx, email, password, role, false)
+}
+
+// CreateServiceUser is CreateUser for service accounts: it alone may use the
+// reserved ServiceAccountDomain.
+func (s *AuthService) CreateServiceUser(ctx context.Context, email, password string, role Role) (*User, error) {
+	return s.createUser(ctx, email, password, role, true)
+}
+
+func (s *AuthService) createUser(ctx context.Context, email, password string, role Role, service bool) (*User, error) {
 	if s == nil || guards.IsNil(s.userRepo) {
 		return nil, ErrUserRepositoryRequired
 	}
 	normEmail := NormalizeEmail(email)
-	if !ValidateEmail(normEmail) {
+	if !ValidateEmail(normEmail) || (!service && IsServiceAccountEmail(normEmail)) {
 		return nil, errors.New("invalid email address")
 	}
 	if existing, _ := s.userRepo.GetByEmail(ctx, normEmail); existing != nil {
@@ -371,7 +381,7 @@ func (s *AuthService) ChangeCredentials(ctx context.Context, userID, currentPass
 	}
 	if email != "" {
 		email = NormalizeEmail(email)
-		if !ValidateEmail(email) {
+		if !ValidateEmail(email) || IsServiceAccountEmail(email) {
 			return errors.New("invalid email address")
 		}
 		if existing, lookupErr := s.userRepo.GetByEmail(ctx, email); lookupErr == nil && existing.ID != userID {
