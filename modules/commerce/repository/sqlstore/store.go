@@ -17,6 +17,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/database"
@@ -171,6 +172,73 @@ func (s Store) GetStock(ctx context.Context, db database.Executor, variantID str
 		return commerce.Stock{}, err
 	}
 	return stock, nil
+}
+
+// StocksByVariantIDs returns stock rows for all requested variant IDs that exist.
+// Variant IDs without a stock row are omitted.
+func (s Store) StocksByVariantIDs(ctx context.Context, db database.Executor, variantIDs []string) ([]commerce.Stock, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if len(variantIDs) == 0 {
+		return []commerce.Stock{}, nil
+	}
+	seen := make(map[string]struct{}, len(variantIDs))
+	uniqueIDs := make([]string, 0, len(variantIDs))
+	for _, id := range variantIDs {
+		if _, ok := seen[id]; !ok {
+			seen[id] = struct{}{}
+			uniqueIDs = append(uniqueIDs, id)
+		}
+	}
+	if len(uniqueIDs) == 0 {
+		return []commerce.Stock{}, nil
+	}
+	placeholders := make([]string, len(uniqueIDs))
+	args := make([]any, len(uniqueIDs))
+	for i, id := range uniqueIDs {
+		placeholders[i] = s.p(i + 1)
+		args[i] = id
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("database executor does not support row queries")
+	}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id, variant_id, available, reserved, created_at, updated_at FROM commerce_stock WHERE variant_id IN (` + strings.Join(placeholders, ",") + `)` + filter + ` ORDER BY variant_id ASC`
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []commerce.Stock
+	for rows.Next() {
+		var stock commerce.Stock
+		var created, updated any
+		if err := rows.Scan(&stock.ID, &stock.VariantID, &stock.Available, &stock.Reserved, &created, &updated); err != nil {
+			return nil, err
+		}
+		if stock.CreatedAt, err = s.parseTime(created); err != nil {
+			return nil, err
+		}
+		if stock.UpdatedAt, err = s.parseTime(updated); err != nil {
+			return nil, err
+		}
+		results = append(results, stock)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if results == nil {
+		results = []commerce.Stock{}
+	}
+	return results, nil
 }
 
 // ReserveStock is the method this module exists for: a single conditional

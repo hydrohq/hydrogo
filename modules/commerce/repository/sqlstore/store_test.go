@@ -115,6 +115,46 @@ func TestReleaseReservationReturnsStockToAvailable(t *testing.T) {
 	}
 }
 
+func TestStocksByVariantIDs(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	store := Store{Dialect: database.SQLite}
+
+	// Empty list returns empty slice
+	stocks, err := store.StocksByVariantIDs(ctx, db, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stocks) != 0 {
+		t.Fatalf("expected empty, got %d", len(stocks))
+	}
+
+	if err := store.EnsureStock(ctx, db, "v-sql-1", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.EnsureStock(ctx, db, "v-sql-2", 20); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := store.ReserveStock(ctx, db, "v-sql-1", 2); err != nil || !ok {
+		t.Fatal("reserve failed")
+	}
+
+	// Query with duplicate variant IDs and unknown IDs
+	stocks, err = store.StocksByVariantIDs(ctx, db, []string{"v-sql-1", "v-sql-1", "unknown-sql", "v-sql-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stocks) != 2 {
+		t.Fatalf("expected 2 stocks, got %d", len(stocks))
+	}
+	if stocks[0].VariantID != "v-sql-1" || stocks[0].Available != 8 || stocks[0].Reserved != 2 {
+		t.Fatalf("v-sql-1 mismatch: %+v", stocks[0])
+	}
+	if stocks[1].VariantID != "v-sql-2" || stocks[1].Available != 20 || stocks[1].Reserved != 0 {
+		t.Fatalf("v-sql-2 mismatch: %+v", stocks[1])
+	}
+}
+
 func TestCartIsScopedToExactlyOneOwner(t *testing.T) {
 	db := newTestDB(t)
 	ctx := context.Background()

@@ -23,6 +23,8 @@
   const loadPageEditorView = () => import('./routes/pages/PageEditorView.svelte');
   const loadMembersView = () => import('./routes/members/MembersView.svelte');
   const loadCommerceOrdersView = () => import('./routes/commerce/CommerceOrdersView.svelte');
+  const loadCommerceProductsView = () => import('./routes/commerce/ProductsView.svelte');
+  const loadCommerceProductEditorView = () => import('./routes/commerce/ProductEditorView.svelte');
   const loadUsersView = () => import('./routes/users/UsersView.svelte');
   const loadRolesView = () => import('./routes/roles/RolesView.svelte');
   const loadSiteView = () => import('./routes/site/SiteView.svelte');
@@ -169,6 +171,17 @@
     if (p.startsWith('/commerce/refunds-required')) {
       return { view: 'custom', module: 'commerce-refunds-required' };
     }
+    if (p.startsWith('/commerce/stock')) {
+      return { view: 'custom', module: 'commerce-stock' };
+    }
+    if (p.startsWith('/commerce/products')) {
+      const parts = p.split('/');
+      const actionOrId = parts[3];
+      if (actionOrId) {
+        return { view: 'custom', module: 'commerce-product-editor', id: actionOrId };
+      }
+      return { view: 'custom', module: 'commerce-products' };
+    }
     if (p.startsWith('/content-types')) {
       const parts = p.split('/');
       const action = parts[2];
@@ -211,8 +224,14 @@
         <LazyView load={loadMembersView} />
       {:else if routeInfo.module === 'commerce'}
         <LazyView load={loadCommerceOrdersView} />
+      {:else if routeInfo.module === 'commerce-products'}
+        <LazyView load={loadCommerceProductsView} />
+      {:else if routeInfo.module === 'commerce-product-editor'}
+        <LazyView load={loadCommerceProductEditorView} props={{ id: routeInfo.id }} />
       {:else if routeInfo.module === 'commerce-refunds-required'}
         <LazyView load={() => import('./routes/commerce/RefundRequiredView.svelte')} />
+      {:else if routeInfo.module === 'commerce-stock'}
+        <LazyView load={() => import('./routes/commerce/StockView.svelte')} />
       {:else if routeInfo.module === 'users'}
         <LazyView load={loadUsersView} />
       {:else if routeInfo.module === 'roles'}

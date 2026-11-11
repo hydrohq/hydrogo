@@ -37,6 +37,50 @@ func (h Handler) setStock(w http.ResponseWriter, r *http.Request) {
 	api.WriteData(w, http.StatusOK, stock, nil)
 }
 
+type variantStockView struct {
+	VariantID string `json:"variant_id"`
+	Available int    `json:"available"`
+	Reserved  int    `json:"reserved"`
+}
+
+func (h Handler) listStockAdmin(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("variant_ids")
+	if strings.TrimSpace(raw) == "" {
+		api.WriteError(w, r, http.StatusBadRequest, "variant_ids query parameter is required", nil)
+		return
+	}
+	parts := strings.Split(raw, ",")
+	if len(parts) > 500 {
+		api.WriteError(w, r, http.StatusBadRequest, "variant_ids cannot exceed 500 items", nil)
+		return
+	}
+	variantIDs := make([]string, 0, len(parts))
+	for _, p := range parts {
+		id := strings.TrimSpace(p)
+		if id == "" {
+			api.WriteError(w, r, http.StatusBadRequest, "variant_ids contains empty or invalid id", nil)
+			return
+		}
+		variantIDs = append(variantIDs, id)
+	}
+
+	stocks, err := h.Service.StocksByVariantIDs(r.Context(), variantIDs)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+
+	views := make([]variantStockView, 0, len(stocks))
+	for _, s := range stocks {
+		views = append(views, variantStockView{
+			VariantID: s.VariantID,
+			Available: s.Available,
+			Reserved:  s.Reserved,
+		})
+	}
+	api.WriteData(w, http.StatusOK, views, nil)
+}
+
 type createDiscountCodeRequest struct {
 	Code             string `json:"code"`
 	Kind             string `json:"kind"` // "percent" or "fixed"
