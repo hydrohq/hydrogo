@@ -275,4 +275,100 @@ describe('ProductEditorView', () => {
       });
     });
   });
+
+  it('saving with compare 899 and price 999 does NOT call api.post/put and shows the error', async () => {
+    render(ProductEditorView, { props: { id: 'new' } });
+
+    const nameInput = document.getElementById('product-name') as HTMLInputElement;
+    await fireEvent.input(nameInput, { target: { value: 'İndirimli Ürün' } });
+
+    const priceInput = document.getElementById('product-price') as HTMLInputElement;
+    await fireEvent.input(priceInput, { target: { value: '999' } });
+
+    const compareInput = document.getElementById('product-compare-price') as HTMLInputElement;
+    await fireEvent.input(compareInput, { target: { value: '899' } });
+
+    const saveButton = screen.getByRole('button', { name: /kaydet/i });
+    await fireEvent.click(saveButton);
+
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.put).not.toHaveBeenCalled();
+    expect(await screen.findByText('Üstü çizili fiyat, satış fiyatından yüksek olmalı.')).toBeTruthy();
+  });
+
+  it('compare 1299 with price 999 saves and sends compare_at_price', async () => {
+    (api.post as any).mockResolvedValueOnce({
+      data: {
+        id: 'p100',
+        name: 'İndirimli Ürün',
+        slug: 'indirimli-urun',
+        base_price: 999,
+        compare_at_price: 1299,
+        version: 1,
+      },
+    });
+
+    render(ProductEditorView, { props: { id: 'new' } });
+
+    const nameInput = document.getElementById('product-name') as HTMLInputElement;
+    await fireEvent.input(nameInput, { target: { value: 'İndirimli Ürün' } });
+
+    const priceInput = document.getElementById('product-price') as HTMLInputElement;
+    await fireEvent.input(priceInput, { target: { value: '999' } });
+
+    const compareInput = document.getElementById('product-compare-price') as HTMLInputElement;
+    await fireEvent.input(compareInput, { target: { value: '1299' } });
+
+    const saveButton = screen.getByRole('button', { name: /kaydet/i });
+    await fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith(
+        '/api/v1/admin/content/products',
+        expect.objectContaining({
+          name: 'İndirimli Ürün',
+          base_price: 999,
+          compare_at_price: 1299,
+        })
+      );
+    });
+  });
+
+  it('empty compare saves', async () => {
+    (api.post as any).mockResolvedValueOnce({
+      data: {
+        id: 'p101',
+        name: 'Normal Ürün',
+        slug: 'normal-urun',
+        base_price: 999,
+        compare_at_price: null,
+        version: 1,
+      },
+    });
+
+    render(ProductEditorView, { props: { id: 'new' } });
+
+    const nameInput = document.getElementById('product-name') as HTMLInputElement;
+    await fireEvent.input(nameInput, { target: { value: 'Normal Ürün' } });
+
+    const priceInput = document.getElementById('product-price') as HTMLInputElement;
+    await fireEvent.input(priceInput, { target: { value: '999' } });
+
+    const compareInput = document.getElementById('product-compare-price') as HTMLInputElement;
+    await fireEvent.input(compareInput, { target: { value: '' } });
+
+    const saveButton = screen.getByRole('button', { name: /kaydet/i });
+    await fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith(
+        '/api/v1/admin/content/products',
+        expect.objectContaining({
+          name: 'Normal Ürün',
+          base_price: 999,
+          compare_at_price: null,
+        })
+      );
+    });
+  });
 });
