@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -48,19 +49,38 @@ func newsTaxonomyTenantCtx(t *testing.T, id string) context.Context {
 	return tenant.WithScope(context.Background(), scope)
 }
 
-func runTaxonomyTenantScopedContract(t *testing.T, db database.Executor, dialect database.Dialect) {
+// inTaxonomyTenant runs fn inside a transaction bound to ctx's tenant, the
+// way the news service reaches the store, so PostgreSQL row-level security
+// sees the tenant for every statement.
+func inTaxonomyTenant[T any](t *testing.T, transactions database.Transactor, ctx context.Context, fn func(database.Executor) (T, error)) (T, error) {
 	t.Helper()
+	var out T
+	err := transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		out, err = fn(tx)
+		return err
+	})
+	return out, err
+}
+
+func runTaxonomyTenantScopedContract(t *testing.T, executor database.Executor, dialect database.Dialect) {
+	t.Helper()
+	sqldb, ok := executor.(*sql.DB)
+	if !ok {
+		t.Fatal("database executor is not a SQL database")
+	}
+	transactions := database.NewTenantTransactor(sqldb, dialect, true)
 	store := Store{Dialect: dialect, RequireTenantScope: true}
 	a := newsTaxonomyTenantCtx(t, "tenant-a")
 	b := newsTaxonomyTenantCtx(t, "tenant-b")
 
 	termA := v1.TaxonomyTerm{ID: "shared-id", Slug: "a-category", Kind: "category", Labels: map[string]string{"en": "A"}}
-	if err := store.UpsertTaxonomyTerm(a, db, termA); err != nil {
+	if err := transactions.Within(a, func(db database.Executor) error { return store.UpsertTaxonomyTerm(a, db, termA) }); err != nil {
 		t.Fatalf("create tenant a's term: %v", err)
 	}
 
 	t.Run("a term is invisible to another tenant's catalog", func(t *testing.T) {
-		terms, err := store.ListTaxonomyTerms(b, db)
+		terms, err := inTaxonomyTenant(t, transactions, b, func(db database.Executor) ([]v1.TaxonomyTerm, error) { return store.ListTaxonomyTerms(b, db) })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -73,11 +93,11 @@ func runTaxonomyTenantScopedContract(t *testing.T, db database.Executor, dialect
 
 	t.Run("another tenant cannot reuse the same id to overwrite it", func(t *testing.T) {
 		attempt := v1.TaxonomyTerm{ID: "shared-id", Slug: "b-hijack", Kind: "category", Labels: map[string]string{"en": "B"}}
-		err := store.UpsertTaxonomyTerm(b, db, attempt)
+		err := transactions.Within(b, func(db database.Executor) error { return store.UpsertTaxonomyTerm(b, db, attempt) })
 		if !errors.Is(err, news.ErrTaxonomyTermIDTaken) {
 			t.Fatalf("upsert with another tenant's id = %v, want ErrTaxonomyTermIDTaken", err)
 		}
-		terms, err := store.ListTaxonomyTerms(a, db)
+		terms, err := inTaxonomyTenant(t, transactions, a, func(db database.Executor) ([]v1.TaxonomyTerm, error) { return store.ListTaxonomyTerms(a, db) })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -87,11 +107,11 @@ func runTaxonomyTenantScopedContract(t *testing.T, db database.Executor, dialect
 	})
 
 	t.Run("another tenant cannot delete it", func(t *testing.T) {
-		err := store.DeleteTaxonomyTerm(b, db, termA.ID)
+		err := transactions.Within(b, func(db database.Executor) error { return store.DeleteTaxonomyTerm(b, db, termA.ID) })
 		if err == nil {
 			t.Fatal("tenant b deleted tenant a's term without error")
 		}
-		terms, err := store.ListTaxonomyTerms(a, db)
+		terms, err := inTaxonomyTenant(t, transactions, a, func(db database.Executor) ([]v1.TaxonomyTerm, error) { return store.ListTaxonomyTerms(a, db) })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,26 +125,31 @@ func runTaxonomyTenantScopedContract(t *testing.T, db database.Executor, dialect
 		if dialect == database.Postgres {
 			scopedInsert = `INSERT INTO news_items (id,locale,slug,title,body,status,published_revision,created_at,updated_at,tenant_id) VALUES ($1,$2,$3,$4,$5,'draft',NULL,$6,$7,$8)`
 		}
-		if _, err := db.ExecContext(a, scopedInsert, "article-a", "en", "article-a", "Article", "{}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", "tenant-a"); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error {
+			_, err := db.ExecContext(a, scopedInsert, "article-a", "en", "article-a", "Article", "{}", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", "tenant-a")
+			return err
+		}); err != nil {
 			t.Fatal(err)
 		}
 		termB := v1.TaxonomyTerm{ID: "term-b", Slug: "b-category", Kind: "category", Labels: map[string]string{"en": "B"}}
-		if err := store.UpsertTaxonomyTerm(b, db, termB); err != nil {
+		if err := transactions.Within(b, func(db database.Executor) error { return store.UpsertTaxonomyTerm(b, db, termB) }); err != nil {
 			t.Fatal(err)
 		}
-		if err := store.ReplaceTaxonomy(a, db, "article-a", []v1.TaxonomyTerm{termA}); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error {
+			return store.ReplaceTaxonomy(a, db, "article-a", []v1.TaxonomyTerm{termA})
+		}); err != nil {
 			t.Fatal(err)
 		}
 		// Tenant b must not be able to attach tenant a's article to its own term,
 		// nor read tenant a's attached terms back out.
-		got, err := store.ListTaxonomy(b, db, "article-a")
+		got, err := inTaxonomyTenant(t, transactions, b, func(db database.Executor) ([]v1.TaxonomyTerm, error) { return store.ListTaxonomy(b, db, "article-a") })
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(got) != 0 {
 			t.Fatalf("tenant b can read tenant a's article taxonomy: %#v", got)
 		}
-		gotA, err := store.ListTaxonomy(a, db, "article-a")
+		gotA, err := inTaxonomyTenant(t, transactions, a, func(db database.Executor) ([]v1.TaxonomyTerm, error) { return store.ListTaxonomy(a, db, "article-a") })
 		if err != nil {
 			t.Fatal(err)
 		}

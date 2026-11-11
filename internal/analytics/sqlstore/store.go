@@ -28,6 +28,10 @@ const MaxConsentIDLength = 128
 type Store struct {
 	Executor database.Executor
 	Dialect  database.Dialect
+	// TenantIDs lists every tenant whose aggregates retention must purge.
+	// PostgreSQL row-level security only shows a purge one tenant at a time,
+	// so multi-tenant deployments supply it; single-tenant ones leave it nil.
+	TenantIDs func(context.Context) ([]string, error)
 }
 
 type DailyStat struct {
@@ -133,10 +137,6 @@ func (s Store) ListDailyStats(ctx context.Context, day, tenantID string, limit i
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
-	queryer, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("analytics stats query requires query executor")
-	}
 	if limit < 1 || limit > 500 {
 		limit = 100
 	}
@@ -144,29 +144,35 @@ func (s Store) ListDailyStats(ctx context.Context, day, tenantID string, limit i
 		return nil, errors.New("invalid analytics report date")
 	}
 	query := `SELECT day,tenant_id,metric,dimension,event_count FROM analytics_daily_stats WHERE day=` + placeholder(s.Dialect, 1) + ` AND tenant_id=` + placeholder(s.Dialect, 2) + ` ORDER BY metric,event_count DESC,dimension LIMIT ` + fmt.Sprint(limit)
-	rows, err := queryer.QueryContext(ctx, query, day, tenantID)
+	result := make([]DailyStat, 0)
+	err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("analytics stats query requires query executor")
+		}
+		rows, err := queryer.QueryContext(ctx, query, day, tenantID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var item DailyStat
+			if err := rows.Scan(&item.Day, &item.TenantID, &item.Metric, &item.Dimension, &item.EventCount); err != nil {
+				return err
+			}
+			result = append(result, item)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	result := make([]DailyStat, 0)
-	for rows.Next() {
-		var item DailyStat
-		if err := rows.Scan(&item.Day, &item.TenantID, &item.Metric, &item.Dimension, &item.EventCount); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
+	return result, nil
 }
 
 func (s Store) ListDailyStatsBetween(ctx context.Context, fromDay, toDay, tenantID string, limit int) ([]DailyStat, error) {
 	if err := s.validate(); err != nil {
 		return nil, err
-	}
-	queryer, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("analytics stats query requires query executor")
 	}
 	if _, err := time.Parse("2006-01-02", fromDay); err != nil {
 		return nil, errors.New("invalid analytics range start")
@@ -181,20 +187,30 @@ func (s Store) ListDailyStatsBetween(ctx context.Context, fromDay, toDay, tenant
 		limit = 1000
 	}
 	query := `SELECT day,tenant_id,metric,dimension,event_count FROM analytics_daily_stats WHERE day BETWEEN ` + placeholder(s.Dialect, 1) + ` AND ` + placeholder(s.Dialect, 2) + ` AND tenant_id=` + placeholder(s.Dialect, 3) + ` ORDER BY day DESC,metric,event_count DESC,dimension LIMIT ` + fmt.Sprint(limit)
-	rows, err := queryer.QueryContext(ctx, query, fromDay, toDay, tenantID)
+	result := make([]DailyStat, 0)
+	err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("analytics stats query requires query executor")
+		}
+		rows, err := queryer.QueryContext(ctx, query, fromDay, toDay, tenantID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var item DailyStat
+			if err := rows.Scan(&item.Day, &item.TenantID, &item.Metric, &item.Dimension, &item.EventCount); err != nil {
+				return err
+			}
+			result = append(result, item)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	result := make([]DailyStat, 0)
-	for rows.Next() {
-		var item DailyStat
-		if err := rows.Scan(&item.Day, &item.TenantID, &item.Metric, &item.Dimension, &item.EventCount); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
+	return result, nil
 }
 
 // PurgeBefore applies an operator-selected retention boundary to both consent
@@ -211,8 +227,20 @@ func (s Store) PurgeBefore(ctx context.Context, before time.Time) error {
 	if _, err := s.Executor.ExecContext(ctx, "DELETE FROM analytics_feedback_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff); err != nil {
 		return err
 	}
-	if _, err := s.Executor.ExecContext(ctx, "DELETE FROM analytics_search_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff); err != nil {
-		return err
+	tenants := []string{""}
+	if s.Dialect == database.Postgres {
+		var err error
+		if tenants, err = s.retentionTenants(ctx); err != nil {
+			return err
+		}
+	}
+	for _, tenantID := range tenants {
+		if err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+			_, err := exec.ExecContext(ctx, "DELETE FROM analytics_search_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff)
+			return err
+		}); err != nil {
+			return err
+		}
 	}
 	if _, err := s.Executor.ExecContext(ctx, "DELETE FROM analytics_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff); err != nil {
 		return err

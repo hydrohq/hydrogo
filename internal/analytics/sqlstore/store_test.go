@@ -13,6 +13,7 @@ import (
 	"github.com/ardaozyildirim/hydrogo/extension/v1"
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
 	"github.com/ardaozyildirim/hydrogo/internal/testpostgres"
 	"github.com/ardaozyildirim/hydrogo/migrations"
@@ -75,8 +76,21 @@ func runFormAnalyticsContract(t *testing.T, db database.QueryExecutor, dialect d
 	if unique, err := store.RecordFormView(ctx, "tenant-a", "contact", visitor, day.AddDate(0, 0, 1)); err != nil || !unique {
 		t.Fatalf("next-day view unique=%t err=%v", unique, err)
 	}
+	// Submissions are recorded inside the site service's tenant-bound
+	// transaction; the contract does the same instead of using the raw pool.
+	sqldb, ok := db.(*sql.DB)
+	if !ok {
+		t.Fatal("database executor is not a SQL database")
+	}
+	scope, err := tenant.NewScope("tenant-a", "tenant-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scopedCtx := tenant.WithScope(ctx, scope)
 	for range 2 {
-		if err := store.RecordFormSubmission(ctx, db, "tenant-a", "contact", day); err != nil {
+		if err := database.NewTenantTransactor(sqldb, dialect, true).Within(scopedCtx, func(tx database.Executor) error {
+			return store.RecordFormSubmission(scopedCtx, tx, "tenant-a", "contact", day)
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -152,9 +166,11 @@ func TestPostgresNoCookieDailyStatsContract(t *testing.T) {
 func runSearchInsightsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
 	t.Helper()
 	ctx := context.Background()
-	store := Store{Executor: db, Dialect: dialect}
 	tenantA := fmt.Sprintf("search-a-%d", time.Now().UnixNano())
 	tenantB := tenantA + "-b"
+	// Retention reaches tenant partitions through the tenant list the server
+	// wires from its registry.
+	store := Store{Executor: db, Dialect: dialect, TenantIDs: func(context.Context) ([]string, error) { return []string{tenantA, tenantB}, nil }}
 	for _, event := range []analytics.SearchQueryEvent{{Day: "2026-09-29", TenantID: tenantA, Term: "Hydro", Locale: "tr", ResultCount: 0}, {Day: "2026-09-29", TenantID: tenantA, Term: "hydro", Locale: "tr", ResultCount: 2}, {Day: "2026-09-29", TenantID: tenantB, Term: "hydro", Locale: "tr", ResultCount: 0}} {
 		if err := store.RecordSearchQuery(ctx, event); err != nil {
 			t.Fatal(err)
@@ -187,9 +203,9 @@ func runSearchInsightsContract(t *testing.T, db database.QueryExecutor, dialect 
 func runNoCookieStatsContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
 	t.Helper()
 	ctx := context.Background()
-	store := Store{Executor: db, Dialect: dialect}
 	day := "2026-09-28"
 	tenantID := fmt.Sprintf("analytics-%d", time.Now().UnixNano())
+	store := Store{Executor: db, Dialect: dialect, TenantIDs: func(context.Context) ([]string, error) { return []string{tenantID}, nil }}
 	visit := analytics.NoCookieVisit{Day: day, TenantID: tenantID, Page: "/public/pages/en/home", Referrer: "search.example", Device: "desktop", Browser: "Chrome", OS: "Linux", VisitorKey: strings.Repeat("a", 64)}
 	if unique, err := store.RecordNoCookieVisit(ctx, visit); err != nil || !unique {
 		t.Fatalf("first visit unique=%v err=%v", unique, err)
