@@ -23,7 +23,7 @@ import (
 
 // serviceAccountDomain marks service accounts in audit logs and revisions:
 // their e-mail address is service+<name>@hydrogo.invalid.
-const serviceAccountDomain = "hydrogo.invalid"
+const serviceAccountDomain = auth.ServiceAccountDomain
 
 var serviceAccountName = regexp.MustCompile(`^[a-z][a-z0-9-]{1,39}$`)
 
@@ -115,7 +115,7 @@ func serviceAccountCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	// The password only has to satisfy the strength rules; nobody ever sees it.
-	user, err := authSvc.CreateUser(ctx, email, "Svc-"+base64.RawURLEncoding.EncodeToString(secret)+"-1a", auth.RoleViewer)
+	user, err := authSvc.CreateServiceUser(ctx, email, "Svc-"+base64.RawURLEncoding.EncodeToString(secret)+"-1a", auth.RoleViewer)
 	if errors.Is(err, auth.ErrUserAlreadyExists) {
 		// A revoked account can be created again: it comes back with exactly
 		// the permissions given now and a new token.

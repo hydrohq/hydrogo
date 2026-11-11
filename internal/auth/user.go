@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/canonical"
@@ -63,6 +64,18 @@ type LoginSecurityTracker interface {
 
 func NormalizeEmail(email string) string {
 	return canonical.Email(email)
+}
+
+// ServiceAccountDomain is the reserved e-mail domain of service accounts
+// (`hydro service-account create`). Only that command may mint such addresses:
+// the admin UI keeps them out of the staff list, so letting a person register
+// one would let an account hide from it.
+const ServiceAccountDomain = "hydrogo.invalid"
+
+// IsServiceAccountEmail reports whether email is in the reserved service
+// account domain (case-insensitive, after normalisation).
+func IsServiceAccountEmail(email string) bool {
+	return strings.HasSuffix(NormalizeEmail(email), "@"+ServiceAccountDomain)
 }
 
 func ValidateEmail(email string) bool {
