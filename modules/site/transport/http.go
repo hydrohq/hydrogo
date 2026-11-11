@@ -6,7 +6,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/api"
@@ -64,6 +66,7 @@ type Handler struct {
 func (h Handler) Routes() []Route {
 	routes := []Route{
 		{Pattern: "GET /api/v1/site/settings", Public: true, Handler: http.HandlerFunc(h.publicSettings)},
+		{Pattern: "GET /api/v1/site/maintenance", Public: true, Handler: http.HandlerFunc(h.publicMaintenance)},
 		{Pattern: "GET /api/v1/site/navigation/{locale}", Public: true, Handler: http.HandlerFunc(h.navigation)},
 		{Pattern: "GET /api/v1/site/redirects", Public: true, Handler: http.HandlerFunc(h.publicRedirects)},
 		{Pattern: "GET /sitemap.xml", Public: true, Handler: http.HandlerFunc(h.sitemap)},
@@ -177,6 +180,59 @@ func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {
 		result[setting.Key] = setting.Value
 	}
 	api.WriteData(w, http.StatusOK, result, nil)
+}
+
+func (h Handler) publicMaintenance(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil {
+		api.WriteError(w, r, http.StatusServiceUnavailable, "site maintenance unavailable", nil)
+		return
+	}
+	setting, found, err := h.Service.GetSetting(r.Context(), site.MaintenanceSettingKey)
+	if err != nil || !found {
+		api.WriteData(w, http.StatusOK, map[string]any{
+			"enabled": false,
+			"active":  false,
+			"allowed": false,
+		}, nil)
+		return
+	}
+	m := site.MaintenanceFromSetting(setting)
+	now := time.Now().UTC()
+	active := m.ActiveAt(now)
+
+	allowed := false
+	previewKey := r.URL.Query().Get("preview_key")
+	if previewKey == "" {
+		if cookie, err := r.Cookie("hydro_maintenance_preview"); err == nil {
+			previewKey = cookie.Value
+		}
+	}
+	if previewKey != "" && m.AllowsPreviewKey(previewKey) {
+		allowed = true
+	}
+	clientIP := requestIP(r)
+	if ip := net.ParseIP(clientIP); ip != nil {
+		for _, entry := range m.Allowlist {
+			if entry == clientIP {
+				allowed = true
+				break
+			}
+			if _, cidr, err := net.ParseCIDR(entry); err == nil && cidr.Contains(ip) {
+				allowed = true
+				break
+			}
+		}
+	}
+
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"enabled":   m.Enabled,
+		"active":    active,
+		"allowed":   allowed,
+		"headline":  m.Headline,
+		"message":   m.Message,
+		"starts_at": m.StartsAt,
+		"ends_at":   m.EndsAt,
+	}, nil)
 }
 
 func (h Handler) navigation(w http.ResponseWriter, r *http.Request) {
