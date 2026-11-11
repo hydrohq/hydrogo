@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { groupCollections, isAdvancedGroup, getInitialGroupCollapsed, setGroupCollapsedStorage } from './sidebarGroups';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
   import type { RefundsRequiredCount } from '$lib/api/types';
@@ -23,6 +24,22 @@
   let showUserMenu = $state(false);
   let activeDocDropdown = $state<string | null>(null);
   let unresolvedRefundCount = $state(0);
+  let collapsedGroups = $state<Record<string, boolean>>({});
+
+  function isGroupCollapsed(groupName: string): boolean {
+    const key = groupName.trim().toLowerCase();
+    // Read-only during render: the stored/default value is computed, never written here.
+    return key in collapsedGroups ? collapsedGroups[key] : getInitialGroupCollapsed(groupName);
+  }
+
+  function toggleGroup(groupName: string): void {
+    const key = groupName.trim().toLowerCase();
+    const next = !isGroupCollapsed(groupName);
+    collapsedGroups[key] = next;
+    setGroupCollapsedStorage(groupName, next);
+  }
+
+  const collectionGroups = $derived(groupCollections(schema.collections));
 
   function loadRefundCount() {
     if (moduleOn('commerce') && can('admin.commerce.read')) {
@@ -381,11 +398,29 @@
       {/if}
 
       {#if moduleOn('commerce') && can('admin.commerce.read')}
+      {#if sidebar.open}
+        <div class="px-2 py-1 text-xs font-medium tracking-wider text-sidebar-foreground/60">{t('nav.store')}</div>
+      {/if}
+      <!-- Products -->
+      <a
+        href="/admin/commerce/products"
+        onclick={() => handleNavigate('/commerce/products')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/products') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.products')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path>
+          <path d="M7 7h.01"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.products')}</span>
+        {/if}
+      </a>
       <!-- Commerce orders -->
       <a
         href="/admin/commerce"
         onclick={() => handleNavigate('/commerce')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') && !isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') && !isActive('/commerce/refunds-required') && !isActive('/commerce/stock') && !isActive('/commerce/products') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
         title={t('nav.orders')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -398,12 +433,27 @@
         {/if}
       </a>
       <a
+        href="/admin/commerce/stock"
+        onclick={() => handleNavigate('/commerce/stock')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/stock') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.stock')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+          <path d="m3.3 7 8.7 5 8.7-5"></path>
+          <path d="M12 22V12"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.stock')}</span>
+        {/if}
+      </a>
+      <a
         href="/admin/commerce/refunds-required"
         onclick={() => handleNavigate('/commerce/refunds-required')}
         class="ml-6 flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
-        title="İade Gerekli"
+        title={t('nav.refundsRequired')}
       >
-        <span class="truncate">İade Gerekli</span>
+        <span class="truncate">{t('nav.refundsRequired')}</span>
         {#if unresolvedRefundCount > 0}
           <span class="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">{unresolvedRefundCount}</span>
         {/if}
@@ -432,7 +482,21 @@
         </div>
       {/if}
         <div class="flex flex-col gap-0.5">
-          {#each schema.collections as collection}
+          {#each collectionGroups as group (group.name)}
+          {#if collectionGroups.length > 1 && sidebar.open}
+            <button
+              type="button"
+              onclick={() => toggleGroup(group.name)}
+              aria-expanded={!isGroupCollapsed(group.name)}
+              data-testid="nav-group-{group.name}"
+              class="mt-2 flex w-full items-center justify-between px-2 py-1 text-xs font-medium tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground"
+            >
+              <span>{isAdvancedGroup(group.name) ? t('nav.advanced') : group.name}</span>
+              <svg class="size-3.5 transition-transform {isGroupCollapsed(group.name) ? '-rotate-90' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          {/if}
+          {#if collectionGroups.length === 1 || !sidebar.open || !isGroupCollapsed(group.name)}
+          {#each group.collections as collection}
             <div class="relative group flex items-center" data-dropdown="doc-{collection.id}">
               <a
                 href="/admin/content/{collection.id}"
@@ -489,6 +553,8 @@
                 {/if}
               {/if}
             </div>
+          {/each}
+          {/if}
           {/each}
         </div>
       </div>

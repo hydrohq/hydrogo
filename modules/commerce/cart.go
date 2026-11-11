@@ -99,6 +99,20 @@ func (s Service) Stock(ctx context.Context, variantID string) (Stock, error) {
 	return stock, err
 }
 
+// StocksByVariantIDs returns stock rows for multiple variants.
+func (s Service) StocksByVariantIDs(ctx context.Context, variantIDs []string) ([]Stock, error) {
+	if len(variantIDs) == 0 {
+		return []Stock{}, nil
+	}
+	var stocks []Stock
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		stocks, err = s.Repository.StocksByVariantIDs(ctx, tx, variantIDs)
+		return err
+	})
+	return stocks, err
+}
+
 // SetStock sets a variant's available count (admin restock).
 func (s Service) SetStock(ctx context.Context, variantID string, available int) (Stock, error) {
 	var stock Stock
