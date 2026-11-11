@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
+import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
+import { t } from '$lib/i18n/index.svelte';
 import { api } from '$lib/api/client';
 import { auth } from '$lib/stores/auth.svelte';
 import { router } from '$lib/router.svelte';
@@ -114,16 +115,52 @@ describe('ProductsView', () => {
     expect(screen.getByText('Taslak')).toBeTruthy();
   });
 
-  it('filters products by search input', async () => {
+  it('requests the first page with limit 20 and loads variants only for visible products', async () => {
     render(ProductsView);
-
     expect(await screen.findByText('Silk Shirt')).toBeTruthy();
 
-    const searchInput = screen.getByRole('searchbox');
-    await fireEvent.input(searchInput, { target: { value: 'belt' } });
+    const urls = (api.get as any).mock.calls.map((c: any[]) => String(c[0]));
+    expect(urls.some((u: string) => u.includes('/products?limit=20&offset=0'))).toBe(true);
+    const variantUrl = urls.find((u: string) => u.includes('/content/variants'));
+    expect(variantUrl).toContain('filter[product][in]=');
+    expect(variantUrl).toContain('p1');
+    expect(variantUrl).toContain('p3');
+  });
 
-    expect(screen.queryByText('Silk Shirt')).toBeNull();
-    expect(screen.getByText('Leather Belt')).toBeTruthy();
+  it('sends the search term to the server (debounced) and resets to page 0', async () => {
+    render(ProductsView);
+    expect(await screen.findByText('Silk Shirt')).toBeTruthy();
+
+    await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'belt' } });
+
+    await waitFor(
+      () => {
+        const urls = (api.get as any).mock.calls.map((c: any[]) => String(c[0]));
+        expect(urls.some((u: string) => u.includes('/products?') && u.includes('search=belt') && u.includes('offset=0'))).toBe(true);
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('goes to the next page with offset 20 when more products exist', async () => {
+    const base = (api.get as any).getMockImplementation();
+    (api.get as any).mockImplementation((url: string) => {
+      if (url.includes('/api/v1/admin/content/products')) {
+        return base(url).then((res: any) => ({ ...res, metadata: { has_more: true } }));
+      }
+      return base(url);
+    });
+    render(ProductsView);
+    expect(await screen.findByText('Silk Shirt')).toBeTruthy();
+
+    const next = screen.getByRole('button', { name: t('products.pagination.next') });
+    expect((next as HTMLButtonElement).disabled).toBe(false);
+    await fireEvent.click(next);
+
+    await waitFor(() => {
+      const urls = (api.get as any).mock.calls.map((c: any[]) => String(c[0]));
+      expect(urls.some((u: string) => u.includes('/products?limit=20&offset=20'))).toBe(true);
+    });
   });
 
   it('displays low-stock badge and out-of-stock badge correctly', async () => {

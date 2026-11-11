@@ -24,7 +24,7 @@ describe('ChartAreaInteractive', () => {
     render(ChartAreaInteractive, { props: {} });
 
     // Assert
-    expect(screen.getByText('Loading category data...')).toBeTruthy();
+    expect(screen.getByRole('status')).toBeTruthy();
     await waitFor(() => expect(screen.getByText('No category data found yet.')).toBeTruthy());
   });
 

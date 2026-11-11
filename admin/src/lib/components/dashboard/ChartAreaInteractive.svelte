@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { schema } from '$lib/stores/schema.svelte';
   import { i18n, t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
@@ -360,9 +361,7 @@
       <!-- Category Grid Overview -->
       <div class="p-6">
         {#if loadingCategories}
-          <div class="py-12 text-center text-sm text-muted-foreground animate-pulse">
-            {t('dashboard.chart.loadingCategories')}
-          </div>
+          <PageSpinner compact />
         {:else if categories.length === 0}
           <div class="py-12 text-center text-sm text-muted-foreground">
             {t('dashboard.chart.noCategories')}

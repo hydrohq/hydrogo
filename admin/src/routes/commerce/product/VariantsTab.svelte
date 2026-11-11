@@ -2,6 +2,7 @@
   import { api, ApiClientError } from '$lib/api/client';
   import { auth } from '$lib/stores/auth.svelte';
   import { t } from '$lib/i18n/index.svelte';
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { confirmAction } from '$lib/confirm';
   import Button from '$lib/components/ui/Button.svelte';
   import { sortSizes, type MatrixVariant } from '$lib/commerce/variantMatrix';
@@ -43,7 +44,9 @@
   let sizes = $state<string[]>([]);
   let chipsInitialized = $state(false);
 
-  let loading = $state(false);
+  // Starts true for a saved product: the first render must not flash the empty state before data arrives.
+  // svelte-ignore state_referenced_locally
+  let loading = $state(!!product?.id && product.id !== 'new');
   let error = $state('');
   let refuseMessage = $state('');
 
@@ -381,9 +384,7 @@
       </div>
     </div>
   {:else if loading && variants.length === 0}
-    <div class="flex items-center justify-center p-12 text-sm text-muted-foreground">
-      {t('stock.loading')}
-    </div>
+    <PageSpinner compact />
   {:else if error}
     <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive" role="alert">
       <p>{error}</p>
