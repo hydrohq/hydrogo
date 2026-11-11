@@ -40,7 +40,8 @@ type CheckoutRequest struct {
 	DiscountCode string
 	// PaymentMethod is the method the shopper chose; a configured method
 	// discount applies when no discount code was given.
-	PaymentMethod string
+	PaymentMethod   string
+	MaxLineQuantity int
 }
 
 var (
@@ -51,7 +52,8 @@ var (
 	// another cart's order. The other order is never returned.
 	ErrIdempotencyConflict = errors.New("idempotency key was already used for a different checkout")
 	// ErrEmptyCart means there is nothing to check out.
-	ErrEmptyCart = errors.New("cart is empty")
+	ErrEmptyCart            = errors.New("cart is empty")
+	ErrLineQuantityExceeded = errors.New("cart line quantity exceeds the configured maximum")
 )
 
 // idempotencyHash binds an idempotency key to the cart that used it, so a
@@ -116,6 +118,10 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 		if len(items) == 0 {
 			return ErrEmptyCart
 		}
+		maxQuantity := req.MaxLineQuantity
+		if maxQuantity <= 0 {
+			maxQuantity = 100
+		}
 
 		orderID, err := newID("order_")
 		if err != nil {
@@ -131,6 +137,9 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 				return ErrCartChanged
 			}
 			variantQuantities[item.VariantID] += item.Quantity
+			if item.Quantity <= 0 || item.Quantity > maxQuantity || variantQuantities[item.VariantID] > maxQuantity {
+				return ErrLineQuantityExceeded
+			}
 		}
 
 		// Sort variant IDs deterministically to establish a consistent lock order and prevent deadlocks.

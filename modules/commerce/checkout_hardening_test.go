@@ -2,6 +2,8 @@ package commerce_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -95,5 +97,56 @@ func TestCheckoutDeterministicReserveStockOrderAndMerging(t *testing.T) {
 
 	if !reflect.DeepEqual(recStore.calls, expectedCalls) {
 		t.Fatalf("calls = %+v, want %+v", recStore.calls, expectedCalls)
+	}
+}
+
+func TestCheckoutRejectsLineQuantityAboveMaximum(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "commerce-max-line.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	recStore := &recordingStore{Store: sqlstore.Store{Dialect: database.SQLite}}
+	svc := commerce.Service{
+		Transactions: database.NewTransactor(db),
+		Repository:   recStore,
+		Prices:       commerce.StaticPrices{"variant-a": commerce.Price{Cents: 100, Currency: "TRY"}},
+	}
+	if err := recStore.Store.EnsureStock(ctx, db, "variant-a", 500); err != nil {
+		t.Fatal(err)
+	}
+	recStore.mockItemsOn = true
+
+	cases := []struct {
+		name     string
+		items    []commerce.CartItem
+		max      int
+		wantFail bool
+	}{
+		{"default allows 100", []commerce.CartItem{{ID: "1", CartID: "c", VariantID: "variant-a", Quantity: 100}}, 0, false},
+		{"default rejects 101", []commerce.CartItem{{ID: "1", CartID: "c", VariantID: "variant-a", Quantity: 101}}, 0, true},
+		{"configured limit allows equal", []commerce.CartItem{{ID: "1", CartID: "c", VariantID: "variant-a", Quantity: 5}}, 5, false},
+		{"configured limit rejects above", []commerce.CartItem{{ID: "1", CartID: "c", VariantID: "variant-a", Quantity: 6}}, 5, true},
+		{"duplicate lines are summed", []commerce.CartItem{
+			{ID: "1", CartID: "c", VariantID: "variant-a", Quantity: 3},
+			{ID: "2", CartID: "c", VariantID: "variant-a", Quantity: 3},
+		}, 5, true},
+	}
+	for i, tc := range cases {
+		recStore.mockItems = tc.items
+		_, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+			CartID: "c", GuestEmail: "shopper@example.com",
+			IdempotencyKey: fmt.Sprintf("idem-max-line-%d", i), MaxLineQuantity: tc.max,
+		})
+		if tc.wantFail && !errors.Is(err, commerce.ErrLineQuantityExceeded) {
+			t.Errorf("%s: err = %v, want ErrLineQuantityExceeded", tc.name, err)
+		}
+		if !tc.wantFail && err != nil {
+			t.Errorf("%s: unexpected error %v", tc.name, err)
+		}
 	}
 }

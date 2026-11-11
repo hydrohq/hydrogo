@@ -141,6 +141,7 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		CheckoutLimiter:       a.newRateLimiter(10, time.Minute),
 		PendingTracker:        commercetransport.NewPendingOrderTracker(),
 		MaxPendingOrdersPerIP: a.cfg.Commerce.MaxPendingOrdersPerIP,
+		MaxLineQuantity:       a.cfg.Commerce.MaxLineQuantity,
 		DefaultCurrency:       a.cfg.Commerce.Currencies.Default,
 		DisplayCurrencies:     a.cfg.Commerce.Currencies.Display,
 		CurrencyRates:         a.cfg.Commerce.Currencies.Rates,
