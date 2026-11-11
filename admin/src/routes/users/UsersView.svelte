@@ -102,7 +102,8 @@
     try {
       const res = await api.get<ApiResponse<StaffUser[]>>('/api/v1/admin/users');
       if (res?.data && Array.isArray(res.data)) {
-        users = res.data;
+        // Service accounts (scripts/CI) are not team members: keep them out of the staff list.
+        users = res.data.filter((u) => !u.email.endsWith('@hydrogo.invalid'));
       }
     } catch (e) {
       console.warn('Load users failed:', e);
