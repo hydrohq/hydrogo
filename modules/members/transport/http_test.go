@@ -254,6 +254,27 @@ func TestMemberTransportRegistrationAndLogin(t *testing.T) {
 	if unauthRR.Code != http.StatusUnauthorized {
 		t.Fatalf("GET /member/me unauthenticated status = %d, expected 401", unauthRR.Code)
 	}
+
+	// 4. POST /member/delete deactivates account and revokes session
+	delReq := httptest.NewRequest("POST", "/member/delete", nil)
+	delReq.AddCookie(sessionCookie)
+	delRR := httptest.NewRecorder()
+	mux.ServeHTTP(delRR, delReq)
+	if delRR.Code != http.StatusOK {
+		t.Fatalf("POST /member/delete status = %d, body = %s", delRR.Code, delRR.Body.String())
+	}
+	if !strings.Contains(delRR.Body.String(), `"deleted":true`) {
+		t.Fatalf("POST /member/delete body missing deleted:true: %s", delRR.Body.String())
+	}
+
+	// Verify session is now invalid and member is inactive
+	afterDelReq := httptest.NewRequest("GET", "/member/me", nil)
+	afterDelReq.AddCookie(sessionCookie)
+	afterDelRR := httptest.NewRecorder()
+	mux.ServeHTTP(afterDelRR, afterDelReq)
+	if afterDelRR.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /member/me after delete status = %d, expected 401", afterDelRR.Code)
+	}
 }
 
 func TestAdminDeactivateRevokesBrowserSessions(t *testing.T) {
