@@ -219,6 +219,16 @@ export interface ProductRecord {
       }
     }
 
+    if (formData.compare_at_price !== '' && formData.compare_at_price != null) {
+      const compareNum = Number(formData.compare_at_price);
+      const baseNum = Number(formData.base_price);
+      if (!isNaN(compareNum)) {
+        if (isNaN(baseNum) || compareNum <= baseNum) {
+          errors.compare_at_price = t('products.editor.errorComparePrice');
+        }
+      }
+    }
+
     fieldErrors = errors;
     return Object.keys(errors).length === 0;
   }
@@ -561,7 +571,10 @@ export interface ProductRecord {
                   min="0"
                   placeholder="0.00"
                   bind:value={formData.base_price}
-                  oninput={() => { if (fieldErrors.base_price) delete fieldErrors.base_price; }}
+                  oninput={() => {
+                    if (fieldErrors.base_price) delete fieldErrors.base_price;
+                    if (fieldErrors.compare_at_price) delete fieldErrors.compare_at_price;
+                  }}
                   class="flex-1 h-9 rounded-md border {fieldErrors.base_price ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-ring'} bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 shadow-xs"
                 />
                 <select
@@ -591,8 +604,17 @@ export interface ProductRecord {
                 min="0"
                 placeholder="0.00"
                 bind:value={formData.compare_at_price}
-                class="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                oninput={() => {
+                  if (fieldErrors.compare_at_price) delete fieldErrors.compare_at_price;
+                }}
+                class="h-9 rounded-md border {fieldErrors.compare_at_price ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-ring'} bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 shadow-xs"
               />
+              <p class="text-[11px] text-muted-foreground">
+                {t('products.editor.comparePriceHelp')}
+              </p>
+              {#if fieldErrors.compare_at_price}
+                <p class="text-xs text-destructive">{fieldErrors.compare_at_price}</p>
+              {/if}
             </div>
           </div>
 
