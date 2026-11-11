@@ -55,6 +55,17 @@ export const en = {
   'ct.deleting': 'Deleting...',
   'ct.deleteConfirm': 'Delete Object',
   'ct.fieldsCount': '{count} fields',
+  'ct.featRealtime': 'Realtime (SSE)',
+  'ct.accessRules': 'Access Rules (RLS)',
+  'ct.hide': 'Hide',
+  'ct.configure': 'Configure',
+  'ct.rule.list': 'List Rule (e.g. true)',
+  'ct.rule.read': 'Read Rule (e.g. true)',
+  'ct.rule.create': 'Create Rule (e.g. auth.is_admin)',
+  'ct.rule.update': 'Update Rule (e.g. auth.is_admin)',
+  'ct.rule.delete': 'Delete Rule (e.g. auth.is_admin)',
+  'ct.palette': 'Palette:',
+  'ct.kind.datetime': 'Date & Time',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -114,4 +125,15 @@ export const tr: Record<keyof typeof en, string> = {
   'ct.deleting': 'Siliniyor...',
   'ct.deleteConfirm': 'Nesneyi Sil',
   'ct.fieldsCount': '{count} alan',
+  'ct.featRealtime': 'Gerçek Zamanlı (SSE)',
+  'ct.accessRules': 'Erişim Kuralları (RLS)',
+  'ct.hide': 'Gizle',
+  'ct.configure': 'Yapılandır',
+  'ct.rule.list': 'Listeleme Kuralı (ör. true)',
+  'ct.rule.read': 'Okuma Kuralı (ör. true)',
+  'ct.rule.create': 'Oluşturma Kuralı (ör. auth.is_admin)',
+  'ct.rule.update': 'Güncelleme Kuralı (ör. auth.is_admin)',
+  'ct.rule.delete': 'Silme Kuralı (ör. auth.is_admin)',
+  'ct.palette': 'Palet:',
+  'ct.kind.datetime': 'Tarih ve Saat',
 };

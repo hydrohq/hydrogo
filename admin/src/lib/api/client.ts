@@ -1,4 +1,14 @@
+import { t, type MessageKey } from '$lib/i18n/index.svelte';
 import type { ApiError } from './types';
+
+// Resolved at throw time, so the i18n <-> client import cycle is harmless.
+export function translateApiError(key: MessageKey, fallback: string): string {
+  try {
+    return t(key);
+  } catch {
+    return fallback;
+  }
+}
 
 class ApiClientError extends Error {
   code: string;
@@ -7,7 +17,7 @@ class ApiClientError extends Error {
   status: number;
 
   constructor(error: ApiError, status: number) {
-    super(error.message || 'API request failed');
+    super(error.message || translateApiError('api.error.requestFailed', 'API request failed'));
     this.name = 'ApiClientError';
     this.code = error.code || 'UNKNOWN_ERROR';
     this.requestId = error.request_id || '';
@@ -122,7 +132,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     if (!response.ok) {
       throw new ApiClientError({
         code: `HTTP_${response.status}`,
-        message: response.statusText || 'Unknown network error',
+        message: response.statusText || translateApiError('api.error.network', 'Unknown network error'),
         request_id: response.headers.get('X-Request-Id') || '',
       }, response.status);
     }
@@ -132,7 +142,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
   if (!response.ok) {
     const error: ApiError = {
       code: body.code || `HTTP_${response.status}`,
-      message: body.message || 'An error occurred',
+      message: body.message || translateApiError('api.error.generic', 'An error occurred'),
       request_id: body.request_id || response.headers.get('X-Request-Id') || '',
       fields: body.fields,
     };

@@ -17,9 +17,9 @@ describe('RefundRequiredView', () => {
   it('lists refund requirements and resolves one with the operator note', async () => {
     render(RefundRequiredView);
     expect(await screen.findByText('Late payment')).toBeTruthy();
-    const note = screen.getByLabelText('order-1 notu');
+    const note = screen.getByLabelText('order-1 note');
     await fireEvent.input(note, { target: { value: 'Refund sent' } });
-    await fireEvent.click(screen.getByRole('button', { name: 'Çözüldü' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Resolve' }));
     expect(post).toHaveBeenCalledWith('/api/v1/admin/commerce/refunds-required/rr-1/resolve', { note: 'Refund sent' });
   });
 });

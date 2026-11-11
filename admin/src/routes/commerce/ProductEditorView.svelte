@@ -333,7 +333,7 @@ export interface ProductRecord {
   }}
 />
 
-<div class="flex flex-1 flex-col gap-6 p-4 lg:p-6 max-w-5xl mx-auto w-full">
+<div class="flex flex-1 flex-col gap-6 w-full">
   <!-- Header bar -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
     <div class="space-y-1">
@@ -515,14 +515,14 @@ export interface ProductRecord {
                 <div class="relative size-12 rounded-md overflow-hidden border border-border bg-muted shrink-0">
                   <img
                     src={resolveMediaUrl(formData.cover_image)}
-                    alt={formData.name || 'Cover'}
+                    alt={formData.name || t('products.editor.coverAlt')}
                     class="size-full object-cover"
                   />
                 </div>
               {/if}
               <input
                 type="text"
-                placeholder="Medya ID veya URL"
+                placeholder={t('products.editor.mediaPlaceholder')}
                 bind:value={formData.cover_image}
                 class="flex-1 h-9 rounded-md border border-input bg-background px-3 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
               />
@@ -538,7 +538,7 @@ export interface ProductRecord {
                   type="button"
                   class="h-9 px-2.5 rounded-md border border-input bg-background hover:bg-destructive/10 hover:text-destructive text-xs font-medium text-muted-foreground transition-colors cursor-pointer shadow-xs shrink-0"
                   onclick={() => { formData.cover_image = ''; }}
-                  aria-label="Remove image"
+                  aria-label={t('products.editor.removeImage')}
                 >
                   ×
                 </button>

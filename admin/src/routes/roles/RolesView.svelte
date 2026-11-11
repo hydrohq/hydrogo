@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
+  import { t } from '$lib/i18n/index.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
@@ -50,7 +51,7 @@
         roles = Array.isArray(res) ? res : (((res as any).data as CustomRole[]) || []);
       }
     } catch (err: any) {
-      statusErr = err?.message || 'Failed to load roles';
+      statusErr = err?.message || t('roles.err.load');
     } finally {
       loading = false;
     }
@@ -92,7 +93,7 @@
 
   async function handleSaveRole() {
     if (!formId.trim() || !formName.trim()) {
-      statusErr = 'Role ID and Name are required';
+      statusErr = t('roles.err.required');
       return;
     }
     saving = true;
@@ -106,11 +107,11 @@
         permissions: formPermissions,
       };
       await api.post('/api/v1/admin/roles', payload);
-      statusMsg = `Role ${formName} saved successfully`;
+      statusMsg = t('roles.savedSuccess', { name: formName });
       modalOpen = false;
       await loadRoles();
     } catch (err: any) {
-      statusErr = err?.message || 'Failed to save role';
+      statusErr = err?.message || t('roles.err.save');
     } finally {
       saving = false;
     }
@@ -123,11 +124,11 @@
     statusMsg = null;
     try {
       await api.delete(`/api/v1/admin/roles/${deleteTarget.id}`);
-      statusMsg = `Role ${deleteTarget.name} deleted`;
+      statusMsg = t('roles.deletedSuccess', { name: deleteTarget.name });
       deleteTarget = null;
       await loadRoles();
     } catch (err: any) {
-      statusErr = err?.message || 'Failed to delete role';
+      statusErr = err?.message || t('roles.err.delete');
     } finally {
       deleting = false;
     }
@@ -139,18 +140,18 @@
 </script>
 
 <div class="flex flex-1 flex-col">
-  <div class="@container/main flex flex-1 flex-col gap-4 p-4 lg:p-6 max-w-5xl mx-auto w-full">
+  <div class="@container/main flex flex-1 flex-col gap-4 w-full">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
       <div>
-        <h2 class="text-xl font-semibold tracking-tight text-foreground">Custom Roles & Permissions</h2>
-        <p class="text-xs text-muted-foreground mt-0.5">Manage granular tenant roles and resource capabilities.</p>
+        <h2 class="text-xl font-semibold tracking-tight text-foreground">{t('roles.title')}</h2>
+        <p class="text-xs text-muted-foreground mt-0.5">{t('roles.subtitle')}</p>
       </div>
       <Button onclick={openCreateModal} class="cursor-pointer shadow-xs gap-1.5 self-start sm:self-auto">
         <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 5v14M5 12h14" />
         </svg>
-        Create Role
+        {t('roles.create')}
       </Button>
     </div>
 
@@ -169,7 +170,7 @@
     <!-- Roles Table -->
     <div class="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
       {#if loading}
-        <div class="p-8 text-center text-sm text-muted-foreground">Loading custom roles...</div>
+        <div class="p-8 text-center text-sm text-muted-foreground">{t('roles.loading')}</div>
       {:else if roles.length === 0}
         <div class="p-12 text-center space-y-3">
           <div class="inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -178,21 +179,21 @@
               <path d="M7 7h10" /><path d="M7 12h10" /><path d="M7 17h10" />
             </svg>
           </div>
-          <h3 class="text-base font-semibold text-foreground">No Custom Roles Defined</h3>
+          <h3 class="text-base font-semibold text-foreground">{t('roles.emptyTitle')}</h3>
           <p class="text-sm text-muted-foreground max-w-sm mx-auto">
-            Create granular roles to give team members scoped access to specific content types and operations.
+            {t('roles.emptyDesc')}
           </p>
-          <Button variant="outline" size="sm" onclick={openCreateModal}>Create First Role</Button>
+          <Button variant="outline" size="sm" onclick={openCreateModal}>{t('roles.createFirst')}</Button>
         </div>
       {:else}
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="border-b border-border bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
-                <th class="px-4 py-3 font-medium">Role</th>
-                <th class="px-4 py-3 font-medium">Identifier</th>
-                <th class="px-4 py-3 font-medium">Permissions</th>
-                <th class="px-4 py-3 text-right font-medium">Actions</th>
+                <th class="px-4 py-3 font-medium">{t('roles.colRole')}</th>
+                <th class="px-4 py-3 font-medium">{t('roles.colIdentifier')}</th>
+                <th class="px-4 py-3 font-medium">{t('roles.colPermissions')}</th>
+                <th class="px-4 py-3 text-right font-medium">{t('roles.colActions')}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -216,13 +217,13 @@
                           </Badge>
                         {/each}
                       {:else}
-                        <span class="text-xs text-muted-foreground italic">No permissions</span>
+                        <span class="text-xs text-muted-foreground italic">{t('roles.noPermissions')}</span>
                       {/if}
                     </div>
                   </td>
                   <td class="px-4 py-3 text-right space-x-2">
-                    <Button variant="ghost" size="sm" onclick={() => openEditModal(role)}>Edit</Button>
-                    <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteTarget = role)}>Delete</Button>
+                    <Button variant="ghost" size="sm" onclick={() => openEditModal(role)}>{t('common.edit')}</Button>
+                    <Button variant="ghost" size="sm" class="text-destructive hover:text-destructive" onclick={() => (deleteTarget = role)}>{t('common.delete')}</Button>
                   </td>
                 </tr>
               {/each}
@@ -235,57 +236,57 @@
 </div>
 
 <!-- Create / Edit Role Modal -->
-<Modal open={modalOpen} onclose={() => (modalOpen = false)} title={isEditing ? 'Edit Role' : 'Create Custom Role'}>
+<Modal open={modalOpen} onclose={() => (modalOpen = false)} title={isEditing ? t('roles.modalEditTitle') : t('roles.modalCreateTitle')}>
   <div class="space-y-4">
     <div>
-      <label for="role-id-input" class="block text-xs font-medium text-foreground mb-1">Role Identifier</label>
+      <label for="role-id-input" class="block text-xs font-medium text-foreground mb-1">{t('roles.identifierLabel')}</label>
       <Input
         id="role-id-input"
         bind:value={formId}
         disabled={isEditing}
-        placeholder="e.g. moderator, content_creator"
+        placeholder={t('roles.identifierPlaceholder')}
       />
-      <p class="text-[11px] text-muted-foreground mt-1">Lowercase letters, numbers, and underscores (e.g. store_manager).</p>
+      <p class="text-[11px] text-muted-foreground mt-1">{t('roles.identifierHint')}</p>
     </div>
 
     <div>
-      <label for="role-name-input" class="block text-xs font-medium text-foreground mb-1">Role Display Name</label>
+      <label for="role-name-input" class="block text-xs font-medium text-foreground mb-1">{t('roles.nameLabel')}</label>
       <Input
         id="role-name-input"
         bind:value={formName}
-        placeholder="e.g. Content Moderator"
+        placeholder={t('roles.namePlaceholder')}
       />
     </div>
 
     <div>
-      <label for="role-desc-input" class="block text-xs font-medium text-foreground mb-1">Description</label>
+      <label for="role-desc-input" class="block text-xs font-medium text-foreground mb-1">{t('roles.descLabel')}</label>
       <Input
         id="role-desc-input"
         bind:value={formDesc}
-        placeholder="Optional summary of responsibilities"
+        placeholder={t('roles.descPlaceholder')}
       />
     </div>
 
     <!-- Permissions Builder -->
     <div class="pt-2 border-t border-border space-y-3">
       <div class="flex items-center justify-between">
-        <h4 class="text-sm font-semibold text-foreground">Permissions</h4>
-        <span class="text-xs text-muted-foreground">{formPermissions.length} granted</span>
+        <h4 class="text-sm font-semibold text-foreground">{t('roles.permissionsTitle')}</h4>
+        <span class="text-xs text-muted-foreground">{t('roles.grantedCount', { count: formPermissions.length })}</span>
       </div>
 
       <div class="flex items-center gap-2">
         <div class="flex-1">
-          <Input bind:value={newResource} placeholder="Resource (e.g. collection:posts, media, *)" />
+          <Input bind:value={newResource} placeholder={t('roles.resourcePlaceholder')} />
         </div>
         <div class="w-32">
-          <Input bind:value={newAction} placeholder="Action (read, create, *)" />
+          <Input bind:value={newAction} placeholder={t('roles.actionPlaceholder')} />
         </div>
-        <Button variant="secondary" size="sm" onclick={addPermission}>Add</Button>
+        <Button variant="secondary" size="sm" onclick={addPermission}>{t('roles.addPermission')}</Button>
       </div>
 
       <div class="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border border-border p-2 bg-muted/20">
         {#if formPermissions.length === 0}
-          <div class="text-xs text-center text-muted-foreground py-3">No permissions assigned yet.</div>
+          <div class="text-xs text-center text-muted-foreground py-3">{t('roles.noPermissionsAssigned')}</div>
         {:else}
           {#each formPermissions as perm, idx}
             <div class="flex items-center justify-between bg-card px-2.5 py-1.5 rounded border border-border text-xs">
@@ -307,9 +308,9 @@
     </div>
 
     <div class="flex justify-end gap-2 pt-4">
-      <Button variant="outline" onclick={() => (modalOpen = false)}>Cancel</Button>
+      <Button variant="outline" onclick={() => (modalOpen = false)}>{t('common.cancel')}</Button>
       <Button onclick={handleSaveRole} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Role'}
+        {saving ? t('roles.saving') : t('roles.saveRole')}
       </Button>
     </div>
   </div>
@@ -318,9 +319,9 @@
 <!-- Confirm Delete Dialog -->
 <ConfirmDialog
   open={!!deleteTarget}
-  title="Delete Custom Role"
-  description={`Are you sure you want to delete role "${deleteTarget?.name}"? Users assigned to this role will lose their custom permissions.`}
-  confirmLabel="Delete Role"
+  title={t('roles.deleteTitle')}
+  description={t('roles.deleteDesc', { name: deleteTarget?.name ?? '' })}
+  confirmLabel={t('roles.deleteConfirm')}
   variant="destructive"
   loading={deleting}
   onconfirm={handleDeleteRole}
