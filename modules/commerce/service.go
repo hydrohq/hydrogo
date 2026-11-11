@@ -16,6 +16,7 @@ import (
 type Repository interface {
 	EnsureStock(ctx context.Context, db database.Executor, variantID string, available int) error
 	GetStock(ctx context.Context, db database.Executor, variantID string) (Stock, error)
+	StocksByVariantIDs(ctx context.Context, db database.Executor, variantIDs []string) ([]Stock, error)
 	ReserveStock(ctx context.Context, db database.Executor, variantID string, quantity int) (bool, error)
 	ReleaseReservation(ctx context.Context, db database.Executor, variantID string, quantity int) error
 	CommitReservation(ctx context.Context, db database.Executor, variantID string, quantity int) error

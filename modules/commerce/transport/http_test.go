@@ -1327,3 +1327,124 @@ func TestAddItemHonorsConfiguredLineQuantity(t *testing.T) {
 		t.Fatalf("checkout exceeding max_line_quantity: status=%d body=%s", checkoutRec.Code, checkoutRec.Body)
 	}
 }
+
+func TestListStockAdmin(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+
+	// 1. Check route registration
+	var found bool
+	for _, r := range h.Routes() {
+		if r.Pattern == "GET /api/v1/admin/commerce/stock" {
+			found = true
+			if !r.Protected {
+				t.Fatalf("expected protected route")
+			}
+			if r.Permission != PermissionRead {
+				t.Fatalf("expected PermissionRead, got %s", r.Permission)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("route GET /api/v1/admin/commerce/stock not found in Routes()")
+	}
+
+	// 2. Empty or invalid query -> 400
+	for _, raw := range []string{"", "variant_ids=", "variant_ids=%20%20", "variant_ids=v1,,v2", "variant_ids=,"} {
+		url := "/api/v1/admin/commerce/stock"
+		if raw != "" {
+			url += "?" + raw
+		}
+		req := httptest.NewRequest(http.MethodGet, url, nil)
+		rec := httptest.NewRecorder()
+		h.listStockAdmin(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("query %q: want status 400, got %d (%s)", raw, rec.Code, rec.Body.String())
+		}
+	}
+
+	// 3. More than 500 IDs -> 400
+	tooManyIDs := make([]string, 501)
+	for i := range tooManyIDs {
+		tooManyIDs[i] = fmt.Sprintf("v-%d", i)
+	}
+	req501 := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/stock?variant_ids="+strings.Join(tooManyIDs, ","), nil)
+	rec501 := httptest.NewRecorder()
+	h.listStockAdmin(rec501, req501)
+	if rec501.Code != http.StatusBadRequest {
+		t.Fatalf("501 IDs: want status 400, got %d (%s)", rec501.Code, rec501.Body.String())
+	}
+
+	// 4. Seed variants
+	if err := h.Service.Repository.EnsureStock(ctx, db, "v-admin-1", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Service.Repository.EnsureStock(ctx, db, "v-admin-2", 20); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := h.Service.Repository.ReserveStock(ctx, db, "v-admin-1", 4); err != nil || !ok {
+		t.Fatalf("reserve: ok=%v err=%v", ok, err)
+	}
+
+	// 5. Query: v-admin-1, v-admin-unknown, v-admin-2
+	// Expected: unknown omitted, reserved/available returned
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/stock?variant_ids=v-admin-1,v-admin-unknown,v-admin-2", nil)
+	rec := httptest.NewRecorder()
+	h.listStockAdmin(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	var envelope struct {
+		Data []struct {
+			VariantID string `json:"variant_id"`
+			Available int    `json:"available"`
+			Reserved  int    `json:"reserved"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode response: %v (%s)", err, rec.Body.String())
+	}
+
+	if len(envelope.Data) != 2 {
+		t.Fatalf("expected 2 stock rows (unknown omitted), got %d: %+v", len(envelope.Data), envelope.Data)
+	}
+
+	rowMap := make(map[string]struct{ Available, Reserved int })
+	for _, row := range envelope.Data {
+		rowMap[row.VariantID] = struct{ Available, Reserved int }{row.Available, row.Reserved}
+	}
+
+	r1, ok1 := rowMap["v-admin-1"]
+	if !ok1 {
+		t.Fatal("v-admin-1 missing from response")
+	}
+	if r1.Available != 6 || r1.Reserved != 4 {
+		t.Fatalf("v-admin-1 got available=%d reserved=%d, want available=6 reserved=4", r1.Available, r1.Reserved)
+	}
+
+	r2, ok2 := rowMap["v-admin-2"]
+	if !ok2 {
+		t.Fatal("v-admin-2 missing from response")
+	}
+	if r2.Available != 20 || r2.Reserved != 0 {
+		t.Fatalf("v-admin-2 got available=%d reserved=%d, want available=20 reserved=0", r2.Available, r2.Reserved)
+	}
+
+	// 6. Query only unknown variants -> empty data array
+	reqNone := httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/stock?variant_ids=unknown-x,unknown-y", nil)
+	recNone := httptest.NewRecorder()
+	h.listStockAdmin(recNone, reqNone)
+	if recNone.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", recNone.Code, recNone.Body.String())
+	}
+	var envNone struct {
+		Data []any `json:"data"`
+	}
+	if err := json.Unmarshal(recNone.Body.Bytes(), &envNone); err != nil {
+		t.Fatalf("decode response: %v (%s)", err, recNone.Body.String())
+	}
+	if len(envNone.Data) != 0 {
+		t.Fatalf("expected empty array, got %d items", len(envNone.Data))
+	}
+}

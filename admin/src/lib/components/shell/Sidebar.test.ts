@@ -121,7 +121,7 @@ describe('Sidebar', () => {
 
     // Assert
     expect(await screen.findByText('3')).toBeTruthy();
-    expect(screen.getByTitle('İade Gerekli')).toBeTruthy();
+    expect(screen.getByTitle(t('nav.refundsRequired'))).toBeTruthy();
     expect(api.get).toHaveBeenCalledWith('/api/v1/admin/commerce/refunds-required/count');
   });
 
@@ -135,7 +135,7 @@ describe('Sidebar', () => {
     render(Sidebar, { props: {} });
 
     // Assert
-    expect(screen.queryByTitle('İade Gerekli')).toBeNull();
+    expect(screen.queryByTitle(t('nav.refundsRequired'))).toBeNull();
     expect(api.get).not.toHaveBeenCalledWith('/api/v1/admin/commerce/refunds-required/count');
   });
   it('hides console and subscription items when platform is false', () => {
@@ -195,5 +195,77 @@ describe('Sidebar', () => {
 
     // Assert - shown in both sidebar navigation and user menu
     expect(screen.getAllByText('Abonelik & Ödeme').length).toBe(2);
+  });
+  it('shows the Products link as the first item in the store section for commerce readers', () => {
+    schema.schema = { modules: { commerce: true }, resources: [] } as any;
+    auth.user = { role: 'admin' } as any;
+    vi.mocked(api.get).mockResolvedValue({ data: { count: 0 } } as any);
+
+    render(Sidebar, { props: {} });
+
+    const productsLink = screen.getByTitle(t('nav.products'));
+    expect(productsLink).toBeTruthy();
+    expect(productsLink.getAttribute('href')).toBe('/admin/commerce/products');
+    expect(screen.getByText(t('nav.store'))).toBeTruthy();
+  });
+
+  it('marks Products active on /commerce/products and keeps Orders inactive', () => {
+    schema.schema = { modules: { commerce: true }, resources: [] } as any;
+    auth.user = { role: 'admin' } as any;
+    vi.mocked(api.get).mockResolvedValue({ data: { count: 0 } } as any);
+    router.navigate('/commerce/products');
+
+    render(Sidebar, { props: {} });
+
+    const productsLink = screen.getByTitle(t('nav.products'));
+    const ordersLink = screen.getByTitle(t('nav.orders'));
+
+    expect(productsLink.className).toContain('font-medium shadow-xs');
+    expect(ordersLink.className).not.toContain('font-medium shadow-xs');
+  });
+
+  it('shows the Stock link in the store section for commerce readers', () => {
+    schema.schema = { modules: { commerce: true }, resources: [] } as any;
+    auth.user = { role: 'admin' } as any;
+    vi.mocked(api.get).mockResolvedValue({ data: { count: 0 } } as any);
+
+    render(Sidebar, { props: {} });
+
+    expect(screen.getByTitle(t('nav.stock'))).toBeTruthy();
+    expect(screen.getByText(t('nav.store'))).toBeTruthy();
+  });
+
+  it('groups content types by group and collapses the Advanced group by default', () => {
+    schema.schema = {
+      modules: {},
+      resources: [
+        { id: 'blog_posts', label: 'Blog', plural: 'Blog posts', group: 'Content', source: 'content_type' },
+        { id: 'variants', label: 'Variant', plural: 'Variants', group: 'Advanced', source: 'content_type' }
+      ]
+    } as any;
+    auth.user = { role: 'admin' } as any;
+    try { localStorage.clear(); } catch {}
+
+    render(Sidebar, { props: {} });
+
+    expect(screen.getByTitle('Blog posts')).toBeTruthy();
+    expect(screen.queryByTitle('Variants')).toBeNull();
+  });
+
+  it('expands the Advanced group when its header is clicked', async () => {
+    schema.schema = {
+      modules: {},
+      resources: [
+        { id: 'blog_posts', label: 'Blog', plural: 'Blog posts', group: 'Content', source: 'content_type' },
+        { id: 'variants', label: 'Variant', plural: 'Variants', group: 'Advanced', source: 'content_type' }
+      ]
+    } as any;
+    auth.user = { role: 'admin' } as any;
+    try { localStorage.clear(); } catch {}
+
+    render(Sidebar, { props: {} });
+    await fireEvent.click(screen.getByTestId('nav-group-Advanced'));
+
+    expect(screen.getByTitle('Variants')).toBeTruthy();
   });
 });
