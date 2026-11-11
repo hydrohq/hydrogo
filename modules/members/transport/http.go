@@ -351,6 +351,9 @@ func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Şifre güncellenemedi.", http.StatusInternalServerError)
 		return
 	}
+	if h.Mobile != nil {
+		_ = h.Mobile.RevokeAll(r.Context(), member.ID)
+	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]any{"updated": true, "message": "Şifreniz başarıyla güncellendi."})
 }

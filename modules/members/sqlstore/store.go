@@ -339,7 +339,13 @@ func (s Store) UpdateEmail(ctx context.Context, id, email string) error {
 	if n != 1 {
 		return members.ErrMemberNotFound
 	}
-	return nil
+	// A verification link issued for the old address must not verify the new one.
+	now := any(time.Now().UTC())
+	if s.Dialect == database.SQLite {
+		now = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	_, err = s.exec(ctx, "UPDATE member_email_verification_tokens SET consumed_at = "+s.ph(1)+" WHERE member_id = "+s.ph(2)+" AND consumed_at IS NULL", now, id)
+	return err
 }
 
 func (s Store) UpdatePasswordHash(ctx context.Context, id, passwordHash string) error {

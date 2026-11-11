@@ -258,6 +258,9 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 			api.WriteError(w, r, http.StatusServiceUnavailable, "member password update failed", nil)
 			return
 		}
+		if h.Mobile != nil {
+			_ = h.Mobile.RevokeAll(r.Context(), member.ID)
+		}
 	}
 	if input.Active != nil {
 		if err := h.Service.Members.SetActive(r.Context(), member.ID, *input.Active); err != nil {
