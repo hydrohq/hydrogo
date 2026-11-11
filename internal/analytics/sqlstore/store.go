@@ -170,6 +170,26 @@ func (s Store) ListDailyStats(ctx context.Context, day, tenantID string, limit i
 	return result, nil
 }
 
+// TotalHistoricalViews returns the lifetime aggregate of page/route views for a tenant.
+func (s Store) TotalHistoricalViews(ctx context.Context, tenantID string) (int64, error) {
+	if err := s.validate(); err != nil {
+		return 0, err
+	}
+	query := `SELECT COALESCE(SUM(event_count), 0) FROM analytics_daily_stats WHERE metric='page' AND tenant_id=` + placeholder(s.Dialect, 1)
+	var total int64
+	err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("analytics stats query requires query executor")
+		}
+		return queryer.QueryRowContext(ctx, query, tenantID).Scan(&total)
+	})
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (s Store) ListDailyStatsBetween(ctx context.Context, fromDay, toDay, tenantID string, limit int) ([]DailyStat, error) {
 	if err := s.validate(); err != nil {
 		return nil, err

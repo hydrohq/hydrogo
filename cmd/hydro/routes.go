@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/adminui"
+	"github.com/ardaozyildirim/hydrogo/internal/analytics"
 	"github.com/ardaozyildirim/hydrogo/internal/media"
 	"github.com/ardaozyildirim/hydrogo/internal/router"
 	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
@@ -46,6 +47,27 @@ func (a *serveApp) routes() ([]router.Route, error) {
 	}
 	routes = append(routes, assetRoutes...)
 	routes = append(routes, a.webhookRoutes()...)
+	if a.modules["analytics"] && a.noCookieQueue != nil && a.noCookieHasher != nil {
+		for i := range routes {
+			if routes[i].Access != router.Public || !strings.HasPrefix(routes[i].Pattern, "GET ") {
+				continue
+			}
+			path := strings.TrimPrefix(routes[i].Pattern, "GET ")
+			if strings.HasPrefix(path, "/media/") ||
+				strings.HasPrefix(path, "/admin") ||
+				strings.HasPrefix(path, "/assets/") ||
+				strings.HasPrefix(path, "/favicon") ||
+				strings.HasPrefix(path, "/healthz") ||
+				strings.HasPrefix(path, "/metrics") ||
+				strings.HasPrefix(path, "/api/v1/internal/") ||
+				strings.HasPrefix(path, "/api/v1/admin/") ||
+				strings.HasPrefix(path, "/pages/") ||
+				strings.HasPrefix(path, "/news/") {
+				continue
+			}
+			routes[i].Handler = analytics.NoCookieMiddleware(routes[i].Handler, a.noCookieQueue, a.noCookieHasher)
+		}
+	}
 	return routes, nil
 }
 

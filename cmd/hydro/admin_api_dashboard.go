@@ -113,7 +113,19 @@ func (a *serveApp) adminDashboardHandler(w http.ResponseWriter, r *http.Request)
 	}
 	if a.metrics != nil {
 		started := a.metrics.StartedAt()
-		dashboard.Runtime = &adminDashboardRuntime{StartedAt: started, UptimeSeconds: int64(time.Since(started).Seconds()), Requests: a.metrics.TotalRequests(), Views: a.metrics.TotalViews(), Errors: a.metrics.TotalErrors(), AvgLatencyMS: a.metrics.AvgLatencyMS()}
+		totalRequests := a.metrics.TotalRequests()
+		totalViews := a.metrics.TotalViews()
+		if modules["analytics"] && a.cfg.Analytics.NoCookieEnabled {
+			tenantID := ""
+			if scope, err := tenant.FromContext(r.Context()); err == nil {
+				tenantID = scope.TenantID
+			}
+			if hist, err := a.analyticsStore.TotalHistoricalViews(r.Context(), tenantID); err == nil && hist > 0 {
+				totalRequests += uint64(hist)
+				totalViews += uint64(hist)
+			}
+		}
+		dashboard.Runtime = &adminDashboardRuntime{StartedAt: started, UptimeSeconds: int64(time.Since(started).Seconds()), Requests: totalRequests, Views: totalViews, Errors: a.metrics.TotalErrors(), AvgLatencyMS: a.metrics.AvgLatencyMS()}
 	}
 	if modules["analytics"] && a.cfg.Analytics.NoCookieEnabled {
 		tenantID := ""
