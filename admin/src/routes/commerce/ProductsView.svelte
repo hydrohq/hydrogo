@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { fetchVariantsForProducts } from '$lib/commerce/variantLoader';
+  import { onDestroy, onMount } from 'svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { auth } from '$lib/stores/auth.svelte';
   import { router } from '$lib/router.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
 
   interface Category {
     id: string;
@@ -44,16 +46,38 @@
     reserved: number;
   }
 
+  interface ProductsResponse {
+    data: Product[];
+    metadata?: {
+      limit?: number;
+      offset?: number;
+      total?: number;
+      has_more?: boolean;
+      next_cursor?: string;
+    };
+  }
+
   let products = $state<Product[]>([]);
   let variants = $state<Variant[]>([]);
   let categories = $state<Category[]>([]);
   let stock = $state<Record<string, { available: number; reserved: number }>>({});
-  let loading = $state(true);
+
+  let initialLoading = $state(true);
+  let pageChanging = $state(false);
   let error = $state('');
 
+  let page = $state(0);
+  let hasMore = $state(false);
+  let total = $state<number | undefined>(undefined);
+
+  let searchInput = $state('');
   let search = $state('');
   let categoryFilter = $state('all');
   let statusFilter = $state('all');
+
+  let categoriesLoaded = false;
+  let requestIdCounter = 0;
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   const canCreate = $derived(
     auth.hasPermission('admin.commerce.write') || auth.hasPermission('admin.content.write')
@@ -128,110 +152,203 @@
     if (count === 0) {
       return { count: 0, total: 0, isZero: true, isLow: false };
     }
-    let total = 0;
+    let totalStock = 0;
     let anyLow = false;
     for (const v of vars) {
       const avail = stock[v.id]?.available ?? 0;
-      total += avail;
+      totalStock += avail;
       if (avail <= 3) {
         anyLow = true;
       }
     }
-    const isZero = total === 0;
+    const isZero = totalStock === 0;
     return {
       count,
-      total,
+      total: totalStock,
       isZero,
       isLow: !isZero && anyLow,
     };
   }
 
-  const filteredProducts = $derived.by(() => {
-    const q = search.trim().toLowerCase();
-    return products.filter((p) => {
-      if (q && !(p.name ?? '').toLowerCase().includes(q)) {
-        return false;
-      }
-      if (categoryFilter !== 'all') {
-        const catId = typeof p.category === 'object' && p.category?.id ? p.category.id : String(p.category ?? '');
-        if (catId !== categoryFilter) return false;
-      }
-      if (statusFilter !== 'all') {
-        const st = (p.status ?? 'published').toLowerCase();
-        if (st !== statusFilter) return false;
-      }
-      return true;
-    });
-  });
+  function buildProductsUrl(pageNum: number, searchVal: string, catVal: string, statusVal: string): string {
+    let url = `/api/v1/admin/content/products?limit=20&offset=${pageNum * 20}&sort=-updated_at`;
+    const q = searchVal.trim();
+    if (q) {
+      url += `&search=${encodeURIComponent(q)}`;
+    }
+    if (catVal && catVal !== 'all') {
+      url += `&filter[category]=${encodeURIComponent(catVal)}`;
+    }
+    if (statusVal && statusVal !== 'all') {
+      url += `&status=${encodeURIComponent(statusVal)}`;
+    }
+    return url;
+  }
 
-  async function loadData() {
-    loading = true;
-    error = '';
-    try {
-      // 1. Fetch categories
-      try {
-        const catRes = await api.get<{ data: Category[] }>('/api/v1/admin/content/categories?limit=100');
-        categories = catRes.data ?? [];
-      } catch {
-        categories = [];
-      }
+  async function fetchVariantsAndStock(prods: Product[]): Promise<{
+    vars: Variant[];
+    stockMap: Record<string, { available: number; reserved: number }>;
+  }> {
+    const productIds = prods.map((p) => p.id).filter(Boolean);
+    if (productIds.length === 0) {
+      return { vars: [], stockMap: {} };
+    }
 
-      // 2. Fetch all products (limit 100 per page, with &expand=category)
-      const prods: Product[] = [];
-      let pOffset = 0;
-      while (true) {
-        const res = await api.get<{ data: Product[] }>(
-          `/api/v1/admin/content/products?limit=100&offset=${pOffset}&expand=category`
-        );
-        const batch = res.data ?? [];
-        prods.push(...batch);
-        if (batch.length < 100) break;
-        pOffset += 100;
-      }
-      products = prods;
+    const vars = await fetchVariantsForProducts<Variant>(productIds);
 
-      // 3. Fetch all variants (limit 100 per page)
-      const vars: Variant[] = [];
-      let vOffset = 0;
-      while (true) {
-        const res = await api.get<{ data: Variant[] }>(
-          `/api/v1/admin/content/variants?limit=100&offset=${vOffset}`
-        );
-        const batch = res.data ?? [];
-        vars.push(...batch);
-        if (batch.length < 100) break;
-        vOffset += 100;
-      }
-      variants = vars;
-
-      // 4. Fetch stock for variants (chunk MAX 500 ids per call)
-      const variantIds = vars.map((v) => v.id).filter(Boolean);
-      const stockMap: Record<string, { available: number; reserved: number }> = {};
-      const chunkSize = 500;
-      if (variantIds.length > 0) {
-        for (let i = 0; i < variantIds.length; i += chunkSize) {
-          const chunk = variantIds.slice(i, i + chunkSize);
-          const res = await api.get<{ data: StockItem[] }>(
+    const variantIds = vars.map((v) => v.id).filter(Boolean);
+    const stockMap: Record<string, { available: number; reserved: number }> = {};
+    const chunkSize = 500;
+    if (variantIds.length > 0) {
+      const chunkPromises = [];
+      for (let i = 0; i < variantIds.length; i += chunkSize) {
+        const chunk = variantIds.slice(i, i + chunkSize);
+        chunkPromises.push(
+          api.get<{ data: StockItem[] }>(
             `/api/v1/admin/commerce/stock?variant_ids=${chunk.map(encodeURIComponent).join(',')}`
-          );
-          for (const item of res.data ?? []) {
-            stockMap[item.variant_id] = {
-              available: Number(item.available) || 0,
-              reserved: Number(item.reserved) || 0,
-            };
-          }
+          )
+        );
+      }
+      const stockResults = await Promise.all(chunkPromises);
+      for (const res of stockResults) {
+        for (const item of res.data ?? []) {
+          stockMap[item.variant_id] = {
+            available: Number(item.available) || 0,
+            reserved: Number(item.reserved) || 0,
+          };
         }
       }
+    }
+
+    return { vars, stockMap };
+  }
+
+  async function loadInitial() {
+    initialLoading = true;
+    error = '';
+    const reqId = ++requestIdCounter;
+
+    try {
+      const [catRes, prodRes] = await Promise.all([
+        api.get<{ data: Category[] }>('/api/v1/admin/content/categories?limit=100').catch(() => ({ data: [] })),
+        api.get<ProductsResponse>(buildProductsUrl(0, search, categoryFilter, statusFilter)),
+      ]);
+
+      if (reqId !== requestIdCounter) return;
+
+      categories = catRes.data ?? [];
+      categoriesLoaded = true;
+
+      const prods = prodRes.data ?? [];
+      const metaHasMore = Boolean(prodRes.metadata?.has_more);
+      const metaTotal = typeof prodRes.metadata?.total === 'number' && prodRes.metadata.total > 0
+        ? prodRes.metadata.total
+        : undefined;
+
+      const { vars, stockMap } = await fetchVariantsAndStock(prods);
+
+      if (reqId !== requestIdCounter) return;
+
+      products = prods;
+      variants = vars;
       stock = stockMap;
+      hasMore = metaHasMore;
+      total = metaTotal;
     } catch (err) {
+      if (reqId !== requestIdCounter) return;
       error = err instanceof ApiClientError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : t('products.error');
     } finally {
-      loading = false;
+      if (reqId === requestIdCounter) {
+        initialLoading = false;
+      }
     }
   }
 
+  async function loadProducts() {
+    if (!categoriesLoaded) {
+      return loadInitial();
+    }
+
+    pageChanging = true;
+    error = '';
+    const reqId = ++requestIdCounter;
+
+    try {
+      const prodRes = await api.get<ProductsResponse>(
+        buildProductsUrl(page, search, categoryFilter, statusFilter)
+      );
+
+      if (reqId !== requestIdCounter) return;
+
+      const prods = prodRes.data ?? [];
+      const metaHasMore = Boolean(prodRes.metadata?.has_more);
+      const metaTotal = typeof prodRes.metadata?.total === 'number' && prodRes.metadata.total > 0
+        ? prodRes.metadata.total
+        : undefined;
+
+      const { vars, stockMap } = await fetchVariantsAndStock(prods);
+
+      if (reqId !== requestIdCounter) return;
+
+      products = prods;
+      variants = vars;
+      stock = stockMap;
+      hasMore = metaHasMore;
+      total = metaTotal;
+    } catch (err) {
+      if (reqId !== requestIdCounter) return;
+      error = err instanceof ApiClientError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : t('products.error');
+    } finally {
+      if (reqId === requestIdCounter) {
+        pageChanging = false;
+      }
+    }
+  }
+
+  function handleSearchInput(e: Event) {
+    const target = e.target as HTMLInputElement;
+    searchInput = target.value;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const val = searchInput.trim();
+      if (search !== val) {
+        search = val;
+        page = 0;
+        loadProducts();
+      }
+    }, 300);
+  }
+
+  function handleCategoryChange(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    if (categoryFilter !== val) {
+      categoryFilter = val;
+      page = 0;
+      loadProducts();
+    }
+  }
+
+  function handleStatusChange(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    if (statusFilter !== val) {
+      statusFilter = val;
+      page = 0;
+      loadProducts();
+    }
+  }
+
+  function goToPage(newPage: number) {
+    if (newPage < 0 || newPage === page || pageChanging) return;
+    page = newPage;
+    loadProducts();
+  }
+
   onMount(() => {
-    loadData();
+    loadInitial();
+  });
+
+  onDestroy(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
   });
 </script>
 
@@ -268,7 +385,8 @@
         type="search"
         placeholder={t('products.search')}
         aria-label={t('products.search')}
-        bind:value={search}
+        value={searchInput}
+        oninput={handleSearchInput}
         class="h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
       />
     </div>
@@ -277,7 +395,8 @@
       <!-- Category Filter -->
       <select
         aria-label={t('products.col.category')}
-        bind:value={categoryFilter}
+        value={categoryFilter}
+        onchange={handleCategoryChange}
         class="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="all">{t('products.allCategories')}</option>
@@ -289,7 +408,8 @@
       <!-- Status Filter -->
       <select
         aria-label={t('products.col.status')}
-        bind:value={statusFilter}
+        value={statusFilter}
+        onchange={handleStatusChange}
         class="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
       >
         <option value="all">{t('products.allStatuses')}</option>
@@ -307,16 +427,14 @@
       </div>
     {/if}
 
-    {#if loading}
-      <div class="p-12 text-center text-xs text-muted-foreground">
-        {t('products.loading')}
-      </div>
-    {:else if filteredProducts.length === 0}
+    {#if initialLoading}
+      <PageSpinner />
+    {:else if products.length === 0}
       <div class="p-12 text-center text-xs text-muted-foreground">
         {t('products.empty')}
       </div>
     {:else}
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto relative transition-opacity duration-150 {pageChanging ? 'opacity-50 pointer-events-none' : ''}">
         <table class="w-full text-left text-sm text-foreground caption-bottom">
           <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
             <tr>
@@ -329,7 +447,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            {#each filteredProducts as product (product.id)}
+            {#each products as product (product.id)}
               {@const stockInfo = getProductStockInfo(product.id)}
               <tr
                 class="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -404,6 +522,41 @@
             {/each}
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination bar -->
+      <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
+        <div>
+          {#if typeof total === 'number' && total > 0}
+            <span>{t('products.pagination.rangeOfTotal', { start: page * 20 + 1, end: page * 20 + products.length, total })}</span>
+          {:else}
+            <span>{t('products.pagination.page', { page: page + 1 })}</span>
+          {/if}
+        </div>
+        <div class="flex items-center gap-2">
+          {#if pageChanging}
+            <div class="inline-flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
+              <div class="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+              <span class="sr-only">{t('products.loading')}</span>
+            </div>
+          {/if}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0 || pageChanging}
+            onclick={() => goToPage(page - 1)}
+          >
+            {t('products.pagination.previous')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!hasMore || pageChanging}
+            onclick={() => goToPage(page + 1)}
+          >
+            {t('products.pagination.next')}
+          </Button>
+        </div>
       </div>
     {/if}
   </div>

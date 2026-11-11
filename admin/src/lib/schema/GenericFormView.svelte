@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
@@ -23,7 +24,9 @@
   const collection = $derived(schema.getCollection(type));
 
   let formData = $state<Record<string, any>>({});
-  let loading = $state(false);
+  // Editing an existing record loads on mount: start loading so the form never flashes empty.
+  // svelte-ignore state_referenced_locally
+  let loading = $state(!!id && id !== 'new');
   let saving = $state(false);
   let errorMessage = $state<string | null>(null);
   let successMessage = $state<string | null>(null);
@@ -185,6 +188,8 @@
       {t('schema.backToDashboard')}
     </button>
   </div>
+{:else if loading}
+  <PageSpinner />
 {:else}
   <div class="flex flex-1 flex-col">
     <div class="@container/main flex flex-1 flex-col gap-2">
@@ -207,9 +212,6 @@
             </span>
             {#if !isNew}
               <DocumentPresence {presence} mode="pill" />
-            {/if}
-            {#if loading}
-              <span class="text-xs text-muted-foreground animate-pulse">{t('common.loading')}</span>
             {/if}
           </div>
 

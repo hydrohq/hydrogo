@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api/client';
@@ -53,7 +54,9 @@
   let version = $state(1);
   let status = $state<'draft' | 'scheduled' | 'published' | 'retracted'>('draft');
   let scheduledAt = $state('');
-  let loading = $state(false);
+  // An existing article loads on mount: start loading so the form never flashes empty.
+  // svelte-ignore state_referenced_locally
+  let loading = $state(!!id && id !== 'new');
   let saving = $state(false);
   let mediaPickerOpen = $state(false);
   let successMsg = $state<string | null>(null);
@@ -253,6 +256,9 @@
   onselect={(media) => { formData.cover_media_id = media.id || media.path; }}
 />
 
+{#if loading}
+  <PageSpinner />
+{:else}
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
     <div class="flex flex-col gap-4 md:gap-6">
@@ -278,9 +284,6 @@
                 {status}
               </Badge>
               <DocumentPresence {presence} mode="pill" />
-            {/if}
-            {#if loading}
-              <span class="text-xs text-muted-foreground animate-pulse">{t('common.loading')}</span>
             {/if}
           </div>
         </div>
@@ -477,3 +480,4 @@
     </div>
   </div>
 </div>
+{/if}

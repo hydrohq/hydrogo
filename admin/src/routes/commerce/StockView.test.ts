@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
+import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
+import { t } from '$lib/i18n/index.svelte';
 import { api } from '$lib/api/client';
 import { auth } from '$lib/stores/auth.svelte';
 import StockView from './StockView.svelte';
@@ -25,6 +26,7 @@ describe('StockView', () => {
       if (url.includes('/api/v1/admin/content/products')) {
         return Promise.resolve({
           data: [{ id: 'p1', name: 'Silk Shirt', slug: 'silk-shirt' }],
+          metadata: { limit: 10, offset: 0, total: 1, has_more: false },
         });
       }
       if (url.includes('/api/v1/admin/content/variants')) {
@@ -72,6 +74,82 @@ describe('StockView', () => {
 
     // Red M combination has no variant, renders dash
     expect(screen.getByText('-')).toBeTruthy();
+  });
+
+  it('requests the first page with limit 10, offset 0, and filters variants and stock by visible products', async () => {
+    render(StockView);
+    expect(await screen.findByText('Silk Shirt')).toBeTruthy();
+
+    const urls = (api.get as any).mock.calls.map((c: any[]) => String(c[0]));
+    expect(
+      urls.some(
+        (u: string) =>
+          u.includes('/api/v1/admin/content/products') &&
+          u.includes('limit=10') &&
+          u.includes('offset=0') &&
+          u.includes('sort=name')
+      )
+    ).toBe(true);
+
+    const variantUrl = urls.find((u: string) => u.includes('/content/variants'));
+    expect(variantUrl).toContain('filter[product][in]=p1');
+
+    const stockUrl = urls.find((u: string) => u.includes('/commerce/stock'));
+    expect(stockUrl).toContain('variant_ids=');
+    expect(decodeURIComponent(stockUrl!)).toContain('v1,v2,v3');
+  });
+
+  it('sends the search term to the server (debounced) and resets to page 0', async () => {
+    render(StockView);
+    expect(await screen.findByText('Silk Shirt')).toBeTruthy();
+
+    await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'shirt' } });
+
+    await waitFor(
+      () => {
+        const urls = (api.get as any).mock.calls.map((c: any[]) => String(c[0]));
+        expect(
+          urls.some(
+            (u: string) =>
+              u.includes('/products?') &&
+              u.includes('search=shirt') &&
+              u.includes('offset=0') &&
+              u.includes('sort=name')
+          )
+        ).toBe(true);
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it('goes to the next page with offset 10 when more products exist', async () => {
+    const base = (api.get as any).getMockImplementation();
+    (api.get as any).mockImplementation((url: string) => {
+      if (url.includes('/api/v1/admin/content/products')) {
+        return base(url).then((res: any) => ({ ...res, metadata: { has_more: true } }));
+      }
+      return base(url);
+    });
+
+    render(StockView);
+    expect(await screen.findByText('Silk Shirt')).toBeTruthy();
+
+    const next = screen.getByRole('button', { name: t('stock.pagination.next') });
+    expect((next as HTMLButtonElement).disabled).toBe(false);
+    await fireEvent.click(next);
+
+    await waitFor(() => {
+      const urls = (api.get as any).mock.calls.map((c: any[]) => String(c[0]));
+      expect(
+        urls.some(
+          (u: string) =>
+            u.includes('/products?') &&
+            u.includes('limit=10') &&
+            u.includes('offset=10') &&
+            u.includes('sort=name')
+        )
+      ).toBe(true);
+    });
   });
 
   it('editing a cell posts to /api/v1/admin/commerce/stock with the right body', async () => {
