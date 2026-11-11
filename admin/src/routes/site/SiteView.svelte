@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { t, i18n, isLocale } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
+  import { schema } from '$lib/stores/schema.svelte';
   import { brandingStore } from '$lib/stores/branding.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
@@ -399,6 +400,7 @@
       >
         {t('site.tab.navigation')}
       </button>
+      {#if schema.modules['forms']}
       <button
         type="button"
         onclick={() => (activeTab = 'forms')}
@@ -413,6 +415,7 @@
       >
         {t('site.tab.inbox')}
       </button>
+      {/if}
       <button
         type="button"
         onclick={() => (activeTab = 'translations')}
@@ -769,9 +772,9 @@
       </div>
     {:else if activeTab === 'navigation'}
       <NavigationTab />
-    {:else if activeTab === 'forms'}
+    {:else if activeTab === 'forms' && schema.modules['forms']}
       <FormsTab />
-    {:else if activeTab === 'inbox'}
+    {:else if activeTab === 'inbox' && schema.modules['forms']}
       <InboxTab />
     {:else if activeTab === 'translations'}
       <TranslationsTab />
