@@ -224,6 +224,10 @@ func runNoCookieStatsContract(t *testing.T, db database.QueryExecutor, dialect d
 	if counts["unique_visitors\x00"] != 1 || counts["page\x00/public/pages/en/home"] != 2 || counts["browser\x00Chrome"] != 2 || len(stats) != 6 {
 		t.Fatalf("daily aggregate contract = %#v", counts)
 	}
+	totalViews, err := store.TotalHistoricalViews(ctx, tenantID)
+	if err != nil || totalViews != 2 {
+		t.Fatalf("expected totalViews=2, got %d err=%v", totalViews, err)
+	}
 	ranged, err := store.ListDailyStatsBetween(ctx, "2026-09-01", day, tenantID, 100)
 	if err != nil || len(ranged) != len(stats) {
 		t.Fatalf("daily range rows=%d err=%v", len(ranged), err)
