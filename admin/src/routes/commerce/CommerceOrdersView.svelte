@@ -335,8 +335,8 @@
 
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+    <div class="flex flex-col gap-4 md:gap-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground overflow-x-auto max-w-full">
           {#each PAYMENT_FILTERS as filter (filter)}
             <button
@@ -363,7 +363,7 @@
         </div>
       </div>
 
-      <div class="px-4 lg:px-6">
+      <div class="">
         <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
           {#if listError}
             <div class="p-4 text-xs text-destructive border-b border-border">{listError}</div>

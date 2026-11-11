@@ -15,9 +15,12 @@
   <div class="relative flex min-w-0 flex-1 flex-col bg-background md:m-2 md:ml-0 md:rounded-xl md:border md:border-border md:shadow-xs overflow-hidden">
     <Header />
     <main class="flex-1 overflow-y-auto bg-background min-w-0">
-      {#if children}
-        {@render children()}
-      {/if}
+      <!-- One frame for every screen: same left edge and width, never centred. -->
+      <div class="admin-page w-full px-4 py-4 lg:px-6 lg:py-6">
+        {#if children}
+          {@render children()}
+        {/if}
+      </div>
     </main>
   </div>
 </div>

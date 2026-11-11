@@ -45,6 +45,10 @@ export const en = {
   'enum.role.viewer': 'Viewer',
   'enum.kind.category': 'Category',
   'enum.kind.tag': 'Tag',
+  'api.error.requestFailed': 'API request failed',
+  'api.error.network': 'Unknown network error',
+  'api.error.generic': 'An error occurred',
+  'common.saved': 'Saved successfully!',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -94,4 +98,8 @@ export const tr: Record<keyof typeof en, string> = {
   'enum.role.viewer': 'Görüntüleyici',
   'enum.kind.category': 'Kategori',
   'enum.kind.tag': 'Etiket',
+  'api.error.requestFailed': 'API isteği başarısız oldu',
+  'api.error.network': 'Ağ bağlantı hatası oluştu',
+  'api.error.generic': 'Bir hata oluştu',
+  'common.saved': 'Başarıyla kaydedildi!',
 };

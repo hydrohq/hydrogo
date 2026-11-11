@@ -181,7 +181,7 @@
 </script>
 
 <div class="flex flex-1 flex-col">
-  <div class="@container/main flex flex-1 flex-col gap-4 p-4 lg:p-6 max-w-6xl mx-auto w-full">
+  <div class="@container/main flex flex-1 flex-col gap-4 w-full">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
       <div>

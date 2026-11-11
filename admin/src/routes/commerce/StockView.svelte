@@ -197,7 +197,7 @@
   });
 </script>
 
-<section class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
+<section class="w-full space-y-6">
   <header>
     <p class="text-sm text-muted-foreground">{t('nav.store')}</p>
     <h1 class="text-2xl font-semibold tracking-tight">{t('stock.title')}</h1>
