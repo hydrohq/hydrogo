@@ -36,6 +36,21 @@ describe('UsersView', () => {
     await waitFor(() => expect(screen.getByText('bob@example.com')).toBeTruthy());
   });
 
+  it('hides service accounts from the staff list', async () => {
+    auth.user = { id: 'me', role: 'admin', email: 'admin@example.com' } as any;
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/api/v1/admin/users') {
+        return Promise.resolve({ data: [user(), user({ id: 'svc', email: 'service+seed@hydrogo.invalid', role: 'viewer' })] });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    render(UsersView, { props: {} });
+
+    await waitFor(() => expect(screen.getByText('bob@example.com')).toBeTruthy());
+    expect(screen.queryByText('service+seed@hydrogo.invalid')).toBeNull();
+  });
+
   it('invites a new staff member', async () => {
     // Arrange
     auth.user = { id: 'me', role: 'admin', email: 'admin@example.com' } as any;
