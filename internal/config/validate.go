@@ -59,6 +59,9 @@ func (c Config) Validate() error {
 	if c.Commerce.Tax.Rate < 0 || c.Commerce.Tax.Rate >= 1 {
 		return errors.New("commerce tax rate must be 0 (disabled) or a fraction below 1")
 	}
+	if c.Commerce.MaxLineQuantity < 1 || c.Commerce.MaxLineQuantity > 1000 {
+		return errors.New("commerce.max_line_quantity must be between 1 and 1000")
+	}
 	if c.Commerce.Shipping.FlatRateCents < 0 || c.Commerce.Shipping.FreeAboveCents < 0 {
 		return errors.New("commerce shipping rates cannot be negative")
 	}

@@ -58,6 +58,7 @@ type Handler struct {
 	CartLimiter           security.RateLimiter
 	CheckoutLimiter       security.RateLimiter
 	MaxPendingOrdersPerIP int
+	MaxLineQuantity       int
 	PendingTracker        *PendingOrderTracker
 	MemberID              func(*http.Request) (string, bool)
 	// ClientIP returns the caller's address for rate limiting and for
@@ -185,6 +186,8 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 		api.WriteError(w, r, http.StatusConflict, "this idempotency key was already used for a different checkout", nil)
 	case errors.Is(err, commerce.ErrCartChanged):
 		api.WriteError(w, r, http.StatusConflict, "the cart changed during checkout; please try again", nil)
+	case errors.Is(err, commerce.ErrLineQuantityExceeded):
+		api.WriteError(w, r, http.StatusUnprocessableEntity, "a cart item exceeds the configured maximum quantity", nil)
 	case errors.Is(err, commerce.ErrEmptyCart):
 		api.WriteError(w, r, http.StatusUnprocessableEntity, "cart is empty", nil)
 	case errors.Is(err, commerce.ErrUnknownVariant):

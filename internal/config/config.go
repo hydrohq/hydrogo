@@ -80,6 +80,7 @@ type Commerce struct {
 	Shipping              ShippingFee `yaml:"shipping"`
 	Currencies            Currencies  `yaml:"currencies"`
 	MaxPendingOrdersPerIP int         `yaml:"max_pending_orders_per_ip"`
+	MaxLineQuantity       int         `yaml:"max_line_quantity"`
 }
 
 // Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds

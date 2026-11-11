@@ -113,6 +113,8 @@ limits:
 # functional default: cart and checkout work with no payment provider,
 # no carrier, no tax, no shipping fee and TRY as the only currency.
 commerce:
+  # Maximum quantity on one cart/checkout line (valid: 1-1000; default: 100).
+  max_line_quantity: 100
   tax:
     # e.g. 0.20 for 20% KDV. 0 (the default) adds no tax.
     rate: 0
