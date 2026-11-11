@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -1272,5 +1273,57 @@ func TestRefundOrderAdminWithShippedStatus(t *testing.T) {
 	}
 	if refunder.calls != 1 {
 		t.Fatalf("expected 1 refunder call, got %d", refunder.calls)
+	}
+}
+
+func TestAddItemHonorsConfiguredLineQuantity(t *testing.T) {
+	h, db := newTestHandler(t)
+	h.Service.Prices.(commerce.StaticPrices)["variant-limit"] = commerce.Price{Cents: 100}
+	if err := h.Service.Repository.EnsureStock(context.Background(), db, "variant-limit", 500); err != nil {
+		t.Fatal(err)
+	}
+
+	// Default (0 -> 100): 100 accepted, 101 rejected
+	for _, tc := range []struct {
+		quantity int
+		want     int
+	}{{101, http.StatusUnprocessableEntity}, {100, http.StatusOK}} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(fmt.Sprintf(`{"variant_id":"variant-limit","quantity":%d}`, tc.quantity)))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		h.addItem(rec, req)
+		if rec.Code != tc.want {
+			t.Fatalf("default max quantity %d: status=%d body=%s", tc.quantity, rec.Code, rec.Body)
+		}
+	}
+
+	// Override to 2: 3 rejected, 2 accepted
+	h.MaxLineQuantity = 2
+	var cookie *http.Cookie
+	for _, tc := range []struct {
+		quantity int
+		want     int
+	}{{3, http.StatusUnprocessableEntity}, {2, http.StatusOK}} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/cart/items", bytes.NewBufferString(fmt.Sprintf(`{"variant_id":"variant-limit","quantity":%d}`, tc.quantity)))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		h.addItem(rec, req)
+		if rec.Code != tc.want {
+			t.Fatalf("override max quantity %d: status=%d body=%s", tc.quantity, rec.Code, rec.Body)
+		}
+		if rec.Code == http.StatusOK {
+			cookie = rec.Result().Cookies()[0]
+		}
+	}
+
+	// Lower MaxLineQuantity to 1 after cart already holds 2: checkout must reject with 422
+	h.MaxLineQuantity = 1
+	checkoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/checkout", bytes.NewBufferString(`{"guest_email":"shopper@example.com","idempotency_key":"idem-line-limit-1"}`))
+	checkoutReq.Header.Set("Content-Type", "application/json")
+	checkoutReq.AddCookie(cookie)
+	checkoutRec := httptest.NewRecorder()
+	h.checkout(checkoutRec, checkoutReq)
+	if checkoutRec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("checkout exceeding max_line_quantity: status=%d body=%s", checkoutRec.Code, checkoutRec.Body)
 	}
 }

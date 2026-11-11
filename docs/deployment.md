@@ -2,6 +2,9 @@
 
 HydroGo is one static binary plus a config file and a data directory. Pick one of these.
 
+For commerce, `commerce.max_line_quantity` sets the maximum units of one
+product per cart or checkout line (default `100`, valid range `1`–`1000`).
+
 ## VPS or any Linux server
 
 1. Install the binary (`install.sh`, see [getting started](getting-started.md)) and create the project on the server with `hydro new`, or copy yours.
