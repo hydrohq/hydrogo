@@ -268,4 +268,46 @@ describe('Sidebar', () => {
 
     expect(screen.getByTitle('Variants')).toBeTruthy();
   });
+
+  it('promotes categories and return_requests to Store, reviews and leads to Customers, and excludes child collections from Documents', () => {
+    schema.schema = {
+      modules: { commerce: true, members: true },
+      resources: [
+        { id: 'products', label: 'Ürünler', plural: 'Ürünler', group: 'Katalog', source: 'content_type' },
+        { id: 'variants', label: 'Varyantlar', plural: 'Varyantlar', group: 'Gelişmiş', source: 'content_type' },
+        { id: 'product_images', label: 'Ürün Görselleri', plural: 'Ürün Görselleri', group: 'Gelişmiş', source: 'content_type' },
+        { id: 'categories', label: 'Kategoriler', plural: 'Kategoriler', group: 'Katalog', source: 'content_type' },
+        { id: 'return_requests', label: 'İade Talepleri', plural: 'İade Talepleri', group: 'Siparişler', source: 'content_type' },
+        { id: 'reviews', label: 'Yorumlar', plural: 'Yorumlar', group: 'Katalog', source: 'content_type' },
+        { id: 'leads', label: 'Potansiyel müşteriler', plural: 'Potansiyel müşteriler', group: 'Gelişmiş', source: 'content_type' },
+        { id: 'packaging_videos', label: 'Paketleme Videoları', plural: 'Paketleme Videoları', group: 'İçerik', source: 'content_type' }
+      ]
+    } as any;
+    auth.user = { role: 'admin' } as any;
+
+    render(Sidebar, { props: {} });
+
+    // Store items
+    const catLink = screen.getByTitle('Categories');
+    expect(catLink).toBeTruthy();
+    expect(catLink.getAttribute('href')).toBe('/admin/content/categories');
+
+    const retLink = screen.getByTitle('Return Requests');
+    expect(retLink).toBeTruthy();
+    expect(retLink.getAttribute('href')).toBe('/admin/content/return_requests');
+
+    // Customer items
+    const revLink = screen.getByTitle('Reviews');
+    expect(revLink).toBeTruthy();
+    expect(revLink.getAttribute('href')).toBe('/admin/content/reviews');
+
+    const leadLink = screen.getByTitle('Inquiries');
+    expect(leadLink).toBeTruthy();
+    expect(leadLink.getAttribute('href')).toBe('/admin/content/leads');
+
+    // Content Documents section should have packaging_videos, but NOT child collections or promoted ones
+    expect(screen.getByTitle('Paketleme Videoları')).toBeTruthy();
+    expect(screen.queryByTitle('Varyantlar')).toBeNull();
+    expect(screen.queryByTitle('Ürün Görselleri')).toBeNull();
+  });
 });

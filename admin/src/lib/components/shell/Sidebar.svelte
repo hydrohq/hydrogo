@@ -39,7 +39,19 @@
     setGroupCollapsedStorage(groupName, next);
   }
 
-  const collectionGroups = $derived(groupCollections(schema.collections));
+  function hasDedicatedNav(id: string): boolean {
+    if ((id === 'products' || id === 'variants' || id === 'product_images') && moduleOn('commerce')) return true;
+    if (id === 'categories' && moduleOn('commerce')) return true;
+    if (id === 'return_requests' && moduleOn('commerce')) return true;
+    if (id === 'reviews') return true;
+    if (id === 'leads') return true;
+    return false;
+  }
+
+  const visibleCollections = $derived(
+    schema.collections.filter(c => !hasDedicatedNav(c.id))
+  );
+  const collectionGroups = $derived(groupCollections(visibleCollections));
 
   function loadRefundCount() {
     if (moduleOn('commerce') && can('admin.commerce.read')) {
@@ -286,7 +298,17 @@
             <span>{t('nav.uploadMedia')}</span>
           </button>
           {/if}
-          {#each schema.collections as col}
+          {#if moduleOn('commerce') && can('admin.commerce.manage')}
+          <button
+            type="button"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
+            onclick={() => handleNavigate('/commerce/products/new')}
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path><path d="M7 7h.01"></path></svg>
+            <span>{t('products.new')}</span>
+          </button>
+          {/if}
+          {#each schema.collections.filter(c => c.id !== 'products' && c.id !== 'variants' && c.id !== 'product_images' && c.id !== 'return_requests') as col}
             <button
               type="button"
               class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors cursor-pointer"
@@ -376,6 +398,128 @@
         {/if}
       </a>
       {/if}
+    </div>
+
+    <!-- Store Navigation -->
+    {#if moduleOn('commerce') && can('admin.commerce.read')}
+    <div class="mt-2 flex flex-col gap-0.5">
+      {#if sidebar.open}
+        <div class="px-2 py-1 text-xs font-medium tracking-wider text-sidebar-foreground/60">{t('nav.store')}</div>
+      {/if}
+      <!-- Products -->
+      <a
+        href="/admin/commerce/products"
+        onclick={() => handleNavigate('/commerce/products')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/products') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.products')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path>
+          <path d="M7 7h.01"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.products')}</span>
+        {/if}
+      </a>
+
+      {#if schema.getCollection('categories')}
+      <!-- Categories -->
+      <a
+        href="/admin/content/categories"
+        onclick={() => handleNavigate('/content/categories')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/content/categories') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.categories')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.categories')}</span>
+        {/if}
+      </a>
+      {/if}
+
+      <!-- Commerce orders -->
+      <a
+        href="/admin/commerce"
+        onclick={() => handleNavigate('/commerce')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') && !isActive('/commerce/refunds-required') && !isActive('/commerce/stock') && !isActive('/commerce/products') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.orders')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+          <path d="M3 6h18"></path>
+          <path d="M16 10a4 4 0 0 1-8 0"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.orders')}</span>
+        {/if}
+      </a>
+
+      {#if schema.getCollection('return_requests')}
+      <!-- Return requests -->
+      <a
+        href="/admin/content/return_requests"
+        onclick={() => handleNavigate('/content/return_requests')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/content/return_requests') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.returnRequests')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 14 4 9l5-5"></path>
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.returnRequests')}</span>
+        {/if}
+      </a>
+      {/if}
+
+      <!-- Stock -->
+      <a
+        href="/admin/commerce/stock"
+        onclick={() => handleNavigate('/commerce/stock')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/stock') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.stock')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+          <path d="m3.3 7 8.7 5 8.7-5"></path>
+          <path d="M12 22V12"></path>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.stock')}</span>
+        {/if}
+      </a>
+
+      <!-- Refunds required -->
+      <a
+        href="/admin/commerce/refunds-required"
+        onclick={() => handleNavigate('/commerce/refunds-required')}
+        class="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.refundsRequired')}
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+          {#if sidebar.open}
+            <span class="truncate">{t('nav.refundsRequired')}</span>
+          {/if}
+        </div>
+        {#if unresolvedRefundCount > 0}
+          <span class="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">{unresolvedRefundCount}</span>
+        {/if}
+      </a>
+    </div>
+    {/if}
+
+    <!-- Customers & Community -->
+    {#if (moduleOn('members') && can('admin.members.manage')) || schema.getCollection('reviews') || schema.getCollection('leads')}
+    <div class="mt-2 flex flex-col gap-0.5">
+      {#if sidebar.open}
+        <div class="px-2 py-1 text-xs font-medium tracking-wider text-sidebar-foreground/60">{t('nav.customers')}</div>
+      {/if}
 
       {#if moduleOn('members') && can('admin.members.manage')}
       <!-- Members -->
@@ -397,71 +541,45 @@
       </a>
       {/if}
 
-      {#if moduleOn('commerce') && can('admin.commerce.read')}
-      {#if sidebar.open}
-        <div class="px-2 py-1 text-xs font-medium tracking-wider text-sidebar-foreground/60">{t('nav.store')}</div>
+      {#if schema.getCollection('reviews')}
+      <!-- Reviews -->
+      <a
+        href="/admin/content/reviews"
+        onclick={() => handleNavigate('/content/reviews')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/content/reviews') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.reviews')}
+      >
+        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>
+        {#if sidebar.open}
+          <span class="truncate">{t('nav.reviews')}</span>
+        {/if}
+      </a>
       {/if}
-      <!-- Products -->
+
+      {#if schema.getCollection('leads')}
+      <!-- Leads -->
       <a
-        href="/admin/commerce/products"
-        onclick={() => handleNavigate('/commerce/products')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/products') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title={t('nav.products')}
+        href="/admin/content/leads"
+        onclick={() => handleNavigate('/content/leads')}
+        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/content/leads') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
+        title={t('nav.leads')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path>
-          <path d="M7 7h.01"></path>
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+          <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">{t('nav.products')}</span>
-        {/if}
-      </a>
-      <!-- Commerce orders -->
-      <a
-        href="/admin/commerce"
-        onclick={() => handleNavigate('/commerce')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce') && !isActive('/commerce/refunds-required') && !isActive('/commerce/stock') && !isActive('/commerce/products') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title={t('nav.orders')}
-      >
-        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
-          <path d="M3 6h18"></path>
-          <path d="M16 10a4 4 0 0 1-8 0"></path>
-        </svg>
-        {#if sidebar.open}
-          <span class="truncate">{t('nav.orders')}</span>
-        {/if}
-      </a>
-      <a
-        href="/admin/commerce/stock"
-        onclick={() => handleNavigate('/commerce/stock')}
-        class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/stock') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title={t('nav.stock')}
-      >
-        <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
-          <path d="m3.3 7 8.7 5 8.7-5"></path>
-          <path d="M12 22V12"></path>
-        </svg>
-        {#if sidebar.open}
-          <span class="truncate">{t('nav.stock')}</span>
-        {/if}
-      </a>
-      <a
-        href="/admin/commerce/refunds-required"
-        onclick={() => handleNavigate('/commerce/refunds-required')}
-        class="ml-6 flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/commerce/refunds-required') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'}"
-        title={t('nav.refundsRequired')}
-      >
-        <span class="truncate">{t('nav.refundsRequired')}</span>
-        {#if unresolvedRefundCount > 0}
-          <span class="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">{unresolvedRefundCount}</span>
+          <span class="truncate">{t('nav.leads')}</span>
         {/if}
       </a>
       {/if}
     </div>
+    {/if}
 
     <!-- NavDocuments (Matches official nav-documents.tsx) -->
+    {#if visibleCollections.length > 0}
     <div class="mt-3 flex flex-col gap-1">
       {#if sidebar.open}
         <div class="px-2 py-1 flex items-center justify-between text-xs font-medium text-sidebar-foreground/60 tracking-wider">
@@ -558,6 +676,7 @@
           {/each}
         </div>
       </div>
+    {/if}
 
     <!-- NavSecondary (Matches official nav-secondary.tsx - pinned to mt-auto) -->
     <div class="mt-auto flex flex-col gap-0.5 pt-4">
