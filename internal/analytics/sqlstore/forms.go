@@ -31,6 +31,9 @@ func (s Store) RecordFormView(ctx context.Context, tenantID, formID, visitorKey 
 		return false, err
 	}
 	defer tx.Rollback()
+	if err := s.bindTenant(ctx, tx, tenantID); err != nil {
+		return false, err
+	}
 	dayValue := day.UTC().Format("2006-01-02")
 	visitorQuery := `INSERT INTO analytics_form_visitors(day,tenant_id,form_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `,` + placeholder(s.Dialect, 4) + `) ON CONFLICT(day,tenant_id,form_id,visitor_key) DO NOTHING` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if s.Dialect == database.MySQL {
@@ -101,10 +104,6 @@ func (s Store) ListFormDaily(ctx context.Context, tenantID, formID, fromDay, toD
 	if _, err := time.Parse("2006-01-02", toDay); err != nil || fromDay > toDay {
 		return nil, errors.New("invalid form analytics date range")
 	}
-	queryer, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("form analytics requires query executor")
-	}
 	query := `SELECT day,tenant_id,form_id,view_count,submission_count FROM analytics_form_daily WHERE tenant_id=` + placeholder(s.Dialect, 1) + ` AND day BETWEEN ` + placeholder(s.Dialect, 2) + ` AND ` + placeholder(s.Dialect, 3)
 	args := []any{tenantID, fromDay, toDay}
 	if formID != "" {
@@ -112,20 +111,30 @@ func (s Store) ListFormDaily(ctx context.Context, tenantID, formID, fromDay, toD
 		args = append(args, formID)
 	}
 	query += ` ORDER BY day,form_id LIMIT 1000`
-	rows, err := queryer.QueryContext(ctx, query, args...)
+	result := make([]analytics.FormDailyMetric, 0)
+	err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("form analytics requires query executor")
+		}
+		rows, err := queryer.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var item analytics.FormDailyMetric
+			if err := rows.Scan(&item.Day, &item.TenantID, &item.FormID, &item.Views, &item.Submissions); err != nil {
+				return err
+			}
+			result = append(result, item)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	result := make([]analytics.FormDailyMetric, 0)
-	for rows.Next() {
-		var item analytics.FormDailyMetric
-		if err := rows.Scan(&item.Day, &item.TenantID, &item.FormID, &item.Views, &item.Submissions); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
+	return result, nil
 }
 
 func isHexDigest(value string) bool {

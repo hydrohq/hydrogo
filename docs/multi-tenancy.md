@@ -42,10 +42,15 @@ through every query (`RequireTenantScope` on the `Store`, the
 `tenantFilter`/`s.p(n)` pattern you'll see repeated across
 `modules/*/repository/sqlstore`). On PostgreSQL, every one of those
 tables additionally gets row-level security
-(`202609200003_postgres_tenant_rls` and `202611020002_postgres_rls_fail_closed`)
-as a second, independent enforcement layer. RLS policies are strictly fail-closed:
-`tenant_id = nullif(current_setting('app.current_tenant_id', true), '')`. If the
-tenant setting is absent or empty, queries return zero rows and write checks fail.
+(`202609200003_postgres_tenant_rls`, `202611020002_postgres_rls_fail_closed`,
+and `202611110001_postgres_rls_single_tenant_default`) as a second, independent
+enforcement layer. RLS policies match
+`tenant_id = coalesce(current_setting('app.current_tenant_id', true), '')`.
+When the tenant setting is absent or empty, only the default single-tenant rows
+with `tenant_id = ''` are visible and writable. When it contains a tenant id,
+only that tenant's rows are visible and writable; rows for the default scope or
+another tenant remain isolated. The `WITH CHECK` policy enforces the same rule
+for inserts and updates.
 Furthermore, the connection pool automatically executes `DISCARD TEMP; RESET ALL;`
 upon releasing connections back to `pgxpool`, eliminating any risk of cross-transaction
 tenant context leakage. SQLite and MySQL rely on application-level filtering alone

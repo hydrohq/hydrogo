@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -45,43 +46,62 @@ func tenantCtx(t *testing.T, id string) context.Context {
 	return tenant.WithScope(context.Background(), scope)
 }
 
-func runTenantScopedStoreContract(t *testing.T, db database.Executor, dialect database.Dialect) {
+// inTenant runs fn inside a transaction bound to ctx's tenant, the way the
+// commerce service reaches the store, so PostgreSQL row-level security sees
+// the tenant for every statement.
+func inTenant[T any](t *testing.T, transactions database.Transactor, ctx context.Context, fn func(database.Executor) (T, error)) (T, error) {
 	t.Helper()
+	var out T
+	err := transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		out, err = fn(tx)
+		return err
+	})
+	return out, err
+}
+
+func runTenantScopedStoreContract(t *testing.T, executor database.Executor, dialect database.Dialect) {
+	t.Helper()
+	sqldb, ok := executor.(*sql.DB)
+	if !ok {
+		t.Fatal("database executor is not a SQL database")
+	}
+	transactions := database.NewTenantTransactor(sqldb, dialect, true)
 	store := Store{Dialect: dialect, RequireTenantScope: true}
 	a := tenantCtx(t, "tenant-a")
 	b := tenantCtx(t, "tenant-b")
 
 	t.Run("stock lifecycle stays inside its tenant", func(t *testing.T) {
-		if err := store.EnsureStock(a, db, "variant-shared", 5); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error { return store.EnsureStock(a, db, "variant-shared", 5) }); err != nil {
 			t.Fatal(err)
 		}
-		if err := store.EnsureStock(b, db, "variant-shared", 9); err != nil {
+		if err := transactions.Within(b, func(db database.Executor) error { return store.EnsureStock(b, db, "variant-shared", 9) }); err != nil {
 			t.Fatal(err)
 		}
-		if err := store.EnsureStock(a, db, "variant-shared", 4); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error { return store.EnsureStock(a, db, "variant-shared", 4) }); err != nil {
 			t.Fatalf("restocking an existing row: %v", err)
 		}
-		reserved, err := store.ReserveStock(a, db, "variant-shared", 3)
+		reserved, err := inTenant(t, transactions, a, func(db database.Executor) (bool, error) { return store.ReserveStock(a, db, "variant-shared", 3) })
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !reserved {
 			t.Fatal("reserving 3 of 4 available units must succeed under tenant scope")
 		}
-		if err := store.ReleaseReservation(a, db, "variant-shared", 1); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error { return store.ReleaseReservation(a, db, "variant-shared", 1) }); err != nil {
 			t.Fatal(err)
 		}
-		if err := store.CommitReservation(a, db, "variant-shared", 2); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error { return store.CommitReservation(a, db, "variant-shared", 2) }); err != nil {
 			t.Fatal(err)
 		}
-		stockA, err := store.GetStock(a, db, "variant-shared")
+		stockA, err := inTenant(t, transactions, a, func(db database.Executor) (commerce.Stock, error) { return store.GetStock(a, db, "variant-shared") })
 		if err != nil {
 			t.Fatal(err)
 		}
 		if stockA.Available != 2 || stockA.Reserved != 0 {
 			t.Fatalf("tenant A stock = %+v, want available=2 reserved=0", stockA)
 		}
-		stockB, err := store.GetStock(b, db, "variant-shared")
+		stockB, err := inTenant(t, transactions, b, func(db database.Executor) (commerce.Stock, error) { return store.GetStock(b, db, "variant-shared") })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,33 +113,40 @@ func runTenantScopedStoreContract(t *testing.T, db database.Executor, dialect da
 	t.Run("reconcile queries run under tenant scope", func(t *testing.T) {
 		now := time.Now().UTC()
 		order := commerce.Order{ID: "order-tenant-notified", GuestEmail: "g@example.com", IdempotencyKey: "idem-tenant-notified", IdempotencyHash: "h", Currency: "TRY", PaymentStatus: commerce.PaymentPending, FulfillmentStatus: commerce.FulfillmentUnfulfilled, CreatedAt: now, UpdatedAt: now}
-		if _, _, err := store.CreateOrder(a, db, order, nil); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error { _, _, err := store.CreateOrder(a, db, order, nil); return err }); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := store.RecordPaymentNotification(a, db, "mock-provider", order.ID); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error {
+			_, err := store.RecordPaymentNotification(a, db, "mock-provider", order.ID)
+			return err
+		}); err != nil {
 			t.Fatal(err)
 		}
-		notified, err := store.ListNotifiedOrdersNotPaid(a, db, "mock-provider", 10)
+		notified, err := inTenant(t, transactions, a, func(db database.Executor) ([]commerce.Order, error) {
+			return store.ListNotifiedOrdersNotPaid(a, db, "mock-provider", 10)
+		})
 		if err != nil {
 			t.Fatalf("ListNotifiedOrdersNotPaid under tenant scope: %v", err)
 		}
 		if len(notified) != 1 || notified[0].ID != order.ID {
 			t.Fatalf("expected the notified-but-pending order, got %+v", notified)
 		}
-		other, err := store.ListNotifiedOrdersNotPaid(b, db, "mock-provider", 10)
+		other, err := inTenant(t, transactions, b, func(db database.Executor) ([]commerce.Order, error) {
+			return store.ListNotifiedOrdersNotPaid(b, db, "mock-provider", 10)
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(other) != 0 {
 			t.Fatalf("tenant B must not see tenant A's notified orders, got %+v", other)
 		}
-		if _, err := store.StockReservationDrift(a, db, 10); err != nil {
+		if err := transactions.Within(a, func(db database.Executor) error { _, err := store.StockReservationDrift(a, db, 10); return err }); err != nil {
 			t.Fatalf("StockReservationDrift under tenant scope: %v", err)
 		}
 	})
 
 	t.Run("order listing stays inside its tenant", func(t *testing.T) {
-		orders, err := store.ListOrders(b, db, "", "", 10, 0)
+		orders, err := inTenant(t, transactions, b, func(db database.Executor) ([]commerce.Order, error) { return store.ListOrders(b, db, "", "", 10, 0) })
 		if err != nil {
 			t.Fatal(err)
 		}

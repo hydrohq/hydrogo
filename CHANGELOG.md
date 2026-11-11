@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Fix: PostgreSQL RLS blocked the default single-tenant scope.** Policies now match `tenant_id = ''` when the tenant context is absent or empty, while continuing to isolate named tenants and reject writes into another scope.
 - **Fix: the admin media list always failed.** `GET /api/v1/admin/media` asked the store for a 500-row window while the store caps a list at 200, so every call answered 500 and the cause was never logged. The window is 200 now, and media request failures log their cause.
 - **Fix: `hydro version` reported 0.4.0 on a 0.4.1 build.**
 - **Fix: `/` showed the HydroCloud sales page and public onboarding was on by default.** A project's root now shows a neutral "server is running" page; the platform showcase and the public tenant-creating onboarding endpoint need `HYDRO_ONBOARD_ENABLED=true`.

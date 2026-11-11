@@ -26,8 +26,8 @@ func BindPostgresTransaction(ctx context.Context, exec ExecContext, scope Scope)
 }
 
 // BindPostgresSingleTenantTransaction explicitly resets the tenant context
-// to empty for fail-closed safety. Under fail-closed RLS, unscoped transactions
-// see zero rows on tenant-isolated tables.
+// to empty. RLS then limits access to the default single-tenant rows whose
+// tenant_id is empty.
 func BindPostgresSingleTenantTransaction(ctx context.Context, exec ExecContext) error {
 	if exec == nil {
 		return ErrMissingScope

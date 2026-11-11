@@ -99,18 +99,20 @@ func testMultiTenantMemberMobileAuthIsolation(t *testing.T, db *sql.DB, dialect 
 
 	memberAlphaID := "member-alpha-mobile-contract"
 	now := time.Now().UTC()
-	if dialect == database.Postgres {
-		_, err := db.ExecContext(ctx, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, memberAlphaID, "member-alpha@example.test", "hash", true, "tenant-alpha", now, now)
-		if err != nil {
-			t.Fatalf("insert alpha member: %v", err)
+	// The tenant-alpha row must be written with the tenant bound so PostgreSQL
+	// row-level security can see it, exactly like the app's own writes.
+	if err := database.NewTenantTransactor(db, dialect, true).Within(ctxAlpha, func(tx database.Executor) error {
+		var execErr error
+		if dialect == database.Postgres {
+			_, execErr = tx.ExecContext(ctxAlpha, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)`, memberAlphaID, "member-alpha@example.test", "hash", true, "tenant-alpha", now, now)
+			return execErr
 		}
-	} else {
-		_, err := db.ExecContext(ctx, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
+		_, execErr = tx.ExecContext(ctxAlpha, `INSERT INTO members (id, email, password_hash, active, tenant_id, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`, memberAlphaID, "member-alpha@example.test", "hash", 1, "tenant-alpha", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
-		if err != nil {
-			t.Fatalf("insert alpha member sqlite: %v", err)
-		}
+		return execErr
+	}); err != nil {
+		t.Fatalf("insert alpha member: %v", err)
 	}
 
 	pair, err := mobile.Issue(ctxAlpha, memberAlphaID, "alpha-phone", "iPhone 16", "iOS")
