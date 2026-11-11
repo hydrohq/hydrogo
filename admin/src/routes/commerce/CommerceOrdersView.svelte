@@ -304,7 +304,7 @@
 
       <div class="pt-3 border-t border-border space-y-3">
         {#if canWrite && selected.payment_status === 'paid'}
-          <Button variant="destructive" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>
+          <Button variant="danger" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>
             {t('commerce.order.refund')} (Ödemeyi İade Et)
           </Button>
         {:else if canWrite && selected.payment_status === 'pending'}

@@ -29,16 +29,19 @@
   const cancelText = $derived(cancelLabel ?? t('common.cancel'));
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && open && !loading) {
-      oncancel();
+    if (e.key === 'Escape' && open) {
+      // Swallow Esc so a Modal underneath does not close along with the confirm.
+      e.stopPropagation();
+      if (!loading) oncancel();
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydowncapture={handleKeydown} />
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+  <!-- z-[70]: a confirm must always sit above any Modal/drawer (z-50) that opened it. -->
+  <div class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-0">
     <!-- Backdrop with smooth blur -->
     <div
       class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in"
