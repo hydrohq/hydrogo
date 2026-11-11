@@ -61,6 +61,7 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /member/register", Access: router.Public, Handler: http.HandlerFunc(h.register)},
 		{Pattern: "POST /member/login", Access: router.Public, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /member/logout", Access: router.Public, Handler: http.HandlerFunc(h.logout)},
+		{Pattern: "POST /member/delete", Access: router.Public, Handler: http.HandlerFunc(h.deleteAccount)},
 		{Pattern: "GET /member/me", Access: router.Public, Handler: http.HandlerFunc(h.me)},
 		{Pattern: "GET /member/orders", Access: router.Public, Handler: http.HandlerFunc(h.memberOrders)},
 
@@ -280,6 +281,28 @@ func (h Handler) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handler) deleteAccount(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(members.SessionCookieName)
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	_, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || member == nil || !member.Active {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// KVKK Soft Delete: deactivate member account and revoke all sessions
+	if err := h.Service.Members.SetActive(r.Context(), member.ID, false); err != nil {
+		http.Error(w, "failed to delete account", http.StatusInternalServerError)
+		return
+	}
+	_ = h.Service.RevokeAllSessions(r.Context(), member.ID)
+	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"deleted": true, "message": "Hesabınız başarıyla silindi."})
 }
 
 func (h Handler) me(w http.ResponseWriter, r *http.Request) {
