@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -228,7 +229,7 @@
     <div class="space-y-3">
       <h4 class="text-xs font-semibold text-foreground uppercase tracking-wider">{t('system.backup.recent')}</h4>
       {#if loadingBackups}
-        <div class="p-8 text-center text-xs text-muted-foreground animate-pulse">{t('system.backup.loading')}</div>
+        <PageSpinner compact />
       {:else if !backupStatus?.recent || backupStatus.recent.length === 0}
         <div class="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
           {t('system.backup.empty')}
@@ -267,7 +268,7 @@
     </div>
 
     {#if loadingBans}
-      <div class="p-8 text-center text-xs text-muted-foreground animate-pulse">{t('system.ban.loading')}</div>
+      <PageSpinner compact />
     {:else if ipBans.length === 0}
       <div class="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
         {t('system.ban.empty')}
