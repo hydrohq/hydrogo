@@ -127,6 +127,32 @@ func (m *memoryMemberStore) Stats(_ context.Context) (members.MemberStats, error
 	return members.MemberStats{}, nil
 }
 
+func (m *memoryMemberStore) UpdateEmail(_ context.Context, id, email string) error {
+	member, ok := m.members[id]
+	if !ok {
+		return members.ErrMemberNotFound
+	}
+	member.Email = email
+	return nil
+}
+
+func (m *memoryMemberStore) UpdatePasswordHash(_ context.Context, id, hash string) error {
+	member, ok := m.members[id]
+	if !ok {
+		return members.ErrMemberNotFound
+	}
+	member.PasswordHash = hash
+	return nil
+}
+
+func (m *memoryMemberStore) Delete(_ context.Context, id string) error {
+	if _, ok := m.members[id]; !ok {
+		return members.ErrMemberNotFound
+	}
+	delete(m.members, id)
+	return nil
+}
+
 type memorySessionStore struct {
 	sessions map[string]*members.Session
 }

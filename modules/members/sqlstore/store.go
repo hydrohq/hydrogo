@@ -319,6 +319,70 @@ func (s Store) UpdateLastLogin(ctx context.Context, id string, t time.Time) erro
 	return err
 }
 
+func (s Store) UpdateEmail(ctx context.Context, id, email string) error {
+	clause, scopeID, err := s.tenantClause(ctx, 4)
+	if err != nil {
+		return err
+	}
+	args := []any{email, time.Now().UTC(), id}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	result, err := s.exec(ctx, "UPDATE members SET email = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
+	if err != nil {
+		if database.IsUniqueViolation(err) {
+			return members.ErrMemberExists
+		}
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n != 1 {
+		return members.ErrMemberNotFound
+	}
+	return nil
+}
+
+func (s Store) UpdatePasswordHash(ctx context.Context, id, passwordHash string) error {
+	clause, scopeID, err := s.tenantClause(ctx, 4)
+	if err != nil {
+		return err
+	}
+	args := []any{passwordHash, time.Now().UTC(), id}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	result, err := s.exec(ctx, "UPDATE members SET password_hash = "+s.ph(1)+", updated_at = "+s.ph(2)+" WHERE id = "+s.ph(3)+clause, args...)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n != 1 {
+		return members.ErrMemberNotFound
+	}
+	return nil
+}
+
+func (s Store) Delete(ctx context.Context, id string) error {
+	clause, scopeID, err := s.tenantClause(ctx, 2)
+	if err != nil {
+		return err
+	}
+	args := []any{id}
+	if clause != "" {
+		args = append(args, scopeID)
+	}
+	_, _ = s.exec(ctx, "DELETE FROM member_sessions WHERE member_id = "+s.ph(1), id)
+	result, err := s.exec(ctx, "DELETE FROM members WHERE id = "+s.ph(1)+clause, args...)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n != 1 {
+		return members.ErrMemberNotFound
+	}
+	return nil
+}
+
 func (s Store) Stats(ctx context.Context) (members.MemberStats, error) {
 	var st members.MemberStats
 	activeCondition := "active = 1"

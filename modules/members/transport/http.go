@@ -62,6 +62,8 @@ func (h Handler) Routes() []router.Route {
 		{Pattern: "POST /member/login", Access: router.Public, Handler: http.HandlerFunc(h.login)},
 		{Pattern: "POST /member/logout", Access: router.Public, Handler: http.HandlerFunc(h.logout)},
 		{Pattern: "POST /member/delete", Access: router.Public, Handler: http.HandlerFunc(h.deleteAccount)},
+		{Pattern: "POST /member/password", Access: router.Public, Handler: http.HandlerFunc(h.changePassword)},
+		{Pattern: "POST /member/email", Access: router.Public, Handler: http.HandlerFunc(h.changeEmail)},
 		{Pattern: "GET /member/me", Access: router.Public, Handler: http.HandlerFunc(h.me)},
 		{Pattern: "GET /member/orders", Access: router.Public, Handler: http.HandlerFunc(h.memberOrders)},
 
@@ -303,6 +305,99 @@ func (h Handler) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]any{"deleted": true, "message": "Hesabınız başarıyla silindi."})
+}
+
+func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(members.SessionCookieName)
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	_, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || member == nil || !member.Active {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var payload struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		if !api.DecodeJSON(w, r, &payload, maxMemberFormBytes) {
+			return
+		}
+	} else {
+		r.Body = http.MaxBytesReader(w, r.Body, maxMemberFormBytes)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		payload.CurrentPassword = r.FormValue("current_password")
+		payload.NewPassword = r.FormValue("new_password")
+	}
+	if err := h.Service.ChangeOwnPassword(r.Context(), member.ID, payload.CurrentPassword, payload.NewPassword); err != nil {
+		if errors.Is(err, members.ErrInvalidCredentials) {
+			http.Error(w, "Mevcut şifreniz hatalı.", http.StatusUnauthorized)
+			return
+		}
+		if errors.Is(err, auth.ErrWeakPassword) {
+			http.Error(w, "Yeni şifre en az 6 karakter olmalıdır.", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Şifre güncellenemedi.", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"updated": true, "message": "Şifreniz başarıyla güncellendi."})
+}
+
+func (h Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(members.SessionCookieName)
+	if err != nil || cookie.Value == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	_, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || member == nil || !member.Active {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var payload struct {
+		CurrentPassword string `json:"current_password"`
+		NewEmail        string `json:"new_email"`
+	}
+	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+		if !api.DecodeJSON(w, r, &payload, maxMemberFormBytes) {
+			return
+		}
+	} else {
+		r.Body = http.MaxBytesReader(w, r.Body, maxMemberFormBytes)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		payload.CurrentPassword = r.FormValue("current_password")
+		payload.NewEmail = r.FormValue("new_email")
+	}
+	if err := h.Service.ChangeOwnEmail(r.Context(), member.ID, payload.CurrentPassword, payload.NewEmail); err != nil {
+		if errors.Is(err, members.ErrInvalidCredentials) {
+			http.Error(w, "Mevcut şifreniz hatalı.", http.StatusUnauthorized)
+			return
+		}
+		if errors.Is(err, members.ErrMemberExists) {
+			http.Error(w, "Bu e-posta adresi başka bir hesapta kullanılıyor.", http.StatusConflict)
+			return
+		}
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			http.Error(w, "Geçerli bir e-posta adresi giriniz.", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "E-posta güncellenemedi.", http.StatusInternalServerError)
+		return
+	}
+	updated, _ := h.Service.Members.GetByID(r.Context(), member.ID)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"updated": true, "member": updated})
 }
 
 func (h Handler) me(w http.ResponseWriter, r *http.Request) {
