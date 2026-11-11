@@ -42,6 +42,7 @@ the shared permission middleware, like every other admin route):
 |---|---|
 | `GET /api/v1/admin/commerce/orders` | read |
 | `GET /api/v1/admin/commerce/orders/{id}` | read |
+| `GET /api/v1/admin/commerce/stock` | read |
 | `POST /api/v1/admin/commerce/stock` | write |
 | `POST /api/v1/admin/commerce/discount-codes` | write |
 | `POST /api/v1/admin/commerce/orders/{id}/shipment` | write |

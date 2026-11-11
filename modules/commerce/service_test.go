@@ -535,3 +535,58 @@ func TestCreateShipmentRejectsAnAlreadyShippedOrderWithoutCallingTheCarrierAgain
 		t.Fatalf("provider called %d times after a retry, want 1 (the carrier must never be called twice for the same order)", provider.calls)
 	}
 }
+
+func TestStocksByVariantIDs(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+
+	// Empty list returns empty slice without error
+	stocks, err := svc.StocksByVariantIDs(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stocks) != 0 {
+		t.Fatalf("expected empty slice, got %d items", len(stocks))
+	}
+
+	// Seed stock rows
+	if err := svc.Repository.EnsureStock(ctx, db, "var-svc-1", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Repository.EnsureStock(ctx, db, "var-svc-2", 20); err != nil {
+		t.Fatal(err)
+	}
+	// Reserve some stock on var-svc-1
+	if ok, err := svc.Repository.ReserveStock(ctx, db, "var-svc-1", 3); err != nil || !ok {
+		t.Fatalf("reserve stock: ok=%v err=%v", ok, err)
+	}
+
+	// Query known and unknown variants
+	stocks, err = svc.StocksByVariantIDs(ctx, []string{"var-svc-1", "var-svc-unknown", "var-svc-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stocks) != 2 {
+		t.Fatalf("expected 2 stock items (unknown omitted), got %d", len(stocks))
+	}
+	stockMap := make(map[string]commerce.Stock)
+	for _, s := range stocks {
+		stockMap[s.VariantID] = s
+	}
+
+	s1, ok1 := stockMap["var-svc-1"]
+	if !ok1 {
+		t.Fatal("var-svc-1 missing")
+	}
+	if s1.Available != 7 || s1.Reserved != 3 {
+		t.Fatalf("var-svc-1 stock mismatch: available=%d (want 7), reserved=%d (want 3)", s1.Available, s1.Reserved)
+	}
+
+	s2, ok2 := stockMap["var-svc-2"]
+	if !ok2 {
+		t.Fatal("var-svc-2 missing")
+	}
+	if s2.Available != 20 || s2.Reserved != 0 {
+		t.Fatalf("var-svc-2 stock mismatch: available=%d (want 20), reserved=%d (want 0)", s2.Available, s2.Reserved)
+	}
+}
