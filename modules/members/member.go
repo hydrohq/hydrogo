@@ -249,7 +249,18 @@ func (s Service) UpdateEmail(ctx context.Context, memberID, newEmail string) err
 	return updater.UpdateEmail(ctx, memberID, newEmail)
 }
 
+// UpdatePassword is the admin-reset path: it revokes every session of the member.
 func (s Service) UpdatePassword(ctx context.Context, memberID, newPassword string) error {
+	if err := s.setPassword(ctx, memberID, newPassword); err != nil {
+		return err
+	}
+	if !guards.IsNil(s.Sessions) {
+		return s.Sessions.DeleteByMemberID(ctx, memberID)
+	}
+	return nil
+}
+
+func (s Service) setPassword(ctx context.Context, memberID, newPassword string) error {
 	if guards.IsNil(s.Members) {
 		return ErrMemberRepoRequired
 	}
@@ -268,7 +279,8 @@ func (s Service) UpdatePassword(ctx context.Context, memberID, newPassword strin
 	return updater.UpdatePasswordHash(ctx, memberID, hash)
 }
 
-func (s Service) ChangeOwnPassword(ctx context.Context, memberID, currentPassword, newPassword string) error {
+// ChangeOwnPassword revokes every session except keepSessionID (the caller's).
+func (s Service) ChangeOwnPassword(ctx context.Context, memberID, keepSessionID, currentPassword, newPassword string) error {
 	if guards.IsNil(s.Members) {
 		return ErrMemberRepoRequired
 	}
@@ -280,7 +292,24 @@ func (s Service) ChangeOwnPassword(ctx context.Context, memberID, currentPasswor
 	if err != nil || !valid {
 		return ErrInvalidCredentials
 	}
-	return s.UpdatePassword(ctx, memberID, newPassword)
+	if err := s.setPassword(ctx, memberID, newPassword); err != nil {
+		return err
+	}
+	if guards.IsNil(s.Sessions) {
+		return nil
+	}
+	list, err := s.Sessions.ListByMemberID(ctx, memberID)
+	if err != nil {
+		return err
+	}
+	for _, sess := range list {
+		if sess.ID != keepSessionID {
+			if err := s.Sessions.DeleteByID(ctx, sess.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s Service) ChangeOwnEmail(ctx context.Context, memberID, currentPassword, newEmail string) error {
@@ -295,7 +324,11 @@ func (s Service) ChangeOwnEmail(ctx context.Context, memberID, currentPassword, 
 	if err != nil || !valid {
 		return ErrInvalidCredentials
 	}
-	return s.UpdateEmail(ctx, memberID, newEmail)
+	if err := s.UpdateEmail(ctx, memberID, newEmail); err != nil {
+		return err
+	}
+	// The new address is unproven: drop the verified flag.
+	return s.Members.SetEmailVerified(ctx, memberID, false)
 }
 
 func (s Service) DeleteMember(ctx context.Context, memberID string) error {
