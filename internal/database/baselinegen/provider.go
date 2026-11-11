@@ -80,7 +80,10 @@ func (p *serverProvider) Dialect() database.Dialect { return p.dialect }
 
 func (p *serverProvider) New(ctx context.Context) (*sql.DB, func(), error) {
 	name := randomName()
-	admin, err := database.Open(ctx, p.dialect, p.adminDSN)
+	admin, err := database.OpenWithOptions(ctx, p.dialect, p.adminDSN, database.OpenOptions{
+		MaxOpenConns: 2,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("open %s admin connection: %w", p.dialect, err)
 	}
@@ -111,7 +114,10 @@ func (p *serverProvider) New(ctx context.Context) (*sql.DB, func(), error) {
 		_ = admin.Close()
 		return nil, nil, fmt.Errorf("create %s database: %w", p.dialect, err)
 	}
-	db, err := database.Open(ctx, p.dialect, dsn)
+	db, err := database.OpenWithOptions(ctx, p.dialect, dsn, database.OpenOptions{
+		MaxOpenConns: 2,
+		MaxIdleConns: 2,
+	})
 	if err != nil {
 		_, _ = admin.ExecContext(ctx, drop)
 		_ = admin.Close()
