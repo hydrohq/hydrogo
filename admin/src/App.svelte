@@ -6,7 +6,7 @@
   import AppLayout from '$lib/components/shell/AppLayout.svelte';
   import LoginView from './routes/login/LoginView.svelte';
   import SetPasswordView from './routes/account/SetPasswordView.svelte';
-  import DashboardSkeleton from '$lib/components/shell/DashboardSkeleton.svelte';
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import AppErrorScreen from '$lib/components/shell/AppErrorScreen.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import { confirmDialogState, resolveConfirm } from '$lib/confirm';
@@ -193,7 +193,7 @@
 </script>
 
 {#if initializing}
-  <DashboardSkeleton path={router.path} />
+  <PageSpinner fullscreen />
 {:else if fatalError}
   <AppErrorScreen error={fatalError} onretry={() => window.location.reload()} />
 {:else if router.path.startsWith('/reset-password')}
