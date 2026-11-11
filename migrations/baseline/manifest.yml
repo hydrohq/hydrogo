@@ -17,10 +17,16 @@ groups:
         - 202610210002_core_audit_events
         - 202610210003_audit_chain
         - 202610210004_core_outbox_events
+        - 202611010003_orchestrator_governance
+        - 202611010004_tenant_dns_verified
+        - 202611010005_platform_credits
+        - 202611020001_ai_token_period
+        - 202611020002_postgres_rls_fail_closed
+        - 202611100002_notification_outbox
       checksums:
-        mysql: 6167b8b19334c46bb48faab9e8bc7308592abd93bf2fa9a3ed701f9c41493b45
-        postgres: 788fc570044a9858b67cf13a2137cfc999d8ce75bb2693540befe44edb55b812
-        sqlite: 0de51702a9ff2adf1930da7a9d9bd6dd9dcab2594e05cef0c9c5136b6cc1be52
+        mysql: 92881f44c48cab8e50c4fd0565d45d608d69720a4f061fb130f6df8c99e33c44
+        postgres: 4143a32570416529005d58c7c0afabc070847b8f52b41e9e2de8b7e7ec9f98f5
+        sqlite: a5981aa21f2a878d138271ba21e6adca390cc33097d6e39d1036c2d1b388e0ba
     - id: analytics
       modules:
         - analytics
@@ -63,10 +69,13 @@ groups:
         - 202609290009_auth_token_lifetimes
         - 202609290010_mail_branding_settings
         - 202610150002_api_tokens
+        - 202610241700_auth_totp_last_step
+        - 202611010002_custom_roles_rbac
+        - 202611080001_saas_billing_subscription
       checksums:
-        mysql: e31a77576b8748d328c81a22f11d0a50a7661e2c7a5ebf3155faf2b4c5c01960
-        postgres: d64d28e5c5f294ad781ca21f2e1fcc589502c5666e4bbd56b396c11ffd2cd76a
-        sqlite: 6b3531c66829ff757c38e8e36bd104e9578c3fc2156f1b5ced31caa3493f3326
+        mysql: 8390a331d9442fec493f85d920530be2d299e5bc84e172c559ecccb81b885cd0
+        postgres: 44564700a9611fc52c620b929252302009f2df18af8901acc47fa3ded0568c4f
+        sqlite: 6eebc74cf77ae09e47dc415b34422850c9c32ad6b4abe6343c1690e62b41532d
     - id: certificates
       modules:
         - certificates
@@ -84,10 +93,11 @@ groups:
         - 202610140001_collection_revisions
         - 202610140002_collection_translations
         - 202610210001_collection_sequences
+        - 202611010001_collections_tenant_rls
       checksums:
-        mysql: 256c401c978e34f770bcd0a7f15b9c257c1904a34ec3ba7d1bbaf72667873525
-        postgres: 67bca7703acd69ed47edf915ce4cb80cb285ce0265262780212a9fa4d353c083
-        sqlite: 203446141bb2ea5e0c8fb1d617f33782cf1d82d56e95177229f352790a402b0c
+        mysql: 7469feb339d138a5f8c93ad349dd83c92c389a3593a8ff705a0bc6c17a35748d
+        postgres: a2500a08340954dde19ec945555786769d1326d68bd565e0f662e5646fb8f7ad
+        sqlite: f07680c2d4479363b79034996c50dc5b9346b6aaa83f1edab82bc0a6008df747
     - id: commerce
       modules:
         - commerce
@@ -103,10 +113,19 @@ groups:
         - 202609170002_commerce_order_idempotency_hash
         - 202609190010_commerce_catalog_tenant_scope
         - 202609190011_commerce_checkout_tenant_scope
+        - 202610231300_commerce_catalog_stock
+        - 202610231301_commerce_carts
+        - 202610231302_commerce_orders
+        - 202610231303_commerce_payments
+        - 202610240001_commerce_checkout_pricing
+        - 202610241000_commerce_shipping
+        - 202610241500_commerce_order_district
+        - 202610241600_commerce_order_indexes
+        - 202611100001_commerce_refund_required
       checksums:
-        mysql: af3be59e2d78861ef71ebd2227d156dc648b3fb90ab608b818c82f8204356b3b
-        postgres: abbcb955106c9d9424c24f8cc1beaf635111a0082281bcfd08d5f065f71727fa
-        sqlite: f634ee610380b954a7d009d536276efa813412e6f4692762e684dc8f7afb8f06
+        mysql: ce006a16d811997fe034220304670862b592449ed3947fdfaab1151d5c02387d
+        postgres: 89158ba9f8659a9f5f4e4d2d702b2f7435aa61c1bc1fd8d1c5d190eefa7d52bf
+        sqlite: ec610b550f78aed06256133360b1467ba8f22537553fc8cd3cb0d9953f199d93
     - id: downloads
       modules:
         - downloads
@@ -163,7 +182,7 @@ groups:
         - 202609290017_media_trash
       checksums:
         mysql: 316309a62acf06250bf4e2389afd5d0ad85d46fd65e20941bd4297b30a26779c
-        postgres: a880df6081749580201768ed58413a4bc7c33da1d48ccec4da1dde2376b29a55
+        postgres: 40f746fed5dab3963e5d5e2f583cbfa6a625d5cd720a6b1a113e8e3987690de4
         sqlite: 4f616e266178421b284e89e49f15b859d2e98a48685e7319cdaff5a1f5ca6366
     - id: members
       modules:
@@ -175,10 +194,11 @@ groups:
         - 202609190009_members_tenant_scope
         - 202609290005_member_email_verification_tokens
         - 202610150001_member_oauth_identities
+        - 202610241802_members_list_index
       checksums:
-        mysql: 41ce51ef9d1aa55f2f726b9bb41e343a6f68ea6c4336f8c007b5ad50927b6340
-        postgres: dc66554178b52371bfcce365ecafe14aebc4cfdcd811e598e2d53aa8051b73cb
-        sqlite: 865581e87ddc6330fee6f97dd53714654a065c375d7d98fed6197c79ad8880f2
+        mysql: ff12e440f5b43e382f8accbbf72bbaa43959394671038a0a4f1abf7776056c26
+        postgres: 22e57aafc3919a4c8f536d3cd11e9378d662faa4866d9aaf0cf2f5a66b755926
+        sqlite: cce15e9201bdb74a540bbd077dc686145292002f8d55248ca219cdec9ba1be26
     - id: news
       modules:
         - news
@@ -192,10 +212,12 @@ groups:
         - 202609190007_news_tenant_scope
         - 202609290006_news_expiry
         - 202609290015_news_trash
+        - 202610241800_news_taxonomy_tenant_scope
+        - 202610241801_news_taxonomy_rls
       checksums:
-        mysql: 621ab54f218f8a7130a28ef55fe25cecbd97e850004361665da55f7d14e31450
-        postgres: f21395f3870a260c7d361afe4f0b5344f6c2ad78596ff53b3e3d01d1939481c4
-        sqlite: 7e1eaeb4d4c49b4dc80f569a601c55d962f4c8e3f318013026e9f746f8c8afc1
+        mysql: ce8fef8457e1d6ae94a836b4903bb0103b55020c1f7697c8a2443f52b88c8910
+        postgres: 2e73e1277cc7f0b2d97648879fa97005bb75bebd9233ab04689d0374f635ef0e
+        sqlite: 5c3f55e1b0396969574ef18cdb23b040741a4fd384505c451c6d0e9d2ed6037d
     - id: pages
       modules:
         - pages
@@ -223,7 +245,7 @@ groups:
         - 202609291001_audit_explorer_fields
       checksums:
         mysql: f6670f43ba49bfcffc833f40de29c101552427880e609255660a1ca02f04c6aa
-        postgres: d4c6de72914e9471574a27744afa4b704bee35a433949ac0a8fe34c8fdb46aef
+        postgres: 5bcb8e1c0f22b00a8cad724cd7bf9aa9b4e2efcdd3116b7e834b07ac3956371b
         sqlite: adc4abeb5cfce0759ca0be5828d9de78f14e6dfdcabec59450269b37a98b6f99
     - id: partners
       modules:
@@ -287,7 +309,7 @@ groups:
         - 202610090001_site_not_found_rls_guc
       checksums:
         mysql: 4d9fc074377a1b6343eb6a1b0d15a72d5c28d651936fe8dc34f03e87dd93cbad
-        postgres: 2ef5cde6c783e51fbebba011f76d7548312cf8f9fc0aadaf491c16d81cd1f99a
+        postgres: 5a57b4a785324ab1a00c288a066968e0efa67bb5b0c1e33f12a4c23152cf7d0f
         sqlite: afcf28377337368ac78ae569fe4cfeb42714e0d2cecd360a296e02a6a53473b0
     - id: team
       modules:
@@ -318,7 +340,7 @@ groups:
         - 202609290008_form_geolocation
       checksums:
         mysql: f0a742a9d7e882c65e6e0047ab21737045687ace35f6db66e71d8340472f2f59
-        postgres: db9bceb9dafaea6f35084b43418d460c4a719a5d358ce00a2938f86f3b7e50e2
+        postgres: 96c9075d8eb23d579c581319b3b49ec93f15644132ebdb54d55ca1c6966376c8
         sqlite: 1283ec54256903901838dc53722fa86822a0077cd17ee9b4f778b9642a362ccf
     - id: combo_jobs_media_news_pages
       modules:
