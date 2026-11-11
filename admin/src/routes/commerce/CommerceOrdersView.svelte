@@ -304,7 +304,29 @@
 
       <div class="pt-3 border-t border-border space-y-3">
         {#if canWrite && selected.payment_status === 'paid'}
-          <Button variant="secondary" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>{t('commerce.order.refund')}</Button>
+          <Button variant="destructive" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>
+            {t('commerce.order.refund')} (Ödemeyi İade Et)
+          </Button>
+        {:else if canWrite && selected.payment_status === 'pending'}
+          <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+            <div class="flex items-start gap-2 text-amber-700 dark:text-amber-400">
+              <svg class="size-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <div>
+                <p class="font-medium">Ödeme Bekleniyor</p>
+                <p class="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                  Bu sipariş henüz ödenmediği için banka/kart para iadesi yapılamaz. Müşteri ödemeyi tamamlayıp sipariş "Ödendi" durumuna geçtiğinde <strong>İade Et</strong> butonu burada otomatik olarak görünecektir.
+                </p>
+              </div>
+            </div>
+          </div>
+        {:else if selected.payment_status === 'refunded'}
+          <div class="p-3 rounded-lg bg-muted text-xs text-muted-foreground text-center">
+            Bu siparişin ücreti daha önce iade edilmiştir.
+          </div>
         {/if}
         {#if selected.shipping_tracking_number}
           <div class="p-4 rounded-lg bg-muted/50 border border-border text-xs space-y-1">
@@ -349,17 +371,29 @@
           {/each}
         </div>
 
-        <div class="relative w-full sm:w-64">
-          <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input
-            type="search"
-            placeholder={t('commerce.orders.search')}
-            bind:value={search}
-            class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-          />
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <a
+            href="/admin/#/content/return_requests"
+            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-xs font-medium text-foreground transition-colors shrink-0 shadow-xs"
+          >
+            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 14 4 9 9 4"></polyline>
+              <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
+            </svg>
+            İade ve İptal Talepleri
+          </a>
+          <div class="relative w-full sm:w-64">
+            <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="search"
+              placeholder={t('commerce.orders.search')}
+              bind:value={search}
+              class="h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+            />
+          </div>
         </div>
       </div>
 

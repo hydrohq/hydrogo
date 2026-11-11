@@ -250,20 +250,29 @@
       </div>
 
       <!-- Prompt Input Form -->
-      <form onsubmit={sendPrompt} class="border-t border-border bg-background p-3 space-y-2">
-        <textarea
-          bind:value={promptText}
-          rows="2"
-          placeholder={t('copilot.placeholder')}
-          class="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-        ></textarea>
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] text-muted-foreground">{t('copilot.undoHint')}</span>
-          <Button type="submit" size="sm" disabled={sending || !promptText.trim()}>
-            {sending ? t('copilot.sending') : t('copilot.send')}
-          </Button>
+      {#if governance && !governance.ai_enabled}
+        <div class="border-t border-border bg-muted/40 p-4 text-center space-y-1.5">
+          <p class="text-xs font-semibold text-foreground">AI Asistan Bağlı Değil</p>
+          <p class="text-[11px] text-muted-foreground leading-relaxed">
+            Bu mağazada yapay zeka asistanı yapılandırılmamıştır veya devre dışıdır. Kullanabilmek için bir yapay zeka sağlayıcısı (Gemini, OpenAI vb.) API anahtarı bağlamalısınız.
+          </p>
         </div>
-      </form>
+      {:else}
+        <form onsubmit={sendPrompt} class="border-t border-border bg-background p-3 space-y-2">
+          <textarea
+            bind:value={promptText}
+            rows="2"
+            placeholder={t('copilot.placeholder')}
+            class="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          ></textarea>
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-muted-foreground">{t('copilot.undoHint')}</span>
+            <Button type="submit" size="sm" disabled={sending || !promptText.trim()}>
+              {sending ? t('copilot.sending') : t('copilot.send')}
+            </Button>
+          </div>
+        </form>
+      {/if}
     </div>
   </div>
 {/if}
