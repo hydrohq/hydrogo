@@ -313,9 +313,13 @@ func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	_, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
+	sess, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
 	if err != nil || member == nil || !member.Active {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-chpw:"+requestmeta.ClientIP(r)+":"+member.ID) {
+		http.Error(w, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.", http.StatusTooManyRequests)
 		return
 	}
 	var payload struct {
@@ -335,7 +339,7 @@ func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		payload.CurrentPassword = r.FormValue("current_password")
 		payload.NewPassword = r.FormValue("new_password")
 	}
-	if err := h.Service.ChangeOwnPassword(r.Context(), member.ID, payload.CurrentPassword, payload.NewPassword); err != nil {
+	if err := h.Service.ChangeOwnPassword(r.Context(), member.ID, sess.ID, payload.CurrentPassword, payload.NewPassword); err != nil {
 		if errors.Is(err, members.ErrInvalidCredentials) {
 			http.Error(w, "Mevcut şifreniz hatalı.", http.StatusUnauthorized)
 			return
@@ -360,6 +364,10 @@ func (h Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
 	_, member, err := h.Service.ValidateSession(r.Context(), cookie.Value)
 	if err != nil || member == nil || !member.Active {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-chem:"+requestmeta.ClientIP(r)+":"+member.ID) {
+		http.Error(w, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.", http.StatusTooManyRequests)
 		return
 	}
 	var payload struct {
