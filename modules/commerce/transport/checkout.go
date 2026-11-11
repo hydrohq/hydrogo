@@ -107,7 +107,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		GuestName: input.GuestName, GuestEmail: input.GuestEmail, GuestPhone: input.GuestPhone,
 		GuestAddress: input.GuestAddress, GuestCity: input.GuestCity, GuestDistrict: input.GuestDistrict, GuestCountry: input.GuestCountry, GuestPostalCode: input.GuestPostalCode,
 		IdempotencyKey: input.IdempotencyKey, DiscountCode: input.DiscountCode, PaymentMethod: strings.TrimSpace(input.PaymentMethod),
-		ItemTitles: input.ItemTitles, ItemSKUs: input.ItemSKUs,
+		ItemTitles: input.ItemTitles, ItemSKUs: input.ItemSKUs, MaxLineQuantity: h.MaxLineQuantity,
 	})
 	if err != nil {
 		writeServiceError(w, r, err)

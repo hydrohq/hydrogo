@@ -3,6 +3,7 @@ package transport
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/ardaozyildirim/hydrogo/internal/api"
@@ -58,8 +59,12 @@ func (h Handler) addItem(w http.ResponseWriter, r *http.Request) {
 	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
 		return
 	}
-	if strings.TrimSpace(input.VariantID) == "" || input.Quantity <= 0 || input.Quantity > 1000 {
-		api.WriteError(w, r, http.StatusUnprocessableEntity, "variant_id and a quantity between 1 and 1000 are required", nil)
+	maxQuantity := h.MaxLineQuantity
+	if maxQuantity <= 0 {
+		maxQuantity = 100
+	}
+	if strings.TrimSpace(input.VariantID) == "" || input.Quantity <= 0 || input.Quantity > maxQuantity {
+		api.WriteError(w, r, http.StatusUnprocessableEntity, "variant_id and a quantity between 1 and "+strconv.Itoa(maxQuantity)+" are required", nil)
 		return
 	}
 	cart, items, err := h.Service.AddToCart(r.Context(), shopper, input.VariantID, input.Quantity)

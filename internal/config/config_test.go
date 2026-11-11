@@ -43,16 +43,16 @@ func TestLoadCommerceAndPayTRDefaultsAndOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Payments.PayTR.TimeoutLimit != 20 || cfg.Commerce.MaxPendingOrdersPerIP != 25 {
+	if cfg.Payments.PayTR.TimeoutLimit != 20 || cfg.Commerce.MaxPendingOrdersPerIP != 25 || cfg.Commerce.MaxLineQuantity != 100 {
 		t.Fatalf("defaults: timeout=%d pending=%d", cfg.Payments.PayTR.TimeoutLimit, cfg.Commerce.MaxPendingOrdersPerIP)
 	}
 
-	path := writeConfig(t, "commerce:\n  max_pending_orders_per_ip: 9\npayments:\n  paytr:\n    timeout_limit: 12\n")
+	path := writeConfig(t, "commerce:\n  max_pending_orders_per_ip: 9\n  max_line_quantity: 7\npayments:\n  paytr:\n    timeout_limit: 12\n")
 	cfg, err = Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:overrides.sqlite"}), Overrides{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Payments.PayTR.TimeoutLimit != 12 || cfg.Commerce.MaxPendingOrdersPerIP != 9 {
+	if cfg.Payments.PayTR.TimeoutLimit != 12 || cfg.Commerce.MaxPendingOrdersPerIP != 9 || cfg.Commerce.MaxLineQuantity != 7 {
 		t.Fatalf("configured values: timeout=%d pending=%d", cfg.Payments.PayTR.TimeoutLimit, cfg.Commerce.MaxPendingOrdersPerIP)
 	}
 }
@@ -745,6 +745,25 @@ func TestSiteURLConfigAndValidation(t *testing.T) {
 		cfgInvalid.HTTP.SiteURL = invalid
 		if err := cfgInvalid.Validate(); err == nil {
 			t.Errorf("expected invalid site URL %q to fail validation, but it passed", invalid)
+		}
+	}
+}
+
+func TestMaxLineQuantityRange(t *testing.T) {
+	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:maxqty.sqlite"}), Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, valid := range []int{1, 100, 1000} {
+		cfg.Commerce.MaxLineQuantity = valid
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("max_line_quantity %d rejected: %v", valid, err)
+		}
+	}
+	for _, invalid := range []int{-1, 0, 1001} {
+		cfg.Commerce.MaxLineQuantity = invalid
+		if err := cfg.Validate(); err == nil {
+			t.Fatalf("max_line_quantity %d accepted", invalid)
 		}
 	}
 }
