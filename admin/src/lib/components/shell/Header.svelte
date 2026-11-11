@@ -141,6 +141,7 @@
       {/if}
 
       <!-- Workspace AI Copilot Button -->
+      {#if schema.modules['ai']}
       <button
         type="button"
         onclick={() => (showCopilotDrawer = true)}
@@ -152,6 +153,7 @@
         </svg>
         <span class="hidden sm:inline">{t('copilot.button')}</span>
       </button>
+      {/if}
 
       <!-- Notifications Popover -->
       <NotificationPopover />
