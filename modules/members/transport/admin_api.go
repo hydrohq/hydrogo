@@ -36,10 +36,12 @@ var memberStatusFilters = map[string]bool{"all": true, "active": true, "inactive
 func (h Handler) adminRoutes() []router.Route {
 	return []router.Route{
 		{Pattern: "GET " + AdminBasePath, Access: router.Protected, Handler: http.HandlerFunc(h.adminList)},
+		{Pattern: "POST " + AdminBasePath, Access: router.Protected, Handler: http.HandlerFunc(h.adminCreate)},
 		{Pattern: "GET " + AdminBasePath + "/stats", Access: router.Protected, Handler: http.HandlerFunc(h.adminStats)},
 		{Pattern: "GET " + AdminBasePath + "/export", Access: router.Protected, Handler: http.HandlerFunc(h.adminExport)},
 		{Pattern: "GET " + AdminBasePath + "/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminDetail)},
 		{Pattern: "PATCH " + AdminBasePath + "/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminUpdate)},
+		{Pattern: "DELETE " + AdminBasePath + "/{id}", Access: router.Protected, Handler: http.HandlerFunc(h.adminDelete)},
 		{Pattern: "POST " + AdminBasePath + "/{id}/verify-email", Access: router.Protected, Handler: http.HandlerFunc(h.adminVerifyEmail)},
 		{Pattern: "POST " + AdminBasePath + "/{id}/resend-verification", Access: router.Protected, Handler: http.HandlerFunc(h.adminResendVerification)},
 		{Pattern: "POST " + AdminBasePath + "/{id}/sessions/{session_id}/revoke", Access: router.Protected, Handler: http.HandlerFunc(h.adminRevokeSession)},
@@ -165,13 +167,58 @@ func (h Handler) adminDetail(w http.ResponseWriter, r *http.Request) {
 	api.WriteData(w, http.StatusOK, detail, nil)
 }
 
-type memberUpdateRequest struct {
-	Active        *bool `json:"active"`
-	EmailVerified *bool `json:"email_verified"`
+type memberCreateRequest struct {
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	Active        *bool  `json:"active"`
+	EmailVerified *bool  `json:"email_verified"`
 }
 
-// adminUpdate toggles activation and the verified flag. Deactivating a member
-// also ends every browser and mobile session so the lockout is immediate.
+func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	var input memberCreateRequest
+	if !api.DecodeJSON(w, r, &input, adminMemberJSONBytes) {
+		return
+	}
+	active := true
+	if input.Active != nil {
+		active = *input.Active
+	}
+	verified := false
+	if input.EmailVerified != nil {
+		verified = *input.EmailVerified
+	}
+	created, err := h.Service.AdminCreateMember(r.Context(), input.Email, input.Password, active, verified)
+	if err != nil {
+		if errors.Is(err, members.ErrMemberExists) {
+			api.WriteError(w, r, http.StatusConflict, "Bu e-posta adresi zaten kayıtlı.", nil)
+			return
+		}
+		if errors.Is(err, auth.ErrWeakPassword) {
+			api.WriteError(w, r, http.StatusBadRequest, "Şifre en az 6 karakter olmalıdır.", nil)
+			return
+		}
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			api.WriteError(w, r, http.StatusBadRequest, "Geçerli bir e-posta adresi giriniz.", nil)
+			return
+		}
+		api.WriteError(w, r, http.StatusServiceUnavailable, "member create failed", nil)
+		return
+	}
+	api.WriteData(w, http.StatusCreated, created, nil)
+}
+
+type memberUpdateRequest struct {
+	Active        *bool   `json:"active"`
+	EmailVerified *bool   `json:"email_verified"`
+	Email         *string `json:"email"`
+	Password      *string `json:"password"`
+}
+
+// adminUpdate updates member email, password, activation, and verification flag.
+// Deactivating a member also ends every browser and mobile session so the lockout is immediate.
 func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if !h.requireAdmin(w, r) {
 		return
@@ -184,9 +231,33 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if !api.DecodeJSON(w, r, &input, adminMemberJSONBytes) {
 		return
 	}
-	if input.Active == nil && input.EmailVerified == nil {
+	if input.Active == nil && input.EmailVerified == nil && input.Email == nil && input.Password == nil {
 		api.WriteValidation(w, r, map[string]string{"active": "required"})
 		return
+	}
+	if input.Email != nil && strings.TrimSpace(*input.Email) != "" {
+		if err := h.Service.UpdateEmail(r.Context(), member.ID, *input.Email); err != nil {
+			if errors.Is(err, members.ErrMemberExists) {
+				api.WriteError(w, r, http.StatusConflict, "Bu e-posta adresi zaten kayıtlı.", nil)
+				return
+			}
+			if errors.Is(err, auth.ErrInvalidCredentials) {
+				api.WriteError(w, r, http.StatusBadRequest, "Geçerli bir e-posta adresi giriniz.", nil)
+				return
+			}
+			api.WriteError(w, r, http.StatusServiceUnavailable, "member email update failed", nil)
+			return
+		}
+	}
+	if input.Password != nil && strings.TrimSpace(*input.Password) != "" {
+		if err := h.Service.UpdatePassword(r.Context(), member.ID, *input.Password); err != nil {
+			if errors.Is(err, auth.ErrWeakPassword) {
+				api.WriteError(w, r, http.StatusBadRequest, "Şifre en az 6 karakter olmalıdır.", nil)
+				return
+			}
+			api.WriteError(w, r, http.StatusServiceUnavailable, "member password update failed", nil)
+			return
+		}
 	}
 	if input.Active != nil {
 		if err := h.Service.Members.SetActive(r.Context(), member.ID, *input.Active); err != nil {
@@ -218,6 +289,24 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	api.WriteData(w, http.StatusOK, updated, nil)
+}
+
+func (h Handler) adminDelete(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	member, ok := h.loadMember(w, r)
+	if !ok {
+		return
+	}
+	if h.Mobile != nil {
+		_ = h.Mobile.RevokeAll(r.Context(), member.ID)
+	}
+	if err := h.Service.DeleteMember(r.Context(), member.ID); err != nil {
+		api.WriteError(w, r, http.StatusServiceUnavailable, "member delete failed", nil)
+		return
+	}
+	api.WriteData(w, http.StatusOK, map[string]any{"deleted": true, "id": member.ID}, nil)
 }
 
 func (h Handler) adminVerifyEmail(w http.ResponseWriter, r *http.Request) {

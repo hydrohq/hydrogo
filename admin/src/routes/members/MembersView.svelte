@@ -23,9 +23,18 @@
   let statusFilter = $state('all');
   let selectedMember = $state<Member | null>(null);
   let detailOpen = $state(false);
+  let createOpen = $state(false);
   let actionLoading = $state(false);
   let revokeConfirmOpen = $state(false);
+  let deleteConfirmOpen = $state(false);
   let feedbackMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  let editEmail = $state('');
+  let editPassword = $state('');
+  let newMemberEmail = $state('');
+  let newMemberPassword = $state('');
+  let newMemberVerified = $state(true);
+  let createError = $state('');
 
   const filteredMembers = $derived.by(() => {
     let list = members;
@@ -90,6 +99,85 @@
     }
   }
 
+  function openMemberDetail(m: Member) {
+    selectedMember = m;
+    editEmail = m.email;
+    editPassword = '';
+    feedbackMessage = null;
+    detailOpen = true;
+  }
+
+  async function saveMemberEmail() {
+    if (!selectedMember || !editEmail.trim()) return;
+    actionLoading = true;
+    feedbackMessage = null;
+    try {
+      await api.patch(`/api/v1/admin/members/${selectedMember.id}`, { email: editEmail.trim() });
+      selectedMember.email = editEmail.trim();
+      await loadMembers();
+      feedbackMessage = { type: 'success', text: 'E-posta adresi başarıyla güncellendi.' };
+    } catch (err: any) {
+      feedbackMessage = { type: 'error', text: err?.message || 'E-posta güncellenemedi.' };
+    } finally {
+      actionLoading = false;
+    }
+  }
+
+  async function saveMemberPassword() {
+    if (!selectedMember || !editPassword.trim()) return;
+    actionLoading = true;
+    feedbackMessage = null;
+    try {
+      await api.patch(`/api/v1/admin/members/${selectedMember.id}`, { password: editPassword.trim() });
+      editPassword = '';
+      feedbackMessage = { type: 'success', text: 'Üye şifresi başarıyla güncellendi.' };
+    } catch (err: any) {
+      feedbackMessage = { type: 'error', text: err?.message || 'Şifre güncellenemedi (en az 6 karakter).' };
+    } finally {
+      actionLoading = false;
+    }
+  }
+
+  async function confirmDeleteMember() {
+    if (!selectedMember) return;
+    actionLoading = true;
+    feedbackMessage = null;
+    try {
+      await api.delete(`/api/v1/admin/members/${selectedMember.id}`);
+      deleteConfirmOpen = false;
+      detailOpen = false;
+      selectedMember = null;
+      await loadMembers();
+    } catch (err: any) {
+      feedbackMessage = { type: 'error', text: err?.message || 'Üye silinemedi.' };
+    } finally {
+      actionLoading = false;
+    }
+  }
+
+  async function submitCreateMember(e: Event) {
+    e.preventDefault();
+    if (!newMemberEmail.trim() || !newMemberPassword.trim()) return;
+    actionLoading = true;
+    createError = '';
+    try {
+      await api.post('/api/v1/admin/members', {
+        email: newMemberEmail.trim(),
+        password: newMemberPassword.trim(),
+        active: true,
+        email_verified: newMemberVerified,
+      });
+      createOpen = false;
+      newMemberEmail = '';
+      newMemberPassword = '';
+      await loadMembers();
+    } catch (err: any) {
+      createError = err?.message || 'Üye oluşturulamadı.';
+    } finally {
+      actionLoading = false;
+    }
+  }
+
   async function confirmRevokeSessions() {
     if (!selectedMember) return;
     actionLoading = true;
@@ -131,6 +219,64 @@
   oncancel={() => { if (!actionLoading) revokeConfirmOpen = false; }}
 />
 
+<ConfirmDialog
+  open={deleteConfirmOpen}
+  title="Üye Hesabını Sil"
+  description={`"${selectedMember?.email ?? ''}" hesabını kalıcı olarak silmek istediğinize emin misiniz?`}
+  confirmLabel="Üyeyi Sil"
+  variant="destructive"
+  loading={actionLoading}
+  onconfirm={confirmDeleteMember}
+  oncancel={() => { if (!actionLoading) deleteConfirmOpen = false; }}
+/>
+
+<!-- Create Member Modal -->
+<Modal
+  open={createOpen}
+  title="Yeni Üye Oluştur"
+  description="Mağaza için doğrudan yeni bir müşteri hesabı tanımlayın."
+  onclose={() => { createOpen = false; }}
+>
+  <form onsubmit={submitCreateMember} class="space-y-4">
+    {#if createError}
+      <div class="p-3 rounded-lg text-xs bg-destructive/10 border border-destructive/20 text-destructive">
+        {createError}
+      </div>
+    {/if}
+    <div class="space-y-1.5">
+      <label class="text-xs font-medium text-foreground" for="new-member-email">E-Posta Adresi</label>
+      <input
+        id="new-member-email"
+        type="email"
+        required
+        placeholder="ornek@domain.com"
+        bind:value={newMemberEmail}
+        class="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+    </div>
+    <div class="space-y-1.5">
+      <label class="text-xs font-medium text-foreground" for="new-member-password">Şifre (en az 6 karakter)</label>
+      <input
+        id="new-member-password"
+        type="text"
+        required
+        minlength="6"
+        placeholder="Güçlü bir şifre belirleyin"
+        bind:value={newMemberPassword}
+        class="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      />
+    </div>
+    <label class="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+      <input type="checkbox" bind:checked={newMemberVerified} class="rounded border-input" />
+      <span>E-posta adresini doğrulanmış olarak işaretle</span>
+    </label>
+    <div class="flex justify-end gap-2 pt-2">
+      <Button variant="secondary" size="sm" onclick={() => { createOpen = false; }}>{t('common.cancel')}</Button>
+      <Button type="submit" variant="primary" size="sm" loading={actionLoading}>Üye Oluştur</Button>
+    </div>
+  </form>
+</Modal>
+
 <!-- Member Detail Modal -->
 <Modal
   open={detailOpen}
@@ -168,6 +314,40 @@
         </div>
       </div>
 
+      <!-- Direct Email Change -->
+      <div class="p-3.5 rounded-lg border border-border bg-card space-y-2">
+        <label class="block text-xs font-medium text-foreground" for="admin-member-email">E-Posta Adresini Değiştir</label>
+        <div class="flex gap-2">
+          <input
+            id="admin-member-email"
+            type="email"
+            bind:value={editEmail}
+            placeholder="Yeni e-posta adresi"
+            class="h-8 flex-1 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <Button variant="outline" size="sm" loading={actionLoading} onclick={saveMemberEmail}>
+            Güncelle
+          </Button>
+        </div>
+      </div>
+
+      <!-- Direct Password Reset -->
+      <div class="p-3.5 rounded-lg border border-border bg-card space-y-2">
+        <label class="block text-xs font-medium text-foreground" for="admin-member-password">Yeni Şifre Belirle</label>
+        <div class="flex gap-2">
+          <input
+            id="admin-member-password"
+            type="text"
+            bind:value={editPassword}
+            placeholder="En az 6 karakter yeni şifre"
+            class="h-8 flex-1 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <Button variant="outline" size="sm" loading={actionLoading} onclick={saveMemberPassword}>
+            Şifreyi Kaydet
+          </Button>
+        </div>
+      </div>
+
       <div class="space-y-2 pt-2 border-t border-border">
         {#if !selectedMember.email_verified_at}
           <Button
@@ -181,13 +361,22 @@
           </Button>
         {/if}
         <Button
-          variant="danger"
+          variant="outline"
           size="sm"
           class="w-full"
           loading={actionLoading}
           onclick={() => { revokeConfirmOpen = true; }}
         >
           {t('members.revokeAll')}
+        </Button>
+        <Button
+          variant="danger"
+          size="sm"
+          class="w-full"
+          loading={actionLoading}
+          onclick={() => { deleteConfirmOpen = true; }}
+        >
+          Üye Hesabını Kalıcı Olarak Sil
         </Button>
       </div>
     </div>
@@ -242,6 +431,14 @@
             </svg>
             <span>{t('members.export')}</span>
           </a>
+
+          <button
+            type="button"
+            onclick={() => { createError = ''; newMemberEmail = ''; newMemberPassword = ''; createOpen = true; }}
+            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 text-xs font-medium transition-opacity cursor-pointer shrink-0 shadow-xs"
+          >
+            <span>+ Yeni Üye</span>
+          </button>
         </div>
       </div>
 
@@ -272,7 +469,7 @@
                   {#each filteredMembers as m (m.id)}
                     <tr
                       class="hover:bg-muted/50 transition-colors cursor-pointer"
-                      onclick={() => { selectedMember = m; detailOpen = true; }}
+                      onclick={() => openMemberDetail(m)}
                     >
                       <td class="px-4 py-3 font-medium text-foreground">
                         {m.email}

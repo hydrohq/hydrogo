@@ -3,6 +3,7 @@ package members
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/ardaozyildirim/hydrogo/internal/auth"
@@ -214,6 +215,142 @@ func (s Service) Stats(ctx context.Context) (MemberStats, error) {
 		return MemberStats{}, ErrMemberRepoRequired
 	}
 	return s.Members.Stats(ctx)
+}
+
+type EmailUpdater interface {
+	UpdateEmail(ctx context.Context, id, email string) error
+}
+
+type PasswordUpdater interface {
+	UpdatePasswordHash(ctx context.Context, id, passwordHash string) error
+}
+
+type MemberDeleter interface {
+	Delete(ctx context.Context, id string) error
+}
+
+func (s Service) UpdateEmail(ctx context.Context, memberID, newEmail string) error {
+	if guards.IsNil(s.Members) {
+		return ErrMemberRepoRequired
+	}
+	updater, ok := s.Members.(EmailUpdater)
+	if !ok {
+		return ErrMemberRepoRequired
+	}
+	newEmail = auth.NormalizeEmail(newEmail)
+	if newEmail == "" || !strings.Contains(newEmail, "@") {
+		return auth.ErrInvalidCredentials
+	}
+	if existing, err := s.Members.GetByEmail(ctx, newEmail); err == nil && existing != nil && existing.ID != memberID {
+		return ErrMemberExists
+	} else if err != nil && !errors.Is(err, ErrMemberNotFound) {
+		return err
+	}
+	return updater.UpdateEmail(ctx, memberID, newEmail)
+}
+
+func (s Service) UpdatePassword(ctx context.Context, memberID, newPassword string) error {
+	if guards.IsNil(s.Members) {
+		return ErrMemberRepoRequired
+	}
+	updater, ok := s.Members.(PasswordUpdater)
+	if !ok {
+		return ErrMemberRepoRequired
+	}
+	runes := []rune(strings.TrimSpace(newPassword))
+	if len(runes) < 6 || len(runes) > 1024 {
+		return auth.ErrWeakPassword
+	}
+	hash, err := auth.HashPassword(newPassword, s.ArgonParams)
+	if err != nil {
+		return err
+	}
+	return updater.UpdatePasswordHash(ctx, memberID, hash)
+}
+
+func (s Service) ChangeOwnPassword(ctx context.Context, memberID, currentPassword, newPassword string) error {
+	if guards.IsNil(s.Members) {
+		return ErrMemberRepoRequired
+	}
+	member, err := s.Members.GetByID(ctx, memberID)
+	if err != nil || member == nil {
+		return ErrMemberNotFound
+	}
+	valid, err := auth.VerifyPassword(currentPassword, member.PasswordHash)
+	if err != nil || !valid {
+		return ErrInvalidCredentials
+	}
+	return s.UpdatePassword(ctx, memberID, newPassword)
+}
+
+func (s Service) ChangeOwnEmail(ctx context.Context, memberID, currentPassword, newEmail string) error {
+	if guards.IsNil(s.Members) {
+		return ErrMemberRepoRequired
+	}
+	member, err := s.Members.GetByID(ctx, memberID)
+	if err != nil || member == nil {
+		return ErrMemberNotFound
+	}
+	valid, err := auth.VerifyPassword(currentPassword, member.PasswordHash)
+	if err != nil || !valid {
+		return ErrInvalidCredentials
+	}
+	return s.UpdateEmail(ctx, memberID, newEmail)
+}
+
+func (s Service) DeleteMember(ctx context.Context, memberID string) error {
+	if guards.IsNil(s.Members) {
+		return ErrMemberRepoRequired
+	}
+	deleter, ok := s.Members.(MemberDeleter)
+	if !ok {
+		return ErrMemberRepoRequired
+	}
+	if !guards.IsNil(s.Sessions) {
+		_ = s.Sessions.DeleteByMemberID(ctx, memberID)
+	}
+	return deleter.Delete(ctx, memberID)
+}
+
+func (s Service) AdminCreateMember(ctx context.Context, email, password string, active, verified bool) (*Member, error) {
+	if guards.IsNil(s.Members) {
+		return nil, ErrMemberRepoRequired
+	}
+	email = auth.NormalizeEmail(email)
+	if email == "" || !strings.Contains(email, "@") {
+		return nil, auth.ErrInvalidCredentials
+	}
+	runes := []rune(strings.TrimSpace(password))
+	if len(runes) < 6 || len(runes) > 1024 {
+		return nil, auth.ErrWeakPassword
+	}
+	if existing, err := s.Members.GetByEmail(ctx, email); err == nil && existing != nil {
+		return nil, ErrMemberExists
+	} else if err != nil && !errors.Is(err, ErrMemberNotFound) {
+		return nil, err
+	}
+	hash, err := auth.HashPassword(password, s.ArgonParams)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	var verifiedAt *time.Time
+	if verified {
+		verifiedAt = &now
+	}
+	member := &Member{
+		ID:              newID(),
+		Email:           email,
+		PasswordHash:    hash,
+		Active:          active,
+		EmailVerifiedAt: verifiedAt,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	if err := s.Members.Create(ctx, member); err != nil {
+		return nil, err
+	}
+	return member, nil
 }
 
 func newID() string {
