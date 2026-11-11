@@ -3,6 +3,7 @@
   import { api, ApiClientError } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import { t } from '$lib/i18n/index.svelte';
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Input from '$lib/components/ui/Input.svelte';
@@ -45,7 +46,9 @@ export interface ProductRecord {
 
   let product = $state<ProductRecord | null>(null);
   let categories = $state<Array<{ id: string; name?: string; slug?: string }>>([]);
-  let loading = $state(false);
+  // A saved product loads on mount: start in the loading state so the form never flashes empty.
+  // svelte-ignore state_referenced_locally
+  let loading = $state(id !== 'new');
   let saving = $state(false);
   let publishing = $state(false);
   let errorMessage = $state('');
@@ -418,9 +421,7 @@ export interface ProductRecord {
   {/if}
 
   {#if loading}
-    <div class="p-12 text-center text-xs text-muted-foreground">
-      {t('products.loading')}
-    </div>
+    <PageSpinner />
   {:else}
     <!-- Tabs Header -->
     <div class="border-b border-border" role="tablist">

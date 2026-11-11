@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api/client';
@@ -377,7 +378,7 @@
         <div class="">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
-              <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">{t('audit.loading')}</div>
+              <PageSpinner compact />
             {:else if entries.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground">{t('audit.empty')}</div>
             {:else}
@@ -553,7 +554,7 @@
 
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if notFoundLoading}
-              <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">{t('audit.loading404')}</div>
+              <PageSpinner compact />
             {:else if filteredNotFoundHits.length === 0}
               <div class="p-12 text-center text-xs text-muted-foreground">
                 {t('audit.empty404')}

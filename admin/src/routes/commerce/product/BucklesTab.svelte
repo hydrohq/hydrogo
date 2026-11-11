@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { t } from '$lib/i18n/index.svelte';
+  import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import type { ProductRecord } from '../ProductEditorView.svelte';
 
@@ -35,7 +36,9 @@
 
   let categories = $state<Category[]>([]);
   let allProducts = $state<BuckleProduct[]>([]);
-  let loading = $state(false);
+  // Starts true for a saved product: the first render must not flash the empty state before data arrives.
+  // svelte-ignore state_referenced_locally
+  let loading = $state(!!product?.id && product.id !== 'new');
   let saving = $state(false);
   let errorMessage = $state('');
   let successMessage = $state('');
@@ -321,9 +324,7 @@
     {/if}
 
     {#if loading && candidateBuckles.length === 0}
-      <div class="p-12 text-center text-xs text-muted-foreground">
-        {t('products.loading')}
-      </div>
+      <PageSpinner compact />
     {:else if candidateBuckles.length === 0}
       <div class="p-12 text-center text-xs text-muted-foreground">
         {t('products.buckles.emptyNotice')}

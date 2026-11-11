@@ -68,6 +68,15 @@ SQLite (default) for small sites; PostgreSQL or MySQL/MariaDB for more traffic o
 
 HydroGo includes a built-in, zero-dependency embedded `MemoryStore` (`internal/cache`) providing thread-safe TTL caching, atomic counters, rate limiting, pub/sub, and worker pools out of the box without requiring external daemons. For clustered deployments running across multiple instances, set `HYDRO_REDIS_URL` to synchronize rate limits and caches across nodes.
 
+## Storefront in front of Hydro (lessons from a real launch)
+
+- **Route every Hydro path to Hydro.** When a separate storefront (SvelteKit, Next...) shares the domain with Hydro and a proxy splits traffic by path, Hydro must also get `/auth/*` (admin sign-in), `/csrf-token`, `/admin*`, `/api/v1/*`, `/media/*`, `/member/*` and `/healthz`. A missing `/auth/*` makes the admin show "Unknown network error" on sign-in because the request lands on the storefront.
+- **Server-side calls on loopback need the public Host.** With `http.public_origin` set, Hydro answers only to that host (421 otherwise). A storefront calling `http://127.0.0.1:PORT` sends `Host: 127.0.0.1:PORT` and every page fails with a 5xx. Either call Hydro through a loopback-only proxy site that rewrites `Host` (Caddy: `http://127.0.0.1:8181 { bind 127.0.0.1; reverse_proxy 127.0.0.1:8180 { header_up Host shop.example.com } }`) or use the public URL. Node's `fetch` ignores a `Host` header you set.
+- **Do not trust the client IP header blindly.** Only enable `http.trust_cf_connecting_ip` when the origin accepts traffic from Cloudflare only (proxy rejects other sources) and `http.trusted_proxies` lists your proxy.
+- **Cache invalidation instead of waiting for a TTL.** Public content reads are not cached by Hydro, but storefronts usually cache them for a few seconds. Subscribe the storefront to the `content.created`, `content.updated` and `content.deleted` webhook topics (`HYDRO_WEBHOOK_URL`, `HYDRO_WEBHOOK_SECRET`, `HYDRO_WEBHOOK_TOPICS=...`) and clear its cache when one arrives, so admin edits show up at once. Keep a short TTL as a fallback.
+- **Service accounts** (`hydro service-account create`) use the reserved `@hydrogo.invalid` e-mail domain: the admin keeps them out of the staff list, no person can register such an address, and each run creates a new account, so revoke the ones you no longer need (`hydro service-account revoke --name ...`) or reuse a name.
+- **Many ids in a list filter.** `filter[field][in]=` takes at most 50 comma-separated values and 256 bytes in total; split longer id lists into several parallel requests.
+
 ## Health and Readiness Probes
 
 HydroGo exposes `/healthz` for load balancers and orchestrators. It actively pings the connected database (`db.PingContext`), returning HTTP 200 `OK` when healthy and HTTP 503 `database unavailable` if the database connection fails.

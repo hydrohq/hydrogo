@@ -13,4 +13,9 @@ describe('PageSpinner', () => {
     render(PageSpinner, { props: { fullscreen: true } });
     expect(screen.getByTestId('page-spinner').className).toContain('min-h-screen');
   });
+
+  it('supports compact min-height for cards/tabs', () => {
+    render(PageSpinner, { props: { compact: true } });
+    expect(screen.getByTestId('page-spinner').className).toContain('min-h-[120px]');
+  });
 });
