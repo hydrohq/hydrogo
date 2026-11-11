@@ -58,6 +58,7 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("GET /api/v1/admin/permissions", a.adminPermissionsHandler),
 		protected("PUT /api/v1/admin/account/locale", a.adminAccountLocaleHandler),
 		protected("GET /api/v1/admin/i18n/{locale}", a.adminI18nHandler),
+		protected("GET /api/v1/admin/system", a.adminSystemInfoHandler),
 		protected("GET /api/v1/admin/system/info", a.adminSystemInfoHandler),
 		protected("GET /api/v1/admin/system/metrics", a.adminSystemMetricsHandler),
 		protected("GET /api/v1/admin/system/health", a.adminSystemHealthHandler(a.readiness)),
