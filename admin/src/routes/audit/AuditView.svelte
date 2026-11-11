@@ -236,7 +236,7 @@
 
 <div class="flex flex-1 flex-col font-sans select-text">
   <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <div class="flex flex-col gap-4 md:gap-6">
 
       <!-- Top Security Posture & Metrics Overview Cards -->
       <div class="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 lg:grid-cols-4 lg:px-6">
@@ -298,7 +298,7 @@
       </div>
 
       <!-- Segmented Navigation Tabs -->
-      <div class="px-4 lg:px-6">
+      <div class="">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
           <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
             <button
@@ -344,7 +344,7 @@
       <!-- TAB 1: Activity Stream -->
       {#if activeTab === 'events'}
         <!-- Filters Row -->
-        <div class="px-4 lg:px-6">
+        <div class="">
           <form onsubmit={handleFilter} class="p-3 rounded-xl border border-border bg-card shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
             <Input label={t('audit.filter.actor')} placeholder={t('audit.filter.actorPlaceholder')} bind:value={filterActor} />
             <Input label={t('audit.filter.action')} placeholder={t('audit.filter.actionPlaceholder')} bind:value={filterAction} />
@@ -374,7 +374,7 @@
         </div>
 
         <!-- Table Container -->
-        <div class="px-4 lg:px-6">
+        <div class="">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
               <div class="p-12 text-center text-xs text-muted-foreground animate-pulse">{t('audit.loading')}</div>
@@ -452,7 +452,7 @@
 
       <!-- TAB 2: Security & Sign-in Attempts -->
       {#if activeTab === 'security'}
-        <div class="px-4 lg:px-6">
+        <div class="">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             <div class="p-4 border-b border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
@@ -531,7 +531,7 @@
 
       <!-- TAB 3: 404 Scanner & Probing Log -->
       {#if activeTab === 'not_found'}
-        <div class="px-4 lg:px-6 space-y-4">
+        <div class="space-y-4">
           <!-- Search input -->
           <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="relative w-full max-w-sm">

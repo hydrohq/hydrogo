@@ -113,7 +113,7 @@
 
       captureSnapshot();
       router.setDirty(false);
-      successMessage = 'Saved successfully!';
+      successMessage = t('common.saved');
       setTimeout(() => { successMessage = null; }, 3000);
 
       if (isNew && res && res.data && res.data.id) {
@@ -188,9 +188,9 @@
 {:else}
   <div class="flex flex-1 flex-col">
     <div class="@container/main flex flex-1 flex-col gap-2">
-      <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <div class="flex flex-col gap-4 md:gap-6">
         <!-- Top Toolbar -->
-        <div class="flex items-center justify-between px-4 lg:px-6">
+        <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <button
               type="button"
@@ -260,7 +260,7 @@
         {/if}
 
         <!-- Form Card Container -->
-        <div class="px-4 lg:px-6">
+        <div class="">
           <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5 max-w-3xl">
             {#each collection.fields as field (getFieldKey(field))}
               {@const key = getFieldKey(field)}

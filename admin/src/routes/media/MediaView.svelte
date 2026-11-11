@@ -161,9 +161,9 @@
 
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <div class="flex flex-col gap-4 md:gap-6">
       <!-- Upload Dropzone Container -->
-      <div class="px-4 lg:px-6">
+      <div class="">
         <MediaUploadDropzone
           {uploading}
           onupload={handleUploadFiles}
@@ -171,7 +171,7 @@
       </div>
 
       <!-- Toolbar: Folders / Kind tabs + Search & New Folder -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <!-- Kind Tabs -->
         <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
           <button
@@ -229,7 +229,7 @@
       </div>
 
       <!-- Assets Grid Container -->
-      <div class="px-4 lg:px-6">
+      <div class="">
         <div class="rounded-xl border border-border bg-card p-4 shadow-xs">
           {#if loading}
             <div class="py-16 text-center text-xs text-muted-foreground">

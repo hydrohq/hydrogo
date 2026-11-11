@@ -3,6 +3,7 @@
   // component is actually rendered, instead of being bundled into the app shell.
   import ContentSkeleton, { type SkeletonKind } from './ContentSkeleton.svelte';
   import { router } from '$lib/router.svelte';
+  import { t } from '$lib/i18n/index.svelte';
 
   type Props = {
     load: () => Promise<{ default: unknown }>;
@@ -44,7 +45,7 @@
   <Component {...props} />
 {:catch error}
   <div class="p-8 max-w-2xl mx-auto rounded-xl border border-destructive/30 bg-destructive/5 text-center space-y-2">
-    <p class="text-sm font-medium text-destructive">Failed to load view</p>
+    <p class="text-sm font-medium text-destructive">{t('error.failedToLoadView')}</p>
     <p class="text-xs text-muted-foreground">{error instanceof Error ? error.message : String(error)}</p>
   </div>
 {/await}

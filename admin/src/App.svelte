@@ -11,6 +11,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import { confirmDialogState, resolveConfirm } from '$lib/confirm';
   import LazyView from '$lib/components/shell/LazyView.svelte';
+  import { t } from '$lib/i18n/index.svelte';
 
   // Each route view ships in its own chunk, downloaded only when visited —
   // keeps the app shell small (the Pages/News editors pull in TipTap).
@@ -260,7 +261,7 @@
           <div class="p-8 max-w-2xl mx-auto rounded-xl border border-border bg-card text-card-foreground text-center space-y-3 shadow-xs">
             <h3 class="text-lg font-semibold capitalize">{routeInfo.module}</h3>
             <p class="text-sm text-muted-foreground">
-              Dedicated module interface will be rendered here.
+              {t('app.modulePlaceholder')}
             </p>
           </div>
         {/if}
@@ -271,10 +272,10 @@
   <!-- Global Navigation Guard Dialog for Unsaved Changes -->
   <ConfirmDialog
     open={router.showUnsavedModal}
-    title="Kaydedilmemiş Değişiklikler"
+    title={t('error.unsavedTitle')}
     description={router.dirtyMessage}
-    confirmLabel="Yine de Ayrıl"
-    cancelLabel="Düzenlemeye Devam Et"
+    confirmLabel={t('error.leaveAnyway')}
+    cancelLabel={t('error.stayAndEdit')}
     variant="destructive"
     onconfirm={() => router.confirmLeave()}
     oncancel={() => router.cancelLeave()}

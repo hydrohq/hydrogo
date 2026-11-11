@@ -119,7 +119,7 @@
       <BrandLogo size="md" showText={sidebar.open} />
       {#if isConsoleMode && sidebar.open}
         <span class="ml-auto text-[10px] font-medium tracking-wide px-1.5 py-0.5 rounded border border-sidebar-border bg-sidebar-accent text-muted-foreground">
-          Console
+          {t('nav.consoleBadge')}
         </span>
       {/if}
     </a>
@@ -630,14 +630,14 @@
         href="/admin/subscription"
         onclick={() => handleNavigate('/subscription')}
         class="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-all duration-150 {isActive('/subscription') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs' : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5'}"
-        title="Abonelik & Ödeme"
+        title={t('nav.subscription')}
       >
         <svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="20" height="14" x="2" y="5" rx="2"></rect>
           <line x1="2" x2="22" y1="10" y2="10"></line>
         </svg>
         {#if sidebar.open}
-          <span class="truncate">Abonelik & Ödeme</span>
+          <span class="truncate">{t('nav.subscription')}</span>
         {/if}
       </a>
       {/if}
@@ -712,7 +712,7 @@
             class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-accent text-left transition-colors"
           >
             <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
-            <span>Abonelik & Ödeme</span>
+            <span>{t('nav.subscription')}</span>
           </a>
           {/if}
           <a

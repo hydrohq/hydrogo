@@ -148,7 +148,7 @@ describe('Sidebar', () => {
 
     // Assert
     expect(screen.queryByTitle(t('nav.console'))).toBeNull();
-    expect(screen.queryByTitle('Abonelik & Ödeme')).toBeNull();
+    expect(screen.queryByTitle(t('nav.subscription'))).toBeNull();
   });
 
   it('hides console and subscription items before schema is loaded (prevents flash)', () => {
@@ -161,7 +161,7 @@ describe('Sidebar', () => {
 
     // Assert
     expect(screen.queryByTitle(t('nav.console'))).toBeNull();
-    expect(screen.queryByTitle('Abonelik & Ödeme')).toBeNull();
+    expect(screen.queryByTitle(t('nav.subscription'))).toBeNull();
   });
 
   it('shows console and subscription items when platform is true', () => {
@@ -174,7 +174,7 @@ describe('Sidebar', () => {
 
     // Assert
     expect(screen.getByTitle(t('nav.console'))).toBeTruthy();
-    expect(screen.getByTitle('Abonelik & Ödeme')).toBeTruthy();
+    expect(screen.getByTitle(t('nav.subscription'))).toBeTruthy();
   });
 
   it('gates subscription link in user menu on platform mode', async () => {
@@ -185,7 +185,7 @@ describe('Sidebar', () => {
     await fireEvent.click(screen.getByText('ada@example.com'));
 
     // Assert - hidden
-    expect(screen.queryByText('Abonelik & Ödeme')).toBeNull();
+    expect(screen.queryByText(t('nav.subscription'))).toBeNull();
     unmount();
 
     // Arrange - platform true
@@ -194,7 +194,7 @@ describe('Sidebar', () => {
     await fireEvent.click(screen.getByText('ada@example.com'));
 
     // Assert - shown in both sidebar navigation and user menu
-    expect(screen.getAllByText('Abonelik & Ödeme').length).toBe(2);
+    expect(screen.getAllByText(t('nav.subscription')).length).toBe(2);
   });
   it('shows the Products link as the first item in the store section for commerce readers', () => {
     schema.schema = { modules: { commerce: true }, resources: [] } as any;

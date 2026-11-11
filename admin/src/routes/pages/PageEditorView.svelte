@@ -204,7 +204,7 @@
     onapply={(newTitle, newBody) => {
       formData.title = newTitle;
       formData.body = newBody;
-      successMsg = 'AI suggestion applied to editor!';
+      successMsg = t('ai.appliedSuccess');
       setTimeout(() => { successMsg = null; }, 3000);
     }}
     onclose={() => { aiModalOpen = false; }}
@@ -213,9 +213,9 @@
 
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <div class="flex flex-col gap-4 md:gap-6">
       <!-- Top Action Bar -->
-      <div class="flex items-center justify-between px-4 lg:px-6">
+      <div class="flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <button
             type="button"
@@ -248,7 +248,7 @@
               class="h-8 px-2.5 rounded-md border border-primary/30 bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
             >
               <span>✨</span>
-              <span>AI Assist</span>
+              <span>{t('ai.assist')}</span>
             </button>
             <button
               type="button"
@@ -306,7 +306,7 @@
       {/if}
 
       <!-- Page Settings & Blocks Split -->
-      <div class="px-4 lg:px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Content & Blocks Editor (Left 2 cols) -->
         <div class="lg:col-span-2 space-y-4">
           <div class="p-6 rounded-xl border border-border bg-card shadow-xs space-y-4">
