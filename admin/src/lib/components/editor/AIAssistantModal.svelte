@@ -2,6 +2,7 @@
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import { api } from '$lib/api/client';
+  import { t } from '$lib/i18n/index.svelte';
 
   interface Props {
     open: boolean;
@@ -66,10 +67,10 @@
       if (result) {
         suggestion = result;
       } else {
-        errorMsg = 'No suggestion returned by the AI provider.';
+        errorMsg = t('ai.err.noSuggestion');
       }
     } catch (err: any) {
-      errorMsg = err?.message || 'Failed to generate AI suggestion. Check your AI provider settings.';
+      errorMsg = err?.message || t('ai.err.generateFailed');
     } finally {
       generating = false;
     }
@@ -91,18 +92,18 @@
   }
 </script>
 
-<Modal {open} title="✨ AI Content Assistant" size="xl" {onclose}>
+<Modal {open} title={`✨ ${t('ai.title')}`} size="xl" {onclose}>
   <div class="flex flex-col gap-4 text-sm">
     {#if errorMsg}
       <div class="p-3 text-xs rounded-md bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-between">
         <span>{errorMsg}</span>
-        <button type="button" class="underline ml-2" onclick={() => (errorMsg = null)}>Dismiss</button>
+        <button type="button" class="underline ml-2" onclick={() => (errorMsg = null)}>{t('ai.dismiss')}</button>
       </div>
     {/if}
 
     <!-- Operation Tabs -->
     <div class="flex flex-col gap-1.5">
-      <span class="text-xs font-medium text-muted-foreground">Select AI Capability</span>
+      <span class="text-xs font-medium text-muted-foreground">{t('ai.selectCapability')}</span>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <button
           type="button"
@@ -114,7 +115,7 @@
           }`}
         >
           <span class="text-base mb-1">✨</span>
-          <span>Polish & Refine</span>
+          <span>{t('ai.refine')}</span>
         </button>
 
         <button
@@ -127,7 +128,7 @@
           }`}
         >
           <span class="text-base mb-1">🔍</span>
-          <span>SEO Optimize</span>
+          <span>{t('ai.seo')}</span>
         </button>
 
         <button
@@ -140,7 +141,7 @@
           }`}
         >
           <span class="text-base mb-1">📝</span>
-          <span>Summarize</span>
+          <span>{t('ai.summarize')}</span>
         </button>
 
         <button
@@ -153,7 +154,7 @@
           }`}
         >
           <span class="text-base mb-1">🌐</span>
-          <span>Translate</span>
+          <span>{t('ai.translate')}</span>
         </button>
       </div>
     </div>
@@ -161,31 +162,31 @@
     <!-- Configuration Options -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-muted/40 rounded-lg border border-border/50">
       <div class="flex flex-col gap-1">
-        <label for="ai-tone" class="text-xs font-medium text-muted-foreground">Desired Tone</label>
+        <label for="ai-tone" class="text-xs font-medium text-muted-foreground">{t('ai.desiredTone')}</label>
         <select
           id="ai-tone"
           bind:value={tone}
           class="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         >
-          <option value="professional">Professional & Authoritative</option>
-          <option value="concise">Concise & Direct</option>
-          <option value="friendly">Engaging & Friendly</option>
+          <option value="professional">{t('ai.tone.professional')}</option>
+          <option value="concise">{t('ai.tone.concise')}</option>
+          <option value="friendly">{t('ai.tone.friendly')}</option>
         </select>
       </div>
 
       {#if operation === 'translate'}
         <div class="flex flex-col gap-1">
-          <label for="ai-target-locale" class="text-xs font-medium text-muted-foreground">Target Language</label>
+          <label for="ai-target-locale" class="text-xs font-medium text-muted-foreground">{t('ai.targetLocale')}</label>
           <select
             id="ai-target-locale"
             bind:value={targetLocale}
             class="h-8 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="en">English (US/UK)</option>
-            <option value="tr">Turkish (Türkçe)</option>
-            <option value="de">German (Deutsch)</option>
-            <option value="fr">French (Français)</option>
-            <option value="es">Spanish (Español)</option>
+            <option value="en">{t('ai.lang.en')}</option>
+            <option value="tr">{t('ai.lang.tr')}</option>
+            <option value="de">{t('ai.lang.de')}</option>
+            <option value="fr">{t('ai.lang.fr')}</option>
+            <option value="es">{t('ai.lang.es')}</option>
           </select>
         </div>
       {/if}
@@ -194,7 +195,7 @@
     <!-- Trigger Button -->
     <div class="flex justify-end">
       <Button variant="primary" size="sm" loading={generating} onclick={handleGenerate}>
-        {generating ? 'Processing with AI...' : 'Generate Suggestion'}
+        {generating ? t('ai.generating') : t('ai.generate')}
       </Button>
     </div>
 
@@ -202,27 +203,27 @@
     {#if suggestion}
       <div class="flex flex-col gap-3 mt-2 border-t pt-3">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Suggestion Preview</span>
+          <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ai.preview')}</span>
           <Button variant="primary" size="sm" loading={applying} onclick={handleApply}>
-            ✓ Apply to Editor
+            ✓ {t('ai.apply')}
           </Button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <!-- Before -->
           <div class="flex flex-col gap-2 p-3 bg-muted/20 border border-border/60 rounded-md">
-            <span class="text-xs font-semibold text-muted-foreground">Current Version</span>
+            <span class="text-xs font-semibold text-muted-foreground">{t('ai.currentVersion')}</span>
             <div class="text-xs font-medium text-foreground line-clamp-2">
-              <span class="text-muted-foreground">Title:</span> {currentTitle || '(empty)'}
+              <span class="text-muted-foreground">Title:</span> {currentTitle || t('ai.empty')}
             </div>
             <div class="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">
-              {currentBody || '(empty)'}
+              {currentBody || t('ai.empty')}
             </div>
           </div>
 
           <!-- After -->
           <div class="flex flex-col gap-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
-            <span class="text-xs font-semibold text-primary">✨ Suggested Version</span>
+            <span class="text-xs font-semibold text-primary">✨ {t('ai.suggestedVersion')}</span>
             <div class="text-xs font-medium text-foreground line-clamp-2">
               <span class="text-muted-foreground">Title:</span> {suggestion.title}
             </div>
@@ -238,9 +239,9 @@
   {#snippet footer()}
     <div class="flex items-center justify-between w-full">
       <span class="text-[11px] text-muted-foreground">
-        Powered by HydroGo Provider-Neutral AI Engine
+        {t('ai.poweredBy')}
       </span>
-      <Button variant="outline" size="sm" onclick={onclose}>Close</Button>
+      <Button variant="outline" size="sm" onclick={onclose}>{t('common.close')}</Button>
     </div>
   {/snippet}
 </Modal>

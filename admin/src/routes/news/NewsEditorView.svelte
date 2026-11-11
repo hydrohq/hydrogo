@@ -255,9 +255,9 @@
 
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <div class="flex flex-col gap-4 md:gap-6">
       <!-- Top Action Bar -->
-      <div class="flex items-center justify-between px-4 lg:px-6">
+      <div class="flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <button
             type="button"
@@ -333,7 +333,7 @@
       {/if}
 
       <!-- Main Grid: Editor & Settings -->
-      <div class="px-4 lg:px-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left 2 Cols: Main Content -->
         <div class="lg:col-span-2 space-y-4">
           <div class="p-6 rounded-xl border border-border bg-card shadow-xs space-y-4">

@@ -126,6 +126,7 @@ class I18nState {
 
 export const i18n = new I18nState();
 
+
 /** Translate a key in the active admin language. Reactive inside templates. */
 export function t(key: MessageKey, params?: Record<string, string | number>): string {
   return i18n.t(key, params);

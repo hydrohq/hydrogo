@@ -245,9 +245,9 @@
 
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
-    <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <div class="flex flex-col gap-4 md:gap-6">
       <!-- Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 lg:px-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 class="text-xl font-semibold tracking-tight text-foreground">{t('ct.title')}</h1>
           <p class="text-xs text-muted-foreground mt-0.5">
@@ -277,7 +277,7 @@
       {/if}
 
       <!-- Grid of Object Types -->
-      <div class="px-4 lg:px-6">
+      <div class="">
         {#if loading}
           <div class="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
             <div class="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
@@ -412,7 +412,7 @@
         </label>
         <label class="flex items-center gap-2 cursor-pointer text-xs select-none">
           <input type="checkbox" bind:checked={newRealtime} class="size-4 rounded border-input text-primary" />
-          <span>Realtime (SSE)</span>
+          <span>{t('ct.featRealtime')}</span>
         </label>
       </div>
     </div>
@@ -420,37 +420,37 @@
     <!-- Access Rules (RLS) -->
     <div class="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
       <div class="flex items-center justify-between">
-        <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Access Rules (RLS)</div>
+        <div class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t('ct.accessRules')}</div>
         <button
           type="button"
           class="text-xs text-primary hover:underline font-medium cursor-pointer"
           onclick={() => { showAccessRules = !showAccessRules; }}
         >
-          {showAccessRules ? 'Hide' : 'Configure'}
+          {showAccessRules ? t('ct.hide') : t('ct.configure')}
         </button>
       </div>
       {#if showAccessRules}
         <div class="space-y-2 pt-1 text-xs">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
-              <label for="rule-list" class="text-[10px] text-muted-foreground">List Rule (e.g. true)</label>
+              <label for="rule-list" class="text-[10px] text-muted-foreground">{t('ct.rule.list')}</label>
               <input id="rule-list" bind:value={ruleList} placeholder="e.g. true" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
             </div>
             <div>
-              <label for="rule-read" class="text-[10px] text-muted-foreground">Read Rule (e.g. true)</label>
+              <label for="rule-read" class="text-[10px] text-muted-foreground">{t('ct.rule.read')}</label>
               <input id="rule-read" bind:value={ruleRead} placeholder="e.g. true" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
             </div>
             <div>
-              <label for="rule-create" class="text-[10px] text-muted-foreground">Create Rule (e.g. auth.is_admin)</label>
+              <label for="rule-create" class="text-[10px] text-muted-foreground">{t('ct.rule.create')}</label>
               <input id="rule-create" bind:value={ruleCreate} placeholder="e.g. auth.is_admin" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
             </div>
             <div>
-              <label for="rule-update" class="text-[10px] text-muted-foreground">Update Rule (e.g. auth.is_admin)</label>
+              <label for="rule-update" class="text-[10px] text-muted-foreground">{t('ct.rule.update')}</label>
               <input id="rule-update" bind:value={ruleUpdate} placeholder="e.g. auth.is_admin" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
             </div>
           </div>
           <div>
-            <label for="rule-delete" class="text-[10px] text-muted-foreground">Delete Rule (e.g. auth.is_admin)</label>
+            <label for="rule-delete" class="text-[10px] text-muted-foreground">{t('ct.rule.delete')}</label>
             <input id="rule-delete" bind:value={ruleDelete} placeholder="e.g. auth.is_admin" class="w-full rounded border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground" />
           </div>
         </div>
@@ -473,7 +473,7 @@
 
       <!-- Field Palette -->
       <div class="flex flex-wrap items-center gap-1.5 pt-1 pb-1">
-        <span class="text-[11px] font-medium text-muted-foreground mr-1">Palette:</span>
+        <span class="text-[11px] font-medium text-muted-foreground mr-1">{t('ct.palette')}</span>
         {#each ['text', 'number', 'boolean', 'select', 'richtext', 'datetime', 'media', 'relation'] as kind}
           <button
             type="button"
@@ -510,7 +510,7 @@
                 <option value="boolean">{t('ct.kind.boolean')}</option>
                 <option value="select">{t('ct.kind.select')}</option>
                 <option value="date">{t('ct.kind.date')}</option>
-                <option value="datetime">DateTime</option>
+                <option value="datetime">{t('ct.kind.datetime')}</option>
                 <option value="media">{t('ct.kind.media')}</option>
                 <option value="relation">{t('ct.kind.relation')}</option>
               </select>

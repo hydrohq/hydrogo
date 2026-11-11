@@ -82,7 +82,7 @@
           <BrandLogo size="md" showText={true} />
           {#if isConsoleMode}
             <span class="ml-auto text-[10px] font-medium tracking-wide px-1.5 py-0.5 rounded border border-sidebar-border bg-sidebar-accent text-muted-foreground">
-              Console
+              {t('nav.consoleBadge')}
             </span>
           {/if}
         </div>

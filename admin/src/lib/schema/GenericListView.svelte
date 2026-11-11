@@ -258,9 +258,9 @@
 {:else}
   <div class="flex flex-1 flex-col">
     <div class="@container/main flex flex-1 flex-col gap-2">
-      <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <div class="flex flex-col gap-4 md:gap-6">
         <!-- Toolbar (exact shadcn Tabs + Search + CTA layout) -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <!-- Segmented Status Tabs if workflow enabled -->
           {#if collection.workflow?.enabled}
             <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
@@ -352,7 +352,7 @@
         {/if}
 
         <!-- Table Container -->
-        <div class="px-4 lg:px-6">
+        <div class="">
           <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {#if loading}
               <div class="p-12 text-center text-xs text-muted-foreground">
