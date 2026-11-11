@@ -13,7 +13,28 @@ import (
 	"github.com/ardaozyildirim/hydrogo/internal/tenant"
 )
 
+// withinTenant runs fn in a transaction bound to ctx's tenant when db is the
+// raw connection pool. Callers that already pass a transaction keep it, so
+// PostgreSQL row-level security always sees the tenant for every statement.
+func (s Store) withinTenant(ctx context.Context, db database.Executor, fn func(database.Executor) error) error {
+	raw, ok := db.(*sql.DB)
+	if !ok {
+		return fn(db)
+	}
+	return database.NewTenantTransactor(raw, s.Dialect, s.RequireTenantScope).Within(ctx, fn)
+}
+
 func (s Store) ListGarbageCandidates(ctx context.Context, db database.Executor, before time.Time, limit int) ([]media.GarbageAsset, error) {
+	var items []media.GarbageAsset
+	err := s.withinTenant(ctx, db, func(db database.Executor) error {
+		var err error
+		items, err = s.listGarbageCandidates(ctx, db, before, limit)
+		return err
+	})
+	return items, err
+}
+
+func (s Store) listGarbageCandidates(ctx context.Context, db database.Executor, before time.Time, limit int) ([]media.GarbageAsset, error) {
 	if limit < 1 || limit > 200 {
 		return nil, errors.New("invalid media cleanup batch size")
 	}
@@ -54,6 +75,16 @@ func (s Store) ListGarbageCandidates(ctx context.Context, db database.Executor, 
 }
 
 func (s Store) ClaimGarbageAsset(ctx context.Context, db database.Executor, id string, createdAt time.Time) (bool, error) {
+	var claimed bool
+	err := s.withinTenant(ctx, db, func(db database.Executor) error {
+		var err error
+		claimed, err = s.claimGarbageAsset(ctx, db, id, createdAt)
+		return err
+	})
+	return claimed, err
+}
+
+func (s Store) claimGarbageAsset(ctx context.Context, db database.Executor, id string, createdAt time.Time) (bool, error) {
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return false, err
@@ -73,6 +104,16 @@ func (s Store) ClaimGarbageAsset(ctx context.Context, db database.Executor, id s
 }
 
 func (s Store) GarbageObjectKeys(ctx context.Context, db database.Executor, id string) ([]string, error) {
+	var keys []string
+	err := s.withinTenant(ctx, db, func(db database.Executor) error {
+		var err error
+		keys, err = s.garbageObjectKeys(ctx, db, id)
+		return err
+	})
+	return keys, err
+}
+
+func (s Store) garbageObjectKeys(ctx context.Context, db database.Executor, id string) ([]string, error) {
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return nil, err
@@ -110,6 +151,12 @@ func (s Store) GarbageObjectKeys(ctx context.Context, db database.Executor, id s
 }
 
 func (s Store) RestoreGarbageAsset(ctx context.Context, db database.Executor, id string) error {
+	return s.withinTenant(ctx, db, func(db database.Executor) error {
+		return s.restoreGarbageAsset(ctx, db, id)
+	})
+}
+
+func (s Store) restoreGarbageAsset(ctx context.Context, db database.Executor, id string) error {
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return err
@@ -125,6 +172,12 @@ func (s Store) RestoreGarbageAsset(ctx context.Context, db database.Executor, id
 }
 
 func (s Store) DeleteGarbageAsset(ctx context.Context, db database.Executor, id string) error {
+	return s.withinTenant(ctx, db, func(db database.Executor) error {
+		return s.deleteGarbageAsset(ctx, db, id)
+	})
+}
+
+func (s Store) deleteGarbageAsset(ctx context.Context, db database.Executor, id string) error {
 	scope, scoped, err := s.scope(ctx)
 	if err != nil {
 		return err
@@ -155,6 +208,19 @@ type MediaReferences struct {
 }
 
 func (s MediaReferences) ReferencedMediaIDs(ctx context.Context, db database.Executor) (map[string]struct{}, error) {
+	if raw, ok := db.(*sql.DB); ok {
+		var referenced map[string]struct{}
+		err := database.NewTenantTransactor(raw, s.Dialect, s.RequireTenantScope).Within(ctx, func(tx database.Executor) error {
+			var err error
+			referenced, err = s.referencedMediaIDs(ctx, tx)
+			return err
+		})
+		return referenced, err
+	}
+	return s.referencedMediaIDs(ctx, db)
+}
+
+func (s MediaReferences) referencedMediaIDs(ctx context.Context, db database.Executor) (map[string]struct{}, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}

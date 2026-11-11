@@ -1,0 +1,28 @@
+id: "202611110021_postgres_rls_single_tenant_default_site"
+module: "site"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "df0dfe80de9c6ea650f688a9471511da3a5249c38fddc44cf8f0e8a9c479d364"
+  postgres: "49c18951b927812e46a1b2545662dbfc6c1fe4300a226e7dff5bdd97c9fa2848"
+  mysql: "aa399c33de23576a8a6948a02a973e6ad2d28d733d5f5f9548f5fff0ee8b2744"
+dependencies:
+  - "202611110001_postgres_rls_single_tenant_default"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "site module enabled"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Re-creates hydrogo_tenant_isolation RLS policies for tables the site module adds after the core migration ran"
+compatibility: "Same policy rewrite as 202611110001_postgres_rls_single_tenant_default; it runs when the site module is enabled on a database whose core migration already ran, so the module's tables end up with the same policy as a database built with the module from the start."
+smoke:
+  - "Tables of the site module accept default-scope rows without an RLS violation and still isolate named tenants."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

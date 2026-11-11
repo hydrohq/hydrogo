@@ -256,6 +256,19 @@ func (a *serveApp) initOptionalModules() error {
 	}
 	if modules["analytics"] {
 		analyticsStore := analyticsstore.Store{Executor: db, Dialect: cfg.Database.Dialect}
+		if requireTenantScope {
+			analyticsStore.TenantIDs = func(ctx context.Context) ([]string, error) {
+				govs, err := tenant.ListGovernances(ctx, db, string(cfg.Database.Dialect))
+				if err != nil {
+					return nil, err
+				}
+				ids := make([]string, 0, len(govs))
+				for _, gov := range govs {
+					ids = append(ids, gov.TenantID)
+				}
+				return ids, nil
+			}
+		}
 		a.analyticsStore = analyticsStore
 		contentViewQueue := analytics.NewContentViewQueue(analyticsStore, 256, 1)
 		a.contentViewQueue = contentViewQueue

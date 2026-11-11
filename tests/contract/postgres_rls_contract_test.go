@@ -2,6 +2,7 @@ package contract_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 
@@ -62,7 +63,7 @@ var expectedRLSTables = []string{
 // 2. The tenant isolation policy exists on each table.
 // 3. Transactions bound to Tenant A cannot read, update, or delete Tenant B data.
 // 4. Inserting with mismatched tenant_id violates WITH CHECK policy.
-// 5. Fail-closed behavior when app.tenant_rls_enforced is true and current_tenant_id is unset/empty.
+// 5. Raw queries without a tenant context cannot read named-tenant rows.
 func TestPostgresTenantRLSContract(t *testing.T) {
 	ctx := context.Background()
 	db := openIsolatedPostgres(t, ctx)
@@ -349,7 +350,7 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		t.Fatal("WITH CHECK constraint verification unexpectedly committed")
 	}
 
-	// Step G: Fail-closed verification with empty tenant context
+	// Step G: The application transactor still requires a named tenant scope.
 	err = transactor.WithinQuery(context.Background(), func(qe database.QueryExecutor) error {
 		return nil
 	})
@@ -357,12 +358,150 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		t.Fatalf("expected transactor to reject context without tenant when RequireTenantScope is true")
 	}
 
-	// Step H: Verify raw connection without app.current_tenant_id returns 0 rows (Fail-Closed)
+	// Step H: A raw connection without app.current_tenant_id cannot read named-tenant rows.
 	var rawPageCount int
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = 'page-alpha'`).Scan(&rawPageCount); err != nil {
-		t.Fatalf("fail-closed raw query failed: %v", err)
+		t.Fatalf("unscoped raw query failed: %v", err)
 	}
 	if rawPageCount != 0 {
-		t.Fatalf("fail-closed violation: raw query without tenant context saw %d rows", rawPageCount)
+		t.Fatalf("unscoped raw query saw %d named-tenant rows", rawPageCount)
+	}
+}
+
+// TestPostgresRLSDefaultSingleTenantScope verifies the default empty tenant
+// scope remains usable without weakening isolation for named tenants.
+func TestPostgresRLSDefaultSingleTenantScope(t *testing.T) {
+	ctx := context.Background()
+	db := openIsolatedPostgres(t, ctx)
+	if err := database.ApplyMigrations(ctx, db, database.Postgres, migrations.FS); err != nil {
+		t.Fatalf("failed to apply migrations: %v", err)
+	}
+	insertPage := func(tx *sql.Tx, id, tenantID string) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO pages
+			(id, title, version, locale, slug, body, status, revision, publication_generation, tenant_id, created_at, updated_at)
+			VALUES ($1, $1, 1, 'en', $1, '', 'draft', 1, 0, $2, NOW(), NOW())`, id, tenantID)
+		return err
+	}
+
+	// No GUC at all means the default tenant, whose id is the empty string.
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := insertPage(tx, "rls-default-empty", ""); err != nil {
+		t.Fatalf("insert default-scope page with no tenant setting: %v", err)
+	}
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = 'rls-default-empty'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("default-scope row not visible without tenant setting: count=%d err=%v", count, err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE pages SET title = 'rls-default-updated' WHERE id = 'rls-default-empty'`); err != nil {
+		t.Fatalf("update default-scope page with no tenant setting: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// An explicit empty setting has exactly the same default-scope access.
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.ExecContext(ctx, `SELECT set_config('app.current_tenant_id', '', true)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := insertPage(tx, "rls-default-explicit-empty", ""); err != nil {
+		t.Fatalf("insert default-scope page with empty tenant setting: %v", err)
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = 'rls-default-explicit-empty'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("default-scope row not visible with empty tenant setting: count=%d err=%v", count, err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE pages SET title = 'rls-default-explicit-updated' WHERE id = 'rls-default-explicit-empty'`); err != nil {
+		t.Fatalf("update default-scope page with empty tenant setting: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Seed two named tenants, each under its own tenant context.
+	tx, err = db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.ExecContext(ctx, `SELECT set_config('app.current_tenant_id', 'tenant-alpha', true)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := insertPage(tx, "rls-alpha", "tenant-alpha"); err != nil {
+		t.Fatalf("insert alpha page: %v", err)
+	}
+	if _, err := tx.ExecContext(ctx, `SELECT set_config('app.current_tenant_id', 'tenant-beta', true)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := insertPage(tx, "rls-beta", "tenant-beta"); err != nil {
+		t.Fatalf("insert beta page: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// With no setting and with an explicit empty setting, the empty-scope row
+	// is visible but named-tenant rows remain hidden.
+	for _, setEmpty := range []bool{false, true} {
+		tx, err = db.BeginTx(ctx, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if setEmpty {
+			if _, err := tx.ExecContext(ctx, `SELECT set_config('app.current_tenant_id', '', true)`); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, id := range []string{"rls-alpha", "rls-beta"} {
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = $1`, id).Scan(&count); err != nil || count != 0 {
+				t.Fatalf("empty context set=%t saw %s: count=%d err=%v", setEmpty, id, count, err)
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	alpha, err := tenant.NewScope("tenant-alpha", "org-alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	transactor := database.NewTenantTransactor(db, database.Postgres, true)
+	if err := transactor.WithinQuery(tenant.WithScope(ctx, alpha), func(qe database.QueryExecutor) error {
+		for _, id := range []string{"rls-default-empty", "rls-beta"} {
+			if err := qe.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = $1`, id).Scan(&count); err != nil {
+				return err
+			} else if count != 0 {
+				return fmt.Errorf("tenant-alpha saw row %s", id)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Raw queries with no tenant context cannot see a named tenant's row.
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM pages WHERE id = 'rls-alpha'`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("unscoped query saw alpha row: count=%d err=%v", count, err)
+	}
+
+	// WITH CHECK rejects both another named tenant and the default scope.
+	for i, tenantID := range []string{"tenant-beta", ""} {
+		tx, err = db.BeginTx(ctx, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.ExecContext(ctx, `SELECT set_config('app.current_tenant_id', 'tenant-alpha', true)`); err != nil {
+			t.Fatal(err)
+		}
+		err = insertPage(tx, fmt.Sprintf("rls-spoof-%d", i), tenantID)
+		_ = tx.Rollback()
+		if err == nil {
+			t.Fatalf("tenant-alpha inserted row with tenant_id=%q", tenantID)
+		}
 	}
 }

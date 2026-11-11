@@ -38,6 +38,9 @@ func (s Store) RecordNoCookieVisit(ctx context.Context, visit analytics.NoCookie
 		return false, err
 	}
 	defer tx.Rollback()
+	if err := s.bindTenant(ctx, tx, visit.TenantID); err != nil {
+		return false, err
+	}
 	visitorQuery := `INSERT INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (` + placeholder(s.Dialect, 1) + `,` + placeholder(s.Dialect, 2) + `,` + placeholder(s.Dialect, 3) + `) ON CONFLICT(day,tenant_id,visitor_key) DO NOTHING` // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 	if s.Dialect == database.MySQL {
 		visitorQuery = `INSERT IGNORE INTO analytics_daily_visitors(day,tenant_id,visitor_key) VALUES (?,?,?)`
@@ -97,11 +100,33 @@ func (s Store) PurgeNoCookieBefore(ctx context.Context, day, visitorDay string) 
 	if !ok {
 		return errors.New("analytics retention requires transaction support")
 	}
+	tenants := []string{""}
+	if s.Dialect == database.Postgres {
+		var err error
+		if tenants, err = s.retentionTenants(ctx); err != nil {
+			return err
+		}
+	}
+	for _, tenantID := range tenants {
+		if err := s.purgeNoCookieTenant(ctx, beginner, tenantID, day, visitorDay); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// purgeNoCookieTenant deletes one tenant partition's expired aggregates and
+// daily keys. On PostgreSQL that is the only partition row-level security
+// shows the transaction.
+func (s Store) purgeNoCookieTenant(ctx context.Context, beginner transactionBeginner, tenantID, day, visitorDay string) error {
 	tx, err := beginner.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	if err := s.bindTenant(ctx, tx, tenantID); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM analytics_daily_visitors WHERE day < "+placeholder(s.Dialect, 1), visitorDay); err != nil { // #nosec G202 -- only placeholders and fixed identifiers are concatenated; every value is bound
 		return err
 	}

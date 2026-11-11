@@ -44,8 +44,10 @@ func (s Store) RecordSearchQuery(ctx context.Context, event analytics.SearchQuer
 	if s.Dialect == database.MySQL {
 		query = `INSERT INTO analytics_search_daily(day,tenant_id,term,locale,search_count,zero_result_count) VALUES (?,?,?,?,1,?) ON DUPLICATE KEY UPDATE search_count=search_count+1,zero_result_count=zero_result_count+VALUES(zero_result_count)`
 	}
-	_, err = s.Executor.ExecContext(ctx, query, date, event.TenantID, term, locale, zero)
-	return err
+	return s.withTenant(ctx, event.TenantID, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, query, date, event.TenantID, term, locale, zero)
+		return err
+	})
 }
 
 func (s Store) ListSearchInsights(ctx context.Context, tenantID, fromDay, toDay string, limit int) ([]SearchInsight, error) {
@@ -74,10 +76,6 @@ func (s Store) listSearchInsights(ctx context.Context, tenantID, fromDay, toDay 
 	if limit < 1 || limit > 100 {
 		limit = 10
 	}
-	queryer, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("search insights require query executor")
-	}
 	filter := ""
 	if zeroOnly {
 		filter = " HAVING SUM(zero_result_count)>0"
@@ -89,18 +87,28 @@ func (s Store) listSearchInsights(ctx context.Context, tenantID, fromDay, toDay 
 		query += `SUM(search_count) DESC,term,locale LIMIT `
 	}
 	query += fmt.Sprint(limit)
-	rows, err := queryer.QueryContext(ctx, query, fromDay, toDay, tenantID)
+	items := make([]SearchInsight, 0)
+	err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("search insights require query executor")
+		}
+		rows, err := queryer.QueryContext(ctx, query, fromDay, toDay, tenantID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var item SearchInsight
+			if err := rows.Scan(&item.Term, &item.Locale, &item.SearchCount, &item.ZeroResultCount); err != nil {
+				return err
+			}
+			items = append(items, item)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	items := make([]SearchInsight, 0)
-	for rows.Next() {
-		var item SearchInsight
-		if err := rows.Scan(&item.Term, &item.Locale, &item.SearchCount, &item.ZeroResultCount); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
+	return items, nil
 }
