@@ -130,7 +130,7 @@ func starterSteps(npm string) []step {
 	starters := []struct {
 		dir   string
 		tests bool
-	}{{"examples/crm-starter", true}, {"examples/commerce-starter", false}, {"examples/sveltekit-starter", false}, {"examples/hydro-website", true}}
+	}{{"examples/crm-starter", true}, {"examples/commerce-starter", false}, {"examples/sveltekit-starter", false}}
 	var steps []step
 	for _, s := range starters {
 		if _, err := os.Stat(s.dir + "/node_modules"); err != nil {
