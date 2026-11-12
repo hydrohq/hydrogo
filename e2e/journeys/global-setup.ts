@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,7 +9,9 @@ import { runCommand, spawnServer, stopServer } from "../custom/server-process";
 const repo = resolve(process.cwd(), "..");
 
 export const ADMIN_EMAIL = "admin@journeys.test";
-export const ADMIN_PASSWORD = "Quartz-Meadow-4417-Lantern";
+// A fresh throwaway password per run. Set before the specs load, so the Playwright workers inherit it.
+process.env.HYDRO_JOURNEYS_ADMIN_PASSWORD ||= `${randomBytes(18).toString("base64url")}-Aa1`;
+export const ADMIN_PASSWORD: string = process.env.HYDRO_JOURNEYS_ADMIN_PASSWORD!;
 
 function freePort(): Promise<number> {
   return new Promise((ok, fail) => {
