@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -119,6 +120,8 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		paymentCtx := commerce.WithPaymentMethod(commerce.WithClientIP(r.Context(), h.clientIP(r)), strings.TrimSpace(input.PaymentMethod))
 		if start, startErr := h.Service.StartPayment(paymentCtx, h.PaymentProvider, order.ID); startErr == nil {
 			response.Payment = &start
+		} else {
+			slog.WarnContext(r.Context(), "payment could not be started", "order_id", order.ID, "error", startErr)
 		}
 	}
 	if reservation != "" && created && order.PaymentStatus == commerce.PaymentPending {
