@@ -34,6 +34,7 @@ import (
 	"github.com/hydrohq/hydrogo/internal/server"
 	"github.com/hydrohq/hydrogo/internal/tenant"
 	"github.com/hydrohq/hydrogo/internal/webhooks"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 	"github.com/hydrohq/hydrogo/modules/members"
 	memberstore "github.com/hydrohq/hydrogo/modules/members/sqlstore"
 	membertransport "github.com/hydrohq/hydrogo/modules/members/transport"
@@ -54,6 +55,11 @@ import (
 // it in a fixed order (see serve), the route methods read it, and close
 // releases resources in reverse order of acquisition.
 type serveApp struct {
+	// paymentChecker is set when the payment methods are built (route setup) and read by the
+	// background worker that settles orders paid without the shopper coming back.
+	paymentCheckerMu sync.RWMutex
+	paymentChecker   commerce.PendingPaymentChecker
+
 	ctx     context.Context
 	stop    context.CancelFunc
 	stderr  io.Writer

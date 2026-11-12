@@ -289,3 +289,35 @@ func runCommerceRefundReminder(ctx context.Context, service commerce.Service, no
 		}
 	}
 }
+
+// runCommercePendingPaymentCheck is the safety net for a shopper who paid and closed the browser: neither
+// the return redirect nor a notification arrived, so the order would sit pending until its stock hold
+// expires. Every couple of minutes it asks the payment provider about orders that have been pending
+// for a little while and settles the ones that were paid.
+func runCommercePendingPaymentCheck(ctx context.Context, a *serveApp, service commerce.Service, db database.Executor, logger *slog.Logger) {
+	ticker := time.NewTicker(2 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		a.paymentCheckerMu.RLock()
+		checker := a.paymentChecker
+		a.paymentCheckerMu.RUnlock()
+		if checker == nil {
+			continue
+		}
+		orders, err := service.Repository.ListPendingOrdersOlderThan(ctx, db, time.Now().UTC().Add(-90*time.Second), 50)
+		if err != nil {
+			if ctx.Err() == nil && logger != nil {
+				logger.WarnContext(ctx, "commerce pending-payment check could not list orders", "error", err)
+			}
+			continue
+		}
+		if len(orders) > 0 {
+			checker.CheckPending(ctx, orders)
+		}
+	}
+}

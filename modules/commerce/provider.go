@@ -62,3 +62,10 @@ func ClientIP(ctx context.Context) string {
 	ip, _ := ctx.Value(clientIPKey{}).(string)
 	return ip
 }
+
+// PendingPaymentChecker is an optional capability of a payment method: look at orders that are still
+// unpaid and settle the ones the provider says were paid. It covers a shopper who paid and closed the
+// browser, when neither the return redirect nor a notification ever reached us.
+type PendingPaymentChecker interface {
+	CheckPending(ctx context.Context, orders []Order)
+}
