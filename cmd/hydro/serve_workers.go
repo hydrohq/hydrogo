@@ -146,6 +146,7 @@ func (a *serveApp) startWorkers() {
 		a.spawn(func() {
 			runCommerceReconciliationAlert(ctx, a.commerceService(), db, a.commercePaymentProviderName(), a.commerceNotifier(), logger, stderr)
 		})
+		a.spawn(func() { runCommercePendingPaymentCheck(ctx, a, a.commerceService(), db, logger) })
 		a.spawn(func() {
 			runCommerceRefundReminder(ctx, a.commerceService(), a.commerceNotifier(), logger, stderr)
 		})
