@@ -1,0 +1,25 @@
+# Gitleaks configuration: scan with `gitleaks git .` (history) or `gitleaks dir .` (working tree).
+# The default rules are kept; the allowlist covers test fixtures and documentation placeholders,
+# which trip the generic high-entropy rule but are not credentials.
+title = "HydroGo"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "test fixtures, generated lock files and documentation placeholders"
+paths = [
+  '''(^|/)[^/]*_test\.go$''',
+  '''(^|/)[^/]*\.(test|spec)\.(ts|js)$''',
+  '''(^|/)e2e/''',
+  '''(^|/)generator\.lock$''',
+  '''(^|/)docs/''',
+  '''(^|/)examples/[^/]+/src/lib/docs/''',
+  '''(^|/)deploy/[^/]*\.example$''',
+  '''(^|/)internal/database/mysql_integration_test\.go$''',
+]
+# two old commits that embedded a localStorage key name in minified JS (not credentials)
+commits = [
+  "b35fefd24522f6f2eb5a228fb87a2dda65dac22b",
+  "b4546c3b97f13ecbb58bd7e53c6b2f611e12aa9d",
+]
