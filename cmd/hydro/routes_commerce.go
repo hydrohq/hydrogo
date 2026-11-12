@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/collections"
@@ -310,10 +311,15 @@ func pendingCheckRound(orders []commerce.Order, lastChecked map[string]time.Time
 // for a little while and settles the ones that were paid. Orders are taken least-recently-checked first
 // and each round has a time budget, so a flood of unpaid orders delays but never starves a paid one.
 func runCommercePendingPaymentCheck(ctx context.Context, a *serveApp, service commerce.Service, db database.Executor, logger *slog.Logger) {
+	// ponytail: the list is capped (fetchLimit) before it is rotated. Pending orders live at most one stock
+	// hold (30 min) and checkout is rate-limited per IP, so this is far above real volume; a flood beyond it
+	// delays the newest orders instead of starving anything for good. Keyset paging in the store would lift it.
 	const (
-		interval = 2 * time.Minute
-		budget   = 100 * time.Second
-		chunk    = 10
+		interval   = 2 * time.Minute
+		budget     = 100 * time.Second
+		chunk      = 10
+		workers    = 4
+		fetchLimit = 2000
 	)
 	lastChecked := map[string]time.Time{}
 	ticker := time.NewTicker(interval)
@@ -330,7 +336,7 @@ func runCommercePendingPaymentCheck(ctx context.Context, a *serveApp, service co
 		if checker == nil {
 			continue
 		}
-		orders, err := service.Repository.ListPendingOrdersOlderThan(ctx, db, time.Now().UTC().Add(-90*time.Second), 500)
+		orders, err := service.Repository.ListPendingOrdersOlderThan(ctx, db, time.Now().UTC().Add(-90*time.Second), fetchLimit)
 		if err != nil {
 			if ctx.Err() == nil && logger != nil {
 				logger.WarnContext(ctx, "commerce pending-payment check could not list orders", "error", err)
@@ -346,16 +352,40 @@ func runCommercePendingPaymentCheck(ctx context.Context, a *serveApp, service co
 				delete(lastChecked, id)
 			}
 		}
+
 		roundCtx, cancel := context.WithTimeout(ctx, budget)
 		round := pendingCheckRound(orders, lastChecked)
-		for start := 0; start < len(round) && roundCtx.Err() == nil; start += chunk {
-			end := min(start+chunk, len(round))
-			checker.CheckPending(roundCtx, round[start:end])
-			now := time.Now()
-			for _, o := range round[start:end] {
-				lastChecked[o.ID] = now
+		jobs := make(chan []commerce.Order)
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+		for w := 0; w < workers; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for group := range jobs {
+					checker.CheckPending(roundCtx, group)
+					if roundCtx.Err() != nil {
+						continue // the group may have been cut short: it was not fully checked
+					}
+					now := time.Now()
+					mu.Lock()
+					for _, o := range group {
+						lastChecked[o.ID] = now
+					}
+					mu.Unlock()
+				}
+			}()
+		}
+	feed:
+		for start := 0; start < len(round); start += chunk {
+			select {
+			case jobs <- round[start:min(start+chunk, len(round))]:
+			case <-roundCtx.Done():
+				break feed
 			}
 		}
+		close(jobs)
+		wg.Wait()
 		cancel()
 	}
 }
