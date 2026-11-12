@@ -6,26 +6,6 @@ import (
 	"testing"
 )
 
-func TestRenderShowcase(t *testing.T) {
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/", nil)
-
-	data := ShowcaseData{
-		BaseDomain: "ardalabs.dev",
-	}
-
-	if err := RenderShowcase(w, r, data); err != nil {
-		t.Fatalf("RenderShowcase failed: %v", err)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "Tek Platform") {
-		t.Errorf("Showcase missing headline")
-	}
-	if !strings.Contains(body, "ardalabs.dev") {
-		t.Errorf("Showcase missing base domain")
-	}
-}
-
 func TestRenderCorporate(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)

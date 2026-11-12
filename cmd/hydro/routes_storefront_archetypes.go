@@ -22,12 +22,6 @@ func (a *serveApp) getBaseDomain() string {
 	return baseDomain
 }
 
-func (a *serveApp) showcasePageHandler(w http.ResponseWriter, r *http.Request) {
-	_ = storefront.RenderShowcase(w, r, storefront.ShowcaseData{
-		BaseDomain: a.getBaseDomain(),
-	})
-}
-
 func (a *serveApp) renderArchetypeStorefront(w http.ResponseWriter, r *http.Request, gov tenant.Governance, settings map[string]any, scope tenant.Scope, archetype string) bool {
 	tenantCtx := tenant.WithScope(r.Context(), scope)
 

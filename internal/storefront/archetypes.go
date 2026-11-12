@@ -15,7 +15,6 @@ var (
 	saasTmpl       *template.Template
 	portfolioTmpl  *template.Template
 	newsTmpl       *template.Template
-	showcaseTmpl   *template.Template
 	archetypeErr   error
 )
 
@@ -42,10 +41,6 @@ func initArchetypeTemplates() {
 			return
 		}
 		newsTmpl, archetypeErr = template.New("news.html").Funcs(funcs).ParseFS(templateFS, "news.html", "sections/*.html")
-		if archetypeErr != nil {
-			return
-		}
-		showcaseTmpl, archetypeErr = template.New("showcase.html").Funcs(funcs).ParseFS(templateFS, "showcase.html", "sections/*.html")
 	})
 }
 
@@ -274,25 +269,6 @@ type PortfolioData struct {
 	TextColor    string
 	MutedColor   string
 	HeaderBG     string
-}
-
-// ShowcaseSite represents an active demo site shown in the showcase gallery.
-type ShowcaseSite struct {
-	Title       string `json:"title"`
-	Category    string `json:"category"`
-	Archetype   string `json:"archetype"`
-	URL         string `json:"url"`
-	Subdomain   string `json:"subdomain"`
-	Badge       string `json:"badge"`
-	Description string `json:"description"`
-	CoverImage  string `json:"cover_image"`
-}
-
-// ShowcaseData carries data for the official HydroGo showcase and landing page.
-type ShowcaseData struct {
-	BaseDomain    string
-	TotalSites    int
-	ShowcaseSites []ShowcaseSite
 }
 
 // RenderCorporate writes the modern corporate agency HTML to w.
@@ -647,23 +623,6 @@ func RenderNews(w http.ResponseWriter, r *http.Request, data NewsData) error {
 
 	var buf bytes.Buffer
 	if err := newsTmpl.Execute(&buf, data); err != nil {
-		return err
-	}
-	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
-}
-
-// RenderShowcase writes the official platform showcase and onboarding landing HTML to w.
-func RenderShowcase(w http.ResponseWriter, r *http.Request, data ShowcaseData) error {
-	initArchetypeTemplates()
-	if archetypeErr != nil {
-		return archetypeErr
-	}
-	if data.BaseDomain == "" {
-		data.BaseDomain = "localhost"
-	}
-
-	var buf bytes.Buffer
-	if err := showcaseTmpl.Execute(&buf, data); err != nil {
 		return err
 	}
 	return writeHTMLWithConditionalCache(w, r, buf.Bytes())
