@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 func TestToPriceConvertsTwoDecimalCatalogPricesToCents(t *testing.T) {

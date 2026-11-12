@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 func (h Handler) sitemap(w http.ResponseWriter, r *http.Request) {

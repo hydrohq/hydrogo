@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
-	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/modules/members/transport"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/contracts/customerorders"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/members"
+	memberstore "github.com/hydrohq/hydrogo/modules/members/sqlstore"
+	"github.com/hydrohq/hydrogo/modules/members/transport"
 )
 
 type mobileOrderReaderStub struct{}

@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
 	_ "modernc.org/sqlite"
 )
 

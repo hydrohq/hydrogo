@@ -3,8 +3,8 @@ package sqlstore_test
 import (
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
-	news "github.com/ardaozyildirim/hydrogo/modules/news"
+	"github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
+	news "github.com/hydrohq/hydrogo/modules/news"
 )
 
 func TestQueueImplementsNewsDurableContract(t *testing.T) {

@@ -3,8 +3,8 @@ package auth
 import (
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/router"
 )
 
 // Middleware authenticates the request and attaches the user and principal

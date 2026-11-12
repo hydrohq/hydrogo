@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/guards"
 )
 
 // OrderConfirmationItem is a plain, caller-formatted line for the receipt

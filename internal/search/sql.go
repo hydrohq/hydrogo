@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // DefaultSQLMaxDocuments bounds the durable local index. A search kit can

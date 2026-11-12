@@ -5,7 +5,7 @@ package config
 import (
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 func TestLoadAcceptsMySQLDialectInStandardBuild(t *testing.T) {

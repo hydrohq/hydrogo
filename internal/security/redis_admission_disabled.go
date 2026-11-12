@@ -6,7 +6,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 // RedisTenantAdmission preserves the server configuration contract in builds

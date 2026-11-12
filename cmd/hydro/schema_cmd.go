@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/release"
+	"github.com/hydrohq/hydrogo/internal/release"
 )
 
 // schemaCommand compares signed release migration ledgers. It deliberately

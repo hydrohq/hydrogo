@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 

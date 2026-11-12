@@ -2,7 +2,7 @@ package security
 
 import (
 	"errors"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
 	"net/http"
 	"net/netip"
 	"strings"

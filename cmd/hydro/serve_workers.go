@@ -8,15 +8,15 @@ import (
 	"os"
 	"time"
 
-	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
-	"github.com/ardaozyildirim/hydrogo/internal/notify"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	adminstudiosql "github.com/hydrohq/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/linkcheck"
+	"github.com/hydrohq/hydrogo/internal/notify"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/webhooks"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // initMetrics creates the runtime metrics and their cache, job and database

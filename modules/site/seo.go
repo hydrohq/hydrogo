@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/canonical"
 )
 
 var ErrInvalidSEOOrigin = errors.New("invalid SEO origin")

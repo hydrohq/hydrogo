@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/modules/pages"
 )
 
 func TestValidatePageRejectsOversizedFields(t *testing.T) {

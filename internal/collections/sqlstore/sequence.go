@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // NextSequence implements collections.SequenceRepository. The UPDATE locks the

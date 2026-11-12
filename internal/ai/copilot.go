@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/ai/prompts"
+	"github.com/hydrohq/hydrogo/internal/ai/prompts"
 )
 
 // CopilotOperation represents a single collection record mutation planned by the Workspace Copilot.

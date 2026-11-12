@@ -8,7 +8,7 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/canonical"
 )
 
 const DefaultMemoryMaxDocuments = 10000

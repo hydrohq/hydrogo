@@ -10,17 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/mailer"
-	"github.com/ardaozyildirim/hydrogo/internal/notify"
-	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
-	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/mailer"
+	"github.com/hydrohq/hydrogo/internal/notify"
+	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/modules/commerce"
+	commercestore "github.com/hydrohq/hydrogo/modules/commerce/repository/sqlstore"
+	commercetransport "github.com/hydrohq/hydrogo/modules/commerce/transport"
+	"github.com/hydrohq/hydrogo/modules/members"
 )
 
 var (

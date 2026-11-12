@@ -12,10 +12,10 @@ import (
 	"sort"
 	"strings"
 
-	contenttypedata "github.com/ardaozyildirim/hydrogo/content-types"
-	commercestarter "github.com/ardaozyildirim/hydrogo/examples/commerce-starter"
-	crmstarter "github.com/ardaozyildirim/hydrogo/examples/crm-starter"
-	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
+	contenttypedata "github.com/hydrohq/hydrogo/content-types"
+	commercestarter "github.com/hydrohq/hydrogo/examples/commerce-starter"
+	crmstarter "github.com/hydrohq/hydrogo/examples/crm-starter"
+	sveltekitstarter "github.com/hydrohq/hydrogo/examples/sveltekit-starter"
 )
 
 // Preset is a starting point for a project: the modules it enables and the

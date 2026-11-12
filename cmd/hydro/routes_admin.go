@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/i18n"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	adminsearch "github.com/ardaozyildirim/hydrogo/internal/search"
-	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/i18n"
+	"github.com/hydrohq/hydrogo/internal/router"
+	adminsearch "github.com/hydrohq/hydrogo/internal/search"
+	sitetransport "github.com/hydrohq/hydrogo/modules/site/transport"
 )
 
 // adminStudioRoutes registers the admin search API and the admin schema.

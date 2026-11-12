@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 	"github.com/redis/go-redis/v9"
 )
 

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/jobs"
-	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/jobs"
+	"github.com/hydrohq/hydrogo/internal/testmysql"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestSQLiteDurableJobLeaseContract(t *testing.T) {

@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
-	commercetransport "github.com/ardaozyildirim/hydrogo/modules/commerce/transport"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/commerce"
+	commercestore "github.com/hydrohq/hydrogo/modules/commerce/repository/sqlstore"
+	commercetransport "github.com/hydrohq/hydrogo/modules/commerce/transport"
 )
 
 func setupTestCommerceHandler(t *testing.T) (commercetransport.Handler, commerce.Service, *sql.DB) {

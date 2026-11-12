@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/capacity"
 )
 
 func TestCapacityProfilesMapToBoundedDatabasePools(t *testing.T) {

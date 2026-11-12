@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 // ToPascalCase converts snake_case or kebab-case identifiers to PascalCase.

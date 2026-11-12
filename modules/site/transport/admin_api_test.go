@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	formstore "github.com/ardaozyildirim/hydrogo/internal/forms/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/i18n"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	formstore "github.com/hydrohq/hydrogo/internal/forms/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/i18n"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 // adminMux mounts every site route behind a fixed signed-in user.

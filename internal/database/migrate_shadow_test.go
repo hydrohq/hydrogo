@@ -8,8 +8,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
+	"github.com/hydrohq/hydrogo/internal/database"
+	storagesqlite "github.com/hydrohq/hydrogo/internal/storage/sqlite"
 	_ "modernc.org/sqlite"
 )
 

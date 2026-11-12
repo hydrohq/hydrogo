@@ -9,11 +9,11 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
-	"github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/members"
+	"github.com/hydrohq/hydrogo/modules/members/sqlstore"
 )
 
 func setupMemberOAuthDB(t *testing.T) *sql.DB {

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	adminstudiosql "github.com/hydrohq/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 type notificationItem struct {

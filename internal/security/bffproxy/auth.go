@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security/bffpolicy"
-	"github.com/ardaozyildirim/hydrogo/internal/security/bffsession"
+	"github.com/hydrohq/hydrogo/internal/security/bffpolicy"
+	"github.com/hydrohq/hydrogo/internal/security/bffsession"
 )
 
 var (

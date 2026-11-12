@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/observability"
 )
 
 // serve runs the CMS: it parses flags and configuration, wires the runtime

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
 	"io"
 	"net/http"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/auth"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // The audit chain makes tampering with the log detectable. Each event gets a

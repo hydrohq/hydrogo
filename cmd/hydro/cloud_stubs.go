@@ -5,7 +5,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/router"
 )
 
 // The hosted multi-tenant platform (HydroCloud: orchestrator, public onboarding, billing,

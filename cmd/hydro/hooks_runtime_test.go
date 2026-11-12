@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 func TestSyncHookCallerSignsAndReadsTheAnswer(t *testing.T) {

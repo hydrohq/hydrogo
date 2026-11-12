@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	jobstore "github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
 )
 
 // jobsStore builds the durable job store for the admin handlers below, using

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/config"
 )
 
 func isInsecureSecret(val string) bool {

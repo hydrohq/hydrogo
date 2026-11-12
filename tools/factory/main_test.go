@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	collectionstore "github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	collectionstore "github.com/hydrohq/hydrogo/internal/collections/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func TestRunFactoryProvisionsAndSeedsBoutiqueStore(t *testing.T) {

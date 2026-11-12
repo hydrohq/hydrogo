@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 // ResponseData is the standard shape for JSON responses containing data.

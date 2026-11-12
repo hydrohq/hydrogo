@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	pushservice "github.com/ardaozyildirim/hydrogo/internal/push"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
+	pushservice "github.com/hydrohq/hydrogo/internal/push"
+	"github.com/hydrohq/hydrogo/internal/router"
 )
 
 // authRoutes registers the admin auth API.

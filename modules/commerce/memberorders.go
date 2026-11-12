@@ -3,8 +3,8 @@ package commerce
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/contracts/customerorders"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // memberOrderRepository is the narrow slice of Repository MemberOrdersReader

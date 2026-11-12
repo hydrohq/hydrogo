@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/ardaozyildirim/hydrogo/internal/cache"
+	"github.com/hydrohq/hydrogo/internal/cache"
 )
 
 // Traffic routes requests to the active deployment slot. It is deliberately

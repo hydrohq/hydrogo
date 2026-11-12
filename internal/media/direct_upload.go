@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 var ErrDirectUploadUnavailable = errors.New("direct quarantine upload is unavailable")

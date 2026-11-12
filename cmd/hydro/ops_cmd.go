@@ -20,15 +20,15 @@ import (
 	"syscall"
 	"time"
 
-	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/internal/release"
-	securitystore "github.com/ardaozyildirim/hydrogo/internal/security/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	backupstore "github.com/hydrohq/hydrogo/internal/backup"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/database"
+	jobstore "github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/media"
+	"github.com/hydrohq/hydrogo/internal/release"
+	securitystore "github.com/hydrohq/hydrogo/internal/security/sqlstore"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func doctor(args []string, stdout, stderr io.Writer) error {

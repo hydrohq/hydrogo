@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 	webp "github.com/deepteams/webp"
 	pdfviewer "github.com/tucats/pdf-viewer"
 	xdraw "golang.org/x/image/draw"

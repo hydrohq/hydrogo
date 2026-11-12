@@ -6,7 +6,7 @@ package customerorders
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 type Item struct {

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/api"
 )
 
 func (h HTTPHandler) me(w http.ResponseWriter, r *http.Request) {

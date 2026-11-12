@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/audit"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/mcp"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/audit"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/mcp"
+	"github.com/hydrohq/hydrogo/internal/router"
 )
 
 func (a *serveApp) mcpRoutes() []router.Route {

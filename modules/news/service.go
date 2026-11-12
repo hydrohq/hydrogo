@@ -6,18 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ardaozyildirim/hydrogo/internal/richtext"
+	"github.com/hydrohq/hydrogo/internal/richtext"
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/audit"
-	"github.com/ardaozyildirim/hydrogo/internal/cache"
-	"github.com/ardaozyildirim/hydrogo/internal/content"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
-	"github.com/ardaozyildirim/hydrogo/internal/i18n"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/internal/audit"
+	"github.com/hydrohq/hydrogo/internal/cache"
+	"github.com/hydrohq/hydrogo/internal/content"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/i18n"
+	"github.com/hydrohq/hydrogo/internal/realtime"
 )
 
 type Repository interface {

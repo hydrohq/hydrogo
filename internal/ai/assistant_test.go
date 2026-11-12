@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
+	"github.com/hydrohq/hydrogo/internal/testhttp"
 )
 
 type providerFunc func(context.Context, Request) (Suggestion, error)

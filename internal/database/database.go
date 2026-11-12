@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/telemetry"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/telemetry"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type Dialect string

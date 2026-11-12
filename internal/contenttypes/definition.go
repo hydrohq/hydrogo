@@ -108,8 +108,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 var ErrInvalidDefinition = errors.New("invalid content type definition")

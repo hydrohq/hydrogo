@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 var ErrInvalidFolder = errors.New("invalid media folder")

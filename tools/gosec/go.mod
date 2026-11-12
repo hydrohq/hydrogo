@@ -1,4 +1,4 @@
-module github.com/ardaozyildirim/hydrogo/tools/gosec
+module github.com/hydrohq/hydrogo/tools/gosec
 
 go 1.27.0
 

@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,7 +52,7 @@ func contentTypeCommand(args []string, stdout, stderr io.Writer) error {
 		if _, err := os.Stat(path); err == nil {
 			return fmt.Errorf("%s already exists", path)
 		}
-		skeleton := fmt.Sprintf(`# yaml-language-server: $schema=https://raw.githubusercontent.com/ardaozyildirim/hydrogo/main/docs/schemas/content-type.schema.json
+		skeleton := fmt.Sprintf(`# yaml-language-server: $schema=https://raw.githubusercontent.com/hydrohq/hydrogo/main/docs/schemas/content-type.schema.json
 id: %s
 label: %s
 title_field: title

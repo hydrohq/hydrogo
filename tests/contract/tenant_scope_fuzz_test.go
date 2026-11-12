@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func FuzzTenantScopeCacheIsolation(f *testing.F) {

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminui"
+	"github.com/hydrohq/hydrogo/internal/adminui"
 )
 
 //go:embed *.html sections/*.html fonts/*

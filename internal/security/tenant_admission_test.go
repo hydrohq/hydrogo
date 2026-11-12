@@ -2,7 +2,7 @@ package security
 
 import (
 	"context"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 	"net/http"
 	"net/http/httptest"
 	"testing"

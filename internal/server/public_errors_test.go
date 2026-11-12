@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/router"
 )
 
 func TestPublicErrorPagesReplacePublic404And500(t *testing.T) {

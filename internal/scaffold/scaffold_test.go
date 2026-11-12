@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	sveltekitstarter "github.com/ardaozyildirim/hydrogo/examples/sveltekit-starter"
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	sveltekitstarter "github.com/hydrohq/hydrogo/examples/sveltekit-starter"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 func TestEveryPresetScaffoldsAValidProject(t *testing.T) {

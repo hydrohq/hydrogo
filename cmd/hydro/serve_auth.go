@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
-	memberstore "github.com/ardaozyildirim/hydrogo/modules/members/sqlstore"
-	membertransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	authstore "github.com/hydrohq/hydrogo/internal/auth/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/modules/members"
+	memberstore "github.com/hydrohq/hydrogo/modules/members/sqlstore"
+	membertransport "github.com/hydrohq/hydrogo/modules/members/transport"
 )
 
 type auditRecorderImpl struct {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	authstore "github.com/hydrohq/hydrogo/internal/auth/sqlstore"
 )
 
 func TestReservedServiceEmailDomain(t *testing.T) {

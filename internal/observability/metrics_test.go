@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func TestMetricsExposeDeadLetterDepth(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
 )
 
 const revisedFAQ = `id: faq

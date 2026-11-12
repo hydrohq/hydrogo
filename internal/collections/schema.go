@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ardaozyildirim/hydrogo/internal/richtext"
+	"github.com/hydrohq/hydrogo/internal/richtext"
 	"math"
 	"regexp"
 	"strconv"

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/pathguard"
 )
 
 var ErrGarbageCollectorUnavailable = errors.New("media garbage collector is unavailable")

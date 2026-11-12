@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/canonical"
 )
 
 // ResolveAcceptLanguage returns the highest-ranked supported locale from an

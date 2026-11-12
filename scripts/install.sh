@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 # Install the hydro CLI on Linux or macOS.
-#   curl -fsSL https://github.com/ardaozyildirim/hydrogo/releases/latest/download/install.sh | sh
+#   curl -fsSL https://github.com/hydrohq/hydrogo/releases/latest/download/install.sh | sh
 # Environment: HYDRO_VERSION (default: latest, e.g. v0.2.0), HYDRO_INSTALL_DIR
 # (default: /usr/local/bin when writable, else ~/.local/bin).
 set -eu
 
-repo="ardaozyildirim/hydrogo"
+repo="hydrohq/hydrogo"
 version="${HYDRO_VERSION:-latest}"
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"

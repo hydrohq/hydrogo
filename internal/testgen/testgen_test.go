@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 func definition(id string, perms contenttypes.Permissions) contenttypes.Definition {

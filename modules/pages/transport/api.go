@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
-	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/modules/pages/service"
 )
 
 // pageSummary is the intentionally small public discovery projection. Detail

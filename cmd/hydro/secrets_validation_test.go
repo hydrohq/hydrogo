@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/config"
 )
 
 func TestValidateSecretsInProduction(t *testing.T) {

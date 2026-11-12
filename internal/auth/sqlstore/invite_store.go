@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 func (s *UserStore) CreateInvite(ctx context.Context, tx database.Executor, id, email string, role auth.Role, tokenHash string, expiresAt, createdAt time.Time) error {

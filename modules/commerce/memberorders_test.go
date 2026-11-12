@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contracts/customerorders"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/contracts/customerorders"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/modules/commerce/repository/sqlstore"
 )
 
 func TestMemberOrdersReaderListsOnlyTheRequestingMembersOrders(t *testing.T) {

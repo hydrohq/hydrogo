@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/extension/v1"
 )
 
 type testSink struct {

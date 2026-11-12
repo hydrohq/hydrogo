@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/jobs"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/jobs"
 )
 
 // Queue adapts Store to the context-aware durable queue contract used by

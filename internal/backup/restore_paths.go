@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
+	"github.com/hydrohq/hydrogo/internal/pathguard"
 )
 
 func validateRestorePaths(source, destination string) error {

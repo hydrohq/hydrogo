@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/preview"
-	"github.com/ardaozyildirim/hydrogo/internal/richtext"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
-	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
-	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
-	"github.com/ardaozyildirim/hydrogo/modules/seo"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	adminstudiosql "github.com/hydrohq/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/preview"
+	"github.com/hydrohq/hydrogo/internal/richtext"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	newsservice "github.com/hydrohq/hydrogo/modules/news"
+	newstransport "github.com/hydrohq/hydrogo/modules/news/transport"
+	pagetransport "github.com/hydrohq/hydrogo/modules/pages/transport"
+	"github.com/hydrohq/hydrogo/modules/seo"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 // initAdminStudio builds the admin studio registry (served in the admin

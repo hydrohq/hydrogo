@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/canonical"
 )
 
 //go:embed catalogs/*.json

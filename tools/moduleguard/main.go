@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-const modulePrefix = "github.com/ardaozyildirim/hydrogo/modules/"
+const modulePrefix = "github.com/hydrohq/hydrogo/modules/"
 
 func main() {
 	root := flag.String("root", "modules", "module source root")

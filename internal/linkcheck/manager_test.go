@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
+	"github.com/hydrohq/hydrogo/internal/testhttp"
 )
 
 func TestManagerRunsBoundedTenantScopedScan(t *testing.T) {

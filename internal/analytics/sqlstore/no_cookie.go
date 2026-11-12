@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/analytics"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // RecordNoCookieVisit persists the temporary daily key and its daily

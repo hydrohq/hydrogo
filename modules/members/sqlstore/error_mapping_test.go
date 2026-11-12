@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/hydrohq/hydrogo/modules/members"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 

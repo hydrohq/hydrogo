@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/extension"
+	"github.com/hydrohq/hydrogo/extension"
 )
 
 // Manifest is the declarative resource contract for a module. Resource names

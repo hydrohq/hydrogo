@@ -3,7 +3,7 @@ package members
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/auth"
 )
 
 // OAuthResolver maps a verified social identity to a member account. Unlike

@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/ai/prompts"
+	"github.com/hydrohq/hydrogo/internal/ai/prompts"
 )
 
 type OpenAICompatible struct {

@@ -16,7 +16,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
+	"github.com/hydrohq/hydrogo/internal/pathguard"
 )
 
 var ErrSecretArtifact = errors.New("secret-like artifact cannot enter a release manifest")

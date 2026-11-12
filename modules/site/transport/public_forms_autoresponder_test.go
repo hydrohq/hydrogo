@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/forms"
+	"github.com/hydrohq/hydrogo/internal/forms"
 )
 
 // A form's autoresponder sends to whatever e-mail the submitter typed. If

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // Worker is the reservation-expiry sweep: an order whose payment never

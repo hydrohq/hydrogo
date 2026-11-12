@@ -10,12 +10,12 @@ import (
 	"testing"
 	"testing/fstest"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/pages/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/modules/pages/service"
 )
 
 func TestSQLiteTransactionContract(t *testing.T) {

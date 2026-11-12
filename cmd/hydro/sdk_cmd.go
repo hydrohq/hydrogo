@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/openapi"
-	"github.com/ardaozyildirim/hydrogo/internal/sdkdist"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/openapi"
+	"github.com/hydrohq/hydrogo/internal/sdkdist"
 )
 
 func sdkCommand(args []string, stdout, stderr io.Writer) error {

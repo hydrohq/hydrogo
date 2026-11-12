@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/jobs"
-	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/jobs"
+	jobstore "github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/testmysql"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestSQLiteRestoreControlsRevokeSessionsAndQuarantineJobs(t *testing.T) {

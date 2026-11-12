@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // ReconcileConfig controls Reconcile's one time-based threshold. Zero

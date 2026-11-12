@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // Repository is the subset of repository/sqlstore.Store the service needs,

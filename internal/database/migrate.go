@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
+	storagesqlite "github.com/hydrohq/hydrogo/internal/storage/sqlite"
 	"gopkg.in/yaml.v3"
 )
 

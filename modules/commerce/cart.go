@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // Shopper identifies whose cart a request touches: a logged-in member or an

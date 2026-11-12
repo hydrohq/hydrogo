@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
-	newsservice "github.com/ardaozyildirim/hydrogo/modules/news"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/members"
+	newsservice "github.com/hydrohq/hydrogo/modules/news"
+	"github.com/hydrohq/hydrogo/modules/pages"
 )
 
 type adminDashboardUser struct {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/api"
 )
 
 const maxPublicBodyBytes = 1 << 20 // 1MB

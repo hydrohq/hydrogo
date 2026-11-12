@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func TestTenantScopedRateLimiterSeparatesBucketsAndFailsClosed(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
+	v1 "github.com/hydrohq/hydrogo/extension/v1"
 )
 
 type contactSink struct {

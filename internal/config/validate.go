@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/cron"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/cron"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/eventcatalog"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
 )
 
 var hookID = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,39}$`)

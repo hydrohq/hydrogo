@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/push"
-	pushstore "github.com/ardaozyildirim/hydrogo/internal/push/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/push"
+	pushstore "github.com/hydrohq/hydrogo/internal/push/sqlstore"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestSQLitePushSubscriptionContract(t *testing.T) {

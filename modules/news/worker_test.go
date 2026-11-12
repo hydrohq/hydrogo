@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/jobs"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/jobs"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func TestRetryDelayIsBoundedExponential(t *testing.T) {

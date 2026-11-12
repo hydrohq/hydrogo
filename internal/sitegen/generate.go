@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
-	"github.com/ardaozyildirim/hydrogo/internal/ai/prompts"
+	aicore "github.com/hydrohq/hydrogo/internal/ai"
+	"github.com/hydrohq/hydrogo/internal/ai/prompts"
 )
 
 // Generate creates a complete SitePlan from brand information and user brief.

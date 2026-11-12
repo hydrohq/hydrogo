@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/notify"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/notify"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 type mockReminderNotifier struct {

@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	analyticsstore "github.com/ardaozyildirim/hydrogo/internal/analytics/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
+	analyticsstore "github.com/hydrohq/hydrogo/internal/analytics/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/members"
 )
 
 type noCookieAnalyticsRow struct {

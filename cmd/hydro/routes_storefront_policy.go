@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/blueprints"
-	"github.com/ardaozyildirim/hydrogo/internal/storefront"
+	"github.com/hydrohq/hydrogo/internal/blueprints"
+	"github.com/hydrohq/hydrogo/internal/storefront"
 )
 
 // storefrontPolicyHandler serves dedicated compliance, privacy, cookies, terms and return policies.
