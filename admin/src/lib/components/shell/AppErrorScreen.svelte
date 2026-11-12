@@ -60,7 +60,7 @@
         </Button>
       {/if}
       <a
-        href="https://console.example.com"
+        href="/"
         class="inline-flex items-center justify-center h-9 px-4 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
       >
         {t('error.platformConsole')}

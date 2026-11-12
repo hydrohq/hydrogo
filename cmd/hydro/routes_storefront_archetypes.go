@@ -17,7 +17,7 @@ import (
 func (a *serveApp) getBaseDomain() string {
 	baseDomain := strings.TrimSpace(a.cfg.Factory.BaseDomain)
 	if baseDomain == "" {
-		return "ardalabs.dev"
+		return "localhost"
 	}
 	return baseDomain
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/billing"
 	"github.com/ardaozyildirim/hydrogo/internal/database"
 	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
 	"github.com/ardaozyildirim/hydrogo/internal/notify"
@@ -188,24 +186,9 @@ func (a *serveApp) startWorkers() {
 	}
 	if !cfg.SafeMode && !cgiMode {
 		a.spawn(func() { runHookSchedules(ctx, cfg, a.hookCaller(), time.Now, logger) })
-		a.spawn(func() { runSubscriptionExpirySweeper(ctx, a.db, cfg.Database.Dialect) })
 	}
 	if !cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
 		a.spawn(func() { database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance) })
-	}
-}
-
-func runSubscriptionExpirySweeper(ctx context.Context, db *sql.DB, dialect database.Dialect) {
-	ticker := time.NewTicker(2 * time.Minute)
-	defer ticker.Stop()
-	repo := &billing.Repository{DB: db, Dialect: dialect}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			_, _ = repo.ExpireSubscriptions(ctx, time.Now().UTC())
-		}
 	}
 }
 

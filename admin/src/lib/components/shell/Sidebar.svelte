@@ -71,7 +71,7 @@
     if (!schema.platform) return false;
     if (typeof window !== 'undefined') {
       const host = window.location.hostname.toLowerCase();
-      if (host.startsWith('console.') || host.includes('console.example.com')) return true;
+      if (host.startsWith('console.')) return true;
     }
     if (currentPath.startsWith('/console') || currentPath.startsWith('/orchestrator')) return true;
     return false;

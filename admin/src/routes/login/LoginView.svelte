@@ -34,7 +34,7 @@
 
       if (ok) {
         await schema.loadSchema(true);
-        const isConsole = typeof window !== 'undefined' && (window.location.hostname.startsWith('console.') || window.location.hostname.includes('console.example.com'));
+        const isConsole = typeof window !== 'undefined' && (window.location.hostname.startsWith('console.'));
         const redirect = router.query.get('redirect') || (isConsole ? '/console' : '/dashboard');
         router.navigate(redirect);
       } else {

@@ -94,10 +94,7 @@ func (a *serveApp) isStorefrontTenant(r *http.Request) bool {
 		host = host[:i]
 	}
 	consoleHost := strings.ToLower(strings.TrimSpace(a.cfg.Factory.ConsoleHost))
-	if consoleHost == "" {
-		consoleHost = "console.example.com"
-	}
-	if host == consoleHost {
+	if consoleHost != "" && host == consoleHost {
 		return false
 	}
 	scope, err := tenant.FromContext(r.Context())
@@ -119,12 +116,9 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 	}
 
 	consoleHost := strings.ToLower(strings.TrimSpace(a.cfg.Factory.ConsoleHost))
-	if consoleHost == "" {
-		consoleHost = "console.example.com"
-	}
 
-	// 1. If console host, redirect to admin console
-	if host == consoleHost {
+	// 1. If console host, redirect to admin console (only when a console host is configured)
+	if consoleHost != "" && host == consoleHost {
 		http.Redirect(w, r, "/admin/console", http.StatusTemporaryRedirect)
 		return tenant.Scope{}, tenant.Governance{}, nil, nil, false
 	}

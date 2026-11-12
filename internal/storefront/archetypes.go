@@ -659,7 +659,7 @@ func RenderShowcase(w http.ResponseWriter, r *http.Request, data ShowcaseData) e
 		return archetypeErr
 	}
 	if data.BaseDomain == "" {
-		data.BaseDomain = "ardalabs.dev"
+		data.BaseDomain = "localhost"
 	}
 
 	var buf bytes.Buffer

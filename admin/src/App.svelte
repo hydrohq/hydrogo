@@ -33,9 +33,13 @@
   const loadSystemView = () => import('./routes/system/SystemView.svelte');
   const loadAccountView = () => import('./routes/account/AccountView.svelte');
   const loadContentTypesView = () => import('./routes/contenttypes/ContentTypesView.svelte');
-  const loadOrchestratorView = () => import('./routes/orchestrator/OrchestratorView.svelte');
-  const loadConsoleView = () => import('./routes/console/ConsoleView.svelte');
-  const loadSubscriptionView = () => import('./routes/subscription/SubscriptionView.svelte');
+  // Hosted-platform screens ship with the private HydroCloud overlay; without it the globs are empty
+  // and those routes fall through to the generic module screen.
+  const cloudViews = import.meta.glob<{ default: unknown }>('./routes/{orchestrator,console,subscription}/*View.svelte');
+  const cloudLoader = (name: string) => cloudViews[`./routes/${name}/${name[0].toUpperCase()}${name.slice(1)}View.svelte`];
+  const loadOrchestratorView = cloudLoader('orchestrator');
+  const loadConsoleView = cloudLoader('console');
+  const loadSubscriptionView = cloudLoader('subscription');
 
   import { i18n, isLocale } from '$lib/i18n/index.svelte';
   import { applyBrandColor } from '$lib/branding';
@@ -53,7 +57,7 @@
       const isAuthed = await auth.checkAuth();
       if (isAuthed) {
         await schema.loadSchema();
-        const isConsole = schema.platform && typeof window !== 'undefined' && (window.location.hostname.startsWith('console.') || window.location.hostname.includes('console.example.com'));
+        const isConsole = schema.platform && typeof window !== 'undefined' && (window.location.hostname.startsWith('console.'));
         const p = router.path;
         const isPlatformRoute = p === '/console' || p.startsWith('/console/') ||
                                 p === '/orchestrator' || p.startsWith('/orchestrator/') ||
@@ -245,11 +249,11 @@
         <LazyView load={loadSystemView} />
       {:else if routeInfo.module === 'account'}
         <LazyView load={loadAccountView} />
-      {:else if routeInfo.module === 'subscription' || routeInfo.module === 'billing'}
+      {:else if loadSubscriptionView && (routeInfo.module === 'subscription' || routeInfo.module === 'billing')}
         <LazyView load={loadSubscriptionView} />
-      {:else if routeInfo.module === 'console' || routeInfo.module === 'superadmin'}
+      {:else if loadConsoleView && (routeInfo.module === 'console' || routeInfo.module === 'superadmin')}
         <LazyView load={loadConsoleView} />
-      {:else if routeInfo.module === 'orchestrator'}
+      {:else if loadOrchestratorView && routeInfo.module === 'orchestrator'}
         <LazyView load={loadOrchestratorView} />
       {:else if routeInfo.module === 'content-types' || routeInfo.view === 'content-types'}
         <LazyView load={loadContentTypesView} props={{ mode: routeInfo.mode }} />
