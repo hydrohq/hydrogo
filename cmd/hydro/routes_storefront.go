@@ -139,7 +139,7 @@ func (a *serveApp) resolveStorefrontContext(w http.ResponseWriter, r *http.Reque
 			// The platform showcase is only for a hosted platform that turned
 			// public onboarding on; every other project gets a neutral welcome.
 			if isOnboardEnabled() {
-				_ = storefront.RenderShowcase(w, r, storefront.ShowcaseData{BaseDomain: a.getBaseDomain()})
+				a.renderPlatformShowcase(w, r)
 			} else {
 				storefront.RenderWelcome(w, r)
 			}

@@ -49,3 +49,8 @@ func (a *serveApp) systemDomainCheckHandler(w http.ResponseWriter, r *http.Reque
 func (a *serveApp) internalAIProxyHandler(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
+
+func (a *serveApp) showcasePageHandler(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) }
+func (a *serveApp) renderPlatformShowcase(w http.ResponseWriter, r *http.Request) {
+	http.NotFound(w, r)
+}
