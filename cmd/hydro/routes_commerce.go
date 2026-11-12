@@ -290,12 +290,33 @@ func runCommerceRefundReminder(ctx context.Context, service commerce.Service, no
 	}
 }
 
+// pendingCheckRound orders the pending orders for one round of the pending-payment check: the ones checked
+// least recently (or never) first, so a pile of unpaid orders cannot keep a paid one waiting behind it.
+func pendingCheckRound(orders []commerce.Order, lastChecked map[string]time.Time) []commerce.Order {
+	round := append([]commerce.Order(nil), orders...)
+	sort.SliceStable(round, func(i, j int) bool {
+		li, lj := lastChecked[round[i].ID], lastChecked[round[j].ID]
+		if !li.Equal(lj) {
+			return li.Before(lj)
+		}
+		return round[i].CreatedAt.Before(round[j].CreatedAt)
+	})
+	return round
+}
+
 // runCommercePendingPaymentCheck is the safety net for a shopper who paid and closed the browser: neither
 // the return redirect nor a notification arrived, so the order would sit pending until its stock hold
 // expires. Every couple of minutes it asks the payment provider about orders that have been pending
-// for a little while and settles the ones that were paid.
+// for a little while and settles the ones that were paid. Orders are taken least-recently-checked first
+// and each round has a time budget, so a flood of unpaid orders delays but never starves a paid one.
 func runCommercePendingPaymentCheck(ctx context.Context, a *serveApp, service commerce.Service, db database.Executor, logger *slog.Logger) {
-	ticker := time.NewTicker(2 * time.Minute)
+	const (
+		interval = 2 * time.Minute
+		budget   = 100 * time.Second
+		chunk    = 10
+	)
+	lastChecked := map[string]time.Time{}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -309,15 +330,32 @@ func runCommercePendingPaymentCheck(ctx context.Context, a *serveApp, service co
 		if checker == nil {
 			continue
 		}
-		orders, err := service.Repository.ListPendingOrdersOlderThan(ctx, db, time.Now().UTC().Add(-90*time.Second), 50)
+		orders, err := service.Repository.ListPendingOrdersOlderThan(ctx, db, time.Now().UTC().Add(-90*time.Second), 500)
 		if err != nil {
 			if ctx.Err() == nil && logger != nil {
 				logger.WarnContext(ctx, "commerce pending-payment check could not list orders", "error", err)
 			}
 			continue
 		}
-		if len(orders) > 0 {
-			checker.CheckPending(ctx, orders)
+		live := make(map[string]bool, len(orders))
+		for _, o := range orders {
+			live[o.ID] = true
 		}
+		for id := range lastChecked {
+			if !live[id] {
+				delete(lastChecked, id)
+			}
+		}
+		roundCtx, cancel := context.WithTimeout(ctx, budget)
+		round := pendingCheckRound(orders, lastChecked)
+		for start := 0; start < len(round) && roundCtx.Err() == nil; start += chunk {
+			end := min(start+chunk, len(round))
+			checker.CheckPending(roundCtx, round[start:end])
+			now := time.Now()
+			for _, o := range round[start:end] {
+				lastChecked[o.ID] = now
+			}
+		}
+		cancel()
 	}
 }
