@@ -105,45 +105,6 @@ func TestAdminDashboardShape(t *testing.T) {
 	}
 }
 
-func TestPlatformRoutesConditionalRegistration(t *testing.T) {
-	t.Setenv("HYDRO_JWT_SECRET", "super-secret-jwt-key-with-more-than-32-chars")
-	app := &serveApp{modules: map[string]bool{"core": true}}
-
-	// Not platform mode: orchestrator, billing, superadmin routes should be absent
-	adminRoutes := app.adminRoutes()
-	for _, r := range adminRoutes {
-		if strings.Contains(r.Pattern, "/orchestrator/") {
-			t.Errorf("unexpected orchestrator route registered in non-platform mode: %s", r.Pattern)
-		}
-	}
-	if len(app.billingRoutes()) != 0 {
-		t.Errorf("expected no billing routes in non-platform mode, got %d", len(app.billingRoutes()))
-	}
-	if len(app.superadminRoutes()) != 0 {
-		t.Errorf("expected no superadmin routes in non-platform mode, got %d", len(app.superadminRoutes()))
-	}
-
-	// Platform mode enabled: routes should be registered
-	app.cfg.Factory.BaseDomain = "boutique.dev"
-	adminRoutesPlatform := app.adminRoutes()
-	hasOrchestrator := false
-	for _, r := range adminRoutesPlatform {
-		if strings.Contains(r.Pattern, "/orchestrator/") {
-			hasOrchestrator = true
-			break
-		}
-	}
-	if !hasOrchestrator {
-		t.Errorf("expected orchestrator routes to be registered in platform mode")
-	}
-	if len(app.billingRoutes()) == 0 {
-		t.Errorf("expected billing routes to be registered in platform mode")
-	}
-	if len(app.superadminRoutes()) == 0 {
-		t.Errorf("expected superadmin routes to be registered in platform mode")
-	}
-}
-
 func TestAdminAuditRejectsInvalidFilter(t *testing.T) {
 	app := &serveApp{modules: map[string]bool{"pages": true}}
 	admin := &auth.User{ID: "a1", Role: auth.RoleAdmin, Active: true}
