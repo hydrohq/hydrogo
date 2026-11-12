@@ -4,7 +4,7 @@
 
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions)](https://github.com/hydrohq/hydrogo/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/hydrohq/hydrogo)](https://github.com/hydrohq/hydrogo/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/hydrohq/hydrogo.svg)](https://pkg.go.dev/github.com/hydrohq/hydrogo)
 
 HydroGo manages pages, news, media, members, and custom content types, exposing
@@ -129,4 +129,4 @@ Coding agents must read [AGENTS.md](AGENTS.md) first.
 
 ## License
 
-[MIT](LICENSE). Security issues: see [docs/SECURITY.md](docs/SECURITY.md).
+[PolyForm Shield 1.0.0](LICENSE): free to use, modify and run for your own sites and stores; you may not use it to offer a product or service that competes with HydroGo. Issues and pull requests are welcome. Security issues: see [docs/SECURITY.md](docs/SECURITY.md).

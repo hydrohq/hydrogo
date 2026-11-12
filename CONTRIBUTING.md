@@ -11,4 +11,4 @@ Thanks for helping. Short version: open an issue for anything bigger than a bug 
 - **New content types** are YAML only (`content-types/`); see [docs/content-types.md](docs/content-types.md). **New migrations** need all three dialects.
 - **Security issues:** do not open a public issue; see [docs/SECURITY.md](docs/SECURITY.md).
 
-By contributing you agree your work is licensed under the MIT license of this repository.
+By contributing you agree your work is licensed under the PolyForm Shield 1.0.0 license of this repository (see LICENSE).
