@@ -75,7 +75,7 @@ export const referenceHelp: DocPage[] = [
     h3('Do I have to rebuild my site when an editor publishes?'),
     p("No. Publishing is live on the next API request. If you chose a static frontend, a [webhook](doc:frontends/caching-and-webhooks) can trigger a rebuild, but that is optional."),
     h3('What does it cost? What license is it under?'),
-    p("HydroGo is open source under the MIT license."),
+    p("HydroGo is source-available under the PolyForm Shield 1.0.0 license: free to use and modify, but not to resell as a competing product or service."),
     h3('Which databases are supported?'),
     p("SQLite (default), PostgreSQL and MySQL/MariaDB. Every migration ships for all three."),
     h2('Content'),
@@ -107,7 +107,7 @@ export const referenceHelp: DocPage[] = [
     'contributing',
     'Contributing',
     "Set up the repository, run the checks, and follow the few architecture rules that keep HydroGo small.",
-    p("Open an issue for anything bigger than a bug fix, keep changes small and run the checks. By contributing you agree your work is licensed under the repository's MIT license."),
+    p("Open an issue for anything bigger than a bug fix, keep changes small and run the checks. By contributing you agree your work is licensed under the repository's PolyForm Shield 1.0.0 license."),
     h2('Set up'),
     code('bash', `git clone https://github.com/ardaozyildirim/hydrogo.git
 cd hydrogo

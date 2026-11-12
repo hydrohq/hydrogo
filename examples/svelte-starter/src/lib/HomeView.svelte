@@ -28,7 +28,7 @@ cd mysite && hydro serve --config config.yaml`;
     <div class="pointer-events-none absolute inset-0 -z-0 opacity-60 [background:radial-gradient(60rem_28rem_at_50%_-10%,var(--accent-soft),transparent)]" aria-hidden="true"></div>
     <div class="relative mx-auto max-w-4xl px-4 pt-16 pb-14 text-center sm:px-6 sm:pt-24 sm:pb-20">
       <div class="mb-6 flex justify-center"><Logo size="lg" /></div>
-      <p class="mx-auto mb-5 inline-flex rounded-full border border-line bg-subtle px-3 py-1 text-xs font-medium text-muted">Single binary · Headless · MIT licensed</p>
+      <p class="mx-auto mb-5 inline-flex rounded-full border border-line bg-subtle px-3 py-1 text-xs font-medium text-muted">Single binary · Headless · Source-available</p>
       <h1 class="text-4xl font-bold tracking-tight text-fg sm:text-6xl">A headless CMS in one Go binary</h1>
       <p class="mx-auto mt-5 max-w-2xl text-lg leading-8 text-muted">
         HydroGo manages pages, news, media, members and your own content types, and serves them over a clean REST API. It does not render a website: you build the frontend you want, and publishing never needs a rebuild.

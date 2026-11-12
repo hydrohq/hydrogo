@@ -11,7 +11,7 @@ description: |
   HydroGo is a single-binary headless CMS: pages, news, media, members,
   content types, a REST API and an embedded admin panel.
 homepage: https://github.com/ardaozyildirim/hydrogo
-license: MIT
+license: PolyForm-Shield-1.0.0
 contents:
   - src: ${SRC}/hydro
     expand: true
