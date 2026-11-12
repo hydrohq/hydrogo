@@ -1,7 +1,7 @@
 package sqlstore
 
 import (
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 func requireUserStore(store *UserStore) error {

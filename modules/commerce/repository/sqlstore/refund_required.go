@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // RecordRefundRequired saves a manual refund requirement row in the database.

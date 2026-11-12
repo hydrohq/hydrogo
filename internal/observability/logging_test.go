@@ -9,9 +9,9 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 	"go.opentelemetry.io/otel/trace"
 )
 

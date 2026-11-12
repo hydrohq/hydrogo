@@ -3,7 +3,7 @@ package v1
 import (
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/extension"
+	"github.com/hydrohq/hydrogo/extension"
 )
 
 // ModuleRoute is the versioned spelling of the public module route contract.

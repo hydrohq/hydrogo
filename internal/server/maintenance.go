@@ -1,14 +1,14 @@
 package server
 
 import (
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/auth"
 )
 
 // MaintenanceConfig keeps maintenance mode opt-in and lets the owning module

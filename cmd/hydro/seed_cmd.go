@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 // drawDemoCoverImage paints an abstract, editorial-looking cover placeholder

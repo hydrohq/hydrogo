@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 // VerificationResult describes the cryptographic verification outcome of a tenant's audit chain.

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/outbox"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/outbox"
 )
 
 type loopStore struct{ calls int }

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/outbox"
-	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/outbox"
+	"github.com/hydrohq/hydrogo/internal/testmysql"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestPostgresOutboxLeaseContract(t *testing.T) {

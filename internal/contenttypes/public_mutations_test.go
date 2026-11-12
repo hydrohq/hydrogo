@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/internal/router"
 )
 
 const chatMessagesYAML = `id: messages

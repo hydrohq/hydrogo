@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/audit"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/trash"
+	"github.com/hydrohq/hydrogo/internal/audit"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/trash"
 )
 
 func TestTrashListMoveRestoreAndRetentionAreTenantScoped(t *testing.T) {

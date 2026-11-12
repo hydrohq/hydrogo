@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	adminstudiosql "github.com/ardaozyildirim/hydrogo/internal/adminstudio/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	mailstore "github.com/ardaozyildirim/hydrogo/internal/mailer/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	adminstudiosql "github.com/hydrohq/hydrogo/internal/adminstudio/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	authstore "github.com/hydrohq/hydrogo/internal/auth/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	mailstore "github.com/hydrohq/hydrogo/internal/mailer/sqlstore"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestWeeklyDigestQueuesOneOptedInAdminMail(t *testing.T) {

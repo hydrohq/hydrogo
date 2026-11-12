@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 func TestCustomCodeMiddlewareInsertsAndAllowsSnippets(t *testing.T) {

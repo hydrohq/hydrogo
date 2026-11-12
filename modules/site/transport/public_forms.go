@@ -14,15 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/forms"
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
-	"github.com/ardaozyildirim/hydrogo/internal/mailer"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/forms"
+	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/mailer"
+	"github.com/hydrohq/hydrogo/internal/media"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 type publicFormView struct {

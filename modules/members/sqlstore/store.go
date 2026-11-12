@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/members"
 )
 
 type Store struct {

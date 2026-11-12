@@ -1,6 +1,6 @@
 package main
 
-import "github.com/ardaozyildirim/hydrogo/internal/server"
+import "github.com/hydrohq/hydrogo/internal/server"
 
 func main() {
 	_ = server.Serve

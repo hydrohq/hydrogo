@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/linkcheck"
+	"github.com/hydrohq/hydrogo/internal/linkcheck"
 )
 
 func scanLinksCommand(args []string, stdout, stderr io.Writer) error {

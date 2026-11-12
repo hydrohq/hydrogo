@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // Open returns a connection whose search_path is a schema created for this test

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/media"
 )
 
 func (s Store) CreateFolder(ctx context.Context, db database.Executor, folder media.Folder) error {

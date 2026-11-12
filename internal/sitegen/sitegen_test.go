@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type mockCollectionService struct {

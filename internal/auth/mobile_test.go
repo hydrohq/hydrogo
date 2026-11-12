@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func setupTestDB(t *testing.T) (*sql.DB, database.Dialect) {

@@ -1,4 +1,4 @@
-module github.com/ardaozyildirim/hydrogo
+module github.com/hydrohq/hydrogo
 
 go 1.27.0
 

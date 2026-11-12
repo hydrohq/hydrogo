@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
-	"github.com/ardaozyildirim/hydrogo/internal/outbox"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/eventcatalog"
+	"github.com/hydrohq/hydrogo/internal/outbox"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type Store struct {

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 var ErrMobileTokenInvalid = errors.New("invalid or expired member mobile token")

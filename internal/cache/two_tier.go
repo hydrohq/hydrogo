@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 var ErrTwoTierUnavailable = errors.New("two-tier cache is unavailable")

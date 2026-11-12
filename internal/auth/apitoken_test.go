@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 type memoryTokenStore struct{ tokens map[string]*APIToken }

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func (h HTTPHandler) uploadURL(w http.ResponseWriter, r *http.Request) {

@@ -9,8 +9,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 // TracingMiddleware uses the global OpenTelemetry provider. With no exporter

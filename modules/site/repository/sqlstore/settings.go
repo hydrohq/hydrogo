@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 func (s Store) UpsertSetting(ctx context.Context, tx database.Executor, value site.Setting) error {

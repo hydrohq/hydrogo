@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	auth "github.com/ardaozyildirim/hydrogo/internal/auth"
-	memberTransport "github.com/ardaozyildirim/hydrogo/modules/members/transport"
-	newsTransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
-	pageTransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
+	auth "github.com/hydrohq/hydrogo/internal/auth"
+	memberTransport "github.com/hydrohq/hydrogo/modules/members/transport"
+	newsTransport "github.com/hydrohq/hydrogo/modules/news/transport"
+	pageTransport "github.com/hydrohq/hydrogo/modules/pages/transport"
 )
 
 func TestCheckedInOpenAPIPathsMatchRuntimeRouteContracts(t *testing.T) {

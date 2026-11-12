@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 type decodeTarget struct {

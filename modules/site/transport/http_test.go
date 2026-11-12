@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
-	sitesql "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/testhttp"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/site"
+	sitesql "github.com/hydrohq/hydrogo/modules/site/repository/sqlstore"
 )
 
 type fakeStore struct{}

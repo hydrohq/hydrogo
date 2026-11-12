@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/cron"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/cron"
 )
 
 // runHookSchedules calls the services' schedules (config hooks[].schedules)

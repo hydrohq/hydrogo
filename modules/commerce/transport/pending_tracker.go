@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 const (

@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 	"gopkg.in/yaml.v3"
 )
 

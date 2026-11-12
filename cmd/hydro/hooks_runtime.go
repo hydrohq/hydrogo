@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/webhooks"
 )
 
 const defaultHookTimeout = 5 * time.Second

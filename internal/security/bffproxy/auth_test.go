@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security/bffsession"
-	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
+	"github.com/hydrohq/hydrogo/internal/security/bffsession"
+	"github.com/hydrohq/hydrogo/internal/testhttp"
 )
 
 type loginLimiterStub struct {

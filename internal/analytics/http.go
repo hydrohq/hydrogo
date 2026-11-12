@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	v1 "github.com/hydrohq/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 const (

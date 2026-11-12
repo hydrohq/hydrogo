@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"
+	v1 "github.com/hydrohq/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
+	newsstore "github.com/hydrohq/hydrogo/modules/news/repository/sqlstore"
 )
 
 func TestSQLiteNewsTaxonomyContract(t *testing.T) {

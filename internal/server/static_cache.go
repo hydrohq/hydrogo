@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
+	"github.com/hydrohq/hydrogo/internal/pathguard"
 )
 
 const (

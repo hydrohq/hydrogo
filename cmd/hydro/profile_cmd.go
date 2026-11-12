@@ -8,7 +8,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/capacity"
 )
 
 func profileCommand(args []string, stdout, stderr io.Writer) error {

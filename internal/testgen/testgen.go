@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 // File is one generated file, with Path relative to the output directory

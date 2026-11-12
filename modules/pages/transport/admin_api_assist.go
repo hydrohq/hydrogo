@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/ai"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/ai"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type aiSuggestInput struct {

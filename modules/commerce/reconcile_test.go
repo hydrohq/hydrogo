@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 func TestReconcileCleanWhenNothingWrong(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/testmysql"
 )
 
 // TestMySQLAuditChainSerializesConcurrentWriters is the MySQL twin of the

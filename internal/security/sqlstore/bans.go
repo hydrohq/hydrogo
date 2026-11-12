@@ -6,8 +6,8 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 type BanStore struct{ Dialect database.Dialect }

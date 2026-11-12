@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 const shutdownTimeout = 10 * time.Second

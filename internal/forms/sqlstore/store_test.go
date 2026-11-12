@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/forms"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/forms"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/testmysql"
 )
 
 func newFormStore(t *testing.T) Store {

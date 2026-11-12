@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	aicore "github.com/ardaozyildirim/hydrogo/internal/ai"
-	"github.com/ardaozyildirim/hydrogo/internal/ai/prompts"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	aicore "github.com/hydrohq/hydrogo/internal/ai"
+	"github.com/hydrohq/hydrogo/internal/ai/prompts"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 const copilotActionsSettingKey = "ai.copilot.actions"

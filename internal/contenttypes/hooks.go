@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // Hook asks a side service for permission before a change is saved: the

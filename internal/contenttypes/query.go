@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // parsePublicQuery reads the public API's list parameters:

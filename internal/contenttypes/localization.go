@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // Localization of content types. A record stores every field in the default

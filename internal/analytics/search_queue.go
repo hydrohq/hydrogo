@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/observability"
 )
 
 type SearchQueryEvent struct {

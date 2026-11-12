@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security/bffpolicy"
+	"github.com/hydrohq/hydrogo/internal/security/bffpolicy"
 )
 
 var (

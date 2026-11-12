@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/audit"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/audit"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/guards"
 )
 
 type PageWriter interface {

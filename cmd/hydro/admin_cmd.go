@@ -12,10 +12,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	authstore "github.com/hydrohq/hydrogo/internal/auth/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 func createAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) error {

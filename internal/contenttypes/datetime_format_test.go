@@ -3,7 +3,7 @@ package contenttypes
 import (
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 func TestDatetimeReadsBackAsItWasSubmitted(t *testing.T) {

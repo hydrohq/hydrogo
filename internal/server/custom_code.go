@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/customcode"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/customcode"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 const customCodeResponseLimit = 2 << 20

@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 // Metrics is safe for concurrent HTTP handlers. It intentionally has no

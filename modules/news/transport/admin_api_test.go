@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/preview"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/news"
-	newsstore "github.com/ardaozyildirim/hydrogo/modules/news/repository/sqlstore"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/preview"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/news"
+	newsstore "github.com/hydrohq/hydrogo/modules/news/repository/sqlstore"
 )
 
 func newTestHandler(t *testing.T) http.Handler {

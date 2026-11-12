@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/trash"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/trash"
 )
 
 // AdminBasePath is the JSON admin surface for the recycle bin.

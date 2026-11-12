@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
+	"github.com/hydrohq/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 const maxNotFoundPathsPerTenant = 5000

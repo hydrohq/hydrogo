@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/collections/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestParsePublicQueryOnlyFiltersFilterableFields(t *testing.T) {

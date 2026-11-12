@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/auth"
 )
 
 type fakeRecorder struct {

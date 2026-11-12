@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/push"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/push"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type Store struct {

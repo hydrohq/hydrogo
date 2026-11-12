@@ -3,7 +3,7 @@ package adminstudio
 import (
 	"sort"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
+	v1 "github.com/hydrohq/hydrogo/extension/v1"
 )
 
 func termLabel(term v1.TaxonomyTerm) string {

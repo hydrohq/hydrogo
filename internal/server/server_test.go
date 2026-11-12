@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 func TestHealthzDatabasePingFailure(t *testing.T) {

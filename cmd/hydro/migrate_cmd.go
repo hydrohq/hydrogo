@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	backupstore "github.com/hydrohq/hydrogo/internal/backup"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func migrate(args []string, stderr io.Writer) error {

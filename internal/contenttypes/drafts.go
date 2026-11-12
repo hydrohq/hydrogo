@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminstudio"
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/adminstudio"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // Types with `drafts: true` store a status field in each record. The admin

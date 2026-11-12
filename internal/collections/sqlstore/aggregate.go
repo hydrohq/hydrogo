@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 func (s Store) AggregateRecords(ctx context.Context, collectionID string, query collections.AggregateQuery) ([]map[string]any, error) {

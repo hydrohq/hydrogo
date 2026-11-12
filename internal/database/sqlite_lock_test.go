@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestSQLiteMigrationConcurrencyLock(t *testing.T) {

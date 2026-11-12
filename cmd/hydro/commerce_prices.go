@@ -7,9 +7,9 @@ import (
 	"math"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // catalogPrices prices cart lines from the catalog content types

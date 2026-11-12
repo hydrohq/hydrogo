@@ -11,17 +11,17 @@ import (
 	"testing"
 	"time"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/cache"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/preview"
-	"github.com/ardaozyildirim/hydrogo/internal/richtext"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
-	"github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/modules/pages/service"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/cache"
+	"github.com/hydrohq/hydrogo/internal/database"
+	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/preview"
+	"github.com/hydrohq/hydrogo/internal/richtext"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/modules/pages/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/modules/pages/service"
 )
 
 func newTestHandler(t *testing.T) (Handler, http.Handler) {

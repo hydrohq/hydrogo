@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // devserver is meant to be left running for an entire workday, proxying a

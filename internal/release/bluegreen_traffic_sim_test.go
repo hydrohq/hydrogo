@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/cache"
-	"github.com/ardaozyildirim/hydrogo/internal/release"
+	"github.com/hydrohq/hydrogo/internal/cache"
+	"github.com/hydrohq/hydrogo/internal/release"
 )
 
 // TestBlueGreenTrafficWithConcurrentCacheInvalidation verifies that under concurrent traffic:

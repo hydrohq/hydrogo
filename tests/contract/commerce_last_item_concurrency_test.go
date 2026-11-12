@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/commerce"
+	commercestore "github.com/hydrohq/hydrogo/modules/commerce/repository/sqlstore"
 )
 
 func TestCommerceLastItem_SingleVariantConcurrency(t *testing.T) {

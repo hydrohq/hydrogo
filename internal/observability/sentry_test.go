@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/testhttp"
+	"github.com/hydrohq/hydrogo/internal/testhttp"
 )
 
 func TestSentryReporterSendsBoundedSanitizedPanicEvent(t *testing.T) {

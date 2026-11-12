@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/auth"
 )
 
 func TestMaintenanceMiddleware(t *testing.T) {

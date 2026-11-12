@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 var (

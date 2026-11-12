@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/analytics"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 func (s Store) RecordFormView(ctx context.Context, tenantID, formID, visitorKey string, day time.Time) (bool, error) {

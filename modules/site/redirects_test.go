@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func TestRedirectRegistryMatchesSafelyAndCountsByTenant(t *testing.T) {

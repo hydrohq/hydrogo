@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/mailer"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/mailer"
 )
 
 type EmailBrandingStore struct {

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	pagesstore "github.com/ardaozyildirim/hydrogo/modules/pages/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/migrations"
+	pagesstore "github.com/hydrohq/hydrogo/modules/pages/repository/sqlstore"
 )
 
 //go:embed testdata/legacy_customer.json

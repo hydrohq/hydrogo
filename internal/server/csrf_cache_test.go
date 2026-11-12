@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 // TestCSRFCookieDeadlockedStaticCacheWithoutSkip reproduces the bug: CSRFMiddleware

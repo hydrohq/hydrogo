@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/modules/news"
+	"github.com/hydrohq/hydrogo/internal/media"
+	"github.com/hydrohq/hydrogo/modules/news"
 )
 
 var errUnavailableMediaReference = errors.New("media reference is unavailable")

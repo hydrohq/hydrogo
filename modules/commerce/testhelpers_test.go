@@ -3,8 +3,8 @@ package commerce_test
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // addPriced lists variant at price in the service's static catalog, then

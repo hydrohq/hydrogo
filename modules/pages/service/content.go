@@ -8,14 +8,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/audit"
-	"github.com/ardaozyildirim/hydrogo/internal/cache"
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
-	"github.com/ardaozyildirim/hydrogo/internal/i18n"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/internal/audit"
+	"github.com/hydrohq/hydrogo/internal/cache"
+	"github.com/hydrohq/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/i18n"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/modules/pages"
 )
 
 var (

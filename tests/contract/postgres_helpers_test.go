@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // openIsolatedPostgres gives each contract test its own schema. The CI

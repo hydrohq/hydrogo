@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	outboxstore "github.com/ardaozyildirim/hydrogo/internal/outbox/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/database"
+	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
 )
 
 // contentEvents returns the writer that records content.created,

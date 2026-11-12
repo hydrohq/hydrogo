@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // Principal identifies the caller evaluated in access rules.

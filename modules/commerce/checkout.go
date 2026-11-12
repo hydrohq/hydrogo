@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // CheckoutRequest carries what Checkout needs beyond the cart itself.

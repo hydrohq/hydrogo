@@ -1,6 +1,6 @@
 package contenttypes
 
-import "github.com/ardaozyildirim/hydrogo/internal/adminstudio"
+import "github.com/hydrohq/hydrogo/internal/adminstudio"
 
 // HideUnreadableFields drops from the admin schema the fields that name a
 // permission the caller lacks (can reports whether they hold it), so forms and

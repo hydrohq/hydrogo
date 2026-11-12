@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database/baselinegen"
-	storagesqlite "github.com/ardaozyildirim/hydrogo/internal/storage/sqlite"
+	"github.com/hydrohq/hydrogo/internal/database/baselinegen"
+	storagesqlite "github.com/hydrohq/hydrogo/internal/storage/sqlite"
 	"gopkg.in/yaml.v3"
 )
 

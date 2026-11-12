@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/jobs"
-	jobstore "github.com/ardaozyildirim/hydrogo/internal/jobs/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/jobs"
+	jobstore "github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func newJobsTestApp(t *testing.T) *serveApp {

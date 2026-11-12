@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	authstore "github.com/ardaozyildirim/hydrogo/internal/auth/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	authstore "github.com/hydrohq/hydrogo/internal/auth/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 type mobileAuditRecorder struct {

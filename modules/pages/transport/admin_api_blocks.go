@@ -3,8 +3,8 @@ package transport
 import (
 	"net/http"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/modules/pages"
 )
 
 // blockType describes one block kind to the editor. PayloadMode tells the

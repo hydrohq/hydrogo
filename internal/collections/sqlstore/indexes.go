@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // indexPrefix names the indexes this file manages, so it can drop the ones

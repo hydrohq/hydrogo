@@ -3,7 +3,7 @@ package sqlstore
 import (
 	"context"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // InTransaction implements collections.Transactional. Inside an open

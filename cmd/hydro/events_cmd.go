@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ardaozyildirim/hydrogo/internal/eventcatalog"
+	"github.com/hydrohq/hydrogo/internal/eventcatalog"
 )
 
 // eventsCommand exposes the published vocabulary without granting delivery,

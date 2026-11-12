@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/forms"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/forms"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 const MaxStoredForms = 1000

@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 var ErrInvalidDocument = errors.New("invalid portable document")

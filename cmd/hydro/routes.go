@@ -3,14 +3,14 @@ package main
 import (
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/adminui"
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/webhooks"
-	newstransport "github.com/ardaozyildirim/hydrogo/modules/news/transport"
-	pagetransport "github.com/ardaozyildirim/hydrogo/modules/pages/transport"
-	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
+	"github.com/hydrohq/hydrogo/internal/adminui"
+	"github.com/hydrohq/hydrogo/internal/analytics"
+	"github.com/hydrohq/hydrogo/internal/media"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/webhooks"
+	newstransport "github.com/hydrohq/hydrogo/modules/news/transport"
+	pagetransport "github.com/hydrohq/hydrogo/modules/pages/transport"
+	sitetransport "github.com/hydrohq/hydrogo/modules/site/transport"
 )
 
 // routes assembles the full route table. The order is the registration order

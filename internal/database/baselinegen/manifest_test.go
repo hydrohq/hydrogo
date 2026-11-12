@@ -3,8 +3,8 @@ package baselinegen_test
 import (
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database/baselinegen"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database/baselinegen"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestTheCommittedBaselineMatchesTheMigrationChain(t *testing.T) {

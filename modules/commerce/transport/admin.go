@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // maxListOffset bounds OFFSET paging so a crafted request cannot force a

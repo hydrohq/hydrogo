@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // ApplyRestoreControls revokes restored sessions and persists the quarantine

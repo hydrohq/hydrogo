@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/analytics"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // FeedbackTotals contains only site-wide aggregate counts; no visitor identity is stored.

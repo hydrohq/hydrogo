@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
 // maxExpandFields bounds ?expand= so one request cannot fan out widely.

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/erasure"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/erasure"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestPostgresSQLAdapterReplayIsIdempotentForPagesAndMedia(t *testing.T) {

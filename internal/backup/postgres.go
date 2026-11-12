@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/observability"
 )
 
 const maxPostgresCommandOutput = 64 << 10

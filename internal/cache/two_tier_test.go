@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type fakeRemote struct {

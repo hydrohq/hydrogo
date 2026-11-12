@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/database/baselinegen"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database/baselinegen"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 // The baseline is only trustworthy while a database it builds is the same as the

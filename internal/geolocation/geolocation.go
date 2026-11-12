@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
 	"github.com/oschwald/maxminddb-golang/v2"
 )
 

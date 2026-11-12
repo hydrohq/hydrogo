@@ -9,15 +9,15 @@ import (
 	"net/http"
 	"time"
 
-	v1 "github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
-	"github.com/ardaozyildirim/hydrogo/internal/preview"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/modules/news"
+	v1 "github.com/hydrohq/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/media"
+	"github.com/hydrohq/hydrogo/internal/preview"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/modules/news"
 )
 
 type Route struct {

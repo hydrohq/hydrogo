@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // ListNotifiedOrdersNotPaid returns orders that have a recorded payment

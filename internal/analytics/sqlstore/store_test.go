@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/extension/v1"
-	"github.com/ardaozyildirim/hydrogo/internal/analytics"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/internal/testmysql"
-	"github.com/ardaozyildirim/hydrogo/internal/testpostgres"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/extension/v1"
+	"github.com/hydrohq/hydrogo/internal/analytics"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/testmysql"
+	"github.com/hydrohq/hydrogo/internal/testpostgres"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestSQLiteNoCookieDailyStatsContract(t *testing.T) {

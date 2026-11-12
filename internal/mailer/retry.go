@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/guards"
 )
 
 const maxRetryAttempts = 10

@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 // hookStatus remembers, per hook service, how its calls went since the server

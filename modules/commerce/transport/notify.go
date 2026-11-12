@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/notify"
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
+	"github.com/hydrohq/hydrogo/internal/notify"
+	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
 // OrderReader provides access to orders and their line items for notification formatting.

@@ -9,8 +9,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/modules/commerce"
-	commercestore "github.com/ardaozyildirim/hydrogo/modules/commerce/repository/sqlstore"
+	"github.com/hydrohq/hydrogo/modules/commerce"
+	commercestore "github.com/hydrohq/hydrogo/modules/commerce/repository/sqlstore"
 )
 
 // commerceCommand is the `hydro commerce` namespace. reconcile is its only

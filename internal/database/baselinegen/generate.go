@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // GroupSpec is one baseline group: the migrations that need exactly Modules.

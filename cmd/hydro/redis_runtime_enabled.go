@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/cache"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/realtime"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/modules/news"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/internal/cache"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/modules/news"
+	"github.com/hydrohq/hydrogo/modules/pages"
 	"github.com/redis/go-redis/v9"
 )
 

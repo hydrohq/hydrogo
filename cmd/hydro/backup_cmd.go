@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	backupstore "github.com/ardaozyildirim/hydrogo/internal/backup"
-	"github.com/ardaozyildirim/hydrogo/internal/capacity"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/pathguard"
-	"github.com/ardaozyildirim/hydrogo/internal/portable"
+	backupstore "github.com/hydrohq/hydrogo/internal/backup"
+	"github.com/hydrohq/hydrogo/internal/capacity"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/pathguard"
+	"github.com/hydrohq/hydrogo/internal/portable"
 )
 
 func portableCommand(args []string, stdout, stderr io.Writer) error {

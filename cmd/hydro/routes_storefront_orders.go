@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/api"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func (a *serveApp) storefrontOrderHandler(w http.ResponseWriter, r *http.Request) {

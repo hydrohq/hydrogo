@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/config"
 )
 
 func TestValidateProductionOriginRequiresPublicOriginInProduction(t *testing.T) {

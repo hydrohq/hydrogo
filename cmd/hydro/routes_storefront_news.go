@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ardaozyildirim/hydrogo/internal/blueprints"
-	"github.com/ardaozyildirim/hydrogo/internal/collections"
-	"github.com/ardaozyildirim/hydrogo/internal/storefront"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/blueprints"
+	"github.com/hydrohq/hydrogo/internal/collections"
+	"github.com/hydrohq/hydrogo/internal/storefront"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 func (a *serveApp) loadNewsData(ctx context.Context, gov tenant.Governance, settings map[string]any, r *http.Request) storefront.NewsData {

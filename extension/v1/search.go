@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/canonical"
 )
 
 const (

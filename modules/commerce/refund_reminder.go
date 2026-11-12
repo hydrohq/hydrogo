@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/notify"
+	"github.com/hydrohq/hydrogo/internal/notify"
 )
 
 // RefundReminderWorker checks periodically for unresolved refund_required items

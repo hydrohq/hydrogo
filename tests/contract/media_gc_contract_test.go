@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/media"
-	mediastore "github.com/ardaozyildirim/hydrogo/internal/media/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/media"
+	mediastore "github.com/hydrohq/hydrogo/internal/media/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/migrations"
 )
 
 type gcBlobStore struct {

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
-	"github.com/ardaozyildirim/hydrogo/modules/members"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/modules/members"
 )
 
 func (s Store) CreateEmailVerificationToken(ctx context.Context, tx database.Executor, token members.VerificationToken) error {

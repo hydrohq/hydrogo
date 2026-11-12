@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/config"
-	"github.com/ardaozyildirim/hydrogo/internal/contenttypes"
+	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 func TestHookSchedulerFiresMatchingMinutesAndSkipsOverlap(t *testing.T) {

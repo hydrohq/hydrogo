@@ -13,7 +13,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/deepteams/webp"
 )
 

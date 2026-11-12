@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	"github.com/ardaozyildirim/hydrogo/internal/outbox"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/outbox"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 var ErrInvalidWorkerLoop = errors.New("invalid webhook worker loop configuration")

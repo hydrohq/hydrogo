@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ardaozyildirim/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/canonical"
 )
 
 var ErrInvalidLocaleFallback = errors.New("invalid locale fallback configuration")

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ardaozyildirim/hydrogo/modules/news"
-	"github.com/ardaozyildirim/hydrogo/modules/pages"
+	"github.com/hydrohq/hydrogo/modules/news"
+	"github.com/hydrohq/hydrogo/modules/pages"
 )
 
 func TestPublicModelsUseDocumentedJSONFieldNames(t *testing.T) {

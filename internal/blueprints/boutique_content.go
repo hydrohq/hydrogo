@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ardaozyildirim/hydrogo/internal/blueprints/instructions"
+	"github.com/hydrohq/hydrogo/internal/blueprints/instructions"
 )
 
 // NicheEditorial carries full rich storytelling, craft pillars, testimonials, and FAQs for a boutique.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/guards"
 )
 
 // APITokenPrefix opens every plaintext token so clients and middleware can

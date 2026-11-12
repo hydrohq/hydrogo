@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/storefront"
+	"github.com/hydrohq/hydrogo/internal/storefront"
 )
 
 // storefrontAccountHandler serves dedicated customer membership dashboard, orders and profile.

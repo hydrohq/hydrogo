@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	auditstore "github.com/ardaozyildirim/hydrogo/internal/audit/sqlstore"
-	"github.com/ardaozyildirim/hydrogo/internal/auth"
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/router"
-	"github.com/ardaozyildirim/hydrogo/internal/security"
-	"github.com/ardaozyildirim/hydrogo/migrations"
-	"github.com/ardaozyildirim/hydrogo/modules/site"
-	sitestore "github.com/ardaozyildirim/hydrogo/modules/site/repository/sqlstore"
-	sitetransport "github.com/ardaozyildirim/hydrogo/modules/site/transport"
+	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/security"
+	"github.com/hydrohq/hydrogo/migrations"
+	"github.com/hydrohq/hydrogo/modules/site"
+	sitestore "github.com/hydrohq/hydrogo/modules/site/repository/sqlstore"
+	sitetransport "github.com/hydrohq/hydrogo/modules/site/transport"
 )
 
 func TestSQLiteSiteEditionContract(t *testing.T) {

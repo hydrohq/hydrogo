@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/observability"
 )
 
 const MaxManifestBytes int64 = 1 << 20

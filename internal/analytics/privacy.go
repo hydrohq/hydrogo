@@ -14,10 +14,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ardaozyildirim/hydrogo/internal/database"
-	"github.com/ardaozyildirim/hydrogo/internal/observability"
-	"github.com/ardaozyildirim/hydrogo/internal/requestmeta"
-	"github.com/ardaozyildirim/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/observability"
+	"github.com/hydrohq/hydrogo/internal/requestmeta"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type NoCookieVisit struct {

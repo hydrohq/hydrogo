@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/ardaozyildirim/hydrogo/internal/customcode"
+	"github.com/hydrohq/hydrogo/internal/customcode"
 )
 
 const CustomCodeSettingKey = "site.custom_code"
