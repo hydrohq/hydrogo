@@ -87,6 +87,11 @@ type Repository interface {
 	ListRefundRequired(ctx context.Context, db database.Executor, unresolvedOnly bool, limit, offset int) ([]RefundRequired, error)
 	ResolveRefundRequired(ctx context.Context, db database.Executor, id, note string, resolvedAt time.Time) (bool, error)
 	RecordSMSDedup(ctx context.Context, db database.Executor, dedupKey, orderID, phone, event string, sentAt time.Time) (bool, error)
+
+	ClaimInvoice(ctx context.Context, db database.Executor, orderID, provider string, claimedAt, staleBefore time.Time) (bool, error)
+	RecordInvoiceIssued(ctx context.Context, db database.Executor, orderID string, result InvoiceResult, invoicedAt time.Time) (bool, error)
+	RecordInvoiceFailed(ctx context.Context, db database.Executor, orderID, errMsg string, failedAt time.Time) (bool, error)
+	ListOrdersDueForAutoInvoice(ctx context.Context, db database.Executor, paidBefore time.Time, limit int) ([]Order, error)
 }
 
 // OutboxWriter is the subset of internal/outbox/sqlstore.Store the service
@@ -116,6 +121,9 @@ type Service struct {
 	// Prices is the authoritative unit price for every cart line; see
 	// PriceSource. Checkout fails with ErrNoPriceSource when it is nil.
 	Prices PriceSource
+	// InvoiceCustomers is optional: when set, invoicing resolves buyer
+	// TCKN/VKN/tax office records saved alongside an order.
+	InvoiceCustomers InvoiceCustomerResolver
 	// DiscountRequiresMember refuses a discount code on a guest checkout (a code is a member benefit).
 	DiscountRequiresMember bool
 }

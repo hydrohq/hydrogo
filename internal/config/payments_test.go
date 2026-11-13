@@ -87,3 +87,43 @@ func TestLoadCarriersGeliverEnvOverrides(t *testing.T) {
 		t.Fatal("expected error for invalid HYDRO_CARRIERS_GELIVER_TEST_MODE, got nil")
 	}
 }
+
+func TestLoadInvoicingBizimHesapEnvOverrides(t *testing.T) {
+	envMap := map[string]string{
+		"HYDRO_DATABASE_DSN":                      "data/test.db",
+		"HYDRO_INVOICING_BIZIMHESAP_FIRM_ID":      "firm_env_1",
+		"HYDRO_INVOICING_BIZIMHESAP_ENDPOINT_URL": "https://invoicing.example.test/addinvoice",
+		"HYDRO_INVOICING_BIZIMHESAP_API_KEY":      "api_key_1",
+		"HYDRO_INVOICING_BIZIMHESAP_TOKEN":        "token_1",
+	}
+	lookup := func(key string) (string, bool) {
+		v, ok := envMap[key]
+		return v, ok
+	}
+
+	cfg, err := Load("", lookup, Overrides{})
+	if err != nil {
+		t.Fatalf("Load returned unexpected error: %v", err)
+	}
+	if cfg.Invoicing.AutoIssueOnPaid {
+		t.Fatal("AutoIssueOnPaid must default to false")
+	}
+	if cfg.Invoicing.BizimHesap.FirmID != "firm_env_1" ||
+		cfg.Invoicing.BizimHesap.EndpointURL != "https://invoicing.example.test/addinvoice" ||
+		cfg.Invoicing.BizimHesap.APIKey != "api_key_1" ||
+		cfg.Invoicing.BizimHesap.Token != "token_1" {
+		t.Fatalf("unexpected BizimHesap config from env: %+v", cfg.Invoicing.BizimHesap)
+	}
+
+	envMap["HYDRO_INVOICING_AUTO_ISSUE_ON_PAID"] = "true"
+	cfg, err = Load("", lookup, Overrides{})
+	if err != nil || !cfg.Invoicing.AutoIssueOnPaid {
+		t.Fatalf("expected AutoIssueOnPaid=true with env override, got %v err=%v", cfg.Invoicing.AutoIssueOnPaid, err)
+	}
+
+	// Missing endpoint_url with firm_id set must fail validation
+	delete(envMap, "HYDRO_INVOICING_BIZIMHESAP_ENDPOINT_URL")
+	if _, err := Load("", lookup, Overrides{}); err == nil {
+		t.Fatal("expected validation error when firm_id is set without endpoint_url")
+	}
+}

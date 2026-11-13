@@ -6,7 +6,7 @@
 
   interface Item { sku: string; title: string; quantity: number }
   interface Order {
-    id: string; created_at: string; payment_status: string; fulfillment_status: string; shipped_at?: string; delivered_at?: string;
+    id: string; created_at: string; payment_status: string; fulfillment_status: string; shipped_at?: string; delivered_at?: string; invoiced_at?: string;
     guest_name?: string; guest_email?: string; guest_phone?: string; guest_address?: string; guest_district?: string; guest_city?: string; guest_postal_code?: string; guest_country?: string;
     items: Item[];
   }
@@ -87,7 +87,8 @@
     ...(order.payment_status === 'failed' ? [{ label: 'Ödeme gelmedi / sipariş iptal', at: '' }] : []),
     ...(order.payment_status === 'refunded' ? [{ label: 'Ödeme iade edildi', at: '' }] : []),
     ...(order.shipped_at && !order.shipped_at.startsWith('0001') ? [{ label: 'Kargoya verildi', at: order.shipped_at }] : []),
-    ...(order.delivered_at && !order.delivered_at.startsWith('0001') ? [{ label: 'Teslim edildi', at: order.delivered_at }] : [])
+    ...(order.delivered_at && !order.delivered_at.startsWith('0001') ? [{ label: 'Teslim edildi', at: order.delivered_at }] : []),
+    ...(order.invoiced_at && !order.invoiced_at.startsWith('0001') ? [{ label: 'Fatura kesildi', at: order.invoiced_at }] : [])
   ]);
 
   const esc = (s = '') => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));

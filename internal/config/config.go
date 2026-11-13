@@ -40,6 +40,7 @@ type Config struct {
 	Commerce        Commerce         `yaml:"commerce"`
 	Payments        Payments         `yaml:"payments"`
 	Carriers        Carriers         `yaml:"carriers"`
+	Invoicing       Invoicing        `yaml:"invoicing"`
 	Notifications   Notifications    `yaml:"notifications"`
 	Factory         Factory          `yaml:"factory"`
 	Storefront      StorefrontConfig `yaml:"storefront"`
@@ -431,6 +432,28 @@ func (h Havale) Enabled() bool { return h.IBAN != "" }
 // order can be handed to from the admin Orders screen. Secrets (ws_password,
 // geliver.token, geliver.webhook_secret) belong only in a protected, untracked
 // config file.
+// Invoicing configures optional external e-Fatura / e-Arşiv invoicing for commerce orders.
+type Invoicing struct {
+	AutoIssueOnPaid bool                `yaml:"auto_issue_on_paid"`
+	BizimHesap      BizimHesapInvoicing `yaml:"bizimhesap"`
+}
+
+// BizimHesapInvoicing configures BizimHesap sales invoice submission.
+type BizimHesapInvoicing struct {
+	FirmID      string `yaml:"firm_id"`
+	EndpointURL string `yaml:"endpoint_url"`
+	APIKey      string `yaml:"api_key"`
+	Token       string `yaml:"token"`
+}
+
+// Enabled reports whether BizimHesap invoicing configuration is non-empty.
+func (b BizimHesapInvoicing) Enabled() bool {
+	return strings.TrimSpace(b.FirmID) != "" ||
+		strings.TrimSpace(b.EndpointURL) != "" ||
+		strings.TrimSpace(b.APIKey) != "" ||
+		strings.TrimSpace(b.Token) != ""
+}
+
 type Carriers struct {
 	// Default is the carrier used when the operator names none.
 	Default string         `yaml:"default"`

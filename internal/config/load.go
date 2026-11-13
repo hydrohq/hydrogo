@@ -420,6 +420,25 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		}
 		result.Carriers.Geliver.TestMode = parsed
 	}
+	if value, ok := lookup("HYDRO_INVOICING_AUTO_ISSUE_ON_PAID"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_INVOICING_AUTO_ISSUE_ON_PAID: %w", err)
+		}
+		result.Invoicing.AutoIssueOnPaid = parsed
+	}
+	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_FIRM_ID"); ok && strings.TrimSpace(value) != "" {
+		result.Invoicing.BizimHesap.FirmID = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_ENDPOINT_URL"); ok && strings.TrimSpace(value) != "" {
+		result.Invoicing.BizimHesap.EndpointURL = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_API_KEY"); ok && strings.TrimSpace(value) != "" {
+		result.Invoicing.BizimHesap.APIKey = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_TOKEN"); ok && strings.TrimSpace(value) != "" {
+		result.Invoicing.BizimHesap.Token = strings.TrimSpace(value)
+	}
 	dsnSources := 0
 	if result.Database.DSN != "" {
 		dsnSources++

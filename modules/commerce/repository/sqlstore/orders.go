@@ -64,6 +64,9 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 			return commerce.Order{}, false, err
 		}
 	}
+	if order.InvoiceStatus == "" {
+		order.InvoiceStatus = commerce.InvoiceNone
+	}
 	return order, true, nil
 }
 
@@ -137,16 +140,23 @@ type orderScanner interface {
 
 func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	var order commerce.Order
-	var paymentStatus, fulfillmentStatus string
-	var holdUntil, shippedAt, deliveredAt, created, updated any
+	var paymentStatus, fulfillmentStatus, invoiceStatus string
+	var holdUntil, shippedAt, deliveredAt, invoiceClaimedAt, invoicedAt, created, updated any
 	if err := scanner.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestDistrict, &order.GuestCountry, &order.GuestPostalCode,
 		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.SubtotalCents, &order.DiscountCode, &order.DiscountCents, &order.TaxCents, &order.ShippingCents, &order.TotalCents,
 		&order.PaymentMethod, &order.PaymentRef, &holdUntil,
-		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &order.ShippingShipmentID, &order.ShippingLabelURL, &shippedAt, &deliveredAt, &created, &updated); err != nil {
+		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &order.ShippingShipmentID, &order.ShippingLabelURL, &shippedAt, &deliveredAt,
+		&invoiceStatus, &order.InvoiceProvider, &order.InvoiceGUID, &order.InvoiceNo, &order.InvoiceURL, &order.InvoiceError, &invoiceClaimedAt, &invoicedAt,
+		&created, &updated); err != nil {
 		return commerce.Order{}, err
 	}
 	order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
 	order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
+	if invoiceStatus == "" {
+		order.InvoiceStatus = commerce.InvoiceNone
+	} else {
+		order.InvoiceStatus = commerce.InvoiceStatus(invoiceStatus)
+	}
 	var parseErr error
 	if holdUntil != nil {
 		if order.HoldUntil, parseErr = s.parseTime(holdUntil); parseErr != nil {
@@ -160,6 +170,16 @@ func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	}
 	if deliveredAt != nil {
 		if order.DeliveredAt, parseErr = s.parseTime(deliveredAt); parseErr != nil {
+			return commerce.Order{}, parseErr
+		}
+	}
+	if invoiceClaimedAt != nil {
+		if order.InvoiceClaimedAt, parseErr = s.parseTime(invoiceClaimedAt); parseErr != nil {
+			return commerce.Order{}, parseErr
+		}
+	}
+	if invoicedAt != nil {
+		if order.InvoicedAt, parseErr = s.parseTime(invoicedAt); parseErr != nil {
 			return commerce.Order{}, parseErr
 		}
 	}
@@ -180,10 +200,13 @@ func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
 		}
 		return commerce.Order{}, false, err
 	}
+	if order.InvoiceStatus == "" {
+		order.InvoiceStatus = commerce.InvoiceNone
+	}
 	return order, true, nil
 }
 
-const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipping_shipment_id, shipping_label_url, shipped_at, delivered_at, created_at, updated_at`
+const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipping_shipment_id, shipping_label_url, shipped_at, delivered_at, invoice_status, invoice_provider, invoice_guid, invoice_no, invoice_url, invoice_error, invoice_claimed_at, invoiced_at, created_at, updated_at`
 
 func (s Store) nullableTime(t time.Time) any {
 	if t.IsZero() {

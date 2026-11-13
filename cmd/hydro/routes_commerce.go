@@ -125,6 +125,7 @@ func (a *serveApp) commerceService() commerce.Service {
 			MethodDiscountPercent: a.methodDiscounts(),
 		},
 		Prices:                 catalogPrices{records: func() collections.Service { return a.collectionService }},
+		InvoiceCustomers:       collectionInvoiceCustomers{records: func() collections.Service { return a.collectionService }},
 		DiscountRequiresMember: a.cfg.Commerce.DiscountRequiresMember,
 	}
 }
@@ -165,6 +166,8 @@ func (a *serveApp) commerceRoutes() []router.Route {
 		handler.Refunder = refunder
 	}
 	handler.ShippingProvider = a.commerceShippingProvider()
+	handler.InvoiceProvider = a.commerceInvoiceProvider()
+	handler.AutoIssueInvoiceOnPaid = a.cfg.Invoicing.AutoIssueOnPaid
 
 	transportRoutes := append(handler.Routes(), paymentRoutes...)
 	transportRoutes = append(transportRoutes, a.shippingRoutes(handler.Service, handler.ClientIP)...)

@@ -9,6 +9,7 @@
   import Modal from '$lib/components/ui/Modal.svelte';
   import OrderExtras from './OrderExtras.svelte';
   import OrderShippingPanel from './OrderShippingPanel.svelte';
+  import OrderInvoicePanel from './OrderInvoicePanel.svelte';
 
   type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
   type FulfillmentStatus = 'unfulfilled' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
@@ -40,6 +41,13 @@
     shipping_label_url?: string;
     shipped_at?: string;
     delivered_at?: string;
+    invoice_status?: string;
+    invoice_provider?: string;
+    invoice_guid?: string;
+    invoice_no?: string;
+    invoice_url?: string;
+    invoice_error?: string;
+    invoiced_at?: string;
     created_at: string;
   }
 
@@ -166,7 +174,10 @@
 
   async function refundSelected() {
     if (!selected) return;
-    if (!(await confirmAction({ title: t('commerce.confirm.refundTitle'), description: t('commerce.order.refundConfirm'), confirmLabel: t('commerce.confirm.refundButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'destructive' }))) return;
+    const description = selected.invoice_status === 'issued'
+      ? t('commerce.order.refundIssuedInvoiceConfirm')
+      : t('commerce.order.refundConfirm');
+    if (!(await confirmAction({ title: t('commerce.confirm.refundTitle'), description, confirmLabel: t('commerce.confirm.refundButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'destructive' }))) return;
     actionLoading = true;
     feedback = null;
     try {
@@ -304,6 +315,18 @@
           </div>
         {/if}
         <OrderShippingPanel
+          order={selected}
+          {canWrite}
+          onupdated={(updated) => {
+            if (!selected) return;
+            selected = { ...selected, ...updated };
+            orders = orders.map((o) => (o.id === updated.id ? { ...o, ...updated } : o));
+          }}
+          onfeedback={(fb) => {
+            feedback = fb;
+          }}
+        />
+        <OrderInvoicePanel
           order={selected}
           {canWrite}
           onupdated={(updated) => {
