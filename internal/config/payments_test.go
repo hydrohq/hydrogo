@@ -51,3 +51,39 @@ func TestCarriersValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadCarriersGeliverEnvOverrides(t *testing.T) {
+	envMap := map[string]string{
+		"HYDRO_DATABASE_DSN":                       "data/test.db",
+		"HYDRO_CARRIERS_DEFAULT":                   "geliver",
+		"HYDRO_CARRIERS_GELIVER_TOKEN":             "tok_env_123",
+		"HYDRO_CARRIERS_GELIVER_SENDER_ADDRESS_ID": "addr_env_456",
+		"HYDRO_CARRIERS_GELIVER_WEBHOOK_SECRET":    "wh_env_789",
+		"HYDRO_CARRIERS_GELIVER_BASE_URL":          "https://sandbox.geliver.example",
+		"HYDRO_CARRIERS_GELIVER_TEST_MODE":         "true",
+	}
+	lookup := func(key string) (string, bool) {
+		v, ok := envMap[key]
+		return v, ok
+	}
+
+	cfg, err := Load("", lookup, Overrides{})
+	if err != nil {
+		t.Fatalf("Load returned unexpected error: %v", err)
+	}
+	if cfg.Carriers.Default != "geliver" {
+		t.Errorf("Carriers.Default = %q, want geliver", cfg.Carriers.Default)
+	}
+	if cfg.Carriers.Geliver.Token != "tok_env_123" ||
+		cfg.Carriers.Geliver.SenderAddressID != "addr_env_456" ||
+		cfg.Carriers.Geliver.WebhookSecret != "wh_env_789" ||
+		cfg.Carriers.Geliver.BaseURL != "https://sandbox.geliver.example" ||
+		!cfg.Carriers.Geliver.TestMode {
+		t.Errorf("unexpected Geliver config from env: %+v", cfg.Carriers.Geliver)
+	}
+
+	envMap["HYDRO_CARRIERS_GELIVER_TEST_MODE"] = "not-a-bool"
+	if _, err := Load("", lookup, Overrides{}); err == nil {
+		t.Fatal("expected error for invalid HYDRO_CARRIERS_GELIVER_TEST_MODE, got nil")
+	}
+}

@@ -398,6 +398,28 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if !result.Storefront.External.Enabled && (result.Storefront.External.Upstream != "" || result.Storefront.External.Command != "" || result.Storefront.External.StaticDir != "") {
 		result.Storefront.External.Enabled = true
 	}
+	if value, ok := lookup("HYDRO_CARRIERS_DEFAULT"); ok && strings.TrimSpace(value) != "" {
+		result.Carriers.Default = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_TOKEN"); ok && strings.TrimSpace(value) != "" {
+		result.Carriers.Geliver.Token = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_SENDER_ADDRESS_ID"); ok && strings.TrimSpace(value) != "" {
+		result.Carriers.Geliver.SenderAddressID = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_WEBHOOK_SECRET"); ok && strings.TrimSpace(value) != "" {
+		result.Carriers.Geliver.WebhookSecret = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_BASE_URL"); ok && strings.TrimSpace(value) != "" {
+		result.Carriers.Geliver.BaseURL = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_TEST_MODE"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_CARRIERS_GELIVER_TEST_MODE: %w", err)
+		}
+		result.Carriers.Geliver.TestMode = parsed
+	}
 	dsnSources := 0
 	if result.Database.DSN != "" {
 		dsnSources++
