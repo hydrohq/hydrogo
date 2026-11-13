@@ -65,6 +65,9 @@ func (c Config) Validate() error {
 	if c.Commerce.MaxLineQuantity < 1 || c.Commerce.MaxLineQuantity > 1000 {
 		return errors.New("commerce.max_line_quantity must be between 1 and 1000")
 	}
+	if c.Commerce.MaxPendingOrdersPerIP < 0 || c.Commerce.MaxPendingOrdersPerIP > 100000 {
+		return errors.New("commerce.max_pending_orders_per_ip must be between 0 and 100000")
+	}
 	if c.Commerce.Shipping.FlatRateCents < 0 || c.Commerce.Shipping.FreeAboveCents < 0 {
 		return errors.New("commerce shipping rates cannot be negative")
 	}
@@ -427,7 +430,55 @@ func (c Config) Validate() error {
 			return errors.New("no-cookie analytics requires an analytics hash key of at least 32 bytes")
 		}
 	}
+	if publicOrigin != nil && publicOrigin.Scheme == "https" {
+		if c.Payments.Havale.Enabled() {
+			if IsPlaceholderHavaleIBAN(c.Payments.Havale.IBAN) {
+				return errors.New("payments.havale.iban contains a placeholder value under an HTTPS public origin")
+			}
+			if strings.TrimSpace(c.Payments.Havale.BankName) == "" || IsPlaceholderText(c.Payments.Havale.BankName) {
+				return errors.New("payments.havale.bank_name is missing or contains a placeholder under an HTTPS public origin")
+			}
+			if strings.TrimSpace(c.Payments.Havale.AccountHolder) == "" || IsPlaceholderText(c.Payments.Havale.AccountHolder) {
+				return errors.New("payments.havale.account_holder is missing or contains a placeholder under an HTTPS public origin")
+			}
+		}
+		if strings.TrimSpace(c.Analytics.HashKey) != "" && IsTestAnalyticsHashKey(c.Analytics.HashKey) {
+			return errors.New("analytics.hash_key contains a development/placeholder key under an HTTPS public origin")
+		}
+	}
 	return nil
+}
+
+// IsPlaceholderText reports whether a config value still holds a template or TODO marker.
+func IsPlaceholderText(val string) bool {
+	trimmed := strings.TrimSpace(val)
+	if trimmed == "" {
+		return false
+	}
+	upper := strings.ToUpper(trimmed)
+	return upper == "CHANGE_ME" || upper == "CHANGEME" || strings.Contains(upper, "CHANGE_ME") || strings.Contains(upper, "TODO")
+}
+
+// IsPlaceholderHavaleIBAN reports whether an IBAN value is an unconfigured template placeholder.
+func IsPlaceholderHavaleIBAN(iban string) bool {
+	compact := strings.Join(strings.Fields(strings.ToUpper(iban)), "")
+	if compact == "" {
+		return false
+	}
+	return strings.HasPrefix(compact, "TR00") ||
+		strings.Contains(compact, "000000000000") ||
+		strings.Contains(compact, "TODO") ||
+		strings.Contains(compact, "CHANGE_ME") ||
+		strings.Contains(compact, "CHANGEME")
+}
+
+// IsTestAnalyticsHashKey reports whether an analytics hash key contains local/dev placeholder markers.
+func IsTestAnalyticsHashKey(val string) bool {
+	lower := strings.ToLower(strings.TrimSpace(val))
+	if lower == "" {
+		return false
+	}
+	return strings.Contains(lower, "local-dev") || strings.Contains(lower, "dev-key") || IsPlaceholderText(val)
 }
 
 func (p Payments) validate() error {
