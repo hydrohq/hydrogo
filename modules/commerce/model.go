@@ -31,6 +31,17 @@ var (
 	ErrOrderShippedRequiresApproval = errors.New("order is already shipped or delivered; refund requires explicit approval")
 	ErrOrderNotCancellableShipment  = errors.New("only a shipped order can have its shipment cancelled")
 	ErrShippingActionUnsupported    = errors.New("the configured shipping provider does not support this action")
+	ErrOrderNotInvoiceable          = errors.New("only a paid, uninvoiced order with a positive total can be invoiced")
+	ErrInvoiceCustomerInvalid       = errors.New("invoice customer tax details are incomplete or invalid")
+)
+
+type InvoiceStatus string
+
+const (
+	InvoiceNone    InvoiceStatus = "none"
+	InvoicePending InvoiceStatus = "pending"
+	InvoiceIssued  InvoiceStatus = "issued"
+	InvoiceFailed  InvoiceStatus = "failed"
 )
 
 // PaymentStatus and FulfillmentStatus are plain Go enums with guarded
@@ -146,15 +157,23 @@ type Order struct {
 	// ShippingCarrier/TrackingNumber/TrackingURL/ShipmentID/LabelURL are set
 	// together once by Service.CreateShipment -- empty until a ShippingProvider
 	// has actually accepted the order for delivery (see shipping.go).
-	ShippingCarrier        string    `json:"shipping_carrier,omitempty"`
-	ShippingTrackingNumber string    `json:"shipping_tracking_number,omitempty"`
-	ShippingTrackingURL    string    `json:"shipping_tracking_url,omitempty"`
-	ShippingShipmentID     string    `json:"shipping_shipment_id,omitempty"`
-	ShippingLabelURL       string    `json:"shipping_label_url,omitempty"`
-	ShippedAt              time.Time `json:"shipped_at,omitempty"`   // zero = not shipped yet
-	DeliveredAt            time.Time `json:"delivered_at,omitempty"` // zero = not delivered yet
-	CreatedAt              time.Time `json:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at"`
+	ShippingCarrier        string        `json:"shipping_carrier,omitempty"`
+	ShippingTrackingNumber string        `json:"shipping_tracking_number,omitempty"`
+	ShippingTrackingURL    string        `json:"shipping_tracking_url,omitempty"`
+	ShippingShipmentID     string        `json:"shipping_shipment_id,omitempty"`
+	ShippingLabelURL       string        `json:"shipping_label_url,omitempty"`
+	ShippedAt              time.Time     `json:"shipped_at,omitempty"`   // zero = not shipped yet
+	DeliveredAt            time.Time     `json:"delivered_at,omitempty"` // zero = not delivered yet
+	InvoiceStatus          InvoiceStatus `json:"invoice_status,omitempty"`
+	InvoiceProvider        string        `json:"invoice_provider,omitempty"`
+	InvoiceGUID            string        `json:"invoice_guid,omitempty"`
+	InvoiceNo              string        `json:"invoice_no,omitempty"`
+	InvoiceURL             string        `json:"invoice_url,omitempty"`
+	InvoiceError           string        `json:"invoice_error,omitempty"`
+	InvoiceClaimedAt       time.Time     `json:"-"`
+	InvoicedAt             time.Time     `json:"invoiced_at,omitempty"`
+	CreatedAt              time.Time     `json:"created_at"`
+	UpdatedAt              time.Time     `json:"updated_at"`
 }
 
 // IsGuest reports whether the order has no member account behind it.

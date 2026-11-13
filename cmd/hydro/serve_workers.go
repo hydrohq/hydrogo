@@ -150,6 +150,11 @@ func (a *serveApp) startWorkers() {
 		a.spawn(func() {
 			runCommerceRefundReminder(ctx, a.commerceService(), a.commerceNotifier(), logger, stderr)
 		})
+		if cfg.Invoicing.AutoIssueOnPaid {
+			if invoiceProvider := a.commerceInvoiceProvider(); invoiceProvider != nil {
+				a.spawn(func() { runCommerceInvoiceWorker(ctx, a, invoiceProvider, logger, stderr) })
+			}
+		}
 	}
 	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
 		a.spawn(func() {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/api"
+	"github.com/hydrohq/hydrogo/internal/notify"
 	"github.com/hydrohq/hydrogo/modules/commerce"
 )
 
@@ -219,6 +220,12 @@ func (h Handler) refundOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		api.WriteError(w, r, http.StatusBadGateway, "the payment provider did not accept the refund", nil)
 		return
+	}
+	if order.InvoiceStatus == commerce.InvoiceIssued && h.Notifier != nil {
+		DispatchNotificationAsync(h.Notifier, notify.Message{
+			Title: "Faturalı sipariş iade edildi — e-Fatura/e-Arşiv iptali gerekli",
+			Body:  "Sipariş: " + order.ID + "\nFatura No: " + order.InvoiceNo + "\nGUID: " + order.InvoiceGUID,
+		}, nil)
 	}
 	api.WriteData(w, http.StatusOK, order, nil)
 }

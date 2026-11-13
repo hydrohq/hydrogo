@@ -83,6 +83,19 @@ func validateSecrets(cfg config.Config, lookup config.LookupEnv, isProd bool, lo
 		}
 	}
 
+	// 6. Invoicing credentials in config (optional APIKey/Token are validated only if set to CHANGE_ME)
+	if cfg.Invoicing.BizimHesap.Enabled() {
+		if isInsecureSecret(cfg.Invoicing.BizimHesap.FirmID) {
+			issues = append(issues, "invoicing.bizimhesap.firm_id is empty or set to CHANGE_ME")
+		}
+		if strings.TrimSpace(cfg.Invoicing.BizimHesap.APIKey) != "" && isInsecureSecret(cfg.Invoicing.BizimHesap.APIKey) {
+			issues = append(issues, "invoicing.bizimhesap.api_key is set to CHANGE_ME")
+		}
+		if strings.TrimSpace(cfg.Invoicing.BizimHesap.Token) != "" && isInsecureSecret(cfg.Invoicing.BizimHesap.Token) {
+			issues = append(issues, "invoicing.bizimhesap.token is set to CHANGE_ME")
+		}
+	}
+
 	if len(issues) == 0 {
 		return nil
 	}

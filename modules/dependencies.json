@@ -1,4 +1,7 @@
 {
+  "modules/invoicing": [
+    "modules/commerce"
+  ],
   "modules/members": [],
   "modules/news": [],
   "modules/pages": [

@@ -47,6 +47,9 @@ func (c Config) Validate() error {
 	if err := c.Carriers.validate(); err != nil {
 		return err
 	}
+	if err := c.Invoicing.validate(); err != nil {
+		return err
+	}
 	if c.Security.PublicContentRatePerMinute < 0 {
 		return errors.New("security.public_content_rate_per_minute must not be negative")
 	}
@@ -465,6 +468,24 @@ func (c Carriers) validate() error {
 	case "", "manual", "yurtici", "http", "geliver":
 	default:
 		return errors.New("carriers.default must be manual, yurtici, http or geliver")
+	}
+	return nil
+}
+
+func (i Invoicing) validate() error {
+	if !i.BizimHesap.Enabled() {
+		return nil
+	}
+	if strings.TrimSpace(i.BizimHesap.FirmID) == "" {
+		return errors.New("invoicing.bizimhesap.firm_id is required when invoicing.bizimhesap is configured")
+	}
+	endpoint := strings.TrimSpace(i.BizimHesap.EndpointURL)
+	if endpoint == "" {
+		return errors.New("invoicing.bizimhesap.endpoint_url is required when invoicing.bizimhesap is configured")
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return errors.New("invoicing.bizimhesap.endpoint_url must be a valid http or https URL")
 	}
 	return nil
 }

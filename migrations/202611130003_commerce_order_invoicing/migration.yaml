@@ -1,0 +1,28 @@
+id: "202611130003_commerce_order_invoicing"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "4ab0f241a9818ab16cf31f2a4df9e1e03012e9d3e2b714b06df6e30a79429da9"
+  postgres: "9f2e153ca5580185f82d1a16b0a62f615a85a2c5035f03bfdb46036f6becf1b8"
+  mysql: "69c45288b56a07bd43787808a21afa248ac06e5be100600b1fcd7d453593b670"
+dependencies:
+  - "202611130002_commerce_order_shipping_details"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding eight invoice columns and one due index"
+disk_estimate: "Eight invoice tracking columns and one partial lookup index per order row"
+compatibility: "Additive only. Existing orders default to invoice_status='none', empty metadata fields, and NULL claim/issue timestamps."
+smoke:
+  - "An order created before this migration still reads back with invoice_status='none'"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

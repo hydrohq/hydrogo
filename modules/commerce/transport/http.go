@@ -82,6 +82,10 @@ type Handler struct {
 	// ShippingProvider is optional: when set, an admin can hand a paid order
 	// to the carrier via POST .../orders/{id}/shipment.
 	ShippingProvider commerce.ShippingProvider
+	// InvoiceProvider is optional: when set, an admin (or auto worker) can
+	// issue external invoices for paid orders via POST .../orders/{id}/invoice.
+	InvoiceProvider        commerce.InvoiceProvider
+	AutoIssueInvoiceOnPaid bool
 }
 
 // OrderMailer sends a customer-facing order receipt. mailer.NotificationSender
@@ -115,6 +119,8 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment/offers", Handler: http.HandlerFunc(h.listShipmentOffers), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment/cancel", Handler: http.HandlerFunc(h.cancelShipment), Protected: true, Permission: PermissionWrite},
+		{Pattern: "GET /api/v1/admin/commerce/invoicing/status", Handler: http.HandlerFunc(h.getInvoicingStatus), Protected: true, Permission: PermissionRead},
+		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/invoice", Handler: http.HandlerFunc(h.issueOrderInvoice), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/refunds-required", Handler: http.HandlerFunc(h.listRefundsRequired), Protected: true, Permission: PermissionRead},
@@ -220,6 +226,14 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 		api.WriteError(w, r, http.StatusConflict, "only a shipped order can have its shipment cancelled", nil)
 	case errors.Is(err, commerce.ErrShippingActionUnsupported):
 		api.WriteError(w, r, http.StatusUnprocessableEntity, "the configured shipping provider does not support this action", nil)
+	case errors.Is(err, commerce.ErrNoInvoiceProvider):
+		api.WriteError(w, r, http.StatusServiceUnavailable, "no invoice provider is configured", nil)
+	case errors.Is(err, commerce.ErrOrderNotInvoiceable):
+		api.WriteError(w, r, http.StatusConflict, "only a paid, uninvoiced order with a positive total can be invoiced", nil)
+	case errors.Is(err, commerce.ErrInvoiceCustomerInvalid):
+		api.WriteError(w, r, http.StatusUnprocessableEntity, err.Error(), nil)
+	case errors.Is(err, commerce.ErrInvoiceProviderFailed):
+		api.WriteError(w, r, http.StatusBadGateway, err.Error(), nil)
 	default:
 		slog.ErrorContext(r.Context(), "commerce internal error", "method", r.Method, "path", r.URL.Path, "error", err)
 		api.WriteError(w, r, http.StatusInternalServerError, "internal server error", nil)
