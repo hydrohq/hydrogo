@@ -5,31 +5,27 @@
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
-
-  interface TranslationRow {
-    key: string;
-    default?: string;
-    value: string;
-    overridden?: boolean;
-  }
+  import {
+    dirtyTranslationValues,
+    mapTranslationRows,
+    type BackendTranslationRow,
+    type EditableTranslationRow,
+  } from '../siteHelpers';
 
   interface TranslationsViewResponse {
     locale: string;
-    translations: TranslationRow[];
+    locales?: string[];
+    rows: BackendTranslationRow[];
   }
 
   let selectedLocale = $state('tr');
   let locales = $state<string[]>(['tr', 'en']);
-  let items = $state<TranslationRow[]>([]);
+  let items = $state<EditableTranslationRow[]>([]);
   let search = $state('');
   let loading = $state(true);
   let saving = $state(false);
   let msg = $state<string | null>(null);
   let err = $state<string | null>(null);
-
-  // New translation entry
-  let newKey = $state('');
-  let newValue = $state('');
 
   function notify(text: string, isErr = false) {
     if (isErr) {
@@ -50,7 +46,10 @@
     try {
       const res = await api.get<ApiResponse<TranslationsViewResponse>>(`/api/v1/admin/site/translations/${loc}`);
       if (res?.data) {
-        items = res.data.translations || [];
+        items = mapTranslationRows(res.data.rows);
+        if (res.data.locales && res.data.locales.length > 0) {
+          locales = res.data.locales;
+        }
         selectedLocale = res.data.locale || loc;
       }
     } catch (e: any) {
@@ -64,28 +63,31 @@
     if (!search.trim()) return items;
     const q = search.toLowerCase();
     return items.filter(
-      (it) => it.key.toLowerCase().includes(q) || it.value.toLowerCase().includes(q) || (it.default || '').toLowerCase().includes(q)
+      (it) =>
+        it.key.toLowerCase().includes(q) ||
+        it.translation.toLowerCase().includes(q) ||
+        it.default.toLowerCase().includes(q),
     );
   });
 
   async function handleSave() {
+    const values = dirtyTranslationValues(items);
+    if (Object.keys(values).length === 0) {
+      notify(t('site.tr.saved'));
+      return;
+    }
     saving = true;
     try {
-      const values: Record<string, string> = {};
-      for (const it of items) {
-        if (it.value !== undefined) {
-          values[it.key] = it.value;
-        }
+      const res = await api.put<ApiResponse<TranslationsViewResponse>>(
+        `/api/v1/admin/site/translations/${selectedLocale}`,
+        { values },
+      );
+      if (res?.data?.rows) {
+        items = mapTranslationRows(res.data.rows);
+      } else {
+        await loadTranslations(selectedLocale);
       }
-      if (newKey.trim()) {
-        values[newKey.trim()] = newValue.trim();
-      }
-
-      await api.put(`/api/v1/admin/site/translations/${selectedLocale}`, { values });
       notify(t('site.tr.saved'));
-      newKey = '';
-      newValue = '';
-      await loadTranslations(selectedLocale);
     } catch (e: any) {
       notify(e.message || t('site.tr.saveFailed'), true);
     } finally {
@@ -110,7 +112,10 @@
         {#each locales as loc}
           <button
             type="button"
-            onclick={() => { selectedLocale = loc; loadTranslations(loc); }}
+            onclick={() => {
+              selectedLocale = loc;
+              loadTranslations(loc);
+            }}
             class="px-2.5 py-1 rounded-md uppercase font-medium transition-colors cursor-pointer {selectedLocale === loc ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}"
           >
             {loc}
@@ -135,7 +140,6 @@
     </div>
   {/if}
 
-  <!-- Search & Add bar -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
     <div class="relative flex-1 max-w-sm">
       <input
@@ -168,19 +172,20 @@
           </thead>
           <tbody class="divide-y divide-border">
             {#each filteredItems as item (item.key)}
+              {@const isOverridden = item.translation.trim() !== '' && item.translation !== item.default}
               <tr class="hover:bg-muted/20 transition-colors">
                 <td class="px-4 py-2.5 font-mono text-[11px] text-foreground font-medium">
                   {item.key}
-                  {#if item.overridden}
+                  {#if isOverridden}
                     <Badge variant="outline" class="ml-1 text-[9px] py-0 px-1">{t('site.tr.custom')}</Badge>
                   {/if}
                 </td>
-                <td class="px-4 py-2.5 text-muted-foreground truncate max-w-xs">
+                <td class="px-4 py-2.5 text-muted-foreground truncate max-w-xs" title={item.default}>
                   {item.default || '—'}
                 </td>
                 <td class="px-4 py-2">
                   <input
-                    bind:value={item.value}
+                    bind:value={item.translation}
                     placeholder={item.default || t('site.tr.valuePlaceholder')}
                     class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />

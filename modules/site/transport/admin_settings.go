@@ -3,6 +3,8 @@ package transport
 import (
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,14 +23,47 @@ var plainSettingKeys = map[string]func(string) bool{
 	"site.description":            maxLen(1000),
 	"site.home_path":              func(string) bool { return true }, // ValidateSetting checks the path.
 	"seo.llms_excluded_paths":     validExcludedPaths,
+	"appearance.logo_url":         validAssetURL,
 	"appearance.favicon_url":      validAssetURL,
 	"appearance.social_image_url": validAssetURL,
+	"storefront.announcement_bar": maxLen(2000),
+	"storefront.footer_tagline":   maxLen(300),
+	"storefront.whatsapp_number":  validOptionalPhone,
+	"storefront.hero_eyebrow":     maxLen(120),
+	"storefront.hero_title":       maxLen(200),
+	"storefront.hero_subtitle":    maxLen(500),
+	"storefront.hero_image_url":   validAssetURL,
+	"storefront.hero_cta_label":   maxLen(80),
+	"storefront.hero_cta_href":    validInternalOrHTTPSURL,
+	"storefront.popup_enabled":    func(v string) bool { return v == "" || v == "true" || v == "false" },
+	"storefront.popup_code":       maxLen(40),
+	"storefront.popup_percent":    validPercentOption,
 	// The language the admin panel opens in for users who did not pick one.
 	// Admin panel branding (see ValidBrandColor); empty values mean the HydroGo defaults.
 	"admin.brand_name":     maxLen(60),
 	"admin.brand_logo_url": validAssetURL,
 	"admin.brand_color":    ValidBrandColor,
 	"admin.default_locale": func(value string) bool { return value == "" || i18n.IsSupportedCatalogLocale(value) },
+}
+
+var optionalPhoneRe = regexp.MustCompile(`^\+?[0-9(). -]{7,24}$`)
+
+func validOptionalPhone(value string) bool {
+	value = strings.TrimSpace(value)
+	return value == "" || optionalPhoneRe.MatchString(value)
+}
+
+func validInternalOrHTTPSURL(value string) bool {
+	return validAssetURL(value)
+}
+
+func validPercentOption(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	n, err := strconv.Atoi(value)
+	return err == nil && n >= 1 && n <= 99
 }
 
 // ValidBrandColor accepts an empty value or a #rrggbb colour.
@@ -292,7 +327,27 @@ func (h Handler) adminSaveStaffNotice(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &notice) {
 		return
 	}
-	notice.Message, notice.Severity = strings.TrimSpace(notice.Message), strings.TrimSpace(notice.Severity)
+	notice.Message = strings.TrimSpace(notice.Message)
+	notice.Severity = strings.TrimSpace(notice.Severity)
+	notice.ExpiresAt = strings.TrimSpace(notice.ExpiresAt)
+	if notice.Severity == "" {
+		notice.Severity = "info"
+	}
+	if notice.ExpiresAt == "" {
+		notice.ExpiresAt = time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339)
+	}
+	if !notice.Active && notice.Message == "" {
+		current, ok := h.privateSetting(w, r, site.StaffNoticeSettingKey)
+		if !ok {
+			return
+		}
+		prev := site.StaffBroadcastNoticeFromSetting(current)
+		if strings.TrimSpace(prev.Message) == "" {
+			api.WriteData(w, http.StatusOK, notice, nil)
+			return
+		}
+		notice.Message = prev.Message
+	}
 	setting, err := notice.Setting()
 	if err != nil {
 		api.WriteValidation(w, r, map[string]string{"notice": "invalid"})

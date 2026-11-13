@@ -97,6 +97,7 @@ type Service struct {
 	Forms              FormRegistry
 	MailQueue          TransactionalMailQueue
 	FormMetrics        FormSubmissionMetrics
+	Events             func(ctx context.Context, tx database.Executor, topic, key string) error
 	RequireTenantScope bool
 }
 
@@ -158,7 +159,10 @@ func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 		if err := s.Store.UpsertSetting(ctx, tx, value); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, "site.setting.updated", value.Key)
+		if err := s.audit(ctx, tx, "site.setting.updated", value.Key); err != nil {
+			return err
+		}
+		return s.emit(ctx, tx, value.Key)
 	})
 }
 
@@ -175,7 +179,10 @@ func (s Service) SaveContactWidget(ctx context.Context, value ContactWidget) err
 				return err
 			}
 		}
-		return s.audit(ctx, tx, "site.contact_widget.updated", "contact widget")
+		if err := s.audit(ctx, tx, "site.contact_widget.updated", "contact widget"); err != nil {
+			return err
+		}
+		return s.emit(ctx, tx, "contact_widget")
 	})
 }
 
@@ -195,7 +202,10 @@ func (s Service) SaveSocialProfiles(ctx context.Context, profiles []SocialProfil
 		if err := s.Store.UpsertSetting(ctx, tx, Setting{Key: "site.social_profiles", Value: string(payload), Public: true}); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, "site.social_profiles.updated", "social profiles")
+		if err := s.audit(ctx, tx, "site.social_profiles.updated", "social profiles"); err != nil {
+			return err
+		}
+		return s.emit(ctx, tx, "site.social_profiles")
 	})
 }
 
@@ -211,7 +221,10 @@ func (s Service) SaveNavigation(ctx context.Context, locale string, items []Navi
 		if err := s.Store.ReplaceNavigation(ctx, tx, locale, items); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, "site.navigation.updated", locale)
+		if err := s.audit(ctx, tx, "site.navigation.updated", locale); err != nil {
+			return err
+		}
+		return s.emit(ctx, tx, "navigation:"+locale)
 	})
 }
 
@@ -413,7 +426,7 @@ func (s Service) SaveRedirectRules(ctx context.Context, values []RedirectRule) e
 				return err
 			}
 		}
-		return nil
+		return s.emit(ctx, tx, "redirects")
 	})
 }
 
@@ -429,7 +442,10 @@ func (s Service) DeleteRedirectRule(ctx context.Context, id string) error {
 		if err := store.DeleteRedirectRule(ctx, tx, id); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, "site.redirect_rule.deleted", id)
+		if err := s.audit(ctx, tx, "site.redirect_rule.deleted", id); err != nil {
+			return err
+		}
+		return s.emit(ctx, tx, "redirects:"+id)
 	})
 }
 
@@ -704,4 +720,11 @@ func (s Service) audit(ctx context.Context, tx database.Executor, action, target
 		return errAuditIDUnavailable
 	}
 	return s.Audit.Record(ctx, tx, "site-"+hex.EncodeToString(idBytes), action, target)
+}
+
+func (s Service) emit(ctx context.Context, tx database.Executor, key string) error {
+	if s.Events == nil {
+		return nil
+	}
+	return s.Events(ctx, tx, "site.updated", key)
 }

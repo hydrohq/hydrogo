@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/hydrohq/hydrogo/internal/api"
 	"github.com/hydrohq/hydrogo/internal/canonical"
@@ -87,6 +88,20 @@ func (h Handler) adminSaveNavigation(w http.ResponseWriter, r *http.Request) {
 		payload.Items = []site.NavigationItem{}
 	}
 	for i := range payload.Items {
+		payload.Items[i].ID = strings.TrimSpace(payload.Items[i].ID)
+		if payload.Items[i].ID == "" {
+			id, err := randomID("nav-")
+			if err != nil {
+				api.WriteError(w, r, http.StatusServiceUnavailable, "navigation unavailable", nil)
+				return
+			}
+			payload.Items[i].ID = id
+		}
+		href := strings.TrimSpace(payload.Items[i].Href)
+		if href != "" && !strings.HasPrefix(href, "/") && !strings.HasPrefix(href, "#") && !strings.Contains(href, ":") {
+			href = "/" + href
+		}
+		payload.Items[i].Href = href
 		payload.Items[i].Position = i
 	}
 	if err := h.Service.SaveNavigation(r.Context(), locale, payload.Items); err != nil {

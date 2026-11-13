@@ -20,27 +20,54 @@ type BusinessHours struct {
 }
 
 type BusinessProfile struct {
-	Name      string                         `json:"name"`
-	Address   string                         `json:"address"`
-	Phone     string                         `json:"phone,omitempty"`
-	Email     string                         `json:"email,omitempty"`
-	Website   string                         `json:"website,omitempty"`
-	Timezone  string                         `json:"timezone"`
-	Hours     map[time.Weekday]BusinessHours `json:"hours,omitempty"`
-	Latitude  *float64                       `json:"latitude,omitempty"`
-	Longitude *float64                       `json:"longitude,omitempty"`
+	Name       string                         `json:"name"`
+	LegalName  string                         `json:"legal_name,omitempty"`
+	TaxID      string                         `json:"tax_id,omitempty"`
+	TaxOffice  string                         `json:"tax_office,omitempty"`
+	MersisNo   string                         `json:"mersis_no,omitempty"`
+	KepAddress string                         `json:"kep_address,omitempty"`
+	Address    string                         `json:"address"`
+	City       string                         `json:"city,omitempty"`
+	Country    string                         `json:"country,omitempty"`
+	PostalCode string                         `json:"postal_code,omitempty"`
+	Phone      string                         `json:"phone,omitempty"`
+	Email      string                         `json:"email,omitempty"`
+	Website    string                         `json:"website,omitempty"`
+	Timezone   string                         `json:"timezone"`
+	Hours      map[time.Weekday]BusinessHours `json:"hours,omitempty"`
+	Latitude   *float64                       `json:"latitude,omitempty"`
+	Longitude  *float64                       `json:"longitude,omitempty"`
 }
 
 var businessPhone = regexp.MustCompile(`^\+?[0-9(). -]{7,24}$`)
+
+func validOptionalText(value string, max int) bool {
+	return len(value) <= max && !strings.ContainsAny(value, "\x00")
+}
 
 func (p *BusinessProfile) Validate() error {
 	if p == nil {
 		return ErrInvalidSetting
 	}
 	p.Name, p.Address = strings.TrimSpace(p.Name), strings.TrimSpace(p.Address)
+	p.LegalName, p.TaxID, p.TaxOffice = strings.TrimSpace(p.LegalName), strings.TrimSpace(p.TaxID), strings.TrimSpace(p.TaxOffice)
+	p.MersisNo, p.KepAddress = strings.TrimSpace(p.MersisNo), strings.TrimSpace(p.KepAddress)
+	p.City, p.Country, p.PostalCode = strings.TrimSpace(p.City), strings.TrimSpace(p.Country), strings.TrimSpace(p.PostalCode)
 	p.Phone, p.Email, p.Website = strings.TrimSpace(p.Phone), strings.TrimSpace(p.Email), strings.TrimSpace(p.Website)
 	p.Timezone = strings.TrimSpace(p.Timezone)
-	if p.Name == "" || len(p.Name) > 200 || p.Address == "" || len(p.Address) > 1000 || (p.Phone != "" && !businessPhone.MatchString(p.Phone)) || (p.Email != "" && !validBusinessEmail(p.Email)) || (p.Website != "" && !validBusinessURL(p.Website)) || len(p.Hours) > 7 || (p.Latitude == nil) != (p.Longitude == nil) || p.Latitude != nil && (math.IsNaN(*p.Latitude) || math.IsInf(*p.Latitude, 0) || *p.Latitude < -90 || *p.Latitude > 90 || math.IsNaN(*p.Longitude) || math.IsInf(*p.Longitude, 0) || *p.Longitude < -180 || *p.Longitude > 180) {
+	if p.Timezone == "" {
+		p.Timezone = "UTC"
+	}
+	if p.Name == "" || !validOptionalText(p.Name, 200) || !validOptionalText(p.Address, 1000) ||
+		!validOptionalText(p.LegalName, 300) || !validOptionalText(p.TaxID, 100) || !validOptionalText(p.TaxOffice, 120) ||
+		!validOptionalText(p.MersisNo, 64) || !validOptionalText(p.City, 120) || !validOptionalText(p.Country, 120) ||
+		!validOptionalText(p.PostalCode, 40) ||
+		(p.Phone != "" && !businessPhone.MatchString(p.Phone)) ||
+		(p.Email != "" && !validBusinessEmail(p.Email)) ||
+		(p.KepAddress != "" && !validBusinessEmail(p.KepAddress)) ||
+		(p.Website != "" && !validBusinessURL(p.Website)) ||
+		len(p.Hours) > 7 || (p.Latitude == nil) != (p.Longitude == nil) ||
+		p.Latitude != nil && (math.IsNaN(*p.Latitude) || math.IsInf(*p.Latitude, 0) || *p.Latitude < -90 || *p.Latitude > 90 || math.IsNaN(*p.Longitude) || math.IsInf(*p.Longitude, 0) || *p.Longitude < -180 || *p.Longitude > 180) {
 		return ErrInvalidSetting
 	}
 	if _, err := time.LoadLocation(p.Timezone); err != nil {
@@ -78,7 +105,29 @@ func BusinessJSONLD(profile BusinessProfile) (string, error) {
 			hours = append(hours, openingHours{Type: "OpeningHoursSpecification", Day: "https://schema.org/" + weekdays[int(day)], Opens: item.Opens, Closes: item.Closes})
 		}
 	}
-	data := map[string]any{"@context": "https://schema.org", "@type": "LocalBusiness", "name": profile.Name, "address": map[string]string{"@type": "PostalAddress", "streetAddress": profile.Address}}
+	data := map[string]any{"@context": "https://schema.org", "@type": "LocalBusiness", "name": profile.Name}
+	address := map[string]string{"@type": "PostalAddress"}
+	if profile.Address != "" {
+		address["streetAddress"] = profile.Address
+	}
+	if profile.City != "" {
+		address["addressLocality"] = profile.City
+	}
+	if profile.Country != "" {
+		address["addressCountry"] = profile.Country
+	}
+	if profile.PostalCode != "" {
+		address["postalCode"] = profile.PostalCode
+	}
+	if len(address) > 1 {
+		data["address"] = address
+	}
+	if profile.LegalName != "" {
+		data["legalName"] = profile.LegalName
+	}
+	if profile.TaxID != "" {
+		data["taxID"] = profile.TaxID
+	}
 	if profile.Phone != "" {
 		data["telephone"] = profile.Phone
 	}

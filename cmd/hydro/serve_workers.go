@@ -156,7 +156,7 @@ func (a *serveApp) startWorkers() {
 			}
 		}
 	}
-	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks))) {
+	if !cfg.SafeMode && !cgiMode && (modules["pages"] || modules["news"] || modules["commerce"] || (modules["collections"] && subscribesToContent(cfg.Webhooks)) || (modules["site"] && subscribesToSite(cfg.Webhooks))) {
 		a.spawn(func() {
 			runOutboxWorker(ctx, webhooks.Worker{DB: db, Store: outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, TenantScopes: tenantScopes, Dispatcher: webhooks.Dispatcher{Endpoints: a.webhookEndpoints}, WorkerID: "outbox-worker-0", Lease: time.Minute, RetryAfter: time.Minute}, stderr)
 		})

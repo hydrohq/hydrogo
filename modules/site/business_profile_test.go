@@ -24,3 +24,34 @@ func TestBusinessProfileSettingAndOpenHours(t *testing.T) {
 		t.Fatal("unsafe business URL accepted")
 	}
 }
+
+func TestBusinessProfileExtendedCorporateFieldsAndDefaults(t *testing.T) {
+	profile := BusinessProfile{
+		Name:       "Atelier",
+		LegalName:  "Atelier Deri Ltd. Şti.",
+		TaxID:      "1234567890",
+		TaxOffice:  "Beyoğlu",
+		MersisNo:   "0123456789000001",
+		KepAddress: "atelier@hs01.kep.tr",
+		City:       "İstanbul",
+		Country:    "Türkiye",
+		PostalCode: "34430",
+	}
+	setting, err := profile.ToSetting()
+	if err != nil {
+		t.Fatalf("extended profile rejected: %v", err)
+	}
+	decoded, ok := BusinessProfileFromSettings([]Setting{setting})
+	if !ok || decoded.Timezone != "UTC" || decoded.LegalName != profile.LegalName || decoded.TaxOffice != profile.TaxOffice {
+		t.Fatalf("decoded=%+v ok=%v", decoded, ok)
+	}
+	ld, err := BusinessJSONLD(decoded)
+	if err != nil || ld == "" {
+		t.Fatalf("BusinessJSONLD err=%v ld=%q", err, ld)
+	}
+	invalidKep := profile
+	invalidKep.KepAddress = "not-an-email"
+	if invalidKep.Validate() == nil {
+		t.Fatal("invalid KEP address accepted")
+	}
+}
