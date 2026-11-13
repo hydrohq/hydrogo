@@ -1,6 +1,11 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestPaymentsValidation(t *testing.T) {
 	cases := []struct {
@@ -125,5 +130,107 @@ func TestLoadInvoicingBizimHesapEnvOverrides(t *testing.T) {
 	delete(envMap, "HYDRO_INVOICING_BIZIMHESAP_ENDPOINT_URL")
 	if _, err := Load("", lookup, Overrides{}); err == nil {
 		t.Fatal("expected validation error when firm_id is set without endpoint_url")
+	}
+}
+
+func TestLoadPaymentsHavaleAndCommerceEnvOverrides(t *testing.T) {
+	envMap := map[string]string{
+		"HYDRO_DATABASE_DSN":                            "data/test.db",
+		"HYDRO_HTTP_PUBLIC_ORIGIN":                      "https://beyond.example.com",
+		"HYDRO_SECURE_COOKIES":                          "true",
+		"HYDRO_SECURITY_PUBLIC_CONTENT_RATE_PER_MINUTE": "12000",
+		"HYDRO_COMMERCE_MAX_PENDING_ORDERS_PER_IP":      "150",
+		"HYDRO_PAYMENTS_DEFAULT":                        "havale",
+		"HYDRO_PAYMENTS_HAVALE_IBAN":                    "TR330006100519786457841326",
+		"HYDRO_PAYMENTS_HAVALE_BANK_NAME":               "Ziraat Bankası",
+		"HYDRO_PAYMENTS_HAVALE_ACCOUNT_HOLDER":          "BEYOND DERİ A.Ş.",
+		"HYDRO_PAYMENTS_HAVALE_WHATSAPP":                "+905551112233",
+		"HYDRO_PAYMENTS_HAVALE_DISCOUNT_PERCENT":        "7.5",
+	}
+	lookup := func(key string) (string, bool) {
+		v, ok := envMap[key]
+		return v, ok
+	}
+
+	cfg, err := Load("", lookup, Overrides{})
+	if err != nil {
+		t.Fatalf("Load returned unexpected error: %v", err)
+	}
+	if cfg.HTTP.PublicOrigin != "https://beyond.example.com" {
+		t.Errorf("HTTP.PublicOrigin = %q, want https://beyond.example.com", cfg.HTTP.PublicOrigin)
+	}
+	if cfg.Security.PublicContentRatePerMinute != 12000 {
+		t.Errorf("Security.PublicContentRatePerMinute = %d, want 12000", cfg.Security.PublicContentRatePerMinute)
+	}
+	if cfg.Commerce.MaxPendingOrdersPerIP != 150 {
+		t.Errorf("Commerce.MaxPendingOrdersPerIP = %d, want 150", cfg.Commerce.MaxPendingOrdersPerIP)
+	}
+	if cfg.Payments.Default != "havale" ||
+		cfg.Payments.Havale.IBAN != "TR330006100519786457841326" ||
+		cfg.Payments.Havale.BankName != "Ziraat Bankası" ||
+		cfg.Payments.Havale.AccountHolder != "BEYOND DERİ A.Ş." ||
+		cfg.Payments.Havale.WhatsApp != "+905551112233" ||
+		cfg.Payments.Havale.DiscountPercent != 7.5 {
+		t.Errorf("unexpected Havale config from env: %+v", cfg.Payments)
+	}
+
+	envMap["HYDRO_COMMERCE_MAX_PENDING_ORDERS_PER_IP"] = "abc"
+	if _, err := Load("", lookup, Overrides{}); err == nil {
+		t.Fatal("expected error for invalid HYDRO_COMMERCE_MAX_PENDING_ORDERS_PER_IP")
+	}
+}
+
+func TestHTTPSOriginRejectsPlaceholderHavaleAndDevAnalyticsKey(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte("modules: [core, commerce, payments, analytics]\n"), 0o600); err != nil {
+		t.Fatalf("write temp config: %v", err)
+	}
+
+	baseEnv := func(overrides map[string]string) LookupEnv {
+		m := map[string]string{
+			"HYDRO_DATABASE_DSN":       "data/test.db",
+			"HYDRO_HTTP_PUBLIC_ORIGIN": "https://shop.example.com",
+			"HYDRO_SECURE_COOKIES":     "true",
+		}
+		for k, v := range overrides {
+			m[k] = v
+		}
+		return func(key string) (string, bool) {
+			v, ok := m[key]
+			return v, ok
+		}
+	}
+
+	if _, err := Load(cfgPath, baseEnv(map[string]string{
+		"HYDRO_PAYMENTS_HAVALE_IBAN":           "TR00 0000 0000 0000 0000 0000 00",
+		"HYDRO_PAYMENTS_HAVALE_BANK_NAME":      "Garanti",
+		"HYDRO_PAYMENTS_HAVALE_ACCOUNT_HOLDER": "BEYOND",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "payments.havale.iban") {
+		t.Fatalf("expected error for placeholder IBAN under HTTPS, got: %v", err)
+	}
+
+	if _, err := Load(cfgPath, baseEnv(map[string]string{
+		"HYDRO_PAYMENTS_HAVALE_IBAN":           "TR330006100519786457841326",
+		"HYDRO_PAYMENTS_HAVALE_BANK_NAME":      "TODO Banka",
+		"HYDRO_PAYMENTS_HAVALE_ACCOUNT_HOLDER": "BEYOND",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "payments.havale.bank_name") {
+		t.Fatalf("expected error for placeholder bank_name under HTTPS, got: %v", err)
+	}
+
+	if _, err := Load(cfgPath, baseEnv(map[string]string{
+		"HYDRO_ANALYTICS_NO_COOKIE_ENABLED": "true",
+		"HYDRO_ANALYTICS_HASH_KEY":          "beyond-analytics-hash-secret-2026-local-dev-key",
+	}), Overrides{}); err == nil || !strings.Contains(err.Error(), "analytics.hash_key") {
+		t.Fatalf("expected error for local-dev analytics hash key under HTTPS, got: %v", err)
+	}
+
+	if _, err := Load(cfgPath, baseEnv(map[string]string{
+		"HYDRO_PAYMENTS_HAVALE_IBAN":           "TR330006100519786457841326",
+		"HYDRO_PAYMENTS_HAVALE_BANK_NAME":      "Ziraat Bankası",
+		"HYDRO_PAYMENTS_HAVALE_ACCOUNT_HOLDER": "BEYOND DERİ A.Ş.",
+		"HYDRO_ANALYTICS_NO_COOKIE_ENABLED":    "true",
+		"HYDRO_ANALYTICS_HASH_KEY":             "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+	}), Overrides{}); err != nil {
+		t.Fatalf("expected valid HTTPS Havale + Analytics config to pass, got: %v", err)
 	}
 }

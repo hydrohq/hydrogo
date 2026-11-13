@@ -80,6 +80,55 @@ func TestValidateSecretsInProduction(t *testing.T) {
 	if err := validateSecrets(badPayTRCfg, validLookup, true, nil); err == nil || !strings.Contains(err.Error(), "payments.paytr.merchant_key") {
 		t.Fatalf("expected error for CHANGE_ME paytr merchant_key, got: %v", err)
 	}
+
+	// 6. Havale enabled in production without HYDRO_PAYMENTS_HAVALE_IBAN env var: must fail
+	havaleCfg := validCfg
+	havaleCfg.Payments.Havale = config.Havale{
+		IBAN:          "TR330006100519786457841326",
+		BankName:      "Ziraat Bankası",
+		AccountHolder: "BEYOND DERİ A.Ş.",
+	}
+	if err := validateSecrets(havaleCfg, validLookup, true, nil); err == nil || !strings.Contains(err.Error(), "HYDRO_PAYMENTS_HAVALE_IBAN") {
+		t.Fatalf("expected error when Havale enabled without HYDRO_PAYMENTS_HAVALE_IBAN, got: %v", err)
+	}
+
+	// 7. Havale with placeholder IBAN in production: must fail
+	placeholderHavaleCfg := validCfg
+	placeholderHavaleCfg.Payments.Havale = config.Havale{
+		IBAN:          "TR00 0000 0000 0000 0000 0000 00",
+		BankName:      "TODO Banka",
+		AccountHolder: "BEYOND",
+	}
+	havaleLookup := func(key string) (string, bool) {
+		if key == "HYDRO_PAYMENTS_HAVALE_IBAN" {
+			return "TR00 0000 0000 0000 0000 0000 00", true
+		}
+		return validLookup(key)
+	}
+	if err := validateSecrets(placeholderHavaleCfg, havaleLookup, true, nil); err == nil || !strings.Contains(err.Error(), "payments.havale.iban") {
+		t.Fatalf("expected error for placeholder Havale IBAN, got: %v", err)
+	}
+
+	// 8. Havale with env var and valid fields in production: must pass
+	validHavaleLookup := func(key string) (string, bool) {
+		if key == "HYDRO_PAYMENTS_HAVALE_IBAN" {
+			return "TR330006100519786457841326", true
+		}
+		return validLookup(key)
+	}
+	if err := validateSecrets(havaleCfg, validHavaleLookup, true, nil); err != nil {
+		t.Fatalf("expected valid env-backed Havale config to pass in production, got: %v", err)
+	}
+
+	// 9. Analytics local-dev-key in production: must fail
+	badAnalyticsCfg := validCfg
+	badAnalyticsCfg.Analytics = config.Analytics{
+		NoCookieEnabled: true,
+		HashKey:         "beyond-analytics-hash-secret-2026-local-dev-key",
+	}
+	if err := validateSecrets(badAnalyticsCfg, validLookup, true, nil); err == nil || !strings.Contains(err.Error(), "analytics.hash_key") {
+		t.Fatalf("expected error for local-dev analytics.hash_key, got: %v", err)
+	}
 }
 
 func TestValidateSecretsInDevelopmentWarnsInsteadOfFailing(t *testing.T) {

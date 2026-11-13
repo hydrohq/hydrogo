@@ -59,8 +59,11 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("HYDRO_CAPACITY_PROFILE"); ok && value != "" {
 		result.Profile = capacity.Profile(value)
 	}
-	if value, ok := lookup("HYDRO_PUBLIC_ORIGIN"); ok && value != "" {
-		result.HTTP.PublicOrigin = value
+	if value, ok := lookup("HYDRO_HTTP_PUBLIC_ORIGIN"); ok && strings.TrimSpace(value) != "" {
+		result.HTTP.PublicOrigin = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_PUBLIC_ORIGIN"); ok && strings.TrimSpace(value) != "" {
+		result.HTTP.PublicOrigin = strings.TrimSpace(value)
 	}
 	if value, ok := lookup("HYDRO_SITE_URL"); ok && value != "" {
 		result.HTTP.SiteURL = strings.TrimSpace(value)
@@ -438,6 +441,42 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	}
 	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_TOKEN"); ok && strings.TrimSpace(value) != "" {
 		result.Invoicing.BizimHesap.Token = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_SECURITY_PUBLIC_CONTENT_RATE_PER_MINUTE"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_SECURITY_PUBLIC_CONTENT_RATE_PER_MINUTE: %w", err)
+		}
+		result.Security.PublicContentRatePerMinute = parsed
+	}
+	if value, ok := lookup("HYDRO_COMMERCE_MAX_PENDING_ORDERS_PER_IP"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_COMMERCE_MAX_PENDING_ORDERS_PER_IP: %w", err)
+		}
+		result.Commerce.MaxPendingOrdersPerIP = parsed
+	}
+	if value, ok := lookup("HYDRO_PAYMENTS_DEFAULT"); ok && strings.TrimSpace(value) != "" {
+		result.Payments.Default = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_IBAN"); ok && strings.TrimSpace(value) != "" {
+		result.Payments.Havale.IBAN = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_BANK_NAME"); ok && strings.TrimSpace(value) != "" {
+		result.Payments.Havale.BankName = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_ACCOUNT_HOLDER"); ok && strings.TrimSpace(value) != "" {
+		result.Payments.Havale.AccountHolder = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_WHATSAPP"); ok && strings.TrimSpace(value) != "" {
+		result.Payments.Havale.WhatsApp = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_DISCOUNT_PERCENT"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_PAYMENTS_HAVALE_DISCOUNT_PERCENT: %w", err)
+		}
+		result.Payments.Havale.DiscountPercent = parsed
 	}
 	dsnSources := 0
 	if result.Database.DSN != "" {

@@ -96,6 +96,29 @@ func validateSecrets(cfg config.Config, lookup config.LookupEnv, isProd bool, lo
 		}
 	}
 
+	// 7. Havale bank transfer details must not use placeholder values or bypass env in production
+	if cfg.Payments.Havale.Enabled() {
+		if config.IsPlaceholderHavaleIBAN(cfg.Payments.Havale.IBAN) {
+			issues = append(issues, "payments.havale.iban contains a placeholder IBAN (e.g. TR00...)")
+		}
+		if strings.TrimSpace(cfg.Payments.Havale.BankName) == "" || config.IsPlaceholderText(cfg.Payments.Havale.BankName) {
+			issues = append(issues, "payments.havale.bank_name is empty or contains a placeholder")
+		}
+		if strings.TrimSpace(cfg.Payments.Havale.AccountHolder) == "" || config.IsPlaceholderText(cfg.Payments.Havale.AccountHolder) {
+			issues = append(issues, "payments.havale.account_holder is empty or contains a placeholder")
+		}
+		if envIBAN, ok := lookup("HYDRO_PAYMENTS_HAVALE_IBAN"); !ok || strings.TrimSpace(envIBAN) == "" {
+			issues = append(issues, "payments.havale is enabled without HYDRO_PAYMENTS_HAVALE_IBAN environment variable")
+		}
+	}
+
+	// 8. Analytics hash key must not remain on a local/dev key
+	if cfg.Analytics.NoCookieEnabled || strings.TrimSpace(cfg.Analytics.HashKey) != "" {
+		if config.IsTestAnalyticsHashKey(cfg.Analytics.HashKey) {
+			issues = append(issues, "analytics.hash_key is set to a development or placeholder key")
+		}
+	}
+
 	if len(issues) == 0 {
 		return nil
 	}
