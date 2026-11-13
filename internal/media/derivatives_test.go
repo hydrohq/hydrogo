@@ -13,8 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/deepteams/webp"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 type recordingDerivativeRepository struct {

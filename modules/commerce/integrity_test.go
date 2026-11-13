@@ -367,3 +367,37 @@ func TestPricingNeverDeadlocksOnAOneConnectionPool(t *testing.T) {
 		t.Fatalf("subtotal = %d, want 2468", order.SubtotalCents)
 	}
 }
+
+func TestExpiringAnOrderGivesTheCouponRedemptionBack(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	if err := svc.Repository.CreateDiscountCode(ctx, db, commerce.DiscountCode{ID: "disc-once", Code: "ONCE", Kind: commerce.DiscountFixed, Value: 100, MaxRedemptions: 1, Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Repository.EnsureStock(ctx, db, "v-once", 5); err != nil {
+		t.Fatal(err)
+	}
+	place := func(anon, key string) (commerce.Order, error) {
+		cart, err := svc.GetOrCreateCart(ctx, db, "", anon, "TRY")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := addPriced(svc, ctx, db, cart, "v-once", 1, 5000); err != nil {
+			t.Fatal(err)
+		}
+		return svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "a@example.com", IdempotencyKey: key, DiscountCode: "ONCE"})
+	}
+	first, err := place("anon-once-1", "idem-once-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := place("anon-once-2", "idem-once-2"); !errors.Is(err, commerce.ErrDiscountCodeInvalid) {
+		t.Fatalf("single-use code should be spent, got %v", err)
+	}
+	if ok, err := svc.ExpireOrder(ctx, first.ID); err != nil || !ok {
+		t.Fatalf("expire: %v %v", ok, err)
+	}
+	if _, err := place("anon-once-3", "idem-once-3"); err != nil {
+		t.Fatalf("code should be usable again after the first order was cancelled: %v", err)
+	}
+}

@@ -12,6 +12,7 @@
   import RelationField from '$lib/schema/RelationField.svelte';
   import VariantsTab from './product/VariantsTab.svelte';
   import BucklesTab from './product/BucklesTab.svelte';
+  import MediaTab from './product/MediaTab.svelte';
 
   import { slugify } from '$lib/commerce/slugify';
 
@@ -55,7 +56,7 @@ export interface ProductRecord {
   let successMessage = $state('');
   let fieldErrors = $state<Record<string, string>>({});
 
-  let activeTab = $state<'genel' | 'varyantlar' | 'tokalar'>('genel');
+  let activeTab = $state<'genel' | 'varyantlar' | 'medya' | 'tokalar'>('genel');
   let mediaPickerOpen = $state(false);
   let showAdvanced = $state(false);
   let slugEditedManually = $state(false);
@@ -90,12 +91,12 @@ export interface ProductRecord {
   function syncTabFromHash() {
     if (typeof window === 'undefined') return;
     const h = window.location.hash.replace(/^#/, '');
-    if (h === 'varyantlar' || h === 'tokalar' || h === 'genel') {
+    if (h === 'varyantlar' || h === 'medya' || h === 'tokalar' || h === 'genel') {
       activeTab = h;
     }
   }
 
-  function setTab(tab: 'genel' | 'varyantlar' | 'tokalar') {
+  function setTab(tab: 'genel' | 'varyantlar' | 'medya' | 'tokalar') {
     activeTab = tab;
     if (typeof window !== 'undefined') {
       window.location.hash = `#${tab}`;
@@ -458,6 +459,17 @@ export interface ProductRecord {
         >
           {t('products.editor.tabVariants')}
         </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-medya"
+          aria-selected={activeTab === 'medya'}
+          aria-controls="tabpanel-medya"
+          onclick={() => setTab('medya')}
+          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'medya' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+        >
+          Fotoğraf & Video
+        </button>
         {#if !isBuckleProduct}
           <button
             type="button"
@@ -686,6 +698,10 @@ export interface ProductRecord {
     {:else if activeTab === 'varyantlar'}
       <div id="tabpanel-varyantlar" role="tabpanel" aria-labelledby="tab-varyantlar">
         <VariantsTab {product} />
+      </div>
+    {:else if activeTab === 'medya'}
+      <div id="tabpanel-medya" role="tabpanel" aria-labelledby="tab-medya">
+        <MediaTab {product} />
       </div>
     {:else if activeTab === 'tokalar' && !isBuckleProduct}
       <div id="tabpanel-tokalar" role="tabpanel" aria-labelledby="tab-tokalar">

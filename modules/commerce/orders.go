@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/database"
@@ -87,6 +89,8 @@ func (s Service) ConfirmPayment(ctx context.Context, payment Payment) (bool, err
 			}
 			if current.PaymentStatus == PaymentFailed {
 				outcome = ErrLatePayment
+				// Stock is deliberately not touched: it was released when the order failed and may be sold already.
+				slog.ErrorContext(ctx, "CRITICAL: Late payment on cancelled order", "order_id", payment.OrderID, "provider", payment.Provider, "amount_cents", payment.AmountCents)
 				providerPaymentID := payment.ProviderPaymentID
 				if providerPaymentID == "" {
 					providerPaymentID = payment.EventID
@@ -175,6 +179,16 @@ func (s Service) ExpireOrder(ctx context.Context, orderID string) (bool, error) 
 		}
 		for _, item := range items {
 			if err := s.Repository.ReleaseReservation(ctx, tx, item.VariantID, item.Quantity); err != nil {
+				return err
+			}
+		}
+		// The coupon redemption taken at checkout is returned too, so the shopper can use the code again.
+		order, err := s.Repository.GetOrder(ctx, tx, orderID)
+		if err != nil {
+			return err
+		}
+		if order.DiscountCode != "" && !strings.HasPrefix(order.DiscountCode, MethodDiscountPrefix) {
+			if err := s.Repository.ReleaseDiscountCode(ctx, tx, order.DiscountCode); err != nil {
 				return err
 			}
 		}

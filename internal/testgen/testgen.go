@@ -49,6 +49,9 @@ func Generate(definitions []contenttypes.Definition) []File {
 			Path:    fmt.Sprintf("content/%s.spec.ts", definition.ID),
 			Content: generateSpec(definition),
 		})
+		if spec := generatePublicSpec(definition); spec != "" {
+			files = append(files, File{Path: fmt.Sprintf("content/%s.public.spec.ts", definition.ID), Content: spec})
+		}
 	}
 	return files
 }
@@ -163,4 +166,115 @@ export async function login(role: Role): Promise<Session> {
 export function mutHeaders(session: Session): Record<string, string> {
   return { "x-csrf-token": session.csrfToken };
 }
+
+/** A signed-out visitor: no login, only the CSRF cookie + token a public write needs. */
+export async function anonymous(): Promise<Session> {
+  const ctx = await pwRequest.newContext({ baseURL: BASE_URL });
+  const res = await ctx.get("/csrf-token");
+  const { token } = (await res.json()) as { token: string };
+  return { ctx, csrfToken: token };
+}
 `
+
+// generatePublicSpec writes the public-API safety checks for a public type: a
+// private field must never come back to a visitor (nor be sortable), and a
+// drafts type must never let a visitor publish their own record. Both are
+// properties of the schema alone, so they are safe to regenerate. Returns ""
+// when the type has nothing of the kind to check.
+func generatePublicSpec(d contenttypes.Definition) string {
+	if !d.Public {
+		return ""
+	}
+	var private []string
+	for _, f := range d.Fields {
+		if f.Private {
+			private = append(private, f.ID)
+		}
+	}
+	payload, marker, canCreate := samplePayload(d)
+	checkDrafts := d.Drafts && canCreate
+	if len(private) == 0 && !checkDrafts {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString(generatedHeader)
+	fmt.Fprintf(&b, "// Source: content-types/%s.yaml. Public-API safety checks derived from the schema.\n", d.ID)
+	b.WriteString(`import { test, expect } from "@playwright/test";` + "\n")
+	b.WriteString(`import { anonymous, mutHeaders } from "./_helpers";` + "\n\n")
+	fmt.Fprintf(&b, "const PUBLIC = \"/api/v1/content/%s\";\n\n", d.ID)
+	fmt.Fprintf(&b, "test.describe(%q, () => {\n", d.ID+" — public API safety")
+
+	for _, field := range private {
+		fmt.Fprintf(&b, "  test(%q, async () => {\n", "private field "+field+" never reaches a visitor")
+		b.WriteString("    const visitor = await anonymous();\n")
+		b.WriteString("    const res = await visitor.ctx.get(PUBLIC);\n")
+		b.WriteString("    // A type whose public list is closed answers 401/403/404: nothing to leak either way.\n")
+		b.WriteString("    if (res.status() !== 200) return;\n")
+		b.WriteString("    const body = (await res.json()) as { data?: Record<string, unknown>[] };\n")
+		fmt.Fprintf(&b, "    for (const item of body.data ?? []) expect(item).not.toHaveProperty(%q);\n", field)
+		fmt.Fprintf(&b, "    const sorted = await visitor.ctx.get(PUBLIC + %q);\n", "?sort="+field)
+		b.WriteString("    expect(sorted.status()).not.toBe(200);\n")
+		b.WriteString("  });\n\n")
+	}
+
+	if checkDrafts {
+		b.WriteString("  test(\"a visitor cannot publish their own record\", async () => {\n")
+		b.WriteString("    const visitor = await anonymous();\n")
+		fmt.Fprintf(&b, "    const res = await visitor.ctx.post(PUBLIC, { headers: mutHeaders(visitor), data: %s });\n", payload)
+		b.WriteString("    // Closed to visitors (401/403) or rejected (4xx): fine, nothing was published.\n")
+		b.WriteString("    if (res.status() !== 201) return;\n")
+		b.WriteString("    const created = (await res.json()) as { data?: { status?: string } };\n")
+		b.WriteString("    expect(created.data?.status ?? \"draft\").toBe(\"draft\");\n")
+		b.WriteString("    const list = await visitor.ctx.get(PUBLIC);\n")
+		b.WriteString("    if (list.status() !== 200) return;\n")
+		fmt.Fprintf(&b, "    expect(JSON.stringify(await list.json())).not.toContain(%q);\n", marker)
+		b.WriteString("  });\n")
+	}
+	b.WriteString("});\n")
+	return b.String()
+}
+
+// samplePayload builds a minimal valid body from the required fields when all
+// of them are simple kinds. The first text field carries a marker so the test
+// can recognise its own record. ok=false when a required field (a relation,
+// media, ...) needs data the schema cannot invent.
+func samplePayload(d contenttypes.Definition) (payload, marker string, ok bool) {
+	const markerValue = "e2e-public-safety-marker"
+	parts := []string{`"status": "published"`}
+	marked := false
+	for _, f := range d.Fields {
+		if !f.Required {
+			continue
+		}
+		var v string
+		switch f.Kind {
+		case "text", "textarea", "richtext":
+			v = fmt.Sprintf("%q", markerValue)
+			marked = true
+		case "number":
+			v = "1"
+			if f.Min != nil {
+				v = fmt.Sprintf("%v", *f.Min)
+			}
+		case "boolean":
+			v = "true"
+		case "select":
+			if len(f.Options) == 0 {
+				return "", "", false
+			}
+			v = fmt.Sprintf("%q", f.Options[0])
+		case "date":
+			v = `"2026-01-01"`
+		case "datetime":
+			v = `"2026-01-01T00:00:00Z"`
+		default:
+			return "", "", false
+		}
+		parts = append(parts, fmt.Sprintf("%q: %s", f.ID, v))
+	}
+	if !marked {
+		return "", "", false
+	}
+	return "{ " + strings.Join(parts, ", ") + " }", markerValue, true
+}

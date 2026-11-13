@@ -81,6 +81,8 @@ type Commerce struct {
 	Currencies            Currencies  `yaml:"currencies"`
 	MaxPendingOrdersPerIP int         `yaml:"max_pending_orders_per_ip"`
 	MaxLineQuantity       int         `yaml:"max_line_quantity"`
+	// DiscountRequiresMember: discount codes can only be used by a signed-in member (guest checkouts are refused).
+	DiscountRequiresMember bool `yaml:"discount_requires_member"`
 }
 
 // Tax configures KDV/VAT for every checkout. The zero value (Rate 0) adds

@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hydrohq/hydrogo/internal/database"
 	webp "github.com/deepteams/webp"
+	"github.com/hydrohq/hydrogo/internal/database"
 	pdfviewer "github.com/tucats/pdf-viewer"
 	xdraw "golang.org/x/image/draw"
 )

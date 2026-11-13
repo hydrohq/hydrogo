@@ -204,3 +204,28 @@ func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 	}
 	api.WriteData(w, http.StatusOK, start, nil)
 }
+
+// cancelOrder lets a shopper abandon a still-unpaid order at once instead of
+// waiting for the expiry sweep: pending -> failed, stock released. Same
+// id-knowledge trust model as startOrderPayment; a payment that still lands
+// afterwards takes the existing late-payment (refund required) path.
+func (h Handler) cancelOrder(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := h.Service.Order(r.Context(), id); err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	applied, err := h.Service.ExpireOrder(r.Context(), id)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	if !applied {
+		// A second tab / a retry: already cancelled is success (idempotent); paid (or anything else) is a conflict.
+		if current, err := h.Service.Order(r.Context(), id); err != nil || current.PaymentStatus != commerce.PaymentFailed {
+			writeServiceError(w, r, commerce.ErrOrderNotPayable)
+			return
+		}
+	}
+	api.WriteData(w, http.StatusOK, map[string]string{"id": id, "payment_status": string(commerce.PaymentFailed)}, nil)
+}

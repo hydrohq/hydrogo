@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmAction } from '$lib/confirm';
   import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
@@ -148,6 +149,7 @@
   }
 
   async function dismissNotFound(path: string) {
+    if (!(await confirmAction({ title: 'Bu kayıt silinsin mi?', description: `${path} için sayılan 404 isabetleri listeden kalıcı olarak silinir.`, confirmLabel: 'Sil', cancelLabel: 'Vazgeç', variant: 'destructive' }))) return;
     try {
       await api.delete('/api/v1/admin/site/not-found', { body: JSON.stringify({ path }) });
       notFoundHits = notFoundHits.filter((h) => h.path !== path);
