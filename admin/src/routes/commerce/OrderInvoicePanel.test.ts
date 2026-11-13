@@ -64,7 +64,7 @@ describe('OrderInvoicePanel', () => {
       expect(confirmAction).toHaveBeenCalledTimes(1);
       expect(post).toHaveBeenCalledWith('/api/v1/admin/commerce/orders/order_1/invoice');
     });
-    expect(onupdated).toHaveBeenCalledWith(issuedOrder);
+    expect(onupdated).toHaveBeenCalledWith({ ...issuedOrder, invoice_error: '' });
     expect(onfeedback).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
   });
 

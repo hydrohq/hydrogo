@@ -98,7 +98,10 @@
         `/api/v1/admin/commerce/orders/${encodeURIComponent(order.id)}/invoice`
       );
       if (res?.data) {
-        onupdated(res.data);
+        onupdated({
+          ...res.data,
+          invoice_error: res.data.invoice_error ?? '',
+        });
         onfeedback({
           type: 'success',
           text: t('commerce.invoice.issuedDone', { guid: res.data.invoice_guid ?? '' }),
