@@ -10,9 +10,9 @@ import (
 	"os"
 	"testing"
 
+	mysql "github.com/go-sql-driver/mysql"
 	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/hydrohq/hydrogo/migrations"
-	mysql "github.com/go-sql-driver/mysql"
 )
 
 func Open(t *testing.T) *sql.DB {

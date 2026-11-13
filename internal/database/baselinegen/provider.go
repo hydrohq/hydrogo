@@ -10,8 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hydrohq/hydrogo/internal/database"
 	mysql "github.com/go-sql-driver/mysql"
+	"github.com/hydrohq/hydrogo/internal/database"
 )
 
 // Provider hands out empty, throwaway databases of one dialect.
