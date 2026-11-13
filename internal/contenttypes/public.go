@@ -82,14 +82,18 @@ func (p PublicAPI) present(typeID, locale string, record collections.Record) map
 	if locale != "" {
 		result["locale"] = locale
 	}
-	if p.RenderRichText == nil {
-		return result
-	}
 	for _, definition := range p.types() {
 		if definition.ID != typeID {
 			continue
 		}
 		for _, field := range definition.Fields {
+			if field.Private {
+				delete(result, field.ID)
+				continue
+			}
+			if p.RenderRichText == nil {
+				continue
+			}
 			if text, ok := result[field.ID].(string); ok && field.Kind == "richtext" {
 				result[field.ID] = p.RenderRichText(text)
 			}
@@ -160,10 +164,19 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "invalid list query", nil)
 		return
 	}
-	if definition.Drafts {
+	// ?mine=1: a signed-in member's own records of a drafts type, drafts included.
+	mine := definition.Drafts && definition.OwnerField != "" && r.URL.Query().Get("mine") == "1"
+	if mine && (!principal.IsMember || principal.Email == "") {
+		api.WriteError(w, r, http.StatusUnauthorized, "authentication required", nil)
+		return
+	}
+	switch {
+	case mine:
+		query.Where = append(query.Where, collections.Condition{Field: definition.OwnerField, Op: collections.Equals, Value: principal.Email})
+	case definition.Drafts:
 		query.Where = append(query.Where, publishedCondition())
 	}
-	if definition.AccessRules != nil && definition.AccessRules.List != "" {
+	if !mine && definition.AccessRules != nil && definition.AccessRules.List != "" {
 		listRule := strings.TrimSpace(definition.AccessRules.List)
 		if !principal.IsAdmin && !strings.EqualFold(listRule, "public") && !strings.EqualFold(listRule, "true") {
 			query.AccessRule = listRule

@@ -17,6 +17,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -596,4 +597,42 @@ func (s Store) LatestPaymentCharge(ctx context.Context, db database.Executor, or
 	}
 	c.Status = commerce.PaymentStatus(status)
 	return c, nil
+}
+
+// ListLowStock returns variants whose sellable count (available) is at or below threshold, lowest first.
+func (s Store) ListLowStock(ctx context.Context, db database.Executor, threshold, limit int) ([]commerce.Stock, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("database executor does not support row queries")
+	}
+	filter, args, err := s.scope(ctx, []any{threshold})
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT id, variant_id, available, reserved, created_at, updated_at FROM commerce_stock WHERE available <= `+s.p(1)+filter+` ORDER BY available ASC, variant_id LIMIT `+strconv.Itoa(limit), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []commerce.Stock{}
+	for rows.Next() {
+		var st commerce.Stock
+		var created, updated any
+		if err := rows.Scan(&st.ID, &st.VariantID, &st.Available, &st.Reserved, &created, &updated); err != nil {
+			return nil, err
+		}
+		if st.CreatedAt, err = s.parseTime(created); err != nil {
+			return nil, err
+		}
+		if st.UpdatedAt, err = s.parseTime(updated); err != nil {
+			return nil, err
+		}
+		out = append(out, st)
+	}
+	return out, rows.Err()
 }

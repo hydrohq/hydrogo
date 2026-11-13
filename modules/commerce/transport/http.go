@@ -101,10 +101,15 @@ func (h Handler) Routes() []Route {
 		{Pattern: "GET /api/v1/commerce/checkout-config", Handler: http.HandlerFunc(h.getCheckoutConfig)},
 		{Pattern: "GET /api/v1/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder)},
 		{Pattern: "POST /api/v1/commerce/orders/{id}/payment", Handler: http.HandlerFunc(h.startOrderPayment)},
+		{Pattern: "POST /api/v1/commerce/orders/{id}/cancel", Handler: http.HandlerFunc(h.cancelOrder)},
 		{Pattern: "POST /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.setStock), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/stock", Handler: http.HandlerFunc(h.listStockAdmin), Protected: true, Permission: PermissionRead},
+		{Pattern: "GET /api/v1/admin/commerce/stock/low", Handler: http.HandlerFunc(h.listLowStock), Protected: true, Permission: PermissionRead},
 		{Pattern: "POST /api/v1/admin/commerce/discount-codes", Handler: http.HandlerFunc(h.createDiscountCode), Protected: true, Permission: PermissionWrite},
+		{Pattern: "GET /api/v1/admin/commerce/discount-codes", Handler: http.HandlerFunc(h.listDiscountCodes), Protected: true, Permission: PermissionRead},
+		{Pattern: "POST /api/v1/admin/commerce/discount-codes/{id}/active", Handler: http.HandlerFunc(h.setDiscountCodeActive), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/refund", Handler: http.HandlerFunc(h.refundOrder), Protected: true, Permission: PermissionWrite},
+		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/cancel", Handler: http.HandlerFunc(h.cancelOrder), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true, Permission: PermissionRead},
@@ -181,6 +186,8 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 		api.WriteError(w, r, http.StatusNotFound, "order not found", nil)
 	case errors.Is(err, commerce.ErrOutOfStock):
 		api.WriteError(w, r, http.StatusConflict, "one or more items in your cart are no longer available in the requested quantity", nil)
+	case errors.Is(err, commerce.ErrDiscountMemberRequired):
+		api.WriteError(w, r, http.StatusUnauthorized, "sign in to use a discount code", map[string]string{"discount_code": "login_required"})
 	case errors.Is(err, commerce.ErrDiscountCodeInvalid):
 		api.WriteError(w, r, http.StatusUnprocessableEntity, "this discount code cannot be applied to your order", map[string]string{"discount_code": "invalid"})
 	case errors.Is(err, commerce.ErrIdempotencyConflict):

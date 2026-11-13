@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import type { RefundRequired } from '$lib/api/types';
+  import { confirmAction } from '$lib/confirm';
 
   let refunds = $state<RefundRequired[]>([]);
   let loading = $state(true);
@@ -29,6 +30,7 @@
   }
 
   async function resolve(item: RefundRequired) {
+    if (!(await confirmAction({ title: t('commerce.confirm.resolveTitle'), description: t('commerce.confirm.resolveDesc'), confirmLabel: t('commerce.confirm.resolveButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'primary' }))) return;
     resolving = item.id;
     feedback = '';
     try {

@@ -78,13 +78,14 @@
 
     uploading = true;
     try {
-      const formData = new FormData();
-      formData.append('file', target.files[0]);
-      const res = await api.upload<ApiResponse<MediaAsset>>('/api/v1/admin/media', formData);
-      if (res && res.data) {
-        await loadMedia();
-        selectedId = res.data.id;
+      // Several files at once; the last one uploaded is left selected.
+      for (const file of [...target.files]) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.upload<ApiResponse<MediaAsset>>('/api/v1/admin/media', formData);
+        if (res && res.data) selectedId = res.data.id;
       }
+      await loadMedia();
     } catch (e) {
       console.error('Upload failed:', e);
     } finally {
@@ -109,6 +110,7 @@
 
 <Modal
   {open}
+  layer="top"
   title={t('nav.media')}
   description={t('media.picker.description')}
   {onclose}
@@ -121,6 +123,7 @@
         class="hidden"
         bind:this={fileInput}
         onchange={handleFileUpload}
+        multiple
         accept="image/*,video/*,application/pdf"
       />
 
