@@ -4,12 +4,14 @@
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
+  import { normalizeInternalHref } from '../siteHelpers';
 
   interface NavigationItem {
     id: string;
     locale: string;
     label: string;
     href: string;
+    parent_id?: string;
     target?: string;
     position: number;
     visible: boolean;
@@ -26,6 +28,7 @@
   let items = $state<NavigationItem[]>([]);
   let loading = $state(true);
   let saving = $state(false);
+  let dirty = $state(false);
   let msg = $state<string | null>(null);
   let err = $state<string | null>(null);
 
@@ -51,6 +54,7 @@
         items = res.data.items || [];
         availableLocales = res.data.locales || ['tr', 'en'];
         selectedLocale = res.data.locale || loc;
+        dirty = false;
       }
     } catch (e: any) {
       notify(e.message || t('site.nav.loadFailed'), true);
@@ -60,6 +64,7 @@
   }
 
   function addItem() {
+    dirty = true;
     items = [
       ...items,
       {
@@ -67,6 +72,7 @@
         locale: selectedLocale,
         label: '',
         href: '/',
+        parent_id: '',
         target: '_self',
         position: items.length,
         visible: true,
@@ -75,17 +81,20 @@
   }
 
   function removeItem(index: number) {
+    dirty = true;
     items = items.filter((_, i) => i !== index);
   }
 
   function moveItem(index: number, direction: 'up' | 'down') {
     if (direction === 'up' && index > 0) {
+      dirty = true;
       const updated = [...items];
       const temp = updated[index - 1];
       updated[index - 1] = updated[index];
       updated[index] = temp;
       items = updated;
     } else if (direction === 'down' && index < items.length - 1) {
+      dirty = true;
       const updated = [...items];
       const temp = updated[index + 1];
       updated[index + 1] = updated[index];
@@ -101,7 +110,8 @@
         id: it.id.startsWith('new_') ? '' : it.id,
         locale: selectedLocale,
         label: it.label.trim(),
-        href: it.href.trim(),
+        href: normalizeInternalHref(it.href),
+        parent_id: it.parent_id || '',
         target: it.target || '_self',
         position: idx,
         visible: it.visible !== false,
@@ -198,6 +208,7 @@
           <div class="flex-1 min-w-[120px]">
             <input
               bind:value={item.label}
+              oninput={() => (dirty = true)}
               placeholder={t('site.nav.labelPlaceholder')}
               class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
@@ -207,6 +218,7 @@
           <div class="flex-1 min-w-[140px]">
             <input
               bind:value={item.href}
+              oninput={() => (dirty = true)}
               placeholder={t('site.nav.urlPlaceholder')}
               class="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
@@ -215,6 +227,7 @@
           <!-- Target Window -->
           <select
             bind:value={item.target}
+            onchange={() => (dirty = true)}
             class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shrink-0 focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="_self">{t('site.nav.sameTab')}</option>
@@ -223,7 +236,7 @@
 
           <!-- Visible Toggle -->
           <label class="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer shrink-0 select-none px-1">
-            <input type="checkbox" bind:checked={item.visible} class="size-3.5 rounded text-primary" />
+            <input type="checkbox" bind:checked={item.visible} onchange={() => (dirty = true)} class="size-3.5 rounded text-primary" />
             <span class="hidden sm:inline">{t('site.nav.visible')}</span>
           </label>
 
@@ -239,7 +252,9 @@
         </div>
       {/each}
     </div>
+  {/if}
 
+  {#if !loading && (items.length > 0 || dirty)}
     <div class="flex justify-end pt-3">
       <Button onclick={handleSave} disabled={saving}>
         {saving ? t('common.saving') : t('site.nav.save')}

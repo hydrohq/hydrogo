@@ -44,3 +44,29 @@ func subscribesToContent(webhooks []config.Webhook) bool {
 	}
 	return false
 }
+
+// siteEvents returns the writer that records site.updated in the outbox inside
+// the site-mutation transaction when a configured webhook subscribes to site events.
+func siteEvents(cfg config.Config, store outboxstore.Store) func(ctx context.Context, tx database.Executor, topic, key string) error {
+	if cfg.SafeMode || !subscribesToSite(cfg.Webhooks) {
+		return nil
+	}
+	return func(ctx context.Context, tx database.Executor, topic, key string) error {
+		random := make([]byte, 12)
+		_, _ = rand.Read(random)
+		id := "site-" + hex.EncodeToString(random)
+		return store.Enqueue(ctx, tx, id, topic, key, 1)
+	}
+}
+
+func subscribesToSite(webhooks []config.Webhook) bool {
+	for _, webhook := range webhooks {
+		for _, topic := range webhook.Topics {
+			trimmed := strings.TrimSpace(topic)
+			if strings.HasPrefix(trimmed, "site.") || trimmed == "*" || strings.HasPrefix(trimmed, "site:") {
+				return true
+			}
+		}
+	}
+	return false
+}

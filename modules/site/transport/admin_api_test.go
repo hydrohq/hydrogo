@@ -377,3 +377,38 @@ func TestAdminDefaultLocaleSettingAcceptsOnlySupportedLanguages(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminNavigationGeneratesIDsAndPersistsStorefrontKeys(t *testing.T) {
+	_, handler, _ := openSiteDB(t)
+	mux := adminMux(t, handler, siteAdmin)
+
+	navBody := `{"items":[{"id":"","locale":"tr","label":"Kemerler","href":"kategori/kemerler","target":"_self","position":0,"visible":true}]}`
+	resp := call(t, mux, http.MethodPut, "/api/v1/admin/site/navigation/tr", navBody)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("save nav status=%d body=%s", resp.Code, resp.Body.String())
+	}
+	var pubNav []site.NavigationItem
+	decodeData(t, call(t, mux, http.MethodGet, "/api/v1/site/navigation/tr", ""), &pubNav)
+	if len(pubNav) != 1 || pubNav[0].ID == "" || pubNav[0].Href != "/kategori/kemerler" {
+		t.Fatalf("public nav=%+v", pubNav)
+	}
+
+	bizBody := `{"name":"Atelier","legal_name":"Atelier Ltd.","tax_id":"1234567890","tax_office":"Beyoglu","mersis_no":"0123456","kep_address":"info@hs01.kep.tr","city":"Istanbul","country":"TR","timezone":""}`
+	if resp := call(t, mux, http.MethodPut, "/api/v1/admin/site/business-profile", bizBody); resp.Code != http.StatusOK {
+		t.Fatalf("save business status=%d body=%s", resp.Code, resp.Body.String())
+	}
+
+	if resp := call(t, mux, http.MethodPut, "/api/v1/admin/site/staff-notice", `{"active":false,"message":"","severity":"info"}`); resp.Code != http.StatusOK {
+		t.Fatalf("clear staff notice status=%d body=%s", resp.Code, resp.Body.String())
+	}
+
+	settingsBody := `{"settings":[{"key":"appearance.logo_url","value":"/media/logo.svg"},{"key":"storefront.announcement_bar","value":"Kargo bedava | /teslimat-kosullari\nAynı gün kargo"},{"key":"storefront.whatsapp_number","value":"+90 555 111 22 33"},{"key":"storefront.popup_code","value":"HOSGELDIN10"},{"key":"storefront.popup_percent","value":"15"}]}`
+	if resp := call(t, mux, http.MethodPut, "/api/v1/admin/site/settings", settingsBody); resp.Code != http.StatusOK {
+		t.Fatalf("save storefront settings status=%d body=%s", resp.Code, resp.Body.String())
+	}
+	var public map[string]string
+	decodeData(t, call(t, mux, http.MethodGet, "/api/v1/site/settings", ""), &public)
+	if public["appearance.logo_url"] != "/media/logo.svg" || public["storefront.popup_code"] != "HOSGELDIN10" || public["site.business_profile"] == "" {
+		t.Fatalf("public settings=%+v", public)
+	}
+}

@@ -121,7 +121,13 @@ func (a *serveApp) initSite() error {
 	if !modules["site"] {
 		return nil
 	}
-	a.siteService = site.Service{Transactions: transactioner, Store: siteStore, Audit: auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}, RequireTenantScope: requireTenantScope}
+	a.siteService = site.Service{
+		Transactions:       transactioner,
+		Store:              siteStore,
+		Audit:              auditstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope},
+		Events:             siteEvents(cfg, outboxstore.Store{Dialect: cfg.Database.Dialect, RequireTenantScope: requireTenantScope}),
+		RequireTenantScope: requireTenantScope,
+	}
 	siteService := &a.siteService
 	if modules["forms"] && noCookieHasher != nil {
 		siteService.FormMetrics = analyticsStore
