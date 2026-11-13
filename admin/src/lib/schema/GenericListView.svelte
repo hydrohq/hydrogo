@@ -10,6 +10,9 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import GenericItemModal from './GenericItemModal.svelte';
   import { expandParam, relationCell } from './relations';
+  import { hiddenStatusField, setPublication, usesDrafts } from './publication';
+  import { confirmAction } from '$lib/confirm';
+  import { statusLabel } from '$lib/i18n/labels';
 
   interface Props {
     type: string;
@@ -38,9 +41,11 @@
 
   const listFields = $derived.by(() => {
     if (!collection?.fields) return [];
-    const explicit = collection.fields.filter(f => f.visible_in_list || f.list);
+    const hidden = hiddenStatusField(collection);
+    const fields = collection.fields.filter((f) => getFieldKey(f) !== hidden);
+    const explicit = fields.filter(f => f.visible_in_list || f.list);
     if (explicit.length > 0) return explicit;
-    return collection.fields.slice(0, 4);
+    return fields.slice(0, 4);
   });
 
   function getFieldKey(f: Field): string {
@@ -115,6 +120,33 @@
   let loadedKey = '';
   const queryKey = () => `${type}|${statusFilter}|${search.trim()}`;
 
+  const hasStatus = $derived(Boolean(collection?.workflow?.enabled || usesDrafts(collection)));
+  let actingId = $state<string | null>(null);
+
+  // One-click approve / unpublish for drafts types (e.g. customer reviews wait here as drafts).
+  async function togglePublication(item: ContentItem, e: MouseEvent) {
+    e.stopPropagation();
+    if (!collection) return;
+    const target = (item.status || 'draft') === 'published' ? 'draft' : 'published';
+    const publishing = target === 'published';
+    if (!(await confirmAction({
+      title: t(publishing ? 'schema.confirm.publishTitle' : 'schema.confirm.unpublishTitle'),
+      description: t(publishing ? 'schema.confirm.publishDesc' : 'schema.confirm.unpublishDesc'),
+      confirmLabel: t(publishing ? 'schema.confirm.publishButton' : 'schema.confirm.unpublishButton'),
+      cancelLabel: t('common.cancel'),
+      variant: publishing ? 'primary' : 'destructive'
+    }))) return;
+    actingId = String(item.id);
+    try {
+      await setPublication(collection.api_path || `/api/v1/admin/content/${type}`, String(item.id), target, { status: item.status, version: Number(item.version) || 0 });
+      await loadItems();
+    } catch (err) {
+      console.warn('Failed to change publication:', err);
+    } finally {
+      actingId = null;
+    }
+  }
+
   async function loadItems() {
     if (!collection) return;
     loading = true;
@@ -122,7 +154,7 @@
     try {
       const params: Record<string, string | number> = { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE };
       if (search.trim()) params.search = search.trim();
-      if (statusFilter && collection.workflow?.enabled) params.status = statusFilter;
+      if (statusFilter && hasStatus) params.status = statusFilter;
       const expand = expandParam(listFields);
       if (expand) params.expand = expand;
       const res = await api.get<ApiResponse<ContentItem[]>>(collection.api_path || `/api/v1/admin/content/${type}`, { params });
@@ -262,7 +294,7 @@
         <!-- Toolbar (exact shadcn Tabs + Search + CTA layout) -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <!-- Segmented Status Tabs if workflow enabled -->
-          {#if collection.workflow?.enabled}
+          {#if hasStatus}
             <div class="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
               <button
                 type="button"
@@ -380,10 +412,10 @@
                       {#each listFields as field}
                         <th class="h-10 px-4 font-medium">{field.label || getFieldKey(field)}</th>
                       {/each}
-                      {#if collection.workflow?.enabled}
+                      {#if hasStatus}
                         <th class="h-10 px-4 font-medium">{t('common.status')}</th>
                       {/if}
-                      <th class="h-10 w-24 px-4 font-medium text-right">{t('common.actions')}</th>
+                      <th class="h-10 w-40 px-4 font-medium text-right">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-border">
@@ -429,19 +461,29 @@
                           </td>
                         {/each}
 
-                        {#if collection.workflow?.enabled}
+                        {#if hasStatus}
                           <td class="px-4 py-3">
                             <Badge
-                              variant={item.status === 'published' ? 'success' : item.status === 'archived' ? 'destructive' : 'outline'}
+                              variant={item.status === 'published' ? 'success' : item.status === 'archived' ? 'destructive' : 'warning'}
                               size="sm"
                             >
-                              {item.status || 'draft'}
+                              {statusLabel(item.status || 'draft')}
                             </Badge>
                           </td>
                         {/if}
 
                         <td class="px-4 py-3 text-right">
                           <div class="inline-flex items-center gap-1">
+                            {#if usesDrafts(collection)}
+                              <button
+                                type="button"
+                                disabled={actingId === String(item.id)}
+                                class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium hover:bg-accent transition-colors cursor-pointer disabled:opacity-50"
+                                onclick={(e) => togglePublication(item, e)}
+                              >
+                                {item.status === 'published' ? t('schema.unpublish') : t('pages.editor.publish')}
+                              </button>
+                            {/if}
                             <button
                               type="button"
                               class="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"

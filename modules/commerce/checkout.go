@@ -47,7 +47,8 @@ type CheckoutRequest struct {
 var (
 	// ErrDiscountCodeInvalid wraps every reason a code does not apply, so
 	// transport can tell "this code is bad" apart from other failures.
-	ErrDiscountCodeInvalid = errors.New("discount code cannot be applied to this order")
+	ErrDiscountMemberRequired = errors.New("discount codes are for signed-in members")
+	ErrDiscountCodeInvalid    = errors.New("discount code cannot be applied to this order")
 	// ErrIdempotencyConflict means the idempotency key already belongs to
 	// another cart's order. The other order is never returned.
 	ErrIdempotencyConflict = errors.New("idempotency key was already used for a different checkout")
@@ -86,6 +87,9 @@ func (s Service) Checkout(ctx context.Context, req CheckoutRequest) (Order, erro
 func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bool, error) {
 	if req.IdempotencyKey == "" {
 		return Order{}, false, errors.New("checkout requires an idempotency key")
+	}
+	if s.DiscountRequiresMember && strings.TrimSpace(req.DiscountCode) != "" && req.MemberID == "" {
+		return Order{}, false, ErrDiscountMemberRequired
 	}
 	hash := idempotencyHash(req)
 	currency := req.currency()

@@ -1,6 +1,7 @@
 export const en = {
   'schema.item': 'Item',
   'schema.moveTo': 'Move to {state}',
+  'schema.unpublish': 'Unpublish',
   'schema.setByServer': 'Set automatically on save',
   'schema.selected': '{count} selected',
   'schema.clearSelection': 'Clear',
@@ -51,11 +52,20 @@ export const en = {
   'schema.loadingSchema': 'Loading {type} schema...',
   'schema.loadingItems': 'Loading {name}...',
   'schema.selectedAsset': 'Selected asset',
+  'schema.confirm.publishTitle': 'Publish this record?',
+  'schema.confirm.publishDesc': 'It becomes visible to everyone on the site.',
+  'schema.confirm.publishButton': 'Publish',
+  'schema.confirm.unpublishTitle': 'Unpublish this record?',
+  'schema.confirm.unpublishDesc': 'It disappears from the site until you publish it again.',
+  'schema.confirm.unpublishButton': 'Unpublish',
+  'schema.confirm.moveTitle': 'Move to {state}?',
+  'schema.confirm.moveButton': 'Yes, move',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
   'schema.item': 'Öğe',
   'schema.moveTo': '{state} durumuna al',
+  'schema.unpublish': 'Yayından kaldır',
   'schema.setByServer': 'Kayıtta otomatik atanır',
   'schema.selected': '{count} seçili',
   'schema.clearSelection': 'Temizle',
@@ -106,4 +116,12 @@ export const tr: Record<keyof typeof en, string> = {
   'schema.loadingSchema': '{type} şeması yükleniyor...',
   'schema.loadingItems': '{name} yükleniyor...',
   'schema.selectedAsset': 'Seçilen varlık',
+  'schema.confirm.publishTitle': 'Kayıt yayınlansın mı?',
+  'schema.confirm.publishDesc': 'Sitede herkese görünür olur.',
+  'schema.confirm.publishButton': 'Yayınla',
+  'schema.confirm.unpublishTitle': 'Yayından kaldırılsın mı?',
+  'schema.confirm.unpublishDesc': 'Tekrar yayınlayana kadar sitede görünmez.',
+  'schema.confirm.unpublishButton': 'Yayından kaldır',
+  'schema.confirm.moveTitle': '{state} durumuna alınsın mı?',
+  'schema.confirm.moveButton': 'Evet, taşı',
 };

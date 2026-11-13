@@ -310,3 +310,57 @@ func (h Handler) resolveRefundRequired(w http.ResponseWriter, r *http.Request) {
 	}
 	api.WriteData(w, http.StatusOK, map[string]any{"resolved": true, "id": id}, nil)
 }
+
+func (h Handler) listDiscountCodes(w http.ResponseWriter, r *http.Request) {
+	limit, offset := 100, 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 500 {
+		limit = v
+	}
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v > 0 && v <= maxListOffset {
+		offset = v
+	}
+	codes, err := h.Service.ListDiscountCodes(r.Context(), limit, offset)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	api.WriteData(w, http.StatusOK, codes, nil)
+}
+
+func (h Handler) setDiscountCodeActive(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Active *bool `json:"active"`
+	}
+	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+		return
+	}
+	if input.Active == nil {
+		api.WriteError(w, r, http.StatusUnprocessableEntity, "active is required", nil)
+		return
+	}
+	found, err := h.Service.SetDiscountCodeActive(r.Context(), r.PathValue("id"), *input.Active)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	if !found {
+		api.WriteError(w, r, http.StatusNotFound, "discount code not found", nil)
+		return
+	}
+	api.WriteData(w, http.StatusOK, map[string]any{"id": r.PathValue("id"), "active": *input.Active}, nil)
+}
+
+func (h Handler) listLowStock(w http.ResponseWriter, r *http.Request) {
+	threshold := intQueryParam(r.URL.Query().Get("threshold"), 3, 0, 1000)
+	limit := intQueryParam(r.URL.Query().Get("limit"), 50, 1, 200)
+	stocks, err := h.Service.LowStock(r.Context(), threshold, limit)
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	views := make([]variantStockView, 0, len(stocks))
+	for _, st := range stocks {
+		views = append(views, variantStockView{VariantID: st.VariantID, Available: st.Available, Reserved: st.Reserved})
+	}
+	api.WriteData(w, http.StatusOK, views, nil)
+}

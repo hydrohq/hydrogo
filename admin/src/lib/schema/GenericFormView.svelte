@@ -2,6 +2,7 @@
   import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount, onDestroy } from 'svelte';
+  import { hiddenStatusField, setPublication, usesDrafts } from './publication';
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
@@ -114,6 +115,13 @@
         res = await api.put(`${endpoint}/${id}`, payload);
       }
 
+      const savedId = res?.data?.id ?? id;
+      if (statusToSet && usesDrafts(collection) && savedId) {
+        const target = statusToSet === 'published' ? 'published' : 'draft';
+        await setPublication(endpoint, String(savedId), target);
+        formData = { ...formData, status: target };
+      }
+
       captureSnapshot();
       router.setDirty(false);
       successMessage = t('common.saved');
@@ -216,7 +224,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            {#if collection.workflow?.enabled}
+            {#if collection.workflow?.enabled || usesDrafts(collection)}
               <button
                 type="button"
                 disabled={saving}
@@ -264,7 +272,7 @@
         <!-- Form Card Container -->
         <div class="">
           <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5 max-w-3xl">
-            {#each collection.fields as field (getFieldKey(field))}
+            {#each collection.fields.filter((f) => getFieldKey(f) !== hiddenStatusField(collection)) as field (getFieldKey(field))}
               {@const key = getFieldKey(field)}
               <div class="flex flex-col gap-1.5">
                 {#if isJsonField(field, key, formData[key])}

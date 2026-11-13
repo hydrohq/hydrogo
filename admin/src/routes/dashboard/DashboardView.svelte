@@ -4,6 +4,8 @@
   import SectionCards from '$lib/components/dashboard/SectionCards.svelte';
   import ChartAreaInteractive from '$lib/components/dashboard/ChartAreaInteractive.svelte';
   import DataTable from '$lib/components/dashboard/DataTable.svelte';
+  import CommerceDashboard from '$lib/components/dashboard/CommerceDashboard.svelte';
+  import { schema } from '$lib/stores/schema.svelte';
 
   interface DashboardData {
     content?: {
@@ -34,6 +36,8 @@
   }
 
   let data = $state<DashboardData | null>(null);
+  // A store gets the commerce overview; the pages/news cards only make sense for a content site.
+  const isStore = $derived(schema.modules?.commerce === true);
 
   onMount(async () => {
     try {
@@ -65,9 +69,13 @@
 <div class="flex flex-1 flex-col">
   <div class="@container/main flex flex-1 flex-col gap-2">
     <div class="flex flex-col gap-4 md:gap-6">
-      <SectionCards metrics={liveMetrics} />
-      <ChartAreaInteractive analytics={data?.analytics} runtime={data?.runtime} />
-      <DataTable />
+      {#if isStore}
+        <CommerceDashboard members={data?.members?.total_members ?? 0} visitors={Number(data?.analytics?.unique_visitors_today ?? 0)} />
+      {:else}
+        <SectionCards metrics={liveMetrics} />
+        <ChartAreaInteractive analytics={data?.analytics} runtime={data?.runtime} />
+        <DataTable />
+      {/if}
     </div>
   </div>
 </div>

@@ -36,6 +36,8 @@
     if (path.startsWith('/commerce/products/new')) return t('products.new');
     if (path.startsWith('/commerce/products')) return t('products.title');
     if (path.startsWith('/commerce/stock')) return t('stock.title');
+    if (path.startsWith('/commerce/refunds-required')) return t('nav.refundsRequired');
+    if (path.startsWith('/commerce/discount-codes')) return t('nav.discountCodes');
     if (path.startsWith('/commerce')) return t('nav.orders');
     if (path.startsWith('/site')) return t('title.siteSettings');
     if (path.startsWith('/users')) return t('title.users');

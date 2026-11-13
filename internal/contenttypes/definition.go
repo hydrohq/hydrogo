@@ -163,6 +163,11 @@ type Definition struct {
 	// start as drafts, the admin publishes and unpublishes them, and the
 	// public API only returns published records.
 	Drafts bool `json:"drafts" yaml:"drafts"`
+	// OwnerField names a text field that holds the submitting member's e-mail.
+	// A signed-in member can then list their own records of a drafts type,
+	// drafts included, with ?mine=1 on the public API (a customer's review
+	// still waiting for approval). Nobody else sees those drafts.
+	OwnerField string `json:"owner_field,omitempty" yaml:"owner_field"`
 	// Revisions keeps the last collections.MaxRevisionsPerRecord saved
 	// versions of each record; the admin can view and restore them.
 	Revisions bool `json:"revisions" yaml:"revisions"`
@@ -217,9 +222,15 @@ type Field struct {
 	// admin reads, ignored on writes (stored values stay), and cannot be
 	// filtered, sorted, grouped or summed. Not allowed on required, unique,
 	// searchable or localized fields.
-	Permission string   `json:"permission,omitempty" yaml:"permission"`
-	Min        *float64 `json:"min,omitempty" yaml:"min"`
-	Max        *float64 `json:"max,omitempty" yaml:"max"`
+	Permission string `json:"permission,omitempty" yaml:"permission"`
+	// Private keeps the value out of the public API entirely (reads, list
+	// results, the response to a public create) and out of its sort. The admin
+	// still sees it. Use it for what a visitor may submit but must never read
+	// back, such as a reviewer's e-mail. Not allowed on unique, searchable or
+	// filterable fields, which would let a caller probe the hidden value.
+	Private bool     `json:"private,omitempty" yaml:"private"`
+	Min     *float64 `json:"min,omitempty" yaml:"min"`
+	Max     *float64 `json:"max,omitempty" yaml:"max"`
 	// Decimals fixes the decimal places of a number field (money: 2);
 	// values with more places are rejected, never rounded.
 	Decimals *int `json:"decimals,omitempty" yaml:"decimals"`
@@ -229,6 +240,11 @@ type Field struct {
 	// Rollup totals the records of another type that point at this one
 	// (see collections.Rollup); the field is read-only.
 	Rollup *collections.Rollup `json:"rollup,omitempty" yaml:"rollup"`
+	// Widget "media" turns a text field into a media-library field in the admin
+	// (pick, upload, or paste an address) without changing how the value is
+	// stored: a field's kind cannot change once records exist, so this is how
+	// an existing URL text field gets a picker.
+	Widget string `json:"widget,omitempty" yaml:"widget"`
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
 	Searchable bool `json:"searchable" yaml:"searchable"`
@@ -322,6 +338,15 @@ func (d Definition) Validate() error {
 			if field.Required || field.Unique || field.Searchable || field.Localized || field.Sequence != nil {
 				return fmt.Errorf("%w: field %q has a permission, so it cannot be required, unique, searchable, localized or a sequence", ErrInvalidDefinition, field.ID)
 			}
+		}
+		if d.OwnerField != "" && (!d.Drafts || (field.ID == d.OwnerField && field.Kind != "text")) {
+			return fmt.Errorf("%w: owner_field needs a drafts type and a text field (%q)", ErrInvalidDefinition, d.OwnerField)
+		}
+		if field.Widget != "" && (field.Widget != "media" || field.Kind != "text") {
+			return fmt.Errorf("%w: widget %q is only supported as media on a text field (field %q)", ErrInvalidDefinition, field.Widget, field.ID)
+		}
+		if field.Private && (field.Unique || field.Searchable || field.Filterable) {
+			return fmt.Errorf("%w: private field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
 		}
 		if field.Localized && (field.Unique || field.Searchable || field.Filterable) {
 			return fmt.Errorf("%w: localized field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
@@ -468,6 +493,9 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		switch field.Kind {
 		case "text":
 			admin.Kind = adminstudio.FieldText
+			if field.Widget == "media" {
+				admin.Widget = "media"
+			}
 		case "textarea":
 			admin.Kind, admin.Widget = adminstudio.FieldText, "textarea"
 		case "richtext":

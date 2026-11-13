@@ -11,6 +11,8 @@
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
   import RelationField from './RelationField.svelte';
   import { isManyRelation, isRelation, relationTarget } from './relations';
+  import { hiddenStatusField, setPublication, usesDrafts } from './publication';
+  import { confirmAction } from '$lib/confirm';
 
   interface Props {
     open: boolean;
@@ -117,6 +119,7 @@
 
   async function changeState(to: string) {
     if (!collection || !itemId) return;
+    if (!(await confirmAction({ title: t('schema.confirm.moveTitle', { state: to }), confirmLabel: t('schema.confirm.moveButton'), cancelLabel: t('common.cancel'), variant: 'primary' }))) return;
     saving = true;
     errorMessage = null;
     try {
@@ -165,10 +168,16 @@
 
       const endpoint = collection.api_path || `/api/v1/admin/content/${type}`;
 
+      let saved: any;
       if (isNew) {
-        await api.post(endpoint, payload);
+        saved = await api.post(endpoint, payload);
       } else {
-        await api.put(`${endpoint}/${itemId}`, payload);
+        saved = await api.put(`${endpoint}/${itemId}`, payload);
+      }
+      // Drafts types ignore `status` on save: publish / back-to-draft is its own call.
+      const savedId = saved?.data?.id ?? itemId;
+      if (statusToSet && usesDrafts(collection) && savedId) {
+        await setPublication(endpoint, String(savedId), statusToSet === 'published' ? 'published' : 'draft');
       }
 
       onsaved();
@@ -226,7 +235,7 @@
         </div>
       {/if}
 
-      {#each collection.fields as field (getFieldKey(field))}
+      {#each collection.fields.filter((f) => getFieldKey(f) !== hiddenStatusField(collection)) as field (getFieldKey(field))}
         {@const key = getFieldKey(field)}
         <div class="flex flex-col gap-1.5">
           {#if field.read_only}
@@ -250,7 +259,7 @@
               bind:value={formData[key]}
               required={field.required}
             />
-          {:else if field.kind === 'text' && field.widget !== 'textarea'}
+          {:else if field.kind === 'text' && field.widget !== 'textarea' && field.widget !== 'media'}
             <Input
               label={field.label || key}
               placeholder={t('schema.enter', { name: field.label || key })}
@@ -315,7 +324,7 @@
               bind:value={formData[key]}
               placeholder={t('schema.write', { name: field.label || key })}
             />
-          {:else if field.kind === 'media'}
+          {:else if field.kind === 'media' || field.widget === 'media'}
             <label for={`media-input-${key}`} class="text-xs font-medium text-foreground">
               {field.label || key}
             </label>
@@ -368,7 +377,7 @@
         {t('schema.moveTo', { state: step.to })}
       </Button>
     {/each}
-    {#if collection?.workflow?.enabled || collection?.drafts}
+    {#if collection?.workflow?.enabled || usesDrafts(collection)}
       <Button
         variant="secondary"
         size="sm"

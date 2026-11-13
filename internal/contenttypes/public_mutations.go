@@ -44,10 +44,18 @@ func (p PublicAPI) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If drafts is enabled and caller didn't specify status, default to draft
+	// A drafts type starts as a draft whatever the caller sends: only the admin workflow publishes, so a public
+	// create can never skip moderation by posting status=published.
 	if definition.Drafts {
-		if _, ok := payload[StatusField]; !ok {
-			payload[StatusField] = StatusDraft
+		payload[StatusField] = StatusDraft
+	}
+	// An owner field is the signed-in member's own e-mail, never a client-supplied value (otherwise a record could
+	// be planted in someone else's ?mine=1 list). Anonymous creates carry no owner.
+	if definition.OwnerField != "" {
+		if principal.IsMember && principal.Email != "" {
+			payload[definition.OwnerField] = principal.Email
+		} else {
+			delete(payload, definition.OwnerField)
 		}
 	}
 
