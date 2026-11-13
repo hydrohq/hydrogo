@@ -100,9 +100,16 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 	proxy.Transport = transport
 	origDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
+		origHost := req.Host
+		if origHost == "" {
+			origHost = req.Header.Get("Host")
+		}
+		if req.Header.Get("X-Forwarded-Host") == "" && origHost != "" {
+			req.Header.Set("X-Forwarded-Host", origHost)
+		}
 		origDirector(req)
-		if h := req.Header.Get("Host"); h != "" {
-			req.Host = h
+		if origHost != "" {
+			req.Host = origHost
 		}
 	}
 

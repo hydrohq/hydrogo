@@ -159,6 +159,10 @@ func (a *serveApp) pageRoutes() []router.Route {
 		if pageRoutes[i].Pattern == "GET /llms.txt" {
 			origLLMs := pageRoutes[i].Handler
 			pageRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if a.externalStorefront != nil {
+					a.externalStorefront.ServeHTTP(w, r)
+					return
+				}
 				if a.isStorefrontTenant(r) {
 					a.storefrontLLMsHandler(w, r)
 					return
@@ -214,6 +218,10 @@ func (a *serveApp) siteRoutes() []router.Route {
 		if siteRoutes[i].Pattern == "GET /sitemap.xml" {
 			origSitemap := siteRoutes[i].Handler
 			siteRoutes[i].Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if a.externalStorefront != nil {
+					a.externalStorefront.ServeHTTP(w, r)
+					return
+				}
 				if a.isStorefrontTenant(r) {
 					a.storefrontSitemapHandler(w, r)
 					return

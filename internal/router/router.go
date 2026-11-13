@@ -94,6 +94,17 @@ func isLegacyAPIPath(pattern string) bool {
 	return ok && strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/api/v1/")
 }
 
+// MatchesCatchAll reports whether h is a ServeMux whose catch-all "/" route
+// handles r because no more specific HydroGo route matched.
+func MatchesCatchAll(h http.Handler, r *http.Request) bool {
+	mux, ok := h.(*http.ServeMux)
+	if !ok || r == nil || r.URL == nil {
+		return false
+	}
+	_, pattern := mux.Handler(r)
+	return pattern == "/"
+}
+
 func legacyAPIHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Deprecation", "true")

@@ -209,9 +209,13 @@ func NewHandler(config Config) http.Handler {
 		panic(err)
 	}
 
+	isCatchAll := func(r *http.Request) bool {
+		return router.MatchesCatchAll(routerHandler, r)
+	}
+
 	var handler http.Handler = routerHandler
 	if config.CustomCodeProvider != nil && !config.SafeMode {
-		handler = CustomCodeMiddleware(config.CustomCodeProvider)(handler)
+		handler = skipWhen(isCatchAll, CustomCodeMiddleware(config.CustomCodeProvider))(handler)
 	}
 	// Runs inside the auth middleware, so the signed-in user and request id are
 	// already on the request context.
@@ -220,9 +224,9 @@ func NewHandler(config Config) http.Handler {
 	}
 	// Cache the uncompressed representation; compression runs per response.
 
-	handler = CompressionMiddleware(handler)
-	handler = ETagMiddleware(handler)
-	handler = config.PublicHTMLCache.Middleware(handler)
+	handler = skipWhen(isCatchAll, CompressionMiddleware)(handler)
+	handler = skipWhen(isCatchAll, ETagMiddleware)(handler)
+	handler = skipWhen(isCatchAll, config.PublicHTMLCache.Middleware)(handler)
 
 	publicCORS, err := security.NewPublicReadCORSMiddleware(config.PublicAPIOrigins)
 	if err != nil {
@@ -235,17 +239,17 @@ func NewHandler(config Config) http.Handler {
 	handler = security.RequestBodyLimitMiddleware(config.HTTPBodyLimit, func(r *http.Request) bool {
 		return r.URL.Path == "/api/v1/admin/media"
 	})(handler)
-	handler = security.AnomalyMiddleware(security.AnomalyConfig{
+	handler = skipWhen(isCatchAll, security.AnomalyMiddleware(security.AnomalyConfig{
 		Enabled: config.AnomalyFilterEnabled, MaxBodyBytes: config.HTTPBodyLimit,
 		BypassPaths: config.AnomalyBypassPaths, OnDetect: config.OnSecurityAnomaly,
-	})(handler)
+	}))(handler)
 	handler = security.RecoveryMiddlewareWithObserver(config.Logger, config.OnPanic)(handler)
 	handler = observability.HTTPErrorMiddleware(config.OnHTTPError)(handler)
 
 	// Normalize handler errors after the body limit and before the request ID
 	// middleware so even middleware-generated errors include request_id.
-	handler = security.ErrorMiddleware(handler)
-	handler = PublicErrorPageMiddleware(config.PublicErrorPage)(handler)
+	handler = skipWhen(isCatchAll, security.ErrorMiddleware)(handler)
+	handler = skipWhen(isCatchAll, PublicErrorPageMiddleware(config.PublicErrorPage))(handler)
 	handler = observability.LoggingMiddleware(config.Logger)(handler)
 	// Trace context is optional/no-op until an operator configures an exporter.
 	// It is wrapped before RequestID below so the request correlation ID is
@@ -273,7 +277,7 @@ func NewHandler(config Config) http.Handler {
 			return publicContentCacheEligible(r) || extraSkip(r)
 		}
 	}
-	handler = security.CSRFMiddleware(config.SecureCookie, skipCSRFCookie, config.CSRFExemptPaths...)(handler)
+	handler = skipWhen(isCatchAll, security.CSRFMiddleware(config.SecureCookie, skipCSRFCookie, config.CSRFExemptPaths...))(handler)
 
 	if config.Maintenance.Enabled != nil {
 		handler = MaintenanceMiddleware(config.Maintenance)(handler)
@@ -314,12 +318,25 @@ func NewHandler(config Config) http.Handler {
 	}
 
 	// Apply security headers (CSP allows inline code only by hash)
-	handler = security.HeadersMiddleware(security.HeaderConfig{
+	headersMW := security.HeadersMiddleware(security.HeaderConfig{
 		EnableHSTS:   config.EnableHSTS,
 		Preset:       config.SecurityHeadersPreset,
 		ScriptHashes: config.SecurityScriptHashes,
 		StyleHashes:  config.SecurityStyleHashes,
-	})(handler)
+	})
+	handler = func(next http.Handler) http.Handler {
+		wrapped := headersMW(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isCatchAll(r) {
+				if config.EnableHSTS {
+					w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+			wrapped.ServeHTTP(w, r)
+		})
+	}(handler)
 
 	// Keep metrics ahead of every other application middleware so rejected
 	// requests from any layer below it (body limit, CSRF, auth, and routing)
@@ -334,7 +351,7 @@ func NewHandler(config Config) http.Handler {
 		handler = config.Metrics.Middleware(handler)
 	}
 	// Final response guard: no HTML comment is allowed into production output.
-	handler = observability.HTMLCommentMiddleware(handler)
+	handler = skipWhen(isCatchAll, observability.HTMLCommentMiddleware)(handler)
 	handler = adminstudio.SupportConfigResolverMiddleware(config.AdminSupport, config.AdminSupportResolver)(handler)
 
 	// Outermost: shed load before any other middleware spends CPU on a request
@@ -369,4 +386,17 @@ func NewHandler(config Config) http.Handler {
 // a browser client and internal/security/csrf_token_handler.go.
 func publicContentCacheEligible(r *http.Request) bool {
 	return staticCacheURLPath(r.URL.Path)
+}
+
+func skipWhen(cond func(*http.Request) bool, mw func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		wrapped := mw(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if cond != nil && cond(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			wrapped.ServeHTTP(w, r)
+		})
+	}
 }
