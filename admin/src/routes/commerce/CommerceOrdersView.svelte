@@ -172,6 +172,22 @@
     }
   }
 
+  function mergeOrderUpdate<T extends Order>(prev: T, updated: Partial<Order> & { id: string }): T {
+    const next: T = { ...prev, ...updated };
+    if (updated.fulfillment_status === 'unfulfilled') {
+      next.shipping_carrier = updated.shipping_carrier ?? '';
+      next.shipping_tracking_number = updated.shipping_tracking_number ?? '';
+      next.shipping_tracking_url = updated.shipping_tracking_url ?? '';
+      next.shipping_shipment_id = updated.shipping_shipment_id ?? '';
+      next.shipping_label_url = updated.shipping_label_url ?? '';
+      next.shipped_at = updated.shipped_at ?? '';
+    }
+    if (updated.invoice_status === 'issued') {
+      next.invoice_error = updated.invoice_error ?? '';
+    }
+    return next;
+  }
+
   async function refundSelected() {
     if (!selected) return;
     const description = selected.invoice_status === 'issued'
@@ -183,8 +199,8 @@
     try {
       const res = await api.post<{ data: Order }>(`/api/v1/admin/commerce/orders/${encodeURIComponent(selected.id)}/refund`);
       if (res?.data) {
-        selected = { ...selected, ...res.data };
-        orders = orders.map((o) => (o.id === res.data.id ? { ...o, ...res.data } : o));
+        selected = mergeOrderUpdate(selected, res.data);
+        orders = orders.map((o) => (o.id === res.data.id ? mergeOrderUpdate(o, res.data) : o));
         feedback = { type: 'success', text: t('commerce.order.refundDone') };
       }
     } catch (err) {
@@ -319,8 +335,8 @@
           {canWrite}
           onupdated={(updated) => {
             if (!selected) return;
-            selected = { ...selected, ...updated };
-            orders = orders.map((o) => (o.id === updated.id ? { ...o, ...updated } : o));
+            selected = mergeOrderUpdate(selected, updated);
+            orders = orders.map((o) => (o.id === updated.id ? mergeOrderUpdate(o, updated) : o));
           }}
           onfeedback={(fb) => {
             feedback = fb;
@@ -331,8 +347,8 @@
           {canWrite}
           onupdated={(updated) => {
             if (!selected) return;
-            selected = { ...selected, ...updated };
-            orders = orders.map((o) => (o.id === updated.id ? { ...o, ...updated } : o));
+            selected = mergeOrderUpdate(selected, updated);
+            orders = orders.map((o) => (o.id === updated.id ? mergeOrderUpdate(o, updated) : o));
           }}
           onfeedback={(fb) => {
             feedback = fb;

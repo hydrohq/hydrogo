@@ -108,14 +108,13 @@ describe('OrderShippingPanel', () => {
         carriers: [{ key: 'geliver', supports_offers: true, supports_cancel: true }],
       },
     });
-    const resetOrder = makeOrder({
-      fulfillment_status: 'unfulfilled',
-      shipping_carrier: '',
-      shipping_tracking_number: '',
-      shipping_shipment_id: '',
-      shipping_label_url: '',
-    });
-    post.mockResolvedValueOnce({ data: resetOrder });
+    const omittedCancelOrder = {
+      id: 'order_1',
+      payment_status: 'paid' as const,
+      fulfillment_status: 'unfulfilled' as const,
+      shipped_at: '0001-01-01T00:00:00Z',
+    };
+    post.mockResolvedValueOnce({ data: omittedCancelOrder });
 
     const shippedOrder = makeOrder({
       fulfillment_status: 'shipped',
@@ -129,7 +128,7 @@ describe('OrderShippingPanel', () => {
 
     const onupdated = vi.fn();
     const onfeedback = vi.fn();
-    render(OrderShippingPanel, { props: { order: shippedOrder, canWrite: true, onupdated, onfeedback } });
+    const view = render(OrderShippingPanel, { props: { order: shippedOrder, canWrite: true, onupdated, onfeedback } });
 
     const labelLink = await screen.findByRole('link', { name: 'Open / print barcode PDF' });
     expect(labelLink.getAttribute('href')).toBe('https://labels.example.test/glv_ship_9.pdf');
@@ -141,7 +140,20 @@ describe('OrderShippingPanel', () => {
       expect(confirmAction).toHaveBeenCalledTimes(1);
       expect(post).toHaveBeenCalledWith('/api/v1/admin/commerce/orders/order_1/shipment/cancel');
     });
-    expect(onupdated).toHaveBeenCalledWith(resetOrder);
+    const updatedArg = onupdated.mock.calls[0]?.[0] as ShippingOrder;
+    expect(updatedArg).toEqual(expect.objectContaining({
+      id: 'order_1',
+      fulfillment_status: 'unfulfilled',
+      shipping_carrier: '',
+      shipping_tracking_number: '',
+      shipping_tracking_url: '',
+      shipping_shipment_id: '',
+      shipping_label_url: '',
+    }));
+
+    await view.rerender({ order: updatedArg, canWrite: true, onupdated, onfeedback });
+    expect(screen.queryByRole('link', { name: 'Open / print barcode PDF' })).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Get carrier offers' })).toBeTruthy();
   });
 
   it('falls back to manual carrier form when Geliver is not configured', async () => {

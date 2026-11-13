@@ -297,7 +297,15 @@
       if (res?.data) {
         draft = null;
         selectedOfferId = '';
-        onupdated(res.data);
+        onupdated({
+          ...res.data,
+          shipping_carrier: res.data.shipping_carrier ?? '',
+          shipping_tracking_number: res.data.shipping_tracking_number ?? '',
+          shipping_tracking_url: res.data.shipping_tracking_url ?? '',
+          shipping_shipment_id: res.data.shipping_shipment_id ?? '',
+          shipping_label_url: res.data.shipping_label_url ?? '',
+          shipped_at: res.data.shipped_at ?? '',
+        });
         onfeedback({ type: 'success', text: t('commerce.order.cancelShipmentDone') });
       }
     } catch (err) {
