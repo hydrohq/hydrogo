@@ -124,7 +124,8 @@ func (a *serveApp) commerceService() commerce.Service {
 			ShippingFlatRateCents: shipping.FlatRateCents, ShippingFreeAboveCents: shipping.FreeAboveCents,
 			MethodDiscountPercent: a.methodDiscounts(),
 		},
-		Prices: catalogPrices{records: func() collections.Service { return a.collectionService }},
+		Prices:                 catalogPrices{records: func() collections.Service { return a.collectionService }},
+		DiscountRequiresMember: a.cfg.Commerce.DiscountRequiresMember,
 	}
 }
 

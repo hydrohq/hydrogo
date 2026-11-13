@@ -7,6 +7,7 @@
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
+  import MediaUrlInput from '$lib/components/media/MediaUrlInput.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import NavigationTab from './tabs/NavigationTab.svelte';
@@ -486,13 +487,13 @@
           </div>
           <div>
             <label for="favicon-url" class="block text-xs font-medium text-foreground mb-1">{t('site.general.favicon')}</label>
-            <Input id="favicon-url" type="text" bind:value={settings['appearance.favicon_url']} placeholder="/favicon.ico or https://..." />
+            <MediaUrlInput id="favicon-url" bind:value={settings['appearance.favicon_url']} placeholder="/favicon.ico or https://..." />
           </div>
         </div>
 
         <div>
           <label for="social-img" class="block text-xs font-medium text-foreground mb-1">{t('site.general.socialImage')}</label>
-          <Input id="social-img" type="text" bind:value={settings['appearance.social_image_url']} placeholder="https://..." />
+          <MediaUrlInput id="social-img" bind:value={settings['appearance.social_image_url']} placeholder="https://..." />
         </div>
 
         <div>
@@ -518,7 +519,7 @@
           </div>
           <div>
             <label for="brand-logo" class="block text-xs font-medium text-foreground mb-1">{t('brand.logo')}</label>
-            <Input id="brand-logo" type="text" bind:value={settings['admin.brand_logo_url']} placeholder="https://..." />
+            <MediaUrlInput id="brand-logo" bind:value={settings['admin.brand_logo_url']} placeholder="https://..." />
           </div>
           <div class="flex items-center gap-3">
             <label for="brand-color" class="text-xs font-medium text-foreground">{t('brand.color')}</label>

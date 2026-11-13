@@ -173,6 +173,9 @@
       }
       return { view: 'pages-list' };
     }
+    if (p.startsWith('/commerce/discount-codes')) {
+      return { view: 'custom', module: 'commerce-discount-codes' };
+    }
     if (p.startsWith('/commerce/refunds-required')) {
       return { view: 'custom', module: 'commerce-refunds-required' };
     }
@@ -233,6 +236,8 @@
         <LazyView load={loadCommerceProductsView} />
       {:else if routeInfo.module === 'commerce-product-editor'}
         <LazyView load={loadCommerceProductEditorView} props={{ id: routeInfo.id }} />
+      {:else if routeInfo.module === 'commerce-discount-codes'}
+        <LazyView load={() => import('./routes/commerce/DiscountCodesView.svelte')} />
       {:else if routeInfo.module === 'commerce-refunds-required'}
         <LazyView load={() => import('./routes/commerce/RefundRequiredView.svelte')} />
       {:else if routeInfo.module === 'commerce-stock'}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmAction } from '$lib/confirm';
   import { t } from '$lib/i18n/index.svelte';
   import { onMount } from 'svelte';
   import { api, ApiClientError } from '$lib/api/client';
@@ -6,6 +7,7 @@
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import OrderExtras from './OrderExtras.svelte';
 
   type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
   type FulfillmentStatus = 'unfulfilled' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
@@ -167,7 +169,8 @@
   let trackingNumber = $state('');
 
   async function refundSelected() {
-    if (!selected || !window.confirm(t('commerce.order.refundConfirm'))) return;
+    if (!selected) return;
+    if (!(await confirmAction({ title: t('commerce.confirm.refundTitle'), description: t('commerce.order.refundConfirm'), confirmLabel: t('commerce.confirm.refundButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'destructive' }))) return;
     actionLoading = true;
     feedback = null;
     try {
@@ -186,6 +189,7 @@
 
   async function createShipment() {
     if (!selected) return;
+    if (!(await confirmAction({ title: t('commerce.confirm.shipTitle'), description: t('commerce.confirm.shipDesc'), confirmLabel: t('commerce.confirm.shipButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'primary' }))) return;
     actionLoading = true;
     feedback = null;
     try {
@@ -348,6 +352,8 @@
           </Button>
         {/if}
       </div>
+
+      <OrderExtras order={selected} {canWrite} onchanged={async () => { if (selected) await openOrder(selected); void loadOrders(); }} />
     </div>
   {/if}
   {#snippet footer()}

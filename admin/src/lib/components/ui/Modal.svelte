@@ -8,6 +8,8 @@
     title: string;
     description?: string;
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+    /** 'top' opens above other modals (a picker opened from inside a form modal). */
+    layer?: 'base' | 'top';
     onclose?: () => void;
     onClose?: () => void;
     children?: Snippet;
@@ -19,6 +21,7 @@
     title,
     description,
     size = 'lg',
+    layer = 'base',
     onclose,
     onClose,
     children,
@@ -52,7 +55,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="fixed inset-0 {layer === 'top' ? 'z-[60]' : 'z-50'} flex items-center justify-center p-4">
     <button
       type="button"
       class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-150 cursor-default"

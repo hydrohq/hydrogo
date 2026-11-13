@@ -87,10 +87,11 @@ export interface Field {
 }
 
 export interface CollectionWorkflow {
-  enabled: boolean;
-  drafts: boolean;
+  enabled?: boolean;
+  drafts?: boolean;
+  state_field?: string;
   states: string[];
-  initial: string;
+  initial?: string;
 }
 
 export interface CollectionPermissions {
@@ -426,6 +427,19 @@ export interface RefundRequired {
   created_at: string;
   resolved_at?: string | null;
   resolved_note?: string;
+}
+
+export interface DiscountCode {
+  id: string;
+  code: string;
+  kind: 'percent' | 'fixed';
+  value: number;
+  min_subtotal_cents: number;
+  max_redemptions: number;
+  redeemed_count: number;
+  active: boolean;
+  starts_at: string;
+  ends_at: string;
 }
 
 export interface RefundsRequiredCount {

@@ -131,3 +131,30 @@ func assertTest(t *testing.T, spec, name, statusFragment string) {
 		t.Fatalf("test %q does not assert %q:\n%s", name, statusFragment, body)
 	}
 }
+
+func TestPublicSafetySpecCoversPrivateFieldsAndSelfPublishing(t *testing.T) {
+	d := contenttypes.Definition{ID: "reviews", Public: true, Drafts: true, Fields: []contenttypes.Field{
+		{ID: "body", Label: "Body", Kind: "textarea", Required: true},
+		{ID: "email", Label: "Email", Kind: "text", Private: true},
+	}}
+	var spec string
+	for _, f := range Generate([]contenttypes.Definition{d}) {
+		if f.Path == "content/reviews.public.spec.ts" {
+			spec = f.Content
+		}
+	}
+	if spec == "" {
+		t.Fatal("no public safety spec generated")
+	}
+	for _, want := range []string{"private field email never reaches a visitor", `toHaveProperty("email")`, "a visitor cannot publish their own record", `"status": "published"`, `import { anonymous, mutHeaders }`} {
+		if !strings.Contains(spec, want) {
+			t.Fatalf("spec is missing %q:\n%s", want, spec)
+		}
+	}
+	// A plain public type with nothing to protect gets no extra file.
+	for _, f := range Generate([]contenttypes.Definition{definition("faq", contenttypes.Permissions{})}) {
+		if strings.HasSuffix(f.Path, ".public.spec.ts") {
+			t.Fatalf("unexpected public spec for a plain type: %s", f.Path)
+		}
+	}
+}

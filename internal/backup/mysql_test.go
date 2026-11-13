@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	mysql "github.com/go-sql-driver/mysql"
 	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/hydrohq/hydrogo/internal/testmysql"
-	mysql "github.com/go-sql-driver/mysql"
 )
 
 func TestMySQLDumpRestoreContract(t *testing.T) {

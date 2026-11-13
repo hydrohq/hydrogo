@@ -17,6 +17,7 @@ type Repository interface {
 	EnsureStock(ctx context.Context, db database.Executor, variantID string, available int) error
 	GetStock(ctx context.Context, db database.Executor, variantID string) (Stock, error)
 	StocksByVariantIDs(ctx context.Context, db database.Executor, variantIDs []string) ([]Stock, error)
+	ListLowStock(ctx context.Context, db database.Executor, threshold, limit int) ([]Stock, error)
 	ReserveStock(ctx context.Context, db database.Executor, variantID string, quantity int) (bool, error)
 	ReleaseReservation(ctx context.Context, db database.Executor, variantID string, quantity int) error
 	CommitReservation(ctx context.Context, db database.Executor, variantID string, quantity int) error
@@ -54,10 +55,14 @@ type Repository interface {
 
 	GetDiscountCodeByCode(ctx context.Context, db database.Executor, code string) (DiscountCode, error)
 	RedeemDiscountCode(ctx context.Context, db database.Executor, id string, maxRedemptions int) (bool, error)
+	// ReleaseDiscountCode undoes one redemption when an unpaid order is expired or cancelled.
+	ReleaseDiscountCode(ctx context.Context, db database.Executor, code string) error
 	// CreateDiscountCode is not called by Checkout; it is here only so the
 	// admin transport handler can reach it through the same narrow
 	// interface setStock already uses for EnsureStock.
 	CreateDiscountCode(ctx context.Context, db database.Executor, code DiscountCode) error
+	ListDiscountCodes(ctx context.Context, db database.Executor, limit, offset int) ([]DiscountCode, error)
+	SetDiscountCodeActive(ctx context.Context, db database.Executor, id string, active bool) (bool, error)
 
 	// ClaimShipment, ReleaseShipmentClaim and RecordShipment are
 	// Service.CreateShipment's three guarded steps: claim a paid,
@@ -104,6 +109,8 @@ type Service struct {
 	// Prices is the authoritative unit price for every cart line; see
 	// PriceSource. Checkout fails with ErrNoPriceSource when it is nil.
 	Prices PriceSource
+	// DiscountRequiresMember refuses a discount code on a guest checkout (a code is a member benefit).
+	DiscountRequiresMember bool
 }
 
 // emit enqueues one order lifecycle event, deterministically keyed so a

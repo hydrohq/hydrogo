@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/database"
@@ -61,7 +62,7 @@ func (s Store) GetDiscountCodeByCode(ctx context.Context, db database.Executor, 
 	return discount, nil
 }
 
-func (s Store) scanDiscountCode(row *sql.Row) (commerce.DiscountCode, bool, error) {
+func (s Store) scanDiscountCode(row interface{ Scan(...any) error }) (commerce.DiscountCode, bool, error) {
 	var d commerce.DiscountCode
 	var kind string
 	var active int
@@ -122,4 +123,73 @@ func (s Store) RedeemDiscountCode(ctx context.Context, db database.Executor, id 
 		return false, err
 	}
 	return affected == 1, nil
+}
+
+// ReleaseDiscountCode gives one redemption back (an order that used the code
+// was abandoned before payment). Guarded so the counter never goes negative.
+func (s Store) ReleaseDiscountCode(ctx context.Context, db database.Executor, code string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	filter, args, err := s.scope(ctx, []any{s.dbTime(s.now()), code})
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `UPDATE commerce_discount_codes SET redeemed_count = redeemed_count - 1, updated_at = `+s.p(1)+
+		` WHERE code = `+s.p(2)+` AND redeemed_count > 0`+filter, args...)
+	return err
+}
+
+const discountColumns = `id, code, kind, value, min_subtotal_cents, max_redemptions, redeemed_count, active, starts_at, ends_at, created_at, updated_at`
+
+// ListDiscountCodes backs the admin coupon screen, newest first.
+func (s Store) ListDiscountCodes(ctx context.Context, db database.Executor, limit, offset int) ([]commerce.DiscountCode, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("database executor does not support row queries")
+	}
+	filter, args, err := s.scope(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queryer.QueryContext(ctx, `SELECT `+discountColumns+` FROM commerce_discount_codes WHERE 1=1`+filter+` ORDER BY created_at DESC LIMIT `+strconv.Itoa(limit)+` OFFSET `+strconv.Itoa(offset), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []commerce.DiscountCode{}
+	for rows.Next() {
+		d, _, err := s.scanDiscountCode(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// SetDiscountCodeActive switches a code on or off; false when no such code exists.
+func (s Store) SetDiscountCodeActive(ctx context.Context, db database.Executor, id string, active bool) (bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return false, err
+	}
+	flag := 0
+	if active {
+		flag = 1
+	}
+	filter, args, err := s.scope(ctx, []any{flag, s.dbTime(s.now()), id})
+	if err != nil {
+		return false, err
+	}
+	result, err := db.ExecContext(ctx, `UPDATE commerce_discount_codes SET active = `+s.p(1)+`, updated_at = `+s.p(2)+` WHERE id = `+s.p(3)+filter, args...)
+	if err != nil {
+		return false, err
+	}
+	n, err := result.RowsAffected()
+	return n == 1, err
 }

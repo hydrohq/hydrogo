@@ -133,3 +133,35 @@ func (s Service) CreateDiscountCode(ctx context.Context, code DiscountCode) erro
 		return s.Repository.CreateDiscountCode(ctx, tx, code)
 	})
 }
+
+func (s Service) ListDiscountCodes(ctx context.Context, limit, offset int) ([]DiscountCode, error) {
+	var codes []DiscountCode
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		codes, err = s.Repository.ListDiscountCodes(ctx, tx, limit, offset)
+		return err
+	})
+	return codes, err
+}
+
+// SetDiscountCodeActive switches a code on or off (codes are never deleted: orders reference them by code).
+func (s Service) SetDiscountCodeActive(ctx context.Context, id string, active bool) (bool, error) {
+	var found bool
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		found, err = s.Repository.SetDiscountCodeActive(ctx, tx, id, active)
+		return err
+	})
+	return found, err
+}
+
+// LowStock lists variants with at most threshold sellable units left (the dashboard's restock warning).
+func (s Service) LowStock(ctx context.Context, threshold, limit int) ([]Stock, error) {
+	var stocks []Stock
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		stocks, err = s.Repository.ListLowStock(ctx, tx, threshold, limit)
+		return err
+	})
+	return stocks, err
+}

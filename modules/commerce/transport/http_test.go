@@ -1448,3 +1448,199 @@ func TestListStockAdmin(t *testing.T) {
 		t.Fatalf("expected empty array, got %d items", len(envNone.Data))
 	}
 }
+
+func TestCancelOrderFailsPendingOrderReleasesStockAndRejectsPaid(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-cancel", 3); err != nil {
+		t.Fatal(err)
+	}
+	place := func(anon, key string) commerce.Order {
+		cart, err := h.Service.GetOrCreateCart(ctx, db, "", anon, "TRY")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := addPriced(h.Service, ctx, db, cart, "variant-cancel", 1, 1500); err != nil {
+			t.Fatal(err)
+		}
+		order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "g@example.com", IdempotencyKey: key})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return order
+	}
+	cancel := func(id string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/orders/"+id+"/cancel", nil)
+		req.SetPathValue("id", id)
+		rec := httptest.NewRecorder()
+		h.cancelOrder(rec, req)
+		return rec.Code
+	}
+
+	pending := place("anon-cancel-1", "cancel-idem-1")
+	if code := cancel(pending.ID); code != http.StatusOK {
+		t.Fatalf("cancel pending: got %d", code)
+	}
+	if got, _ := h.Service.Order(ctx, pending.ID); got.PaymentStatus != commerce.PaymentFailed {
+		t.Fatalf("expected failed, got %s", got.PaymentStatus)
+	}
+	if st, _ := h.Service.Stock(ctx, "variant-cancel"); st.Reserved != 0 || st.Available != 3 {
+		t.Fatalf("stock not released: %+v", st)
+	}
+
+	if code := cancel(pending.ID); code != http.StatusOK {
+		t.Fatalf("second cancel must be idempotent, got %d", code)
+	}
+
+	paid := place("anon-cancel-2", "cancel-idem-2")
+	if _, err := pay(h.Service, ctx, "mock-provider", "evt-cancel", paid.ID); err != nil {
+		t.Fatal(err)
+	}
+	if code := cancel(paid.ID); code != http.StatusConflict {
+		t.Fatalf("cancel paid: expected 409, got %d", code)
+	}
+	if code := cancel("nope"); code != http.StatusNotFound {
+		t.Fatalf("cancel unknown: expected 404, got %d", code)
+	}
+}
+
+func TestAdminDiscountCodesListAndToggle(t *testing.T) {
+	h, _ := newTestHandler(t)
+	create := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/discount-codes", strings.NewReader(`{"code":"YAZ10","kind":"percent","value":10}`))
+	rec := httptest.NewRecorder()
+	h.createDiscountCode(rec, create)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body)
+	}
+	var created commerce.DiscountCode
+	decodeBody(t, rec, &created)
+
+	rec = httptest.NewRecorder()
+	h.listDiscountCodes(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/discount-codes", nil))
+	var listed []commerce.DiscountCode
+	decodeBody(t, rec, &listed)
+	if len(listed) != 1 || listed[0].Code != "YAZ10" || !listed[0].Active {
+		t.Fatalf("unexpected list: %+v", listed)
+	}
+
+	toggle := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"active":false}`))
+	toggle.SetPathValue("id", created.ID)
+	rec = httptest.NewRecorder()
+	h.setDiscountCodeActive(rec, toggle)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("toggle: %d %s", rec.Code, rec.Body)
+	}
+	rec = httptest.NewRecorder()
+	h.listDiscountCodes(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
+	decodeBody(t, rec, &listed)
+	if listed[0].Active {
+		t.Fatal("code should be inactive")
+	}
+
+	missing := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"active":true}`))
+	missing.SetPathValue("id", "disc_nope")
+	rec = httptest.NewRecorder()
+	h.setDiscountCodeActive(rec, missing)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("missing: %d", rec.Code)
+	}
+}
+
+func TestCancelOrderReturnsTheCouponRedemption(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.CreateDiscountCode(ctx, commerce.DiscountCode{ID: "disc-deneme", Code: "DENEME10", Kind: commerce.DiscountPercent, Value: 10, MaxRedemptions: 1, Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-deneme", 3); err != nil {
+		t.Fatal(err)
+	}
+	cart, err := h.Service.GetOrCreateCart(ctx, db, "", "anon-deneme", "TRY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := addPriced(h.Service, ctx, db, cart, "variant-deneme", 1, 10000); err != nil {
+		t.Fatal(err)
+	}
+	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "g@example.com", IdempotencyKey: "deneme-idem", DiscountCode: "DENEME10"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.DiscountCents != 1000 || order.TotalCents != 9000 {
+		t.Fatalf("10%% discount not applied: %+v", order)
+	}
+	redeemed := func() int {
+		codes, err := h.Service.ListDiscountCodes(ctx, 10, 0)
+		if err != nil || len(codes) != 1 {
+			t.Fatalf("list: %v %v", codes, err)
+		}
+		return codes[0].RedeemedCount
+	}
+	if got := redeemed(); got != 1 {
+		t.Fatalf("after checkout redeemed_count = %d, want 1", got)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.SetPathValue("id", order.ID)
+	rec := httptest.NewRecorder()
+	h.cancelOrder(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("cancel: %d", rec.Code)
+	}
+	if got := redeemed(); got != 0 {
+		t.Fatalf("after cancel redeemed_count = %d, want 0", got)
+	}
+	// second cancel (other tab) must not release it twice / go negative
+	rec = httptest.NewRecorder()
+	h.cancelOrder(rec, req)
+	if got := redeemed(); rec.Code != http.StatusOK || got != 0 {
+		t.Fatalf("second cancel: code %d redeemed %d", rec.Code, got)
+	}
+}
+
+func TestLowStockListsOnlyScarceVariantsLowestFirst(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	for id, n := range map[string]int{"v-plenty": 50, "v-two": 2, "v-zero": 0} {
+		if err := h.Service.Repository.EnsureStock(ctx, db, id, n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rec := httptest.NewRecorder()
+	h.listLowStock(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/stock/low?threshold=3", nil))
+	var got []variantStockView
+	decodeBody(t, rec, &got)
+	if len(got) != 2 || got[0].VariantID != "v-zero" || got[1].VariantID != "v-two" {
+		t.Fatalf("unexpected low stock: %+v", got)
+	}
+}
+
+func TestDiscountCodeNeedsAMemberWhenConfigured(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	h.Service.DiscountRequiresMember = true
+	if err := h.Service.CreateDiscountCode(ctx, commerce.DiscountCode{ID: "disc-m", Code: "UYE10", Kind: commerce.DiscountPercent, Value: 10, Active: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-m", 5); err != nil {
+		t.Fatal(err)
+	}
+	place := func(memberID, anon, key string) error {
+		var cart commerce.Cart
+		var err error
+		cart, err = h.Service.GetOrCreateCart(ctx, db, memberID, anon, "TRY")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := addPriced(h.Service, ctx, db, cart, "variant-m", 1, 10000); err != nil {
+			t.Fatal(err)
+		}
+		_, err = h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, MemberID: memberID, GuestEmail: "g@example.com", IdempotencyKey: key, DiscountCode: "UYE10"})
+		return err
+	}
+	if err := place("", "anon-m", "m-guest"); !errors.Is(err, commerce.ErrDiscountMemberRequired) {
+		t.Fatalf("guest with a code: %v, want ErrDiscountMemberRequired", err)
+	}
+	if err := place("member-1", "", "m-member"); err != nil {
+		t.Fatalf("member with a code: %v", err)
+	}
+}

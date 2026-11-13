@@ -52,6 +52,13 @@ func parsePublicQuery(values url.Values, definition Definition) (collections.Que
 		switch {
 		case key == "sort":
 			query.Sort = collections.ParseSort(value)
+			if query.Sort != nil {
+				for _, field := range definition.Fields {
+					if field.Private && field.ID == query.Sort.Field {
+						return collections.Query{}, fmt.Errorf("%w: %q cannot be sorted", collections.ErrInvalidQuery, field.ID)
+					}
+				}
+			}
 		case key == "after":
 			cursor, err := collections.DecodeCursor(value)
 			if err != nil {
