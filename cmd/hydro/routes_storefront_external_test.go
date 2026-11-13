@@ -7,10 +7,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/hydrohq/hydrogo/internal/config"
 	"github.com/hydrohq/hydrogo/internal/router"
+	"github.com/hydrohq/hydrogo/internal/server"
 )
 
 func TestServeApp_ExternalStorefrontRoutes(t *testing.T) {
@@ -96,5 +98,77 @@ func TestServeApp_ExternalStorefrontRoutes(t *testing.T) {
 	}
 	if rec.Body.String() != "<html>Storefront SSR Page</html>" {
 		t.Fatalf("expected SSR body, got %q", rec.Body.String())
+	}
+}
+
+func TestServeApp_ExternalStorefrontFullServerStack(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte("<!--[--><div>form error</div><script>__sveltekit</script><!--]-->"))
+	}))
+	defer upstream.Close()
+
+	app := &serveApp{
+		cfg: config.Config{
+			Storefront: config.StorefrontConfig{
+				External: config.ExternalStorefrontConfig{
+					Enabled:  true,
+					Upstream: upstream.URL,
+				},
+			},
+		},
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	if err := app.initStorefront(); err != nil {
+		t.Fatalf("initStorefront failed: %v", err)
+	}
+
+	routes := append(app.storefrontRoutes(), router.Route{
+		Pattern: "POST /api/v1/commerce/checkout",
+		Access:  router.Public,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+		}),
+	})
+
+	h := server.NewHandler(server.Config{
+		Routes:       routes,
+		PublicOrigin: "https://shop.example.com",
+		EnableHSTS:   true,
+	})
+
+	// 1. Browser POST to SvelteKit action (/odeme) must bypass HydroGo CSRF,
+	// ErrorMiddleware, HeadersMiddleware CSP, and HTMLCommentMiddleware.
+	formBody := strings.NewReader("guest_email=test%40example.com")
+	req := httptest.NewRequest(http.MethodPost, "https://shop.example.com/odeme", formBody)
+	req.Host = "shop.example.com"
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("POST /odeme status = %d, want 422 (body=%s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "<!--[-->") || !strings.Contains(rec.Body.String(), "<script>__sveltekit</script>") {
+		t.Fatalf("POST /odeme body modified unexpectedly: %q", rec.Body.String())
+	}
+	if csp := rec.Header().Get("Content-Security-Policy"); csp != "" {
+		t.Fatalf("POST /odeme unexpectedly received HydroGo CSP header %q", csp)
+	}
+	if hsts := rec.Header().Get("Strict-Transport-Security"); hsts == "" {
+		t.Fatalf("POST /odeme missing HSTS header when EnableHSTS is true")
+	}
+
+	// 2. HydroGo's own API route without CSRF token must still be rejected with 403.
+	apiReq := httptest.NewRequest(http.MethodPost, "https://shop.example.com/api/v1/commerce/checkout", strings.NewReader(`{}`))
+	apiReq.Host = "shop.example.com"
+	apiReq.Header.Set("Content-Type", "application/json")
+	apiRec := httptest.NewRecorder()
+	h.ServeHTTP(apiRec, apiReq)
+
+	if apiRec.Code != http.StatusForbidden {
+		t.Fatalf("POST /api/v1/commerce/checkout without CSRF = %d, want 403", apiRec.Code)
 	}
 }
