@@ -43,10 +43,17 @@ test("the CRM starter: sign in, add a company, find it, trust the dashboard tota
 
   const company = (await (await request.get(`${process.env.JOURNEY_HYDRO_URL}/api/v1/admin/content/companies?limit=1`, { headers })).json()).data[0].id;
   for (let i = 0; i < 105; i++) {
-    const res = await request.post(api, { headers, data: { name: `Bulk ${i}`, company, stage: "lead", amount: 10, currency: "TRY" } });
+    // The workspace governor caps writes per second (429); a bulk loader backs off and retries, so does this one.
+    let res = await request.post(api, { headers, data: { name: `Bulk ${i}`, company, stage: "lead", amount: 10, currency: "TRY" } });
+    for (let attempt = 0; res.status() === 429 && attempt < 20; attempt++) {
+      await page.waitForTimeout(250);
+      res = await request.post(api, { headers, data: { name: `Bulk ${i}`, company, stage: "lead", amount: 10, currency: "TRY" } });
+    }
     expect(res.status()).toBe(201);
   }
 
+  // The bulk loop emptied the workspace governor's write bucket; let it refill so the dashboard's own reads are not throttled.
+  await page.waitForTimeout(2000);
   // The dashboard must count every deal, not just the first page of 100.
   await page.goto(crm("/"));
   await expect(page.locator("main")).toContainText(String(open + 105));
