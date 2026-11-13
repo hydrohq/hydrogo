@@ -110,7 +110,8 @@ func maintenanceExempt(r *http.Request) bool {
 		path == "/api/v1/site/maintenance" ||
 		path == "/api/v1/commerce/payments/paytr/callback" ||
 		path == "/api/v1/payments/iyzico/callback" ||
-		path == "/api/v1/payments/iyzico/webhook" {
+		path == "/api/v1/payments/iyzico/webhook" ||
+		path == "/api/v1/commerce/shipping/geliver/webhook" {
 		return true
 	}
 	return false

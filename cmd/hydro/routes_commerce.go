@@ -167,6 +167,7 @@ func (a *serveApp) commerceRoutes() []router.Route {
 	handler.ShippingProvider = a.commerceShippingProvider()
 
 	transportRoutes := append(handler.Routes(), paymentRoutes...)
+	transportRoutes = append(transportRoutes, a.shippingRoutes(handler.Service, handler.ClientIP)...)
 	routes := make([]router.Route, 0, len(transportRoutes))
 	for _, route := range transportRoutes {
 		access := router.Protected

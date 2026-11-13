@@ -240,11 +240,10 @@ func (s Service) CreateShipment(ctx context.Context, provider ShippingProvider, 
 
 	var shipped Order
 	err = s.Transactions.Within(ctx, func(tx database.Executor) error {
-		carrier := result.Carrier
-		if carrier == "" {
-			carrier = provider.Name()
+		if result.Carrier == "" {
+			result.Carrier = provider.Name()
 		}
-		applied, err := s.Repository.RecordShipment(ctx, tx, orderID, carrier, result.TrackingNumber, result.TrackingURL, time.Now().UTC())
+		applied, err := s.Repository.RecordShipment(ctx, tx, orderID, result, time.Now().UTC())
 		if err != nil {
 			return err
 		}
@@ -258,6 +257,133 @@ func (s Service) CreateShipment(ctx context.Context, provider ShippingProvider, 
 		return err
 	})
 	return shipped, err
+}
+
+// ListShipmentOffers queries an offer-capable shipping provider for available
+// carrier quotes on a paid, unshipped order without locking its claim state.
+func (s Service) ListShipmentOffers(ctx context.Context, provider ShippingProvider, orderID string) (ShipmentOfferDraft, error) {
+	offerer, ok := provider.(ShipmentOfferer)
+	if !ok {
+		return ShipmentOfferDraft{}, ErrShippingActionUnsupported
+	}
+	var (
+		order Order
+		items []OrderItem
+	)
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		if order, err = s.Repository.GetOrder(ctx, tx, orderID); err != nil {
+			return err
+		}
+		if order.PaymentStatus != PaymentPaid || (order.FulfillmentStatus != FulfillmentUnfulfilled && order.FulfillmentStatus != FulfillmentPreparing) {
+			return ErrOrderNotShippable
+		}
+		items, err = s.Repository.ListOrderItems(ctx, tx, orderID)
+		return err
+	})
+	if err != nil {
+		return ShipmentOfferDraft{}, err
+	}
+	return offerer.ListShipmentOffers(ctx, order, items)
+}
+
+// CancelShipment cancels an already created carrier shipment and returns the
+// order to unfulfilled so an operator can create a replacement shipment.
+func (s Service) CancelShipment(ctx context.Context, provider ShippingProvider, orderID string) (Order, error) {
+	canceller, ok := provider.(ShipmentOrderCanceller)
+	if !ok {
+		return Order{}, ErrShippingActionUnsupported
+	}
+	var order Order
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		if order, err = s.Repository.GetOrder(ctx, tx, orderID); err != nil {
+			return err
+		}
+		if order.FulfillmentStatus != FulfillmentShipped {
+			return ErrOrderNotCancellableShipment
+		}
+		return nil
+	})
+	if err != nil {
+		return Order{}, err
+	}
+	if err := canceller.CancelOrderShipment(ctx, order); err != nil {
+		return Order{}, err
+	}
+	var updated Order
+	err = s.Transactions.Within(ctx, func(tx database.Executor) error {
+		applied, err := s.Repository.CancelShipmentRecord(ctx, tx, orderID)
+		if err != nil {
+			return err
+		}
+		if !applied {
+			return ErrOrderNotCancellableShipment
+		}
+		updated, err = s.Repository.GetOrder(ctx, tx, orderID)
+		return err
+	})
+	return updated, err
+}
+
+// OrderByShipmentID returns the order linked to a provider shipment id.
+func (s Service) OrderByShipmentID(ctx context.Context, shipmentID string) (Order, error) {
+	var order Order
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		order, err = s.Repository.GetOrderByShipmentID(ctx, tx, shipmentID)
+		return err
+	})
+	return order, err
+}
+
+// SyncShipmentDelivery refreshes tracking details from an authoritative
+// carrier lookup and transitions a shipped order to delivered once.
+func (s Service) SyncShipmentDelivery(ctx context.Context, shipmentID, trackingNumber, trackingURL, labelURL string, delivered bool, deliveredAt time.Time) (Order, bool, error) {
+	var (
+		updated Order
+		applied bool
+	)
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		order, err := s.Repository.GetOrderByShipmentID(ctx, tx, shipmentID)
+		if err != nil {
+			return err
+		}
+		var nextNum, nextURL, nextLabel string
+		if trackingNumber != "" && trackingNumber != order.ShippingTrackingNumber {
+			nextNum = trackingNumber
+		}
+		if trackingURL != "" && trackingURL != order.ShippingTrackingURL {
+			nextURL = trackingURL
+		}
+		if labelURL != "" && labelURL != order.ShippingLabelURL {
+			nextLabel = labelURL
+		}
+		if nextNum != "" || nextURL != "" || nextLabel != "" {
+			if err := s.Repository.UpdateShipmentTracking(ctx, tx, order.ID, nextNum, nextURL, nextLabel); err != nil {
+				return err
+			}
+		}
+		if delivered {
+			when := deliveredAt
+			if when.IsZero() {
+				when = time.Now().UTC()
+			}
+			ok, err := s.Repository.MarkOrderDelivered(ctx, tx, order.ID, when)
+			if err != nil {
+				return err
+			}
+			if ok {
+				applied = true
+				if err := s.emit(ctx, tx, "order.delivered", order.ID); err != nil {
+					return err
+				}
+			}
+		}
+		updated, err = s.Repository.GetOrder(ctx, tx, order.ID)
+		return err
+	})
+	return updated, applied, err
 }
 
 // StartPayment (re)starts a payment for a pending order, for when the first

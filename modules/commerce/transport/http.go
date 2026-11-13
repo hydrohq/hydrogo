@@ -111,7 +111,10 @@ func (h Handler) Routes() []Route {
 		{Pattern: "POST /api/v1/admin/commerce/discount-codes/{id}/active", Handler: http.HandlerFunc(h.setDiscountCodeActive), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/refund", Handler: http.HandlerFunc(h.refundOrder), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/cancel", Handler: http.HandlerFunc(h.cancelOrder), Protected: true, Permission: PermissionWrite},
+		{Pattern: "GET /api/v1/admin/commerce/shipping/carriers", Handler: http.HandlerFunc(h.getShippingCarriers), Protected: true, Permission: PermissionRead},
+		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment/offers", Handler: http.HandlerFunc(h.listShipmentOffers), Protected: true, Permission: PermissionWrite},
 		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment", Handler: http.HandlerFunc(h.createShipment), Protected: true, Permission: PermissionWrite},
+		{Pattern: "POST /api/v1/admin/commerce/orders/{id}/shipment/cancel", Handler: http.HandlerFunc(h.cancelShipment), Protected: true, Permission: PermissionWrite},
 		{Pattern: "GET /api/v1/admin/commerce/orders", Handler: http.HandlerFunc(h.listOrdersAdmin), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder), Protected: true, Permission: PermissionRead},
 		{Pattern: "GET /api/v1/admin/commerce/refunds-required", Handler: http.HandlerFunc(h.listRefundsRequired), Protected: true, Permission: PermissionRead},
@@ -213,6 +216,10 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 		api.WriteError(w, r, http.StatusConflict, "no payment is recorded for this order; refund it from the provider panel", nil)
 	case errors.Is(err, commerce.ErrOrderNotShippable):
 		api.WriteError(w, r, http.StatusConflict, "only paid, unshipped orders can be handed to a carrier", nil)
+	case errors.Is(err, commerce.ErrOrderNotCancellableShipment):
+		api.WriteError(w, r, http.StatusConflict, "only a shipped order can have its shipment cancelled", nil)
+	case errors.Is(err, commerce.ErrShippingActionUnsupported):
+		api.WriteError(w, r, http.StatusUnprocessableEntity, "the configured shipping provider does not support this action", nil)
 	default:
 		slog.ErrorContext(r.Context(), "commerce internal error", "method", r.Method, "path", r.URL.Path, "error", err)
 		api.WriteError(w, r, http.StatusInternalServerError, "internal server error", nil)

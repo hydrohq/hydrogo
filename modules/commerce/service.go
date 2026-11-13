@@ -76,7 +76,11 @@ type Repository interface {
 	// the order.
 	ClaimShipment(ctx context.Context, db database.Executor, orderID string, staleBefore time.Time) (bool, error)
 	ReleaseShipmentClaim(ctx context.Context, db database.Executor, orderID string) error
-	RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error)
+	RecordShipment(ctx context.Context, db database.Executor, orderID string, shipment ShipmentResult, shippedAt time.Time) (bool, error)
+	GetOrderByShipmentID(ctx context.Context, db database.Executor, shipmentID string) (Order, error)
+	UpdateShipmentTracking(ctx context.Context, db database.Executor, orderID, trackingNumber, trackingURL, labelURL string) error
+	CancelShipmentRecord(ctx context.Context, db database.Executor, orderID string) (bool, error)
+	MarkOrderDelivered(ctx context.Context, db database.Executor, orderID string, deliveredAt time.Time) (bool, error)
 
 	RecordRefundRequired(ctx context.Context, db database.Executor, item RefundRequired) error
 	CountUnresolvedRefundRequired(ctx context.Context, db database.Executor) (int, error)

@@ -1,0 +1,28 @@
+id: "202611130002_commerce_order_shipping_details"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "6f2ef09c69bb65eae06b59acd8172e05e7cbf2dc0a4e1f478e2546b7eeefa67a"
+  postgres: "7310259155b0128e4f9045eed27bea720cefb56167dc09a25ef70b5df60e3fd2"
+  mysql: "e626ea5701ea69b89a3d5062532218fb7260da8d60f4bb66379237ca334d9766"
+dependencies:
+  - "202611130001_commerce_order_payment_tracking"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding three columns and one index"
+disk_estimate: "Three columns and one shipment lookup index per order row"
+compatibility: "Additive only. Existing orders default to empty shipping_shipment_id/shipping_label_url and NULL delivered_at."
+smoke:
+  - "An order created before this migration still reads back without error"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

@@ -8,6 +8,7 @@
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
   import OrderExtras from './OrderExtras.svelte';
+  import OrderShippingPanel from './OrderShippingPanel.svelte';
 
   type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
   type FulfillmentStatus = 'unfulfilled' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
@@ -35,7 +36,10 @@
     shipping_carrier?: string;
     shipping_tracking_number?: string;
     shipping_tracking_url?: string;
+    shipping_shipment_id?: string;
+    shipping_label_url?: string;
     shipped_at?: string;
+    delivered_at?: string;
     created_at: string;
   }
 
@@ -160,14 +164,6 @@
     }
   }
 
-  const canShipSelected = $derived(
-    !!selected && selected.payment_status === 'paid' && (selected.fulfillment_status === 'unfulfilled' || selected.fulfillment_status === 'preparing')
-  );
-
-  // Carrier booked outside the system (manual carrier): the operator types what the carrier's portal gave.
-  let carrierName = $state('');
-  let trackingNumber = $state('');
-
   async function refundSelected() {
     if (!selected) return;
     if (!(await confirmAction({ title: t('commerce.confirm.refundTitle'), description: t('commerce.order.refundConfirm'), confirmLabel: t('commerce.confirm.refundButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'destructive' }))) return;
@@ -182,31 +178,6 @@
       }
     } catch (err) {
       feedback = { type: 'error', text: errorText(err, t('commerce.order.refundFailed')) };
-    } finally {
-      actionLoading = false;
-    }
-  }
-
-  async function createShipment() {
-    if (!selected) return;
-    if (!(await confirmAction({ title: t('commerce.confirm.shipTitle'), description: t('commerce.confirm.shipDesc'), confirmLabel: t('commerce.confirm.shipButton'), cancelLabel: t('commerce.confirm.keep'), variant: 'primary' }))) return;
-    actionLoading = true;
-    feedback = null;
-    try {
-      const res = await api.post<{ data: Order }>(`/api/v1/admin/commerce/orders/${encodeURIComponent(selected.id)}/shipment`, carrierName.trim() || trackingNumber.trim() ? { carrier: carrierName.trim(), tracking_number: trackingNumber.trim() } : undefined);
-      if (res?.data) {
-        selected = { ...selected, ...res.data };
-        orders = orders.map((o) => (o.id === res.data.id ? { ...o, ...res.data } : o));
-        feedback = { type: 'success', text: t('commerce.order.shipmentDone', { tracking: res.data.shipping_tracking_number ?? '' }) };
-      }
-    } catch (err) {
-      if (err instanceof ApiClientError && err.status === 503) {
-        feedback = { type: 'error', text: t('commerce.order.shipmentNoProvider') };
-      } else if (err instanceof ApiClientError && err.status === 409) {
-        feedback = { type: 'error', text: `${t('commerce.order.notShippableUnpaid')}${err.requestId ? ` (${t('commerce.requestId')}: ${err.requestId})` : ''}` };
-      } else {
-        feedback = { type: 'error', text: errorText(err, t('commerce.order.loadFailed')) };
-      }
     } finally {
       actionLoading = false;
     }
@@ -332,25 +303,18 @@
             Bu siparişin ücreti daha önce iade edilmiştir.
           </div>
         {/if}
-        {#if selected.shipping_tracking_number}
-          <div class="p-4 rounded-lg bg-muted/50 border border-border text-xs space-y-1">
-            <div class="flex justify-between gap-3"><span class="text-muted-foreground">{t('commerce.order.carrier')}</span><span class="text-foreground">{selected.shipping_carrier}</span></div>
-            <div class="flex justify-between gap-3"><span class="text-muted-foreground">{t('commerce.order.tracking')}</span><span class="text-foreground font-mono">{selected.shipping_tracking_number}</span></div>
-            {#if selected.shipped_at}
-              <div class="flex justify-between gap-3"><span class="text-muted-foreground">{t('commerce.order.shippedAt')}</span><span class="text-foreground">{new Date(selected.shipped_at).toLocaleString()}</span></div>
-            {/if}
-            {#if selected.shipping_tracking_url}
-              <a class="text-primary hover:underline" href={selected.shipping_tracking_url} target="_blank" rel="noopener noreferrer">{t('commerce.order.trackingLink')}</a>
-            {/if}
-          </div>
-        {:else if canWrite}
-          <p class="text-xs text-muted-foreground">{t('commerce.order.createShipmentHint')}</p>
-          <input class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm" placeholder={t('commerce.order.carrierName')} aria-label={t('commerce.order.carrierName')} bind:value={carrierName} />
-          <input class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm font-mono" placeholder={t('commerce.order.trackingNumber')} aria-label={t('commerce.order.trackingNumber')} bind:value={trackingNumber} />
-          <Button variant="primary" size="sm" class="w-full" disabled={!canShipSelected} loading={actionLoading} onclick={createShipment}>
-            {t('commerce.order.createShipment')}
-          </Button>
-        {/if}
+        <OrderShippingPanel
+          order={selected}
+          {canWrite}
+          onupdated={(updated) => {
+            if (!selected) return;
+            selected = { ...selected, ...updated };
+            orders = orders.map((o) => (o.id === updated.id ? { ...o, ...updated } : o));
+          }}
+          onfeedback={(fb) => {
+            feedback = fb;
+          }}
+        />
       </div>
 
       <OrderExtras order={selected} {canWrite} onchanged={async () => { if (selected) await openOrder(selected); void loadOrders(); }} />

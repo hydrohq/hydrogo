@@ -141,38 +141,6 @@ func (h Handler) createDiscountCode(w http.ResponseWriter, r *http.Request) {
 	api.WriteData(w, http.StatusCreated, record, nil)
 }
 
-// createShipment hands a paid order to the configured carrier. Operator
-// action only.
-func (h Handler) createShipment(w http.ResponseWriter, r *http.Request) {
-	if h.ShippingProvider == nil {
-		api.WriteError(w, r, http.StatusServiceUnavailable, "no shipping provider is configured", nil)
-		return
-	}
-	// Optional body: the operator's carrier / tracking number (manual carrier).
-	var input struct {
-		Carrier        string `json:"carrier"`
-		TrackingNumber string `json:"tracking_number"`
-		TrackingURL    string `json:"tracking_url"`
-	}
-	ctx := r.Context()
-	if r.ContentLength != 0 {
-		if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
-			return
-		}
-		ctx = commerce.WithShipmentInput(ctx, commerce.ShipmentInput{Carrier: strings.TrimSpace(input.Carrier), TrackingNumber: strings.TrimSpace(input.TrackingNumber), TrackingURL: strings.TrimSpace(input.TrackingURL)})
-	}
-	order, err := h.Service.CreateShipment(ctx, h.ShippingProvider, r.PathValue("id"))
-	if err != nil {
-		if errorsIsAny(err, commerce.ErrOrderNotFound, commerce.ErrOrderNotShippable) {
-			writeServiceError(w, r, err)
-			return
-		}
-		api.WriteError(w, r, http.StatusBadGateway, "the carrier did not accept the shipment", nil)
-		return
-	}
-	api.WriteData(w, http.StatusOK, order, nil)
-}
-
 func intQueryParam(raw string, fallback, min, max int) int {
 	if raw == "" {
 		return fallback

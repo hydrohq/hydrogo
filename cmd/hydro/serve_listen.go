@@ -212,7 +212,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		IPBlocklist:          a.ipBlocklist,
 		AnomalyFilterEnabled: cfg.Security.EnableAnomalyFilter,
 		AnomalyBypassPaths:   cfg.Security.AnomalyBypassPaths,
-		CSRFExemptPaths:      append(append(commerceCSRFExemptPaths(modules, cfg.Commerce), paymentsCSRFExemptPaths(modules, cfg.Payments)...), "/api/v1/public/onboard", "/api/v1/public/waitlist", "/api/v1/webhooks/shopier", "/api/payments/shopier/callback", "/api/v1/payments/shopier/callback"),
+		CSRFExemptPaths:      append(append(append(commerceCSRFExemptPaths(modules, cfg.Commerce), paymentsCSRFExemptPaths(modules, cfg.Payments)...), shippingCSRFExemptPaths(modules, cfg.Carriers)...), "/api/v1/public/onboard", "/api/v1/public/waitlist", "/api/v1/webhooks/shopier", "/api/payments/shopier/callback", "/api/v1/payments/shopier/callback"),
 		CSRFSkipCookieFor: func(r *http.Request) bool {
 			// Skip CSRF cookie for public storefront pages so Cloudflare / CDN edge caches can cache them.
 			p := r.URL.Path

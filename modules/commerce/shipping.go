@@ -31,15 +31,74 @@ type ShipmentResult struct {
 	Carrier        string `json:"carrier,omitempty"`
 	TrackingNumber string `json:"tracking_number"`
 	TrackingURL    string `json:"tracking_url,omitempty"`
+	ShipmentID     string `json:"shipment_id,omitempty"`
+	LabelURL       string `json:"label_url,omitempty"`
+}
+
+// ParcelSpec carries optional package dimensions and weight when creating or
+// quoting a carrier shipment. Empty fields fall back to provider defaults.
+type ParcelSpec struct {
+	LengthCm string `json:"length_cm,omitempty"`
+	WidthCm  string `json:"width_cm,omitempty"`
+	HeightCm string `json:"height_cm,omitempty"`
+	WeightKg string `json:"weight_kg,omitempty"`
 }
 
 // ShipmentInput is what an operator supplies when handing an order over:
-// needed by carriers booked outside the system (the shipping module's manual
-// carrier), where the tracking number comes from the operator, not an API.
+// manual tracking fields for carriers booked outside, or an offer/shipment
+// selection plus parcel overrides for aggregator carriers.
 type ShipmentInput struct {
 	Carrier        string
 	TrackingNumber string
 	TrackingURL    string
+	OfferID        string
+	ShipmentID     string
+	Parcel         ParcelSpec
+}
+
+// ShipmentOffer is one carrier quote returned by an aggregator such as Geliver.
+type ShipmentOffer struct {
+	ID                string `json:"id"`
+	Carrier           string `json:"carrier"`
+	CarrierName       string `json:"carrier_name"`
+	ServiceCode       string `json:"service_code,omitempty"`
+	Amount            string `json:"amount"`
+	Currency          string `json:"currency"`
+	EstimatedDelivery string `json:"estimated_delivery,omitempty"`
+}
+
+// ShipmentOfferDraft holds the provider shipment identifier and available quotes.
+type ShipmentOfferDraft struct {
+	ShipmentID string          `json:"shipment_id"`
+	CheapestID string          `json:"cheapest_id,omitempty"`
+	FastestID  string          `json:"fastest_id,omitempty"`
+	Offers     []ShipmentOffer `json:"offers"`
+}
+
+// ShipmentOfferer is optionally implemented by shipping providers that quote
+// multiple carriers before purchasing a label.
+type ShipmentOfferer interface {
+	ListShipmentOffers(ctx context.Context, order Order, items []OrderItem) (ShipmentOfferDraft, error)
+}
+
+// ShipmentOrderCanceller is optionally implemented by shipping providers that can
+// cancel an already created shipment for an order.
+type ShipmentOrderCanceller interface {
+	CancelOrderShipment(ctx context.Context, order Order) error
+}
+
+// CarrierInfo describes one enabled carrier and its optional capabilities.
+type CarrierInfo struct {
+	Key            string `json:"key"`
+	SupportsOffers bool   `json:"supports_offers"`
+	SupportsCancel bool   `json:"supports_cancel"`
+}
+
+// CarrierInspector is optionally implemented by composite shipping routers so
+// the admin UI knows which carriers and actions are enabled.
+type CarrierInspector interface {
+	DefaultCarrier() string
+	CarrierInfos() []CarrierInfo
 }
 
 type shipmentInputKey struct{}

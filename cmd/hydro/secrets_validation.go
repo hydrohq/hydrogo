@@ -73,6 +73,16 @@ func validateSecrets(cfg config.Config, lookup config.LookupEnv, isProd bool, lo
 		}
 	}
 
+	// 5. Shipping secrets in config
+	if cfg.Carriers.Geliver.Enabled() {
+		if isInsecureSecret(cfg.Carriers.Geliver.Token) {
+			issues = append(issues, "carriers.geliver.token is empty or set to CHANGE_ME")
+		}
+		if isInsecureSecret(cfg.Carriers.Geliver.WebhookSecret) {
+			issues = append(issues, "carriers.geliver.webhook_secret is empty or set to CHANGE_ME")
+		}
+	}
+
 	if len(issues) == 0 {
 		return nil
 	}

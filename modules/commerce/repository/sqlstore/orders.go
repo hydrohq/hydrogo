@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/database"
@@ -137,11 +138,11 @@ type orderScanner interface {
 func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	var order commerce.Order
 	var paymentStatus, fulfillmentStatus string
-	var holdUntil, shippedAt, created, updated any
+	var holdUntil, shippedAt, deliveredAt, created, updated any
 	if err := scanner.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestDistrict, &order.GuestCountry, &order.GuestPostalCode,
 		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.SubtotalCents, &order.DiscountCode, &order.DiscountCents, &order.TaxCents, &order.ShippingCents, &order.TotalCents,
 		&order.PaymentMethod, &order.PaymentRef, &holdUntil,
-		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &shippedAt, &created, &updated); err != nil {
+		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &order.ShippingShipmentID, &order.ShippingLabelURL, &shippedAt, &deliveredAt, &created, &updated); err != nil {
 		return commerce.Order{}, err
 	}
 	order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
@@ -154,6 +155,11 @@ func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	}
 	if shippedAt != nil {
 		if order.ShippedAt, parseErr = s.parseTime(shippedAt); parseErr != nil {
+			return commerce.Order{}, parseErr
+		}
+	}
+	if deliveredAt != nil {
+		if order.DeliveredAt, parseErr = s.parseTime(deliveredAt); parseErr != nil {
 			return commerce.Order{}, parseErr
 		}
 	}
@@ -177,7 +183,7 @@ func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
 	return order, true, nil
 }
 
-const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipped_at, created_at, updated_at`
+const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipping_shipment_id, shipping_label_url, shipped_at, delivered_at, created_at, updated_at`
 
 func (s Store) nullableTime(t time.Time) any {
 	if t.IsZero() {
@@ -515,18 +521,131 @@ func (s Store) ReleaseShipmentClaim(ctx context.Context, db database.Executor, o
 // RecordShipment stores the carrier's tracking details and moves a claimed
 // (preparing) order to shipped. Guarded by fulfillment_status, so it applies
 // at most once per claim.
-func (s Store) RecordShipment(ctx context.Context, db database.Executor, orderID, carrier, trackingNumber, trackingURL string, shippedAt time.Time) (bool, error) {
+func (s Store) RecordShipment(ctx context.Context, db database.Executor, orderID string, shipment commerce.ShipmentResult, shippedAt time.Time) (bool, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return false, err
 	}
-	args := []any{string(commerce.FulfillmentShipped), carrier, trackingNumber, trackingURL, s.dbTime(shippedAt), s.dbTime(s.now()), orderID}
+	args := []any{string(commerce.FulfillmentShipped), shipment.Carrier, shipment.TrackingNumber, shipment.TrackingURL, shipment.ShipmentID, shipment.LabelURL, s.dbTime(shippedAt), s.dbTime(s.now()), orderID}
 	filter, args, err := s.scope(ctx, args)
 	if err != nil {
 		return false, err
 	}
 	query := `UPDATE commerce_customer_orders SET fulfillment_status = ` + s.p(1) + `, shipping_carrier = ` + s.p(2) +
-		`, shipping_tracking_number = ` + s.p(3) + `, shipping_tracking_url = ` + s.p(4) + `, shipped_at = ` + s.p(5) + `, updated_at = ` + s.p(6) +
-		` WHERE id = ` + s.p(7) + ` AND fulfillment_status = '` + string(commerce.FulfillmentPreparing) + `'` + filter
+		`, shipping_tracking_number = ` + s.p(3) + `, shipping_tracking_url = ` + s.p(4) +
+		`, shipping_shipment_id = ` + s.p(5) + `, shipping_label_url = ` + s.p(6) +
+		`, shipped_at = ` + s.p(7) + `, delivered_at = NULL, updated_at = ` + s.p(8) +
+		` WHERE id = ` + s.p(9) + ` AND fulfillment_status = '` + string(commerce.FulfillmentPreparing) + `'` + filter
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
+}
+
+// GetOrderByShipmentID returns one order matching an external provider
+// shipment identifier within the current tenant scope.
+func (s Store) GetOrderByShipmentID(ctx context.Context, db database.Executor, shipmentID string) (commerce.Order, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return commerce.Order{}, err
+	}
+	id := strings.TrimSpace(shipmentID)
+	if id == "" {
+		return commerce.Order{}, commerce.ErrOrderNotFound
+	}
+	args := []any{id}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return commerce.Order{}, err
+	}
+	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE shipping_shipment_id = `+s.p(1)+filter, args...)
+	order, found, err := s.scanOrder(row)
+	if err != nil {
+		return commerce.Order{}, err
+	}
+	if !found {
+		return commerce.Order{}, commerce.ErrOrderNotFound
+	}
+	return order, nil
+}
+
+// UpdateShipmentTracking fills or refreshes carrier tracking fields on an order
+// when non-empty values are supplied.
+func (s Store) UpdateShipmentTracking(ctx context.Context, db database.Executor, orderID, trackingNumber, trackingURL, labelURL string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	setClauses := make([]string, 0, 4)
+	args := make([]any, 0, 6)
+	if strings.TrimSpace(trackingNumber) != "" {
+		args = append(args, trackingNumber)
+		setClauses = append(setClauses, `shipping_tracking_number = `+s.p(len(args)))
+	}
+	if strings.TrimSpace(trackingURL) != "" {
+		args = append(args, trackingURL)
+		setClauses = append(setClauses, `shipping_tracking_url = `+s.p(len(args)))
+	}
+	if strings.TrimSpace(labelURL) != "" {
+		args = append(args, labelURL)
+		setClauses = append(setClauses, `shipping_label_url = `+s.p(len(args)))
+	}
+	if len(setClauses) == 0 {
+		return nil
+	}
+	args = append(args, s.dbTime(s.now()))
+	setClauses = append(setClauses, `updated_at = `+s.p(len(args)))
+	args = append(args, orderID)
+	idPos := len(args)
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE commerce_customer_orders SET ` + strings.Join(setClauses, `, `) + ` WHERE id = ` + s.p(idPos) + filter
+	_, err = db.ExecContext(ctx, query, args...)
+	return err
+}
+
+// CancelShipmentRecord clears carrier shipment details and returns a shipped
+// order to unfulfilled so an operator can create a replacement shipment.
+func (s Store) CancelShipmentRecord(ctx context.Context, db database.Executor, orderID string) (bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return false, err
+	}
+	args := []any{string(commerce.FulfillmentUnfulfilled), s.dbTime(s.now()), orderID, string(commerce.FulfillmentShipped)}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return false, err
+	}
+	query := `UPDATE commerce_customer_orders SET fulfillment_status = ` + s.p(1) +
+		`, shipping_carrier = '', shipping_tracking_number = '', shipping_tracking_url = '', shipping_shipment_id = '', shipping_label_url = '', shipped_at = NULL, delivered_at = NULL, updated_at = ` + s.p(2) +
+		` WHERE id = ` + s.p(3) + ` AND fulfillment_status = ` + s.p(4) + filter
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected == 1, nil
+}
+
+// MarkOrderDelivered atomically transitions a shipped order to delivered.
+func (s Store) MarkOrderDelivered(ctx context.Context, db database.Executor, orderID string, deliveredAt time.Time) (bool, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return false, err
+	}
+	args := []any{string(commerce.FulfillmentDelivered), s.dbTime(deliveredAt), s.dbTime(s.now()), orderID, string(commerce.FulfillmentShipped)}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return false, err
+	}
+	query := `UPDATE commerce_customer_orders SET fulfillment_status = ` + s.p(1) +
+		`, delivered_at = ` + s.p(2) + `, updated_at = ` + s.p(3) +
+		` WHERE id = ` + s.p(4) + ` AND fulfillment_status = ` + s.p(5) + filter
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return false, err
