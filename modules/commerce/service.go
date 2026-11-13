@@ -36,6 +36,9 @@ type Repository interface {
 	GetOrderByIdempotencyKey(ctx context.Context, db database.Executor, key string) (Order, bool, error)
 	ListOrderItems(ctx context.Context, db database.Executor, orderID string) ([]OrderItem, error)
 	ListPendingOrdersOlderThan(ctx context.Context, db database.Executor, cutoff time.Time, limit int) ([]Order, error)
+	ListExpiredPendingOrders(ctx context.Context, db database.Executor, now, cardCutoff, bankTransferCutoff time.Time, limit int) ([]Order, error)
+	UpdateOrderPaymentAttempt(ctx context.Context, db database.Executor, orderID, paymentMethod, paymentRef string) error
+	ExtendOrderHold(ctx context.Context, db database.Executor, orderID string, holdUntil time.Time) error
 	// ListOrders backs the admin order-browsing endpoint; either status
 	// filter as "" skips it. See repository/sqlstore's own doc comment for
 	// the pagination convention (limit+1 rows, no COUNT query).

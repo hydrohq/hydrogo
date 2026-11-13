@@ -18,6 +18,8 @@ type ReconcileConfig struct {
 	// `hydro commerce reconcile` CLI) that never constructs one. Defaults
 	// to 30 minutes, the same default Worker.hold() uses.
 	Hold time.Duration
+	// BankTransferHold mirrors Worker.BankTransferHold. Defaults to 48 hours.
+	BankTransferHold time.Duration
 	// StaleAfter is how much further past Hold a pending order must sit
 	// before Reconcile flags it. A pending order just past Hold is not yet
 	// an anomaly -- the sweep (Worker.ExpireDue, ticking every minute in
@@ -31,6 +33,13 @@ func (c ReconcileConfig) hold() time.Duration {
 		return 30 * time.Minute
 	}
 	return c.Hold
+}
+
+func (c ReconcileConfig) bankTransferHold() time.Duration {
+	if c.BankTransferHold <= 0 {
+		return 48 * time.Hour
+	}
+	return c.BankTransferHold
 }
 
 func (c ReconcileConfig) staleAfter() time.Duration {
@@ -89,8 +98,9 @@ func (s Service) Reconcile(ctx context.Context, db database.Executor, now time.T
 	if limit <= 0 {
 		limit = 100
 	}
-	cutoff := now.Add(-(cfg.hold() + cfg.staleAfter()))
-	stale, err := s.Repository.ListPendingOrdersOlderThan(ctx, db, cutoff, limit)
+	cardCutoff := now.Add(-(cfg.hold() + cfg.staleAfter()))
+	bankTransferCutoff := now.Add(-(cfg.bankTransferHold() + cfg.staleAfter()))
+	stale, err := s.Repository.ListExpiredPendingOrders(ctx, db, now.Add(-cfg.staleAfter()), cardCutoff, bankTransferCutoff, limit)
 	if err != nil {
 		return ReconcileReport{}, err
 	}

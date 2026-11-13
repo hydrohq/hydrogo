@@ -30,6 +30,9 @@ type PaymentStart struct {
 	RedirectURL  string            `json:"redirect_url,omitempty"`
 	Method       string            `json:"method,omitempty"`
 	Instructions map[string]string `json:"instructions,omitempty"`
+	// ProviderRef carries an attempt-specific gateway reference (such as PayTR's
+	// per-attempt merchant_oid) back to Service.StartPayment for persistence.
+	ProviderRef string `json:"-"`
 }
 
 type paymentMethodKey struct{}

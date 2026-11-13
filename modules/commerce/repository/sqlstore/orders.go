@@ -29,10 +29,11 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 		return commerce.Order{}, false, err
 	}
 	memberID := nullable(order.MemberID)
-	query := `INSERT INTO commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `,` + s.p(24) + `)`
+	holdUntil := s.nullableTime(order.HoldUntil)
+	query := `INSERT INTO commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `,` + s.p(24) + `,` + s.p(25) + `,` + s.p(26) + `,` + s.p(27) + `)`
 	_, err = db.ExecContext(ctx, query, order.ID, memberID, order.GuestName, order.GuestEmail, order.GuestPhone, order.GuestAddress, order.GuestCity, order.GuestDistrict, order.GuestCountry, order.GuestPostalCode,
-		order.IdempotencyKey, order.IdempotencyHash, order.Currency, order.SubtotalCents, order.DiscountCode, order.DiscountCents, order.TaxCents, order.ShippingCents, order.TotalCents, string(order.PaymentStatus), string(order.FulfillmentStatus), s.dbTime(order.CreatedAt), s.dbTime(order.UpdatedAt), tenantID)
+		order.IdempotencyKey, order.IdempotencyHash, order.Currency, order.SubtotalCents, order.DiscountCode, order.DiscountCents, order.TaxCents, order.ShippingCents, order.TotalCents, order.PaymentMethod, order.PaymentRef, holdUntil, string(order.PaymentStatus), string(order.FulfillmentStatus), s.dbTime(order.CreatedAt), s.dbTime(order.UpdatedAt), tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			existing, found, getErr := s.GetOrderByIdempotencyKey(ctx, db, order.IdempotencyKey)
@@ -126,15 +127,21 @@ type orderScanner interface {
 func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	var order commerce.Order
 	var paymentStatus, fulfillmentStatus string
-	var shippedAt, created, updated any
+	var holdUntil, shippedAt, created, updated any
 	if err := scanner.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestDistrict, &order.GuestCountry, &order.GuestPostalCode,
 		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.SubtotalCents, &order.DiscountCode, &order.DiscountCents, &order.TaxCents, &order.ShippingCents, &order.TotalCents,
+		&order.PaymentMethod, &order.PaymentRef, &holdUntil,
 		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &shippedAt, &created, &updated); err != nil {
 		return commerce.Order{}, err
 	}
 	order.PaymentStatus = commerce.PaymentStatus(paymentStatus)
 	order.FulfillmentStatus = commerce.FulfillmentStatus(fulfillmentStatus)
 	var parseErr error
+	if holdUntil != nil {
+		if order.HoldUntil, parseErr = s.parseTime(holdUntil); parseErr != nil {
+			return commerce.Order{}, parseErr
+		}
+	}
 	if shippedAt != nil {
 		if order.ShippedAt, parseErr = s.parseTime(shippedAt); parseErr != nil {
 			return commerce.Order{}, parseErr
@@ -160,7 +167,14 @@ func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
 	return order, true, nil
 }
 
-const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipped_at, created_at, updated_at`
+const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipped_at, created_at, updated_at`
+
+func (s Store) nullableTime(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return s.dbTime(t)
+}
 
 // ListPendingOrdersOlderThan returns orders still awaiting payment whose
 // hold should have expired by now -- worker.go's sweep calls this, then
@@ -197,6 +211,111 @@ func (s Store) ListPendingOrdersOlderThan(ctx context.Context, db database.Execu
 		orders = append(orders, order)
 	}
 	return orders, rows.Err()
+}
+
+// ListExpiredPendingOrders returns pending orders whose payment hold has
+// elapsed: card orders use cardCutoff, manual bank-transfer ("havale") orders
+// use bankTransferCutoff, and orders with a hold_until deadline in the future
+// (e.g. awaiting gateway fraud screening) are kept until that deadline passes.
+func (s Store) ListExpiredPendingOrders(ctx context.Context, db database.Executor, now, cardCutoff, bankTransferCutoff time.Time, limit int) ([]commerce.Order, error) {
+	if err := database.RequireExecutor(db); err != nil {
+		return nil, err
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	queryer, ok := db.(interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	})
+	if !ok {
+		return nil, errors.New("database executor does not support row queries")
+	}
+	args := []any{s.dbTime(now), s.dbTime(bankTransferCutoff), s.dbTime(cardCutoff)}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT ` + orderColumns + ` FROM commerce_customer_orders` +
+		` WHERE payment_status = 'pending'` +
+		` AND (hold_until IS NULL OR hold_until < ` + s.p(1) + `)` +
+		` AND (((payment_method = 'havale' OR discount_code = 'method:havale') AND created_at < ` + s.p(2) + `)` +
+		` OR (payment_method <> 'havale' AND discount_code <> 'method:havale' AND created_at < ` + s.p(3) + `))` +
+		filter + ` ORDER BY created_at LIMIT ` + fmt.Sprintf("%d", limit)
+	rows, err := queryer.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var orders []commerce.Order
+	for rows.Next() {
+		order, err := s.scanOrderRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+	return orders, rows.Err()
+}
+
+// UpdateOrderPaymentAttempt persists the payment method and/or provider attempt
+// reference chosen for a pending order.
+func (s Store) UpdateOrderPaymentAttempt(ctx context.Context, db database.Executor, orderID, paymentMethod, paymentRef string) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	setClauses := make([]string, 0, 3)
+	args := make([]any, 0, 6)
+	if paymentMethod != "" {
+		args = append(args, paymentMethod)
+		setClauses = append(setClauses, `payment_method = `+s.p(len(args)))
+	}
+	if paymentRef != "" {
+		args = append(args, paymentRef)
+		setClauses = append(setClauses, `payment_ref = `+s.p(len(args)))
+	}
+	if len(setClauses) == 0 {
+		return nil
+	}
+	args = append(args, s.dbTime(s.now()))
+	setClauses = append(setClauses, `updated_at = `+s.p(len(args)))
+	args = append(args, orderID, string(commerce.PaymentPending))
+	idPos, statusPos := len(args)-1, len(args)
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE commerce_customer_orders SET `
+	for i, c := range setClauses {
+		if i > 0 {
+			query += `, `
+		}
+		query += c
+	}
+	query += ` WHERE id = ` + s.p(idPos) + ` AND payment_status = ` + s.p(statusPos) + filter
+	_, err = db.ExecContext(ctx, query, args...)
+	return err
+}
+
+// ExtendOrderHold pushes back hold_until on a pending order unless a later hold
+// deadline is already stored.
+func (s Store) ExtendOrderHold(ctx context.Context, db database.Executor, orderID string, holdUntil time.Time) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	if holdUntil.IsZero() {
+		return nil
+	}
+	holdVal := s.dbTime(holdUntil)
+	args := []any{holdVal, s.dbTime(s.now()), orderID, string(commerce.PaymentPending), holdVal}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return err
+	}
+	query := `UPDATE commerce_customer_orders SET hold_until = ` + s.p(1) + `, updated_at = ` + s.p(2) +
+		` WHERE id = ` + s.p(3) + ` AND payment_status = ` + s.p(4) +
+		` AND (hold_until IS NULL OR hold_until < ` + s.p(5) + `)` + filter
+	_, err = db.ExecContext(ctx, query, args...)
+	return err
 }
 
 // ListOrdersByMemberID returns a member's own orders, newest first -- the

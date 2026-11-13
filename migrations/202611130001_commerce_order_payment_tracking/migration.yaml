@@ -1,0 +1,28 @@
+id: "202611130001_commerce_order_payment_tracking"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "57d43c4a425968aaa0c4c4f020158cd237741e37befe5c0bc1f1de69b2b8a651"
+  postgres: "e30ad5d975c764e7eb133ed59d4ad0b04a457cb8c6076a2a9f9b508a0757ba3c"
+  mysql: "a642d7109b4548ba4c439a19dfd04956ce81dc4530cd42df7ddcf07e5c7195fa"
+dependencies:
+  - "202610231302_commerce_orders"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding three columns"
+disk_estimate: "Three small columns per existing order row"
+compatibility: "Additive only. Existing orders default to empty payment_method/payment_ref and NULL hold_until."
+smoke:
+  - "An order created before this migration still reads back without error"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."
