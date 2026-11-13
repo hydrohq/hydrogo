@@ -51,7 +51,7 @@ func (s Store) GetDiscountCodeByCode(ctx context.Context, db database.Executor, 
 	if err != nil {
 		return commerce.DiscountCode{}, err
 	}
-	row := db.QueryRowContext(ctx, `SELECT id, code, kind, value, min_subtotal_cents, max_redemptions, redeemed_count, active, starts_at, ends_at, created_at, updated_at FROM commerce_discount_codes WHERE code = `+s.p(1)+filter, args...)
+	row := db.QueryRowContext(ctx, `SELECT id, code, kind, value, min_subtotal_cents, max_redemptions, redeemed_count, active, starts_at, ends_at, created_at, updated_at FROM commerce_discount_codes WHERE UPPER(code) = UPPER(`+s.p(1)+`)`+filter, args...)
 	discount, found, err := s.scanDiscountCode(row)
 	if err != nil {
 		return commerce.DiscountCode{}, err
@@ -136,7 +136,7 @@ func (s Store) ReleaseDiscountCode(ctx context.Context, db database.Executor, co
 		return err
 	}
 	_, err = db.ExecContext(ctx, `UPDATE commerce_discount_codes SET redeemed_count = redeemed_count - 1, updated_at = `+s.p(1)+
-		` WHERE code = `+s.p(2)+` AND redeemed_count > 0`+filter, args...)
+		` WHERE UPPER(code) = UPPER(`+s.p(2)+`) AND redeemed_count > 0`+filter, args...)
 	return err
 }
 

@@ -38,6 +38,15 @@ func (s Store) p(n int) string {
 	return "?"
 }
 
+// insertIgnoreSQL rewrites a plain `INSERT INTO ...` statement so unique/constraint
+// conflicts do not abort an active PostgreSQL transaction (SQLSTATE 25P02).
+func (s Store) insertIgnoreSQL(rest string) string {
+	if s.Dialect == database.MySQL {
+		return "INSERT IGNORE INTO " + rest
+	}
+	return "INSERT INTO " + rest + " ON CONFLICT DO NOTHING"
+}
+
 func (s Store) now() time.Time { return time.Now().UTC() }
 
 // dbTime formats a time for storage the way the rest of the codebase does
@@ -436,15 +445,25 @@ func (s Store) RemoveItem(ctx context.Context, db database.Executor, cartID, ite
 
 // ClearCart empties a cart once its contents became an order.
 func (s Store) ClearCart(ctx context.Context, db database.Executor, cartID string) error {
+	_, err := s.ClaimCart(ctx, db, cartID)
+	return err
+}
+
+// ClaimCart deletes all items from the cart and returns how many rows were
+// removed, serializing concurrent checkouts against the same cart rows.
+func (s Store) ClaimCart(ctx context.Context, db database.Executor, cartID string) (int64, error) {
 	if err := database.RequireExecutor(db); err != nil {
-		return err
+		return 0, err
 	}
 	filter, args, err := s.scope(ctx, []any{cartID})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_, err = db.ExecContext(ctx, `DELETE FROM commerce_shopping_cart_items WHERE cart_id = `+s.p(1)+filter, args...)
-	return err
+	res, err := db.ExecContext(ctx, `DELETE FROM commerce_shopping_cart_items WHERE cart_id = `+s.p(1)+filter, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func (s Store) ListItems(ctx context.Context, db database.Executor, cartID string) ([]commerce.CartItem, error) {

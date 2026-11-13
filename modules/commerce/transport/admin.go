@@ -97,7 +97,7 @@ func (h Handler) createDiscountCode(w http.ResponseWriter, r *http.Request) {
 	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
 		return
 	}
-	code := strings.TrimSpace(input.Code)
+	code := strings.ToUpper(strings.TrimSpace(input.Code))
 	kind := commerce.DiscountKind(input.Kind)
 	if code == "" || (kind != commerce.DiscountPercent && kind != commerce.DiscountFixed) || input.Value <= 0 || input.MaxRedemptions < 0 || input.MinSubtotalCents < 0 {
 		api.WriteError(w, r, http.StatusUnprocessableEntity, "code, a kind of percent or fixed, and a positive value are required", nil)

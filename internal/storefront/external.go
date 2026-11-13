@@ -98,6 +98,7 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 	es.upstreamURL = targetURL
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	proxy.Transport = transport
+	proxy.FlushInterval = 100 * time.Millisecond
 	origDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		origHost := req.Host
@@ -106,6 +107,13 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 		}
 		if req.Header.Get("X-Forwarded-Host") == "" && origHost != "" {
 			req.Header.Set("X-Forwarded-Host", origHost)
+		}
+		if req.Header.Get("X-Forwarded-Proto") == "" {
+			if req.TLS != nil {
+				req.Header.Set("X-Forwarded-Proto", "https")
+			} else {
+				req.Header.Set("X-Forwarded-Proto", "http")
+			}
 		}
 		origDirector(req)
 		if origHost != "" {

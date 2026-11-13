@@ -132,9 +132,13 @@ func NewSMTP(config SMTPConfig) (*SMTP, error) {
 	if config.MaxPerHour == 0 {
 		config.MaxPerHour = 100
 	}
+	hourBurst := min(config.MaxPerHour, max(config.MaxPerSecond*4, 20))
+	if hourBurst < 1 {
+		hourBurst = 1
+	}
 	return &SMTP{config: config, sendLimiter: sendLimiter{
 		perSecond: newTokenBucket(float64(config.MaxPerSecond), float64(config.MaxPerSecond)),
-		perHour:   newTokenBucket(float64(config.MaxPerHour)/3600, 1),
+		perHour:   newTokenBucket(float64(config.MaxPerHour)/3600, float64(hourBurst)),
 	}}, nil
 }
 
@@ -326,7 +330,6 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 }
 
 type tokenBucket struct {
-	mu       sync.Mutex
 	capacity float64
 	rate     float64
 	tokens   float64
@@ -337,11 +340,10 @@ func newTokenBucket(rate, capacity float64) tokenBucket {
 	return tokenBucket{capacity: capacity, rate: rate, tokens: capacity}
 }
 
-func (b *tokenBucket) reserve(now time.Time) time.Duration {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+func (b *tokenBucket) refill(now time.Time) {
 	if b.updated.IsZero() {
 		b.updated = now
+		return
 	}
 	if now.After(b.updated) {
 		b.tokens += now.Sub(b.updated).Seconds() * b.rate
@@ -350,6 +352,27 @@ func (b *tokenBucket) reserve(now time.Time) time.Duration {
 		}
 		b.updated = now
 	}
+}
+
+func (b *tokenBucket) estimateWait(now time.Time) time.Duration {
+	b.refill(now)
+	if b.tokens >= 1 {
+		return 0
+	}
+	wait := time.Duration((1 - b.tokens) / b.rate * float64(time.Second))
+	readyAt := b.updated.Add(wait)
+	if delay := readyAt.Sub(now); delay > 0 {
+		return delay
+	}
+	return wait
+}
+
+func (b *tokenBucket) reserve(now time.Time) time.Duration {
+	return b.commit(now)
+}
+
+func (b *tokenBucket) commit(now time.Time) time.Duration {
+	b.refill(now)
 	if b.tokens >= 1 {
 		b.tokens--
 		return 0
@@ -364,16 +387,32 @@ func (b *tokenBucket) reserve(now time.Time) time.Duration {
 }
 
 type sendLimiter struct {
+	mu        sync.Mutex
 	perSecond tokenBucket
 	perHour   tokenBucket
 }
 
 func (l *sendLimiter) Wait(ctx context.Context) error {
-	now := time.Now()
-	delay := l.perSecond.reserve(now)
-	if hourDelay := l.perHour.reserve(now); hourDelay > delay {
-		delay = hourDelay
+	if err := ctx.Err(); err != nil {
+		return err
 	}
+	l.mu.Lock()
+	now := time.Now()
+	secDelay := l.perSecond.estimateWait(now)
+	hourDelay := l.perHour.estimateWait(now)
+	maxDelay := secDelay
+	if hourDelay > maxDelay {
+		maxDelay = hourDelay
+	}
+	if deadline, ok := ctx.Deadline(); ok && now.Add(maxDelay).After(deadline) {
+		l.mu.Unlock()
+		return context.DeadlineExceeded
+	}
+	delay := l.perSecond.commit(now)
+	if d := l.perHour.commit(now); d > delay {
+		delay = d
+	}
+	l.mu.Unlock()
 	if delay <= 0 {
 		return ctx.Err()
 	}

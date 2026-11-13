@@ -87,3 +87,38 @@ func TestHostMismatchSaysWhatWasExpected(t *testing.T) {
 		t.Errorf("status %d body %q", rec.Code, body)
 	}
 }
+
+func TestHostMiddlewareLoopbackSSRAllowance(t *testing.T) {
+	middleware, err := NewHostMiddleware("https://shop.example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	cases := []struct {
+		name       string
+		remoteAddr string
+		host       string
+		want       int
+	}{
+		{name: "loopback ipv4 SSR", remoteAddr: "127.0.0.1:54321", host: "127.0.0.1:8080", want: http.StatusNoContent},
+		{name: "loopback ipv6 SSR", remoteAddr: "[::1]:54321", host: "[::1]:8080", want: http.StatusNoContent},
+		{name: "loopback peer with foreign host", remoteAddr: "127.0.0.1:54321", host: "evil.example", want: http.StatusMisdirectedRequest},
+		{name: "non-loopback peer spoofing loopback host", remoteAddr: "203.0.113.10:54321", host: "127.0.0.1:8080", want: http.StatusMisdirectedRequest},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/api/v1/healthz", nil)
+			req.RemoteAddr = tc.remoteAddr
+			req.Host = tc.host
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("remote=%s host=%s got %d, want %d", tc.remoteAddr, tc.host, rec.Code, tc.want)
+			}
+		})
+	}
+}

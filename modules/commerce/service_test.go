@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/hydrohq/hydrogo/migrations"
@@ -639,5 +640,105 @@ func TestStartPaymentPersistsMethodAndProviderRef(t *testing.T) {
 	}
 	if stored2.PaymentRef != "ref-attempt-2" {
 		t.Fatalf("after attempt 2 got ref=%q, want ref-attempt-2", stored2.PaymentRef)
+	}
+	if stored2.HoldUntil.IsZero() || stored2.HoldUntil.Before(time.Now().UTC().Add(20*time.Minute)) {
+		t.Fatalf("expected StartPayment retry to extend HoldUntil >= 20m, got %v", stored2.HoldUntil)
+	}
+}
+
+func TestCheckoutPreventsConcurrentTwoTabDuplicateOrdersFromOneCart(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-two-tab", 10); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-two-tab", 1, 5000)
+
+	// Run two concurrent checkouts with distinct idempotency keys against the same cart.
+	type outcome struct {
+		order commerce.Order
+		err   error
+	}
+	results := make(chan outcome, 2)
+	start := make(chan struct{})
+	for _, key := range []string{"tab-1", "tab-2"} {
+		go func(idem string) {
+			<-start
+			o, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+				CartID: cart.ID, GuestEmail: "shopper@example.test", IdempotencyKey: idem,
+			})
+			results <- outcome{order: o, err: err}
+		}(key)
+	}
+	close(start)
+
+	var successes int
+	var emptyErrs int
+	for i := 0; i < 2; i++ {
+		res := <-results
+		if res.err == nil {
+			successes++
+		} else if errors.Is(res.err, commerce.ErrEmptyCart) {
+			emptyErrs++
+		} else {
+			t.Fatalf("unexpected concurrent checkout error: %v", res.err)
+		}
+	}
+	if successes != 1 || emptyErrs != 1 {
+		t.Fatalf("got successes=%d emptyErrs=%d, want 1 winner and 1 ErrEmptyCart", successes, emptyErrs)
+	}
+}
+
+func TestCheckoutNormalizesPromoCaseAndAutoSettlesZeroTotalAndRefundReleasesCoupon(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	store := sqlstore.Store{Dialect: database.SQLite}
+	if err := svc.Repository.EnsureStock(ctx, db, "variant-promo-zero", 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateDiscountCode(ctx, db, commerce.DiscountCode{
+		ID: "disc-free-100", Code: "FREE100", Kind: commerce.DiscountPercent, Value: 100, Active: true, MaxRedemptions: 2,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "variant-promo-zero", 1, 5000)
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+		CartID: cart.ID, GuestEmail: "guest@example.test", IdempotencyKey: "idem-free-1",
+		DiscountCode: "  free100 ",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.TotalCents != 0 || order.PaymentStatus != commerce.PaymentPaid {
+		t.Fatalf("expected 100%% coupon order to auto-settle as paid with total=0, got status=%s total=%d", order.PaymentStatus, order.TotalCents)
+	}
+	stock, err := svc.Repository.GetStock(ctx, db, "variant-promo-zero")
+	if err != nil || stock.Available != 4 || stock.Reserved != 0 {
+		t.Fatalf("expected stock committed (avail=4, res=0), got %+v err=%v", stock, err)
+	}
+
+	// Now test unshipped refund releasing discount code redemption.
+	if err := store.CreateDiscountCode(ctx, db, commerce.DiscountCode{
+		ID: "disc-half-50", Code: "HALF50", Kind: commerce.DiscountPercent, Value: 50, Active: true, MaxRedemptions: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cart2 := seedCartWithItem(t, svc, db, "variant-promo-zero", 1, 5000)
+	order2, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+		CartID: cart2.ID, GuestEmail: "guest@example.test", IdempotencyKey: "idem-half-1", DiscountCode: "half50",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payOrder(t, svc, db, order2.ID)
+	if _, err := svc.RefundOrder(ctx, &fakeRefunder{}, order2.ID); err != nil {
+		t.Fatal(err)
+	}
+	code, err := store.GetDiscountCodeByCode(ctx, db, "HALF50")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code.RedeemedCount != 0 {
+		t.Fatalf("redeemed_count after unshipped refund = %d, want 0", code.RedeemedCount)
 	}
 }

@@ -30,9 +30,9 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 	}
 	memberID := nullable(order.MemberID)
 	holdUntil := s.nullableTime(order.HoldUntil)
-	query := `INSERT INTO commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `,` + s.p(24) + `,` + s.p(25) + `,` + s.p(26) + `,` + s.p(27) + `)`
-	_, err = db.ExecContext(ctx, query, order.ID, memberID, order.GuestName, order.GuestEmail, order.GuestPhone, order.GuestAddress, order.GuestCity, order.GuestDistrict, order.GuestCountry, order.GuestPostalCode,
+	query := s.insertIgnoreSQL(`commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `,` + s.p(24) + `,` + s.p(25) + `,` + s.p(26) + `,` + s.p(27) + `)`)
+	res, err := db.ExecContext(ctx, query, order.ID, memberID, order.GuestName, order.GuestEmail, order.GuestPhone, order.GuestAddress, order.GuestCity, order.GuestDistrict, order.GuestCountry, order.GuestPostalCode,
 		order.IdempotencyKey, order.IdempotencyHash, order.Currency, order.SubtotalCents, order.DiscountCode, order.DiscountCents, order.TaxCents, order.ShippingCents, order.TotalCents, order.PaymentMethod, order.PaymentRef, holdUntil, string(order.PaymentStatus), string(order.FulfillmentStatus), s.dbTime(order.CreatedAt), s.dbTime(order.UpdatedAt), tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -45,6 +45,16 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 			}
 		}
 		return commerce.Order{}, false, err
+	}
+	if affected, affErr := res.RowsAffected(); affErr == nil && affected == 0 {
+		existing, found, getErr := s.GetOrderByIdempotencyKey(ctx, db, order.IdempotencyKey)
+		if getErr != nil {
+			return commerce.Order{}, false, getErr
+		}
+		if found {
+			return existing, false, nil
+		}
+		return commerce.Order{}, false, errors.New("order insert conflicted without a matching idempotency key")
 	}
 	for _, item := range items {
 		itemQuery := `INSERT INTO commerce_customer_order_items (id, order_id, variant_id, sku, title, quantity, unit_price_cents, total_cents, created_at, tenant_id) VALUES (` +
@@ -101,7 +111,7 @@ func (s Store) ListOrderItems(ctx context.Context, db database.Executor, orderID
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queryer.QueryContext(ctx, `SELECT id, order_id, variant_id, sku, title, quantity, unit_price_cents, total_cents FROM commerce_customer_order_items WHERE order_id = `+s.p(1)+filter+` ORDER BY id`, args...)
+	rows, err := queryer.QueryContext(ctx, `SELECT id, order_id, variant_id, sku, title, quantity, unit_price_cents, total_cents FROM commerce_customer_order_items WHERE order_id = `+s.p(1)+filter+` ORDER BY variant_id ASC, id ASC`, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,13 @@ func TestMaintenanceMiddleware(t *testing.T) {
 		path, remote string
 		want         int
 	}{
-		{"/", "198.51.100.2:99", 503}, {"/", "192.0.2.8:99", 200}, {"/login", "198.51.100.2:99", 200}, {"/designsystem/static/site.css", "198.51.100.2:99", 200},
+		{"/", "198.51.100.2:99", 503},
+		{"/", "192.0.2.8:99", 200},
+		{"/login", "198.51.100.2:99", 200},
+		{"/designsystem/static/site.css", "198.51.100.2:99", 200},
+		{"/api/v1/commerce/payments/paytr/callback", "198.51.100.2:99", 200},
+		{"/api/v1/payments/iyzico/callback", "198.51.100.2:99", 200},
+		{"/api/v1/payments/iyzico/webhook", "198.51.100.2:99", 200},
 	}
 	for _, tc := range cases {
 		r := httptest.NewRequest("GET", tc.path, nil)

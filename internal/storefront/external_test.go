@@ -252,3 +252,33 @@ EMPTY=
 		t.Errorf("expected PUBLIC_NAME='BEYOND Luxury', got %q", env["PUBLIC_NAME"])
 	}
 }
+
+func TestExternalStorefront_ForwardsProtoAndSetsFlushInterval(t *testing.T) {
+	var seenProto string
+	var seenHost string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenProto = r.Header.Get("X-Forwarded-Proto")
+		seenHost = r.Header.Get("X-Forwarded-Host")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	es, err := NewExternalStorefront(config.ExternalStorefrontConfig{
+		Enabled:  true,
+		Upstream: upstream.URL,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewExternalStorefront: %v", err)
+	}
+	if es.proxy.FlushInterval <= 0 {
+		t.Fatalf("FlushInterval = %v, want > 0 for streaming SSR", es.proxy.FlushInterval)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "beyond.example"
+	rec := httptest.NewRecorder()
+	es.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || seenProto != "http" || seenHost != "beyond.example" {
+		t.Fatalf("status=%d proto=%q host=%q", rec.Code, seenProto, seenHost)
+	}
+}

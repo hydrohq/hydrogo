@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/hydrohq/hydrogo/internal/database"
 )
@@ -116,6 +117,11 @@ func (s Service) RefundOrder(ctx context.Context, refunder PaymentRefunder, orde
 			}
 			for _, item := range items {
 				if err := s.Repository.ReturnStock(ctx, tx, item.VariantID, item.Quantity); err != nil {
+					return err
+				}
+			}
+			if order.DiscountCode != "" && !strings.HasPrefix(order.DiscountCode, MethodDiscountPrefix) {
+				if err := s.Repository.ReleaseDiscountCode(ctx, tx, order.DiscountCode); err != nil {
 					return err
 				}
 			}

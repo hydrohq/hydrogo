@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -213,7 +214,8 @@ func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, commerce.ErrOrderNotShippable):
 		api.WriteError(w, r, http.StatusConflict, "only paid, unshipped orders can be handed to a carrier", nil)
 	default:
-		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		slog.ErrorContext(r.Context(), "commerce internal error", "method", r.Method, "path", r.URL.Path, "error", err)
+		api.WriteError(w, r, http.StatusInternalServerError, "internal server error", nil)
 	}
 }
 

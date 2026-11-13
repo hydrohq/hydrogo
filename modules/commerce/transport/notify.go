@@ -33,15 +33,16 @@ func DispatchNotificationAsync(notifier notify.Sender, msg notify.Message, logge
 	notificationWG.Add(1)
 	go func() {
 		defer notificationWG.Done()
-		sendWithRetry(notifier, msg, logger)
+		sendWithRetry(context.Background(), notifier, msg, logger)
 	}()
 }
 
-func sendWithRetry(notifier notify.Sender, msg notify.Message, logger *slog.Logger) {
+func sendWithRetry(ctx context.Context, notifier notify.Sender, msg notify.Message, logger *slog.Logger) {
+	baseCtx := context.WithoutCancel(ctx)
 	const maxAttempts = 3
 	backoff := 50 * time.Millisecond
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		sendCtx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
+		sendCtx, cancel := context.WithTimeout(baseCtx, notifyTimeout)
 		err := notifier.Send(sendCtx, msg)
 		cancel()
 		if err == nil {
@@ -51,7 +52,7 @@ func sendWithRetry(notifier notify.Sender, msg notify.Message, logger *slog.Logg
 			time.Sleep(backoff)
 			backoff *= 2
 		} else if logger != nil {
-			logger.Warn("could not deliver notification after retries", "title", msg.Title, "error", err)
+			logger.WarnContext(baseCtx, "could not deliver notification after retries", "title", msg.Title, "error", err)
 		}
 	}
 }
@@ -109,11 +110,12 @@ func NotifyOrderPaidAsync(ctx context.Context, notifier notify.Sender, reader Or
 	if notifier == nil {
 		return
 	}
-	msg := formatPaidOrderMessage(ctx, reader, orderID, provider, logger)
+	bgCtx := context.WithoutCancel(ctx)
+	msg := formatPaidOrderMessage(bgCtx, reader, orderID, provider, logger)
 	notificationWG.Add(1)
 	go func() {
 		defer notificationWG.Done()
-		sendWithRetry(notifier, msg, logger)
+		sendWithRetry(bgCtx, notifier, msg, logger)
 	}()
 }
 
@@ -140,12 +142,13 @@ func NotifyOperatorAsync(ctx context.Context, notifier notify.Sender, title, ord
 	if notifier == nil {
 		return
 	}
+	bgCtx := context.WithoutCancel(ctx)
 	total := FormatMoney(amountCents, currency)
 	body := fmt.Sprintf("Sipariş No: %s, Tutar: %s, Sağlayıcı: %s", orderID, total, provider)
 	msg := notify.Message{Title: title, Body: body}
 	notificationWG.Add(1)
 	go func() {
 		defer notificationWG.Done()
-		sendWithRetry(notifier, msg, logger)
+		sendWithRetry(bgCtx, notifier, msg, logger)
 	}()
 }

@@ -278,9 +278,15 @@ func (s Service) StartPayment(ctx context.Context, provider PaymentProvider, ord
 	if method == "" {
 		method = strings.TrimSpace(PaymentMethod(ctx))
 	}
-	if (method != "" && method != order.PaymentMethod) || (start.ProviderRef != "" && start.ProviderRef != order.PaymentRef) {
+	if (method != "" && method != order.PaymentMethod) || (start.ProviderRef != "" && start.ProviderRef != order.PaymentRef) || method != "havale" {
 		if err := s.Transactions.Within(ctx, func(tx database.Executor) error {
-			return s.Repository.UpdateOrderPaymentAttempt(ctx, tx, order.ID, method, start.ProviderRef)
+			if err := s.Repository.UpdateOrderPaymentAttempt(ctx, tx, order.ID, method, start.ProviderRef); err != nil {
+				return err
+			}
+			if method != "havale" {
+				return s.Repository.ExtendOrderHold(ctx, tx, order.ID, time.Now().UTC().Add(25*time.Minute))
+			}
+			return nil
 		}); err != nil {
 			return PaymentStart{}, err
 		}

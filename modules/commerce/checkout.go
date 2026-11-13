@@ -233,8 +233,36 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 				return ErrDiscountCodeInvalid
 			}
 		}
-		if err := s.Repository.ClearCart(ctx, tx, req.CartID); err != nil {
+		if claimer, ok := s.Repository.(interface {
+			ClaimCart(context.Context, database.Executor, string) (int64, error)
+		}); ok {
+			claimed, err := claimer.ClaimCart(ctx, tx, req.CartID)
+			if err != nil {
+				return err
+			}
+			if claimed == 0 {
+				return ErrEmptyCart
+			}
+		} else if err := s.Repository.ClearCart(ctx, tx, req.CartID); err != nil {
 			return err
+		}
+		if stored.TotalCents == 0 {
+			paid, err := s.Repository.UpdatePaymentStatus(ctx, tx, stored.ID, PaymentPending, PaymentPaid)
+			if err != nil {
+				return err
+			}
+			if !paid {
+				return ErrOrderNotPayable
+			}
+			for _, item := range orderItems {
+				if err := s.Repository.CommitReservation(ctx, tx, item.VariantID, item.Quantity); err != nil {
+					return err
+				}
+			}
+			stored.PaymentStatus = PaymentPaid
+			if err := s.emit(ctx, tx, "order.paid", stored.ID); err != nil {
+				return err
+			}
 		}
 		if err := s.emit(ctx, tx, "order.created", stored.ID); err != nil {
 			return err
@@ -285,10 +313,11 @@ func (s Service) priceCart(ctx context.Context, cartID, currency string) (map[st
 var errRetryLostRace = errors.New("checkout lost the idempotency race")
 
 func (s Service) resolveDiscount(ctx context.Context, tx database.Executor, code string, subtotal int64, now time.Time) (*DiscountCode, int64, error) {
-	if strings.TrimSpace(code) == "" {
+	normalized := strings.ToUpper(strings.TrimSpace(code))
+	if normalized == "" {
 		return nil, 0, nil
 	}
-	discount, err := s.Repository.GetDiscountCodeByCode(ctx, tx, code)
+	discount, err := s.Repository.GetDiscountCodeByCode(ctx, tx, normalized)
 	if err != nil {
 		if errors.Is(err, ErrDiscountCodeNotFound) {
 			return nil, 0, ErrDiscountCodeInvalid

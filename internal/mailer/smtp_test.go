@@ -206,3 +206,46 @@ func TestSMTPSendAppliesTimeoutBeforeGreeting(t *testing.T) {
 		t.Fatalf("SMTP send exceeded timeout bound: %s", elapsed)
 	}
 }
+
+func TestSendLimiterAllowsBurstAndAvoidsDebtOnDeadlineExceeded(t *testing.T) {
+	sender, err := NewSMTP(SMTPConfig{
+		Host: "mail.example.test", Port: 25, From: "from@example.test",
+		MaxPerSecond: 10, MaxPerHour: 100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Burst of 5 consecutive checkout emails must not stall for 36s on the hourly bucket.
+	start := time.Now()
+	for i := 0; i < 5; i++ {
+		if err := sender.sendLimiter.Wait(context.Background()); err != nil {
+			t.Fatalf("burst %d Wait failed: %v", i, err)
+		}
+	}
+	if elapsed := time.Since(start); elapsed > 200*time.Millisecond {
+		t.Fatalf("hourly burst stalled for %s, want immediate completion", elapsed)
+	}
+
+	// Exhaust remaining burst (limit to 1/hour, burst 1) and verify deadline-exceeded callers
+	// fail fast without poisoning future callers' updated timestamp.
+	strict, err := NewSMTP(SMTPConfig{
+		Host: "mail.example.test", Port: 25, From: "from@example.test",
+		MaxPerSecond: 1, MaxPerHour: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := strict.sendLimiter.Wait(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	shortCtx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := strict.sendLimiter.Wait(shortCtx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected DeadlineExceeded, got %v", err)
+	}
+	// Another caller with 10ms deadline would also fail with DeadlineExceeded, NOT accumulate 2h wait.
+	if strict.sendLimiter.perHour.updated.After(time.Now().Add(time.Second)) {
+		t.Fatalf("failed Wait poisoned hourly updated timestamp into the future: %v", strict.sendLimiter.perHour.updated)
+	}
+}

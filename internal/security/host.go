@@ -31,13 +31,41 @@ func NewHostMiddleware(publicOrigin string) (func(http.Handler) http.Handler, er
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !requestMatchesHost(r.Host, expected) {
+			if !requestMatchesHost(r.Host, expected) && !isLoopbackDirectRequest(r) {
 				http.Error(w, hostMismatchMessage(r.Host, expected), http.StatusMisdirectedRequest)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}, nil
+}
+
+// isLoopbackDirectRequest permits co-located server-side callers (such as an
+// external SvelteKit frontend on the same VM) calling the HydroGo HTTP API
+// over 127.0.0.1 / ::1 without spoofing the Host header (which Fetch forbids),
+// while still blocking external peers or proxied mismatched Hosts (e.g. www).
+func isLoopbackDirectRequest(r *http.Request) bool {
+	peer := strings.TrimSpace(r.RemoteAddr)
+	if peer == "" {
+		return false
+	}
+	if h, _, err := net.SplitHostPort(peer); err == nil {
+		peer = h
+	}
+	peer = strings.Trim(peer, "[]")
+	peerIP := net.ParseIP(peer)
+	if peerIP == nil || !peerIP.IsLoopback() {
+		return false
+	}
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		return false
+	}
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	return host == "127.0.0.1" || host == "::1"
 }
 
 // hostMismatchMessage says what was expected, so a reverse proxy or a Docker
