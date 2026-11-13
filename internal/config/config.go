@@ -41,6 +41,7 @@ type Config struct {
 	Carriers        Carriers         `yaml:"carriers"`
 	Notifications   Notifications    `yaml:"notifications"`
 	Factory         Factory          `yaml:"factory"`
+	Storefront      StorefrontConfig `yaml:"storefront"`
 }
 
 // Factory configures the automated multi-tenant store factory infrastructure.
@@ -50,6 +51,25 @@ type Factory struct {
 	CloudflareAPIToken string `yaml:"cloudflare_api_token"`
 	CloudflareZoneID   string `yaml:"cloudflare_zone_id"`
 	ServerPublicIP     string `yaml:"server_public_ip"`
+}
+
+// StorefrontConfig configures storefront serving options.
+type StorefrontConfig struct {
+	External ExternalStorefrontConfig `yaml:"external"`
+}
+
+// ExternalStorefrontConfig configures an external SSR storefront (such as SvelteKit,
+// Next.js, Nuxt or Astro). When enabled, HydroGo serves static client assets
+// directly with high performance caching and precompression, and proxies dynamic
+// SSR requests to Upstream. If Command is set, HydroGo also supervises the child process.
+type ExternalStorefrontConfig struct {
+	Enabled   bool              `yaml:"enabled"`
+	Command   string            `yaml:"command"`
+	Dir       string            `yaml:"dir"`
+	Upstream  string            `yaml:"upstream"`
+	StaticDir string            `yaml:"static_dir"`
+	EnvFile   string            `yaml:"env_file"`
+	Env       map[string]string `yaml:"env"`
 }
 
 // Notifications configures operational chat alerts (a new commerce order,

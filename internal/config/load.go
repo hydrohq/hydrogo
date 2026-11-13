@@ -373,6 +373,31 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if value, ok := lookup("SERVER_PUBLIC_IP"); ok && value != "" {
 		result.Factory.ServerPublicIP = strings.TrimSpace(value)
 	}
+	if value, ok := lookup("HYDRO_STOREFRONT_EXTERNAL_ENABLED"); ok && strings.TrimSpace(value) != "" {
+		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HYDRO_STOREFRONT_EXTERNAL_ENABLED: %w", err)
+		}
+		result.Storefront.External.Enabled = parsed
+	}
+	if value, ok := lookup("HYDRO_STOREFRONT_EXTERNAL_UPSTREAM"); ok && value != "" {
+		result.Storefront.External.Upstream = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_STOREFRONT_EXTERNAL_STATIC_DIR"); ok && value != "" {
+		result.Storefront.External.StaticDir = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_STOREFRONT_EXTERNAL_COMMAND"); ok && value != "" {
+		result.Storefront.External.Command = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_STOREFRONT_EXTERNAL_DIR"); ok && value != "" {
+		result.Storefront.External.Dir = strings.TrimSpace(value)
+	}
+	if value, ok := lookup("HYDRO_STOREFRONT_EXTERNAL_ENV_FILE"); ok && value != "" {
+		result.Storefront.External.EnvFile = strings.TrimSpace(value)
+	}
+	if !result.Storefront.External.Enabled && (result.Storefront.External.Upstream != "" || result.Storefront.External.Command != "" || result.Storefront.External.StaticDir != "") {
+		result.Storefront.External.Enabled = true
+	}
 	dsnSources := 0
 	if result.Database.DSN != "" {
 		dsnSources++

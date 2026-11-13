@@ -71,6 +71,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 			serveErr = errors.Join(serveErr, closeErr)
 		}
 	}()
+	app.logger = newServeLogger(stderr)
 	for _, step := range []func() error{
 		app.openDatabase,
 		app.initAuth,
@@ -82,6 +83,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		app.initSite,
 		app.initNews,
 		app.initAdminStudio,
+		app.initStorefront,
 	} {
 		if err := step(); err != nil {
 			return err
@@ -93,7 +95,6 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		return err
 	}
 	app.initMetrics()
-	app.logger = newServeLogger(stderr)
 	if !cfg.Audit.Chain {
 		if heads, err := (auditstore.Store{Dialect: cfg.Database.Dialect}).ChainHeads(context.Background(), app.db); err == nil && len(heads) > 0 {
 			app.logger.Warn("audit.chain is off but a chain exists: new events are not linked; turn it on or run 'hydro audit relink' after the gap")
