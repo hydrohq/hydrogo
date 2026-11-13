@@ -17,6 +17,17 @@ import (
 )
 
 func (a *serveApp) storefrontRoutes() []router.Route {
+	if a.externalStorefront != nil {
+		return []router.Route{
+			{Pattern: "/", Access: router.Public, Handler: a.externalStorefront},
+			{Pattern: "POST /api/v1/storefront/order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
+			{Pattern: "POST /api/v1/store/orders", Access: router.Public, Handler: http.HandlerFunc(a.storefrontOrderHandler)},
+			{Pattern: "POST /api/v1/storefront/track-order", Access: router.Public, Handler: http.HandlerFunc(a.storefrontTrackOrderAPIHandler)},
+			{Pattern: "POST /api/v1/inquire", Access: router.Public, Handler: http.HandlerFunc(a.storefrontInquireHandler)},
+			{Pattern: "POST /api/v1/reserve", Access: router.Public, Handler: http.HandlerFunc(a.storefrontReserveHandler)},
+			{Pattern: "POST /api/v1/waitlist", Access: router.Public, Handler: http.HandlerFunc(a.storefrontWaitlistHandler)},
+		}
+	}
 	routes := []router.Route{
 		{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.storefrontHandler)},
 		{Pattern: "GET /showcase", Access: router.Public, Handler: http.HandlerFunc(a.showcasePageHandler)},

@@ -32,6 +32,7 @@ import (
 	"github.com/hydrohq/hydrogo/internal/security"
 	securitystore "github.com/hydrohq/hydrogo/internal/security/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/server"
+	"github.com/hydrohq/hydrogo/internal/storefront"
 	"github.com/hydrohq/hydrogo/internal/tenant"
 	"github.com/hydrohq/hydrogo/internal/webhooks"
 	"github.com/hydrohq/hydrogo/modules/commerce"
@@ -152,6 +153,7 @@ type serveApp struct {
 	pageHTTP           pagetransport.Handler
 	pageLLMSCache      *seo.DiscoveryCache
 	newsHTTP           newstransport.Handler
+	externalStorefront *storefront.ExternalStorefront
 
 	// Runtime.
 	metrics          *observability.Metrics
