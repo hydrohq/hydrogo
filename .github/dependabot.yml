@@ -36,6 +36,9 @@ updates:
     labels:
       - dependencies
       - javascript
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/e2e"
@@ -45,6 +48,9 @@ updates:
     labels:
       - dependencies
       - javascript
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/packages/client"
@@ -54,6 +60,9 @@ updates:
     labels:
       - dependencies
       - javascript
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/examples/sveltekit-starter"
@@ -63,6 +72,10 @@ updates:
     labels:
       - dependencies
       - javascript
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: npm
     directory: "/examples/crm-starter"
     schedule:
@@ -71,3 +84,6 @@ updates:
     labels:
       - dependencies
       - javascript
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
