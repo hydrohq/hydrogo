@@ -107,8 +107,8 @@ func serveListener(ctx context.Context, config Config, listener net.Listener) er
 	server := &http.Server{
 		Handler:           NewHandler(config),
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}
@@ -244,7 +244,7 @@ func NewHandler(config Config) http.Handler {
 		BypassPaths: config.AnomalyBypassPaths, OnDetect: config.OnSecurityAnomaly,
 	}))(handler)
 	handler = security.RecoveryMiddlewareWithObserver(config.Logger, config.OnPanic)(handler)
-	handler = observability.HTTPErrorMiddleware(config.OnHTTPError)(handler)
+	handler = skipWhen(isCatchAll, observability.HTTPErrorMiddleware(config.OnHTTPError))(handler)
 
 	// Normalize handler errors after the body limit and before the request ID
 	// middleware so even middleware-generated errors include request_id.
@@ -280,7 +280,11 @@ func NewHandler(config Config) http.Handler {
 	handler = skipWhen(isCatchAll, security.CSRFMiddleware(config.SecureCookie, skipCSRFCookie, config.CSRFExemptPaths...))(handler)
 
 	if config.Maintenance.Enabled != nil {
-		handler = MaintenanceMiddleware(config.Maintenance)(handler)
+		if config.Maintenance.Render == nil {
+			handler = skipWhen(isCatchAll, MaintenanceMiddleware(config.Maintenance))(handler)
+		} else {
+			handler = MaintenanceMiddleware(config.Maintenance)(handler)
+		}
 	}
 
 	// Apply Auth session context injection

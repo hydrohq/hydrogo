@@ -61,6 +61,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	}
 	ip := h.clientIP(r)
 	if rateLimited(w, h.CheckoutLimiter, "checkout:"+ip) {
+		slog.WarnContext(r.Context(), "checkout rate limited", "reason", "ip_rate_limit", "client_ip", ip)
 		return
 	}
 	reservation := ""
@@ -71,12 +72,14 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 			maxPending = 25
 		}
 		if h.PendingTracker.CountPending(r.Context(), ip, h.Service, time.Now().UTC(), 30*time.Minute) >= maxPending {
+			slog.WarnContext(r.Context(), "checkout rejected", "reason", "too_many_pending_orders", "client_ip", ip)
 			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
 			return
 		}
 		var reserved bool
 		reservation, reserved = h.PendingTracker.TryReserve(ip, maxPending)
 		if !reserved {
+			slog.WarnContext(r.Context(), "checkout rejected", "reason", "too_many_pending_orders", "client_ip", ip)
 			security.WriteRateLimitedResponse(w, "too many open pending checkouts", 30*time.Minute)
 			return
 		}
@@ -111,6 +114,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		ItemTitles: input.ItemTitles, ItemSKUs: input.ItemSKUs, MaxLineQuantity: h.MaxLineQuantity,
 	})
 	if err != nil {
+		slog.InfoContext(r.Context(), "checkout failed", "reason", err.Error(), "payment_method", strings.TrimSpace(input.PaymentMethod), "has_discount", strings.TrimSpace(input.DiscountCode) != "", "member", shopper.MemberID != "")
 		writeServiceError(w, r, err)
 		return
 	}
@@ -130,7 +134,15 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	}
 	if created {
 		if _, items, itemsErr := h.Service.OrderWithItems(r.Context(), order.ID); itemsErr == nil {
-			h.notifyNewOrder(r.Context(), order, items)
+			bgCtx := context.WithoutCancel(r.Context())
+			notificationWG.Add(1)
+			go func() {
+				defer notificationWG.Done()
+				h.notifyNewOrder(bgCtx, order, items)
+			}()
+		}
+		if order.PaymentStatus == commerce.PaymentPaid {
+			NotifyOrderPaidAsync(r.Context(), h.Notifier, h.Service, order.ID, order.PaymentMethod, slog.Default())
 		}
 	}
 	api.WriteData(w, http.StatusCreated, response, nil)
@@ -198,6 +210,7 @@ func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 		case errorsIsAny(err, commerce.ErrOrderNotFound, commerce.ErrOrderNotPayable):
 			writeServiceError(w, r, err)
 		default:
+			slog.WarnContext(r.Context(), "order payment restart failed", "order_id", r.PathValue("id"), "method", strings.TrimSpace(input.PaymentMethod), "error", err)
 			api.WriteError(w, r, http.StatusBadGateway, "could not start a payment with the configured provider", nil)
 		}
 		return

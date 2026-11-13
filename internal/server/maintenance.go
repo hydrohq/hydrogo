@@ -97,7 +97,20 @@ func maintenanceStaff(r *http.Request) bool {
 
 func maintenanceExempt(r *http.Request) bool {
 	path := r.URL.Path
-	if path == "/login" || strings.HasPrefix(path, "/auth/") || strings.HasPrefix(path, "/designsystem/static/") || strings.HasPrefix(path, "/static/") || strings.HasPrefix(path, "/media/") || path == "/favicon.ico" || path == "/manifest.webmanifest" || strings.HasPrefix(path, "/.well-known/") || path == "/healthz" || path == "/readyz" || path == "/api/v1/site/maintenance" {
+	if path == "/login" ||
+		strings.HasPrefix(path, "/auth/") ||
+		strings.HasPrefix(path, "/designsystem/static/") ||
+		strings.HasPrefix(path, "/static/") ||
+		strings.HasPrefix(path, "/media/") ||
+		path == "/favicon.ico" ||
+		path == "/manifest.webmanifest" ||
+		strings.HasPrefix(path, "/.well-known/") ||
+		path == "/healthz" ||
+		path == "/readyz" ||
+		path == "/api/v1/site/maintenance" ||
+		path == "/api/v1/commerce/payments/paytr/callback" ||
+		path == "/api/v1/payments/iyzico/callback" ||
+		path == "/api/v1/payments/iyzico/webhook" {
 		return true
 	}
 	return false

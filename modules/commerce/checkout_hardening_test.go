@@ -38,6 +38,13 @@ func (r *recordingStore) ListItems(ctx context.Context, db database.Executor, ca
 	return r.Store.ListItems(ctx, db, cartID)
 }
 
+func (r *recordingStore) ClaimCart(ctx context.Context, db database.Executor, cartID string) (int64, error) {
+	if r.mockItemsOn {
+		return int64(len(r.mockItems)), nil
+	}
+	return r.Store.ClaimCart(ctx, db, cartID)
+}
+
 func TestCheckoutDeterministicReserveStockOrderAndMerging(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "commerce-stock-ordering.sqlite"))

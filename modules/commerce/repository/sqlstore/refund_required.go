@@ -24,8 +24,8 @@ func (s Store) RecordRefundRequired(ctx context.Context, db database.Executor, i
 	if item.CreatedAt.IsZero() {
 		createdAt = s.dbTime(s.now())
 	}
-	query := `INSERT INTO refund_required (id, order_id, provider, amount_cents, currency, reason, created_at, resolved_note, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `)`
+	query := s.insertIgnoreSQL(`refund_required (id, order_id, provider, amount_cents, currency, reason, created_at, resolved_note, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `)`)
 	_, err = db.ExecContext(ctx, query, item.ID, item.OrderID, item.Provider, item.AmountCents, item.Currency, item.Reason, createdAt, item.ResolvedNote, tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -165,14 +165,18 @@ func (s Store) RecordSMSDedup(ctx context.Context, db database.Executor, dedupKe
 	}
 	now := s.dbTime(sentAt)
 	id := "sms_" + dedupKey
-	query := `INSERT INTO customer_sms_dedup (id, order_id, phone, event, dedup_key, sent_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `)`
-	_, err = db.ExecContext(ctx, query, id, orderID, phone, event, dedupKey, now, tenantID)
+	query := s.insertIgnoreSQL(`customer_sms_dedup (id, order_id, phone, event, dedup_key, sent_at, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `)`)
+	res, err := db.ExecContext(ctx, query, id, orderID, phone, event, dedupKey, now, tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	return true, nil
+	affected, affErr := res.RowsAffected()
+	if affErr != nil {
+		return true, nil
+	}
+	return affected > 0, nil
 }

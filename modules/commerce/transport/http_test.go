@@ -185,6 +185,7 @@ func TestAddItemThenCheckoutEndToEnd(t *testing.T) {
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 
 	stock, err := store.GetStock(ctx, db, "variant-http-1")
 	if err != nil {
@@ -220,6 +221,7 @@ func TestCheckoutAcceptsItemTitlesAndSKUsSoTheOrderReceiptIsNotBlank(t *testing.
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 	var envelope struct {
 		Data struct {
 			ID string `json:"id"`
@@ -423,11 +425,14 @@ type recordedOrderMail struct {
 }
 
 type fakeMailer struct {
+	mu    sync.Mutex
 	calls []recordedOrderMail
 	err   error
 }
 
 func (f *fakeMailer) SendOrderConfirmation(_ context.Context, email, orderID, total string, items []mailer.OrderConfirmationItem) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls = append(f.calls, recordedOrderMail{email: email, orderID: orderID, total: total, items: items})
 	return f.err
 }
@@ -506,6 +511,7 @@ func TestCheckoutSendsOrderConfirmationEmailAndDoesNotNotifyOperatorUntilPaid(t 
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 
 	if len(mail.calls) != 1 {
 		t.Fatalf("expected exactly 1 order confirmation email, got %d", len(mail.calls))
@@ -541,6 +547,7 @@ func TestCheckoutStillSucceedsWhenMailerFails(t *testing.T) {
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout must still succeed when the mailer fails: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 }
 
 func TestCheckoutIncludesThePaymentProvidersRedirectWhenOneIsConfigured(t *testing.T) {
@@ -566,6 +573,7 @@ func TestCheckoutIncludesThePaymentProvidersRedirectWhenOneIsConfigured(t *testi
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 
 	var envelope struct {
 		Data struct {
@@ -788,6 +796,7 @@ func TestCreateDiscountCodeThenUseItAtCheckout(t *testing.T) {
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 	var envelope struct {
 		Data struct {
 			DiscountCode  string `json:"discount_code"`
@@ -1007,6 +1016,7 @@ func TestCheckoutPersistsTheGuestDistrict(t *testing.T) {
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 	var created commerce.Order
 	decodeBody(t, checkoutRec, &created)
 	stored, err := h.Service.Repository.GetOrder(ctx, db, created.ID)
@@ -1041,6 +1051,7 @@ func TestAClientSentUnitPriceIsIgnored(t *testing.T) {
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 	var order commerce.Order
 	decodeBody(t, checkoutRec, &order)
 	if order.TotalCents != 49990 {
@@ -1072,6 +1083,7 @@ func TestARetriedCheckoutDoesNotSendASecondReceipt(t *testing.T) {
 			t.Fatalf("attempt %d: %d %s", attempt, rec.Code, rec.Body)
 		}
 	}
+	WaitNotifications()
 	if len(mail.calls) != 1 {
 		t.Fatalf("receipts sent = %d, want 1 for one order", len(mail.calls))
 	}
@@ -1219,6 +1231,7 @@ func TestRefundOrderAdminWithShippedStatus(t *testing.T) {
 	if checkoutRec.Code != http.StatusCreated {
 		t.Fatalf("checkout: %d %s", checkoutRec.Code, checkoutRec.Body)
 	}
+	WaitNotifications()
 	var created struct {
 		Data commerce.Order `json:"data"`
 	}
