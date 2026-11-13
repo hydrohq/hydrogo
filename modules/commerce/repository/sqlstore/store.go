@@ -47,7 +47,7 @@ func (s Store) dbTime(t time.Time) any {
 	if s.Dialect == database.MySQL {
 		return t.UTC()
 	}
-	return t.UTC().Format(time.RFC3339Nano)
+	return t.UTC().Format("2006-01-02T15:04:05.000000000Z")
 }
 
 func (s Store) parseTime(value any) (time.Time, error) {

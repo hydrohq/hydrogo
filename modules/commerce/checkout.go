@@ -200,6 +200,7 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 			GuestAddress: req.GuestAddress, GuestCity: req.GuestCity, GuestDistrict: req.GuestDistrict, GuestCountry: req.GuestCountry, GuestPostalCode: req.GuestPostalCode,
 			IdempotencyKey: req.IdempotencyKey, IdempotencyHash: hash, Currency: currency,
 			SubtotalCents: breakdown.SubtotalCents, DiscountCents: breakdown.DiscountCents, TaxCents: breakdown.TaxCents, ShippingCents: breakdown.ShippingCents, TotalCents: breakdown.TotalCents,
+			PaymentMethod: strings.TrimSpace(req.PaymentMethod),
 			PaymentStatus: PaymentPending, FulfillmentStatus: FulfillmentUnfulfilled,
 			CreatedAt: now, UpdatedAt: now,
 		}

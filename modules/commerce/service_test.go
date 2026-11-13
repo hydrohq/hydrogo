@@ -590,3 +590,54 @@ func TestStocksByVariantIDs(t *testing.T) {
 		t.Fatalf("var-svc-2 stock mismatch: available=%d (want 20), reserved=%d (want 0)", s2.Available, s2.Reserved)
 	}
 }
+
+type trackingProvider struct {
+	attempts []commerce.Order
+}
+
+func (p *trackingProvider) StartPayment(_ context.Context, order commerce.Order, _ []commerce.OrderItem) (commerce.PaymentStart, error) {
+	p.attempts = append(p.attempts, order)
+	if len(p.attempts) == 1 {
+		return commerce.PaymentStart{Method: "paytr", ProviderRef: "ref-attempt-1", RedirectURL: "https://pay/1"}, nil
+	}
+	return commerce.PaymentStart{Method: "paytr", ProviderRef: "ref-attempt-2", RedirectURL: "https://pay/2"}, nil
+}
+
+func TestStartPaymentPersistsMethodAndProviderRef(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	if err := svc.Repository.EnsureStock(ctx, db, "var-start-ref", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart := seedCartWithItem(t, svc, db, "var-start-ref", 1, 2500)
+	order, err := svc.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "shop@example.com", IdempotencyKey: "idem-start-ref-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := &trackingProvider{}
+	if _, err := svc.StartPayment(ctx, p, order.ID); err != nil {
+		t.Fatal(err)
+	}
+	stored1, err := svc.Order(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored1.PaymentMethod != "paytr" || stored1.PaymentRef != "ref-attempt-1" {
+		t.Fatalf("after attempt 1 got method=%q ref=%q", stored1.PaymentMethod, stored1.PaymentRef)
+	}
+
+	if _, err := svc.StartPayment(ctx, p, order.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.attempts) != 2 || p.attempts[1].PaymentRef != "ref-attempt-1" {
+		t.Fatalf("second attempt should see previous PaymentRef, got %+v", p.attempts)
+	}
+	stored2, err := svc.Order(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored2.PaymentRef != "ref-attempt-2" {
+		t.Fatalf("after attempt 2 got ref=%q, want ref-attempt-2", stored2.PaymentRef)
+	}
+}

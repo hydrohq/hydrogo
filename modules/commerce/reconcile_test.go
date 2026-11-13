@@ -160,3 +160,79 @@ func TestReconcileChecksEveryNamedProvider(t *testing.T) {
 		t.Fatalf("an iyzico notification must be found when several providers are named, got %+v", report.NotifiedButNotPaid)
 	}
 }
+
+func TestReconcileDoesNotFlagRefundedOrResolvedOrdersAndHonorsHavaleHold(t *testing.T) {
+	svc, db := newTestService(t)
+	ctx := context.Background()
+	for _, v := range []string{"variant-rec-1", "variant-rec-2", "variant-rec-havale"} {
+		if err := svc.Repository.EnsureStock(ctx, db, v, 5); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 1. Paid and then refunded order must NOT appear in NotifiedButNotPaid.
+	c1 := seedCartWithItem(t, svc, db, "variant-rec-1", 1, 5000)
+	refundedOrder, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+		CartID: c1.ID, GuestEmail: "r1@example.com", IdempotencyKey: "idem-rec-refunded", PaymentMethod: "paytr",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: refundedOrder.ID, OrderID: refundedOrder.ID, AmountCents: refundedOrder.TotalCents}); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := svc.Repository.UpdatePaymentStatus(ctx, db, refundedOrder.ID, commerce.PaymentPaid, commerce.PaymentRefunded); err != nil || !ok {
+		t.Fatalf("mark refunded: ok=%v err=%v", ok, err)
+	}
+
+	// 2. Expired order with late payment: flagged while unresolved, clean after resolution.
+	c2 := seedCartWithItem(t, svc, db, "variant-rec-2", 1, 5000)
+	lateOrder, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+		CartID: c2.ID, GuestEmail: "r2@example.com", IdempotencyKey: "idem-rec-late", PaymentMethod: "iyzico",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := svc.ExpireOrder(ctx, lateOrder.ID); err != nil || !ok {
+		t.Fatalf("expire lateOrder: ok=%v err=%v", ok, err)
+	}
+	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "iyzico", EventID: lateOrder.ID, OrderID: lateOrder.ID, AmountCents: lateOrder.TotalCents}); err == nil {
+		t.Fatal("expected ErrLatePayment")
+	}
+
+	// 3. Pending havale order is not stale at +2h.
+	c3 := seedCartWithItem(t, svc, db, "variant-rec-havale", 1, 5000)
+	if _, err := svc.Checkout(ctx, commerce.CheckoutRequest{
+		CartID: c3.ID, GuestEmail: "r3@example.com", IdempotencyKey: "idem-rec-havale", PaymentMethod: "havale",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	future := time.Now().UTC().Add(2 * time.Hour)
+	report, err := svc.Reconcile(ctx, db, future, commerce.ReconcileConfig{}, "paytr,iyzico", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.StalePendingOrders) != 0 {
+		t.Fatalf("expected 0 stale orders (havale has 48h hold), got %+v", report.StalePendingOrders)
+	}
+	if len(report.NotifiedButNotPaid) != 1 || report.NotifiedButNotPaid[0].ID != lateOrder.ID {
+		t.Fatalf("expected only unresolved lateOrder in NotifiedButNotPaid, got %+v", report.NotifiedButNotPaid)
+	}
+
+	// Resolve the refund_required record -> reconcile must now be completely clean.
+	items, err := svc.ListRefundsRequired(ctx, true, 10, 0)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("expected 1 unresolved refund_required, got %d err=%v", len(items), err)
+	}
+	if ok, err := svc.ResolveRefundRequired(ctx, items[0].ID, "refunded in panel"); err != nil || !ok {
+		t.Fatalf("resolve refund_required: ok=%v err=%v", ok, err)
+	}
+	cleanReport, err := svc.Reconcile(ctx, db, future, commerce.ReconcileConfig{}, "paytr,iyzico", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cleanReport.Clean() {
+		t.Fatalf("expected clean reconcile report after refund resolution, got %+v", cleanReport)
+	}
+}

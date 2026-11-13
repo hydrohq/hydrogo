@@ -270,7 +270,30 @@ func (s Service) StartPayment(ctx context.Context, provider PaymentProvider, ord
 	if order.PaymentStatus != PaymentPending {
 		return PaymentStart{}, ErrOrderNotPayable
 	}
-	return provider.StartPayment(ctx, order, items)
+	start, err := provider.StartPayment(ctx, order, items)
+	if err != nil {
+		return PaymentStart{}, err
+	}
+	method := strings.TrimSpace(start.Method)
+	if method == "" {
+		method = strings.TrimSpace(PaymentMethod(ctx))
+	}
+	if (method != "" && method != order.PaymentMethod) || (start.ProviderRef != "" && start.ProviderRef != order.PaymentRef) {
+		if err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+			return s.Repository.UpdateOrderPaymentAttempt(ctx, tx, order.ID, method, start.ProviderRef)
+		}); err != nil {
+			return PaymentStart{}, err
+		}
+	}
+	return start, nil
+}
+
+// ExtendOrderHold pushes back an unpaid order's reservation expiry deadline
+// (for example, while a card payment sits under gateway fraud review).
+func (s Service) ExtendOrderHold(ctx context.Context, orderID string, holdUntil time.Time) error {
+	return s.Transactions.Within(ctx, func(tx database.Executor) error {
+		return s.Repository.ExtendOrderHold(ctx, tx, orderID, holdUntil)
+	})
 }
 
 // Order reads one order by ID.

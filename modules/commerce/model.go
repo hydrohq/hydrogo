@@ -136,6 +136,9 @@ type Order struct {
 	TaxCents          int64             `json:"tax_cents"`
 	ShippingCents     int64             `json:"shipping_cents"`
 	TotalCents        int64             `json:"total_cents"`
+	PaymentMethod     string            `json:"payment_method,omitempty"`
+	PaymentRef        string            `json:"-"`
+	HoldUntil         time.Time         `json:"-"`
 	PaymentStatus     PaymentStatus     `json:"payment_status"`
 	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status"`
 	// ShippingCarrier/TrackingNumber/TrackingURL are set together, once, by
@@ -151,6 +154,11 @@ type Order struct {
 
 // IsGuest reports whether the order has no member account behind it.
 func (o Order) IsGuest() bool { return o.MemberID == "" }
+
+// IsBankTransfer reports whether the order awaits a manual bank transfer (havale/EFT).
+func (o Order) IsBankTransfer() bool {
+	return o.PaymentMethod == "havale" || o.DiscountCode == MethodDiscountPrefix+"havale"
+}
 
 type OrderItem struct {
 	ID             string `json:"id"`
