@@ -29,6 +29,8 @@ var (
 	ErrOrderNotRefundable           = errors.New("only a paid order can be refunded")
 	ErrRefundAlreadyInProgress      = fmt.Errorf("%w: refund is already in progress or completed", ErrOrderNotRefundable)
 	ErrOrderShippedRequiresApproval = errors.New("order is already shipped or delivered; refund requires explicit approval")
+	ErrOrderNotCancellableShipment  = errors.New("only a shipped order can have its shipment cancelled")
+	ErrShippingActionUnsupported    = errors.New("the configured shipping provider does not support this action")
 )
 
 // PaymentStatus and FulfillmentStatus are plain Go enums with guarded
@@ -141,13 +143,16 @@ type Order struct {
 	HoldUntil         time.Time         `json:"-"`
 	PaymentStatus     PaymentStatus     `json:"payment_status"`
 	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status"`
-	// ShippingCarrier/TrackingNumber/TrackingURL are set together, once, by
-	// Service.CreateShipment -- empty until a ShippingProvider has actually
-	// accepted the order for delivery (see shipping.go).
+	// ShippingCarrier/TrackingNumber/TrackingURL/ShipmentID/LabelURL are set
+	// together once by Service.CreateShipment -- empty until a ShippingProvider
+	// has actually accepted the order for delivery (see shipping.go).
 	ShippingCarrier        string    `json:"shipping_carrier,omitempty"`
 	ShippingTrackingNumber string    `json:"shipping_tracking_number,omitempty"`
 	ShippingTrackingURL    string    `json:"shipping_tracking_url,omitempty"`
-	ShippedAt              time.Time `json:"shipped_at,omitempty"` // zero = not shipped yet
+	ShippingShipmentID     string    `json:"shipping_shipment_id,omitempty"`
+	ShippingLabelURL       string    `json:"shipping_label_url,omitempty"`
+	ShippedAt              time.Time `json:"shipped_at,omitempty"`   // zero = not shipped yet
+	DeliveredAt            time.Time `json:"delivered_at,omitempty"` // zero = not delivered yet
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }

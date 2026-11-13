@@ -38,6 +38,7 @@ var definitions = []Definition{
 	{Topic: "order.created", PayloadVersion: 1},
 	{Topic: "order.paid", PayloadVersion: 1},
 	{Topic: "order.fulfilled", PayloadVersion: 1},
+	{Topic: "order.delivered", PayloadVersion: 1},
 	{Topic: "order.refunded", PayloadVersion: 1},
 	{Topic: "content.created", PayloadVersion: 1},
 	{Topic: "content.updated", PayloadVersion: 1},

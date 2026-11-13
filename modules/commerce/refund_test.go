@@ -118,7 +118,7 @@ func TestRefundShippedOrderRequiresApprovalAndDoesNotRestoreStock(t *testing.T) 
 		if err != nil || !claimed {
 			return err
 		}
-		shipped, err := svc.Repository.RecordShipment(ctx, tx, order.ID, "yurtici", "TRK-123", "http://track", time.Now().UTC())
+		shipped, err := svc.Repository.RecordShipment(ctx, tx, order.ID, commerce.ShipmentResult{Carrier: "yurtici", TrackingNumber: "TRK-123", TrackingURL: "http://track"}, time.Now().UTC())
 		if err != nil || !shipped {
 			return err
 		}

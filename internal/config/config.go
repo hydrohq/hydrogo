@@ -2,6 +2,7 @@ package config
 
 import (
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/capacity"
@@ -427,15 +428,35 @@ type Havale struct {
 func (h Havale) Enabled() bool { return h.IBAN != "" }
 
 // Carriers configures the optional `shipping` module: the carriers a paid
-// order can be handed to from the admin Orders screen. Secrets (ws_password)
-// belong only in a protected, untracked config file.
+// order can be handed to from the admin Orders screen. Secrets (ws_password,
+// geliver.token, geliver.webhook_secret) belong only in a protected, untracked
+// config file.
 type Carriers struct {
 	// Default is the carrier used when the operator names none.
 	Default string         `yaml:"default"`
 	Manual  ManualCarrier  `yaml:"manual"`
 	Yurtici YurticiCarrier `yaml:"yurtici"`
 	HTTP    HTTPCarrier    `yaml:"http"`
+	Geliver GeliverCarrier `yaml:"geliver"`
 }
+
+// GeliverCarrier configures Geliver shipping marketplace integration.
+type GeliverCarrier struct {
+	Token               string `yaml:"token"`
+	SenderAddressID     string `yaml:"sender_address_id"`
+	BaseURL             string `yaml:"base_url"`
+	WebhookSecret       string `yaml:"webhook_secret"`
+	ProviderServiceCode string `yaml:"provider_service_code"`
+	ProviderAccountID   string `yaml:"provider_account_id"`
+	DefaultLengthCm     string `yaml:"default_length_cm"`
+	DefaultWidthCm      string `yaml:"default_width_cm"`
+	DefaultHeightCm     string `yaml:"default_height_cm"`
+	DefaultWeightKg     string `yaml:"default_weight_kg"`
+	TestMode            bool   `yaml:"test_mode"`
+}
+
+// Enabled reports whether Geliver shipping integration is configured.
+func (g GeliverCarrier) Enabled() bool { return strings.TrimSpace(g.Token) != "" }
 
 // ManualCarrier records a shipment booked in the carrier's own portal.
 type ManualCarrier struct {

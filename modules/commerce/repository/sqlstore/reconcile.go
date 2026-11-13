@@ -38,7 +38,7 @@ func (s Store) ListNotifiedOrdersNotPaid(ctx context.Context, db database.Execut
 	if err != nil {
 		return nil, err
 	}
-	qualifiedColumns := `o.id, COALESCE(o.member_id,''), o.guest_name, o.guest_email, o.guest_phone, o.guest_address, o.guest_city, o.guest_district, o.guest_country, o.guest_postal_code, o.idempotency_key, o.idempotency_hash, o.currency, o.subtotal_cents, o.discount_code, o.discount_cents, o.tax_cents, o.shipping_cents, o.total_cents, o.payment_method, o.payment_ref, o.hold_until, o.payment_status, o.fulfillment_status, o.shipping_carrier, o.shipping_tracking_number, o.shipping_tracking_url, o.shipped_at, o.created_at, o.updated_at`
+	qualifiedColumns := `o.id, COALESCE(o.member_id,''), o.guest_name, o.guest_email, o.guest_phone, o.guest_address, o.guest_city, o.guest_district, o.guest_country, o.guest_postal_code, o.idempotency_key, o.idempotency_hash, o.currency, o.subtotal_cents, o.discount_code, o.discount_cents, o.tax_cents, o.shipping_cents, o.total_cents, o.payment_method, o.payment_ref, o.hold_until, o.payment_status, o.fulfillment_status, o.shipping_carrier, o.shipping_tracking_number, o.shipping_tracking_url, o.shipping_shipment_id, o.shipping_label_url, o.shipped_at, o.delivered_at, o.created_at, o.updated_at`
 	var (
 		query string
 		args  []any

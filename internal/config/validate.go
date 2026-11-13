@@ -455,10 +455,16 @@ func (c Carriers) validate() error {
 	if c.HTTP.Enabled() && (c.HTTP.TrackingPath == "" || c.HTTP.BodyTemplate == "" || c.HTTP.Name == "") {
 		return errors.New("carriers.http requires name, body_template and tracking_path once url is set")
 	}
+	if strings.TrimSpace(c.Geliver.BaseURL) != "" {
+		parsed, err := url.Parse(strings.TrimSpace(c.Geliver.BaseURL))
+		if err != nil || !isHTTPBaseURL(parsed) {
+			return fmt.Errorf("invalid carriers.geliver base URL %q", c.Geliver.BaseURL)
+		}
+	}
 	switch c.Default {
-	case "", "manual", "yurtici", "http":
+	case "", "manual", "yurtici", "http", "geliver":
 	default:
-		return errors.New("carriers.default must be manual, yurtici or http")
+		return errors.New("carriers.default must be manual, yurtici, http or geliver")
 	}
 	return nil
 }

@@ -40,6 +40,8 @@ func TestCarriersValidation(t *testing.T) {
 		{"yurtici complete", Carriers{Yurtici: YurticiCarrier{WSUserName: "u", WSPassword: "p", BaseURL: "https://soap.example", Namespace: "urn:example"}}, false},
 		{"http needs name, template and path", Carriers{HTTP: HTTPCarrier{URL: "https://c.example"}}, true},
 		{"http complete", Carriers{HTTP: HTTPCarrier{URL: "https://c.example", Name: "X", BodyTemplate: "{}", TrackingPath: "a"}}, false},
+		{"geliver default allowed", Carriers{Default: "geliver", Geliver: GeliverCarrier{Token: "tok"}}, false},
+		{"geliver invalid base url", Carriers{Geliver: GeliverCarrier{Token: "tok", BaseURL: "not-a-url"}}, true},
 		{"unknown default", Carriers{Default: "ups"}, true},
 	}
 	for _, tc := range cases {

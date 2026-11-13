@@ -1251,7 +1251,7 @@ func TestRefundOrderAdminWithShippedStatus(t *testing.T) {
 		if err != nil || !claimed {
 			return err
 		}
-		shipped, err := h.Service.Repository.RecordShipment(ctx, tx, order.ID, "yurtici", "TRK-999", "http://track", time.Now().UTC())
+		shipped, err := h.Service.Repository.RecordShipment(ctx, tx, order.ID, commerce.ShipmentResult{Carrier: "yurtici", TrackingNumber: "TRK-999", TrackingURL: "http://track"}, time.Now().UTC())
 		if err != nil || !shipped {
 			return err
 		}
@@ -1655,5 +1655,131 @@ func TestDiscountCodeNeedsAMemberWhenConfigured(t *testing.T) {
 	}
 	if err := place("member-1", "", "m-member"); err != nil {
 		t.Fatalf("member with a code: %v", err)
+	}
+}
+
+type fakeFullShippingProvider struct {
+	fakeShippingProvider
+	offerDraft  commerce.ShipmentOfferDraft
+	lastInput   commerce.ShipmentInput
+	cancelledID string
+}
+
+func (f *fakeFullShippingProvider) CreateShipment(ctx context.Context, _ commerce.Order, _ []commerce.OrderItem) (commerce.ShipmentResult, error) {
+	f.lastInput = commerce.ShipmentInputFrom(ctx)
+	return f.result, nil
+}
+
+func (f *fakeFullShippingProvider) ListShipmentOffers(ctx context.Context, _ commerce.Order, _ []commerce.OrderItem) (commerce.ShipmentOfferDraft, error) {
+	f.lastInput = commerce.ShipmentInputFrom(ctx)
+	return f.offerDraft, nil
+}
+
+func (f *fakeFullShippingProvider) CancelOrderShipment(_ context.Context, order commerce.Order) error {
+	f.cancelledID = order.ShippingShipmentID
+	return nil
+}
+
+func (f *fakeFullShippingProvider) DefaultCarrier() string { return "geliver" }
+func (f *fakeFullShippingProvider) CarrierInfos() []commerce.CarrierInfo {
+	return []commerce.CarrierInfo{{Key: "geliver", SupportsOffers: true, SupportsCancel: true}}
+}
+
+func TestShippingCarriersOffersAndCancelEndpoints(t *testing.T) {
+	h, db := newTestHandler(t)
+	ctx := context.Background()
+	if err := h.Service.Repository.EnsureStock(ctx, db, "variant-ship-full", 5); err != nil {
+		t.Fatal(err)
+	}
+	cart, err := h.Service.GetOrCreateCart(ctx, db, "", "anon-ship-full", "TRY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := addPriced(h.Service, ctx, db, cart, "variant-ship-full", 1, 2500); err != nil {
+		t.Fatal(err)
+	}
+	order, err := h.Service.Checkout(ctx, commerce.CheckoutRequest{CartID: cart.ID, GuestEmail: "guest@example.com", IdempotencyKey: "ship-full-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pay(h.Service, ctx, "mock-provider", "evt-ship-full-1", order.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	provider := &fakeFullShippingProvider{
+		fakeShippingProvider: fakeShippingProvider{
+			name: "geliver",
+			result: commerce.ShipmentResult{
+				Carrier:        "Yurtiçi Kargo",
+				TrackingNumber: "TRK-GEL-1",
+				TrackingURL:    "https://track.example/TRK-GEL-1",
+				ShipmentID:     "shp_gel_1",
+				LabelURL:       "https://labels.example/shp_gel_1.pdf",
+			},
+		},
+		offerDraft: commerce.ShipmentOfferDraft{
+			ShipmentID: "shp_gel_1",
+			CheapestID: "off_1",
+			Offers:     []commerce.ShipmentOffer{{ID: "off_1", Carrier: "YURTICI", CarrierName: "Yurtiçi Kargo", Amount: "99.00", Currency: "TRY"}},
+		},
+	}
+	h.ShippingProvider = provider
+
+	// 1. GET /carriers
+	rec := httptest.NewRecorder()
+	h.getShippingCarriers(rec, httptest.NewRequest(http.MethodGet, "/api/v1/admin/commerce/shipping/carriers", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("getShippingCarriers = %d %s", rec.Code, rec.Body.String())
+	}
+	var carriersPayload struct {
+		Configured     bool                   `json:"configured"`
+		DefaultCarrier string                 `json:"default_carrier"`
+		Carriers       []commerce.CarrierInfo `json:"carriers"`
+	}
+	decodeBody(t, rec, &carriersPayload)
+	if !carriersPayload.Configured || carriersPayload.DefaultCarrier != "geliver" || len(carriersPayload.Carriers) != 1 || !carriersPayload.Carriers[0].SupportsOffers {
+		t.Fatalf("unexpected carriers payload: %+v", carriersPayload)
+	}
+
+	// 2. POST /shipment/offers
+	offerReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment/offers", strings.NewReader(`{"carrier":"geliver","parcel":{"weight_kg":"2.5"}}`))
+	offerReq.SetPathValue("id", order.ID)
+	offerRec := httptest.NewRecorder()
+	h.listShipmentOffers(offerRec, offerReq)
+	if offerRec.Code != http.StatusOK {
+		t.Fatalf("listShipmentOffers = %d %s", offerRec.Code, offerRec.Body.String())
+	}
+	var draft commerce.ShipmentOfferDraft
+	decodeBody(t, offerRec, &draft)
+	if draft.ShipmentID != "shp_gel_1" || provider.lastInput.Parcel.WeightKg != "2.5" {
+		t.Fatalf("unexpected offers response/input: %+v, %+v", draft, provider.lastInput)
+	}
+
+	// 3. POST /shipment with selected offer_id
+	shipReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", strings.NewReader(`{"carrier":"geliver","offer_id":"off_1","shipment_id":"shp_gel_1"}`))
+	shipReq.SetPathValue("id", order.ID)
+	shipRec := httptest.NewRecorder()
+	h.createShipment(shipRec, shipReq)
+	if shipRec.Code != http.StatusOK {
+		t.Fatalf("createShipment = %d %s", shipRec.Code, shipRec.Body.String())
+	}
+	var shipped commerce.Order
+	decodeBody(t, shipRec, &shipped)
+	if shipped.ShippingShipmentID != "shp_gel_1" || shipped.ShippingLabelURL != "https://labels.example/shp_gel_1.pdf" || provider.lastInput.OfferID != "off_1" {
+		t.Fatalf("unexpected shipped order: %+v", shipped)
+	}
+
+	// 4. POST /shipment/cancel
+	cancelReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment/cancel", nil)
+	cancelReq.SetPathValue("id", order.ID)
+	cancelRec := httptest.NewRecorder()
+	h.cancelShipment(cancelRec, cancelReq)
+	if cancelRec.Code != http.StatusOK {
+		t.Fatalf("cancelShipment = %d %s", cancelRec.Code, cancelRec.Body.String())
+	}
+	var afterCancel commerce.Order
+	decodeBody(t, cancelRec, &afterCancel)
+	if afterCancel.FulfillmentStatus != commerce.FulfillmentUnfulfilled || provider.cancelledID != "shp_gel_1" {
+		t.Fatalf("unexpected order after cancel: %+v, cancelledID=%q", afterCancel, provider.cancelledID)
 	}
 }
