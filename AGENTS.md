@@ -11,9 +11,9 @@ change does not serve that, don't make it. Background:
 
 `main` is the only long-lived branch (tags `vX.Y.Z` are cut from it). Work on a
 short-lived branch and open a pull request into `main`. CI (`.github/workflows/`)
-runs on every push/PR (Actions was re-enabled 2026-10-27). Still also run
-`go run ./tools/check` yourself before finishing a task — don't wait on CI as
-your only signal. Delete the branch once merged.
+runs on every push/PR. Still also run `go run ./tools/check` yourself before
+finishing a task — don't wait on CI as your only signal. Delete the branch
+once merged.
 
 ## Before you finish any task
 
