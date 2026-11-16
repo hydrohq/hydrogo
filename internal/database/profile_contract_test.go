@@ -43,6 +43,7 @@ func TestSQLiteProfilesApplyBoundedPragmas(t *testing.T) {
 	}{
 		{name: SQLiteCompactProfile, cacheSize: "-2000", busyTimeout: "5000", mmapSize: 0},
 		{name: SQLiteVPSProfile, cacheSize: "-8000", busyTimeout: "10000", mmapSize: 67108864},
+		{name: SQLitePerformanceProfile, cacheSize: "-64000", busyTimeout: "15000", mmapSize: 268435456},
 	} {
 		t.Run(profile.name, func(t *testing.T) {
 			db, err := OpenWithOptions(context.Background(), SQLite, filepath.Join(t.TempDir(), "profile.sqlite"), OpenOptions{SQLiteProfile: profile.name})

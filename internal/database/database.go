@@ -31,8 +31,9 @@ type OpenOptions struct {
 }
 
 const (
-	SQLiteCompactProfile = "compact"
-	SQLiteVPSProfile     = "vps"
+	SQLiteCompactProfile     = "compact"
+	SQLiteVPSProfile         = "vps"
+	SQLitePerformanceProfile = "performance"
 )
 
 type Executor interface {
@@ -182,7 +183,7 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 	if options.MaxIdleConns < 0 {
 		return nil, errors.New("database max idle connections cannot be negative")
 	}
-	if options.SQLiteProfile != "" && options.SQLiteProfile != SQLiteCompactProfile && options.SQLiteProfile != SQLiteVPSProfile {
+	if options.SQLiteProfile != "" && options.SQLiteProfile != SQLiteCompactProfile && options.SQLiteProfile != SQLiteVPSProfile && options.SQLiteProfile != SQLitePerformanceProfile {
 		return nil, fmt.Errorf("unsupported SQLite profile %q", options.SQLiteProfile)
 	}
 
@@ -345,6 +346,11 @@ func applySQLiteProfile(query url.Values, profile string) {
 		query.Set("_busy_timeout", "10000")
 		query.Add("_pragma", "cache_size=-8000")
 		query.Add("_pragma", "mmap_size=67108864")
+	case SQLitePerformanceProfile:
+		query.Set("_busy_timeout", "15000")
+		query.Add("_pragma", "cache_size=-64000")
+		query.Add("_pragma", "mmap_size=268435456")
+		query.Add("_pragma", "temp_store=MEMORY")
 	default:
 		// OpenWithOptions validates profiles before reaching this helper.
 	}
