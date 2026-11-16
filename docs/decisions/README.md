@@ -34,6 +34,9 @@
 | [0030](0030-ai-workspace-copilot-and-boutique-factory.md) | AI Workspace Copilot & 60-Second Boutique Store Factory | Accepted |
 | [0031](0031-ai-generation-and-prompt-registry.md) | AI Generation Engine, Prompt Registry, and Section-Based Storefront | Accepted |
 | [0032](0032-fail-closed-rls-and-zero-dependency-memory-engine.md) | Fail-Closed PostgreSQL RLS, Zero-Dependency In-Memory Engine, and Storefront Resilience | Accepted |
+| [0033](0033-payments-module.md) | Decoupled payments module with PayTR and Iyzico integrations | Accepted |
+| [0034](0034-shipping-module.md) | Decoupled shipping module with Yurtiçi and Geliver integrations | Accepted |
+| [0035](0035-framework-like-application-engine-vision.md) | Realigning HydroGo as a Framework-like Go CMS & Application Engine | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.
