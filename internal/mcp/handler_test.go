@@ -426,5 +426,40 @@ func TestMCPScopeEnforcement(t *testing.T) {
 	}
 }
 
+func TestMCPSystemTools(t *testing.T) {
+	h, _ := setupTestMCP(t)
+
+	// Call system_info
+	infoPayload := `{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"system_info","arguments":{}}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/mcp", strings.NewReader(infoPayload))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var resp JSONRPCResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal system_info response: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("system_info failed: %v", resp.Error)
+	}
+
+	// Call system_verify_audit without DB should return supported: false
+	auditPayload := `{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"system_verify_audit","arguments":{}}}`
+	reqAudit := httptest.NewRequest(http.MethodPost, "/api/v1/mcp", strings.NewReader(auditPayload))
+	wAudit := httptest.NewRecorder()
+	h.ServeHTTP(wAudit, reqAudit)
+
+	var respAudit JSONRPCResponse
+	if err := json.Unmarshal(wAudit.Body.Bytes(), &respAudit); err != nil {
+		t.Fatalf("unmarshal system_verify_audit response: %v", err)
+	}
+	if respAudit.Error != nil {
+		t.Fatalf("system_verify_audit returned error: %v", respAudit.Error)
+	}
+}
+
 var _ = filepath.Join
 var _ = bytes.NewReader

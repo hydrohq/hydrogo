@@ -268,6 +268,20 @@ func (h *Handler) handleToolsList(ctx context.Context, w http.ResponseWriter, re
 				"required": []string{"type", "operation"},
 			},
 		},
+		{
+			Name:        "system_info",
+			Description: "Inspect HydroGo runtime status, registered content types, active tenant, and security configuration.",
+			InputSchema: map[string]any{
+				"type": "object",
+			},
+		},
+		{
+			Name:        "system_verify_audit",
+			Description: "Run cryptographic SHA-256 chain verification on audit logs to verify tamper-evident data integrity.",
+			InputSchema: map[string]any{
+				"type": "object",
+			},
+		},
 	}
 
 	writeRPCResult(w, req.ID, map[string]any{"tools": tools})
@@ -302,6 +316,14 @@ func (h *Handler) handleToolsCall(ctx context.Context, w http.ResponseWriter, re
 	case "mutate_record", "content_mutate":
 		if err = h.requireScope(ctx, "agent:mutate"); err == nil {
 			res, err = h.toolMutateRecord(ctx, callParams.Arguments)
+		}
+	case "system_info":
+		if err = h.requireScope(ctx, "agent:read"); err == nil {
+			res, err = h.toolSystemInfo(ctx)
+		}
+	case "system_verify_audit":
+		if err = h.requireScope(ctx, "agent:read"); err == nil {
+			res, err = h.toolSystemVerifyAudit(ctx)
 		}
 	default:
 		writeRPCError(w, req.ID, -32601, fmt.Sprintf("Tool not found: %s", callParams.Name))
