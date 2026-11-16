@@ -16,6 +16,7 @@ import (
 	boutiquestarter "github.com/hydrohq/hydrogo/examples/boutique-starter"
 	commercestarter "github.com/hydrohq/hydrogo/examples/commerce-starter"
 	crmstarter "github.com/hydrohq/hydrogo/examples/crm-starter"
+	newsstarter "github.com/hydrohq/hydrogo/examples/hydropost-news-starter"
 	sveltekitstarter "github.com/hydrohq/hydrogo/examples/sveltekit-starter"
 )
 
@@ -93,6 +94,18 @@ var presets = []Preset{
 		Modules:      []string{"core", "auth", "media", "collections"},
 		ContentTypes: []string{"boutique/store_settings", "boutique/boutique_categories", "boutique/boutique_products", "boutique/boutique_orders"},
 	},
+	{
+		Name:         "restaurant",
+		Description:  "restaurant, cafe & QR digital menu: categories, items, reservations and settings",
+		Modules:      []string{"core", "auth", "media", "collections"},
+		ContentTypes: []string{"restaurant/site_settings", "restaurant/menu_categories", "restaurant/menu_items", "restaurant/reservations"},
+	},
+	{
+		Name:         "saas",
+		Description:  "SaaS product landing & leads: features, pricing tiers, FAQs, waitlist and settings",
+		Modules:      []string{"core", "auth", "media", "collections"},
+		ContentTypes: []string{"saas/site_settings", "saas/features", "saas/pricing_tiers", "saas/faqs", "saas/waitlist"},
+	},
 }
 
 // Presets returns the available presets sorted by name.
@@ -130,7 +143,7 @@ type Options struct {
 }
 
 // Starters lists the frontend starters Create can copy into a project.
-func Starters() []string { return []string{"sveltekit", "crm", "commerce", "boutique"} }
+func Starters() []string { return []string{"sveltekit", "crm", "commerce", "boutique", "news"} }
 
 // copyStarter writes the embedded frontend starter into dir.
 func copyStarter(name, dir string) error {
@@ -144,6 +157,8 @@ func copyStarter(name, dir string) error {
 		source = commercestarter.FS
 	case "boutique":
 		source = boutiquestarter.FS
+	case "news":
+		source = newsstarter.FS
 	default:
 		return fmt.Errorf("unknown starter %q (available: %s)", name, strings.Join(Starters(), ", "))
 	}

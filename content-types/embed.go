@@ -4,5 +4,5 @@ package contenttypedata
 
 import "embed"
 
-//go:embed *.yaml crm/*.yaml erp/*.yaml commerce/*.yaml boutique/*.yaml
+//go:embed *.yaml crm/*.yaml erp/*.yaml commerce/*.yaml boutique/*.yaml restaurant/*.yaml saas/*.yaml
 var FS embed.FS
