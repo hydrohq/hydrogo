@@ -232,12 +232,13 @@ func (s Store) GetRecord(ctx context.Context, collectionID, id string) (collecti
 			return err
 		}
 		query := `SELECT data_json,version,created_at,updated_at FROM hydro_collection_records WHERE tenant_id=` + tx.p(1) + ` AND collection_id=` + tx.p(2) + ` AND id=` + tx.p(3)
-		var raw, created, updated string
+		var raw []byte
+		var created, updated string
 		result = collections.Record{ID: id, CollectionID: collectionID}
 		if err := tx.row(ctx, query, tenantID, collectionID, id).Scan(&raw, &result.Version, &created, &updated); err != nil {
 			return mapNoRows(err, collections.ErrRecordNotFound)
 		}
-		if json.Unmarshal([]byte(raw), &result.Data) != nil {
+		if json.Unmarshal(raw, &result.Data) != nil {
 			return errors.New("stored collection record is invalid")
 		}
 		result.CreatedAt = parseTime(created)

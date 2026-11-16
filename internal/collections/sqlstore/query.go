@@ -36,11 +36,12 @@ func (s Store) QueryRecords(ctx context.Context, collectionID string, query coll
 		result = make([]collections.Record, 0, query.Limit)
 		for rows.Next() {
 			item := collections.Record{CollectionID: collectionID}
-			var raw, created, updated string
+			var raw []byte
+			var created, updated string
 			if err := rows.Scan(&item.ID, &raw, &item.Version, &created, &updated); err != nil {
 				return err
 			}
-			if json.Unmarshal([]byte(raw), &item.Data) != nil {
+			if json.Unmarshal(raw, &item.Data) != nil {
 				return errors.New("stored collection record is invalid")
 			}
 			item.CreatedAt = parseTime(created)

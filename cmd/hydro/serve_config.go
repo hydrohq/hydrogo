@@ -257,8 +257,13 @@ func loadConfig(flags *flag.FlagSet, values runtimeFlags, skipDeliverySecrets bo
 
 func profileDatabaseOptions(budget capacity.Budget, profile capacity.Profile) database.OpenOptions {
 	sqliteProfile := database.SQLiteCompactProfile
-	if profile != capacity.Compact {
+	switch profile {
+	case capacity.Distributed:
+		sqliteProfile = database.SQLitePerformanceProfile
+	case capacity.Standard:
 		sqliteProfile = database.SQLiteVPSProfile
+	default:
+		sqliteProfile = database.SQLiteCompactProfile
 	}
 	return database.OpenOptions{
 		MaxOpenConns:  budget.DBMaxOpenConns,

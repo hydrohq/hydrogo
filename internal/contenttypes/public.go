@@ -2,12 +2,14 @@ package contenttypes
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/hydrohq/hydrogo/internal/api"
 	"github.com/hydrohq/hydrogo/internal/collections"
 	"github.com/hydrohq/hydrogo/internal/realtime"
+	"golang.org/x/sync/singleflight"
 )
 
 // PublicAPI serves read-only JSON for content types marked `public: true`:
@@ -43,6 +45,16 @@ type PublicAPI struct {
 	Locales          Locales
 	Hub              *realtime.Hub
 	ResolvePrincipal func(r *http.Request) Principal
+	FlightGroup      *singleflight.Group
+}
+
+var defaultPublicFlightGroup = &singleflight.Group{}
+
+func (p PublicAPI) singleflight() *singleflight.Group {
+	if p.FlightGroup != nil {
+		return p.FlightGroup
+	}
+	return defaultPublicFlightGroup
 }
 
 func (p PublicAPI) forRequest(r *http.Request) PublicAPI {
@@ -235,6 +247,26 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if hasMore && len(records) > 0 {
 		page.NextCursor = collections.NextCursor(query, records[len(records)-1])
 	}
+	etag := fmt.Sprintf(`"list_%s_%d_%d"`, typeID, len(records), query.Offset)
+	if len(records) > 0 {
+		var maxVer int
+		for _, rec := range records {
+			if rec.Version > maxVer {
+				maxVer = rec.Version
+			}
+		}
+		etag = fmt.Sprintf(`"list_%s_%d_%d_%d"`, typeID, len(records), query.Offset, maxVer)
+	}
+	if mine {
+		w.Header().Set("Cache-Control", "private, no-cache")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=30, stale-while-revalidate=120")
+		w.Header().Set("ETag", etag)
+		if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
 	if hasAgg {
 		aggQuery.Where = checkedQuery.Where
 		aggQuery.AnyOf = checkedQuery.AnyOf
@@ -272,20 +304,25 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "invalid query", nil)
 		return
 	}
-	record, err := p.Service.GetRecord(r.Context(), typeID, r.PathValue("id"))
-	// The status is checked on the record before any translation is read.
-	if err == nil && definition.Drafts && recordStatus(record.Data) != StatusPublished {
-		err = collections.ErrRecordNotFound
-	}
-	if err == nil {
-		records := []collections.Record{record}
-		err = p.translate(r, definition, locale, records)
-		record = records[0]
-	}
+	id := r.PathValue("id")
+	flightKey := fmt.Sprintf("get:%s:%s", typeID, id)
+	v, err, _ := p.singleflight().Do(flightKey, func() (any, error) {
+		record, err := p.Service.GetRecord(r.Context(), typeID, id)
+		if err == nil && definition.Drafts && recordStatus(record.Data) != StatusPublished {
+			err = collections.ErrRecordNotFound
+		}
+		if err == nil {
+			records := []collections.Record{record}
+			err = p.translate(r, definition, locale, records)
+			record = records[0]
+		}
+		return record, err
+	})
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
+	record := v.(collections.Record)
 	principal := p.principal(r)
 	if definition.AccessRules != nil && definition.AccessRules.Read != "" {
 		allowed, err := EvaluateRule(definition.AccessRules.Read, principal, record.Data, true)
@@ -297,6 +334,13 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+	}
+	etag := fmt.Sprintf(`"rec_%s_%d"`, record.ID, record.Version)
+	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+	w.Header().Set("ETag", etag)
+	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
 	}
 	item := p.present(typeID, locale, record)
 	expanded, err := p.expansion().load(r.Context(), expand, []collections.Record{record})
