@@ -263,6 +263,24 @@ func newsWorkerID(index int) string {
 
 func runNewsWorkerLoop(ctx context.Context, worker newsservice.Worker, metrics *observability.Metrics, stderr io.Writer, workerID string) {
 	const idlePoll = 100 * time.Millisecond
+	idleTimer := time.NewTimer(idlePoll)
+	defer idleTimer.Stop()
+	if !idleTimer.Stop() {
+		select {
+		case <-idleTimer.C:
+		default:
+		}
+	}
+	waitIdle := func() bool {
+		idleTimer.Reset(idlePoll)
+		select {
+		case <-ctx.Done():
+			return false
+		case <-idleTimer.C:
+			return true
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -275,10 +293,8 @@ func runNewsWorkerLoop(ctx context.Context, worker newsservice.Worker, metrics *
 			if ctx.Err() == nil {
 				_, _ = fmt.Fprintf(stderr, "hydro news worker %s run: %v\n", workerID, err)
 			}
-			select {
-			case <-ctx.Done():
+			if !waitIdle() {
 				return
-			case <-time.After(idlePoll):
 			}
 			continue
 		}
@@ -286,10 +302,8 @@ func runNewsWorkerLoop(ctx context.Context, worker newsservice.Worker, metrics *
 			metrics.RecordWorkerProcessed()
 			continue
 		}
-		select {
-		case <-ctx.Done():
+		if !waitIdle() {
 			return
-		case <-time.After(idlePoll):
 		}
 	}
 }

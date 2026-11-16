@@ -1,11 +1,12 @@
 # Working in HydroGo
 
-HydroGo is a **single-binary headless Go CMS**: pages, news, media, members,
-content types, a REST API and an embedded admin panel. It does not render a
-public website; projects build their own frontend on the API (see
-`examples/sveltekit-starter`). It is not a framework or a product factory. If a
-change does not serve that, don't make it. Background:
-`docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`.
+HydroGo is a **single-binary modular Framework-like Go CMS & Application Engine**:
+pages, news, media, members, content types, a high-performance REST API, an
+embedded Svelte 5 admin workspace, and turnkey frontend starters tailored to the
+project's target purpose (e.g. `examples/sveltekit-starter`, `examples/boutique-starter`,
+`examples/commerce-starter`, `examples/crm-starter`). Background:
+`docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`,
+`docs/decisions/0035-framework-like-application-engine-vision.md`.
 
 ## Branches
 
@@ -52,9 +53,11 @@ search/filters, drafts, revisions and per-locale (`localized`) fields (see
 
 ## Rules
 
-1. **Go serves JSON, not markup.** No HTML or CSS in Go strings; no server-side
-   HTML rendering except transactional e-mail (`internal/mailer`,
-   `html/template`). Admin markup lives in `admin/` Svelte components.
+1. **Go serves JSON APIs and structured templates.** The REST API serves strict
+   JSON envelopes (`internal/api`). No inline HTML or CSS in Go string literals;
+   public presentations are driven by purpose-built frontend starters or
+   embedded template assets (`internal/storefront`, `html/template`). Admin markup
+   lives in `admin/` Svelte components.
 2. **No customer-specific content in core.** Brand names, hardcoded menus,
    dates, exchange rates or demo credentials belong in seed data, config or
    the example frontend, not in `modules/`, `internal/` or `admin/`.
