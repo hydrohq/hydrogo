@@ -17,6 +17,7 @@
   // keeps the app shell small (the Pages/News editors pull in TipTap).
   const loadDashboardView = () => import('./routes/dashboard/DashboardView.svelte');
   const loadGenericListView = () => import('$lib/schema/GenericListView.svelte');
+  const loadGenericFormView = () => import('$lib/schema/GenericFormView.svelte');
   const loadMediaView = () => import('./routes/media/MediaView.svelte');
   const loadNewsListView = () => import('./routes/news/NewsListView.svelte');
   const loadNewsEditorView = () => import('./routes/news/NewsEditorView.svelte');
@@ -143,11 +144,15 @@
       const parts = p.split('/');
       const type = parts[2];
       const actionOrId = parts[3];
+      const col = schema.getCollection(type);
+      if (col?.type === 'global') {
+        return { view: 'singleton-form', type };
+      }
       if (actionOrId === 'new') {
-        return { view: 'list', type, modalId: 'new' };
+        return { view: 'form', type, id: 'new' };
       }
       if (actionOrId) {
-        return { view: 'list', type, modalId: actionOrId };
+        return { view: 'form', type, id: actionOrId };
       }
       return { view: 'list', type };
     }
@@ -215,9 +220,11 @@
       {#if routeInfo.view === 'dashboard'}
         <LazyView load={loadDashboardView} />
       {:else if routeInfo.view === 'list'}
-        <LazyView load={loadGenericListView} props={{ type: routeInfo.type, initialItemId: routeInfo.modalId }} />
+        <LazyView load={loadGenericListView} props={{ type: routeInfo.type }} />
       {:else if routeInfo.view === 'form'}
-        <LazyView load={loadGenericListView} props={{ type: routeInfo.type, initialItemId: routeInfo.id }} />
+        <LazyView load={loadGenericFormView} props={{ type: routeInfo.type, id: routeInfo.id }} />
+      {:else if routeInfo.view === 'singleton-form'}
+        <LazyView load={loadGenericFormView} props={{ type: routeInfo.type, singleton: true }} />
       {:else if routeInfo.view === 'news-list'}
         <LazyView load={loadNewsListView} />
       {:else if routeInfo.view === 'news-editor'}
@@ -264,7 +271,9 @@
         <LazyView load={loadContentTypesView} props={{ mode: routeInfo.mode }} />
       {:else}
         <!-- Module screen fallback (renders generic collection if schema matches or info panel) -->
-        {#if schema.getCollection(routeInfo.module || '')}
+        {#if schema.getCollection(routeInfo.module || '')?.type === 'global'}
+          <LazyView load={loadGenericFormView} props={{ type: routeInfo.module, singleton: true }} />
+        {:else if schema.getCollection(routeInfo.module || '')}
           <LazyView load={loadGenericListView} props={{ type: routeInfo.module }} />
         {:else}
           <div class="p-8 max-w-2xl mx-auto rounded-xl border border-border bg-card text-card-foreground text-center space-y-3 shadow-xs">

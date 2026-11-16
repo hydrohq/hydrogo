@@ -96,6 +96,8 @@ export const en = {
   'dashboard.commerce.col.date': 'Date',
   'dashboard.commerce.col.status': 'Payment',
   'dashboard.commerce.col.total': 'Total',
+  'dashboard.commerce.operations': 'Operations queue',
+  'dashboard.commerce.periodTotal': '14-day total',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -196,4 +198,6 @@ export const tr: Record<keyof typeof en, string> = {
   'dashboard.commerce.col.date': 'Tarih',
   'dashboard.commerce.col.status': 'Ödeme',
   'dashboard.commerce.col.total': 'Toplam',
+  'dashboard.commerce.operations': 'Operasyon kuyruğu',
+  'dashboard.commerce.periodTotal': '14 günlük toplam',
 };

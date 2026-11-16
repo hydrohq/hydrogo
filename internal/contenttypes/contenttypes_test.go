@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/hydrohq/hydrogo/internal/collections"
 )
 
@@ -99,5 +101,132 @@ func TestPublicAPIOnlyExposesPublicTypes(t *testing.T) {
 	types[0].Public = false
 	if hidden, _ := call(t, mux, http.MethodGet, "/api/v1/content/faq", ""); hidden.Code != http.StatusNotFound {
 		t.Fatalf("private type: %d", hidden.Code)
+	}
+}
+
+func TestTextRelationWidgetSingletonAndActionsAreBackwardCompatible(t *testing.T) {
+	initialBlog := `id: blog_posts
+label: Blog
+title_field: title
+public: true
+fields:
+  - {id: title, label: Title, kind: text, required: true}
+  - {id: related_products, label: Related Products, kind: text}
+`
+	service, types := newServiceFor(t, initialBlog)
+	created, err := service.CreateRecord(context.Background(), "blog_posts", map[string]any{
+		"title":            "Leather Guide",
+		"related_products": "classic-belt, brass-buckle",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	upgradedBlog := `id: blog_posts
+label: Blog
+title_field: title
+public: true
+actions:
+  - {label: "Open on site", href: "/blog/{slug}"}
+fields:
+  - {id: title, label: Title, kind: text, required: true}
+  - {id: related_products, label: Related Products, kind: text, widget: relation, to: products, many: true, value_field: slug}
+`
+	singletonCompany := `id: company_info
+label: Company Info
+singleton: true
+public: true
+fields:
+  - {id: unvan, label: Name, kind: text}
+`
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "blog_posts.yaml"), []byte(upgradedBlog), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "company_info.yaml"), []byte(singletonCompany), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadDir(dir)
+	if err != nil {
+		t.Fatalf("LoadDir: %v", err)
+	}
+	schemas, err := Schemas(loaded)
+	if err != nil {
+		t.Fatalf("Schemas: %v", err)
+	}
+	if err := service.SyncSchemas(context.Background(), schemas); err != nil {
+		t.Fatalf("SyncSchemas must keep existing text records intact: %v", err)
+	}
+	got, err := service.GetRecord(context.Background(), "blog_posts", created.ID)
+	if err != nil || got.Data["related_products"] != "classic-belt, brass-buckle" {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+
+	collectionsMeta := AdminCollections(loaded, false)
+	var blogCol, compCol int = -1, -1
+	for i, c := range collectionsMeta {
+		if c.ID == "blog_posts" {
+			blogCol = i
+		}
+		if c.ID == "company_info" {
+			compCol = i
+		}
+	}
+	if blogCol < 0 || compCol < 0 {
+		t.Fatalf("missing admin collections: %+v", collectionsMeta)
+	}
+	if collectionsMeta[compCol].Type != "global" {
+		t.Fatalf("company_info Type = %q, want global", collectionsMeta[compCol].Type)
+	}
+	if len(collectionsMeta[blogCol].Actions) != 1 || collectionsMeta[blogCol].Actions[0].Href != "/blog/{slug}" {
+		t.Fatalf("blog_posts Actions = %+v", collectionsMeta[blogCol].Actions)
+	}
+	relField := collectionsMeta[blogCol].Fields[1]
+	if relField.Kind != "text" || relField.Widget != "relation" || relField.Relation == nil || relField.Relation.Collection != "products" || relField.Relation.Cardinality != "many" || relField.Relation.ValueField != "slug" {
+		t.Fatalf("relField = %+v", relField)
+	}
+	_ = types
+
+	// External action hrefs and non-relation value_field must fail validation.
+	for name, bad := range map[string]string{
+		"external action": "id: x\nlabel: X\nactions: [{label: Bad, href: https://evil.test}]\nfields: [{id: a, label: A, kind: text}]\n",
+		"bad value_field": "id: x\nlabel: X\nfields: [{id: a, label: A, kind: text, value_field: slug}]\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			badDir := t.TempDir()
+			_ = os.WriteFile(filepath.Join(badDir, "x.yaml"), []byte(bad), 0o644)
+			if _, err := LoadDir(badDir); err == nil {
+				t.Fatalf("%s unexpectedly accepted", name)
+			}
+		})
+	}
+}
+
+func TestDefinitionYAMLMarshallingOmitsZeroFields(t *testing.T) {
+	def := Definition{
+		ID:     "notes",
+		Label:  "Notes",
+		Public: false,
+		Fields: []Field{
+			{ID: "title", Label: "Title", Kind: "text", Required: true},
+		},
+	}
+	raw, err := yaml.Marshal(&def)
+	if err != nil {
+		t.Fatalf("yaml.Marshal: %v", err)
+	}
+	text := string(raw)
+	for _, unwanted := range []string{"drafts:", "revisions:", "permissions:", "singleton:", "searchable:", "filterable:", "localized:", "null"} {
+		if strings.Contains(text, unwanted) {
+			t.Fatalf("unexpected zero field %q in marshalled YAML:\n%s", unwanted, text)
+		}
+	}
+	roundDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(roundDir, "notes.yaml"), raw, 0o644); err != nil {
+		t.Fatalf("write roundtrip yaml: %v", err)
+	}
+	loaded, err := LoadDir(roundDir)
+	if err != nil || len(loaded) != 1 || loaded[0].ID != "notes" {
+		t.Fatalf("LoadDir roundtrip failed: loaded=%+v err=%v", loaded, err)
 	}
 }

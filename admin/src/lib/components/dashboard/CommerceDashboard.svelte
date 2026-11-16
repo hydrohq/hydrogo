@@ -82,52 +82,92 @@
   const statusTone: Record<string, string> = { paid: 'text-emerald-600', pending: 'text-amber-600', failed: 'text-destructive', refunded: 'text-muted-foreground' };
 
   const go = (path: string) => router.navigate(path);
-  const cards = $derived([
-    { label: t('dashboard.commerce.today'), value: money(sum(todayPaid)), note: t('dashboard.commerce.todayNote', { count: todayPaid.length }), to: '/commerce' },
-    { label: t('dashboard.commerce.week'), value: money(sum(weekPaid)), note: t('dashboard.commerce.weekNote', { count: weekPaid.length }), to: '/commerce' },
+  const kpiCards = $derived([
+    { label: t('dashboard.commerce.today'), value: money(sum(todayPaid)), note: t('dashboard.commerce.todayNote', { count: todayPaid.length }), to: '/commerce', alert: false },
+    { label: t('dashboard.commerce.week'), value: money(sum(weekPaid)), note: t('dashboard.commerce.weekNote', { count: weekPaid.length }), to: '/commerce', alert: false },
     { label: t('dashboard.commerce.toShip'), value: String(toShip), note: t('dashboard.commerce.toShipNote'), to: '/commerce', alert: toShip > 0 },
-    { label: t('dashboard.commerce.awaiting'), value: String(awaiting), note: t('dashboard.commerce.awaitingNote'), to: '/commerce' },
-    { label: t('dashboard.commerce.refunds'), value: String(refunds), note: t('dashboard.commerce.refundsNote'), to: '/commerce/refunds-required', alert: refunds > 0 },
-    { label: t('dashboard.commerce.reviews'), value: String(pendingReviews), note: t('dashboard.commerce.reviewsNote'), to: '/content/reviews', alert: pendingReviews > 0 },
-    { label: t('dashboard.commerce.returns'), value: String(openReturns), note: t('dashboard.commerce.returnsNote'), to: '/content/return_requests', alert: openReturns > 0 },
-    { label: t('dashboard.commerce.lowStock'), value: String(lowStock.length), note: t('dashboard.commerce.lowStockNote'), to: '/commerce/stock', alert: lowStock.length > 0 },
-    { label: t('dashboard.commerce.members'), value: members.toLocaleString('tr-TR'), note: visitors > 0 ? `${visitors} ziyaretçi bugün` : t('dashboard.commerce.membersNote'), to: '/members' }
+    { label: t('dashboard.commerce.awaiting'), value: String(awaiting), note: t('dashboard.commerce.awaitingNote'), to: '/commerce', alert: false },
   ]);
+  const queueItems = $derived([
+    { label: t('dashboard.commerce.refunds'), value: String(refunds), note: t('dashboard.commerce.refundsNote'), to: '/commerce/refunds-required', alert: refunds > 0, tone: 'bg-destructive' },
+    { label: t('dashboard.commerce.reviews'), value: String(pendingReviews), note: t('dashboard.commerce.reviewsNote'), to: '/content/reviews', alert: pendingReviews > 0, tone: 'bg-amber-500' },
+    { label: t('dashboard.commerce.returns'), value: String(openReturns), note: t('dashboard.commerce.returnsNote'), to: '/content/return_requests', alert: openReturns > 0, tone: 'bg-amber-500' },
+    { label: t('dashboard.commerce.lowStock'), value: String(lowStock.length), note: t('dashboard.commerce.lowStockNote'), to: '/commerce/stock', alert: lowStock.length > 0, tone: 'bg-amber-500' },
+    { label: t('dashboard.commerce.members'), value: members.toLocaleString('tr-TR'), note: visitors > 0 ? `${visitors} ziyaretçi bugün` : t('dashboard.commerce.membersNote'), to: '/members', alert: false, tone: 'bg-muted-foreground' },
+  ]);
+  const periodTotal = $derived(days.reduce((acc, d) => acc + d.total, 0));
 </script>
 
-<div class="flex flex-col gap-6 px-4 lg:px-6">
+<div class="flex flex-col gap-6">
   <header>
-    <h1 class="text-2xl font-semibold tracking-tight">{t('dashboard.commerce.title')}</h1>
+    <h1 class="text-2xl font-medium tracking-tight text-foreground">{t('dashboard.commerce.title')}</h1>
     <p class="mt-1 text-sm text-muted-foreground">{t('dashboard.commerce.subtitle')}</p>
-    {#if partial}<p role="status" class="mt-2 text-xs text-amber-600">{t('dashboard.commerce.loadFailed')}</p>{/if}
+    {#if partial}<p role="status" class="mt-2 text-xs text-amber-500">{t('dashboard.commerce.loadFailed')}</p>{/if}
   </header>
 
   <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-    {#each cards as card (card.label)}
-      <button type="button" onclick={() => go(card.to)} class="rounded-xl border border-border bg-card p-5 text-left shadow-xs transition-colors hover:bg-accent/40">
-        <span class="text-sm text-muted-foreground">{card.label}</span>
-        <span class="mt-1 block text-2xl font-semibold tabular-nums tracking-tight {card.alert ? 'text-amber-600' : 'text-foreground'}">{loading ? '…' : card.value}</span>
-        <span class="mt-1 block text-xs text-muted-foreground">{card.note}</span>
+    {#each kpiCards as card (card.label)}
+      <button type="button" onclick={() => go(card.to)} class="rounded-xl border border-border bg-card p-5 text-left transition-colors duration-150 hover:bg-muted/40 cursor-pointer">
+        <span class="text-xs font-medium text-muted-foreground">{card.label}</span>
+        <span class="mt-2 block text-2xl font-medium tabular-nums tracking-tight {card.alert ? 'text-amber-500' : 'text-foreground'}">{loading ? '…' : card.value}</span>
+        <span class="mt-1.5 block text-xs text-muted-foreground">{card.note}</span>
       </button>
     {/each}
   </div>
 
-  <section class="rounded-xl border border-border bg-card p-5 shadow-xs">
-    <h2 class="text-sm font-medium">{t('dashboard.commerce.chart')}</h2>
-    <div class="mt-4 flex h-40 items-end gap-1.5" role="img" aria-label={t('dashboard.commerce.chart')}>
-      {#each days as d (d.from)}
-        <div class="flex h-full flex-1 flex-col items-center justify-end gap-1" title="{day(d.from)}: {money(d.total)}">
-          <div class="w-full rounded-t bg-primary/80" style="height: {Math.max(d.total > 0 ? 4 : 1, (d.total / max) * 100)}%"></div>
-          <span class="text-[10px] text-muted-foreground">{new Date(d.from).getDate()}</span>
-        </div>
-      {/each}
-    </div>
-  </section>
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <section class="flex flex-col justify-between rounded-xl border border-border bg-card p-5 lg:col-span-2">
+      <div class="flex items-baseline justify-between gap-4">
+        <h2 class="text-sm font-medium text-foreground">{t('dashboard.commerce.chart')}</h2>
+        <span class="text-xs tabular-nums text-muted-foreground">
+          {t('dashboard.commerce.periodTotal')}: <span class="font-medium text-foreground">{loading ? '…' : money(periodTotal)}</span>
+        </span>
+      </div>
+      <div class="mt-6 flex h-44 items-end gap-1.5" role="img" aria-label={t('dashboard.commerce.chart')}>
+        {#each days as d, i (d.from)}
+          {@const isToday = i === days.length - 1}
+          <div class="flex h-full flex-1 flex-col items-center justify-end gap-1.5" title="{day(d.from)}: {money(d.total)}">
+            <div
+              class="w-full rounded-t-sm transition-colors duration-150 {isToday ? 'bg-primary' : 'bg-muted-foreground/25 hover:bg-primary/60'}"
+              style="height: {Math.max(d.total > 0 ? 6 : 2, (d.total / max) * 100)}%"
+            ></div>
+            <span class="font-mono text-[10px] tabular-nums {isToday ? 'font-medium text-foreground' : 'text-muted-foreground'}">{new Date(d.from).getDate()}</span>
+          </div>
+        {/each}
+      </div>
+    </section>
 
-  <section class="rounded-xl border border-border bg-card shadow-xs">
-    <div class="flex items-center justify-between border-b border-border px-5 py-3">
-      <h2 class="text-sm font-medium">{t('dashboard.commerce.recent')}</h2>
-      <button type="button" class="text-xs text-muted-foreground hover:text-foreground" onclick={() => go('/commerce')}>{t('dashboard.commerce.viewAll')} →</button>
+    <section class="flex flex-col rounded-xl border border-border bg-card">
+      <div class="border-b border-border px-5 py-3.5">
+        <h2 class="text-sm font-medium text-foreground">{t('dashboard.commerce.operations')}</h2>
+      </div>
+      <div class="divide-y divide-border flex-1 flex flex-col justify-center">
+        {#each queueItems as item (item.label)}
+          <button
+            type="button"
+            onclick={() => go(item.to)}
+            class="flex items-center justify-between gap-3 px-5 py-3 text-left transition-colors duration-150 hover:bg-muted/40 cursor-pointer"
+          >
+            <div class="min-w-0 flex items-center gap-2.5">
+              <span class="size-1.5 shrink-0 rounded-full {item.alert ? item.tone : 'bg-border'}"></span>
+              <div class="min-w-0">
+                <div class="truncate text-xs font-medium text-foreground">{item.label}</div>
+                <div class="truncate text-[11px] text-muted-foreground">{item.note}</div>
+              </div>
+            </div>
+            <span class="font-mono text-sm font-medium tabular-nums {item.alert ? 'text-foreground' : 'text-muted-foreground'}">
+              {loading ? '…' : item.value}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </section>
+  </div>
+
+  <section class="rounded-xl border border-border bg-card">
+    <div class="flex items-center justify-between border-b border-border px-5 py-3.5">
+      <h2 class="text-sm font-medium text-foreground">{t('dashboard.commerce.recent')}</h2>
+      <button type="button" class="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer" onclick={() => go('/commerce')}>{t('dashboard.commerce.viewAll')} →</button>
     </div>
     {#if orders.length === 0 && !loading}
       <p class="px-5 py-8 text-center text-sm text-muted-foreground">{t('dashboard.commerce.none')}</p>
@@ -136,19 +176,22 @@
       <table class="w-full text-left text-sm">
         <thead class="text-xs text-muted-foreground">
           <tr>
-            <th class="px-3 py-2 font-medium sm:px-5">{t('dashboard.commerce.col.order')}</th>
-            <th class="hidden px-5 py-2 font-medium sm:table-cell">{t('dashboard.commerce.col.date')}</th>
-            <th class="px-3 py-2 font-medium sm:px-5">{t('dashboard.commerce.col.status')}</th>
-            <th class="px-3 py-2 text-right font-medium sm:px-5">{t('dashboard.commerce.col.total')}</th>
+            <th class="px-4 py-2.5 font-medium sm:px-5">{t('dashboard.commerce.col.order')}</th>
+            <th class="hidden px-5 py-2.5 font-medium sm:table-cell">{t('dashboard.commerce.col.date')}</th>
+            <th class="px-4 py-2.5 font-medium sm:px-5">{t('dashboard.commerce.col.status')}</th>
+            <th class="px-4 py-2.5 text-right font-medium sm:px-5">{t('dashboard.commerce.col.total')}</th>
           </tr>
         </thead>
         <tbody>
           {#each orders.slice(0, 8) as o (o.id)}
-            <tr class="border-t border-border">
-              <td class="px-3 py-2.5 sm:px-5"><span class="font-mono text-xs">#{shortId(o.id)}</span>{#if o.guest_name}<span class="ml-2 block text-muted-foreground sm:inline">{o.guest_name}</span>{/if}<span class="mt-0.5 block text-[11px] text-muted-foreground sm:hidden">{day(new Date(o.created_at).getTime())}</span></td>
-              <td class="hidden px-5 py-2.5 text-muted-foreground sm:table-cell">{day(new Date(o.created_at).getTime())}</td>
-              <td class="px-3 py-2.5 sm:px-5 {statusTone[o.payment_status] ?? ''}">{statusLabel[o.payment_status] ?? o.payment_status}</td>
-              <td class="whitespace-nowrap px-3 py-2.5 text-right tabular-nums sm:px-5">{money(o.total_cents)}</td>
+            <tr
+              class="border-t border-border hover:bg-muted/40 transition-colors cursor-pointer"
+              onclick={() => go(`/commerce?order=${encodeURIComponent(o.id)}`)}
+            >
+              <td class="px-4 py-3 sm:px-5"><span class="font-mono text-xs text-foreground">#{shortId(o.id)}</span>{#if o.guest_name}<span class="ml-2 block text-muted-foreground sm:inline">{o.guest_name}</span>{/if}<span class="mt-0.5 block text-[11px] text-muted-foreground sm:hidden">{day(new Date(o.created_at).getTime())}</span></td>
+              <td class="hidden px-5 py-3 text-muted-foreground sm:table-cell">{day(new Date(o.created_at).getTime())}</td>
+              <td class="px-4 py-3 sm:px-5 {statusTone[o.payment_status] ?? ''}">{statusLabel[o.payment_status] ?? o.payment_status}</td>
+              <td class="whitespace-nowrap px-4 py-3 text-right font-mono text-xs tabular-nums sm:px-5">{money(o.total_cents)}</td>
             </tr>
           {/each}
         </tbody>

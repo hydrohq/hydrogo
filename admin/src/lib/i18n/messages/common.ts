@@ -33,7 +33,7 @@ export const en = {
   'common.active': 'Active',
   'common.disabled': 'Disabled',
   'common.email': 'Email',
-  'common.copied': 'Copied!',
+  'common.copied': 'Copied',
   'common.copy': 'Copy',
   'common.enabled': 'Enabled',
   'common.yes': 'Yes',
@@ -48,7 +48,7 @@ export const en = {
   'api.error.requestFailed': 'API request failed',
   'api.error.network': 'Unknown network error',
   'api.error.generic': 'An error occurred',
-  'common.saved': 'Saved successfully!',
+  'common.saved': 'Saved',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -86,7 +86,7 @@ export const tr: Record<keyof typeof en, string> = {
   'common.active': 'Aktif',
   'common.disabled': 'Devre Dışı',
   'common.email': 'E-posta',
-  'common.copied': 'Kopyalandı!',
+  'common.copied': 'Kopyalandı',
   'common.copy': 'Kopyala',
   'common.enabled': 'Etkin',
   'common.yes': 'Evet',
@@ -101,5 +101,5 @@ export const tr: Record<keyof typeof en, string> = {
   'api.error.requestFailed': 'API isteği başarısız oldu',
   'api.error.network': 'Ağ bağlantı hatası oluştu',
   'api.error.generic': 'Bir hata oluştu',
-  'common.saved': 'Başarıyla kaydedildi!',
+  'common.saved': 'Kaydedildi',
 };

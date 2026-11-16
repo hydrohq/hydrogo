@@ -159,7 +159,7 @@
   <!-- Prominent Non-blocking Warning Banner -->
   {#if (mode === 'banner' || mode === 'all') && !currentPresence.dismissedBanner}
     <div
-      class="mx-4 lg:mx-6 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3 animate-fade-in shadow-xs {className}"
+      class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3 animate-fade-in shadow-xs {className}"
     >
       <div class="flex items-center gap-2.5 min-w-0">
         <div class="size-6 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">

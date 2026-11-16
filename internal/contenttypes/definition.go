@@ -154,37 +154,39 @@ var identifier = regexp.MustCompile(`^[a-z][a-z0-9_]{0,62}$`)
 type Definition struct {
 	ID          string `json:"id" yaml:"id"`
 	Label       string `json:"label" yaml:"label"`
-	Description string `json:"description,omitempty" yaml:"description"`
-	Group       string `json:"group,omitempty" yaml:"group"`
-	Icon        string `json:"icon,omitempty" yaml:"icon"`
-	TitleField  string `json:"title_field,omitempty" yaml:"title_field"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	Group       string `json:"group,omitempty" yaml:"group,omitempty"`
+	Icon        string `json:"icon,omitempty" yaml:"icon,omitempty"`
+	TitleField  string `json:"title_field,omitempty" yaml:"title_field,omitempty"`
 	Public      bool   `json:"public" yaml:"public"`
 	// Drafts adds a draft/published status to every record. New records
 	// start as drafts, the admin publishes and unpublishes them, and the
 	// public API only returns published records.
-	Drafts bool `json:"drafts" yaml:"drafts"`
+	Drafts bool `json:"drafts" yaml:"drafts,omitempty"`
 	// OwnerField names a text field that holds the submitting member's e-mail.
 	// A signed-in member can then list their own records of a drafts type,
 	// drafts included, with ?mine=1 on the public API (a customer's review
 	// still waiting for approval). Nobody else sees those drafts.
-	OwnerField string `json:"owner_field,omitempty" yaml:"owner_field"`
+	OwnerField string `json:"owner_field,omitempty" yaml:"owner_field,omitempty"`
 	// Revisions keeps the last collections.MaxRevisionsPerRecord saved
 	// versions of each record; the admin can view and restore them.
-	Revisions bool `json:"revisions" yaml:"revisions"`
+	Revisions bool `json:"revisions" yaml:"revisions,omitempty"`
 	// Rules validate and lock records; States restricts how a select field
 	// changes (see the package documentation).
 	// Permissions names the permissions that guard this type in the admin API
 	// instead of the generic content permissions.
 	// PeriodLock refuses changes to records dated in a closed period.
-	PeriodLock *PeriodLock `json:"period_lock,omitempty" yaml:"period_lock"`
+	PeriodLock *PeriodLock `json:"period_lock,omitempty" yaml:"period_lock,omitempty"`
 	// Hooks consult side services before changes (see Hook).
-	Hooks       []Hook                    `json:"hooks,omitempty" yaml:"hooks"`
-	Realtime    bool                      `json:"realtime,omitempty" yaml:"realtime"`
-	AccessRules *AccessRules              `json:"access_rules,omitempty" yaml:"access_rules"`
-	Access      *Access                   `json:"access,omitempty" yaml:"access"`
-	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions"`
-	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules"`
-	States      *collections.StateMachine `json:"states,omitempty" yaml:"states"`
+	Hooks       []Hook                    `json:"hooks,omitempty" yaml:"hooks,omitempty"`
+	Realtime    bool                      `json:"realtime,omitempty" yaml:"realtime,omitempty"`
+	Singleton   bool                      `json:"singleton,omitempty" yaml:"singleton,omitempty"`
+	Actions     []adminstudio.Action      `json:"actions,omitempty" yaml:"actions,omitempty"`
+	AccessRules *AccessRules              `json:"access_rules,omitempty" yaml:"access_rules,omitempty"`
+	Access      *Access                   `json:"access,omitempty" yaml:"access,omitempty"`
+	Permissions Permissions               `json:"permissions,omitempty" yaml:"permissions,omitempty"`
+	Rules       []collections.Rule        `json:"rules,omitempty" yaml:"rules,omitempty"`
+	States      *collections.StateMachine `json:"states,omitempty" yaml:"states,omitempty"`
 	Fields      []Field                   `json:"fields" yaml:"fields"`
 }
 
@@ -193,8 +195,8 @@ type Definition struct {
 // generic admin.content.read / admin.content.write for that direction. Admins
 // hold every permission; others get a named one from a per-user override.
 type Permissions struct {
-	Read  string `json:"read,omitempty" yaml:"read"`
-	Write string `json:"write,omitempty" yaml:"write"`
+	Read  string `json:"read,omitempty" yaml:"read,omitempty"`
+	Write string `json:"write,omitempty" yaml:"write,omitempty"`
 }
 
 // For returns the permission that guards reads or writes ("" = generic).
@@ -208,55 +210,56 @@ func (p Permissions) For(write bool) string {
 // Field kinds: text, textarea, richtext, number, boolean, date, datetime,
 // select, media, relation (with to and optionally many).
 type Field struct {
-	ID       string   `json:"id" yaml:"id"`
-	Label    string   `json:"label" yaml:"label"`
-	Kind     string   `json:"kind" yaml:"kind"`
-	Required bool     `json:"required" yaml:"required"`
-	Unique   bool     `json:"unique" yaml:"unique"`
-	List     bool     `json:"list" yaml:"list"`
-	Options  []string `json:"options,omitempty" yaml:"options"`
-	To       string   `json:"to,omitempty" yaml:"to"`
-	Many     bool     `json:"many,omitempty" yaml:"many"`
-	OnDelete string   `json:"on_delete,omitempty" yaml:"on_delete"`
+	ID         string   `json:"id" yaml:"id"`
+	Label      string   `json:"label" yaml:"label"`
+	Kind       string   `json:"kind" yaml:"kind"`
+	Required   bool     `json:"required" yaml:"required,omitempty"`
+	Unique     bool     `json:"unique" yaml:"unique,omitempty"`
+	List       bool     `json:"list" yaml:"list,omitempty"`
+	Options    []string `json:"options,omitempty" yaml:"options,omitempty"`
+	To         string   `json:"to,omitempty" yaml:"to,omitempty"`
+	Many       bool     `json:"many,omitempty" yaml:"many,omitempty"`
+	ValueField string   `json:"value_field,omitempty" yaml:"value_field,omitempty"`
+	OnDelete   string   `json:"on_delete,omitempty" yaml:"on_delete,omitempty"`
 	// Permission hides the field from everyone without it: it is left out of
 	// admin reads, ignored on writes (stored values stay), and cannot be
 	// filtered, sorted, grouped or summed. Not allowed on required, unique,
 	// searchable or localized fields.
-	Permission string `json:"permission,omitempty" yaml:"permission"`
+	Permission string `json:"permission,omitempty" yaml:"permission,omitempty"`
 	// Private keeps the value out of the public API entirely (reads, list
 	// results, the response to a public create) and out of its sort. The admin
 	// still sees it. Use it for what a visitor may submit but must never read
 	// back, such as a reviewer's e-mail. Not allowed on unique, searchable or
 	// filterable fields, which would let a caller probe the hidden value.
-	Private bool     `json:"private,omitempty" yaml:"private"`
-	Min     *float64 `json:"min,omitempty" yaml:"min"`
-	Max     *float64 `json:"max,omitempty" yaml:"max"`
+	Private bool     `json:"private,omitempty" yaml:"private,omitempty"`
+	Min     *float64 `json:"min,omitempty" yaml:"min,omitempty"`
+	Max     *float64 `json:"max,omitempty" yaml:"max,omitempty"`
 	// Decimals fixes the decimal places of a number field (money: 2);
 	// values with more places are rejected, never rounded.
-	Decimals *int `json:"decimals,omitempty" yaml:"decimals"`
+	Decimals *int `json:"decimals,omitempty" yaml:"decimals,omitempty"`
 	// Computed calculates a number field on the server from other number
 	// fields declared before it; see collections.Expr.
-	Computed string `json:"computed,omitempty" yaml:"computed"`
+	Computed string `json:"computed,omitempty" yaml:"computed,omitempty"`
 	// Rollup totals the records of another type that point at this one
 	// (see collections.Rollup); the field is read-only.
-	Rollup *collections.Rollup `json:"rollup,omitempty" yaml:"rollup"`
+	Rollup *collections.Rollup `json:"rollup,omitempty" yaml:"rollup,omitempty"`
 	// Widget "media" turns a text field into a media-library field in the admin
 	// (pick, upload, or paste an address) without changing how the value is
 	// stored: a field's kind cannot change once records exist, so this is how
 	// an existing URL text field gets a picker.
-	Widget string `json:"widget,omitempty" yaml:"widget"`
+	Widget string `json:"widget,omitempty" yaml:"widget,omitempty"`
 	// Searchable fields (text, textarea, richtext, select) are matched by
 	// the admin list search box and the public API's search parameter.
-	Searchable bool `json:"searchable" yaml:"searchable"`
+	Searchable bool `json:"searchable" yaml:"searchable,omitempty"`
 	// Filterable fields (see the package documentation) get a filter in
 	// the admin list and accept filter[field]= on the public API.
-	Filterable bool `json:"filterable" yaml:"filterable"`
+	Filterable bool `json:"filterable" yaml:"filterable,omitempty"`
 	// Localized fields (text, textarea, richtext, media) have a value per
 	// site locale; see the package documentation.
-	Localized bool `json:"localized" yaml:"localized"`
+	Localized bool `json:"localized" yaml:"localized,omitempty"`
 	// Sequence numbers new records on the server (text fields only): see
 	// collections.Sequence. The field is read-only in the admin.
-	Sequence *collections.Sequence `json:"sequence,omitempty" yaml:"sequence"`
+	Sequence *collections.Sequence `json:"sequence,omitempty" yaml:"sequence,omitempty"`
 }
 
 // LoadDir reads every *.yaml file in dir. A missing directory yields no
@@ -307,11 +310,15 @@ func (d Definition) Validate() error {
 		if d.Drafts && field.ID == StatusField {
 			return fmt.Errorf("%w: field id %q is reserved for drafts", ErrInvalidDefinition, field.ID)
 		}
-		if field.Kind == "relation" && strings.TrimSpace(field.To) == "" {
+		isRelationWidget := field.Kind == "text" && field.Widget == "relation"
+		if (field.Kind == "relation" || isRelationWidget) && strings.TrimSpace(field.To) == "" {
 			return fmt.Errorf("%w: relation field %q needs to:", ErrInvalidDefinition, field.ID)
 		}
-		if field.Kind != "relation" && (field.To != "" || field.Many) {
+		if field.Kind != "relation" && !isRelationWidget && (field.To != "" || field.Many) {
 			return fmt.Errorf("%w: only relation fields take to/many (field %q)", ErrInvalidDefinition, field.ID)
+		}
+		if field.ValueField != "" && !isRelationWidget {
+			return fmt.Errorf("%w: value_field is only supported on text fields with widget: relation (field %q)", ErrInvalidDefinition, field.ID)
 		}
 		if field.Searchable && !oneOf(field.Kind, "text", "textarea", "richtext", "select") {
 			return fmt.Errorf("%w: field %q of kind %s cannot be searchable", ErrInvalidDefinition, field.ID, field.Kind)
@@ -342,8 +349,8 @@ func (d Definition) Validate() error {
 		if d.OwnerField != "" && (!d.Drafts || (field.ID == d.OwnerField && field.Kind != "text")) {
 			return fmt.Errorf("%w: owner_field needs a drafts type and a text field (%q)", ErrInvalidDefinition, d.OwnerField)
 		}
-		if field.Widget != "" && (field.Widget != "media" || field.Kind != "text") {
-			return fmt.Errorf("%w: widget %q is only supported as media on a text field (field %q)", ErrInvalidDefinition, field.Widget, field.ID)
+		if field.Widget != "" && (field.Kind != "text" || !oneOf(field.Widget, "media", "relation", "textarea")) {
+			return fmt.Errorf("%w: widget %q is only supported as media, relation or textarea on a text field (field %q)", ErrInvalidDefinition, field.Widget, field.ID)
 		}
 		if field.Private && (field.Unique || field.Searchable || field.Filterable) {
 			return fmt.Errorf("%w: private field %q cannot be unique, searchable or filterable", ErrInvalidDefinition, field.ID)
@@ -406,9 +413,13 @@ func (d Definition) Schema() (collections.Schema, error) {
 		if err != nil {
 			return collections.Schema{}, err
 		}
+		relation := ""
+		if field.Kind == "relation" {
+			relation = field.To
+		}
 		schema.Fields = append(schema.Fields, collections.Field{
 			ID: field.ID, Label: field.Label, Kind: kind, Required: field.Required, Unique: field.Unique,
-			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: field.To,
+			Min: field.Min, Max: field.Max, Options: append([]string(nil), field.Options...), Relation: relation,
 			Localized: field.Localized, Indexed: field.Filterable, Sequence: field.Sequence, Decimals: field.Decimals, Computed: field.Computed, Rollup: field.Rollup,
 			OnDelete: strings.ToLower(field.OnDelete),
 		})
@@ -473,6 +484,10 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 		ID: d.ID, Label: d.Label, Description: d.Description, Group: d.Group, Icon: d.Icon,
 		TitleField: d.TitleField, Versioned: true, Revisions: d.Revisions, Localization: d.Localized(),
 		Source: adminstudio.SourceContentType, APIPath: AdminAPIPath + "/" + d.ID,
+		Actions: append([]adminstudio.Action(nil), d.Actions...),
+	}
+	if d.Singleton {
+		collection.Type = "global"
 	}
 	if collection.Group == "" {
 		collection.Group = "Content"
@@ -487,14 +502,26 @@ func (d Definition) AdminCollection() adminstudio.Collection {
 	for _, field := range d.Fields {
 		admin := adminstudio.Field{
 			ID: field.ID, Label: field.Label, Required: field.Required, VisibleInList: field.List,
-			Searchable: field.Searchable, Filterable: field.Filterable, Options: append([]string(nil), field.Options...),
+			Searchable: field.Searchable, Filterable: field.Filterable, Private: field.Private, Options: append([]string(nil), field.Options...),
 			Localized: field.Localized, ReadOnly: field.Sequence != nil || field.Computed != "" || field.Rollup != nil || (d.States != nil && d.States.Field == field.ID),
 		}
 		switch field.Kind {
 		case "text":
 			admin.Kind = adminstudio.FieldText
-			if field.Widget == "media" {
-				admin.Widget = "media"
+			switch field.Widget {
+			case "media", "textarea":
+				admin.Widget = field.Widget
+			case "relation":
+				admin.Widget = "relation"
+				cardinality := "one"
+				if field.Many {
+					cardinality = "many"
+				}
+				valueField := strings.TrimSpace(field.ValueField)
+				if valueField == "" {
+					valueField = "slug"
+				}
+				admin.Relation = &adminstudio.RelationRef{Collection: field.To, Cardinality: cardinality, ValueField: valueField}
 			}
 		case "textarea":
 			admin.Kind, admin.Widget = adminstudio.FieldText, "textarea"

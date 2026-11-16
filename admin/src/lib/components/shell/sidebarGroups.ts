@@ -1,6 +1,10 @@
 // Pure helpers for the sidebar's grouped content-type list.
+import type { Collection } from '$lib/api/types';
+
 export interface GroupableCollection {
+  id?: string;
   group?: string | null;
+  type?: string | null;
 }
 
 export interface CollectionGroup<T extends GroupableCollection = GroupableCollection> {
@@ -11,6 +15,37 @@ export interface CollectionGroup<T extends GroupableCollection = GroupableCollec
 export function isAdvancedGroup(name: string): boolean {
   const n = (name || '').trim().toLowerCase();
   return n === 'advanced' || n === 'gelismis' || n === 'gelişmiş';
+}
+
+export function isDefaultContentGroup(name: string): boolean {
+  const n = (name || '').trim().toLowerCase();
+  return (
+    n === '' ||
+    n === 'content' ||
+    n === 'documents' ||
+    n === 'içerik' ||
+    n === 'icerik' ||
+    n === 'içerikler' ||
+    n === 'icerikler'
+  );
+}
+
+const SYSTEM_QUICK_CREATE_EXCLUDED = new Set([
+  'products',
+  'variants',
+  'product_images',
+  'return_requests',
+  'invoice_details',
+  'order_notes',
+  'stock_alerts',
+  'leads',
+]);
+
+export function isQuickCreateCollection(col: Pick<Collection, 'id' | 'group' | 'type'>): boolean {
+  if (SYSTEM_QUICK_CREATE_EXCLUDED.has(col.id)) return false;
+  if (col.type === 'global') return false;
+  if (isAdvancedGroup(col.group || '')) return false;
+  return true;
 }
 
 export function getGroupStorageKey(groupName: string): string {

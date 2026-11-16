@@ -3,22 +3,34 @@
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import type { ApiResponse, ContentItem } from '$lib/api/types';
-  import { recordTitle } from './relations';
+  import {
+    parseRelationKeys,
+    recordTitle,
+    resolveRecordMedia,
+    serializeRelationKeys,
+  } from './relations';
 
-  // Picks the record(s) a relation field points at by name, so nobody has to
-  // type a record id. The value is the id (one) or the list of ids (many).
+  // Picks related record(s) visually by title and thumbnail, storing either id(s)
+  // or text keys such as product slugs (`valueField`).
   interface Props {
     label: string;
     target: string;
     many?: boolean;
+    valueField?: string;
     value?: string | string[];
     required?: boolean;
     id: string;
   }
 
-  // No fallback on the bindable: the form is drawn once before the record has loaded,
-  // when the bound value is still undefined.
-  let { label, target, many = false, value = $bindable(), required = false, id }: Props = $props();
+  let {
+    label,
+    target,
+    many = false,
+    valueField = 'id',
+    value = $bindable(),
+    required = false,
+    id,
+  }: Props = $props();
 
   const targetCollection = $derived(schema.getCollection(target));
   const titleField = $derived(targetCollection?.title_field);
@@ -28,20 +40,34 @@
   let options = $state<ContentItem[]>([]);
   let known = $state<Record<string, ContentItem>>({});
   let failed = $state(false);
+  let searching = $state(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const selectedIds = $derived(many ? (Array.isArray(value) ? value : []) : typeof value === 'string' && value ? [value] : []);
+  function recordKey(record: ContentItem): string {
+    const raw = record[valueField];
+    if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+      return String(raw).trim();
+    }
+    return String(record.id ?? '');
+  }
+
+  const selectedKeys = $derived(parseRelationKeys(value, valueField, many));
 
   function remember(records: ContentItem[]) {
     const next = { ...known };
-    for (const record of records) next[record.id] = record;
+    for (const record of records) {
+      const k = recordKey(record);
+      if (k) next[k] = record;
+      if (valueField === 'id' && record.id) next[record.id] = record;
+    }
     known = next;
   }
 
   async function search(text: string) {
+    searching = true;
     try {
       const res = await api.get<ApiResponse<ContentItem[]>>(endpoint, {
-        params: { limit: 25, ...(text.trim() ? { search: text.trim() } : {}) },
+        params: { limit: 50, ...(text.trim() ? { search: text.trim() } : {}) },
       });
       options = Array.isArray(res?.data) ? res.data : [];
       remember(options);
@@ -49,89 +75,177 @@
     } catch {
       options = [];
       failed = true;
+    } finally {
+      searching = false;
     }
   }
 
-  // Selected records that are not in the current options still need a name.
   async function nameSelected() {
-    for (const selectedId of selectedIds) {
-      if (known[selectedId]) continue;
+    for (const key of selectedKeys) {
+      if (known[key]) continue;
       try {
-        const res = await api.get<ApiResponse<ContentItem>>(`${endpoint}/${selectedId}`);
-        if (res?.data) remember([res.data]);
+        if (valueField === 'id') {
+          const res = await api.get<ApiResponse<ContentItem>>(`${endpoint}/${encodeURIComponent(key)}`);
+          if (res?.data) remember([res.data]);
+        } else {
+          const res = await api.get<ApiResponse<ContentItem[]>>(endpoint, {
+            params: { [`filter[${valueField}]`]: key, limit: 5 },
+          });
+          if (Array.isArray(res?.data) && res.data.length > 0) {
+            remember(res.data);
+          }
+        }
       } catch {
-        // The record may be gone or hidden: its id stays as the name.
+        // Record may be gone or target lacks filter index on valueField; key remains visible.
       }
     }
   }
 
   $effect(() => {
+    void endpoint;
     const text = query;
     clearTimeout(timer);
-    timer = setTimeout(() => void search(text), text ? 250 : 0);
+    timer = setTimeout(() => void search(text), text ? 220 : 0);
     return () => clearTimeout(timer);
   });
 
   $effect(() => {
-    void selectedIds.join(',');
+    void endpoint;
+    void valueField;
+    void selectedKeys.join(',');
     void nameSelected();
   });
 
-  const name = (recordId: string) => recordTitle(known[recordId] ?? { id: recordId }, titleField);
-  const choices = $derived(options.filter((record) => !selectedIds.includes(record.id)));
+  const displayTitle = (key: string) => {
+    const rec = known[key];
+    return rec ? recordTitle(rec, titleField) : key;
+  };
 
-  function pick(event: Event) {
-    const chosen = (event.currentTarget as HTMLSelectElement).value;
+  const secondaryMeta = (record: ContentItem): string => {
+    const key = recordKey(record);
+    const title = recordTitle(record, titleField);
+    if (typeof record.sku === 'string' && record.sku.trim()) return record.sku.trim();
+    if (typeof record.slug === 'string' && record.slug.trim() && record.slug.trim() !== title) {
+      return record.slug.trim();
+    }
+    return key !== title ? key : '';
+  };
+
+  const choices = $derived(
+    options.filter((record) => {
+      const k = recordKey(record);
+      return k !== '' && !selectedKeys.includes(k);
+    })
+  );
+
+  function selectKey(key: string) {
+    if (!key) return;
     if (many) {
-      if (chosen) value = [...selectedIds, chosen];
-      (event.currentTarget as HTMLSelectElement).value = '';
+      if (selectedKeys.includes(key)) return;
+      value = serializeRelationKeys([...selectedKeys, key], valueField, true);
     } else {
-      value = chosen;
+      value = serializeRelationKeys([key], valueField, false);
     }
   }
 
-  function remove(recordId: string) {
-    value = selectedIds.filter((item) => item !== recordId);
+  function removeKey(key: string) {
+    const next = selectedKeys.filter((item) => item !== key);
+    value = serializeRelationKeys(next, valueField, many);
   }
 </script>
 
-<div class="flex flex-col gap-1.5" data-relation-field={id}>
-  <label for={`relation-${id}`} class="text-xs font-medium text-foreground">{label}{#if required}<span class="text-destructive"> *</span>{/if}</label>
+<div class="flex flex-col gap-2" data-relation-field={id}>
+  <div class="flex items-center justify-between gap-2">
+    <label for={`relation-${id}`} class="text-xs font-medium text-foreground">
+      {label}{#if required}<span class="text-destructive"> *</span>{/if}
+    </label>
+    {#if selectedKeys.length > 0}
+      <span class="text-[11px] text-muted-foreground tabular-nums">
+        {t('schema.relationSelected', { count: selectedKeys.length })}
+      </span>
+    {/if}
+  </div>
 
-  {#if many && selectedIds.length > 0}
+  {#if selectedKeys.length > 0}
     <ul class="flex flex-wrap gap-1.5">
-      {#each selectedIds as recordId (recordId)}
-        <li class="inline-flex items-center gap-1 rounded-md border border-input bg-muted/40 px-2 py-0.5 text-xs">
-          <span>{name(recordId)}</span>
-          <button type="button" class="text-muted-foreground hover:text-foreground cursor-pointer" aria-label={t('schema.relationRemove', { name: name(recordId) })} onclick={() => remove(recordId)}>×</button>
+      {#each selectedKeys as key (key)}
+        {@const rec = known[key]}
+        {@const thumb = resolveRecordMedia(rec)}
+        {@const name = displayTitle(key)}
+        <li class="inline-flex items-center gap-2 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs max-w-full">
+          {#if thumb}
+            <img
+              src={thumb}
+              alt={name}
+              class="size-6 rounded object-cover border border-border shrink-0"
+              onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+            />
+          {/if}
+          <span class="truncate font-medium text-foreground">{name}</span>
+          {#if name !== key}
+            <span class="hidden sm:inline font-mono text-[10px] text-muted-foreground truncate max-w-28">{key}</span>
+          {/if}
+          <button
+            type="button"
+            class="ml-0.5 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 leading-none px-1"
+            aria-label={t('schema.relationRemove', { name })}
+            onclick={() => removeKey(key)}
+          >×</button>
         </li>
       {/each}
     </ul>
   {/if}
 
   <input
+    id={`relation-${id}`}
     type="search"
     bind:value={query}
     placeholder={t('schema.relationSearch', { name: targetCollection?.label || target })}
     aria-label={t('schema.relationSearch', { name: targetCollection?.label || target })}
     class="h-8 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
   />
-  <select
-    id={`relation-${id}`}
-    value={many ? '' : (typeof value === 'string' ? value : '')}
-    onchange={pick}
-    required={required && !many}
-    class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
-  >
-    <option value="">{many ? t('schema.relationAdd') : t('schema.relationNone')}</option>
-    {#if !many && selectedIds[0] && !choices.some((record) => record.id === selectedIds[0])}
-      <option value={selectedIds[0]}>{name(selectedIds[0])}</option>
-    {/if}
-    {#each many ? choices : options as record (record.id)}
-      <option value={record.id}>{recordTitle(record, titleField)}</option>
-    {/each}
-  </select>
+
   {#if failed}
     <p class="text-xs text-destructive">{t('schema.relationFailed')}</p>
+  {:else if choices.length > 0}
+    <div
+      class="max-h-44 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
+      role="listbox"
+      aria-label={t('schema.relationMatches')}
+    >
+      {#each choices as record (record.id || recordKey(record))}
+        {@const key = recordKey(record)}
+        {@const thumb = resolveRecordMedia(record)}
+        {@const title = recordTitle(record, titleField)}
+        {@const meta = secondaryMeta(record)}
+        <button
+          type="button"
+          role="option"
+          aria-selected="false"
+          class="w-full flex items-center justify-between gap-2.5 px-2.5 py-1.5 text-left text-xs hover:bg-accent/70 transition-colors cursor-pointer"
+          onclick={() => selectKey(key)}
+        >
+          <span class="flex items-center gap-2 min-w-0">
+            {#if thumb}
+              <img
+                src={thumb}
+                alt={title}
+                class="size-7 rounded object-cover border border-border shrink-0"
+                onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+              />
+            {/if}
+            <span class="truncate font-medium text-foreground">{title}</span>
+          </span>
+          <span class="flex items-center gap-2 shrink-0">
+            {#if meta}
+              <span class="font-mono text-[10px] text-muted-foreground truncate max-w-28">{meta}</span>
+            {/if}
+            <span class="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground">+</span>
+          </span>
+        </button>
+      {/each}
+    </div>
+  {:else if !searching}
+    <p class="text-[11px] text-muted-foreground px-1">{t('schema.relationNoMatch')}</p>
   {/if}
 </div>

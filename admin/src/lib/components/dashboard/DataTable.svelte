@@ -159,7 +159,7 @@
   });
 </script>
 
-<div class="flex flex-col gap-4 px-4 lg:px-6">
+<div class="flex flex-col gap-4">
   <!-- Tabs and Action Toolbar Header (Exact shadcn specification) -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <!-- TabsList -->

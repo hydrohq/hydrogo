@@ -52,6 +52,7 @@ type Field struct {
 	Widget        string       `json:"widget,omitempty"`
 	Required      bool         `json:"required"`
 	ReadOnly      bool         `json:"read_only,omitempty"`
+	Private       bool         `json:"private,omitempty"`
 	Localized     bool         `json:"localized,omitempty"`
 	VisibleInList bool         `json:"visible_in_list"`
 	Searchable    bool         `json:"searchable,omitempty"`
@@ -64,12 +65,13 @@ type RelationRef struct {
 	Collection  string `json:"collection"`
 	Cardinality string `json:"cardinality"`
 	MaxItems    int    `json:"max_items,omitempty"`
+	ValueField  string `json:"value_field,omitempty"`
 }
 
 type Action struct {
-	Label    string `json:"label"`
-	Href     string `json:"href,omitempty"`
-	CopyText string `json:"copy_text,omitempty"`
+	Label    string `json:"label" yaml:"label"`
+	Href     string `json:"href,omitempty" yaml:"href,omitempty"`
+	CopyText string `json:"copy_text,omitempty" yaml:"copy_text,omitempty"`
 }
 
 // Collection sources: a YAML content type served by the generic content API,
@@ -194,7 +196,8 @@ func validateCollection(collection Collection) error {
 				return ErrInvalidCollection
 			}
 		}
-		if field.Kind == FieldRelation && field.Relation != nil && (field.Relation.Collection == "" || (field.Relation.Cardinality != "one" && field.Relation.Cardinality != "many") || (field.Relation.Cardinality == "one" && field.Relation.MaxItems != 0) || (field.Relation.Cardinality == "many" && (field.Relation.MaxItems < 0 || field.Relation.MaxItems > 100))) {
+		isRelationField := field.Kind == FieldRelation || (field.Kind == FieldText && field.Widget == "relation")
+		if field.Relation != nil && (!isRelationField || field.Relation.Collection == "" || (field.Relation.Cardinality != "one" && field.Relation.Cardinality != "many") || (field.Relation.Cardinality == "one" && field.Relation.MaxItems != 0) || (field.Relation.Cardinality == "many" && (field.Relation.MaxItems < 0 || field.Relation.MaxItems > 100))) {
 			return ErrInvalidCollection
 		}
 		if _, exists := seenFields[field.ID]; exists {

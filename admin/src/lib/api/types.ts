@@ -65,6 +65,13 @@ export interface FieldRelation {
   /** "one" or "many", as the server sends it. */
   cardinality?: 'one' | 'many';
   many?: boolean;
+  value_field?: string;
+}
+
+export interface CollectionAction {
+  label: string;
+  href?: string;
+  copy_text?: string;
 }
 
 export interface Field {
@@ -79,6 +86,7 @@ export interface Field {
   visible_in_list?: boolean;
   searchable?: boolean;
   filterable?: boolean;
+  private?: boolean;
   localized?: boolean;
   read_only?: boolean;
   options?: (SelectOption | string)[];
@@ -109,6 +117,7 @@ export interface CollectionStateMachine {
 
 export interface Collection {
   id: string;
+  type?: 'collection' | 'global' | string;
   label: string;
   singular?: string;
   plural?: string;
@@ -125,6 +134,7 @@ export interface Collection {
   workflow?: CollectionWorkflow;
   state_machine?: CollectionStateMachine;
   fields: Field[];
+  actions?: CollectionAction[];
   permissions?: CollectionPermissions;
 }
 
