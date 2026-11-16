@@ -45,6 +45,7 @@
     if (path.startsWith('/account')) return t('title.account');
     if (path.startsWith('/audit')) return t('title.audit');
     if (path.startsWith('/system')) return t('nav.telemetry');
+    if (path.startsWith('/content-types')) return t('ct.title');
     if (path.startsWith('/console') || path.startsWith('/orchestrator')) return t('nav.console');
     return t('nav.documents');
   });
@@ -67,18 +68,18 @@
   }}
 />
 
-<header class="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background transition-[width,height] ease-linear">
-  <div class="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
-    <!-- Left: SidebarTrigger, Vertical Separator, Page Title (exact shadcn SiteHeader layout) -->
+<header class="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background">
+  <div class="flex w-full items-center justify-between gap-2 px-4 lg:px-6">
+    <!-- Left: SidebarTrigger, Vertical Separator, Page Title -->
     <div class="flex items-center min-w-0">
       <button
         type="button"
         onclick={handleToggleSidebar}
-        class="-ml-1 flex size-7 items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        class="-ml-1 flex size-8 items-center justify-center rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
         title={t('header.toggleSidebar')}
         aria-label={t('header.toggleSidebar')}
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="3" rx="2"></rect>
           <path d="M9 3v18"></path>
         </svg>
@@ -90,15 +91,15 @@
     </div>
 
     <!-- Right: Search, Live site, Status Indicator -->
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-2">
       <!-- Search button (desktop) -->
       <button
         type="button"
         onclick={() => (showSearchModal = true)}
-        class="hidden sm:flex items-center gap-2 h-8 w-44 lg:w-56 rounded-md bg-muted/40 border border-input px-2.5 text-xs text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors cursor-pointer"
+        class="hidden sm:flex items-center gap-2 h-8 w-44 lg:w-56 rounded-md bg-muted/40 border border-input px-2.5 text-xs text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors duration-150 cursor-pointer"
         title={t('header.searchTip')}
       >
-        <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -110,11 +111,11 @@
       <button
         type="button"
         onclick={() => (showSearchModal = true)}
-        class="flex sm:hidden size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        class="flex sm:hidden size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
         title={t('header.quickSearch')}
         aria-label={t('header.quickSearch')}
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -131,10 +132,10 @@
         href={schema.siteUrl}
         target="_blank"
         rel="noopener noreferrer"
-        class="group inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:border-primary/40 transition-all duration-150 shadow-xs active:scale-95"
+        class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent transition-colors duration-150 shadow-xs"
       >
         <span>{t('header.live')}</span>
-        <svg class="size-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform duration-150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
           <polyline points="15 3 21 3 21 9"></polyline>
           <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -147,10 +148,10 @@
       <button
         type="button"
         onclick={() => (showCopilotDrawer = true)}
-        class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/90 h-8 px-2.5 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-150 shadow-xs cursor-pointer"
+        class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/90 h-8 px-2.5 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors duration-150 shadow-xs cursor-pointer"
         title={t('copilot.title')}
       >
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
         </svg>
         <span class="hidden sm:inline">{t('copilot.button')}</span>
@@ -164,12 +165,12 @@
       <button
         type="button"
         onclick={() => theme.toggle()}
-        class="flex size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer shadow-xs active:scale-90 hover:rotate-12"
+        class="flex size-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer shadow-xs"
         title={theme.isDark ? t('header.toLight') : t('header.toDark')}
         aria-label={t('header.toggleTheme')}
       >
         {#if theme.isDark}
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="4"></circle>
             <path d="M12 2v2"></path>
             <path d="M12 20v2"></path>
@@ -181,17 +182,14 @@
             <path d="m19.07 4.93-1.41 1.41"></path>
           </svg>
         {:else}
-          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
           </svg>
         {/if}
       </button>
 
       <div class="flex items-center gap-1.5 pl-2 border-l border-border select-none">
-        <span class="relative flex size-2">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full size-2 bg-emerald-500 pulse-dot"></span>
-        </span>
+        <span class="inline-flex size-2 rounded-full bg-emerald-500"></span>
         <span class="text-[11px] text-muted-foreground font-medium hidden md:inline">{t('header.online')}</span>
       </div>
     </div>

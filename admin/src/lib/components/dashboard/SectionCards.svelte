@@ -36,120 +36,72 @@
   }
 </script>
 
-<div class="grid grid-cols-1 gap-4 px-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 lg:px-6">
+<div class="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
   <!-- Card 1: Pages Published -->
-  <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
-    <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.pages')}</span>
-      <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
-        {pagesCount}
+  <div class="rounded-xl border border-border bg-card p-5 text-card-foreground @container/card">
+    <div class="flex items-start justify-between gap-2">
+      <span class="text-xs font-medium text-muted-foreground">{t('dashboard.cards.pages')}</span>
+      <span class="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+        {t('dashboard.cards.pagesBadge')}
       </span>
-      <div class="absolute right-0 top-0">
-        <span class="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5 text-xs font-normal text-foreground shadow-xs">
-          <svg class="size-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-            <polyline points="17 6 23 6 23 12"></polyline>
-          </svg>
-          {t('dashboard.cards.pagesBadge')}
-        </span>
-      </div>
     </div>
-    <div class="flex flex-col items-start gap-1 text-sm pt-4">
-      <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>{t('dashboard.cards.pagesLine')}</span>
-        <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-          <polyline points="17 6 23 6 23 12"></polyline>
-        </svg>
-      </div>
-      <div class="text-xs text-muted-foreground">{t('dashboard.cards.pagesNote')}</div>
+    <div class="mt-2 text-2xl @[250px]/card:text-3xl font-medium tabular-nums text-foreground tracking-tight">
+      {pagesCount}
+    </div>
+    <div class="mt-4 flex flex-col gap-0.5 text-xs">
+      <div class="line-clamp-1 font-medium text-foreground">{t('dashboard.cards.pagesLine')}</div>
+      <div class="text-muted-foreground">{t('dashboard.cards.pagesNote')}</div>
     </div>
   </div>
 
   <!-- Card 2: News Articles -->
-  <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
-    <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.news')}</span>
-      <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
-        {newsCount}
+  <div class="rounded-xl border border-border bg-card p-5 text-card-foreground @container/card">
+    <div class="flex items-start justify-between gap-2">
+      <span class="text-xs font-medium text-muted-foreground">{t('dashboard.cards.news')}</span>
+      <span class="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+        {t('dashboard.cards.newsBadge')}
       </span>
-      <div class="absolute right-0 top-0">
-        <span class="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5 text-xs font-normal text-foreground shadow-xs">
-          <svg class="size-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-            <polyline points="17 6 23 6 23 12"></polyline>
-          </svg>
-          {t('dashboard.cards.newsBadge')}
-        </span>
-      </div>
     </div>
-    <div class="flex flex-col items-start gap-1 text-sm pt-4">
-      <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>{t('dashboard.cards.newsLine')}</span>
-        <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-          <polyline points="17 6 23 6 23 12"></polyline>
-        </svg>
-      </div>
-      <div class="text-xs text-muted-foreground">{t('dashboard.cards.newsNote')}</div>
+    <div class="mt-2 text-2xl @[250px]/card:text-3xl font-medium tabular-nums text-foreground tracking-tight">
+      {newsCount}
+    </div>
+    <div class="mt-4 flex flex-col gap-0.5 text-xs">
+      <div class="line-clamp-1 font-medium text-foreground">{t('dashboard.cards.newsLine')}</div>
+      <div class="text-muted-foreground">{t('dashboard.cards.newsNote')}</div>
     </div>
   </div>
 
   <!-- Card 3: Members -->
-  <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
-    <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.members')}</span>
-      <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
-        {(metrics?.totalMembers ?? 0).toLocaleString()}
+  <div class="rounded-xl border border-border bg-card p-5 text-card-foreground @container/card">
+    <div class="flex items-start justify-between gap-2">
+      <span class="text-xs font-medium text-muted-foreground">{t('dashboard.cards.members')}</span>
+      <span class="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+        {t('dashboard.cards.membersActive', { count: metrics?.activeMembers ?? 0 })}
       </span>
-      <div class="absolute right-0 top-0">
-        <span class="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5 text-xs font-normal text-foreground shadow-xs">
-          <svg class="size-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-            <polyline points="17 6 23 6 23 12"></polyline>
-          </svg>
-          {t('dashboard.cards.membersActive', { count: metrics?.activeMembers ?? 0 })}
-        </span>
-      </div>
     </div>
-    <div class="flex flex-col items-start gap-1 text-sm pt-4">
-      <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>{t('dashboard.cards.membersVerified', { count: metrics?.verifiedMembers ?? 0 })}</span>
-        <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-          <polyline points="17 6 23 6 23 12"></polyline>
-        </svg>
-      </div>
-      <div class="text-xs text-muted-foreground">{t('dashboard.cards.membersNote')}</div>
+    <div class="mt-2 text-2xl @[250px]/card:text-3xl font-medium tabular-nums text-foreground tracking-tight">
+      {(metrics?.totalMembers ?? 0).toLocaleString()}
+    </div>
+    <div class="mt-4 flex flex-col gap-0.5 text-xs">
+      <div class="line-clamp-1 font-medium text-foreground">{t('dashboard.cards.membersVerified', { count: metrics?.verifiedMembers ?? 0 })}</div>
+      <div class="text-muted-foreground">{t('dashboard.cards.membersNote')}</div>
     </div>
   </div>
 
   <!-- Card 4: API & Runtime -->
-  <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-6 shadow-xs text-card-foreground @container/card">
-    <div class="relative flex flex-col space-y-1.5">
-      <span class="text-sm font-normal text-muted-foreground">{t('dashboard.cards.api')}</span>
-      <span class="text-2xl @[250px]/card:text-3xl font-semibold tabular-nums text-foreground tracking-tight">
-        {requestsCount}
+  <div class="rounded-xl border border-border bg-card p-5 text-card-foreground @container/card">
+    <div class="flex items-start justify-between gap-2">
+      <span class="text-xs font-medium text-muted-foreground">{t('dashboard.cards.api')}</span>
+      <span class="rounded border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+        {latency}
       </span>
-      <div class="absolute right-0 top-0">
-        <span class="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2 py-0.5 text-xs font-normal text-foreground shadow-xs">
-          <svg class="size-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          {latency}
-        </span>
-      </div>
     </div>
-    <div class="flex flex-col items-start gap-1 text-sm pt-4">
-      <div class="line-clamp-1 flex items-center gap-2 font-medium text-foreground">
-        <span>{formatUptime(metrics?.uptimeSeconds)}</span>
-        <svg class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-          <polyline points="17 6 23 6 23 12"></polyline>
-        </svg>
-      </div>
-      <div class="text-xs text-muted-foreground">{t('dashboard.cards.noteServer')}</div>
+    <div class="mt-2 text-2xl @[250px]/card:text-3xl font-medium tabular-nums text-foreground tracking-tight">
+      {requestsCount}
+    </div>
+    <div class="mt-4 flex flex-col gap-0.5 text-xs">
+      <div class="line-clamp-1 font-medium text-foreground">{formatUptime(metrics?.uptimeSeconds)}</div>
+      <div class="text-muted-foreground">{t('dashboard.cards.noteServer')}</div>
     </div>
   </div>
 </div>

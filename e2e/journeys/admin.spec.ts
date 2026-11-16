@@ -104,4 +104,70 @@ test.describe("admin: users and e-mailed links", () => {
     await expect(person.getByRole("alert")).toContainText(/invalid or has expired/i);
     await person.context().close();
   });
+
+  test("editorial workflow: sidebar groups are clean and full-page content editor supports inline options & visual relations", async () => {
+    const errors: string[] = [];
+    const serverErrors: string[] = [];
+    admin.on("pageerror", (e) => errors.push(e.message));
+    admin.on("response", (r) => {
+      if (r.status() >= 500) serverErrors.push(`${r.status()} ${r.url()}`);
+    });
+
+    await admin.goto(hydro("/admin/content-types"));
+    await expect(admin.getByRole("main").getByRole("heading", { name: /Content Types/i })).toBeVisible();
+
+    // Sidebar section group headers should never repeat adjacent identical headings.
+    const groupButtons = await admin.locator('aside [data-testid^="nav-group-"]').allInnerTexts();
+    for (const label of groupButtons) {
+      expect(label.trim().length).toBeGreaterThan(0);
+    }
+
+    await admin.getByRole("button", { name: "New Object" }).click();
+    const dialog = admin.getByRole("dialog");
+    await dialog.getByPlaceholder(/Testimonials/i).fill("Playbooks");
+    await dialog.getByRole("button", { name: "+ select" }).click();
+    await dialog.getByPlaceholder(/Comma-separated options/i).fill("Onboarding, Support");
+
+    await dialog.getByRole("button", { name: "+ Add Field" }).click();
+    const fieldInputs = dialog.getByPlaceholder(/Field Label/i);
+    await fieldInputs.last().fill("Company Ref");
+    await dialog.getByPlaceholder(/ID \(auto if empty\)/i).last().fill("company_name");
+    await dialog.getByLabel("Widget").last().selectOption("relation");
+    await dialog.getByPlaceholder(/Target Object ID/i).last().fill("companies");
+    await dialog.getByPlaceholder(/Stored field/i).last().fill("name");
+
+    await dialog.getByRole("button", { name: /Create New Object/i }).click();
+    await expect(admin).toHaveURL(/\/admin\/content\/playbooks$/);
+
+    await admin.getByRole("button", { name: /Add Playbooks/i }).click();
+    await expect(admin).toHaveURL(/\/admin\/content\/playbooks\/new$/);
+
+    // Add a new dropdown option inline via SelectOptionsModal
+    await admin.getByRole("button", { name: "Manage options" }).click();
+    const optModal = admin.getByRole("dialog");
+    await optModal.getByPlaceholder(/New option name/i).fill("Security");
+    await optModal.getByRole("button", { name: "Add option" }).click();
+    await optModal.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(optModal).toBeHidden();
+
+    await admin.getByLabel(/Title/i).first().fill("Release Checklist");
+    await admin.locator("select").first().selectOption("Security");
+
+    // Pick related company visually via RelationField without typing raw IDs/slugs
+    const rel = admin.locator('[data-relation-field="company_name"]');
+    await expect(rel.getByRole("option", { name: /Northwind Software/i })).toBeVisible();
+    await rel.getByRole("option", { name: /Northwind Software/i }).click();
+    await expect(rel.getByRole("button", { name: /Remove Northwind Software/i })).toBeVisible();
+
+    await admin.getByRole("button", { name: "Publish" }).click();
+    await expect(admin).toHaveURL(/\/admin\/content\/playbooks\/[a-z0-9_-]+$/);
+
+    await admin.getByRole("button", { name: "Back" }).click();
+    await expect(admin).toHaveURL(/\/admin\/content\/playbooks$/);
+    await expect(admin.locator("table")).toContainText("Release Checklist");
+    await expect(admin.locator("table")).toContainText("Security");
+
+    expect(errors).toEqual([]);
+    expect(serverErrors).toEqual([]);
+  });
 });

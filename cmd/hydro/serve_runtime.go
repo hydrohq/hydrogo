@@ -251,7 +251,7 @@ func (a *serveApp) initOptionalModules() error {
 		}
 		a.onClose(func() error { return a.realtimeHub.Close() })
 	}
-	if modules["pages"] || modules["news"] {
+	if modules["pages"] || modules["news"] || modules["collections"] {
 		a.editPresence = &realtime.Presence{TTL: realtime.DefaultPresenceTTL}
 	}
 	if modules["analytics"] {

@@ -265,7 +265,7 @@
   });
 </script>
 
-<div class="px-4 lg:px-6">
+<div>
   <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs @container/card">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 border-b border-border/50">
       <div>

@@ -2,6 +2,7 @@
   import { t } from '$lib/i18n/index.svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
+  import { auth } from '$lib/stores/auth.svelte';
   import type { ApiResponse } from '$lib/api/types';
   import Modal from '$lib/components/ui/Modal.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -10,7 +11,8 @@
   import JsonFieldEditor from '$lib/components/editor/JsonFieldEditor.svelte';
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
   import RelationField from './RelationField.svelte';
-  import { isManyRelation, isRelation, relationTarget } from './relations';
+  import SelectOptionsModal from './SelectOptionsModal.svelte';
+  import { isManyRelation, isRelation, relationTarget, relationValueField } from './relations';
   import { hiddenStatusField, setPublication, usesDrafts } from './publication';
   import { confirmAction } from '$lib/confirm';
 
@@ -33,6 +35,7 @@
   let errorMessage = $state<string | null>(null);
   let mediaPickerOpen = $state(false);
   let activeMediaField = $state<string | null>(null);
+  let optionsTarget = $state<{ fieldId: string; fieldLabel: string } | null>(null);
 
   function getFieldKey(f: any): string {
     return f.id || f.name || '';
@@ -67,7 +70,7 @@
         } else if (field.kind === 'number') {
           // Empty, not 0: a record whose number is unset must stay unset when saved.
           initialized[key] = '';
-        } else if (isManyRelation(field)) {
+        } else if (isManyRelation(field) && relationValueField(field) === 'id') {
           initialized[key] = [];
         } else {
           initialized[key] = '';
@@ -157,8 +160,8 @@
             else payload[key] = Number(payload[key]);
           } else if (f.kind === 'boolean') {
             payload[key] = Boolean(payload[key]);
-          } else if (isRelation(f)) {
-            // Ids stay ids: a single relation is a string, a many relation a list.
+          } else if (f.kind === 'relation') {
+            // Native relation ids stay ids: omit empty optional relation references.
             if (payload[key] === '' || payload[key] === null || payload[key] === undefined) delete payload[key];
           } else if (typeof payload[key] === 'object' && payload[key] !== null) {
             payload[key] = JSON.stringify(payload[key]);
@@ -208,6 +211,17 @@
   onselect={handleMediaSelect}
 />
 
+{#if optionsTarget}
+  <SelectOptionsModal
+    open={!!optionsTarget}
+    layer="top"
+    collectionId={type}
+    fieldId={optionsTarget.fieldId}
+    fieldLabel={optionsTarget.fieldLabel}
+    onclose={() => { optionsTarget = null; }}
+  />
+{/if}
+
 <Modal
   {open}
   title={isNew
@@ -250,6 +264,7 @@
               label={field.label || key}
               target={relationTarget(field)}
               many={isManyRelation(field)}
+              valueField={relationValueField(field)}
               required={field.required}
               bind:value={formData[key]}
             />
@@ -259,7 +274,7 @@
               bind:value={formData[key]}
               required={field.required}
             />
-          {:else if field.kind === 'text' && field.widget !== 'textarea' && field.widget !== 'media'}
+          {:else if field.kind === 'text' && field.widget !== 'textarea' && field.widget !== 'media' && field.widget !== 'relation'}
             <Input
               label={field.label || key}
               placeholder={t('schema.enter', { name: field.label || key })}
@@ -281,9 +296,18 @@
               required={field.required}
             />
           {:else if field.kind === 'select'}
-            <label for={`select-${key}`} class="text-xs font-medium text-foreground">
-              {field.label || key}
-            </label>
+            <div class="flex items-center justify-between gap-2">
+              <label for={`select-${key}`} class="text-xs font-medium text-foreground">
+                {field.label || key}
+              </label>
+              {#if collection?.source === 'content_type' && auth.hasPermission('admin.content.write')}
+                <button
+                  type="button"
+                  class="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                  onclick={() => { optionsTarget = { fieldId: key, fieldLabel: field.label || key }; }}
+                >{t('schema.manageOptions')}</button>
+              {/if}
+            </div>
             <select
               id={`select-${key}`}
               bind:value={formData[key]}

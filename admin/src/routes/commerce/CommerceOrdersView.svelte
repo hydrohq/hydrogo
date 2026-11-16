@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { auth } from '$lib/stores/auth.svelte';
+  import { router } from '$lib/router.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
@@ -225,6 +226,28 @@
     return [o.guest_address, cityLine, [o.guest_postal_code, o.guest_country].filter(Boolean).join(' ')].filter((line) => !!line && line.trim() !== '') as string[];
   }
 
+  let openedQueryOrder = '';
+  $effect(() => {
+    const orderParam = router.query.get('order')?.trim() || '';
+    if (orderParam && orderParam !== openedQueryOrder) {
+      openedQueryOrder = orderParam;
+      void openOrder({
+        id: orderParam,
+        currency: 'TRY',
+        subtotal_cents: 0,
+        discount_cents: 0,
+        tax_cents: 0,
+        shipping_cents: 0,
+        total_cents: 0,
+        payment_status: 'pending',
+        fulfillment_status: 'unfulfilled',
+        created_at: '',
+      });
+    } else if (!orderParam) {
+      openedQueryOrder = '';
+    }
+  });
+
   onMount(() => {
     loadOrders();
   });
@@ -233,9 +256,14 @@
 <Modal
   open={detailOpen}
   title={selected?.id ?? t('commerce.order.detail')}
-  description={selected ? `${selected.member_id ? t('commerce.order.member') : t('commerce.order.guest')} · ${new Date(selected.created_at).toLocaleString()}` : ''}
+  description={selected?.created_at ? `${selected.member_id ? t('commerce.order.member') : t('commerce.order.guest')} · ${new Date(selected.created_at).toLocaleString()}` : ''}
   size="xl"
-  onclose={() => { detailOpen = false; }}
+  onclose={() => {
+    detailOpen = false;
+    if (router.query.get('order')) {
+      router.navigate('/commerce');
+    }
+  }}
 >
   {#if selected}
     <div class="space-y-4">
