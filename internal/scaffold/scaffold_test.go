@@ -132,6 +132,18 @@ func TestCreateCopiesCommerceStarter(t *testing.T) {
 	}
 }
 
+func TestCreateCopiesBoutiqueStarter(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "boutique")
+	if _, err := Create(Options{Dir: dir, Preset: "boutique", Starter: "boutique"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"frontend/package.json", "frontend/index.html", "frontend/src/App.svelte", "frontend/src/main.ts"} {
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("missing %s: %v", rel, err)
+		}
+	}
+}
+
 func TestCRMPresetLogsAdminWrites(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "crm")
 	if _, err := Create(Options{Dir: dir, Preset: "crm"}); err != nil {
