@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hydrohq/hydrogo/internal/security"
 )
 
 var ErrInvalidEndpoint = errors.New("invalid webhook endpoint")
@@ -277,7 +279,8 @@ func rejectInternalHost(hostname string) error {
 // safeClient preserves the caller's transport and redirect policy while
 // preventing a valid public webhook URL from redirecting to an invalid target.
 // Redirects are a second URL boundary and must receive the same validation as
-// the configured endpoint.
+// the configured endpoint. Socket-level dialer controls enforce that resolved
+// IPs cannot bypass SSRF protections via DNS rebinding.
 func safeClient(client *http.Client, allowInternal bool) *http.Client {
 	copy := *client
 	previous := copy.CheckRedirect
@@ -288,6 +291,14 @@ func safeClient(client *http.Client, allowInternal bool) *http.Client {
 			}
 		}
 		return validateURL(req.URL.String(), allowInternal)
+	}
+	if copy.Transport == nil {
+		copy.Transport = security.NewSSRFProtectedTransport(allowInternal)
+	} else if t, ok := copy.Transport.(*http.Transport); ok {
+		cloned := t.Clone()
+		dialer := security.NewSSRFDialer(allowInternal)
+		cloned.DialContext = dialer.DialContext
+		copy.Transport = cloned
 	}
 	return &copy
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/canonical"
+	"github.com/hydrohq/hydrogo/internal/mailer"
 )
 
 var (
@@ -331,13 +332,7 @@ type SubmissionFilter struct {
 	Offset  int
 }
 
-type EmailNotification struct {
-	EventKey string
-	To       string
-	Subject  string
-	Body     string
-	HTMLBody string
-}
+type EmailNotification = mailer.EmailNotification
 
 type LeadNote struct {
 	ID           string    `json:"id"`

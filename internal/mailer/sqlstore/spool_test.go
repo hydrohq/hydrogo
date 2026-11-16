@@ -12,7 +12,6 @@ import (
 	"github.com/hydrohq/hydrogo/internal/tenant"
 	"github.com/hydrohq/hydrogo/internal/testmysql"
 	"github.com/hydrohq/hydrogo/migrations"
-	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 func newSpool(t *testing.T, scoped bool) (Spool, database.Transactor) {
@@ -32,7 +31,7 @@ func newSpool(t *testing.T, scoped bool) (Spool, database.Transactor) {
 func TestSpoolSQLiteEnqueueClaimDeliverAndList(t *testing.T) {
 	store, tx := newSpool(t, false)
 	ctx := context.Background()
-	entry := site.EmailNotification{EventKey: "submission-1:alert:team@example.com", To: "team@example.com", Subject: "Neue Anfrage", Body: "Hello"}
+	entry := mailer.EmailNotification{EventKey: "submission-1:alert:team@example.com", To: "team@example.com", Subject: "Neue Anfrage", Body: "Hello"}
 	if err := tx.Within(ctx, func(executor database.Executor) error { return store.Enqueue(ctx, executor, entry) }); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +62,7 @@ func TestSpoolSQLiteEnqueueClaimDeliverAndList(t *testing.T) {
 func TestSpoolSQLiteRetriesAndFencesExpiredWorkers(t *testing.T) {
 	store, tx := newSpool(t, false)
 	ctx := context.Background()
-	entry := site.EmailNotification{EventKey: "submission-2:alert", To: "team@example.com", Subject: "Alert", Body: "Hello"}
+	entry := mailer.EmailNotification{EventKey: "submission-2:alert", To: "team@example.com", Subject: "Alert", Body: "Hello"}
 	if err := tx.Within(ctx, func(executor database.Executor) error { return store.Enqueue(ctx, executor, entry) }); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +106,7 @@ func TestSpoolTenantScopesSameEventKeys(t *testing.T) {
 		body  string
 	}{{alpha, "A"}, {beta, "B"}} {
 		jobCtx := tenant.WithScope(ctx, item.scope)
-		message := site.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: item.body}
+		message := mailer.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: item.body}
 		if err := tx.Within(jobCtx, func(executor database.Executor) error { return store.Enqueue(jobCtx, executor, message) }); err != nil {
 			t.Fatal(err)
 		}
@@ -131,11 +130,11 @@ func TestSpoolMySQLTenantDeliveryAndRetryContract(t *testing.T) {
 	alpha, _ := tenant.NewScope("mysql-mail-a", "a")
 	beta, _ := tenant.NewScope("mysql-mail-b", "b")
 	alphaCtx, betaCtx := tenant.WithScope(ctx, alpha), tenant.WithScope(ctx, beta)
-	messageA := site.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: "A"}
-	messageB := site.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: "B"}
+	messageA := mailer.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: "A"}
+	messageB := mailer.EmailNotification{EventKey: "same-event", To: "team@example.com", Subject: "Alert", Body: "B"}
 	for _, pair := range []struct {
 		ctx context.Context
-		msg site.EmailNotification
+		msg mailer.EmailNotification
 	}{{alphaCtx, messageA}, {alphaCtx, messageA}, {betaCtx, messageB}} {
 		if err := tx.Within(pair.ctx, func(exec database.Executor) error { return store.Enqueue(pair.ctx, exec, pair.msg) }); err != nil {
 			t.Fatal(err)

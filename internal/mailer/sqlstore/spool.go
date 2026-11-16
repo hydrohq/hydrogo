@@ -15,7 +15,6 @@ import (
 	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/hydrohq/hydrogo/internal/mailer"
 	"github.com/hydrohq/hydrogo/internal/tenant"
-	"github.com/hydrohq/hydrogo/modules/site"
 )
 
 var (
@@ -52,7 +51,7 @@ func (s Spool) tenant(ctx context.Context) (string, error) {
 
 // Enqueue participates in the form submission transaction. event_key makes
 // retries safe when a caller repeats the same transaction intent.
-func (s Spool) Enqueue(ctx context.Context, tx database.Executor, notification site.EmailNotification) error {
+func (s Spool) Enqueue(ctx context.Context, tx database.Executor, notification mailer.EmailNotification) error {
 	if err := database.RequireExecutor(tx); err != nil {
 		return err
 	}
