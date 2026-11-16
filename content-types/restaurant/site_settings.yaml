@@ -1,0 +1,23 @@
+id: site_settings
+label: Restoran & Menü Ayarları
+description: Mekan bilgileri, çalışma saatleri, konum ve tema renkleri.
+group: Restoran Yönetimi
+icon: utensils
+title_field: brand_name
+public: true
+singleton: true
+revisions: true
+fields:
+  - {id: brand_name, label: Restoran / Kafe Adı, kind: text, required: true, list: true}
+  - {id: tagline, label: Slogan / Konsept, kind: text, list: true}
+  - {id: primary_color, label: Ana Vurgu Rengi, kind: text}
+  - {id: bg_tone, label: Arka Plan Tonu, kind: text}
+  - {id: font_preset, label: Tipografi Paleti, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
+  - {id: phone, label: Telefon Numarası, kind: text, list: true}
+  - {id: whatsapp_number, label: WhatsApp Hattı, kind: text, list: true}
+  - {id: address, label: Adres / Konum, kind: text}
+  - {id: opening_hours, label: Çalışma Saatleri, kind: text}
+  - {id: hero_badge, label: Hero Rozet, kind: text}
+  - {id: hero_title, label: Hero Başlık, kind: text}
+  - {id: hero_subtitle, label: Hero Alt Metin, kind: textarea}
+  - {id: hero_image, label: Hero Görseli, kind: media}

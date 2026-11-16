@@ -144,6 +144,18 @@ func TestCreateCopiesBoutiqueStarter(t *testing.T) {
 	}
 }
 
+func TestCreateCopiesNewsStarter(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "news-site")
+	if _, err := Create(Options{Dir: dir, Preset: "news", Starter: "news"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"frontend/package.json", "frontend/vite.config.ts", "frontend/src/routes/+layout.svelte"} {
+		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("missing %s: %v", rel, err)
+		}
+	}
+}
+
 func TestCRMPresetLogsAdminWrites(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "crm")
 	if _, err := Create(Options{Dir: dir, Preset: "crm"}); err != nil {
