@@ -186,3 +186,45 @@ func TestEndpointMayAllowAnInternalAddressOnItsOwn(t *testing.T) {
 		t.Fatalf("an endpoint that allows internal targets must work: %v", err)
 	}
 }
+
+func TestSSRFDNSRebindingProtection(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// 1. safeClient default (allowInternal=false) must block loopback dial
+	client := safeClient(&http.Client{Timeout: 2 * time.Second}, false)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.Do(req)
+	if err == nil {
+		t.Fatal("expected dial to loopback server to be blocked by socket-level SSRF protection")
+	}
+	if !strings.Contains(err.Error(), "restricted address") && !strings.Contains(err.Error(), "ssrf") {
+		t.Fatalf("expected SSRF error, got: %v", err)
+	}
+
+	// 2. safeClient with allowInternal=true allows loopback
+	allowedClient := safeClient(&http.Client{Timeout: 2 * time.Second}, true)
+	resp, err := allowedClient.Do(req)
+	if err != nil {
+		t.Fatalf("expected loopback request to succeed with allowInternal=true, got: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK, got: %d", resp.StatusCode)
+	}
+
+	// 3. Link-local cloud metadata address (169.254.169.254) is blocked even if allowInternal=true
+	metaReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://169.254.169.254/latest/meta-data/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = allowedClient.Do(metaReq)
+	if err == nil {
+		t.Fatal("expected dial to metadata IP to be blocked, but succeeded")
+	}
+}
