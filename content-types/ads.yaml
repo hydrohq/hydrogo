@@ -10,7 +10,7 @@ fields:
   - {id: ad_type, label: Ad type, kind: select, options: [banner, native, script], list: true, filterable: true}
   - {id: page_scope, label: Show on page type, kind: select, options: [tumu, anasayfa, kategori, haber_detay], list: true, filterable: true}
   - {id: disabled, label: "Disabled? (when checked the ad is not shown anywhere)", kind: boolean, list: true}
-  - {id: banner_image, label: Desktop image, kind: media}
+  - {id: banner_image, label: Desktop image, kind: media, list: true}
   - {id: mobile_image, label: Mobile image, kind: media}
   - {id: target_url, label: Target link (URL), kind: text}
   - {id: custom_code, label: Custom HTML or script code, kind: textarea}

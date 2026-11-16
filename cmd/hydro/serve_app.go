@@ -6,6 +6,9 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/auth"
 	authstore "github.com/hydrohq/hydrogo/internal/auth/sqlstore"
+	"github.com/hydrohq/hydrogo/internal/blueprints"
 	"github.com/hydrohq/hydrogo/internal/cache"
 	"github.com/hydrohq/hydrogo/internal/capacity"
 	"github.com/hydrohq/hydrogo/internal/collections"
@@ -238,24 +242,90 @@ func (a *serveApp) contentTypesForContext(ctx context.Context) []contenttypes.De
 		a.stateMu.RUnlock()
 		return base
 	}
-	tenantDefs := a.tenantContentTypes[scope.TenantID]
+	tenantDefs, loaded := a.tenantContentTypes[scope.TenantID]
 	a.stateMu.RUnlock()
+
+	if !loaded {
+		tDir := a.contentTypesDirForContext(ctx)
+		if info, statErr := os.Stat(tDir); statErr == nil && info.IsDir() {
+			if diskDefs, loadErr := contenttypes.LoadDir(tDir); loadErr == nil {
+				a.stateMu.Lock()
+				if a.tenantContentTypes == nil {
+					a.tenantContentTypes = make(map[string][]contenttypes.Definition)
+				}
+				if existing, ok := a.tenantContentTypes[scope.TenantID]; ok {
+					tenantDefs = existing
+				} else {
+					tenantDefs = diskDefs
+					a.tenantContentTypes[scope.TenantID] = diskDefs
+				}
+				a.stateMu.Unlock()
+			}
+		}
+	}
 	if len(tenantDefs) == 0 {
 		return base
 	}
-	indexByID := make(map[string]int, len(base))
-	for i, def := range base {
-		indexByID[def.ID] = i
+	return mergeContentTypeDefinitions(base, tenantDefs)
+}
+
+func mergeContentTypeDefinitions(base, overrides []contenttypes.Definition) []contenttypes.Definition {
+	merged := make([]contenttypes.Definition, 0, len(base)+len(overrides))
+	indexByID := make(map[string]int, len(base)+len(overrides))
+	for _, def := range base {
+		if idx, exists := indexByID[def.ID]; exists {
+			merged[idx] = def
+			continue
+		}
+		indexByID[def.ID] = len(merged)
+		merged = append(merged, def)
 	}
-	for _, tDef := range tenantDefs {
-		if idx, exists := indexByID[tDef.ID]; exists {
-			base[idx] = tDef
+	for _, def := range overrides {
+		if idx, exists := indexByID[def.ID]; exists {
+			merged[idx] = def
+			continue
+		}
+		indexByID[def.ID] = len(merged)
+		merged = append(merged, def)
+	}
+	return merged
+}
+
+// hydrateTenantBlueprint loads a tenant's blueprint definitions (disk preset
+// directory if present, otherwise built-in archetype definitions) merged with
+// any tenant-specific YAML overrides into a.tenantContentTypes.
+func (a *serveApp) hydrateTenantBlueprint(scope tenant.Scope, blueprint string) {
+	if scope.TenantID == "" {
+		return
+	}
+	baseDir := a.cfg.ContentTypesDir
+	if baseDir == "" {
+		baseDir = "content-types"
+	}
+	bp := strings.ToLower(strings.TrimSpace(blueprint))
+	var defs []contenttypes.Definition
+	if bp != "" && bp != "blank" {
+		if bpDefs, err := contenttypes.LoadDir(filepath.Join(baseDir, bp)); err == nil && len(bpDefs) > 0 {
+			defs = bpDefs
 		} else {
-			indexByID[tDef.ID] = len(base)
-			base = append(base, tDef)
+			defs = blueprints.ArchetypeDefinitions(bp)
 		}
 	}
-	return base
+	tDir := filepath.Join(baseDir, "tenants", scope.TenantID)
+	if info, statErr := os.Stat(tDir); statErr == nil && info.IsDir() {
+		if tDefs, err := contenttypes.LoadDir(tDir); err == nil && len(tDefs) > 0 {
+			defs = mergeContentTypeDefinitions(defs, tDefs)
+		}
+	}
+	if len(defs) == 0 {
+		return
+	}
+	a.stateMu.Lock()
+	if a.tenantContentTypes == nil {
+		a.tenantContentTypes = make(map[string][]contenttypes.Definition)
+	}
+	a.tenantContentTypes[scope.TenantID] = defs
+	a.stateMu.Unlock()
 }
 
 // getTenantScopes returns a thread-safe snapshot of registered tenant scopes.

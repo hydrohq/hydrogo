@@ -115,6 +115,7 @@ func (a *serveApp) openDatabase() error {
 					if g.CustomDomain != "" {
 						a.tenantResolver.SetHost(g.CustomDomain, scope)
 					}
+					a.hydrateTenantBlueprint(scope, g.Blueprint)
 				}
 			}
 		}

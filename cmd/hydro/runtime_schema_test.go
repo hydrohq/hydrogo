@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/blueprints"
 	"github.com/hydrohq/hydrogo/internal/collections"
 	"github.com/hydrohq/hydrogo/internal/collections/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/config"
@@ -261,5 +262,144 @@ func TestRuntimeSchemaTenantIsolationAndDynamicRegistration(t *testing.T) {
 	}
 	if len(defsB) != 0 {
 		t.Fatalf("expected tenant B to see 0 content types, got %+v", defsB)
+	}
+}
+
+func TestTenantBlueprintHydrationAndContentTypeMutation(t *testing.T) {
+	tempDir := t.TempDir()
+	contentTypesDir := filepath.Join(tempDir, "content-types")
+	if err := os.MkdirAll(contentTypesDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	dbPath := filepath.Join(tempDir, "blueprint_hydration.sqlite")
+	db, err := database.Open(context.Background(), database.SQLite, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := database.ApplyMigrations(context.Background(), db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+
+	colService := collections.Service{Repository: sqlstore.Store{DB: db, Dialect: database.SQLite, RequireTenantScope: true}}
+	resolver := tenant.NewHostResolver(nil, false)
+	scope, err := tenant.NewScope("corp-tenant", "corp-tenant")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := blueprints.EnsureArchetypeSchemas(context.Background(), colService, scope, blueprints.ArchetypeCorporate); err != nil {
+		t.Fatalf("EnsureArchetypeSchemas: %v", err)
+	}
+
+	app := &serveApp{
+		cfg: config.Config{
+			ContentTypesDir: contentTypesDir,
+			Database:        config.Database{Dialect: database.SQLite},
+		},
+		db:                 db,
+		requireTenantScope: true,
+		tenantResolver:     &resolver,
+		collectionService:  colService,
+		contentTypes:       []contenttypes.Definition{},
+	}
+	if err := app.registerTenantScope(context.Background(), "corp.example.test", scope); err != nil {
+		t.Fatalf("registerTenantScope: %v", err)
+	}
+	app.hydrateTenantBlueprint(scope, blueprints.ArchetypeCorporate)
+
+	scopedCtx := tenant.WithScope(context.Background(), scope)
+	initialDefs := app.contentTypesForContext(scopedCtx)
+	if len(initialDefs) < 5 {
+		t.Fatalf("expected hydrated corporate blueprint defs, got %d", len(initialDefs))
+	}
+
+	adminUser := &auth.User{ID: "admin-corp", Role: auth.RoleAdmin, Active: true}
+	mux := http.NewServeMux()
+	for _, route := range app.contentTypeAdminRoutes() {
+		r := route
+		mux.HandleFunc(r.Pattern, func(w http.ResponseWriter, req *http.Request) {
+			req = req.WithContext(auth.WithUser(req.Context(), adminUser))
+			r.Handler.ServeHTTP(w, req)
+		})
+	}
+	handler := resolver.Middleware(mux)
+
+	// 1. Update one blueprint type (projects) and ensure sibling types are preserved.
+	updateBody := `{"id":"projects","label":"Projeler","group":"Kurumsal Yönetim","public":true,"title_field":"title","fields":[{"id":"title","label":"Proje Adı","kind":"text","required":true,"list":true},{"id":"category","label":"Kategori","kind":"select","options":["Fintech","Enerji"],"list":true,"filterable":true}]}`
+	reqPut := httptest.NewRequest(http.MethodPut, "https://corp.example.test/api/v1/admin/content-types/projects", strings.NewReader(updateBody))
+	reqPut.Host = "corp.example.test"
+	wPut := httptest.NewRecorder()
+	handler.ServeHTTP(wPut, reqPut)
+	if wPut.Code != http.StatusOK {
+		t.Fatalf("PUT projects: %d %s", wPut.Code, wPut.Body.String())
+	}
+
+	afterUpdate := app.contentTypesForContext(scopedCtx)
+	if len(afterUpdate) != len(initialDefs) {
+		t.Fatalf("expected sibling blueprint defs preserved (%d), got %d", len(initialDefs), len(afterUpdate))
+	}
+	var hasSiteSettings, hasUpdatedOption bool
+	for _, d := range afterUpdate {
+		if d.ID == "site_settings" && d.Singleton {
+			hasSiteSettings = true
+		}
+		if d.ID == "projects" {
+			for _, f := range d.Fields {
+				if f.ID == "category" && len(f.Options) == 2 && f.Options[1] == "Enerji" {
+					hasUpdatedOption = true
+				}
+			}
+		}
+	}
+	if !hasSiteSettings || !hasUpdatedOption {
+		t.Fatalf("expected singleton site_settings=%v and updated projects options=%v", hasSiteSettings, hasUpdatedOption)
+	}
+
+	// 2. Delete an added custom content type and verify it is removed from memory + disk.
+	createBody := `{"id":"custom_notes","label":"Notlar","fields":[{"id":"title","label":"Başlık","kind":"text","required":true}]}`
+	reqPost := httptest.NewRequest(http.MethodPost, "https://corp.example.test/api/v1/admin/content-types", strings.NewReader(createBody))
+	reqPost.Host = "corp.example.test"
+	wPost := httptest.NewRecorder()
+	handler.ServeHTTP(wPost, reqPost)
+	if wPost.Code != http.StatusCreated {
+		t.Fatalf("POST custom_notes: %d %s", wPost.Code, wPost.Body.String())
+	}
+
+	reqDel := httptest.NewRequest(http.MethodDelete, "https://corp.example.test/api/v1/admin/content-types/custom_notes", nil)
+	reqDel.Host = "corp.example.test"
+	wDel := httptest.NewRecorder()
+	handler.ServeHTTP(wDel, reqDel)
+	if wDel.Code != http.StatusOK {
+		t.Fatalf("DELETE custom_notes: %d %s", wDel.Code, wDel.Body.String())
+	}
+	for _, d := range app.contentTypesForContext(scopedCtx) {
+		if d.ID == "custom_notes" {
+			t.Fatal("custom_notes remained in contentTypesForContext after deletion")
+		}
+	}
+
+	// 3. A fresh serveApp instance hydrates blueprint + disk overrides cleanly.
+	app2 := &serveApp{
+		cfg:                app.cfg,
+		db:                 db,
+		requireTenantScope: true,
+		collectionService:  colService,
+	}
+	app2.hydrateTenantBlueprint(scope, blueprints.ArchetypeCorporate)
+	reloaded := app2.contentTypesForContext(scopedCtx)
+	var reloadedEnerji bool
+	for _, d := range reloaded {
+		if d.ID == "projects" {
+			for _, f := range d.Fields {
+				if f.ID == "category" && len(f.Options) == 2 && f.Options[1] == "Enerji" {
+					reloadedEnerji = true
+				}
+			}
+		}
+	}
+	if !reloadedEnerji {
+		t.Fatal("fresh serveApp did not merge tenant YAML override onto blueprint definitions")
 	}
 }

@@ -7,5 +7,5 @@ title_field: product
 public: true
 fields:
   - {id: product, label: Product, kind: relation, to: products, required: true, list: true, filterable: true}
-  - {id: image, label: Image, kind: media, required: true}
-  - {id: sort_order, label: Sort order, kind: number, min: 0, filterable: true}
+  - {id: image, label: Image, kind: media, required: true, list: true}
+  - {id: sort_order, label: Sort order, kind: number, min: 0, list: true, filterable: true}

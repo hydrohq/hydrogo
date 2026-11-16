@@ -13,7 +13,7 @@ fields:
   - {id: slug, label: Slug, kind: text, required: true, unique: true, list: true, filterable: true}
   - {id: category, label: Category, kind: relation, to: categories, filterable: true, list: true}
   - {id: description, label: Description, kind: richtext, searchable: true}
-  - {id: cover_image, label: Cover image, kind: media, required: true}
+  - {id: cover_image, label: Cover image, kind: media, required: true, list: true}
   - {id: base_price, label: Base price, kind: number, required: true, min: 0, decimals: 2, list: true, filterable: true}
   - {id: currency, label: Currency, kind: select, options: [TRY, USD, EUR], required: true, filterable: true}
   - {id: sku, label: SKU, kind: text, unique: true, list: true, searchable: true}

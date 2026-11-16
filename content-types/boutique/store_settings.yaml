@@ -6,6 +6,7 @@ icon: palette
 title_field: store_name
 public: true
 revisions: true
+singleton: true
 fields:
   - {id: store_name, label: Mağaza Adı, kind: text, required: true, list: true}
   - {id: slogan, label: Slogan / Alt Başlık, kind: text, list: true}
