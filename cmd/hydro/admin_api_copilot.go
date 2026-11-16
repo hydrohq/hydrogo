@@ -443,34 +443,9 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 	}
 }
 
-// validateCopilotOperations rejects plans that reference unknown collections or
-// set fields outside the target schema, so a manipulated model response cannot
-// write arbitrary columns.
+// validateCopilotOperations delegates validation to the core AI package.
 func validateCopilotOperations(ops []aicore.CopilotOperation, defs []contenttypes.Definition) error {
-	if len(ops) == 0 {
-		return nil
-	}
-	known := make(map[string]map[string]bool, len(defs))
-	for _, def := range defs {
-		fields := make(map[string]bool, len(def.Fields))
-		for _, f := range def.Fields {
-			fields[f.ID] = true
-		}
-		known[def.ID] = fields
-	}
-	for _, op := range ops {
-		colID := strings.TrimSpace(op.CollectionID)
-		fields, ok := known[colID]
-		if !ok {
-			return fmt.Errorf("copilot operation targets unknown collection %q", colID)
-		}
-		for key := range op.Data {
-			if !fields[key] {
-				return fmt.Errorf("copilot operation tries to set unknown field %q on %s", key, colID)
-			}
-		}
-	}
-	return nil
+	return aicore.ValidateCopilotOperations(ops, defs)
 }
 
 func (a *serveApp) executeCopilotOperations(ctx context.Context, ops []aicore.CopilotOperation) ([]aicore.CopilotOperation, error) {
@@ -632,18 +607,5 @@ func newCopilotActionID() string {
 }
 
 func cloneMap(in map[string]any) map[string]any {
-	if in == nil {
-		return nil
-	}
-	raw, err := json.Marshal(in)
-	if err != nil {
-		out := make(map[string]any, len(in))
-		for k, v := range in {
-			out[k] = v
-		}
-		return out
-	}
-	var out map[string]any
-	_ = json.Unmarshal(raw, &out)
-	return out
+	return aicore.CloneMap(in)
 }

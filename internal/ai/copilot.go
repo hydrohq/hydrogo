@@ -3,10 +3,12 @@ package ai
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/ai/prompts"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
 
 // CopilotOperation represents a single collection record mutation planned by the Workspace Copilot.
@@ -75,4 +77,46 @@ func ParseCopilotPlan(raw string) (CopilotPlan, error) {
 		plan.Operations[i].RecordID = strings.TrimSpace(plan.Operations[i].RecordID)
 	}
 	return plan, nil
+}
+
+// CloneMap creates a shallow copy of a key-value map.
+func CloneMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+// ValidateCopilotOperations rejects plans that reference unknown collections or
+// set fields outside the target schema, so a manipulated model response cannot
+// write arbitrary columns.
+func ValidateCopilotOperations(ops []CopilotOperation, defs []contenttypes.Definition) error {
+	if len(ops) == 0 {
+		return nil
+	}
+	known := make(map[string]map[string]bool, len(defs))
+	for _, def := range defs {
+		fields := make(map[string]bool, len(def.Fields))
+		for _, f := range def.Fields {
+			fields[f.ID] = true
+		}
+		known[def.ID] = fields
+	}
+	for _, op := range ops {
+		colID := strings.TrimSpace(op.CollectionID)
+		fields, ok := known[colID]
+		if !ok {
+			return fmt.Errorf("copilot operation targets unknown collection %q", colID)
+		}
+		for key := range op.Data {
+			if !fields[key] {
+				return fmt.Errorf("copilot operation tries to set unknown field %q on %s", key, colID)
+			}
+		}
+	}
+	return nil
 }
