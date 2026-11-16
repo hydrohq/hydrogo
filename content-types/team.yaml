@@ -11,6 +11,6 @@ revisions: true
 fields:
   - {id: name, label: Name, kind: text, required: true, list: true}
   - {id: role, label: Role, kind: text, list: true, localized: true}
-  - {id: photo, label: Photo, kind: media}
+  - {id: photo, label: Photo, kind: media, list: true}
   - {id: bio, label: Bio, kind: textarea, localized: true}
   - {id: sort_order, label: Order, kind: number}

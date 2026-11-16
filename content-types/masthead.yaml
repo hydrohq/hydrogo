@@ -5,6 +5,7 @@ title_field: site_name
 public: true
 drafts: false
 revisions: true
+singleton: true
 fields:
   - {id: site_name, label: Publication name, kind: text, required: true, list: true}
   - {id: publisher, label: Publisher / legal representative, kind: text, required: true, list: true}

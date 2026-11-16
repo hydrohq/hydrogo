@@ -12,5 +12,5 @@ access_rules:
 fields:
   - {id: article_slug, label: Article slug, kind: text, required: true, list: true, filterable: true}
   - {id: author_name, label: Author, kind: text, required: true, list: true, searchable: true}
-  - {id: author_email, label: Email (never shown publicly), kind: text}
+  - {id: author_email, label: Email (never shown publicly), kind: text, private: true}
   - {id: body, label: Comment, kind: textarea, required: true, searchable: true}

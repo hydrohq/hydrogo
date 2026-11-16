@@ -8,7 +8,7 @@ revisions: true
 fields:
   - {id: name, label: Full name, kind: text, required: true, list: true, searchable: true}
   - {id: title, label: Title / role, kind: text, list: true}
-  - {id: avatar, label: Author photo, kind: media}
+  - {id: avatar, label: Author photo, kind: media, list: true}
   - {id: email, label: Email, kind: text}
   - {id: bio, label: Biography, kind: textarea}
   - {id: latest_article_title, label: Latest article title, kind: text, list: true, searchable: true}

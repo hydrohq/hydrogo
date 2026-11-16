@@ -14,7 +14,7 @@ fields:
   - {id: category, label: Kategori, kind: relation, to: boutique_categories, required: true, list: true, filterable: true}
   - {id: price, label: Satış Fiyatı (TL), kind: number, decimals: 2, min: 0, required: true, list: true, filterable: true}
   - {id: compare_at_price, label: İndirimsiz Fiyat (Üstü Çizili TL), kind: number, decimals: 2, min: 0, list: true}
-  - {id: cover_image, label: Ana Ürün Görseli, kind: media}
+  - {id: cover_image, label: Ana Ürün Görseli, kind: media, list: true}
   - {id: sizes, label: "Mevcut Bedenler (S, M, L, XL)", kind: text, list: true, filterable: true}
   - {id: colors, label: Mevcut Renkler, kind: text, list: true, filterable: true}
   - {id: stock_quantity, label: Stok Adedi, kind: number, min: 0, required: true, list: true}

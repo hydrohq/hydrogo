@@ -53,14 +53,13 @@ func (a *serveApp) syncContentTypes(ctx context.Context) error {
 			if loadErr != nil {
 				return fmt.Errorf("reload tenant content types: %w", loadErr)
 			}
-			a.stateMu.Lock()
-			if a.tenantContentTypes == nil {
-				a.tenantContentTypes = make(map[string][]contenttypes.Definition)
-			}
-			a.tenantContentTypes[scope.TenantID] = tTypes
-			a.stateMu.Unlock()
+			a.stateMu.RLock()
+			prevTenant := append([]contenttypes.Definition(nil), a.tenantContentTypes[scope.TenantID]...)
+			baseGlobal := append([]contenttypes.Definition(nil), a.contentTypes...)
+			a.stateMu.RUnlock()
 
-			merged := a.contentTypesForContext(ctx)
+			nextTenant := mergeContentTypeDefinitions(prevTenant, tTypes)
+			merged := mergeContentTypeDefinitions(baseGlobal, nextTenant)
 			schemas, schemaErr := contenttypes.Schemas(merged)
 			if schemaErr != nil {
 				return fmt.Errorf("compile tenant schemas: %w", schemaErr)
@@ -68,6 +67,12 @@ func (a *serveApp) syncContentTypes(ctx context.Context) error {
 			if err := a.collectionService.SyncSchemas(ctx, schemas); err != nil {
 				return fmt.Errorf("sync tenant schemas: %w", err)
 			}
+			a.stateMu.Lock()
+			if a.tenantContentTypes == nil {
+				a.tenantContentTypes = make(map[string][]contenttypes.Definition)
+			}
+			a.tenantContentTypes[scope.TenantID] = nextTenant
+			a.stateMu.Unlock()
 			return nil
 		}
 	}
@@ -303,6 +308,22 @@ func (a *serveApp) adminDeleteContentType(w http.ResponseWriter, r *http.Request
 	if err := os.Remove(filePath); err != nil && !errors.Is(err, os.ErrNotExist) { // #nosec G703 -- id equals the ID of an already loaded content type
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to delete definition file", nil)
 		return
+	}
+
+	if a.requireTenantScope {
+		if scope, err := tenant.FromContext(r.Context()); err == nil && scope.TenantID != "" {
+			a.stateMu.Lock()
+			if cur := a.tenantContentTypes[scope.TenantID]; len(cur) > 0 {
+				filtered := make([]contenttypes.Definition, 0, len(cur))
+				for _, def := range cur {
+					if def.ID != id {
+						filtered = append(filtered, def)
+					}
+				}
+				a.tenantContentTypes[scope.TenantID] = filtered
+			}
+			a.stateMu.Unlock()
+		}
 	}
 
 	if err := a.syncContentTypes(r.Context()); err != nil {
