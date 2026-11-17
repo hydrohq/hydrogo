@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hydrohq/hydrogo/internal/capacity"
@@ -56,7 +57,7 @@ func tenantExportCommand(args []string, stdout, stderr io.Writer) error {
 		outPath = fmt.Sprintf("%s-snapshot.tar.gz", tenantID)
 	}
 
-	file, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	file, err := os.OpenFile(filepath.Clean(outPath), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- operator-provided output snapshot path
 	if err != nil {
 		return fmt.Errorf("create output file: %w", err)
 	}
@@ -107,7 +108,7 @@ func tenantImportCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	if archivePath == "-" {
 		reader = stdin
 	} else {
-		file, err := os.Open(archivePath)
+		file, err := os.Open(filepath.Clean(archivePath)) // #nosec G304 -- operator-provided input snapshot path
 		if err != nil {
 			return fmt.Errorf("open archive: %w", err)
 		}

@@ -489,7 +489,7 @@ func (h *Handler) toolDefineContentType(ctx context.Context, args json.RawMessag
 			dir = filepath.Join(dir, "tenants", scope.TenantID)
 		}
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: fmt.Sprintf("failed to create directory: %v", err)}}}, nil
 	}
 
@@ -499,7 +499,7 @@ func (h *Handler) toolDefineContentType(ctx context.Context, args json.RawMessag
 	}
 
 	filePath := filepath.Join(dir, def.ID+".yaml")
-	if err := os.WriteFile(filePath, yamlBytes, 0o644); err != nil {
+	if err := os.WriteFile(filePath, yamlBytes, 0o600); err != nil {
 		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: fmt.Sprintf("failed to write definition file: %v", err)}}}, nil
 	}
 

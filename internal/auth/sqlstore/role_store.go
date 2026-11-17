@@ -44,7 +44,7 @@ func (s RoleStore) ListRoles(ctx context.Context) ([]auth.CustomRole, error) {
 		return nil, err
 	}
 
-	query := `SELECT id, name, description, created_at, updated_at FROM hydro_roles WHERE tenant_id = ` + s.p(1) + ` ORDER BY name ASC`
+	query := `SELECT id, name, description, created_at, updated_at FROM hydro_roles WHERE tenant_id = ` + s.p(1) + ` ORDER BY name ASC` // #nosec G202 -- parameter placeholder is dialect-aware (? or $1)
 	rows, err := s.DB.QueryContext(ctx, query, tenantID)
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (s RoleStore) SaveRole(ctx context.Context, role auth.CustomRole) error {
 	}
 
 	// 2. Clear old permissions
-	deletePerms := `DELETE FROM hydro_role_permissions WHERE tenant_id = ` + s.p(1) + ` AND role_id = ` + s.p(2)
+	deletePerms := `DELETE FROM hydro_role_permissions WHERE tenant_id = ` + s.p(1) + ` AND role_id = ` + s.p(2) // #nosec G202 -- parameter placeholder is dialect-aware (? or $1)
 	if _, err := tx.ExecContext(ctx, deletePerms, tenantID, id); err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (s RoleStore) SaveRole(ctx context.Context, role auth.CustomRole) error {
 			continue
 		}
 
-		insertPerm := `INSERT INTO hydro_role_permissions (tenant_id, role_id, resource, action) VALUES (` + s.p(1) + `, ` + s.p(2) + `, ` + s.p(3) + `, ` + s.p(4) + `)`
+		insertPerm := `INSERT INTO hydro_role_permissions (tenant_id, role_id, resource, action) VALUES (` + s.p(1) + `, ` + s.p(2) + `, ` + s.p(3) + `, ` + s.p(4) + `)` // #nosec G202 -- parameter placeholder is dialect-aware (? or $1)
 		if _, err := tx.ExecContext(ctx, insertPerm, tenantID, id, res, act); err != nil {
 			return err
 		}
@@ -175,7 +175,7 @@ func (s RoleStore) DeleteRole(ctx context.Context, id string) error {
 		return err
 	}
 
-	query := `DELETE FROM hydro_roles WHERE tenant_id = ` + s.p(1) + ` AND id = ` + s.p(2)
+	query := `DELETE FROM hydro_roles WHERE tenant_id = ` + s.p(1) + ` AND id = ` + s.p(2) // #nosec G202 -- parameter placeholder is dialect-aware (? or $1)
 	res, err := s.DB.ExecContext(ctx, query, tenantID, id)
 	if err != nil {
 		return err
@@ -190,7 +190,7 @@ func (s RoleStore) DeleteRole(ctx context.Context, id string) error {
 }
 
 func (s RoleStore) loadPermissions(ctx context.Context, tenantID, roleID string) ([]auth.RolePermission, error) {
-	query := `SELECT resource, action FROM hydro_role_permissions WHERE tenant_id = ` + s.p(1) + ` AND role_id = ` + s.p(2) + ` ORDER BY resource ASC, action ASC`
+	query := `SELECT resource, action FROM hydro_role_permissions WHERE tenant_id = ` + s.p(1) + ` AND role_id = ` + s.p(2) + ` ORDER BY resource ASC, action ASC` // #nosec G202 -- parameter placeholder is dialect-aware (? or $1)
 	rows, err := s.DB.QueryContext(ctx, query, tenantID, roleID)
 	if err != nil {
 		return nil, err

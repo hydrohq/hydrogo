@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -197,6 +198,9 @@ func (s *MemoryStore) GetInt64(key string) (int64, bool) {
 	case int:
 		return int64(v), true
 	case uint64:
+		if v > math.MaxInt64 {
+			return math.MaxInt64, true
+		}
 		return int64(v), true
 	case float64:
 		return int64(v), true
