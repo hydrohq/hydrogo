@@ -68,6 +68,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: path.resolve(__dirname, 'index.html'),
+        ...(fs.existsSync(path.resolve(__dirname, 'storefront.html'))
+          ? { storefront: path.resolve(__dirname, 'storefront.html') }
+          : {}),
       },
     },
   },

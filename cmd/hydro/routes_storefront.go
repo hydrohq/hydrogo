@@ -9,6 +9,15 @@ import (
 )
 
 func (a *serveApp) storefrontRoutes() []router.Route {
+	if a.externalStorefront != nil {
+		routes := []router.Route{
+			{Pattern: "/", Access: router.Public, Handler: a.externalStorefront},
+		}
+		return append(routes, a.cloudStorefrontAPIRoutes()...)
+	}
+	if cloudRoutes := a.cloudStorefrontRoutes(); len(cloudRoutes) > 0 {
+		return cloudRoutes
+	}
 	return []router.Route{
 		{Pattern: "GET /{$}", Access: router.Public, Handler: http.HandlerFunc(a.rootWelcomeHandler)},
 		{Pattern: "GET /welcome", Access: router.Public, Handler: http.HandlerFunc(a.rootWelcomeHandler)},

@@ -2,13 +2,19 @@ package contenttypes
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/hydrohq/hydrogo/internal/api"
 	"github.com/hydrohq/hydrogo/internal/collections"
 	"github.com/hydrohq/hydrogo/internal/realtime"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -55,6 +61,92 @@ func (p PublicAPI) singleflight() *singleflight.Group {
 		return p.FlightGroup
 	}
 	return defaultPublicFlightGroup
+}
+
+func requestTenantID(ctx context.Context) string {
+	if scope, err := tenant.FromContext(ctx); err == nil {
+		return strings.TrimSpace(scope.TenantID)
+	}
+	return ""
+}
+
+func isAnonymousPublicRule(def Definition, rule string, r *http.Request) bool {
+	if !def.Public {
+		return false
+	}
+	trimmed := strings.TrimSpace(rule)
+	if trimmed != "" && !strings.EqualFold(trimmed, "public") && !strings.EqualFold(trimmed, "true") {
+		return false
+	}
+	return r == nil || strings.TrimSpace(r.Header.Get("Authorization")) == ""
+}
+
+func etagMatches(header, etag string) bool {
+	if header == "" || etag == "" {
+		return false
+	}
+	for _, part := range strings.Split(header, ",") {
+		candidate := strings.TrimSpace(part)
+		candidate = strings.TrimPrefix(candidate, "W/")
+		if candidate == "*" || candidate == etag {
+			return true
+		}
+	}
+	return false
+}
+
+func hashJSONValue(h interface{ Write([]byte) (int, error) }, label string, v any) {
+	_, _ = fmt.Fprintf(h, "%s:", label)
+	if v == nil {
+		_, _ = h.Write([]byte("null\n"))
+		return
+	}
+	if b, err := json.Marshal(v); err == nil {
+		_, _ = h.Write(b)
+	}
+	_, _ = h.Write([]byte("\n"))
+}
+
+func computeListETag(tenantID, typeID, locale, rawQuery string, hasMore bool, nextCursor string, records []collections.Record, expanded map[string]map[string]any, aggregates any) string {
+	h := sha256.New()
+	_, _ = fmt.Fprintf(h, "tenant=%s\ntype=%s\nlocale=%s\nquery=%s\nmore=%t\ncursor=%s\n", tenantID, typeID, locale, rawQuery, hasMore, nextCursor)
+	for _, rec := range records {
+		_, _ = fmt.Fprintf(h, "rec=%s:%d:%d\n", rec.ID, rec.Version, rec.UpdatedAt.UTC().UnixNano())
+		hashJSONValue(h, "data", rec.Data)
+		if rel, ok := expanded[rec.ID]; ok {
+			keys := make([]string, 0, len(rel))
+			for k := range rel {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				hashJSONValue(h, "exp:"+k, rel[k])
+			}
+		}
+	}
+	if aggregates != nil {
+		hashJSONValue(h, "agg", aggregates)
+	}
+	sum := h.Sum(nil)
+	return fmt.Sprintf("%q", "list_"+hex.EncodeToString(sum[:8]))
+}
+
+func computeRecordETag(tenantID, typeID, locale string, record collections.Record, related map[string]any) string {
+	h := sha256.New()
+	_, _ = fmt.Fprintf(h, "tenant=%s\ntype=%s\nlocale=%s\nrec=%s:%d:%d\n", tenantID, typeID, locale, record.ID, record.Version, record.UpdatedAt.UTC().UnixNano())
+	hashJSONValue(h, "data", record.Data)
+	if len(related) > 0 {
+		keys := make([]string, 0, len(related))
+		for k := range related {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			hashJSONValue(h, "exp:"+k, related[k])
+		}
+	}
+	sum := h.Sum(nil)
+	return fmt.Sprintf("%q", "rec_"+hex.EncodeToString(sum[:8]))
 }
 
 func (p PublicAPI) forRequest(r *http.Request) PublicAPI {
@@ -247,36 +339,34 @@ func (p PublicAPI) List(w http.ResponseWriter, r *http.Request) {
 	if hasMore && len(records) > 0 {
 		page.NextCursor = collections.NextCursor(query, records[len(records)-1])
 	}
-	etag := fmt.Sprintf(`"list_%s_%d_%d"`, typeID, len(records), query.Offset)
-	if len(records) > 0 {
-		var maxVer int
-		for _, rec := range records {
-			if rec.Version > maxVer {
-				maxVer = rec.Version
-			}
-		}
-		etag = fmt.Sprintf(`"list_%s_%d_%d_%d"`, typeID, len(records), query.Offset, maxVer)
-	}
-	if mine {
-		w.Header().Set("Cache-Control", "private, no-cache")
-	} else {
-		w.Header().Set("Cache-Control", "public, max-age=30, stale-while-revalidate=120")
-		w.Header().Set("ETag", etag)
-		if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-	}
+	var aggregates any
 	if hasAgg {
 		aggQuery.Where = checkedQuery.Where
 		aggQuery.AnyOf = checkedQuery.AnyOf
 		aggQuery.AccessRule = checkedQuery.AccessRule
 		aggQuery.AuthContext = checkedQuery.AuthContext
-		aggregates, err := p.Service.AggregateRecords(r.Context(), typeID, aggQuery)
+		aggregates, err = p.Service.AggregateRecords(r.Context(), typeID, aggQuery)
 		if err != nil {
 			writeServiceError(w, r, err, collections.Schema{})
 			return
 		}
+	}
+	accessListRule := ""
+	if definition.AccessRules != nil {
+		accessListRule = definition.AccessRules.List
+	}
+	if mine || !isAnonymousPublicRule(definition, accessListRule, r) {
+		w.Header().Set("Cache-Control", "private, no-cache")
+	} else {
+		etag := computeListETag(requestTenantID(r.Context()), typeID, locale, r.URL.RawQuery, hasMore, page.NextCursor, records, expanded, aggregates)
+		w.Header().Set("Cache-Control", "public, max-age=30, stale-while-revalidate=120")
+		w.Header().Set("ETag", etag)
+		if etagMatches(r.Header.Get("If-None-Match"), etag) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
+	if hasAgg {
 		api.WriteData(w, http.StatusOK, map[string]any{
 			"items":      items,
 			"aggregates": aggregates,
@@ -305,15 +395,18 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	flightKey := fmt.Sprintf("get:%s:%s", typeID, id)
+	tenantID := requestTenantID(r.Context())
+	flightKey := fmt.Sprintf("get:%s:%s:%s:%s", tenantID, typeID, id, locale)
 	v, err, _ := p.singleflight().Do(flightKey, func() (any, error) {
-		record, err := p.Service.GetRecord(r.Context(), typeID, id)
+		sfCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+		defer cancel()
+		record, err := p.Service.GetRecord(sfCtx, typeID, id)
 		if err == nil && definition.Drafts && recordStatus(record.Data) != StatusPublished {
 			err = collections.ErrRecordNotFound
 		}
 		if err == nil {
 			records := []collections.Record{record}
-			err = p.translate(r, definition, locale, records)
+			err = p.translate(r.WithContext(sfCtx), definition, locale, records)
 			record = records[0]
 		}
 		return record, err
@@ -335,20 +428,29 @@ func (p PublicAPI) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	etag := fmt.Sprintf(`"rec_%s_%d"`, record.ID, record.Version)
-	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
-	w.Header().Set("ETag", etag)
-	if match := r.Header.Get("If-None-Match"); match != "" && match == etag {
-		w.WriteHeader(http.StatusNotModified)
-		return
-	}
-	item := p.present(typeID, locale, record)
 	expanded, err := p.expansion().load(r.Context(), expand, []collections.Record{record})
 	if err != nil {
 		writeServiceError(w, r, err, collections.Schema{})
 		return
 	}
-	if related, ok := expanded[record.ID]; ok {
+	related := expanded[record.ID]
+	accessReadRule := ""
+	if definition.AccessRules != nil {
+		accessReadRule = definition.AccessRules.Read
+	}
+	if !isAnonymousPublicRule(definition, accessReadRule, r) {
+		w.Header().Set("Cache-Control", "private, no-cache")
+	} else {
+		etag := computeRecordETag(tenantID, typeID, locale, record, related)
+		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+		w.Header().Set("ETag", etag)
+		if etagMatches(r.Header.Get("If-None-Match"), etag) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
+	item := p.present(typeID, locale, record)
+	if related != nil {
 		item["expanded"] = related
 	}
 	api.WriteData(w, http.StatusOK, item, nil)
