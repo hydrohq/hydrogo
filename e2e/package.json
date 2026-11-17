@@ -9,7 +9,7 @@
     "journeys": "playwright test -c playwright.journeys.config.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "axe-core": "^4.14.0"
   }
 }
