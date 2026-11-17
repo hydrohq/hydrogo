@@ -196,9 +196,6 @@ func (a *serveApp) startWorkers() {
 	if !cgiMode && (cfg.Database.Dialect == database.SQLite || cfg.Database.Dialect == database.Postgres) {
 		a.spawn(func() { database.RunWeeklyMaintenance(ctx, a.runDatabaseMaintenance) })
 	}
-	if a.externalStorefront != nil && a.cfg.Storefront.External.Command != "" && !cgiMode {
-		a.spawn(func() { a.externalStorefront.RunSupervisor(ctx) })
-	}
 }
 
 // runDatabaseMaintenance runs one weekly maintenance pass on its own

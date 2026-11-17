@@ -68,7 +68,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: path.resolve(__dirname, 'index.html'),
-        storefront: path.resolve(__dirname, 'storefront.html'),
       },
     },
   },
