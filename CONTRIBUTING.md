@@ -3,7 +3,7 @@
 Thanks for helping. Short version: open an issue for anything bigger than a bug fix, keep changes small, and run the checks.
 
 - **Read first:** [AGENTS.md](AGENTS.md) holds the architecture rules (JSON-only Go, one migration per dialect, no customer-specific content in core, zero build on publish). It is written for AI agents but applies to everyone.
-- **Set up:** Go 1.27+ and Node 22. `go run ./tools/devserver` starts the server with demo data at http://127.0.0.1:8090 (admin at `/admin`).
+- **Set up:** Go 1.27+ and Node 22. `go run ./tools/devserver` starts the server with demo data at http://127.0.0.1:8090 (admin at `/admin`). Run `go run ./cmd/hydro doctor` to diagnose and verify local environment health.
 - **Branches:** `main` is the release branch: it only receives finished work and release tags (`vX.Y.Z`) are cut from it. Day-to-day work happens on short-lived branches that are merged into `main` by pull request and then deleted; run the checks locally first. CI runs on pull requests into `main` and on pushes to `main`.
 - **Before you push:** `go run ./tools/check` (or `make check`). It builds, vets, formats, runs the guards, Go tests and the admin lint/typecheck/tests/build. If you changed admin UI, open the screen and look at it (see AGENTS.md).
 - **Tests:** add a test next to the code you change. Do not skip or rename failing tests; fix them or explain a deletion in the commit message.
