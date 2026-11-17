@@ -51,9 +51,7 @@ export default async function globalSetup() {
   runCommand("go", ["build", ...tags, "-o", bin, "./cmd/hydro"], { cwd: repo });
 
   const hydroPort = await freePort();
-  const crmPort = await freePort();
   const hydroUrl = `http://127.0.0.1:${hydroPort}`;
-  const crmUrl = `http://127.0.0.1:${crmPort}`;
 
   runCommand(bin, ["new", "proj", "--preset", "crm", "--admin-email", ADMIN_EMAIL, "--admin-password-stdin"], { cwd: work, input: `${ADMIN_PASSWORD}\n` });
   const project = join(work, "proj");
@@ -102,21 +100,6 @@ tenancy:
     const hydro = capture(spawnServer(bin, ["serve", "--config", configPath], { cwd: project, stdio: ["ignore", "pipe", "pipe"] }));
     servers.push(hydro);
     await waitFor(`${hydroUrl}/healthz`, "hydro", hydro, log);
-
-    const crmDir = join(repo, "examples", "crm-starter");
-    if (!existsSync(join(crmDir, "node_modules"))) runCommand("npm", ["ci"], { cwd: crmDir });
-    runCommand("npm", ["run", "build"], { cwd: crmDir });
-    const env = { ...process.env, HYDRO_API_ORIGIN: hydroUrl, HYDRO_ADMIN_EMAIL: ADMIN_EMAIL, HYDRO_ADMIN_PASSWORD: ADMIN_PASSWORD };
-    runCommand("node", ["scripts/seed.mjs"], { cwd: crmDir, env });
-    const crm = capture(
-      spawnServer("node", ["build"], {
-        cwd: crmDir,
-        env: { ...env, PORT: String(crmPort), HOST: "127.0.0.1", ORIGIN: crmUrl, CRM_LANG: "en", CRM_SECURE_COOKIES: "false" },
-        stdio: ["ignore", "pipe", "pipe"],
-      }),
-    );
-    servers.push(crm);
-    await waitFor(`${crmUrl}/health`, "the CRM starter", crm, log);
   } catch (error) {
     console.error("SERVER LOGS:\n", log());
     for (const s of servers) await stopServer(s);
@@ -128,7 +111,6 @@ tenancy:
   process.env.JOURNEY_HYDRO_PORT = String(hydroPort);
   process.env.JOURNEY_HYDRO_ALPHA_URL = `http://alpha.example.test:${hydroPort}`;
   process.env.JOURNEY_HYDRO_BETA_URL = `http://beta.example.test:${hydroPort}`;
-  process.env.JOURNEY_CRM_URL = crmUrl;
   return async () => {
     for (const s of servers.reverse()) await stopServer(s);
     rmSync(work, { recursive: true, force: true });

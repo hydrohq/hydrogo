@@ -203,7 +203,7 @@ AI agents can automatically:
 | `content-types/` | Stock and user declarative YAML content definitions |
 | `migrations/` | Dialect-complete SQL migrations (SQLite, PostgreSQL, MySQL) |
 | `packages/client/` | `@hydrogo/client` typed TypeScript API client |
-| `examples/` | Production starter kits: `sveltekit-starter`, `hydropost-news-starter`, `commerce-starter` |
+| `examples/` | Backend examples: `side-service` (daemon integration), `benchmark` (load schemas) |
 | `tools/` | Development harness: `devserver`, `check` (CI runner), `bench` (load testing) |
 | `docs/` | Architecture Decision Records (ADRs), deployment guides, and API documentation |
 

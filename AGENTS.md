@@ -1,12 +1,11 @@
 # Working in HydroGo
 
-HydroGo is a **single-binary modular Framework-like Go CMS & Application Engine**:
-pages, news, media, members, content types, a high-performance REST API, an
-embedded Svelte 5 admin workspace, and turnkey frontend starters tailored to the
-project's target purpose (e.g. `examples/sveltekit-starter`, `examples/boutique-starter`,
-`examples/commerce-starter`, `examples/crm-starter`). Background:
-`docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`,
-`docs/decisions/0035-framework-like-application-engine-vision.md`.
+HydroGo is a **single-binary headless Go CMS & Application Engine**:
+pages, news, media, members, content types, a high-performance REST API, and an
+embedded Svelte 5 admin workspace. Frontend starters are maintained in
+Hydro Cloud (https://github.com/hydrohq/cloud). HydroGo Core focuses strictly
+on headless backend operations. Background:
+`docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`.
 
 ## Branches
 
@@ -20,8 +19,7 @@ once merged.
 
 Run `go run ./tools/check` (or `make check`; build, vet, gofmt, guards, Go
 tests, a smoke test of the real server — security promises and speed on 10,000
-records, `tests/smoke` — admin lint/typecheck/tests/build, and the starters'
-check/test/build). Touching admin sign-in, users, invitations or a starter?
+records, `tests/smoke` — admin lint/typecheck/tests/build). Touching admin sign-in, users or invitations?
 Add `-e2e`: real-browser journeys in `e2e/journeys` that start their own server. If you changed admin UI, also open
 the screen and look at it (see "Admin UI work" below). Don't report a task as
 done if either step failed.
@@ -37,7 +35,7 @@ done if either step failed.
 | An admin API endpoint | `/api/v1/admin/...` in the module's `transport/http.go`, responses through `internal/api.WriteData` / `WriteError` |
 | Database change | new directory in `migrations/` with `migration.yaml`, `sqlite.sql`, `postgres.sql`, `mysql.sql`. A new table most other tables have (check a sibling in the same module) needs a `tenant_id` column too — add it to `internal/tenant.BackfillTables`, `tests/contract/postgres_rls_contract_test.go`'s `expectedRLSTables`, and thread `tenant.Require`/`RequireTenantScope` through its repository in the same change. See `docs/multi-tenancy.md` and `docs/decisions/0024-news-taxonomy-tenant-isolation.md` for what happens when this is skipped |
 | CLI command | its own file in `cmd/hydro/<name>_cmd.go`, one `case` line in `run()` |
-| A starting point for a public site | `examples/sveltekit-starter/` (server-rendered, uses `packages/client`). `examples/crm-starter/` and `examples/commerce-starter/` are the `--starter crm`/`--starter commerce` panels for those presets. `examples/svelte-starter/` is HydroGo's own landing/docs SPA. `examples/hydropost-news-starter/` is a Turkish news portal — read its own `AGENTS.md` before touching it: its design must never be copied or imitated for other frontend work, each one gets designed from scratch |
+| Frontend starters | `hydrohq/cloud` repository (`https://github.com/hydrohq/cloud/tree/main/examples`) |
 | The typed API client for frontends | `packages/client` (`@hydrogo/client`, private: never published to npm or any public registry). Keep it in step with the public API envelope: pages, news and content return `{data, metadata}` |
 | What `hydro new` / `hydro init` create (presets, config template) | `internal/scaffold`. Presets only pick modules and stock types from `content-types/` |
 | Release, installer, install scripts | `.github/workflows/release.yml`, `deploy/windows/hydrogo.iss`, `scripts/install.sh`, `scripts/install.ps1` (see `docs/upgrading.md`) |
