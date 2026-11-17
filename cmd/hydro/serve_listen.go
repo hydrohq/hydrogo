@@ -215,7 +215,7 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		CSRFSkipCookieFor: func(r *http.Request) bool {
 			// Skip CSRF cookie for public static/informational endpoints so caches can cache them.
 			p := r.URL.Path
-			return p == "/" || p == "/welcome" || p == "/robots.txt" || p == "/sitemap.xml" || p == "/llms.txt" || p == "/healthz"
+			return p == "/" || p == "/welcome" || p == "/robots.txt" || p == "/sitemap.xml" || p == "/llms.txt" || p == "/healthz" || cloudCSRFSkipPath(p)
 		},
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {

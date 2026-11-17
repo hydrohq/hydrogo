@@ -54,3 +54,13 @@ func (a *serveApp) showcasePageHandler(w http.ResponseWriter, r *http.Request) {
 func (a *serveApp) renderPlatformShowcase(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
+func (a *serveApp) isStorefrontTenant(*http.Request) bool { return false }
+func (a *serveApp) storefrontLLMsHandler(w http.ResponseWriter, r *http.Request) {
+	http.NotFound(w, r)
+}
+func (a *serveApp) storefrontSitemapHandler(w http.ResponseWriter, r *http.Request) {
+	http.NotFound(w, r)
+}
+func (a *serveApp) cloudStorefrontRoutes() []router.Route    { return nil }
+func (a *serveApp) cloudStorefrontAPIRoutes() []router.Route { return nil }
+func cloudCSRFSkipPath(string) bool                          { return false }

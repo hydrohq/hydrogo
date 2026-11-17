@@ -20,6 +20,7 @@ import (
 	mediastore "github.com/hydrohq/hydrogo/internal/media/sqlstore"
 	outboxstore "github.com/hydrohq/hydrogo/internal/outbox/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/storage"
+	"github.com/hydrohq/hydrogo/internal/storefront"
 	"github.com/hydrohq/hydrogo/internal/tenant"
 	newsservice "github.com/hydrohq/hydrogo/modules/news"
 	newsstore "github.com/hydrohq/hydrogo/modules/news/repository/sqlstore"
@@ -282,5 +283,22 @@ func (a *serveApp) initNews() error {
 			TenantScopes: a.tenantScopes,
 		}
 	}
+	return nil
+}
+
+// initStorefront initializes the external storefront supervisor/proxy when configured.
+func (a *serveApp) initStorefront() error {
+	if !a.cfg.Storefront.External.Enabled {
+		return nil
+	}
+	logger := a.logger
+	if logger == nil {
+		logger = newServeLogger(a.stderr)
+	}
+	es, err := storefront.NewExternalStorefront(a.cfg.Storefront.External, logger)
+	if err != nil {
+		return fmt.Errorf("configure external storefront: %w", err)
+	}
+	a.externalStorefront = es
 	return nil
 }

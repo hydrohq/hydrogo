@@ -83,6 +83,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		app.initSite,
 		app.initNews,
 		app.initAdminStudio,
+		app.initStorefront,
 	} {
 		if err := step(); err != nil {
 			return err
