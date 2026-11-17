@@ -8,7 +8,7 @@ require (
 	github.com/GeliverApp/geliver-go v1.2.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/andybalholm/brotli v1.3.0
-	github.com/deepteams/webp v1.2.8
+	github.com/deepteams/webp v1.2.9
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/jackc/pgx/v5 v5.13.0
