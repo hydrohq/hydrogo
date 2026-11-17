@@ -10,10 +10,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,6 +25,7 @@ import (
 	backupstore "github.com/hydrohq/hydrogo/internal/backup"
 	"github.com/hydrohq/hydrogo/internal/capacity"
 	"github.com/hydrohq/hydrogo/internal/config"
+	"github.com/hydrohq/hydrogo/internal/contenttypes"
 	"github.com/hydrohq/hydrogo/internal/database"
 	jobstore "github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/media"
@@ -66,11 +69,53 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 	if err := validateProductionOrigin(cfg); err != nil {
 		warnings = append(warnings, err.Error())
 	}
+	var contentTypesCount int
+	if cfg.ContentTypesDir != "" {
+		if info, err := os.Stat(cfg.ContentTypesDir); err == nil && info.IsDir() {
+			defs, err := contenttypes.LoadDir(cfg.ContentTypesDir)
+			if err != nil {
+				return fmt.Errorf("content types schema validation (%s): %w", cfg.ContentTypesDir, err)
+			}
+			contentTypesCount = len(defs)
+		}
+	}
+	portAvailable := true
+	if cfg.HTTP.Address != "" {
+		ln, err := net.Listen("tcp", cfg.HTTP.Address)
+		if err != nil {
+			portAvailable = false
+			warnings = append(warnings, fmt.Sprintf("http address %s cannot be bound (port in use or permission denied): %v", cfg.HTTP.Address, err))
+		} else {
+			_ = ln.Close()
+		}
+	}
+	if cfg.Database.Dialect == database.SQLite && cfg.Database.DSN != ":memory:" && !strings.HasPrefix(cfg.Database.DSN, "file::memory:") {
+		dbDir := filepath.Dir(cfg.Database.DSN)
+		if idx := strings.Index(dbDir, "?"); idx != -1 {
+			dbDir = dbDir[:idx]
+		}
+		if dbDir != "" && dbDir != "." {
+			if info, err := os.Stat(dbDir); err == nil && info.IsDir() {
+				if err := checkDirectoryWritable(dbDir); err != nil {
+					return fmt.Errorf("database directory %q is not writable: %w", dbDir, err)
+				}
+			}
+		}
+	}
 	sqliteJournalMode := ""
 	sqliteForeignKeyViolations := 0
 	if cfg.Database.Dialect == database.SQLite {
 		if err := db.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&sqliteJournalMode); err != nil {
 			return fmt.Errorf("database journal mode check: %w", err)
+		}
+		if strings.ToLower(sqliteJournalMode) != "wal" && sqliteJournalMode != "memory" {
+			warnings = append(warnings, fmt.Sprintf("sqlite journal_mode is %q; 'wal' is recommended for concurrent performance", sqliteJournalMode))
+		}
+		var busyTimeout int
+		if err := db.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&busyTimeout); err == nil {
+			if busyTimeout > 0 && busyTimeout < 1000 {
+				warnings = append(warnings, fmt.Sprintf("sqlite busy_timeout is %dms; recommend >= 5000ms for write contention", busyTimeout))
+			}
 		}
 		rows, err := db.QueryContext(ctx, "PRAGMA foreign_key_check")
 		if err != nil {
@@ -106,6 +151,14 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 				return fmt.Errorf("database WAL checkpoint is busy")
 			}
 			fixes = append(fixes, "sqlite_wal_checkpoint_passive")
+
+			if strings.ToLower(sqliteJournalMode) != "wal" && sqliteJournalMode != "memory" {
+				var newMode string
+				if err := db.QueryRowContext(ctx, "PRAGMA journal_mode=WAL").Scan(&newMode); err == nil && strings.ToLower(newMode) == "wal" {
+					sqliteJournalMode = newMode
+					fixes = append(fixes, "sqlite_journal_mode_wal")
+				}
+			}
 		}
 	}
 	if err := database.CheckCompatibilityForModules(ctx, db, cfg.Database.Dialect, migrations.FS, enabledModuleSet(cfg.Modules)); err != nil {
@@ -173,14 +226,16 @@ func doctor(args []string, stdout, stderr io.Writer) error {
 			SQLiteJournalMode          string   `json:"sqlite_journal_mode,omitempty"`
 			SQLiteForeignKeyViolations int      `json:"sqlite_foreign_key_violations,omitempty"`
 			MediaMode                  string   `json:"media_mode"`
-		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes, Warnings: warnings, SQLiteJournalMode: sqliteJournalMode, SQLiteForeignKeyViolations: sqliteForeignKeyViolations, MediaMode: mediaMode})
+			ContentTypesCount          int      `json:"content_types_count"`
+			PortAvailable              bool     `json:"port_available"`
+		}{Version: version.Version, Commit: version.Commit, BuildTime: version.BuildTime, SchemaMigration: version.SchemaMigration, Profile: string(cfg.Profile), Database: string(cfg.Database.Dialect), BackupTools: backupTools, CacheEntries: budget.CacheEntries, QueueEntries: budget.QueueEntries, WorkerConcurrency: budget.WorkerConcurrency, DeadLetteredJobs: deadLetteredJobs, MediaMaxBytes: budget.MediaMaxBytes, MediaWritable: true, SecureCookies: cfg.Security.SecureCookies, HSTS: cfg.Security.EnableHSTS, Fixes: fixes, Warnings: warnings, SQLiteJournalMode: sqliteJournalMode, SQLiteForeignKeyViolations: sqliteForeignKeyViolations, MediaMode: mediaMode, ContentTypesCount: contentTypesCount, PortAvailable: portAvailable})
 		if err != nil {
 			return err
 		}
 		_, err = fmt.Fprintln(stdout, string(data))
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "profile=%s database=%s sqlite_journal_mode=%s sqlite_foreign_key_violations=%d media_mode=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d fixes=%s warnings=%s\n", cfg.Profile, cfg.Database.Dialect, sqliteJournalMode, sqliteForeignKeyViolations, mediaMode, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, strings.Join(fixes, ","), strings.Join(warnings, ";"))
+	_, err = fmt.Fprintf(stdout, "profile=%s database=%s sqlite_journal_mode=%s sqlite_foreign_key_violations=%d media_mode=%s backup_tools=%s cache_entries=%d queue_entries=%d worker_concurrency=%d dead_lettered_jobs=%d media_max_bytes=%d content_types=%d port_available=%t fixes=%s warnings=%s\n", cfg.Profile, cfg.Database.Dialect, sqliteJournalMode, sqliteForeignKeyViolations, mediaMode, backupTools, budget.CacheEntries, budget.QueueEntries, budget.WorkerConcurrency, deadLetteredJobs, budget.MediaMaxBytes, contentTypesCount, portAvailable, strings.Join(fixes, ","), strings.Join(warnings, ";"))
 	return err
 }
 
