@@ -221,13 +221,17 @@ parseBody:
 }
 
 func loadFromDir(dir, id string) (*Prompt, error) {
+	cleanID := filepath.Base(filepath.Clean(id))
+	if cleanID == "." || cleanID == "/" || cleanID != id {
+		return nil, ErrNotFound
+	}
 	candidates := []string{
-		filepath.Join(dir, id+".prompt"),
-		filepath.Join(dir, id+".json"),
-		filepath.Join(dir, id),
+		filepath.Join(dir, cleanID+".prompt"),
+		filepath.Join(dir, cleanID+".json"),
+		filepath.Join(dir, cleanID),
 	}
 	for _, cand := range candidates {
-		data, err := os.ReadFile(cand)
+		data, err := os.ReadFile(cand) // #nosec G304 G703 -- bounded by filepath.Base check
 		if err == nil {
 			return parsePrompt(data, id, cand)
 		}

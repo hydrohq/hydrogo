@@ -253,22 +253,22 @@ func (a *serveApp) adminUpdateContentType(w http.ResponseWriter, r *http.Request
 	}
 
 	dir := a.contentTypesDirForContext(r.Context())
-	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- content-types directory of the project
+	if err := os.MkdirAll(dir, 0o750); err != nil { // #nosec G301 -- content-types directory of the project
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to prepare content types directory", nil)
 		return
 	}
-	filePath := filepath.Join(dir, id+".yaml")
+	filePath := filepath.Join(dir, filepath.Base(id)+".yaml")
 
-	oldBytes, _ := os.ReadFile(filePath)
+	oldBytes, _ := os.ReadFile(filePath) // #nosec G304 -- bounded by filepath.Base
 
-	if err := os.WriteFile(filePath, yamlBytes, 0o644); err != nil {
+	if err := os.WriteFile(filePath, yamlBytes, 0o600); err != nil { // #nosec G703 G306 -- operator-defined schema file with restricted permissions
 		api.WriteError(w, r, http.StatusInternalServerError, "failed to write definition file", nil)
 		return
 	}
 
 	if err := a.syncContentTypes(r.Context()); err != nil {
 		if len(oldBytes) > 0 {
-			_ = os.WriteFile(filePath, oldBytes, 0o644)
+			_ = os.WriteFile(filePath, oldBytes, 0o600) // #nosec G703 G306 -- rollback with restricted permissions
 			_ = a.syncContentTypes(r.Context())
 		}
 		api.WriteError(w, r, http.StatusInternalServerError, fmt.Sprintf("failed to sync schema: %v", err), nil)

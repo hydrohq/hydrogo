@@ -45,11 +45,11 @@ func contentTypeCommand(args []string, stdout, stderr io.Writer) error {
 		if !contentTypeID.MatchString(id) {
 			return fmt.Errorf("content type id %q must be lowercase letters, digits and underscores, starting with a letter", id)
 		}
-		if err := os.MkdirAll(*dir, 0o755); err != nil { // #nosec G301
+		if err := os.MkdirAll(*dir, 0o750); err != nil { // #nosec G301
 			return err
 		}
 		path := filepath.Join(*dir, id+".yaml")
-		if _, err := os.Stat(path); err == nil {
+		if _, err := os.Stat(path); err == nil { // #nosec G703 -- id validated by contentTypeID regex
 			return fmt.Errorf("%s already exists", path)
 		}
 		skeleton := fmt.Sprintf(`# yaml-language-server: $schema=https://raw.githubusercontent.com/hydrohq/hydrogo/main/docs/schemas/content-type.schema.json
@@ -63,7 +63,7 @@ fields:
   - {id: title, label: Title, kind: text, required: true, list: true, searchable: true}
   - {id: body, label: Body, kind: richtext}
 `, id, id)
-		if err := os.WriteFile(path, []byte(skeleton), 0o644); err != nil { // #nosec G306
+		if err := os.WriteFile(path, []byte(skeleton), 0o600); err != nil { // #nosec G306 G703 -- id validated by contentTypeID regex
 			return err
 		}
 		fmt.Fprintf(stdout, "Created %s. Restart hydro serve to see /admin/content/%s and /api/v1/content/%s.\n", path, id, id)
