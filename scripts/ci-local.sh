@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs jobs of .github/workflows/ci.yml on this machine with nektos/act, so the
 # checks can be run without GitHub Actions: scripts/ci-local.sh [job ...]
-# Default jobs: go first-run sveltekit-starter crm-starter.
+# Default jobs: go first-run.
 #
 # Needs Docker and act (go install github.com/nektos/act@latest; set ACT to its
 # path if it is not on PATH). The workflow is copied to a temporary file first:
@@ -17,7 +17,7 @@ command -v "$act_bin" >/dev/null || { echo "act not found: go install github.com
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
 
 jobs=("$@")
-[ ${#jobs[@]} -gt 0 ] || jobs=(go first-run sveltekit-starter crm-starter)
+[ ${#jobs[@]} -gt 0 ] || jobs=(go first-run)
 
 workflow="$(mktemp --suffix=.yml)"
 trap 'rm -f "$workflow"' EXIT

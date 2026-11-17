@@ -67,7 +67,6 @@ func main() {
 				step{name: "admin unit tests", dir: "admin", args: []string{npm, "test"}},
 				step{name: "admin build", dir: "admin", args: []string{npm, "run", "build"}},
 			)
-			steps = append(steps, starterSteps(npm)...)
 			if *e2e {
 				steps = append(steps, e2eSteps(npm)...)
 			}
@@ -117,28 +116,6 @@ func resolvedTempEnv() []string {
 	return append(env, "TMPDIR="+dir)
 }
 
-// starterSteps type-checks, tests and builds the starter frontends that
-// `hydro new --starter ...` copies into new projects. They are the first thing a
-// new user sees, so a broken one must stop a change like any other.
-func starterSteps(npm string) []step {
-	starters := []struct {
-		dir   string
-		tests bool
-	}{{"examples/crm-starter", true}, {"examples/commerce-starter", false}, {"examples/sveltekit-starter", false}}
-	var steps []step
-	for _, s := range starters {
-		if _, err := os.Stat(s.dir + "/node_modules"); err != nil {
-			steps = append(steps, step{name: s.dir + " install", dir: s.dir, args: []string{npm, "ci"}})
-		}
-		steps = append(steps, step{name: s.dir + " svelte-check", dir: s.dir, args: []string{npm, "run", "check"}})
-		if s.tests {
-			steps = append(steps, step{name: s.dir + " unit tests", dir: s.dir, args: []string{npm, "test"}})
-		}
-		steps = append(steps, step{name: s.dir + " build", dir: s.dir, args: []string{npm, "run", "build"}})
-	}
-	return steps
-}
-
 // auditSteps scans for known vulnerabilities. It needs network access to the
 // Go vulnerability database and the npm registry, so it is opt-in (-audit);
 // the scheduled security workflow runs the same commands.
@@ -151,18 +128,8 @@ func auditSteps() []step {
 	if _, err := exec.LookPath(npm); err != nil {
 		return steps
 	}
-	for _, dir := range []string{"admin", "e2e", "packages/client", "examples/sveltekit-starter", "examples/crm-starter", "examples/commerce-starter"} {
+	for _, dir := range []string{"admin", "e2e", "packages/client"} {
 		steps = append(steps, step{name: "npm audit " + dir, dir: dir, args: []string{npm, "audit", "--omit=dev", "--audit-level=high"}})
-	}
-	// examples/hydropost-news-starter uses pnpm (pnpm-lock.yaml, no
-	// package-lock.json), so npm audit there would just fail with ENOLOCK
-	// instead of actually scanning anything.
-	pnpm := "pnpm"
-	if runtime.GOOS == "windows" {
-		pnpm = "pnpm.cmd"
-	}
-	if exec.Command(pnpm, "--version").Run() == nil {
-		steps = append(steps, step{name: "pnpm audit examples/hydropost-news-starter", dir: "examples/hydropost-news-starter", args: []string{pnpm, "audit", "--prod", "--audit-level", "high"}})
 	}
 	return steps
 }

@@ -1,14 +1,11 @@
 package scaffold
 
 import (
-	"bytes"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	sveltekitstarter "github.com/hydrohq/hydrogo/examples/sveltekit-starter"
 	"github.com/hydrohq/hydrogo/internal/config"
 	"github.com/hydrohq/hydrogo/internal/contenttypes"
 )
@@ -93,66 +90,11 @@ func TestUnknownPreset(t *testing.T) {
 	}
 }
 
-func TestCreateCopiesFrontendStarter(t *testing.T) {
+func TestStarterRejectionDirectsToCloud(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "site")
-	if _, err := Create(Options{Dir: dir, Preset: "blog", Starter: "sveltekit"}); err != nil {
-		t.Fatal(err)
-	}
-	for _, rel := range []string{"frontend/package.json", "frontend/src/app.html", "frontend/src/lib/hydrogo.ts", "frontend/src/routes/[[lang=locale]]/+page.svelte", "frontend/.env.example"} {
-		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
-			t.Errorf("missing %s: %v", rel, err)
-		}
-	}
-	if _, err := Create(Options{Dir: filepath.Join(t.TempDir(), "x"), Starter: "nope"}); err == nil {
-		t.Error("unknown starter accepted")
-	}
-}
-
-func TestCreateCopiesCRMStarter(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "crm")
-	if _, err := Create(Options{Dir: dir, Preset: "crm", Starter: "crm"}); err != nil {
-		t.Fatal(err)
-	}
-	for _, rel := range []string{"frontend/package.json", "frontend/src/hooks.server.ts", "frontend/src/routes/deals/+page.svelte", "frontend/scripts/seed.mjs", "frontend/.env.example"} {
-		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
-			t.Errorf("missing %s: %v", rel, err)
-		}
-	}
-}
-
-func TestCreateCopiesCommerceStarter(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "shop")
-	if _, err := Create(Options{Dir: dir, Preset: "minimal", Starter: "commerce"}); err != nil {
-		t.Fatal(err)
-	}
-	for _, rel := range []string{"frontend/package.json", "frontend/src/lib/server/commerce.ts", "frontend/src/routes/urun/[slug]/+page.svelte", "frontend/src/routes/sepet/+page.svelte", "frontend/src/routes/odeme/+page.server.ts", "frontend/.env.example"} {
-		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
-			t.Errorf("missing %s: %v", rel, err)
-		}
-	}
-}
-
-func TestCreateCopiesBoutiqueStarter(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "boutique")
-	if _, err := Create(Options{Dir: dir, Preset: "boutique", Starter: "boutique"}); err != nil {
-		t.Fatal(err)
-	}
-	for _, rel := range []string{"frontend/package.json", "frontend/index.html", "frontend/src/App.svelte", "frontend/src/main.ts"} {
-		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
-			t.Errorf("missing %s: %v", rel, err)
-		}
-	}
-}
-
-func TestCreateCopiesNewsStarter(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "news-site")
-	if _, err := Create(Options{Dir: dir, Preset: "news", Starter: "news"}); err != nil {
-		t.Fatal(err)
-	}
-	for _, rel := range []string{"frontend/package.json", "frontend/vite.config.ts", "frontend/src/routes/+layout.svelte"} {
-		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
-			t.Errorf("missing %s: %v", rel, err)
-		}
+	_, err := Create(Options{Dir: dir, Preset: "blog", Starter: "sveltekit"})
+	if err == nil || !strings.Contains(err.Error(), "Hydro Cloud") {
+		t.Fatalf("expected starter rejection redirecting to Hydro Cloud, got %v", err)
 	}
 }
 
@@ -164,21 +106,5 @@ func TestCRMPresetLogsAdminWrites(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join(dir, "config.yaml"))
 	if err != nil || !strings.Contains(string(body), "log_request_bodies: true") {
 		t.Fatalf("the crm config must log admin writes: %v\n%s", err, body)
-	}
-}
-
-// The starter vendors packages/client so it installs without a registry; the
-// two copies must not drift.
-func TestStarterVendoredClientMatchesPackage(t *testing.T) {
-	want, err := os.ReadFile(filepath.Join("..", "..", "packages", "client", "src", "hydrogo.ts"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := fs.ReadFile(sveltekitstarter.FS, "src/lib/hydrogo.ts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Error("examples/sveltekit-starter/src/lib/hydrogo.ts differs from packages/client/src/hydrogo.ts; copy it over")
 	}
 }

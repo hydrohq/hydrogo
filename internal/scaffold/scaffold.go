@@ -8,16 +8,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
 	contenttypedata "github.com/hydrohq/hydrogo/content-types"
-	boutiquestarter "github.com/hydrohq/hydrogo/examples/boutique-starter"
-	commercestarter "github.com/hydrohq/hydrogo/examples/commerce-starter"
-	crmstarter "github.com/hydrohq/hydrogo/examples/crm-starter"
-	newsstarter "github.com/hydrohq/hydrogo/examples/hydropost-news-starter"
-	sveltekitstarter "github.com/hydrohq/hydrogo/examples/sveltekit-starter"
 )
 
 // Preset is a starting point for a project: the modules it enables and the
@@ -143,43 +137,8 @@ type Options struct {
 }
 
 // Starters lists the frontend starters Create can copy into a project.
-func Starters() []string { return []string{"sveltekit", "crm", "commerce", "boutique", "news"} }
-
-// copyStarter writes the embedded frontend starter into dir.
-func copyStarter(name, dir string) error {
-	var source fs.FS
-	switch name {
-	case "sveltekit":
-		source = sveltekitstarter.FS
-	case "crm":
-		source = crmstarter.FS
-	case "commerce":
-		source = commercestarter.FS
-	case "boutique":
-		source = boutiquestarter.FS
-	case "news":
-		source = newsstarter.FS
-	default:
-		return fmt.Errorf("unknown starter %q (available: %s)", name, strings.Join(Starters(), ", "))
-	}
-	if _, err := os.Stat(dir); err == nil {
-		return fmt.Errorf("%s already exists; refusing to overwrite", dir)
-	}
-	return fs.WalkDir(source, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dir, filepath.FromSlash(path))
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755) // #nosec G301 -- project directory; the service account may differ from the author
-		}
-		data, readErr := fs.ReadFile(source, path)
-		if readErr != nil {
-			return readErr
-		}
-		return os.WriteFile(target, data, 0o644) // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
-	})
-}
+// In HydroGo Core, frontend starters are hosted in Hydro Cloud (https://github.com/hydrohq/cloud).
+func Starters() []string { return nil }
 
 // Create writes a new project into opts.Dir. It refuses to overwrite an
 // existing config.yaml or content-types directory, so running it twice in the
@@ -202,10 +161,10 @@ func Create(opts Options) (Preset, error) {
 		}
 		opts.Name = filepath.Base(abs)
 	}
-	if opts.Starter != "" && !slices.Contains(Starters(), opts.Starter) {
-		return Preset{}, fmt.Errorf("unknown starter %q (available: %s)", opts.Starter, strings.Join(Starters(), ", "))
+	if opts.Starter != "" {
+		return Preset{}, fmt.Errorf("frontend starters are managed in Hydro Cloud (https://github.com/hydrohq/cloud); HydroGo Core scaffolds headless backend CMS projects")
 	}
-	for _, existing := range []string{"config.yaml", "content-types", "frontend", "e2e"} {
+	for _, existing := range []string{"config.yaml", "content-types", "e2e"} {
 		if _, statErr := os.Stat(filepath.Join(opts.Dir, existing)); statErr == nil {
 			return Preset{}, fmt.Errorf("%s already exists in %s; refusing to overwrite", existing, opts.Dir)
 		}
@@ -237,11 +196,6 @@ func Create(opts Options) (Preset, error) {
 			continue // keep an existing README / .gitignore
 		}
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil { // #nosec G306 -- project source file with no secrets (those live in HYDRO_* variables); the service account may differ from the author
-			return Preset{}, err
-		}
-	}
-	if opts.Starter != "" {
-		if err := copyStarter(opts.Starter, filepath.Join(opts.Dir, "frontend")); err != nil {
 			return Preset{}, err
 		}
 	}
