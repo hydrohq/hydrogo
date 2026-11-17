@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/adminstudio"
@@ -214,15 +213,9 @@ func (a *serveApp) serverConfig(routes []router.Route) (server.Config, error) {
 		AnomalyBypassPaths:   cfg.Security.AnomalyBypassPaths,
 		CSRFExemptPaths:      append(append(append(commerceCSRFExemptPaths(modules, cfg.Commerce), paymentsCSRFExemptPaths(modules, cfg.Payments)...), shippingCSRFExemptPaths(modules, cfg.Carriers)...), "/api/v1/public/onboard", "/api/v1/public/waitlist", "/api/v1/webhooks/shopier", "/api/payments/shopier/callback", "/api/v1/payments/shopier/callback"),
 		CSRFSkipCookieFor: func(r *http.Request) bool {
-			// Skip CSRF cookie for public storefront pages so Cloudflare / CDN edge caches can cache them.
+			// Skip CSRF cookie for public static/informational endpoints so caches can cache them.
 			p := r.URL.Path
-			return p == "/" || p == "/showcase" || p == "/demo" ||
-				strings.HasPrefix(p, "/urun/") || strings.HasPrefix(p, "/products/") ||
-				strings.HasPrefix(p, "/kategori/") || strings.HasPrefix(p, "/collections/") ||
-				strings.HasPrefix(p, "/hakkimizda") || strings.HasPrefix(p, "/about") ||
-				strings.HasPrefix(p, "/iletisim") || strings.HasPrefix(p, "/contact") ||
-				strings.HasPrefix(p, "/siparis-takip") || strings.HasPrefix(p, "/order-tracking") ||
-				strings.HasPrefix(p, "/storefront/") || p == "/robots.txt" || p == "/sitemap.xml" || p == "/llms.txt"
+			return p == "/" || p == "/welcome" || p == "/robots.txt" || p == "/sitemap.xml" || p == "/llms.txt" || p == "/healthz"
 		},
 		OnSecurityAnomaly: func(r *http.Request, rule string) {
 			if authHTTP.Audit != nil {
