@@ -101,3 +101,4 @@ scratch*.py
 config.production.yaml
 /e2e/test-results-journeys/
 hydro_new
+internal/storefront/dist/assets/
