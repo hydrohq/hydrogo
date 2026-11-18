@@ -341,3 +341,26 @@ func TestExternalStorefront_SingleBinaryStaticSPA(t *testing.T) {
 		t.Fatalf("expected fallback index.html, got %s", rr.Body.String())
 	}
 }
+
+func TestExternalStorefront_ServesEmbeddedFallback(t *testing.T) {
+	cfg := config.ExternalStorefrontConfig{
+		Enabled:   true,
+		StaticDir: "/nonexistent/static/path",
+		Upstream:  "", // Pure embedded single binary mode
+	}
+
+	es, err := NewExternalStorefront(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewExternalStorefront: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	es.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 from embedded dist, got %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "hydro storefront") {
+		t.Fatalf("expected embedded content, got %s", rr.Body.String())
+	}
+}

@@ -148,7 +148,7 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 // ServeHTTP handles storefront requests: static files are served directly with
 // ultra-low latency and caching; dynamic page requests are proxied to Upstream.
 func (s *ExternalStorefront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if s.staticDir != "" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+	if s.staticDir != "" && dirExists(s.staticDir) && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 		if s.tryServeStatic(w, r) {
 			return
 		}
@@ -162,7 +162,12 @@ func (s *ExternalStorefront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	} else if (r.Method == http.MethodGet || r.Method == http.MethodHead) && (s.proxy == nil || strings.TrimSpace(s.cfg.Upstream) == "") {
+		if s.tryServeEmbedded(w, r) {
+			return
+		}
 	}
+
 	// Missing files under /_app/ or /assets/ are missing static bundles. Return 404 immediately.
 	if strings.HasPrefix(r.URL.Path, "/_app/") || strings.HasPrefix(r.URL.Path, "/assets/") {
 		http.NotFound(w, r)
@@ -173,6 +178,69 @@ func (s *ExternalStorefront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.NotFound(w, r)
+}
+
+func dirExists(path string) bool {
+	stat, err := os.Stat(path)
+	return err == nil && stat.IsDir()
+}
+
+func (s *ExternalStorefront) tryServeEmbedded(w http.ResponseWriter, r *http.Request) bool {
+	sub, err := EmbeddedDist()
+	if err != nil {
+		return false
+	}
+	urlPath := r.URL.Path
+	if !strings.HasPrefix(urlPath, "/") {
+		urlPath = "/" + urlPath
+	}
+	cleaned := path.Clean(urlPath)
+	rel := strings.TrimPrefix(cleaned, "/")
+	if rel == "" || rel == "." {
+		rel = "index.html"
+	}
+
+	f, err := sub.Open(rel)
+	if err != nil {
+		if !strings.HasPrefix(cleaned, "/_app/") && !strings.HasPrefix(cleaned, "/assets/") {
+			idx, err := sub.Open("index.html")
+			if err == nil {
+				defer idx.Close()
+				if stat, err := idx.Stat(); err == nil {
+					if rseeker, ok := idx.(io.ReadSeeker); ok {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Header().Set("Cache-Control", "no-cache")
+						http.ServeContent(w, r, "index.html", stat.ModTime(), rseeker)
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil || stat.IsDir() {
+		return false
+	}
+
+	rseeker, ok := f.(io.ReadSeeker)
+	if !ok {
+		return false
+	}
+
+	s.setMimeType(w, rel)
+	if strings.HasPrefix(cleaned, "/_app/immutable/") || strings.HasPrefix(cleaned, "/assets/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else if strings.HasSuffix(rel, ".html") {
+		w.Header().Set("Cache-Control", "no-cache")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+	}
+
+	http.ServeContent(w, r, stat.Name(), stat.ModTime(), rseeker)
+	return true
 }
 
 func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Request) bool {
