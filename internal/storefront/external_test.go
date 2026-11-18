@@ -282,3 +282,62 @@ func TestExternalStorefront_ForwardsProtoAndSetsFlushInterval(t *testing.T) {
 		t.Fatalf("status=%d proto=%q host=%q", rec.Code, seenProto, seenHost)
 	}
 }
+
+func TestExternalStorefront_SingleBinaryStaticSPA(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Write index.html
+	indexHTML := "<html><body><h1>Kiziroglu Storefront</h1></body></html>"
+	if err := os.WriteFile(filepath.Join(tempDir, "index.html"), []byte(indexHTML), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write an asset
+	assetsDir := filepath.Join(tempDir, "assets")
+	_ = os.MkdirAll(assetsDir, 0o755)
+	_ = os.WriteFile(filepath.Join(assetsDir, "app.js"), []byte("console.log('hi');"), 0o644)
+
+	cfg := config.ExternalStorefrontConfig{
+		Enabled:   true,
+		StaticDir: tempDir,
+		Upstream:  "", // Pure static / single-binary mode
+	}
+
+	es, err := NewExternalStorefront(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewExternalStorefront: %v", err)
+	}
+
+	// 1. Root "/" must serve index.html
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	es.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for /, got %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Kiziroglu Storefront") {
+		t.Fatalf("expected index.html content, got %s", rr.Body.String())
+	}
+
+	// 2. Asset "/assets/app.js" must serve JS file
+	req = httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
+	rr = httptest.NewRecorder()
+	es.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for asset, got %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "console.log") {
+		t.Fatalf("expected asset content, got %s", rr.Body.String())
+	}
+
+	// 3. SPA Route "/kategori/kars-peynirleri" must fallback to index.html
+	req = httptest.NewRequest(http.MethodGet, "/kategori/kars-peynirleri", nil)
+	rr = httptest.NewRecorder()
+	es.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 for SPA route, got %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "Kiziroglu Storefront") {
+		t.Fatalf("expected fallback index.html, got %s", rr.Body.String())
+	}
+}
