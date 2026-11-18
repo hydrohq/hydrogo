@@ -46,18 +46,23 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 	}
 
 	upstreamStr := strings.TrimSpace(cfg.Upstream)
+	es := &ExternalStorefront{
+		cfg:       cfg,
+		logger:    logger,
+		staticDir: cfg.StaticDir,
+	}
+
+	// Pure static / single-binary mode: when no upstream or command is specified and a static directory is provided
+	if upstreamStr == "" && strings.TrimSpace(cfg.Command) == "" && cfg.StaticDir != "" {
+		return es, nil
+	}
+
 	if upstreamStr == "" {
 		if port, ok := cfg.Env["PORT"]; ok && port != "" {
 			upstreamStr = "http://127.0.0.1:" + port
 		} else {
 			upstreamStr = "http://127.0.0.1:3000"
 		}
-	}
-
-	es := &ExternalStorefront{
-		cfg:       cfg,
-		logger:    logger,
-		staticDir: cfg.StaticDir,
 	}
 
 	var transport *http.Transport
@@ -147,13 +152,27 @@ func (s *ExternalStorefront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if s.tryServeStatic(w, r) {
 			return
 		}
+		// If no upstream proxy is configured, serve index.html for SPA page routes
+		if s.proxy == nil || strings.TrimSpace(s.cfg.Upstream) == "" {
+			if !strings.HasPrefix(r.URL.Path, "/_app/") && !strings.HasPrefix(r.URL.Path, "/assets/") {
+				indexPath := filepath.Join(s.staticDir, "index.html")
+				if stat, err := os.Stat(indexPath); err == nil && !stat.IsDir() {
+					s.serveFile(w, r, indexPath, stat)
+					return
+				}
+			}
+		}
 	}
-	// Missing files under /_app/ are missing static bundles. Return 404 immediately.
-	if strings.HasPrefix(r.URL.Path, "/_app/") {
+	// Missing files under /_app/ or /assets/ are missing static bundles. Return 404 immediately.
+	if strings.HasPrefix(r.URL.Path, "/_app/") || strings.HasPrefix(r.URL.Path, "/assets/") {
 		http.NotFound(w, r)
 		return
 	}
-	s.proxy.ServeHTTP(w, r)
+	if s.proxy != nil && strings.TrimSpace(s.cfg.Upstream) != "" {
+		s.proxy.ServeHTTP(w, r)
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Request) bool {
@@ -163,6 +182,11 @@ func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Reque
 	}
 	cleaned := path.Clean(urlPath)
 	if cleaned == "/" || cleaned == "." {
+		indexPath := filepath.Join(s.staticDir, "index.html")
+		if stat, err := os.Stat(indexPath); err == nil && !stat.IsDir() {
+			s.serveFile(w, r, indexPath, stat)
+			return true
+		}
 		return false
 	}
 
@@ -175,12 +199,28 @@ func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Reque
 	}
 
 	stat, err := os.Stat(diskPath)
-	if err != nil || stat.IsDir() {
+	if err != nil {
+		return false
+	}
+	if stat.IsDir() {
+		indexPath := filepath.Join(diskPath, "index.html")
+		if subStat, err := os.Stat(indexPath); err == nil && !subStat.IsDir() {
+			s.serveFile(w, r, indexPath, subStat)
+			return true
+		}
 		return false
 	}
 
-	if strings.HasPrefix(cleaned, "/_app/immutable/") {
+	s.serveFile(w, r, diskPath, stat)
+	return true
+}
+
+func (s *ExternalStorefront) serveFile(w http.ResponseWriter, r *http.Request, diskPath string, stat os.FileInfo) {
+	cleaned := path.Clean(r.URL.Path)
+	if strings.HasPrefix(cleaned, "/_app/immutable/") || strings.HasPrefix(cleaned, "/assets/") {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else if strings.HasSuffix(diskPath, ".html") {
+		w.Header().Set("Cache-Control", "no-cache")
 	} else {
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 	}
@@ -197,7 +237,7 @@ func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Reque
 				w.Header().Set("Content-Encoding", "br")
 				w.Header().Set("Vary", "Accept-Encoding")
 				http.ServeContent(w, r, filepath.Base(diskPath), brStat.ModTime(), brFile)
-				return true
+				return
 			}
 		}
 	}
@@ -213,13 +253,13 @@ func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Reque
 				w.Header().Set("Content-Encoding", "gzip")
 				w.Header().Set("Vary", "Accept-Encoding")
 				http.ServeContent(w, r, filepath.Base(diskPath), gzStat.ModTime(), gzFile)
-				return true
+				return
 			}
 		}
 	}
 
+	s.setMimeType(w, diskPath)
 	http.ServeFile(w, r, diskPath)
-	return true
 }
 
 func (s *ExternalStorefront) setMimeType(w http.ResponseWriter, filePath string) {
