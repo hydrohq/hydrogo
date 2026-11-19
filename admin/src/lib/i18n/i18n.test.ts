@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { en } from './en';
 import { tr } from './tr';
 import { interpolate, isLocale, pickUserChoice, resolveLocale } from './index.svelte';
@@ -32,7 +32,13 @@ describe('admin i18n', () => {
     expect(resolveLocale('tr', 'en')).toBe('tr');
     expect(resolveLocale(null, 'tr')).toBe('tr');
     expect(resolveLocale('xx', 'tr')).toBe('tr');
+    // The last fallback is the browser's language; pin it so the test does not
+    // depend on the machine's locale (e.g. tr-TR on a Turkish dev machine).
+    vi.stubGlobal('navigator', { language: 'en-US' });
     expect(resolveLocale(null, 'xx')).toBe('en');
+    vi.stubGlobal('navigator', { language: 'tr-TR' });
+    expect(resolveLocale(null, 'xx')).toBe('tr');
+    vi.unstubAllGlobals();
   });
 
   it('prefers the server-saved language over the browser copy', () => {
