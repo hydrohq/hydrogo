@@ -20,9 +20,11 @@ describe('SectionCards', () => {
     // Act
     render(SectionCards, { props });
 
-    // Assert
-    expect(screen.getByText('12,345')).toBeTruthy();
-    expect(screen.getByText('98,765')).toBeTruthy();
+    // Assert: the component formats with the browser's default locale, so mirror
+    // it here instead of hard-coding en-US grouping ("12,345" fails on tr-TR).
+    const fmt = (v: number) => v.toLocaleString();
+    expect(screen.getByText(fmt(12345))).toBeTruthy();
+    expect(screen.getByText(fmt(98765))).toBeTruthy();
     expect(screen.getByText('42ms')).toBeTruthy();
   });
 
