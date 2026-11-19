@@ -224,7 +224,7 @@ func TestReadManifestRejectsOversizedFile(t *testing.T) {
 }
 
 func TestRestoreToStagingRequiresQuarantineControls(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -261,7 +261,7 @@ func TestRestoreToStagingRejectsEmptyPaths(t *testing.T) {
 }
 
 func TestRestoreToStagingPreservesRetainedMedia(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	db, err := sql.Open("sqlite", filepath.Join(root, "source.sqlite"))
 	if err != nil {
 		t.Fatal(err)

@@ -46,7 +46,7 @@ func TestSQLiteSQLAdapterReplayIsIdempotentForPagesAndMedia(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO media_assets (id,storage_key,original_filename,mime_type,size_bytes,width,height,visibility,status,created_at,updated_at) VALUES ('erase-media','erase/key','x.png','image/png',1,0,0,'private','ready','2026-01-01','2026-01-01')`); err != nil {
 		t.Fatal(err)
 	}
-	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	log, err := New(filepath.Join(tempDirReal(t), "erasure.jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}

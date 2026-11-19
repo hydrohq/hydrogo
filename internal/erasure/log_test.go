@@ -10,7 +10,7 @@ import (
 )
 
 func TestReplayRetriesFromCheckpointAfterFailure(t *testing.T) {
-	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	log, err := New(filepath.Join(tempDirReal(t), "erasure.jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +46,20 @@ func TestReplayRetriesFromCheckpointAfterFailure(t *testing.T) {
 	}
 }
 
+// tempDirReal returns t.TempDir resolved to its real filesystem location so
+// tests pass on platforms whose default temp path traverses a symlink
+// (macOS: /var -> /private/var) without weakening the symlink guards.
+func tempDirReal(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temp dir: %v", err)
+	}
+	return dir
+}
+
 func TestLogAppendIsDurableIdempotentAndDetectsTampering(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "erasure.jsonl")
+	path := filepath.Join(tempDirReal(t), "erasure.jsonl")
 	log, err := New(path)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +104,7 @@ func TestLogAppendIsDurableIdempotentAndDetectsTampering(t *testing.T) {
 }
 
 func TestNewRejectsSymlinkedLogPath(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	target := filepath.Join(root, "target.jsonl")
 	if err := os.WriteFile(target, nil, 0o600); err != nil {
 		t.Fatal(err)
@@ -107,7 +119,7 @@ func TestNewRejectsSymlinkedLogPath(t *testing.T) {
 }
 
 func TestNewRejectsSymlinkedLogParent(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	target := filepath.Join(root, "target-dir")
 	if err := os.Mkdir(target, 0o750); err != nil {
 		t.Fatal(err)
@@ -122,7 +134,7 @@ func TestNewRejectsSymlinkedLogParent(t *testing.T) {
 }
 
 func TestNewRejectsNestedSymlinkedLogParent(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	target := filepath.Join(root, "target-dir")
 	if err := os.MkdirAll(filepath.Join(target, "nested"), 0o750); err != nil {
 		t.Fatal(err)
@@ -137,7 +149,7 @@ func TestNewRejectsNestedSymlinkedLogParent(t *testing.T) {
 }
 
 func TestLogRejectsSymlinkReplacementAfterOpen(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	path := filepath.Join(root, "erasure.jsonl")
 	log, err := New(path)
 	if err != nil {
@@ -162,7 +174,7 @@ func TestLogRejectsSymlinkReplacementAfterOpen(t *testing.T) {
 }
 
 func TestReplayNormalizesNilContext(t *testing.T) {
-	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	log, err := New(filepath.Join(tempDirReal(t), "erasure.jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +187,7 @@ func TestReplayNormalizesNilContext(t *testing.T) {
 }
 
 func TestReplayFromCheckpointRequiresHashAnchor(t *testing.T) {
-	log, err := New(filepath.Join(t.TempDir(), "erasure.jsonl"))
+	log, err := New(filepath.Join(tempDirReal(t), "erasure.jsonl"))
 	if err != nil {
 		t.Fatal(err)
 	}

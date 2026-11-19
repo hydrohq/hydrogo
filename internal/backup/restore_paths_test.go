@@ -6,8 +6,20 @@ import (
 	"testing"
 )
 
+// tempDirReal returns t.TempDir resolved to its real filesystem location so
+// tests pass on platforms whose default temp path traverses a symlink
+// (macOS: /var -> /private/var) without weakening the symlink guards.
+func tempDirReal(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temp dir: %v", err)
+	}
+	return dir
+}
+
 func TestValidateRestorePathsRejectsNestedDestination(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	for _, destination := range []string{filepath.Join(root, "staging"), root} {
 		if err := validateRestorePaths(root, destination); err == nil {
 			t.Fatalf("destination %q was accepted", destination)
@@ -20,7 +32,7 @@ func TestValidateRestorePathsRejectsNestedDestination(t *testing.T) {
 }
 
 func TestValidateRestorePathsRejectsSymlinkRoots(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	source := filepath.Join(root, "source")
 	if err := os.Mkdir(source, 0o750); err != nil {
 		t.Fatal(err)
@@ -35,7 +47,7 @@ func TestValidateRestorePathsRejectsSymlinkRoots(t *testing.T) {
 }
 
 func TestValidateRestorePathsAllowsSiblingWithSharedPrefix(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "snapshot")
+	root := filepath.Join(tempDirReal(t), "snapshot")
 	destination := filepath.Join(filepath.Dir(root), "snapshot-copy")
 	if err := validateRestorePaths(root, destination); err != nil {
 		t.Fatalf("sibling destination rejected: %v", err)
@@ -43,7 +55,7 @@ func TestValidateRestorePathsAllowsSiblingWithSharedPrefix(t *testing.T) {
 }
 
 func TestValidateRestorePathsRejectsSymlinkedDestinationParent(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	source := filepath.Join(root, "source")
 	if err := os.Mkdir(source, 0o750); err != nil {
 		t.Fatal(err)

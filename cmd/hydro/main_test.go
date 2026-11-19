@@ -834,8 +834,20 @@ func TestRunReleaseVerify(t *testing.T) {
 	}
 }
 
+// tempDirReal returns t.TempDir resolved to its real filesystem location so
+// tests pass on platforms whose default temp path traverses a symlink
+// (macOS: /var -> /private/var) without weakening the backup path guards.
+func tempDirReal(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temp dir: %v", err)
+	}
+	return dir
+}
+
 func TestRunBackupAndRestoreGates(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	dbPath := filepath.Join(root, "hydro.sqlite")
 	mediaDir := filepath.Join(root, "media")
 	snapshot := filepath.Join(root, "snapshot")
@@ -883,7 +895,7 @@ func TestRunBackupAndRestoreGates(t *testing.T) {
 }
 
 func TestRunPortableExportImportRequiresExplicitConfirmation(t *testing.T) {
-	root := t.TempDir()
+	root := tempDirReal(t)
 	dbPath := filepath.Join(root, "hydro.sqlite")
 	documentPath := filepath.Join(root, "portable.json")
 	var stdout, stderr bytes.Buffer
