@@ -5,7 +5,6 @@ go 1.27.0
 toolchain go1.27.4
 
 require (
-	github.com/GeliverApp/geliver-go v1.2.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/andybalholm/brotli v1.3.0
 	github.com/deepteams/webp v1.2.9

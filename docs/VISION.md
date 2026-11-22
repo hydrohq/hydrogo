@@ -71,7 +71,7 @@ Today's backend ecosystem leaves digital agencies, SaaS startups, and AI-assiste
 ## 4. What We Stopped Building (Disciplined Scope)
 
 To maintain architectural focus, HydroGo has intentionally stopped the following:
-* **No Domestic/Regional Couriers or Gateways in Core**: Specific shipping providers (e.g. Yurtiçi Kargo) and local payment gateways (e.g. PayTR) are decoupled into modular starter packages. Core binary maintains only generic provider interfaces.
+* **No Domestic/Regional Couriers or Gateways in Core**: Specific shipping providers and local payment gateways are decoupled into separately distributed add-on modules. Core binary maintains only generic provider interfaces.
 * **No Superficial AI Buzzwords**: We do not inject superficial vector wrappers or marketing fluff into the core. Our AI focus is strictly on **making HydroGo the most reliable, deterministic, agent-operable backend engine in existence**.
 * **No Feature Sprawl Without Architectural Parity**: No new domain modules will be added until dynamic collections achieve complete performance and RLS parity with static relational modules.
 

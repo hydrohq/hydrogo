@@ -15,13 +15,11 @@
 | [0011](0011-generated-role-permission-tests.md) | Generate per-role permission tests from content types | Accepted (Phases 1-2); Proposed (Phase 3) |
 | [0012](0012-commerce-catalog-as-content-types.md) | Commerce catalog as content types, not a new engine feature | Accepted (Phase 1 of 4) |
 | [0013](0013-commerce-cart-checkout-module.md) | `modules/commerce` for stock, cart, checkout and orders | Accepted (Phase 2 of 4) |
-| [0014](0014-commerce-paytr-provider.md) | PayTR as a `commerce.PaymentProvider` | Accepted (Phase 3 of 4) |
 | [0015](0015-commerce-starter.md) | `examples/commerce-starter` | Accepted (Phase 4 of 4) |
 | [0016](0016-commerce-starter-catalog-sections.md) | Commerce starter catalog sections (category pages, search, galleries) | Accepted |
 | [0017](0017-commerce-tax-shipping-discounts-currencies.md) | Tax, shipping, discount codes and display currencies | Accepted |
 | [0018](0018-commerce-reconciliation.md) | Commerce reconciliation and drift alerting | Accepted |
 | [0019](0019-commerce-order-notifications-and-member-login.md) | Order notifications and storefront member login | Accepted |
-| [0020](0020-commerce-shipping-provider.md) | Generic `ShippingProvider`, Yurtiçi Kargo first | Accepted |
 | [0021](0021-commerce-admin-orders-and-payment-scope.md) | Admin order screen, order district, and parking payment/carrier verification | Accepted |
 | [0022](0022-audit-remediation.md) | 2026-10-24 audit remediation | Accepted |
 | [0023](0023-frontend-toolchain-bump-and-sveltekit-3-blocker.md) | Admin toolchain bump; SvelteKit 3 blocked by an env-folding regression | Accepted |
@@ -34,8 +32,6 @@
 | [0030](0030-ai-workspace-copilot-and-boutique-factory.md) | AI Workspace Copilot & 60-Second Boutique Store Factory | Accepted |
 | [0031](0031-ai-generation-and-prompt-registry.md) | AI Generation Engine, Prompt Registry, and Section-Based Storefront | Accepted |
 | [0032](0032-fail-closed-rls-and-zero-dependency-memory-engine.md) | Fail-Closed PostgreSQL RLS, Zero-Dependency In-Memory Engine, and Storefront Resilience | Accepted |
-| [0033](0033-payments-module.md) | Decoupled payments module with PayTR and Iyzico integrations | Accepted |
-| [0034](0034-shipping-module.md) | Decoupled shipping module with Yurtiçi and Geliver integrations | Accepted |
 | [0035](0035-framework-like-application-engine-vision.md) | Realigning HydroGo as a Framework-like Go CMS & Application Engine | Superseded|
 
 Write a record only when a change moves a module boundary, changes a public

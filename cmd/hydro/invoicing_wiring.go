@@ -12,7 +12,6 @@ import (
 	"github.com/hydrohq/hydrogo/internal/collections"
 	"github.com/hydrohq/hydrogo/internal/tenant"
 	"github.com/hydrohq/hydrogo/modules/commerce"
-	"github.com/hydrohq/hydrogo/modules/invoicing/bizimhesap"
 )
 
 var registeredInvoiceProvider commerce.InvoiceProvider
@@ -26,18 +25,7 @@ func (a *serveApp) commerceInvoiceProvider() commerce.InvoiceProvider {
 	if registeredInvoiceProvider != nil {
 		return registeredInvoiceProvider
 	}
-	cfg := a.cfg.Invoicing.BizimHesap
-	if !a.modules["commerce"] || !cfg.Enabled() {
-		return nil
-	}
-	return bizimhesap.Provider{
-		Config: bizimhesap.Config{
-			FirmID:      cfg.FirmID,
-			EndpointURL: cfg.EndpointURL,
-			APIKey:      cfg.APIKey,
-			Token:       cfg.Token,
-		},
-	}
+	return a.configuredInvoiceProvider()
 }
 
 type collectionInvoiceCustomers struct {
