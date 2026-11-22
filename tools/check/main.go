@@ -46,6 +46,7 @@ func main() {
 		}},
 		{name: "code shape (HTML in Go strings, file size)", args: []string{"go", "run", "./tools/codeguard"}},
 		{name: "migrations", args: []string{"go", "run", "./tools/migrationguard", "-root", "migrations"}},
+		{name: "code map is current", args: []string{"go", "run", "./tools/codegraph", "-check"}},
 		{name: "module boundaries", args: []string{"go", "run", "./tools/moduleguard", "-root", "modules", "-allow", "modules/api", "-dependencies", "modules/dependencies.json",
 			"-deny-modules-root", "internal",
 		}},
