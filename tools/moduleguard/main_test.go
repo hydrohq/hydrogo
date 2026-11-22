@@ -14,10 +14,10 @@ func TestCheckModulesRequiresDeclaredDirectDependencies(t *testing.T) {
 	})
 	a, b := filepath.ToSlash(filepath.Join(root, "a")), filepath.ToSlash(filepath.Join(root, "b"))
 
-	if violations, err := checkModules(root, nil, map[string]map[string]bool{a: {b: true}}); err != nil || len(violations) != 0 {
+	if violations, err := checkModules(root, nil, map[string]map[string]bool{a: {b: true}}, nil); err != nil || len(violations) != 0 {
 		t.Fatalf("declared dependency violations=%v err=%v", violations, err)
 	}
-	violations, err := checkModules(root, nil, map[string]map[string]bool{})
+	violations, err := checkModules(root, nil, map[string]map[string]bool{}, nil)
 	if err != nil || len(violations) != 1 || !strings.Contains(violations[0], "undeclared module dependency") {
 		t.Fatalf("undeclared dependency violations=%v err=%v", violations, err)
 	}
@@ -30,7 +30,7 @@ func TestCheckModulesRejectsDependencyCycles(t *testing.T) {
 	})
 	a, b := filepath.ToSlash(filepath.Join(root, "a")), filepath.ToSlash(filepath.Join(root, "b"))
 	dependencies := map[string]map[string]bool{a: {b: true}, b: {a: true}}
-	violations, err := checkModules(root, nil, dependencies)
+	violations, err := checkModules(root, nil, dependencies, nil)
 	if err != nil || len(violations) != 1 || !strings.Contains(violations[0], "dependency cycle") {
 		t.Fatalf("cycle violations=%v err=%v", violations, err)
 	}
@@ -85,5 +85,21 @@ func TestCheckNoModuleImportsHonoursExceptionsAndFlagsStaleOnes(t *testing.T) {
 	}
 	if len(violations) != 1 || !strings.Contains(violations[0], "no longer imports a module") {
 		t.Fatalf("a stale exception (the import was fixed) must be flagged so it gets removed, got %v", violations)
+	}
+}
+
+func TestOptionalModulesMayBeAbsent(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "modules")
+	if err := os.MkdirAll(filepath.Join(root, "commerce"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	deps := map[string]map[string]bool{"modules/payments": {"modules/commerce": true}}
+	got, err := checkModules(root, nil, deps, nil)
+	if err != nil || len(got) == 0 {
+		t.Fatalf("a declared module that is missing must fail without -optional, got %v err=%v", got, err)
+	}
+	got, err = checkModules(root, nil, deps, map[string]bool{"modules/payments": true})
+	if err != nil || len(got) != 0 {
+		t.Fatalf("an optional module may be absent, got %v err=%v", got, err)
 	}
 }
