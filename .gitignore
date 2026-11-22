@@ -103,3 +103,6 @@ config.production.yaml
 hydro_new
 internal/storefront/dist/assets/
 internal/storefront/dist/catalog/
+
+# built binary of ./tools/check (go build ./tools/check); never commit it
+/check
