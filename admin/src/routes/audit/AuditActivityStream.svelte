@@ -189,7 +189,7 @@
           disabled={offset === 0}
           onclick={() => onPageChange(Math.max(0, offset - limit))}
         >
-          {t('audit.previous')}
+          {t('common.previous')}
         </button>
         <button
           type="button"
@@ -197,7 +197,7 @@
           disabled={offset + limit >= total}
           onclick={() => onPageChange(offset + limit)}
         >
-          {t('audit.next')}
+          {t('common.next')}
         </button>
       </div>
     </div>

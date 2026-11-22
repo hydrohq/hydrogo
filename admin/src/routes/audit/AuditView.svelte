@@ -6,7 +6,6 @@
   import { api } from '$lib/api/client';
   import { schema } from '$lib/stores/schema.svelte';
   import type { ApiResponse } from '$lib/api/types';
-  import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
   import AuditActivityStream from './AuditActivityStream.svelte';
