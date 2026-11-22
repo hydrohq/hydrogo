@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HydroGo code graph</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--muted:#6b6b6b;--line:#e3e3e3;--panel:#f7f7f5}
+@media(prefers-color-scheme:dark){:root{--bg:#141414;--fg:#ececec;--muted:#9a9a9a;--line:#2a2a2a;--panel:#1b1b1b}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--fg);display:grid;grid-template-columns:1fr 320px;height:100vh}
+canvas{width:100%;height:100%;display:block}aside{border-left:1px solid var(--line);background:var(--panel);padding:16px;overflow:auto}
+h1{font-size:16px;margin:0 0 4px}small,.muted{color:var(--muted)}input[type=search]{width:100%;padding:8px;margin:12px 0;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+label{display:flex;gap:8px;align-items:center;margin:4px 0;cursor:pointer}.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+ul{padding-left:18px;margin:4px 0}li{cursor:pointer}li:hover{text-decoration:underline}code{font-size:12px}
+@media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:60vh 1fr}aside{border-left:0;border-top:1px solid var(--line)}}
+</style></head><body>
+<canvas id="c"></canvas>
+<aside><h1>HydroGo code graph</h1><small id="count"></small>
+<input id="q" type="search" placeholder="Search packages"><div id="layers"></div><hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
+<div id="info" class="muted">Click a package to see what it imports and what imports it. Edges point from the importer to the imported package.</div></aside>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const G=JSON.parse(document.getElementById('data').textContent);
+const palette=['#2563eb','#16a34a','#d97706','#9333ea','#dc2626','#0891b2','#65a30d','#db2777','#4b5563'];
+const layers=[...new Set(G.nodes.map(n=>n.layer))].sort();const color=l=>palette[layers.indexOf(l)%palette.length];
+const byId=new Map(G.nodes.map(n=>[n.id,n]));const on=new Set(layers);let sel=null,hover=null,query='';
+const cv=document.getElementById('c'),cx=cv.getContext('2d');let W=0,H=0,dpr=window.devicePixelRatio||1;
+function resize(){W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;cx.setTransform(dpr,0,0,dpr,0,0);draw()}
+G.nodes.forEach((n,i)=>{const a=i/G.nodes.length*6.283;n.x=Math.cos(a)*220+layers.indexOf(n.layer)*30;n.y=Math.sin(a)*220;n.vx=n.vy=0;n.r=4+Math.sqrt(n.fan_in)*2.2});
+const edges=[];G.nodes.forEach(n=>n.imports.forEach(t=>byId.has(t)&&edges.push([n,byId.get(t)])));
+for(let it=0;it<500;it++){const cool=1-it/500;
+ for(let i=0;i<G.nodes.length;i++)for(let j=i+1;j<G.nodes.length;j++){const a=G.nodes[i],b=G.nodes[j];let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01,f=1800/d2*cool;const d=Math.sqrt(d2);a.vx+=dx/d*f;a.vy+=dy/d*f;b.vx-=dx/d*f;b.vy-=dy/d*f}
+ edges.forEach(([a,b])=>{const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)+0.01,f=(d-70)*0.004*cool;a.vx+=dx/d*f;a.vy+=dy/d*f;b.vx-=dx/d*f;b.vy-=dy/d*f});
+ G.nodes.forEach(n=>{n.vx-=n.x*0.002;n.vy-=n.y*0.002;n.x+=n.vx*0.6;n.y+=n.vy*0.6;n.vx*=0.7;n.vy*=0.7})}
+let scale=1,ox=0,oy=0;function fit(){let mx=1;G.nodes.forEach(n=>mx=Math.max(mx,Math.abs(n.x),Math.abs(n.y)));scale=Math.min(W,H)/2/(mx+30)}
+const sx=x=>W/2+ox+x*scale,sy=y=>H/2+oy+y*scale;
+function vis(n){return on.has(n.layer)}function match(n){return !query||n.id.toLowerCase().includes(query)||(n.doc||'').toLowerCase().includes(query)}
+function related(n){return sel&&(n===sel||sel.imports.includes(n.id)||sel.imported_by.includes(n.id))}
+function draw(){cx.clearRect(0,0,W,H);const st=getComputedStyle(document.body);const fg=st.color;
+ edges.forEach(([a,b])=>{if(!vis(a)||!vis(b))return;const hot=sel&&(a===sel||b===sel);cx.strokeStyle=hot?color(a.layer):'rgba(128,128,128,0.18)';cx.lineWidth=hot?1.6:0.6;cx.beginPath();cx.moveTo(sx(a.x),sy(a.y));cx.lineTo(sx(b.x),sy(b.y));cx.stroke()});
+ G.nodes.forEach(n=>{if(!vis(n))return;const dim=(sel&&!related(n))||!match(n);cx.globalAlpha=dim?0.18:1;cx.fillStyle=color(n.layer);cx.beginPath();cx.arc(sx(n.x),sy(n.y),n.r*Math.max(scale,0.6),0,6.283);cx.fill();
+  if(n===sel||n===hover||(query&&match(n))||n.fan_in>=12){cx.fillStyle=fg;cx.font='11px system-ui';cx.fillText(n.id,sx(n.x)+n.r*scale+3,sy(n.y)+3)}});cx.globalAlpha=1}
+function pick(e){const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;let best=null,bd=1e9;G.nodes.forEach(n=>{if(!vis(n))return;const d=Math.hypot(sx(n.x)-mx,sy(n.y)-my);if(d<Math.max(8,n.r*scale+3)&&d<bd){best=n;bd=d}});return best}
+cv.addEventListener('mousemove',e=>{const n=pick(e);if(n!==hover){hover=n;cv.style.cursor=n?'pointer':'default';draw()}});
+cv.addEventListener('click',e=>{select(pick(e))});
+function list(title,ids){return '<b>'+title+' ('+ids.length+')</b><ul>'+ids.map(i=>'<li data-id="'+i+'"><code>'+i+'</code></li>').join('')+'</ul>'}
+function select(n){sel=n;const el=document.getElementById('info');if(!n){el.innerHTML='Click a package.';draw();return}
+ el.innerHTML='<b><code>'+n.id+'</code></b><br><span class="muted">'+n.layer+' · '+n.files+' files · '+n.lines+' lines</span><p>'+(n.doc||'<span class="muted">(no package comment)</span>')+'</p>'+list('Imports',n.imports)+list('Imported by',n.imported_by);
+ el.querySelectorAll('li').forEach(li=>li.onclick=()=>select(byId.get(li.dataset.id)));draw()}
+document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
+const lay=document.getElementById('layers');layers.forEach(l=>{const c=G.nodes.filter(n=>n.layer===l).length;const el=document.createElement('label');el.innerHTML='<input type="checkbox" checked> <span class="dot" style="background:'+color(l)+'"></span>'+l+' <span class="muted">'+c+'</span>';el.firstChild.onchange=e=>{e.target.checked?on.add(l):on.delete(l);draw()};lay.appendChild(el)});
+document.getElementById('count').textContent=G.nodes.length+' packages · '+edges.length+' imports';
+window.addEventListener('resize',()=>{resize();fit();draw()});resize();fit();draw();
+</script></body></html>
