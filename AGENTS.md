@@ -25,6 +25,8 @@ done if either step failed.
 
 ## Where things go
 
+New to the code? Start with [`docs/architecture/CODEMAP.md`](docs/architecture/CODEMAP.md): the layers, the most imported packages and a one-line purpose for every package. `docs/architecture/codegraph.html` is the same map as an interactive graph. After you change imports, run `make codemap` (the check fails when the map is stale).
+
 | You are adding… | Put it in |
 |---|---|
 | A simple content type (FAQ, team, events, …) | one YAML file in `content-types/` — no Go, no Svelte. The admin screens and `/api/v1/content/<id>` come from the schema. See `content-types/faq.yaml` and `internal/contenttypes/definition.go` for the field kinds |
@@ -141,6 +143,7 @@ go run ./tools/check       # everything configured as CI checks -- run it yourse
 go run ./tools/check -e2e   # also the browser journeys (needs `npx playwright install chromium`)
 SMOKE_DIALECT=postgres HYDRO_TEST_POSTGRES_URL=... go test -tags smoke ./tests/smoke   # the same smoke tests on PostgreSQL (or mysql + HYDRO_TEST_MYSQL_URL)
 go run ./tools/check -audit # also scan Go/npm dependencies for known vulnerabilities (needs network; configured to run weekly in CI, but see above)
+go run ./tools/codegraph   # regenerate docs/architecture (code map + interactive graph); `-check` fails when stale (or: make codemap)
 go test ./modules/news/... # one Go package
 npm --prefix admin test    # admin unit tests
 ```

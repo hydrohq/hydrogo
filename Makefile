@@ -39,6 +39,10 @@ test:
 check:
 	$(GO) run ./tools/check
 
+# Regenerate docs/architecture (code map and interactive graph) after changing imports.
+codemap:
+	$(GO) run ./tools/codegraph
+
 bench:
 	$(GO) run ./tools/bench
 
