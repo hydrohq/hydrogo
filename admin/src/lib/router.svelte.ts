@@ -1,3 +1,5 @@
+const BASE_PREFIX = (import.meta.env.BASE_URL || '/admin/').replace(/\/+$/, '') || '/admin';
+
 class Router {
   currentPath = $state(typeof window !== 'undefined' ? this.extractSubpath() : '/');
   currentSearch = $state(typeof window !== 'undefined' ? window.location.search : '');
@@ -41,7 +43,7 @@ class Router {
       const queryIdx = hashSub.indexOf('?');
       const cleanPath = queryIdx === -1 ? hashSub : hashSub.slice(0, queryIdx);
       const cleanSearch = queryIdx === -1 ? '' : hashSub.slice(queryIdx);
-      const newUrl = `/admin${cleanPath === '/' ? '' : cleanPath}${cleanSearch}`;
+      const newUrl = `${BASE_PREFIX}${cleanPath === '/' ? '' : cleanPath}${cleanSearch}`;
       try {
         window.history.replaceState(null, '', newUrl);
       } catch {}
@@ -49,9 +51,9 @@ class Router {
     }
 
     let pathname = window.location.pathname;
-    if (pathname.startsWith('/admin/')) {
-      pathname = pathname.slice('/admin'.length);
-    } else if (pathname === '/admin') {
+    if (pathname.startsWith(`${BASE_PREFIX}/`)) {
+      pathname = pathname.slice(BASE_PREFIX.length);
+    } else if (pathname === BASE_PREFIX) {
       pathname = '/';
     }
     while (pathname.startsWith('/#') || pathname.startsWith('#')) {
@@ -73,7 +75,7 @@ class Router {
       window.addEventListener('popstate', () => {
         if (this.isDirty) {
           try {
-            window.history.pushState(null, '', `/admin${this.currentPath}${this.currentSearch}`);
+            window.history.pushState(null, '', `${BASE_PREFIX}${this.currentPath}${this.currentSearch}`);
           } catch {}
           this.pendingTarget = this.extractSubpath();
           this.showUnsavedModal = true;
@@ -105,9 +107,10 @@ class Router {
         if (href.startsWith('#/')) {
           e.preventDefault();
           this.navigate(href.slice(1));
-        } else if (href.startsWith('/admin')) {
+        } else if (href.startsWith(BASE_PREFIX) || href.startsWith('/admin')) {
           e.preventDefault();
-          let targetSub = href.slice('/admin'.length);
+          const matchedPrefix = href.startsWith(BASE_PREFIX) ? BASE_PREFIX : '/admin';
+          let targetSub = href.slice(matchedPrefix.length);
           while (targetSub.startsWith('/#') || targetSub.startsWith('#')) {
             targetSub = targetSub.replace(/^\/?#/, '');
           }
@@ -149,7 +152,9 @@ class Router {
 
   navigate(to: string, force = false) {
     let target = to;
-    if (target.startsWith('/admin')) {
+    if (target.startsWith(BASE_PREFIX)) {
+      target = target.slice(BASE_PREFIX.length);
+    } else if (target.startsWith('/admin')) {
       target = target.slice('/admin'.length);
     }
     while (target.startsWith('/#') || target.startsWith('#')) {
@@ -170,7 +175,7 @@ class Router {
     const searchOnly = queryIndex === -1 ? '' : target.slice(queryIndex);
 
     if (typeof window !== 'undefined') {
-      const fullUrl = `/admin${pathOnly === '/' ? '' : pathOnly}${searchOnly}`;
+      const fullUrl = `${BASE_PREFIX}${pathOnly === '/' ? '' : pathOnly}${searchOnly}`;
       try {
         if (typeof window.history !== 'undefined' && typeof window.history.pushState === 'function') {
           if (window.location.pathname + window.location.search !== fullUrl) {

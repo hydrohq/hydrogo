@@ -38,7 +38,13 @@ export function getCsrfToken(): string | null {
   return csrfToken;
 }
 
+const BASE_PREFIX = (import.meta.env.BASE_URL || '/admin/').replace(/\/+$/, '') || '/admin';
+
 export async function fetchCsrfToken(): Promise<string> {
+  if (import.meta.env.VITE_DEMO_MODE === 'true') {
+    csrfToken = 'hyd_demo_csrf_token';
+    return csrfToken;
+  }
   try {
     const res = await fetch('/csrf-token', {
       method: 'GET',
@@ -65,6 +71,25 @@ interface RequestOptions extends RequestInit {
 }
 
 export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  if (import.meta.env.VITE_DEMO_MODE === 'true') {
+    const { handleDemoRequest } = await import('$lib/demo/mockApi');
+    try {
+      return await handleDemoRequest<T>(endpoint, options);
+    } catch (err: any) {
+      if (err?.status === 401 && !options.noAuthRedirect && typeof window !== 'undefined') {
+        if (!isSignedOutPage(window.location.pathname, window.location.hash)) {
+          const currentPath = window.location.pathname + window.location.search + window.location.hash;
+          window.location.href = `${BASE_PREFIX}/login?redirect=${encodeURIComponent(currentPath)}`;
+        }
+      }
+      throw new ApiClientError({
+        code: err?.code || `HTTP_${err?.status || 400}`,
+        message: err?.message || 'Demo request failed',
+        request_id: 'demo_req',
+      }, err?.status || 400);
+    }
+  }
+
   const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
   const url = new URL(endpoint.startsWith('/') ? endpoint : `/${endpoint}`, base);
 
@@ -110,7 +135,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
     // signed out (sign-in, set a password from an e-mailed link), redirect.
     if (!isSignedOutPage(window.location.pathname, window.location.hash)) {
       const currentPath = window.location.pathname + window.location.search + window.location.hash;
-      const redirectUrl = `/admin/login?redirect=${encodeURIComponent(currentPath)}`;
+      const redirectUrl = `${BASE_PREFIX}/login?redirect=${encodeURIComponent(currentPath)}`;
       window.location.href = redirectUrl;
     }
   }

@@ -25,12 +25,15 @@ function copyToAdminUi() {
   };
 }
 
+const base = process.env.VITE_ADMIN_BASE || '/admin/';
+const isDemo = process.env.VITE_DEMO_MODE === 'true';
+
 export default defineConfig({
-  base: '/admin/',
+  base,
   plugins: [
     svelte(),
     tailwindcss(),
-    copyToAdminUi(),
+    ...(isDemo ? [] : [copyToAdminUi()]),
   ],
   resolve: {
     alias: {

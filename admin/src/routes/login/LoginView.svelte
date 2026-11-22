@@ -7,15 +7,16 @@
   import Input from '$lib/components/ui/Input.svelte';
   import BrandLogo from '$lib/components/ui/BrandLogo.svelte';
 
-  let email = $state('');
-  let password = $state('');
+  let email = $state(import.meta.env.VITE_DEMO_MODE === 'true' ? 'admin@example.com' : '');
+  let password = $state(import.meta.env.VITE_DEMO_MODE === 'true' ? 'DemoPass-2026-Strong!' : '');
   let showPassword = $state(false);
   let code = $state('');
   let mfaRequired = $state(false);
   let loading = $state(false);
   let errorMessage = $state<string | null>(null);
   const isDemoHost = $derived(
-    typeof window !== 'undefined' && (window.location.hostname === 'demo.hydrogo.dev' || router.query.get('demo') === '1')
+    import.meta.env.VITE_DEMO_MODE === 'true' ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'demo.hydrogo.dev' || router.query.get('demo') === '1'))
   );
   // Shown after the page that sets a new password sends people back here.
   const notice = $derived(
