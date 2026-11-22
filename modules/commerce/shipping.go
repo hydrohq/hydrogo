@@ -56,7 +56,7 @@ type ShipmentInput struct {
 	Parcel         ParcelSpec
 }
 
-// ShipmentOffer is one carrier quote returned by an aggregator such as Geliver.
+// ShipmentOffer is one carrier quote returned by a shipping aggregator.
 type ShipmentOffer struct {
 	ID                string `json:"id"`
 	Carrier           string `json:"carrier"`
