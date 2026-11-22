@@ -90,11 +90,11 @@ func TestUnknownPreset(t *testing.T) {
 	}
 }
 
-func TestStarterRejectionDirectsToCloud(t *testing.T) {
+func TestStarterIsRejected(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "site")
 	_, err := Create(Options{Dir: dir, Preset: "blog", Starter: "sveltekit"})
-	if err == nil || !strings.Contains(err.Error(), "Hydro Cloud") {
-		t.Fatalf("expected starter rejection redirecting to Hydro Cloud, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "frontend starters") {
+		t.Fatalf("expected frontend starter rejection, got %v", err)
 	}
 }
 

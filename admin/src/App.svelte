@@ -34,7 +34,7 @@
   const loadSystemView = () => import('./routes/system/SystemView.svelte');
   const loadAccountView = () => import('./routes/account/AccountView.svelte');
   const loadContentTypesView = () => import('./routes/contenttypes/ContentTypesView.svelte');
-  // Hosted-platform screens ship with the private HydroCloud overlay; without it the globs are empty
+  // Hosted-platform screens are optional extensions; without them the globs are empty
   // and those routes fall through to the generic module screen.
   const cloudViews = import.meta.glob<{ default: unknown }>('./routes/{orchestrator,console,subscription}/*View.svelte');
   const cloudLoader = (name: string) => cloudViews[`./routes/${name}/${name[0].toUpperCase()}${name.slice(1)}View.svelte`];
