@@ -1,6 +1,6 @@
 # 0035: Realigning HydroGo as a Framework-like Go CMS & Application Engine
 
-- Status: Superseded by [0036](0036-open-core-boundary-and-external-gateway.md)
+- Status: Superseded
 - Date: 2026-11-16
 
 ## Context

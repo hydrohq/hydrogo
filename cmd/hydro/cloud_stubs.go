@@ -8,10 +8,10 @@ import (
 	"github.com/hydrohq/hydrogo/internal/router"
 )
 
-// The hosted multi-tenant platform (HydroCloud: orchestrator, public onboarding, billing,
-// superadmin console) is not part of this repository. Builds without the `hydrocloud` tag get
-// these stand-ins: the routes answer 404 and the platform features report themselves as off.
-// The real implementations live in the private HydroCloud overlay, built with `-tags hydrocloud`.
+// Hosted multi-tenant platform features (orchestrator, public onboarding, billing, superadmin
+// console) are optional extension points and are not part of this repository. Builds without
+// the `hydrocloud` tag get these stand-ins: the routes answer 404 and the features report
+// themselves as off.
 
 func (a *serveApp) superadminRoutes() []router.Route { return nil }
 func (a *serveApp) billingRoutes() []router.Route    { return nil }
