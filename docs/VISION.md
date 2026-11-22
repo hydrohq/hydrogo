@@ -2,7 +2,7 @@
 
 ## 1. Executive Vision: What HydroGo Is Becoming
 
-HydroGo is evolving from a localized, editorial-only headless CMS into the **premier open-source, multi-tenant application backend and AI-agent control plane**, delivered as a **single, self-contained Go binary** with an embedded **Svelte 5 admin panel**.
+HydroGo is evolving from a localized, editorial-only headless CMS into the **premier source-available, multi-tenant application backend and AI-agent control plane**, delivered as a **single, self-contained Go binary** with an embedded **Svelte 5 admin panel**.
 
 We are building the missing bridge between **PocketBase's single-file developer simplicity** and **Supabase's enterprise PostgreSQL scalability**, with a first-class focus on **AI coding agent automation (Claude Code, Cursor, Codex)** and **multi-tenant digital agency infrastructure**.
 
