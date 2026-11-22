@@ -121,12 +121,6 @@
         </svg>
       </button>
 
-      {#if schema.locales.length > 1}
-        <span class="inline-flex items-center px-2 py-0.5 rounded-md border border-border text-[10px] font-mono uppercase font-medium text-muted-foreground bg-muted/30">
-          {schema.defaultLocale}
-        </span>
-      {/if}
-
       {#if schema.siteUrl}
       <a
         href={schema.siteUrl}
@@ -190,11 +184,6 @@
           </svg>
         {/if}
       </button>
-
-      <div class="flex items-center gap-1.5 pl-2 border-l border-border select-none">
-        <span class="inline-flex size-2 rounded-full bg-emerald-500"></span>
-        <span class="text-[11px] text-muted-foreground font-medium hidden md:inline">{t('header.online')}</span>
-      </div>
     </div>
   </div>
 </header>

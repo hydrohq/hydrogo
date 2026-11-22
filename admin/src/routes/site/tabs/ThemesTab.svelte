@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { t } from '$lib/i18n/index.svelte';
+  import { t, i18n } from '$lib/i18n/index.svelte';
   import { api } from '$lib/api/client';
   import type { ApiResponse } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
@@ -188,6 +188,88 @@
     settings['storefront.theme_tokens'] = '';
   }
 
+  function buildStarterPayload(block: ThemeBlockBlueprint, isTr: boolean): Record<string, any> {
+    switch (block.type) {
+      case 'hero':
+        return {
+          title: isTr ? (activeThemeId === 'boutique' ? 'Yeni Sezon Koleksiyonu' : 'Hızlı ve Güvenli Altyapı') : (block.props?.title || block.label),
+          subtitle: isTr ? 'İhtiyacınıza göre özelleştirilebilir vitrin bölümü.' : (block.props?.subtitle || ''),
+          button_label: isTr ? 'Keşfet' : 'Explore',
+          button_href: '/products',
+        };
+      case 'cta':
+        return {
+          title: isTr ? 'Hemen Başlayın' : 'Ready to get started?',
+          subtitle: isTr ? 'Dakikalar içinde yayına alın.' : 'Launch in minutes.',
+          button_label: isTr ? 'İletişime Geç' : 'Get Started',
+          button_href: '/contact',
+        };
+      case 'carousel':
+        return {
+          slides: [
+            { src: '/media/lookbook-1.jpg', alt: isTr ? 'Vitrin Görseli 1' : 'Showcase 1', caption: isTr ? 'Öne Çıkan Seri' : 'Featured Drop' },
+            { src: '/media/lookbook-2.jpg', alt: isTr ? 'Vitrin Görseli 2' : 'Showcase 2', caption: isTr ? 'Yeni Gelenler' : 'New Arrivals' },
+          ],
+        };
+      case 'testimonials':
+        return {
+          items: [
+            { name: 'Ayşe Y.', quote: isTr ? 'Kurulum ve sipariş akışı son derece akıcı.' : 'Fast storefront and seamless checkout experience.' },
+          ],
+        };
+      case 'trust_bar':
+        return {
+          items: [
+            { title: isTr ? 'Aynı Gün Kargo' : 'Same-Day Dispatch', subtitle: isTr ? '16:00 öncesi siparişlerde' : 'Orders before 4 PM' },
+            { title: isTr ? '256-Bit Güvenli Ödeme' : 'Secure Checkout', subtitle: isTr ? '3D Secure & iyzico/PayTR' : 'Encrypted payments' },
+          ],
+        };
+      case 'feature_list':
+        return {
+          items: [
+            { title: isTr ? 'Tek Binary Performans' : 'Single Binary Speed', text: isTr ? 'Milisaniyeler içinde yanıt.' : 'Sub-millisecond API responses.' },
+          ],
+        };
+      case 'stats':
+        return {
+          stats: [
+            { number_value: 99.9, suffix: '%', label: isTr ? 'Çalışma Süresi' : 'Uptime' },
+            { number_value: 5, suffix: 'dk', label: isTr ? 'Kurulum Süresi' : 'Setup Time' },
+          ],
+        };
+      case 'pricing_table':
+        return {
+          items: [
+            { name: 'Starter', price_cents: 4900, currency: isTr ? 'TRY' : 'USD', features: [isTr ? 'Sınırsız İçerik' : 'Unlimited Content'] },
+          ],
+        };
+      case 'faq':
+        return {
+          items: [
+            { question: isTr ? 'Kargo süresi ne kadar?' : 'How fast is shipping?', answer: isTr ? '1-3 iş günü içinde teslim edilir.' : 'Delivered within 1-3 business days.' },
+          ],
+        };
+      case 'columns':
+        return {
+          count: 2,
+          columns: [
+            { title: isTr ? 'Editörden Seçmeler' : 'Editor Picks', text: isTr ? 'Haftanın öne çıkan yazıları.' : 'Top stories this week.', button_url: '/news' },
+            { title: isTr ? 'Analizler' : 'Deep Dives', text: isTr ? 'Detaylı teknik dosyalar.' : 'In-depth reports.', button_url: '/news' },
+          ],
+        };
+      case 'callout':
+        return {
+          title: isTr ? 'Editör Notu' : 'Editorial Note',
+          text: isTr ? 'Haftalık bültenimize abone olun.' : 'Subscribe to our weekly dispatch.',
+          tone: 'info',
+        };
+      case 'contact_cta':
+        return { phone: '+90 212 000 00 00', whatsapp: '+90 555 000 00 00' };
+      default:
+        return { title: block.props?.title || block.label, subtitle: block.props?.subtitle || '' };
+    }
+  }
+
   async function applyThemeBlocksToHomePage() {
     applyingBlocks = true;
     blocksStatus = null;
@@ -195,11 +277,16 @@
       const listRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/pages', { params: { limit: 50 } });
       const pagesList = Array.isArray(listRes?.data) ? listRes.data : [];
       const home = pagesList.find((p) => p.slug === 'home' || p.slug === '/' || p.slug === '') ?? pagesList[0];
-      const nextBlocks = activeManifest.default_blocks.map((b) => ({
-        type: b.type,
-        props: { title: b.props?.title || b.label, subtitle: b.props?.subtitle || '', ...(b.props || {}) },
-        items: [],
-      }));
+      const isTr = (home?.locale || i18n.locale) === 'tr';
+      const nextBlocks = activeManifest.default_blocks.map((b) => {
+        const starter = buildStarterPayload(b, isTr);
+        return {
+          type: b.type,
+          payload: starter,
+          props: starter,
+          ...(Array.isArray(starter.items) ? { items: starter.items } : {}),
+        };
+      });
       if (home?.id) {
         await api.put(`/api/v1/admin/pages/${home.id}`, {
           ...home,

@@ -28,6 +28,7 @@ describe('Header', () => {
 
     // Assert
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeTruthy();
+    expect(screen.queryByText('Online')).toBeNull();
   });
 
   it('shows a module title derived from the path', () => {
