@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/i18n/index.svelte';
+  import { schema } from '$lib/stores/schema.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Input from '$lib/components/ui/Input.svelte';
   import MediaUrlInput from '$lib/components/media/MediaUrlInput.svelte';
@@ -70,7 +71,8 @@
     </div>
   </div>
 
-  <!-- Storefront & Campaign Controls -->
+  <!-- Storefront & Campaign Controls (only shown when commerce is enabled) -->
+  {#if schema.modules?.commerce === true}
   <div class="space-y-4 rounded-lg border border-border p-4">
     <div>
       <p class="text-xs font-semibold text-foreground">{t('site.storefront.title')}</p>
@@ -146,7 +148,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="sf-popup-code" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.popupCode')}</label>
-          <Input id="sf-popup-code" type="text" bind:value={settings['storefront.popup_code']} placeholder="HOSGELDIN10" maxlength={40} />
+          <Input id="sf-popup-code" type="text" bind:value={settings['storefront.popup_code']} placeholder="WELCOME10" maxlength={40} />
         </div>
         <div>
           <label for="sf-popup-pct" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.popupPercent')}</label>
@@ -155,6 +157,7 @@
       </div>
     </div>
   </div>
+  {/if}
 
   <!-- Admin Panel Branding -->
   <div class="space-y-3 rounded-lg border border-border p-4">
