@@ -87,7 +87,7 @@ func ExportSnapshot(ctx context.Context, db SQLExecutor, dialect string, tenantI
 
 		cols, err := rows.Columns()
 		if err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 
@@ -100,7 +100,7 @@ func ExportSnapshot(ctx context.Context, db SQLExecutor, dialect string, tenantI
 			}
 
 			if err := rows.Scan(valuePtrs...); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
 
@@ -114,7 +114,7 @@ func ExportSnapshot(ctx context.Context, db SQLExecutor, dialect string, tenantI
 			}
 			tableRows = append(tableRows, rowMap)
 		}
-		rows.Close()
+		_ = rows.Close()
 
 		if len(tableRows) > 0 {
 			count := int64(len(tableRows))

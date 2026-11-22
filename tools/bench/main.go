@@ -124,7 +124,7 @@ func startEphemeralServer() (string, string, string, func(), error) {
 
 	port, err := freePort()
 	if err != nil {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", "", "", nil, err
 	}
 
@@ -134,14 +134,14 @@ func startEphemeralServer() (string, string, string, func(), error) {
 	// Create directories
 	ctDir := filepath.Join(tempDir, "content-types")
 	dataDir := filepath.Join(tempDir, "data")
-	if err := os.MkdirAll(ctDir, 0755); err != nil {
+	if err := os.MkdirAll(ctDir, 0o750); err != nil {
 		return "", "", "", nil, err
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o750); err != nil {
 		return "", "", "", nil, err
 	}
 
-	if err := os.WriteFile(filepath.Join(ctDir, "articles.yaml"), []byte(articleSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(ctDir, "articles.yaml"), []byte(articleSchema), 0o600); err != nil {
 		return "", "", "", nil, err
 	}
 
@@ -162,26 +162,26 @@ security:
 `, port, host, filepath.Join(dataDir, "bench.sqlite"))
 
 	cfgPath := filepath.Join(tempDir, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0o600); err != nil {
 		return "", "", "", nil, err
 	}
 
 	// Build binary
 	binPath := filepath.Join(tempDir, "hydro")
-	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/hydro")
+	buildCmd := exec.Command("go", "build", "-o", binPath, "./cmd/hydro") // #nosec G204 -- benchmark builds local binary into temp dir
 	if out, err := buildCmd.CombinedOutput(); err != nil {
 		return "", "", "", nil, fmt.Errorf("build hydro: %w (%s)", err, string(out))
 	}
 
 	// Run migrations
-	migCmd := exec.Command(binPath, "migrate", "--config", cfgPath)
+	migCmd := exec.Command(binPath, "migrate", "--config", cfgPath) // #nosec G204 -- benchmark runs local binary we just built
 	migCmd.Dir = tempDir
 	if out, err := migCmd.CombinedOutput(); err != nil {
 		return "", "", "", nil, fmt.Errorf("migrate: %w (%s)", err, string(out))
 	}
 
 	// Create service account
-	saCmd := exec.Command(binPath, "service-account", "create",
+	saCmd := exec.Command(binPath, "service-account", "create", // #nosec G204 -- benchmark runs local binary we just built
 		"--name", "bench-runner",
 		"--permissions", "admin.content.read,admin.content.write",
 		"--expires-days", "30",
@@ -201,14 +201,14 @@ security:
 
 	// Start server
 	ctx, cancel := context.WithCancel(context.Background())
-	srvCmd := exec.CommandContext(ctx, binPath, "serve", "--config", cfgPath)
+	srvCmd := exec.CommandContext(ctx, binPath, "serve", "--config", cfgPath) // #nosec G204 -- benchmark runs local binary we just built
 	srvCmd.Dir = tempDir
 	srvCmd.Stdout = io.Discard
 	srvCmd.Stderr = io.Discard
 
 	if err := srvCmd.Start(); err != nil {
 		cancel()
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", "", "", nil, fmt.Errorf("start server: %w", err)
 	}
 
@@ -221,12 +221,12 @@ security:
 		req.Host = host
 		resp, err := client.Do(req)
 		if err == nil && resp.StatusCode == http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			up = true
 			break
 		}
 		if resp != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -234,7 +234,7 @@ security:
 	if !up {
 		cancel()
 		_ = srvCmd.Wait()
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", "", "", nil, fmt.Errorf("server failed to start on %s", serverURL)
 	}
 
@@ -288,10 +288,10 @@ func benchPublicReads(baseURL, hostHeader string, concurrency int, duration time
 					atomic.AddInt64(&errCount, 1)
 				} else if resp.StatusCode != http.StatusOK {
 					atomic.AddInt64(&errCount, 1)
-					resp.Body.Close()
+					_ = resp.Body.Close()
 				} else {
-					io.Copy(io.Discard, resp.Body)
-					resp.Body.Close()
+					_, _ = io.Copy(io.Discard, resp.Body)
+					_ = resp.Body.Close()
 					localLat = append(localLat, dur)
 					atomic.AddInt64(&totalReqs, 1)
 				}
@@ -369,10 +369,10 @@ func benchConcurrentWrites(baseURL, hostHeader, token string, concurrency int, d
 					atomic.AddInt64(&errCount, 1)
 				} else if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 					atomic.AddInt64(&errCount, 1)
-					resp.Body.Close()
+					_ = resp.Body.Close()
 				} else {
-					io.Copy(io.Discard, resp.Body)
-					resp.Body.Close()
+					_, _ = io.Copy(io.Discard, resp.Body)
+					_ = resp.Body.Close()
 					localLat = append(localLat, dur)
 					atomic.AddInt64(&totalReqs, 1)
 				}

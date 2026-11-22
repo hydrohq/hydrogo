@@ -111,7 +111,7 @@ func trackedFiles() ([]string, error) {
 func measure(files []string) (baseline, error) {
 	result := baseline{}
 	for _, name := range files {
-		data, err := os.ReadFile(name) // #nosec G304 -- developer tool reading the repository files it walked
+		data, err := os.ReadFile(name) // #nosec G304 -- name is a repository file path from filepath.WalkDir // #nosec G304 -- developer tool reading the repository files it walked
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +202,7 @@ func disabledTests() ([]string, error) {
 		if name == "" || strings.HasPrefix(name, "docs/") {
 			continue
 		}
-		data, err := os.ReadFile(name) // #nosec G304 -- developer tool reading the repository files it walked
+		data, err := os.ReadFile(name) // #nosec G304 -- name is a repository file path from filepath.WalkDir // #nosec G304 -- developer tool reading the repository files it walked
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +221,7 @@ func checkCoreVendorDecoupling(files []string) []string {
 		if !strings.HasPrefix(name, "modules/") && !strings.HasPrefix(name, "internal/") {
 			continue
 		}
-		data, err := os.ReadFile(name)
+		data, err := os.ReadFile(name) // #nosec G304 -- name is a repository file path from filepath.WalkDir
 		if err != nil {
 			continue
 		}

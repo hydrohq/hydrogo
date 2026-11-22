@@ -106,7 +106,7 @@ func main() {
 	for _, name := range names {
 		path := filepath.Join(outDir, name)
 		if *check {
-			if have, err := os.ReadFile(path); err != nil || !bytes.Equal(have, files[name]) {
+			if have, err := os.ReadFile(path); err != nil || !bytes.Equal(have, files[name]) { // #nosec G304 -- path is joined from fixed outDir and generated file map key
 				fmt.Fprintf(os.Stderr, "codegraph: %s is out of date; run `go run ./tools/codegraph`\n", path)
 				stale = true
 			}
