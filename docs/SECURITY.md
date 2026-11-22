@@ -32,8 +32,4 @@ whether an external provider must publish a coordinated fix.
 
 ## Scope and assumptions
 
-The threat model and deployment assumptions are maintained in
-the threat model in the repository history (`docs/archive/security/THREAT_MODEL.md` before it was removed). A contract test, local benchmark, or
-development-only configuration is not by itself a production security
-certification. Please identify the profile, database, storage provider, and
-deployment topology when reporting an operational security issue.
+A contract test, local benchmark, or development-only configuration is not by itself a production security certification. Please identify the profile, database, storage provider, and deployment topology when reporting an operational security issue.

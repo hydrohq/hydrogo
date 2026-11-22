@@ -31,11 +31,11 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
       <label for="b-name" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.company')}</label>
-      <Input id="b-name" type="text" bind:value={business.name} placeholder="BEYOND Leather" />
+      <Input id="b-name" type="text" bind:value={business.name} placeholder="Acme Studio" />
     </div>
     <div>
       <label for="b-legal" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.legal')}</label>
-      <Input id="b-legal" type="text" bind:value={business.legal_name} placeholder="BEYOND Deri Ürünleri Ltd. Şti." />
+      <Input id="b-legal" type="text" bind:value={business.legal_name} placeholder="Acme Studio Inc." />
     </div>
   </div>
 
@@ -69,7 +69,7 @@
     </div>
     <div>
       <label for="b-website" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.website')}</label>
-      <Input id="b-website" type="url" bind:value={business.website} placeholder="https://beyondleather.com" />
+      <Input id="b-website" type="url" bind:value={business.website} placeholder="https://example.com" />
     </div>
   </div>
 

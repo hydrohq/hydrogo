@@ -102,6 +102,7 @@ func (h Handler) Routes() []Route {
 		{Pattern: "DELETE /api/v1/commerce/cart/items/{id}", Handler: http.HandlerFunc(h.removeItem)},
 		{Pattern: "POST /api/v1/commerce/checkout", Handler: http.HandlerFunc(h.checkout)},
 		{Pattern: "GET /api/v1/commerce/stock/{variantID}", Handler: http.HandlerFunc(h.getStock)},
+		{Pattern: "GET /api/v1/commerce/stock", Handler: http.HandlerFunc(h.getStockBatch)},
 		{Pattern: "GET /api/v1/commerce/currencies", Handler: http.HandlerFunc(h.getCurrencies)},
 		{Pattern: "GET /api/v1/commerce/checkout-config", Handler: http.HandlerFunc(h.getCheckoutConfig)},
 		{Pattern: "GET /api/v1/commerce/orders/{id}", Handler: http.HandlerFunc(h.getOrder)},

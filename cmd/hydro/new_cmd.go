@@ -114,7 +114,10 @@ func newCommand(name string, args []string, stdin io.Reader, stdout, stderr io.W
 	} else {
 		fmt.Fprintln(stdout, "  hydro serve --config config.yaml")
 	}
-	fmt.Fprintln(stdout, "Then open http://127.0.0.1:8080/admin")
+	fmt.Fprintln(stdout, "Then open:")
+	fmt.Fprintln(stdout, "  Admin: http://127.0.0.1:8080/admin")
+	fmt.Fprintln(stdout, "  API:   http://127.0.0.1:8080/api/v1")
+	fmt.Fprintln(stdout, "  MCP:   hydro mcp --config config.yaml")
 	return nil
 }
 

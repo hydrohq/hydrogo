@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,6 +38,15 @@ type ExternalStorefront struct {
 	isUnixSocket bool
 	socketPath   string
 	staticDir    string
+}
+
+// staticCacheControl is the Cache-Control for plain static files (images, fonts...).
+func (s *ExternalStorefront) staticCacheControl() string {
+	secs := s.cfg.StaticCacheSeconds
+	if secs <= 0 {
+		secs = 3600
+	}
+	return "public, max-age=" + strconv.Itoa(secs)
 }
 
 // NewExternalStorefront creates an ExternalStorefront handler.
@@ -236,7 +246,7 @@ func (s *ExternalStorefront) tryServeEmbedded(w http.ResponseWriter, r *http.Req
 	} else if strings.HasSuffix(rel, ".html") {
 		w.Header().Set("Cache-Control", "no-cache")
 	} else {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", s.staticCacheControl())
 	}
 
 	http.ServeContent(w, r, stat.Name(), stat.ModTime(), rseeker)
@@ -290,7 +300,7 @@ func (s *ExternalStorefront) serveFile(w http.ResponseWriter, r *http.Request, d
 	} else if strings.HasSuffix(diskPath, ".html") {
 		w.Header().Set("Cache-Control", "no-cache")
 	} else {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", s.staticCacheControl())
 	}
 
 	acceptEncoding := r.Header.Get("Accept-Encoding")

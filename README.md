@@ -11,7 +11,35 @@ HydroGo is a self-contained, high-performance headless CMS and application engin
 
 Run it on SQLite with zero external dependencies, or connect to PostgreSQL or MySQL for distributed workloads.
 
-[Documentation](https://hydrogo.dev/docs) &bull; [Architecture Vision](docs/VISION.md)
+[Documentation](https://hydrogo.dev/docs) &bull; [Getting Started](docs/getting-started.md) &bull; [Architecture Vision](docs/VISION.md)
+
+---
+
+## Why HydroGo? (And How It Compares)
+
+Developers often ask why they should choose HydroGo over **PocketBase** or **Payload CMS**. Each solves a different problem:
+
+| | PocketBase | Payload CMS | **HydroGo** |
+|---|---|---|---|
+| **Core Identity** | Single-node SQLite BaaS | Node.js / Next.js CMS | **Multi-dialect CMS & AI-Native App Engine** |
+| **Database** | SQLite only | MongoDB / PostgreSQL (Node) | **SQLite WAL → PostgreSQL (RLS) → MySQL** |
+| **Admin Experience** | Developer-centric DB table UI | React/Next.js admin (requires build) | **Embedded Svelte 5 Studio** (drafts, revisions, focal crops, blocks) |
+| **AI & Agent Control** | External / manual integration | External / manual integration | **Built-in MCP server (`hydro mcp`), runtime schema API, `--json` CLI** |
+| **Runtime & Deploy** | Single Go binary | `node_modules` + JS build pipeline | **Single Go binary, zero-build publishing** |
+
+- **Start small, never get boxed in:** Begin with embedded SQLite WAL for zero-ops local dev, then switch to PostgreSQL with fail-closed Row-Level Security (RLS) or MySQL in `config.yaml` without rewriting your app.
+- **Built for both editors and AI agents:** Non-technical editors get a clean studio (Quiet Chrome, drafts, revisions, recycle bin, media focal crops), while AI coding agents (Cursor, Windsurf, Claude Code) get deterministic `--json` CLI commands, dry-run schema diffs, and a native MCP server.
+
+---
+
+## Three Ways People Use HydroGo
+
+1. **60-Second Headless Backend (`hydro new`):**
+   Scaffold a domain preset (`saas`, `blog`, `commerce`, `crm`, `corporate`, etc.), run `hydro serve`, and immediately manage content at `/admin` while your frontend consumes `/api/v1` and `/api/v1/openapi.json` — with zero rebuilds on publish.
+2. **AI-First Full-Stack Development (`hydro mcp`):**
+   Connect your coding assistant to `hydro mcp --config config.yaml`. The agent inspects your live schemas (`schema_get`), creates or updates `content-types/*.yaml` (or calls the runtime schema API without restarting the server), seeds data, and wires up [`@hydrogo/client`](packages/client).
+3. **Multi-Tenant Agencies & Production Systems:**
+   Run dozens of isolated client sites from one binary using host-based routing and PostgreSQL RLS, with transactional outbox delivery, tamper-evident SHA-256 audit chains (`hydro audit verify`), and `hydro doctor` self-healing diagnostics.
 
 ---
 
@@ -91,7 +119,7 @@ go build -o bin/hydro ./cmd/hydro
 
 ### 2. Scaffold a Project
 
-Use `hydro new` to initialize a new project with your chosen domain preset:
+Use `hydro new` (or `hydro init` in an existing directory) to initialize a project with a domain preset:
 
 ```bash
 hydro new mysite --preset saas --admin-email admin@example.com
@@ -99,14 +127,17 @@ cd mysite
 ```
 
 Available presets (`hydro new --list-presets`):
-- `minimal`: Bare headless core with system settings.
-- `blog`: Articles, categories, tags, and authors.
-- `boutique`: E-commerce catalog, product variants, and WhatsApp ordering.
-- `restaurant`: Menus, categories, opening hours, reservations, and reviews.
-- `saas`: Plans, pricing tiers, feature matrices, FAQs, and testimonials.
-- `news`: High-throughput journalism with editorial workflows and scheduled publishing.
-- `corporate`: Services, team directory, case studies, and lead intake.
-- `crm`: Customer accounts, interactions, deals, and stages.
+- `minimal`: Pages, media, and site settings only.
+- `blog`: News/blog posts, pages, media, comments, galleries, and FAQ.
+- `corporate`: Company site with pages, team, testimonials, and FAQ.
+- `docs`: Documentation site with pages, FAQ, and navigation.
+- `news` / `tr-news`: High-throughput journalism with homepage sections, masthead, columnists, polls, videos, and ads.
+- `saas`: SaaS landing & leads with features, pricing tiers, FAQs, waitlist, and settings.
+- `commerce`: Storefront catalog (categories, products, variants) plus cart, checkout, and orders.
+- `boutique`: Digital boutique & storefront with catalog, categories, mobile cart, and orders.
+- `restaurant`: Restaurant & QR digital menu with categories, items, and reservations.
+- `crm`: Customer accounts, contacts, deals, and activities (with audit request-body logging).
+- `erp-lite`: Light ERP back office (products, warehouses, accounts, sales orders, invoices, payments, tamper-evident audit chain).
 
 ### 3. Verify System Health
 
@@ -220,6 +251,7 @@ We welcome community contributions! Please review:
 
 ---
 
-## License
+## Community & License
 
-[PolyForm Shield License 1.0.0](LICENSE). Free to use, modify, and run for your own applications, sites, and stores. You may not offer HydroGo as a competing managed CMS product or hosted CMS service.
+- **Questions & Showcases:** Share what you are building or ask questions in [GitHub Discussions](https://github.com/hydrohq/hydrogo/discussions), or file bugs via [GitHub Issues](https://github.com/hydrohq/hydrogo/issues) (include `hydro version --json` and `hydro doctor` output for faster triage).
+- **License:** [PolyForm Shield License 1.0.0](LICENSE). Free to use, modify, and self-host for your own applications, websites, stores, and client projects. You may not offer HydroGo as a competing managed CMS product or hosted CMS service.

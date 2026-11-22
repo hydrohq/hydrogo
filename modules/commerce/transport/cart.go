@@ -113,3 +113,36 @@ func (h Handler) getStock(w http.ResponseWriter, r *http.Request) {
 	}
 	api.WriteData(w, http.StatusOK, map[string]any{"variant_id": stock.VariantID, "available": stock.Available}, nil)
 }
+
+// getStockBatch answers GET /stock?ids=a,b,c with {"data":{"stock":{id:available}}}
+// so a catalog page can learn every variant's availability in one request
+// instead of rendering "in stock" first and correcting it per variant later.
+// Unknown variants read as zero, exactly like getStock.
+func (h Handler) getStockBatch(w http.ResponseWriter, r *http.Request) {
+	const maxIDs = 200
+	seen := map[string]bool{}
+	out := map[string]int64{}
+	for _, id := range strings.Split(r.URL.Query().Get("ids"), ",") {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		if len(seen) >= maxIDs {
+			writeServiceError(w, r, commerce.ErrInvalidItem)
+			return
+		}
+		seen[id] = true
+		stock, err := h.Service.Stock(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, commerce.ErrItemNotFound) {
+				out[id] = 0
+				continue
+			}
+			writeServiceError(w, r, err)
+			return
+		}
+		out[id] = int64(stock.Available)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteData(w, http.StatusOK, map[string]any{"stock": out}, nil)
+}

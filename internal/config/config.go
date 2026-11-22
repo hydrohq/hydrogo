@@ -69,13 +69,17 @@ type StorefrontConfig struct {
 // directly with high performance caching and precompression, and proxies dynamic
 // SSR requests to Upstream. If Command is set, HydroGo also supervises the child process.
 type ExternalStorefrontConfig struct {
-	Enabled   bool              `yaml:"enabled"`
-	Command   string            `yaml:"command"`
-	Dir       string            `yaml:"dir"`
-	Upstream  string            `yaml:"upstream"`
-	StaticDir string            `yaml:"static_dir"`
-	EnvFile   string            `yaml:"env_file"`
-	Env       map[string]string `yaml:"env"`
+	Enabled   bool   `yaml:"enabled"`
+	Command   string `yaml:"command"`
+	Dir       string `yaml:"dir"`
+	Upstream  string `yaml:"upstream"`
+	StaticDir string `yaml:"static_dir"`
+	// StaticCacheSeconds is the browser cache lifetime for static files that are
+	// neither hashed assets (always immutable) nor HTML (always revalidated), e.g.
+	// product photos. 0 keeps the default of 3600.
+	StaticCacheSeconds int               `yaml:"static_cache_seconds"`
+	EnvFile            string            `yaml:"env_file"`
+	Env                map[string]string `yaml:"env"`
 }
 
 // Notifications configures operational chat alerts (a new commerce order,

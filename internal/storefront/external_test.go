@@ -230,7 +230,7 @@ func TestParseEnvFile(t *testing.T) {
 # Comment
 PORT=3100
 HOST="127.0.0.1"
-PUBLIC_NAME='BEYOND Luxury'
+PUBLIC_NAME='Acme Storefront'
 EMPTY=
 `
 	if err := os.WriteFile(tempFile, []byte(content), 0o644); err != nil {
@@ -248,8 +248,8 @@ EMPTY=
 	if env["HOST"] != "127.0.0.1" {
 		t.Errorf("expected HOST=127.0.0.1, got %q", env["HOST"])
 	}
-	if env["PUBLIC_NAME"] != "BEYOND Luxury" {
-		t.Errorf("expected PUBLIC_NAME='BEYOND Luxury', got %q", env["PUBLIC_NAME"])
+	if env["PUBLIC_NAME"] != "Acme Storefront" {
+		t.Errorf("expected PUBLIC_NAME='Acme Storefront', got %q", env["PUBLIC_NAME"])
 	}
 }
 
@@ -275,10 +275,10 @@ func TestExternalStorefront_ForwardsProtoAndSetsFlushInterval(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Host = "beyond.example"
+	req.Host = "store.example"
 	rec := httptest.NewRecorder()
 	es.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || seenProto != "http" || seenHost != "beyond.example" {
+	if rec.Code != http.StatusOK || seenProto != "http" || seenHost != "store.example" {
 		t.Fatalf("status=%d proto=%q host=%q", rec.Code, seenProto, seenHost)
 	}
 }
@@ -287,7 +287,7 @@ func TestExternalStorefront_SingleBinaryStaticSPA(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Write index.html
-	indexHTML := "<html><body><h1>Kiziroglu Storefront</h1></body></html>"
+	indexHTML := "<html><body><h1>Example Storefront</h1></body></html>"
 	if err := os.WriteFile(filepath.Join(tempDir, "index.html"), []byte(indexHTML), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestExternalStorefront_SingleBinaryStaticSPA(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200 for /, got %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "Kiziroglu Storefront") {
+	if !strings.Contains(rr.Body.String(), "Example Storefront") {
 		t.Fatalf("expected index.html content, got %s", rr.Body.String())
 	}
 
@@ -330,14 +330,14 @@ func TestExternalStorefront_SingleBinaryStaticSPA(t *testing.T) {
 		t.Fatalf("expected asset content, got %s", rr.Body.String())
 	}
 
-	// 3. SPA Route "/kategori/kars-peynirleri" must fallback to index.html
-	req = httptest.NewRequest(http.MethodGet, "/kategori/kars-peynirleri", nil)
+	// 3. SPA Route "/categories/example" must fallback to index.html
+	req = httptest.NewRequest(http.MethodGet, "/categories/example", nil)
 	rr = httptest.NewRecorder()
 	es.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200 for SPA route, got %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "Kiziroglu Storefront") {
+	if !strings.Contains(rr.Body.String(), "Example Storefront") {
 		t.Fatalf("expected fallback index.html, got %s", rr.Body.String())
 	}
 }

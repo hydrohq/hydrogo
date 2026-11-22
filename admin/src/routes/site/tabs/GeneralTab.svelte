@@ -20,11 +20,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label for="site-name" class="block text-xs font-medium text-foreground mb-1">{t('site.general.name')}</label>
-        <Input id="site-name" type="text" bind:value={settings['site.name']} placeholder="BEYOND Leather" />
+        <Input id="site-name" type="text" bind:value={settings['site.name']} placeholder="Acme Studio" />
       </div>
       <div>
         <label for="site-title" class="block text-xs font-medium text-foreground mb-1">{t('site.general.title')}</label>
-        <Input id="site-title" type="text" bind:value={settings['site.title']} placeholder="BEYOND Leather | Hakiki Deri Kemer" />
+        <Input id="site-title" type="text" bind:value={settings['site.title']} placeholder="Acme Studio | Modern Web Experiences" />
       </div>
     </div>
 
@@ -105,7 +105,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="sf-hero-eyebrow" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroEyebrow')}</label>
-          <Input id="sf-hero-eyebrow" type="text" bind:value={settings['storefront.hero_eyebrow']} placeholder="BEYOND Leather" />
+          <Input id="sf-hero-eyebrow" type="text" bind:value={settings['storefront.hero_eyebrow']} placeholder="Acme Studio" />
         </div>
         <div>
           <label for="sf-hero-title" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroTitle')}</label>

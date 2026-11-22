@@ -30,14 +30,12 @@ irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 | ie
 
 **Docker:** `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest` (mount your own `config.yaml` at `/app/config.yaml`; see [deployment](deployment.md)).
 
-While the repository is private, the `curl`/`irm` one-liners and `docker pull` cannot download anonymously. Sign in to GitHub and download the installer (`HydroGo-Setup-<version>-windows-<arch>.exe`) or the archive for your platform from the repository's **Releases** page instead; the scripts work unchanged once the repository is public.
-
 Check it: `hydro version`. Every download has a checksum in `SHA256SUMS`; the install scripts verify it.
 
 ## 2. Create a project
 
 ```bash
-hydro new mysite --preset blog --starter sveltekit --admin-email you@example.com
+hydro new mysite --preset blog --admin-email you@example.com
 cd mysite
 hydro serve --config config.yaml
 ```
@@ -51,11 +49,15 @@ Presets (`hydro new --list-presets`):
 | `minimal` | pages and media only | site settings, navigation |
 | `blog` | posts and pages | + comments, galleries, FAQ |
 | `corporate` | company site | + team, testimonials, FAQ |
-| `news` | news portal | + homepage sections, masthead, columnists, announcements, ads, polls, videos |
 | `docs` | documentation site | + FAQ |
-| `crm` | sales (no website: pages and news are off) | companies, contacts, deals, activities; `--starter crm` adds a sales panel |
-| `erp-lite` | light ERP back office (no website) | products, warehouses, accounts, sales orders and lines, invoices and lines, payments |
-| `commerce` | storefront: catalog, cart, checkout, orders | categories, products, variants; `--starter commerce` adds a storefront. See [commerce.md](commerce.md) |
+| `news` | news portal | + homepage sections, masthead, columnists, announcements, ads, polls, videos |
+| `tr-news` | regional Turkish news portal | same editorial modules as `news` with regional defaults |
+| `saas` | SaaS landing and leads | features, pricing tiers, FAQs, waitlist, settings |
+| `commerce` | storefront: catalog, cart, checkout, orders | categories, products, variants, product images. See [commerce.md](commerce.md) |
+| `boutique` | digital boutique & storefront | store settings, boutique categories, products, orders |
+| `restaurant` | restaurant & QR digital menu | site settings, menu categories, menu items, reservations |
+| `crm` | sales (no website: pages and news are off) | companies, contacts, deals, activities |
+| `erp-lite` | light ERP back office (no website) | products, warehouses, accounts, sales orders, invoices, payments, period closings |
 
 `hydro init` does the same in the current directory. Without `--admin-email`, `hydro new` only writes files and prints the next commands.
 
@@ -70,14 +72,13 @@ hydro serve --config config.yaml
 
 The admin gets screens at `/admin/content/recipes` and, with `public: true`, the API gets `/api/v1/content/recipes`. See [content types](content-types.md).
 
-## 4. Build the site
+## 4. Connect a frontend or AI assistant
 
-Use the API from any frontend. Two ready starting points:
+Consume the REST API, SSE streams, and OpenAPI schema (`/api/v1/openapi.json`) from any frontend or coding agent:
 
-- [`examples/sveltekit-starter`](../examples/sveltekit-starter): server-rendered SvelteKit site (SEO-friendly, no rebuild when content changes). `--starter sveltekit` copies it into `frontend/`; then `cd frontend && npm install && npm run dev`.
-- [`examples/crm-starter`](../examples/crm-starter): a sales panel (deal board, companies, contacts, activities) for `--preset crm` projects. `--starter crm` copies it in.
-- [`examples/commerce-starter`](../examples/commerce-starter): a storefront (catalog, cart, checkout, order history) for `--preset commerce` projects. `--starter commerce` copies it in.
-- [`@hydrogo/client`](../packages/client): typed fetch client for any JavaScript/TypeScript frontend.
+- [`@hydrogo/client`](../packages/client): typed TypeScript fetch client for any JavaScript/TypeScript frontend (SvelteKit, Next.js, Astro, React, Vue).
+- **AI Coding Agents (`hydro mcp`):** run `hydro mcp --config config.yaml` (or register it in `.cursor/mcp.json` / Claude Desktop) so your AI assistant can inspect schemas (`schema_get`), manage records, and verify audit logs directly.
+- [`examples/side-service`](../examples/side-service): reference daemon/side-service integration over the HydroGo API.
 
 Publishing is live immediately: the frontend reads the API on every request (or through a short cache you control). Nothing needs rebuilding when an editor clicks Publish.
 

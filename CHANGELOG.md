@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-22
+
+- **Open-source readiness & onboarding:** Updated `README.md` and `docs/getting-started.md` with clear PocketBase/Payload positioning, 3 onboarding scenarios, all 12 scaffold presets, `Licensor Line of Business` notice in `LICENSE`, and `API`/`MCP` hints in `hydro new`. Removed customer-specific placeholder strings from admin UI tabs and storefront tests.
+- **External storefront `static_cache_seconds`:** Added `storefront.static_cache_seconds` config option (default `3600`) for plain static assets served by `ExternalStorefront`.
+- **Commerce batch stock endpoint:** Added `GET /api/v1/commerce/stock?ids=a,b,c` for single-request catalog availability lookups.
+
 - **Config extensions for add-on modules** (`docs/decisions/0036-config-extensions-for-add-on-modules.md`): provider-specific settings (`payments:`, `carriers:`, `invoicing:`) are no longer part of core. Add-on modules register their own section with `config.RegisterExtension`; unknown sections are still rejected, so core without the module refuses them. Maintenance-mode bypass paths for add-on callbacks are registered with `server.AllowDuringMaintenance`.
 - **Fix: PostgreSQL RLS blocked the default single-tenant scope.** Policies now match `tenant_id = ''` when the tenant context is absent or empty, while continuing to isolate named tenants and reject writes into another scope.
 - **Fix: the admin media list always failed.** `GET /api/v1/admin/media` asked the store for a 500-row window while the store caps a list at 200, so every call answered 500 and the cause was never logged. The window is 200 now, and media request failures log their cause.
