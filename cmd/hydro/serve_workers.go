@@ -150,7 +150,7 @@ func (a *serveApp) startWorkers() {
 		a.spawn(func() {
 			runCommerceRefundReminder(ctx, a.commerceService(), a.commerceNotifier(), logger, stderr)
 		})
-		if cfg.Invoicing.AutoIssueOnPaid {
+		if a.invoiceAutoIssueOnPaid() {
 			if invoiceProvider := a.commerceInvoiceProvider(); invoiceProvider != nil {
 				a.spawn(func() { runCommerceInvoiceWorker(ctx, a, invoiceProvider, logger, stderr) })
 			}

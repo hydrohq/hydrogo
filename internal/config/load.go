@@ -18,8 +18,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if lookup == nil {
 		lookup = func(string) (string, bool) { return "", false }
 	}
-	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "collections"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ContentTypesDir: "content-types", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}, Commerce: Commerce{MaxPendingOrdersPerIP: 25, MaxLineQuantity: 100}, Payments: Payments{PayTR: PayTR{TimeoutLimit: 20}}}
+	result := Config{Profile: capacity.Compact, Modules: []string{"core", "auth", "members", "pages", "media", "site", "news", "collections"}, HTTP: HTTP{Address: "127.0.0.1:8080"}, Database: Database{Dialect: database.SQLite}, Media: Media{Dir: "data/media", MinFreeBytes: 50 << 20}, Backup: Backup{Prefix: "hydrogo", RetentionDays: 30, HourUTC: 3}, ContentTypesDir: "content-types", SEO: SEO{FontsDir: "public/fonts"}, Mail: Mail{Port: 587, StartTLS: true}, I18N: I18N{Enabled: false, DefaultLocale: "tr", Locales: []string{"tr"}}, Security: Security{EnableAnomalyFilter: true, PasswordResetTTL: "1h", InvitationTTL: "24h"}, Commerce: Commerce{MaxPendingOrdersPerIP: 25, MaxLineQuantity: 100}}
 	result.License.File = "hydro.lic"
+	result.Extensions = extensionDefaults()
 	if path != "" {
 		file, err := os.Open(path) // #nosec G304 -- the operator's config file path
 		if err != nil {
@@ -29,6 +30,9 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		decoder := yaml.NewDecoder(file)
 		decoder.KnownFields(true)
 		if err := decoder.Decode(&result); err != nil {
+			return Config{}, fmt.Errorf("decode config: %w", err)
+		}
+		if err := applyExtensionSections(&result); err != nil {
 			return Config{}, fmt.Errorf("decode config: %w", err)
 		}
 	}
@@ -401,47 +405,6 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 	if !result.Storefront.External.Enabled && (result.Storefront.External.Upstream != "" || result.Storefront.External.Command != "" || result.Storefront.External.StaticDir != "") {
 		result.Storefront.External.Enabled = true
 	}
-	if value, ok := lookup("HYDRO_CARRIERS_DEFAULT"); ok && strings.TrimSpace(value) != "" {
-		result.Carriers.Default = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_TOKEN"); ok && strings.TrimSpace(value) != "" {
-		result.Carriers.Geliver.Token = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_SENDER_ADDRESS_ID"); ok && strings.TrimSpace(value) != "" {
-		result.Carriers.Geliver.SenderAddressID = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_WEBHOOK_SECRET"); ok && strings.TrimSpace(value) != "" {
-		result.Carriers.Geliver.WebhookSecret = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_BASE_URL"); ok && strings.TrimSpace(value) != "" {
-		result.Carriers.Geliver.BaseURL = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_CARRIERS_GELIVER_TEST_MODE"); ok && strings.TrimSpace(value) != "" {
-		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
-		if err != nil {
-			return Config{}, fmt.Errorf("invalid HYDRO_CARRIERS_GELIVER_TEST_MODE: %w", err)
-		}
-		result.Carriers.Geliver.TestMode = parsed
-	}
-	if value, ok := lookup("HYDRO_INVOICING_AUTO_ISSUE_ON_PAID"); ok && strings.TrimSpace(value) != "" {
-		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
-		if err != nil {
-			return Config{}, fmt.Errorf("invalid HYDRO_INVOICING_AUTO_ISSUE_ON_PAID: %w", err)
-		}
-		result.Invoicing.AutoIssueOnPaid = parsed
-	}
-	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_FIRM_ID"); ok && strings.TrimSpace(value) != "" {
-		result.Invoicing.BizimHesap.FirmID = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_ENDPOINT_URL"); ok && strings.TrimSpace(value) != "" {
-		result.Invoicing.BizimHesap.EndpointURL = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_API_KEY"); ok && strings.TrimSpace(value) != "" {
-		result.Invoicing.BizimHesap.APIKey = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_INVOICING_BIZIMHESAP_TOKEN"); ok && strings.TrimSpace(value) != "" {
-		result.Invoicing.BizimHesap.Token = strings.TrimSpace(value)
-	}
 	if value, ok := lookup("HYDRO_SECURITY_PUBLIC_CONTENT_RATE_PER_MINUTE"); ok && strings.TrimSpace(value) != "" {
 		parsed, err := strconv.Atoi(strings.TrimSpace(value))
 		if err != nil {
@@ -456,27 +419,8 @@ func Load(path string, lookup LookupEnv, overrides Overrides) (Config, error) {
 		}
 		result.Commerce.MaxPendingOrdersPerIP = parsed
 	}
-	if value, ok := lookup("HYDRO_PAYMENTS_DEFAULT"); ok && strings.TrimSpace(value) != "" {
-		result.Payments.Default = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_IBAN"); ok && strings.TrimSpace(value) != "" {
-		result.Payments.Havale.IBAN = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_BANK_NAME"); ok && strings.TrimSpace(value) != "" {
-		result.Payments.Havale.BankName = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_ACCOUNT_HOLDER"); ok && strings.TrimSpace(value) != "" {
-		result.Payments.Havale.AccountHolder = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_WHATSAPP"); ok && strings.TrimSpace(value) != "" {
-		result.Payments.Havale.WhatsApp = strings.TrimSpace(value)
-	}
-	if value, ok := lookup("HYDRO_PAYMENTS_HAVALE_DISCOUNT_PERCENT"); ok && strings.TrimSpace(value) != "" {
-		parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
-		if err != nil {
-			return Config{}, fmt.Errorf("invalid HYDRO_PAYMENTS_HAVALE_DISCOUNT_PERCENT: %w", err)
-		}
-		result.Payments.Havale.DiscountPercent = parsed
+	if err := applyExtensionEnv(&result, lookup); err != nil {
+		return Config{}, err
 	}
 	dsnSources := 0
 	if result.Database.DSN != "" {

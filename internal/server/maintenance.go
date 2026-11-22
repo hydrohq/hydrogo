@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/adminstudio"
@@ -107,14 +108,31 @@ func maintenanceExempt(r *http.Request) bool {
 		strings.HasPrefix(path, "/.well-known/") ||
 		path == "/healthz" ||
 		path == "/readyz" ||
-		path == "/api/v1/site/maintenance" ||
-		path == "/api/v1/commerce/payments/paytr/callback" ||
-		path == "/api/v1/payments/iyzico/callback" ||
-		path == "/api/v1/payments/iyzico/webhook" ||
-		path == "/api/v1/commerce/shipping/geliver/webhook" {
+		path == "/api/v1/site/maintenance" {
 		return true
 	}
-	return false
+	return maintenanceBypassPath(path)
+}
+
+var (
+	maintenanceBypassMu    sync.RWMutex
+	maintenanceBypassPaths = map[string]bool{}
+)
+
+// AllowDuringMaintenance exempts exact request paths (for example payment gateway or carrier
+// callbacks an add-on module serves) from maintenance mode, so they keep being accepted.
+func AllowDuringMaintenance(paths ...string) {
+	maintenanceBypassMu.Lock()
+	defer maintenanceBypassMu.Unlock()
+	for _, p := range paths {
+		maintenanceBypassPaths[p] = true
+	}
+}
+
+func maintenanceBypassPath(path string) bool {
+	maintenanceBypassMu.RLock()
+	defer maintenanceBypassMu.RUnlock()
+	return maintenanceBypassPaths[path]
 }
 
 func maintenanceIPAllowed(r *http.Request, entries []*net.IPNet) bool {

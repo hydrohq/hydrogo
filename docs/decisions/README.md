@@ -33,6 +33,7 @@
 | [0031](0031-ai-generation-and-prompt-registry.md) | AI Generation Engine, Prompt Registry, and Section-Based Storefront | Accepted |
 | [0032](0032-fail-closed-rls-and-zero-dependency-memory-engine.md) | Fail-Closed PostgreSQL RLS, Zero-Dependency In-Memory Engine, and Storefront Resilience | Accepted |
 | [0035](0035-framework-like-application-engine-vision.md) | Realigning HydroGo as a Framework-like Go CMS & Application Engine | Superseded|
+| [0036](0036-config-extensions-for-add-on-modules.md) | Config extensions for add-on modules | Accepted |
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.
