@@ -222,7 +222,12 @@
       };
       await api.put('/api/v1/admin/site/settings', payload);
       await brandingStore.load();
-      if (isLocale(settings['admin.default_locale'])) i18n.setProjectDefault(settings['admin.default_locale']);
+      const nextDefault = settings['admin.default_locale'];
+      const resolvedDefault = isLocale(nextDefault) ? nextDefault : null;
+      if (resolvedDefault) {
+        i18n.setProjectDefault(resolvedDefault);
+      }
+      await i18n.setUserLocale(resolvedDefault);
       showNotification(t('site.general.saved'));
     } catch (err: any) {
       showNotification(err.message || t('site.general.saveFailed'), true);

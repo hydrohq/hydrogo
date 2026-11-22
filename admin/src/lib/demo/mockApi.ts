@@ -165,10 +165,16 @@ export async function handleDemoRequest<T>(
       data: {
         user: state.user,
         permissions: ['*'],
-        locale: null,
+        locale: state.site?.account_locale ?? null,
         csrf_token: 'hyd_demo_csrf_token',
       },
     } as T;
+  }
+
+  if (path === '/api/v1/admin/account/locale' && method === 'PUT') {
+    state.site.account_locale = payload?.locale || null;
+    saveState(state);
+    return { data: { locale: state.site.account_locale } } as T;
   }
 
   if (path === '/api/v1/admin/schema') {
