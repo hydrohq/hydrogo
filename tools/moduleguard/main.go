@@ -23,7 +23,14 @@ func main() {
 	dependenciesPath := flag.String("dependencies", "modules/dependencies.json", "declared direct module dependency graph")
 	denyModulesRoot := flag.String("deny-modules-root", "", "a source root (e.g. internal) that may never import modules/*; grandfathered violations come from -deny-modules-exceptions")
 	denyModulesExceptions := flag.String("deny-modules-exceptions", "", "comma-separated slash-paths (relative to the repo root) pre-existing violations of -deny-modules-root that are not yet fixed")
+	optionalFlag := flag.String("optional", "", "comma-separated modules distributed separately: their declarations are checked only when the module directory exists")
 	flag.Parse()
+	optional := map[string]bool{}
+	for _, item := range strings.Split(*optionalFlag, ",") {
+		if strings.TrimSpace(item) != "" {
+			optional[filepath.ToSlash(filepath.Clean(strings.TrimSpace(item)))] = true
+		}
+	}
 
 	allowed := map[string]bool{}
 	for _, item := range strings.Split(*allow, ",") {
@@ -53,7 +60,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	moduleViolations, err := checkModules(*root, allowed, dependencies)
+	moduleViolations, err := checkModules(*root, allowed, dependencies, optional)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -94,7 +101,7 @@ func readDependencies(path string) (map[string]map[string]bool, error) {
 	return dependencies, nil
 }
 
-func checkModules(root string, allowed map[string]bool, dependencies map[string]map[string]bool) ([]string, error) {
+func checkModules(root string, allowed map[string]bool, dependencies map[string]map[string]bool, optional map[string]bool) ([]string, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, fmt.Errorf("read module root %s: %w", root, err)
@@ -110,9 +117,15 @@ func checkModules(root string, allowed map[string]bool, dependencies map[string]
 	graph := make(map[string][]string, len(dependencies))
 	for from, imports := range dependencies {
 		if !modules[from] {
-			violations = append(violations, "dependency declaration has unknown module "+from)
+			if !optional[from] {
+				violations = append(violations, "dependency declaration has unknown module "+from)
+			}
+			continue
 		}
 		for to := range imports {
+			if !modules[to] && optional[to] {
+				continue
+			}
 			if !modules[to] {
 				violations = append(violations, fmt.Sprintf("dependency declaration %s -> %s names an unknown module", from, to))
 				continue
