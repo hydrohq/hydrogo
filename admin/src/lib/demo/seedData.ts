@@ -188,6 +188,7 @@ export function createInitialDemoState(): DemoState {
         summary: 'Hardened upload validation, MCP per-type permissions, and embedded Svelte 5 studio refinements.',
         body: 'v0.5.1 delivers end-to-end quarantine upload checks, strict tenant isolation, and a cleaner Admin Studio.',
         published_at: daysAgoIso(0),
+        created_at: daysAgoIso(1),
         updated_at: daysAgoIso(0),
       },
       {
@@ -201,6 +202,7 @@ export function createInitialDemoState(): DemoState {
         summary: 'How HydroGo enforces tenant boundaries uniformly at the database and query layer.',
         body: 'Every scoped query binds tenant context automatically before hitting SQLite or PostgreSQL.',
         published_at: daysAgoIso(3),
+        created_at: daysAgoIso(4),
         updated_at: daysAgoIso(3),
       },
       {
@@ -214,6 +216,7 @@ export function createInitialDemoState(): DemoState {
         summary: 'Enforcing schema-level read and write rules for AI agents and external tool calls.',
         body: 'MCP query_collection and mutate_record tools now evaluate collection permissions identically to HTTP handlers.',
         published_at: daysAgoIso(5),
+        created_at: daysAgoIso(6),
         updated_at: daysAgoIso(5),
       },
       {
@@ -227,6 +230,7 @@ export function createInitialDemoState(): DemoState {
         summary: 'Zero-dependency single-binary embedding with sub-millisecond cold start.',
         body: 'All admin assets are compiled and embedded directly into the Go binary via embed.FS.',
         published_at: daysAgoIso(8),
+        created_at: daysAgoIso(9),
         updated_at: daysAgoIso(8),
       },
       {
@@ -240,6 +244,7 @@ export function createInitialDemoState(): DemoState {
         summary: 'Automated snapshot verification for SQLite WAL and PostgreSQL.',
         body: 'Draft runbook for verifying backup integrity before every release.',
         published_at: daysAgoIso(1),
+        created_at: daysAgoIso(2),
         updated_at: daysAgoIso(1),
       },
     ],

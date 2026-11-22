@@ -221,15 +221,36 @@ export async function handleDemoRequest<T>(
     } as T;
   }
 
+  if (path.endsWith('/presence') || path.endsWith('/presence/leave')) {
+    return { data: [] } as T;
+  }
+
   if (path.startsWith('/api/v1/admin/pages')) {
     const subId = path.split('/')[5];
     return crudList(state.pages, method, subId, payload, state, 'pg', 'pages') as T;
   }
 
   if (path.startsWith('/api/v1/admin/news')) {
-    const subId = path.split('/')[5];
+    const parts = path.split('/');
+    const subId = parts[5];
+    const action = parts[6];
     if (subId === 'categories' || subId === 'tags') {
       return { data: [] } as T;
+    }
+    if (method === 'POST' && subId && (action === 'publish' || action === 'retract' || action === 'schedule')) {
+      const idx = state.news.findIndex((item) => item.id === subId);
+      if (idx !== -1) {
+        const nextStatus = action === 'publish' ? 'published' : action === 'retract' ? 'retracted' : 'scheduled';
+        state.news[idx] = {
+          ...state.news[idx],
+          status: nextStatus,
+          ...(action === 'schedule' && payload?.scheduled_at ? { scheduled_at: payload.scheduled_at } : {}),
+          updated_at: new Date().toISOString(),
+        };
+        recordAudit(state, `news.${action}`, subId, 'POST');
+        saveState(state);
+        return { data: state.news[idx] } as T;
+      }
     }
     return crudList(state.news, method, subId, payload, state, 'nw', 'news') as T;
   }

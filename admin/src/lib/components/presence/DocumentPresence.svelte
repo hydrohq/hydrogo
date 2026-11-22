@@ -37,10 +37,11 @@
     { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-700 dark:text-fuchsia-300', border: 'border-fuchsia-500/30' },
   ];
 
-  function getPalette(nameOrEmail: string) {
+  function getPalette(nameOrEmail = 'ED') {
+    const value = nameOrEmail || 'ED';
     let hash = 0;
-    for (let i = 0; i < nameOrEmail.length; i++) {
-      hash = (hash << 5) - hash + nameOrEmail.charCodeAt(i);
+    for (let i = 0; i < value.length; i++) {
+      hash = (hash << 5) - hash + value.charCodeAt(i);
       hash |= 0;
     }
     const idx = Math.abs(hash) % COLOR_PALETTES.length;
