@@ -1073,7 +1073,7 @@
       "id": "internal/portable",
       "layer": "internal",
       "doc": "Package portable defines the allowlisted, secret-free content export format.",
-      "files": 1,
+      "files": 2,
       "fan_in": 1,
       "fan_out": 1,
       "imports": [

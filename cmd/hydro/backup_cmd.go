@@ -26,6 +26,8 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
 	path := flags.String("path", "", "Portable document path")
+	format := flags.String("format", "json", "Portable format: json or ndjson")
+	scope := flags.String("scope", string(portable.ScopeContent), "Export scope for ndjson: content or all")
 	maxBytes := flags.Int64("max-bytes", portable.DefaultMaxDocumentBytes, "Maximum portable document size in bytes")
 	confirm := flags.Bool("confirm", false, "Confirm replacing allowlisted content tables")
 	dryRun := flags.Bool("dry-run", false, "Validate the document without changing the database")
@@ -37,6 +39,15 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	if strings.TrimSpace(*path) == "" {
 		return errors.New("--path is required")
+	}
+	if *format != "json" && *format != "ndjson" {
+		return fmt.Errorf("unsupported --format %q (use json or ndjson)", *format)
+	}
+	if *scope != string(portable.ScopeContent) && *scope != string(portable.ScopeAll) {
+		return fmt.Errorf("unsupported --scope %q (use content or all)", *scope)
+	}
+	if *format == "json" && *scope != string(portable.ScopeContent) {
+		return errors.New("--scope=all requires --format=ndjson")
 	}
 	switch args[0] {
 	case "export":
@@ -64,17 +75,6 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		defer db.Close()
-		document, err := portable.ExportWithLimit(context.Background(), db, *maxBytes)
-		if err != nil {
-			return fmt.Errorf("portable export: %w", err)
-		}
-		data, err := portable.Marshal(document)
-		if err != nil {
-			return fmt.Errorf("marshal portable export: %w", err)
-		}
-		if *maxBytes <= 0 || int64(len(data)) > *maxBytes {
-			return portable.ErrDocumentTooLarge
-		}
 		temporary, err := os.CreateTemp(filepath.Dir(*path), ".hydro-portable-*.tmp")
 		if err != nil {
 			return fmt.Errorf("create portable export temp file: %w", err)
@@ -84,6 +84,35 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 		if err := temporary.Chmod(0o640); err != nil {
 			_ = temporary.Close()
 			return fmt.Errorf("protect portable export temp file: %w", err)
+		}
+		if *format == "ndjson" {
+			summary, err := portable.ExportNDJSON(context.Background(), portable.NewSQLRecordSource(db, cfg.Database.Dialect), temporary, portable.Scope(*scope), *maxBytes)
+			if err != nil {
+				_ = temporary.Close()
+				return fmt.Errorf("portable export: %w", err)
+			}
+			if err := temporary.Close(); err != nil {
+				return fmt.Errorf("close portable export: %w", err)
+			}
+			if err := os.Rename(temporaryPath, *path); err != nil { // #nosec G703 -- operator-supplied path from the command line, checked for symlinked directories
+				return fmt.Errorf("publish portable export: %w", err)
+			}
+			_, err = fmt.Fprintf(stdout, "portable-exported path=%s format=ndjson scope=%s collections=%d records=%d\n", *path, *scope, summary.Collections, summary.Records)
+			return err
+		}
+		document, err := portable.ExportWithLimit(context.Background(), db, *maxBytes)
+		if err != nil {
+			_ = temporary.Close()
+			return fmt.Errorf("portable export: %w", err)
+		}
+		data, err := portable.Marshal(document)
+		if err != nil {
+			_ = temporary.Close()
+			return fmt.Errorf("marshal portable export: %w", err)
+		}
+		if *maxBytes <= 0 || int64(len(data)) > *maxBytes {
+			_ = temporary.Close()
+			return portable.ErrDocumentTooLarge
 		}
 		if _, err := temporary.Write(append(data, '\n')); err != nil {
 			_ = temporary.Close()
@@ -112,6 +141,39 @@ func portableCommand(args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("read portable document: %w", err)
 		}
 		defer file.Close()
+		if *format == "ndjson" {
+			if *dryRun {
+				summary, err := portable.ImportNDJSON(context.Background(), nil, file, *maxBytes, true)
+				if err != nil {
+					return fmt.Errorf("validate portable ndjson: %w", err)
+				}
+				_, err = fmt.Fprintf(stdout, "portable-import-valid path=%s format=ndjson collections=%d records=%d\n", *path, summary.Collections, summary.Records)
+				return err
+			}
+			cfg, err := loadMaintenanceConfig(flags, values)
+			if err != nil {
+				return err
+			}
+			budget, err := capacity.Defaults(cfg.Profile)
+			if err != nil {
+				return err
+			}
+			db, err := database.OpenWithOptions(context.Background(), cfg.Database.Dialect, cfg.Database.DSN, profileDatabaseOptions(budget, cfg.Profile))
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			var summary portable.StreamSummary
+			if err := database.NewTransactor(db).Within(context.Background(), func(tx database.Executor) error {
+				var err error
+				summary, err = portable.ImportNDJSON(context.Background(), portable.NewSQLRecordSink(tx, cfg.Database.Dialect), file, *maxBytes, false)
+				return err
+			}); err != nil {
+				return fmt.Errorf("portable import: %w", err)
+			}
+			_, err = fmt.Fprintf(stdout, "portable-imported path=%s format=ndjson collections=%d records=%d\n", *path, summary.Collections, summary.Records)
+			return err
+		}
 		document, err := portable.UnmarshalReader(file, *maxBytes)
 		if err != nil {
 			return fmt.Errorf("validate portable document: %w", err)

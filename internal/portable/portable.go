@@ -148,7 +148,7 @@ func Import(ctx context.Context, tx database.Executor, document Document, dialec
 	if err := validate(document); err != nil {
 		return err
 	}
-	if dialect != database.SQLite && dialect != database.Postgres {
+	if dialect != database.SQLite && dialect != database.Postgres && dialect != database.MySQL {
 		return fmt.Errorf("unsupported portable import dialect %q", dialect)
 	}
 	for _, table := range []string{"page_revisions", "pages", "media_assets", "site_settings", "navigation_items", "page_redirects", "form_inbox", "news_items"} {
