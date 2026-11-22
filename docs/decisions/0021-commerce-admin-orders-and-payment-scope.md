@@ -6,19 +6,19 @@
 ## Context
 
 After [0019](0019-commerce-order-notifications-and-member-login.md) and
-[0020](0020-commerce-shipping-provider.md), two gaps were named rather than
+an earlier decision record, two gaps were named rather than
 fixed: there was no admin screen for commerce orders at all (an operator
 could only reach an order by calling the API with its id), and
 `commerce.Order` carried a city but no district (`ilçe`), which every
 Turkish carrier's schema wants separately.
 
-A third question was whether to keep pushing on the PayTR and Yurtiçi
+A third question was whether to keep pushing on the payment gateway and the carrier
 Kargo integrations. Both are at the point where the only remaining work is
 verification against the real services, and both require things this
 template project does not have: a registered merchant with a Turkish
-business entity for PayTR (its "test mode" runs on a real merchant
+business entity for the payment gateway (its "test mode" runs on a real merchant
 account, there is no credential-free sandbox), and a corporate shipping
-contract plus an account representative for Yurtiçi Kargo (no public API
+contract plus an account representative for the carrier (no public API
 signup, no downloadable WSDL). **There is no store yet.** Chasing
 credentials would mean inventing a business to register, which is not
 this project's job, and building more against an unverified schema
@@ -26,9 +26,9 @@ would just pile speculation on speculation.
 
 ## Decision
 
-**Payment and carrier integrations stay exactly as they are.** PayTR
-([0014](0014-commerce-paytr-provider.md)) and Yurtiçi Kargo
-([0020](0020-commerce-shipping-provider.md)) are structurally complete
+**Payment and carrier integrations stay exactly as they are.** the payment gateway
+(an earlier decision record) and the carrier
+(an earlier decision record) are structurally complete
 and unit-tested, honestly labelled as unverified against the live
 services, and will be verified by whichever project first adopts this
 module with a real merchant/carrier account. No further work on them
@@ -60,7 +60,7 @@ missed.
   the order id" access check, so there is nothing separate to implement.
 - `guest_district` on orders (migration `202610241500`), threaded through
   `CheckoutRequest`, the checkout API, the storefront's checkout form
-  (now required there), and the Yurtiçi Kargo provider, which sends it as
+  (now required there), and the carrier provider, which sends it as
   `townName` and falls back to the city only for orders that predate the
   field.
 - `repository/sqlstore/store.go` crossed the 800-line limit with the

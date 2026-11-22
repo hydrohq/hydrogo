@@ -39,13 +39,13 @@ describe('OrderInvoicePanel', () => {
 
   it('issues an invoice when operator confirms', async () => {
     get.mockResolvedValue({
-      data: { configured: true, provider: 'bizimhesap', auto_issue_on_paid: false },
+      data: { configured: true, provider: 'invoicer', auto_issue_on_paid: false },
     });
     const issuedOrder: InvoiceOrder = {
       id: 'order_1',
       payment_status: 'paid',
       invoice_status: 'issued',
-      invoice_provider: 'bizimhesap',
+      invoice_provider: 'invoicer',
       invoice_no: 'order_1',
       invoice_guid: 'BH-GUID-1',
       invoice_url: 'https://invoice.example.test/BH-GUID-1',
@@ -57,7 +57,7 @@ describe('OrderInvoicePanel', () => {
     const onfeedback = vi.fn();
     render(OrderInvoicePanel, { props: { order: makeOrder(), canWrite: true, onupdated, onfeedback } });
 
-    const issueBtn = await screen.findByRole('button', { name: 'Issue invoice / Send to BizimHesap' });
+    const issueBtn = await screen.findByRole('button', { name: 'Issue invoice / Send to the invoicing provider' });
     await fireEvent.click(issueBtn);
 
     await waitFor(() => {
@@ -70,14 +70,14 @@ describe('OrderInvoicePanel', () => {
 
   it('shows GUID and open invoice link for issued orders', async () => {
     get.mockResolvedValue({
-      data: { configured: true, provider: 'bizimhesap', auto_issue_on_paid: false },
+      data: { configured: true, provider: 'invoicer', auto_issue_on_paid: false },
     });
 
     render(OrderInvoicePanel, {
       props: {
         order: makeOrder({
           invoice_status: 'issued',
-          invoice_provider: 'bizimhesap',
+          invoice_provider: 'invoicer',
           invoice_guid: 'BH-GUID-99',
           invoice_url: 'https://invoice.example.test/BH-GUID-99',
         }),
@@ -94,7 +94,7 @@ describe('OrderInvoicePanel', () => {
 
   it('displays error message and retry button on failed invoice', async () => {
     get.mockResolvedValue({
-      data: { configured: true, provider: 'bizimhesap', auto_issue_on_paid: false },
+      data: { configured: true, provider: 'invoicer', auto_issue_on_paid: false },
     });
 
     render(OrderInvoicePanel, {
@@ -110,6 +110,6 @@ describe('OrderInvoicePanel', () => {
     });
 
     expect(await screen.findByText('corporate invoice requires 10-digit vkn')).toBeTruthy();
-    expect(await screen.findByRole('button', { name: 'Retry invoice / Send to BizimHesap' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Retry invoice / Send to the invoicing provider' })).toBeTruthy();
   });
 });
