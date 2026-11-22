@@ -21,7 +21,7 @@ func newCommand(name string, args []string, stdin io.Reader, stdout, stderr io.W
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	preset := flags.String("preset", "minimal", "project preset: "+presetNames())
-	starter := flags.String("starter", "", "also copy a frontend starter into ./frontend: "+strings.Join(scaffold.Starters(), ", "))
+	starter := flags.String("starter", "", "not available in core: frontend starters live outside this repository (known: "+strings.Join(scaffold.Starters(), ", ")+")")
 	adminEmail := flags.String("admin-email", "", "create an admin with this e-mail after scaffolding")
 	passwordStdin := flags.Bool("admin-password-stdin", false, "read the admin password from stdin (default: generate one and print it)")
 	list := flags.Bool("list-presets", false, "list available presets and exit")

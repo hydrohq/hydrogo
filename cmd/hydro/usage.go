@@ -10,7 +10,7 @@ func printUsage(w io.Writer) {
 
 Usage:
   Start a project
-  hydro new DIR [--preset minimal|blog|corporate|news|tr-news|crm|erp-lite|docs|commerce|boutique|restaurant|saas] [--starter sveltekit|crm|commerce] [--admin-email EMAIL [--admin-password-stdin]]
+  hydro new DIR [--preset minimal|blog|corporate|news|tr-news|crm|erp-lite|docs|commerce|boutique|restaurant|saas] [--admin-email EMAIL [--admin-password-stdin]]
   hydro init [same options]  (scaffold in the current directory)
 
   Run and develop
