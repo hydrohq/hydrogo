@@ -20,6 +20,6 @@ paths = [
 ]
 # two old commits that embedded a localStorage key name in minified JS (not credentials)
 commits = [
-  "b35fefd24522f6f2eb5a228fb87a2dda65dac22b",
-  "b4546c3b97f13ecbb58bd7e53c6b2f611e12aa9d",
+  "8a9c2bdc19ed5fc087480b83011f39d081926987",
+  "cf961e418367a4f7723e4556358f7eaad089bfe0",
 ]
