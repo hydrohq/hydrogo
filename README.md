@@ -15,31 +15,14 @@ Run it on SQLite with zero external dependencies, or connect to PostgreSQL or My
 
 ---
 
-## Why HydroGo? (And How It Compares)
+## How People Use HydroGo
 
-Developers often ask why they should choose HydroGo over **PocketBase** or **Payload CMS**. Each solves a different problem:
-
-| | PocketBase | Payload CMS | **HydroGo** |
-|---|---|---|---|
-| **Core Identity** | Single-node SQLite BaaS | Node.js / Next.js CMS | **Multi-dialect CMS & AI-Native App Engine** |
-| **Database** | SQLite only | MongoDB / PostgreSQL (Node) | **SQLite WAL → PostgreSQL (RLS) → MySQL** |
-| **Admin Experience** | Developer-centric DB table UI | React/Next.js admin (requires build) | **Embedded Svelte 5 Studio** (drafts, revisions, focal crops, blocks) |
-| **AI & Agent Control** | External / manual integration | External / manual integration | **Built-in MCP server (`hydro mcp`), runtime schema API, `--json` CLI** |
-| **Runtime & Deploy** | Single Go binary | `node_modules` + JS build pipeline | **Single Go binary, zero-build publishing** |
-
-- **Start small, never get boxed in:** Begin with embedded SQLite WAL for zero-ops local dev, then switch to PostgreSQL with fail-closed Row-Level Security (RLS) or MySQL in `config.yaml` without rewriting your app.
-- **Built for both editors and AI agents:** Non-technical editors get a clean studio (Quiet Chrome, drafts, revisions, recycle bin, media focal crops), while AI coding agents (Cursor, Windsurf, Claude Code) get deterministic `--json` CLI commands, dry-run schema diffs, and a native MCP server.
-
----
-
-## Three Ways People Use HydroGo
-
-1. **60-Second Headless Backend (`hydro new`):**
-   Scaffold a domain preset (`saas`, `blog`, `commerce`, `crm`, `corporate`, etc.), run `hydro serve`, and immediately manage content at `/admin` while your frontend consumes `/api/v1` and `/api/v1/openapi.json` — with zero rebuilds on publish.
-2. **AI-First Full-Stack Development (`hydro mcp`):**
-   Connect your coding assistant to `hydro mcp --config config.yaml`. The agent inspects your live schemas (`schema_get`), creates or updates `content-types/*.yaml` (or calls the runtime schema API without restarting the server), seeds data, and wires up [`@hydrogo/client`](packages/client).
-3. **Multi-Tenant Agencies & Production Systems:**
-   Run dozens of isolated client sites from one binary using host-based routing and PostgreSQL RLS, with transactional outbox delivery, tamper-evident SHA-256 audit chains (`hydro audit verify`), and `hydro doctor` self-healing diagnostics.
+1. **Single-Binary Headless CMS (`hydro new`):**
+   Scaffold a domain preset (`saas`, `blog`, `commerce`, `crm`, `corporate`, etc.), run `hydro serve`, and manage content at `/admin` while your frontend consumes `/api/v1` and `/api/v1/openapi.json` with zero rebuilds on publish.
+2. **AI-Assisted Development (`hydro mcp`):**
+   Connect Cursor, Windsurf, or Claude Desktop via `hydro mcp --config config.yaml`. AI agents inspect schemas (`schema_get`), create or update `content-types/*.yaml`, manage records, and verify audit logs.
+3. **Start on SQLite, Scale to PostgreSQL or MySQL:**
+   Begin with embedded SQLite WAL for zero-dependency local development, then switch to PostgreSQL (with opt-in Row-Level Security for multi-tenant isolation) or MySQL in `config.yaml` without changing application code.
 
 ---
 
@@ -107,8 +90,9 @@ irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 | ie
 
 **Docker:**
 ```bash
-docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest
+docker run -p 8080:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest
 ```
+*(Or download a platform installer — macOS `.pkg`, Windows `Setup.exe`, Linux `.deb`/`.rpm` — from [Releases](https://github.com/hydrohq/hydrogo/releases/latest). See [Getting Started](docs/getting-started.md) for details.)*
 
 **From Source (Go 1.27+):**
 ```bash
