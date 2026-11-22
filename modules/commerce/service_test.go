@@ -599,9 +599,9 @@ type trackingProvider struct {
 func (p *trackingProvider) StartPayment(_ context.Context, order commerce.Order, _ []commerce.OrderItem) (commerce.PaymentStart, error) {
 	p.attempts = append(p.attempts, order)
 	if len(p.attempts) == 1 {
-		return commerce.PaymentStart{Method: "paytr", ProviderRef: "ref-attempt-1", RedirectURL: "https://pay/1"}, nil
+		return commerce.PaymentStart{Method: "gateway", ProviderRef: "ref-attempt-1", RedirectURL: "https://pay/1"}, nil
 	}
-	return commerce.PaymentStart{Method: "paytr", ProviderRef: "ref-attempt-2", RedirectURL: "https://pay/2"}, nil
+	return commerce.PaymentStart{Method: "gateway", ProviderRef: "ref-attempt-2", RedirectURL: "https://pay/2"}, nil
 }
 
 func TestStartPaymentPersistsMethodAndProviderRef(t *testing.T) {
@@ -624,7 +624,7 @@ func TestStartPaymentPersistsMethodAndProviderRef(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored1.PaymentMethod != "paytr" || stored1.PaymentRef != "ref-attempt-1" {
+	if stored1.PaymentMethod != "gateway" || stored1.PaymentRef != "ref-attempt-1" {
 		t.Fatalf("after attempt 1 got method=%q ref=%q", stored1.PaymentMethod, stored1.PaymentRef)
 	}
 

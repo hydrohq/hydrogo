@@ -149,15 +149,15 @@ func TestReconcileChecksEveryNamedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Repository.RecordPaymentNotification(ctx, db, "iyzico", order.ID); err != nil {
+	if _, err := svc.Repository.RecordPaymentNotification(ctx, db, "Gateway2", order.ID); err != nil {
 		t.Fatal(err)
 	}
-	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "paytr, iyzico,havale", 100)
+	report, err := svc.Reconcile(ctx, db, time.Now().UTC(), commerce.ReconcileConfig{}, "gateway, Gateway2,havale", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(report.NotifiedButNotPaid) != 1 || report.NotifiedButNotPaid[0].ID != order.ID {
-		t.Fatalf("an iyzico notification must be found when several providers are named, got %+v", report.NotifiedButNotPaid)
+		t.Fatalf("an Gateway2 notification must be found when several providers are named, got %+v", report.NotifiedButNotPaid)
 	}
 }
 
@@ -173,12 +173,12 @@ func TestReconcileDoesNotFlagRefundedOrResolvedOrdersAndHonorsHavaleHold(t *test
 	// 1. Paid and then refunded order must NOT appear in NotifiedButNotPaid.
 	c1 := seedCartWithItem(t, svc, db, "variant-rec-1", 1, 5000)
 	refundedOrder, err := svc.Checkout(ctx, commerce.CheckoutRequest{
-		CartID: c1.ID, GuestEmail: "r1@example.com", IdempotencyKey: "idem-rec-refunded", PaymentMethod: "paytr",
+		CartID: c1.ID, GuestEmail: "r1@example.com", IdempotencyKey: "idem-rec-refunded", PaymentMethod: "gateway",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: refundedOrder.ID, OrderID: refundedOrder.ID, AmountCents: refundedOrder.TotalCents}); err != nil {
+	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "gateway", EventID: refundedOrder.ID, OrderID: refundedOrder.ID, AmountCents: refundedOrder.TotalCents}); err != nil {
 		t.Fatal(err)
 	}
 	if ok, err := svc.Repository.UpdatePaymentStatus(ctx, db, refundedOrder.ID, commerce.PaymentPaid, commerce.PaymentRefunded); err != nil || !ok {
@@ -188,7 +188,7 @@ func TestReconcileDoesNotFlagRefundedOrResolvedOrdersAndHonorsHavaleHold(t *test
 	// 2. Expired order with late payment: flagged while unresolved, clean after resolution.
 	c2 := seedCartWithItem(t, svc, db, "variant-rec-2", 1, 5000)
 	lateOrder, err := svc.Checkout(ctx, commerce.CheckoutRequest{
-		CartID: c2.ID, GuestEmail: "r2@example.com", IdempotencyKey: "idem-rec-late", PaymentMethod: "iyzico",
+		CartID: c2.ID, GuestEmail: "r2@example.com", IdempotencyKey: "idem-rec-late", PaymentMethod: "Gateway2",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -196,7 +196,7 @@ func TestReconcileDoesNotFlagRefundedOrResolvedOrdersAndHonorsHavaleHold(t *test
 	if ok, err := svc.ExpireOrder(ctx, lateOrder.ID); err != nil || !ok {
 		t.Fatalf("expire lateOrder: ok=%v err=%v", ok, err)
 	}
-	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "iyzico", EventID: lateOrder.ID, OrderID: lateOrder.ID, AmountCents: lateOrder.TotalCents}); err == nil {
+	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "Gateway2", EventID: lateOrder.ID, OrderID: lateOrder.ID, AmountCents: lateOrder.TotalCents}); err == nil {
 		t.Fatal("expected ErrLatePayment")
 	}
 
@@ -209,7 +209,7 @@ func TestReconcileDoesNotFlagRefundedOrResolvedOrdersAndHonorsHavaleHold(t *test
 	}
 
 	future := time.Now().UTC().Add(2 * time.Hour)
-	report, err := svc.Reconcile(ctx, db, future, commerce.ReconcileConfig{}, "paytr,iyzico", 100)
+	report, err := svc.Reconcile(ctx, db, future, commerce.ReconcileConfig{}, "gateway,Gateway2", 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestReconcileDoesNotFlagRefundedOrResolvedOrdersAndHonorsHavaleHold(t *test
 	if ok, err := svc.ResolveRefundRequired(ctx, items[0].ID, "refunded in panel"); err != nil || !ok {
 		t.Fatalf("resolve refund_required: ok=%v err=%v", ok, err)
 	}
-	cleanReport, err := svc.Reconcile(ctx, db, future, commerce.ReconcileConfig{}, "paytr,iyzico", 100)
+	cleanReport, err := svc.Reconcile(ctx, db, future, commerce.ReconcileConfig{}, "gateway,Gateway2", 100)
 	if err != nil {
 		t.Fatal(err)
 	}

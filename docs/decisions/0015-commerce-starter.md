@@ -6,7 +6,7 @@
 ## Context
 
 [0013](0013-commerce-cart-checkout-module.md) and
-[0014](0014-commerce-paytr-provider.md) built a complete commerce API with
+an earlier decision record built a complete commerce API with
 no public-facing site to use it from. AGENTS.md is explicit that HydroGo
 does not render a public website itself; a starting point for one belongs
 in `examples/`, built from scratch rather than copied from
@@ -53,10 +53,10 @@ missing by actually being built against the real API, not assumed:
 - `GET /api/v1/commerce/orders/{id}` (public): a guest has no account to
   log into for order history, so the order confirmation page needs a read
   scoped only by the order's own unguessable id — the same trust model
-  `POST .../orders/{id}/payment` ([0014](0014-commerce-paytr-provider.md))
+  `POST .../orders/{id}/payment` (an earlier decision record)
   already relies on.
-- `paytr.Provider.StartPayment` now appends `?oid=<id>` to the configured
-  `OKURL`/`FailURL`: PayTR's redirect carries no reliable payment status
+- `The gateway provider's `StartPayment`` now appends `?oid=<id>` to the configured
+  `OKURL`/`FailURL`: the payment gateway's redirect carries no reliable payment status
   (see 0014), so the only thing worth passing through it is which order to
   ask the real, server-verified status about. `/odeme/sonuc` does nothing
   but read that id and forward to `/siparis/<id>`.
@@ -74,7 +74,7 @@ missing by actually being built against the real API, not assumed:
   real catalog (category, product with an uploaded cover image, variant)
   created and published through the real admin API, then the built,
   production (`node build`) storefront driven through the full guest
-  flow — browse, add to cart, checkout, a forged-but-correctly-signed PayTR
+  flow — browse, add to cart, checkout, a forged-but-correctly-signed the payment gateway
   callback (signed independently in Python, matching the discipline from
   0014) — confirmed the order flips from "Ödeme bekleniyor" to "Ödendi" on
   the confirmation page, stock settles at the correct `available`/`reserved`

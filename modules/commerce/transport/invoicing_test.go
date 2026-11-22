@@ -22,7 +22,7 @@ type fakeInvoiceProvider struct {
 
 func (f *fakeInvoiceProvider) Name() string {
 	if f.name == "" {
-		return "bizimhesap"
+		return "invoicer"
 	}
 	return f.name
 }
@@ -83,7 +83,7 @@ func TestInvoicingStatusEndpoint(t *testing.T) {
 		t.Fatalf("unexpected unconfigured status: %+v", unconfigured)
 	}
 
-	h.InvoiceProvider = &fakeInvoiceProvider{name: "bizimhesap"}
+	h.InvoiceProvider = &fakeInvoiceProvider{name: "invoicer"}
 	h.AutoIssueInvoiceOnPaid = true
 	rec = httptest.NewRecorder()
 	h.getInvoicingStatus(rec, req)
@@ -93,7 +93,7 @@ func TestInvoicingStatusEndpoint(t *testing.T) {
 		AutoIssueOnPaid bool   `json:"auto_issue_on_paid"`
 	}
 	decodeBody(t, rec, &configured)
-	if !configured.Configured || configured.Provider != "bizimhesap" || !configured.AutoIssueOnPaid {
+	if !configured.Configured || configured.Provider != "invoicer" || !configured.AutoIssueOnPaid {
 		t.Fatalf("unexpected configured status: %+v", configured)
 	}
 }
@@ -143,7 +143,7 @@ func TestIssueOrderInvoiceEndpointStates(t *testing.T) {
 		t.Fatalf("unpaid status = %d, want 409 (%s)", rec.Code, rec.Body.String())
 	}
 
-	if ok, err := pay(h.Service, ctx, "paytr", "evt-tr-inv-1", order.ID); err != nil || !ok {
+	if ok, err := pay(h.Service, ctx, "gateway", "evt-tr-inv-1", order.ID); err != nil || !ok {
 		t.Fatalf("pay failed: ok=%v err=%v", ok, err)
 	}
 
@@ -211,7 +211,7 @@ func TestIssueOrderInvoiceEndpointStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ok, err := pay(h.Service, ctx, "paytr", "evt-tr-inv-2", order2.ID); err != nil || !ok {
+	if ok, err := pay(h.Service, ctx, "gateway", "evt-tr-inv-2", order2.ID); err != nil || !ok {
 		t.Fatalf("pay2 failed: ok=%v err=%v", ok, err)
 	}
 	h.InvoiceProvider = &fakeInvoiceProvider{err: errors.New("timeout")}

@@ -48,7 +48,7 @@ type fakeInvoiceProvider struct {
 
 func (f *fakeInvoiceProvider) Name() string {
 	if f.name == "" {
-		return "bizimhesap"
+		return "invoicer"
 	}
 	return f.name
 }
@@ -247,7 +247,7 @@ func TestIssueOrderInvoiceFlowAndConcurrency(t *testing.T) {
 		t.Fatalf("expected ErrOrderNotInvoiceable before payment, got %v", err)
 	}
 
-	ok, err := pay(svc, ctx, "paytr", "evt-inv-1", order.ID)
+	ok, err := pay(svc, ctx, "gateway", "evt-inv-1", order.ID)
 	if err != nil || !ok {
 		t.Fatalf("pay failed: ok=%v err=%v", ok, err)
 	}
@@ -256,7 +256,7 @@ func TestIssueOrderInvoiceFlowAndConcurrency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IssueOrderInvoice failed: %v", err)
 	}
-	if issued.InvoiceStatus != commerce.InvoiceIssued || issued.InvoiceGUID == "" || issued.InvoiceURL == "" || issued.InvoiceProvider != "bizimhesap" {
+	if issued.InvoiceStatus != commerce.InvoiceIssued || issued.InvoiceGUID == "" || issued.InvoiceURL == "" || issued.InvoiceProvider != "invoicer" {
 		t.Fatalf("unexpected issued order state: %+v", issued)
 	}
 	if !provider.lastDoc.Customer.IsCompany || provider.lastDoc.Customer.TaxNo != "9876543210" {
@@ -284,7 +284,7 @@ func TestIssueOrderInvoiceFlowAndConcurrency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ok, err := pay(svc, ctx, "paytr", "evt-inv-2", order2.ID); err != nil || !ok {
+	if ok, err := pay(svc, ctx, "gateway", "evt-inv-2", order2.ID); err != nil || !ok {
 		t.Fatalf("pay2 failed: ok=%v err=%v", ok, err)
 	}
 	failingProvider := &fakeInvoiceProvider{err: errors.New("upstream 503")}
@@ -322,7 +322,7 @@ func TestInvoiceWorkerIssueDueAndAlert(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if ok, err := pay(svc, ctx, "paytr", "evt-"+key, o.ID); err != nil || !ok {
+		if ok, err := pay(svc, ctx, "gateway", "evt-"+key, o.ID); err != nil || !ok {
 			t.Fatalf("pay %s failed: ok=%v err=%v", key, ok, err)
 		}
 		return o

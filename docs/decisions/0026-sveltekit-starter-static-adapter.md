@@ -123,7 +123,7 @@ Converted `sveltekit-starter` to the same pattern:
   no-slug fallback paths degrade gracefully.
 - `crm-starter` and `commerce-starter` remain on `adapter-node` /
   `@sveltejs/kit@2.70.3`: both have their own server-side secrets (session
-  cookies for `crm-starter`; PayTR merchant credentials for
+  cookies for `crm-starter`; the payment gateway merchant credentials for
   `commerce-starter`) that cannot move to a browser-only static SPA
   regardless of adapter choice, so this conversion does not apply to them.
   `commerce-starter`'s own vendored `src/lib/hydrogo.ts` copy was not

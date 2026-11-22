@@ -1,7 +1,7 @@
 # 0012: Commerce catalog as content types, not a new engine feature
 
 - Status: Accepted (Phase 1 of 4); the remaining phases (cart/checkout module,
-  PayTR provider, storefront starter) are proposed, not yet built.
+  the payment gateway provider, storefront starter) are proposed, not yet built.
 - Date: 2026-10-23
 
 ## Context

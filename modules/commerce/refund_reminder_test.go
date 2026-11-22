@@ -54,7 +54,7 @@ func TestRefundReminderWorker(t *testing.T) {
 	err = svc.Repository.RecordRefundRequired(ctx, db, commerce.RefundRequired{
 		ID:          "rrq-test-reminder",
 		OrderID:     "order-remind-1",
-		Provider:    "paytr",
+		Provider:    "gateway",
 		AmountCents: 5000,
 		Currency:    "TRY",
 		Reason:      "callback after expired order",

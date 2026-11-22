@@ -76,7 +76,7 @@ sequential phases (branches `fix/audit-1-commerce` through
 - **Phase 6 (docs):** this record; `config.example.yaml` documents every
   commerce/notification config key added across phases 1-5, corrected to
   not claim an `HYDRO_*` environment variable override for secrets that
-  have none (PayTR, Yurtiçi Kargo, Telegram -- the same false claim
+  have none (the payment gateway, the carrier, Telegram -- the same false claim
   existed in `internal/config/config.go`'s own doc comments and is fixed
   there too); `docs/commerce.md` is a new endpoint/CLI/config reference
   (none existed despite ten prior commerce ADRs); AGENTS.md rule 9's claim
@@ -92,12 +92,12 @@ sequential phases (branches `fix/audit-1-commerce` through
   and filesystem DB path, now read from environment variables with
   generic fallbacks. The same false `HYDRO_*` secret-override claim fixed
   in `config.example.yaml` and `internal/config/config.go` was also found
-  and fixed in `modules/commerce/providers/paytr/paytr.go` and
-  `modules/commerce/providers/yurticikargo/yurticikargo.go`'s own doc
+  and fixed in the gateway provider and
+  the gateway provider's own doc
   comments.
 - A new end-to-end test, `modules/commerce/providers/checkout_to_shipment_test.go`,
-  chains checkout, `StartPayment` and a PayTR callback, and `CreateShipment`
-  through the real `commerce.Service` against mock PayTR and Yurtiçi Kargo
+  chains checkout, `StartPayment` and a the payment gateway callback, and `CreateShipment`
+  through the real `commerce.Service` against mock the payment gateway and the carrier
   HTTP servers in one run -- the two providers' own unit tests each mock
   only their own call; nothing previously exercised the full hand-off
   between them. It also covers a carrier refusal correctly releasing the
@@ -125,7 +125,7 @@ sequential phases (branches `fix/audit-1-commerce` through
   clean under `go test ./... -race` in the same WSL environment, and the
   new end-to-end commerce/provider tests were additionally run under
   `-race` on their own. Still not verified, because nothing in this
-  environment can: the real PayTR and Yurtiçi Kargo services themselves
+  environment can: the real the payment gateway and the carrier services themselves
   (see below).
 - Deliberately deferred, named rather than hidden: aggregate SQL pushdown
   for a couple of reporting queries, multi-instance cache invalidation
@@ -136,7 +136,7 @@ sequential phases (branches `fix/audit-1-commerce` through
 - Needs a human, not further autonomous work: merging this six-PR stack
   (with merge commits, not squash, so each phase's history survives),
   re-enabling GitHub Actions if it is currently off, closing or resolving
-  stale PRs #325-327, and obtaining real PayTR/Yurtiçi Kargo merchant/
+  stale PRs #325-327, and obtaining real the payment gateway/the carrier merchant/
   carrier credentials to verify those two integrations against the actual
   services -- a mock HTTP/SOAP server, however thorough, can only prove
   this code does what it claims to do with the shapes it was told to

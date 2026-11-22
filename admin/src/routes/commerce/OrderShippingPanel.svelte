@@ -67,7 +67,7 @@
   let { order, canWrite, onupdated, onfeedback }: Props = $props();
 
   let carriers = $state<CarrierInfo[]>([]);
-  let mode = $state<'geliver' | 'manual'>('manual');
+  let mode = $state<'offers' | 'manual'>('manual');
 
   let lengthCm = $state('');
   let widthCm = $state('');
@@ -83,8 +83,9 @@
   let carrierName = $state('');
   let trackingNumber = $state('');
 
-  const hasGeliver = $derived(carriers.some((c) => c.key === 'geliver'));
-  const hasOtherCarrier = $derived(carriers.some((c) => c.key !== 'geliver'));
+  const offersCarrier = $derived(carriers.find((c) => c.supports_offers));
+  const hasOffers = $derived(Boolean(offersCarrier));
+  const hasOtherCarrier = $derived(carriers.some((c) => !c.supports_offers));
   const hasShipmentRecord = $derived(
     Boolean(order.shipping_tracking_number) || order.fulfillment_status === 'shipped' || order.fulfillment_status === 'delivered'
   );
@@ -111,7 +112,7 @@
       const res = await api.get<{ data: CarriersResponse }>('/api/v1/admin/commerce/shipping/carriers');
       const list = Array.isArray(res?.data?.carriers) ? res.data.carriers : [];
       carriers = list;
-      mode = list.some((c) => c.key === 'geliver') ? 'geliver' : 'manual';
+      mode = list.some((c) => c.supports_offers) ? 'offers' : 'manual';
     } catch {
       carriers = [];
       mode = 'manual';
@@ -154,7 +155,7 @@
     onfeedback(null);
     try {
       const parcel = buildParcel();
-      const body: { carrier: string; parcel?: ParcelSpec } = { carrier: 'geliver' };
+      const body: { carrier: string; parcel?: ParcelSpec } = { carrier: offersCarrier?.key ?? '' };
       if (parcel) body.parcel = parcel;
       const res = await api.post<{ data: ShipmentOfferDraft }>(
         `/api/v1/admin/commerce/orders/${encodeURIComponent(order.id)}/shipment/offers`,
@@ -185,7 +186,7 @@
         shipment_id: string;
         parcel?: ParcelSpec;
       } = {
-        carrier: 'geliver',
+        carrier: offersCarrier?.key ?? '',
         offer_id: selectedOfferId,
         shipment_id: draft.shipment_id,
       };
@@ -210,7 +211,7 @@
     }
   }
 
-  async function quickShipGeliver() {
+  async function quickShipOffers() {
     const ok = await confirmAction({
       title: t('commerce.confirm.shipTitle'),
       description: t('commerce.confirm.shipDesc'),
@@ -223,7 +224,7 @@
     onfeedback(null);
     try {
       const parcel = buildParcel();
-      const body: { carrier: string; parcel?: ParcelSpec } = { carrier: 'geliver' };
+      const body: { carrier: string; parcel?: ParcelSpec } = { carrier: offersCarrier?.key ?? '' };
       if (parcel) body.parcel = parcel;
       const res = await api.post<{ data: ShippingOrder }>(
         `/api/v1/admin/commerce/orders/${encodeURIComponent(order.id)}/shipment`,
@@ -391,14 +392,14 @@
   </div>
 {:else if canWrite}
   <div class="space-y-3">
-    {#if hasGeliver && hasOtherCarrier}
+    {#if hasOffers && hasOtherCarrier}
       <div class="inline-flex h-8 items-center rounded-lg bg-muted p-1 text-muted-foreground">
         <button
           type="button"
-          class="inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {mode === 'geliver' ? 'bg-background text-foreground shadow-xs' : 'hover:text-foreground'}"
-          onclick={() => { mode = 'geliver'; }}
+          class="inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {mode === 'offers' ? 'bg-background text-foreground shadow-xs' : 'hover:text-foreground'}"
+          onclick={() => { mode = 'offers'; }}
         >
-          {t('commerce.order.modeGeliver')}
+          {t('commerce.order.modeOffers')}
         </button>
         <button
           type="button"
@@ -410,7 +411,7 @@
       </div>
     {/if}
 
-    {#if hasGeliver && mode === 'geliver'}
+    {#if hasOffers && mode === 'offers'}
       <div class="space-y-2.5">
         <p class="text-xs text-muted-foreground">{t('commerce.order.parcelHint')}</p>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -473,7 +474,7 @@
                   <div class="flex items-center gap-2.5 min-w-0">
                     <input
                       type="radio"
-                      name="geliver-offer"
+                      name="carrier-offer"
                       value={offer.id}
                       checked={selectedOfferId === offer.id}
                       onchange={() => { selectedOfferId = offer.id; }}
@@ -523,9 +524,9 @@
           class="w-full"
           disabled={!canShip || offersLoading}
           loading={busy}
-          onclick={quickShipGeliver}
+          onclick={quickShipOffers}
         >
-          {t('commerce.order.quickShipGeliver')}
+          {t('commerce.order.quickShipOffers')}
         </Button>
       </div>
     {:else}
