@@ -249,7 +249,7 @@
               {#each assets as asset (asset.id)}
                 <button
                   type="button"
-                  class="group relative aspect-square rounded-lg bg-background border border-border hover:border-foreground/40 overflow-hidden flex flex-col justify-between p-2 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm"
+                  class="group relative aspect-square rounded-lg bg-background border border-border hover:border-foreground/40 overflow-hidden flex flex-col justify-between p-2 transition-colors cursor-pointer text-left shadow-xs hover:shadow-sm"
                   onclick={() => openDetail(asset)}
                 >
                   <!-- Asset Preview -->
@@ -258,7 +258,7 @@
                       <img
                         src={asset.url || `/media/${asset.id}`}
                         alt={asset.original_filename}
-                        class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        class="w-full h-full object-cover"
                         loading="lazy"
                       />
                     {:else}

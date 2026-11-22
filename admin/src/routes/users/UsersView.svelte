@@ -516,7 +516,7 @@
   <div class="space-y-4">
     <p class="text-xs text-muted-foreground">{linkIsInvite ? t('users.inviteShareBefore') : t('users.shareBefore')} <span class="font-semibold text-foreground">{resetLinkModalUser?.email}</span>. {t('users.shareAfter')}</p>
     {#if generatingResetLink}
-      <div class="p-4 text-center text-xs text-muted-foreground animate-pulse">{t('users.generating')}</div>
+      <div class="p-4 text-center text-xs text-muted-foreground">{t('users.generating')}</div>
     {:else if generatedResetLink}
       <div class="flex items-center gap-2">
         <Input type="text" readonly value={generatedResetLink} class="font-mono text-xs select-all" />
