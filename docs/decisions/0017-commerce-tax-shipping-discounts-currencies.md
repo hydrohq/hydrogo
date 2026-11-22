@@ -9,7 +9,7 @@ The commerce phases through [0016](0016-commerce-starter-catalog-sections.md)
 covered the minimum viable checkout: an order's total was just the sum of
 its line items. A real launch needs KDV/VAT, a shipping fee, promo codes,
 and ideally prices a visitor can see in more than one currency. None of
-these are generic CMS features — they are commerce-specific business rules
+these are generic CMS features - they are commerce-specific business rules
 that belong in `modules/commerce`, configured by the operator rather than
 hardcoded, since every one of them (the tax rate, whether prices are
 tax-inclusive, the shipping fee, whether a currency switcher exists at

@@ -13,7 +13,7 @@ peer-dependency ranges on each other's major version, so bumping one alone
 breaks `npm install`. Investigating this surfaced a real, pre-existing
 security issue: `crm-starter` and `sveltekit-starter`'s pinned `@sveltejs/kit`
 (2.70.3, the latest 2.x release) is affected by two low-severity advisories
-(GHSA-pfhg-q3qv-9q6r, GHSA-27mw-82g8-phjj — URL redirection via enhanced form
+(GHSA-pfhg-q3qv-9q6r, GHSA-27mw-82g8-phjj - URL redirection via enhanced form
 submission, XSS via an untrusted cache-control header on a prerendered page),
 fixed only in `@sveltejs/kit` 3.x. There is no later 2.x patch.
 
@@ -21,7 +21,7 @@ fixed only in `@sveltejs/kit` 3.x. There is no later 2.x patch.
 
 **`admin` was bumped as a coordinated set** (`vite@^8.3.5`,
 `@sveltejs/vite-plugin-svelte@^7.3.1`, `svelte@^5.57.2`,
-`typescript@^6.0.3` — not 7.x, since `svelte-check@4.7.7`'s peer range is
+`typescript@^6.0.3` - not 7.x, since `svelte-check@4.7.7`'s peer range is
 only `^5.0.0 || ^6.0.0`) and verified clean: `npm install` resolves with
 zero `npm audit` findings, `svelte-check`/`vitest run`/`vite build` all
 pass. `admin` has no `@sveltejs/kit` dependency (it is a plain Vite+Svelte

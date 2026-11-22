@@ -1,6 +1,6 @@
 # HydroGo AI Agent Guide (Model Context Protocol)
 
-HydroGo includes a native **Model Context Protocol (MCP)** server that allows AI agents—such as Cursor, Claude Code, and Claude Desktop—to introspect, provision, and mutate content and collections in real time without restarting the server.
+HydroGo includes a native **Model Context Protocol (MCP)** server that allows AI agents - such as Cursor, Claude Code, and Claude Desktop - to introspect, provision, and mutate content and collections in real time without restarting the server.
 
 ---
 

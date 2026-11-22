@@ -41,7 +41,7 @@ enables the module):
   minted the same way `modules/members/transport` mints its session cookie.
   A logged-in member's cart is resolved by `MemberID`, an optional hook on
   `transport.Handler` that `cmd/hydro` fills in only when `members` is also
-  enabled — commerce does not import `modules/members`.
+  enabled - commerce does not import `modules/members`.
 - `commerce_customer_orders` / `commerce_customer_order_items`: guest fields
   (`guest_name`, `guest_email`, ...) always present; `UNIQUE(tenant_id,
   idempotency_key)` makes `Checkout` idempotent regardless of whether the
@@ -57,14 +57,14 @@ enables the module):
 item is out of stock the whole attempt rolls back, including items already
 reserved earlier in the same loop. `ExpireOrder` (the reservation-expiry
 sweep in `worker.go`, a plain ticker like `runStaleMediaTempSweeper`, not
-`internal/jobs`'s lease queue — this is one recurring thing to do, not a
+`internal/jobs`'s lease queue - this is one recurring thing to do, not a
 stream of discrete tasks) releases a stale pending order's stock, guarded the
 same way so it can never undo a payment that completed first.
 
 `order.created` (already in the event catalog, unused since the old module
 was removed) and the new, additive `order.paid` are emitted through the
 existing outbox when a project has webhooks configured; `order.fulfilled` is
-registered but not yet emitted — there is no fulfillment action in this
+registered but not yet emitted - there is no fulfillment action in this
 phase. `MemberOrdersReader` implements the pre-existing
 `internal/contracts/customerorders.DetailReader` contract so
 `modules/members`' `/member/orders` and `/api/v1/mobile/member/orders` work
@@ -76,7 +76,7 @@ against real orders again, without members importing commerce.
   `internal/security/cors.go`, `internal/tenant/backfill.go` and the two
   tenant/module-isolation contract tests are updated to the new table names
   (the catalog tables they used to reference, `commerce_products` and
-  `commerce_product_variants`, no longer exist — catalog reads go through
+  `commerce_product_variants`, no longer exist - catalog reads go through
   `/api/v1/content/products`, outside this allowlist).
 - A new `config/presets/commerce.yaml` deployment preset. The scaffold
   `commerce` preset (`hydro new --preset commerce`, from 0012) is a separate

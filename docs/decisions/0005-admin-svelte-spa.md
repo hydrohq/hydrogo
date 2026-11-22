@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-15
-- Supersedes: 0004 (theme appearance CSS — the theme layer is removed)
+- Supersedes: 0004 (theme appearance CSS - the theme layer is removed)
 
 ## Context
 
@@ -11,7 +11,7 @@ Go `html/template` themes (`themes/newsroom`). Two problems kept coming up:
 
 - Design quality of templ/htmx and `html/template` screens lagged well
   behind what AI-assisted design tooling produces for JS component
-  frameworks — the gap is in the tooling ecosystem, not in templ's
+  frameworks - the gap is in the tooling ecosystem, not in templ's
   correctness.
 - Go, templ and htmx were three authoring models for one admin surface, and
   the theme layer was a fourth (`html/template` + theme CSS contract). The
@@ -28,7 +28,7 @@ We measured before deciding:
   967.6 req/s, 20.55ms avg, 36.6KB avg response; equivalent JSON
   `/api/v1/content/faq` 1081.3 req/s, 18.44ms avg, 8.6KB. Part of the gap
   is the admin's session check and part is the admin shell (nav, sidebar)
-  repeated in every HTML response — an SPA loads the shell once.
+  repeated in every HTML response - an SPA loads the shell once.
 - A spike rendering Svelte 5 server-side through a pure-Go JS engine (goja)
   works but requires patching Svelte's own runtime (it `import()`s
   `node:async_hooks`, which goja's parser rejects) and costs ~174µs/render

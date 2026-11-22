@@ -8,15 +8,15 @@
 [0015](0015-commerce-starter.md) shipped a working storefront, but a flat
 product grid on one page is thinner than what the business actually wants
 to launch with: category landing pages, a way to find a product by name,
-and a product page that shows more than one photo. The alternative —a
-drag-and-drop visual theme editor, Shopify-style— was discussed and
+and a product page that shows more than one photo. The alternative - a
+drag-and-drop visual theme editor, Shopify-style - was discussed and
 explicitly rejected for this starter: it is a different kind of product
 (a page-builder SaaS), it contradicts AGENTS.md's "not a framework or
 product factory," and if HydroGo ever gets a visual editor it belongs at
 the project level, not bolted onto the commerce starter specifically. What
 this starter needed instead was more pre-built, swappable pieces that a
 per-brand build (by a person or an agent editing the code directly) can
-mix and match quickly — closer to "more starter content" than "more
+mix and match quickly - closer to "more starter content" than "more
 product."
 
 ## Decision
@@ -34,14 +34,14 @@ field or a new type is just a schema change the next request picks up):
 Storefront additions, all reading the existing public content/commerce
 APIs with no further backend changes:
 - `/kategori/[slug]`: a real collection landing page (name, description,
-  products, a sort switcher — newest/price/name, passed straight through
+  products, a sort switcher - newest/price/name, passed straight through
   as the content API's own `sort` parameter). The header's category nav
   now links here instead of the old `/?kategori=` homepage filter, which
   is removed.
 - `/arama`: a search box in the header posts to a results page using the
   content API's existing `search` parameter (already enabled on
   `products.name`/`description`/`sku` by [0012](0012-commerce-catalog-as-content-types.md)'s
-  `searchable: true` flags) — no new backend capability, just a page that
+  `searchable: true` flags) - no new backend capability, just a page that
   uses one that already existed.
 - The homepage becomes up to several "by category" sections (a few
   products each, a "tümünü gör" link to the category page) instead of one
@@ -66,7 +66,7 @@ APIs with no further backend changes:
   product's intended 404 was coming back as a 502 before this fix.
 - Verified against a real `hydro serve` instance: two categories, two
   products (one with a second, variant-specific photo and a gallery
-  image), confirmed live — the homepage's per-category sections, the
+  image), confirmed live - the homepage's per-category sections, the
   category page's sort links (verified the content API itself accepts
   `sort=-base_price` without error), search finding a real match and
   correctly showing nothing for a non-match, the product page's gallery

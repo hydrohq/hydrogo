@@ -22,7 +22,7 @@
     {#if isDemoMode}
       <div class="flex items-center justify-between gap-3 border-b border-border bg-muted/60 px-4 py-1.5 text-xs text-muted-foreground">
         <span>
-          <strong class="font-medium text-foreground">Live Demo</strong> — Running in your browser via <code class="font-mono text-[11px]">localStorage</code> (no database).
+          <strong class="font-medium text-foreground">Live Demo</strong> - Running in your browser via <code class="font-mono text-[11px]">localStorage</code> (no database).
         </span>
         <div class="flex items-center gap-3 shrink-0">
           <a href="/" class="hover:text-foreground underline underline-offset-2">Back to site</a>

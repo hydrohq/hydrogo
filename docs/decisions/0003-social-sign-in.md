@@ -7,7 +7,7 @@
 
 Admin staff could already sign in with Google, GitHub or Apple
 (`internal/auth`'s `SocialOAuthHandler`), but that resolver only ever links a
-verified provider identity to an existing, active admin or editor account —
+verified provider identity to an existing, active admin or editor account - 
 it never creates one, which is correct for staff but wrong for public site
 members, who are self-service. Members had no social sign-in at all.
 
@@ -30,7 +30,7 @@ through `modules/members.OAuthResolver`, implemented by
 `member_oauth_identities` table (migration `202610150001`, mirroring
 `auth_oauth_identities`'s shape but FK'd to `members`): find by identity,
 else by email (linking it and marking the member's email verified), else
-auto-provision a new active member (`password_hash` empty — there is no
+auto-provision a new active member (`password_hash` empty - there is no
 password to set).
 
 Routes: `GET /member/oauth/{provider}/start` and

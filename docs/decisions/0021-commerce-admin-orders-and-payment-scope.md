@@ -35,13 +35,13 @@ module with a real merchant/carrier account. No further work on them
 until then. This is a deliberate scope decision, not a gap that was
 missed.
 
-**What was built instead — the parts that need no external account:**
+**What was built instead - the parts that need no external account:**
 
 - `/admin/commerce`, a Svelte admin screen
   (`admin/src/routes/commerce/CommerceOrdersView.svelte`) listing orders
   newest first with a payment-status filter, client-side search by order
   id/name/email, and a detail modal showing customer, shipping address,
-  line items, the pricing breakdown, and — for a paid, unshipped order —
+  line items, the pricing breakdown, and - for a paid, unshipped order - 
   a "hand to carrier" action that calls the existing
   `POST /api/v1/admin/commerce/orders/{id}/shipment`. Once shipped, the
   modal shows carrier, tracking number, shipped-at and a tracking link
@@ -52,7 +52,7 @@ missed.
   when the `commerce` module is on, per AGENTS.md rule 5.
 - Two protected endpoints behind it: `GET /api/v1/admin/commerce/orders`
   (`limit`/`offset`, optional `payment_status`/`fulfillment_status`,
-  `limit+1` over-fetch for `has_more` with no COUNT query — the same
+  `limit+1` over-fetch for `has_more` with no COUNT query - the same
   convention `internal/contenttypes`' admin list uses) and
   `GET /api/v1/admin/commerce/orders/{id}`, which is the existing public
   `getOrder` handler registered a second time under a protected path: an

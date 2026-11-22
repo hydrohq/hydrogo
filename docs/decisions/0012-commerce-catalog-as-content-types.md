@@ -7,7 +7,7 @@
 ## Context
 
 HydroGo removed its commerce module in `ac1de094` (ADR `0001-cms-focus.md`) as
-one casualty among many in a broader six-week sprawl cleanup — not because
+one casualty among many in a broader six-week sprawl cleanup - not because
 commerce itself was judged a bad fit. The project now wants e-commerce back,
 reusable across projects (starting with a leather-goods storefront) instead
 of maintaining a separate Medusa.js deployment per client. Large parts of the
@@ -19,32 +19,32 @@ in `internal/config/validate.go`; its migrations are still on disk per rule
 The question this record answers: does product/variant/category *catalog*
 data need new core engine capability, or does the existing declarative
 content-type system already cover it? `content-types/erp/products.yaml`
-(an existing preset) already demonstrated most of the needed shape —
-sequence numbers, rollups, computed totals, guarded state machines — just
+(an existing preset) already demonstrated most of the needed shape - 
+sequence numbers, rollups, computed totals, guarded state machines - just
 not applied to a public storefront catalog yet.
 
 ## Decision
 
 Catalog data (`categories`, `products`, `variants`) is three plain content
 types under `content-types/commerce/`, registered as a new `commerce` preset
-in `internal/scaffold.go` (`hydro new --preset commerce`) — no new engine
+in `internal/scaffold.go` (`hydro new --preset commerce`) - no new engine
 feature, no Go code. Confirmed this is sufficient, not merely assumed:
 
 - **Relations model variants with no special "variant" feature.** `variants.yaml`
   is just `{kind: relation, to: products, required: true}` plus its own
-  `sku`/`size`/`color`/`price_override` fields — the generic relation
+  `sku`/`size`/`color`/`price_override` fields - the generic relation
   mechanism `content-types/erp/order_lines.yaml` already uses for order
   lines.
 - **Stock is deliberately NOT a field on `variants`.** Selling the last unit
   safely needs an atomic, conditional SQL update; the generic collections
   store (`internal/collections/sqlstore`) only has optimistic version-locking,
-  confirmed by reading `store.go` — no compare-and-swap primitive exists
+  confirmed by reading `store.go` - no compare-and-swap primitive exists
   there. Stock belongs in the Phase 2 `modules/commerce` module's own table,
   keyed loosely by a variant's content-type id (no DB foreign key, since
   content records live in the generic `hydro_collection_records` table).
 - **Images are a single `cover_image` media field, not a gallery.** `many:`
   only validates on `relation` fields per `internal/contenttypes/definition.go`'s
-  `Validate()` — a multi-image gallery would need a separate relation-based
+  `Validate()` - a multi-image gallery would need a separate relation-based
   content type (the existing `galleries.yaml` pattern), deferred until a real
   project asks for it rather than built speculatively.
 
@@ -68,11 +68,11 @@ collections for the admin SPA to render generically.
 - A storefront catalog is available today with zero Go/Svelte code, exactly
   matching the "declare it once" model the rest of HydroGo follows.
 - The `commerce` preset currently only enables `[core, auth, media, collections]`
-  — no `commerce` module yet, since it doesn't exist. Phase 2 extends this
+ - no `commerce` module yet, since it doesn't exist. Phase 2 extends this
   preset's module list once cart/checkout/payments land; this preset name is
   not a placeholder that will be renamed later.
 - Risk: none of the "already-wired-but-blocked" old commerce plumbing
   (permissions, CORS allowlist, tenant backfill, contract tests) was touched
-  in this phase — it still assumes the old `commerce_products`/`commerce_variants`
+  in this phase - it still assumes the old `commerce_products`/`commerce_variants`
   SQL tables, which this phase deliberately does not create. Phase 2 must
   update those references to the new table names, not just unblock them.

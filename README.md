@@ -92,7 +92,7 @@ irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 | ie
 ```bash
 docker run -p 8080:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest
 ```
-*(Or download a platform installer — macOS `.pkg`, Windows `Setup.exe`, Linux `.deb`/`.rpm` — from [Releases](https://github.com/hydrohq/hydrogo/releases/latest). See [Getting Started](docs/getting-started.md) for details.)*
+*(Or download a platform installer - macOS `.pkg`, Windows `Setup.exe`, Linux `.deb`/`.rpm` - from [Releases](https://github.com/hydrohq/hydrogo/releases/latest). See [Getting Started](docs/getting-started.md) for details.)*
 
 **From Source (Go 1.27+):**
 ```bash
@@ -159,12 +159,12 @@ revisions: true
 realtime: true
 
 fields:
-  - {id: name, label: Feature Name, kind: text, required: true, list: true, searchable: true}
-  - {id: slug, label: Slug, kind: text, required: true}
-  - {id: summary, label: Summary, kind: text, required: true}
-  - {id: tier, label: Plan Tier, kind: select, options: [free, pro, enterprise], list: true, filterable: true}
-  - {id: description, label: Description, kind: richtext}
-  - {id: active, label: Active, kind: boolean, list: true}
+ - {id: name, label: Feature Name, kind: text, required: true, list: true, searchable: true}
+ - {id: slug, label: Slug, kind: text, required: true}
+ - {id: summary, label: Summary, kind: text, required: true}
+ - {id: tier, label: Plan Tier, kind: select, options: [free, pro, enterprise], list: true, filterable: true}
+ - {id: description, label: Description, kind: richtext}
+ - {id: active, label: Active, kind: boolean, list: true}
 ```
 
 Saving this file automatically registers:

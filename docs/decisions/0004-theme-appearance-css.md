@@ -8,7 +8,7 @@
 `modules/site`'s Appearance settings (admin-editable brand colors, dark
 variants and font, WCAG-contrast-checked, `modules/site/appearance.go`)
 already compiled to a `:root{--brand:...}` rule and were already injected
-into the page `<head>` — but only for pages rendered through
+into the page `<head>` - but only for pages rendered through
 `modules/pages`. `modules/news`, which renders the theme's actual homepage
 (`/` redirects to it), never received it, so an admin-configured brand color
 never reached most of the public site. `themes/newsroom`'s own CSS also
@@ -16,7 +16,7 @@ didn't consume any `--brand` variable; it hardcoded its accent color.
 
 A second, unrelated token mechanism already existed on paper:
 `extension/v1.ThemeManifest.Tokens` (`theme.json`'s `tokens` field). It is
-validated but never compiled to CSS or rendered anywhere. It stays unused —
+validated but never compiled to CSS or rendered anywhere. It stays unused - 
 building a second wiring path for it would create two competing theming
 systems. Appearance (DB-backed, admin-editable, contrast-checked) is the one
 real token system.

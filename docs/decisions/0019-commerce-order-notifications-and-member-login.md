@@ -11,7 +11,7 @@ three real gaps remained: a shopper who just paid gets no confirmation that
 anything happened; an operator finds out about a new order (or a
 reconciliation anomaly) only by reading logs or querying the API by hand;
 and `examples/commerce-starter` had no concept of a logged-in customer at
-all — `modules/members` already provides session-cookie authentication,
+all - `modules/members` already provides session-cookie authentication,
 nothing in the storefront used it.
 
 ## Decision
@@ -24,21 +24,21 @@ share one interface without commerce depending on a specific channel.
 considered and rejected before this:
 
 - **Outbox-based async delivery**: `internal/outbox/sqlstore.Store.Claim`
-  has no topic filter — any consumer claims the next available event
+  has no topic filter - any consumer claims the next available event
   regardless of topic, and `internal/webhooks.Worker` is already the only
   consumer. A second consumer (an "email/notify worker") would race it for
   the same rows. Not built.
 - **Reusing `internal/mailer/sqlstore.Spool`**: its `Enqueue` takes a
   `modules/site.EmailNotification` and imports `modules/site` directly.
-  Any caller constructing that type — including `modules/commerce` —
+  Any caller constructing that type - including `modules/commerce` - 
   would need to import `modules/site`, which `moduleguard` forbids
   (commerce imports zero `modules/*` packages today). Not reused.
 
-Instead, `transport.Handler` gained two optional, best-effort fields —
+Instead, `transport.Handler` gained two optional, best-effort fields - 
 `Mailer OrderMailer` (a narrow interface satisfied as-is by
 `mailer.NotificationSender`, defined in commerce's own transport package
 rather than `internal/mailer`, so `internal/` does not need to know about
-commerce types) and `Notifier notify.Sender` — and calls both
+commerce types) and `Notifier notify.Sender` - and calls both
 synchronously right after `Checkout` succeeds, the same precedent
 `PaymentProvider.StartPayment` already set for "a post-checkout step that
 must never fail the checkout itself." `runCommerceReconciliationAlert`

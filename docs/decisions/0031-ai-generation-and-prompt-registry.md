@@ -6,7 +6,7 @@ Status: Accepted
 ## Context
 
 HydroGo Cloud (the HydroGo Engine hosting offer) sells "AI builds your site, you
-keep full control, backend included" — the Bolt.new comparison only holds if the
+keep full control, backend included" - the Bolt.new comparison only holds if the
 generation is actually AI-driven. Today it is not:
 
 - Storefront HTML is compiled into the binary (`internal/storefront/storefront.html`
@@ -37,7 +37,7 @@ tenant and platform abuse.
 2. **SitePlan pipeline replaces the hardcoded catalog**
    (`internal/sitegen/`): site generation produces a validated JSON `SitePlan`
    (theme tokens, ordered layout sections, collections, records) that is executed
-   as copilot-style operations inside the tenant scope — snapshot, undo, quota and
+   as copilot-style operations inside the tenant scope - snapshot, undo, quota and
    audit all apply. The deterministic fallback reads instruction files
    (`internal/blueprints/instructions/*.json`) instead of Go literals; AI is
    optional, never a hard dependency.
