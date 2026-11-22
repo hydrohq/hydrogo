@@ -105,3 +105,15 @@ func TestSectionIsUnknownWithoutItsExtension(t *testing.T) {
 		t.Fatalf("expected unknown section error, got %v", err)
 	}
 }
+
+func TestHandBuiltConfigFallsBackToExtensionDefaults(t *testing.T) {
+	registerWidgets(t)
+	// A Config assembled without Load (as many tests do) has no extension values.
+	var cfg Config
+	if err := validateExtensions(cfg); err != nil {
+		t.Fatalf("validate on hand-built config: %v", err)
+	}
+	if issues := ExtensionProductionIssues(cfg, lookup(nil)); len(issues) != 1 {
+		t.Fatalf("production issues on hand-built config: %v", issues)
+	}
+}

@@ -51,6 +51,14 @@ func RegisterExtension(e Extension) {
 	sort.Slice(extensions, func(i, j int) bool { return extensions[i].Section < extensions[j].Section })
 }
 
+// valueOf returns the extension's value in c, or a fresh default when c was built without Load.
+func (e Extension) valueOf(c Config) any {
+	if v, ok := c.Extensions[e.Section]; ok && v != nil {
+		return v
+	}
+	return e.Defaults()
+}
+
 func registeredExtensions() []Extension {
 	extensionsMu.RLock()
 	defer extensionsMu.RUnlock()
@@ -118,7 +126,11 @@ func applyExtensionSections(c *Config) error {
 			unknown = append(unknown, fmt.Sprintf("line %d: field %s not found in type config.Config", node.Line, key))
 			continue
 		}
-		value := c.Extensions[ext.Section]
+		if c.Extensions == nil {
+			c.Extensions = map[string]any{}
+		}
+		value := ext.valueOf(*c)
+		c.Extensions[ext.Section] = value
 		if err := DecodeSection(&node, value); err != nil {
 			return fmt.Errorf("%s: %w", key, err)
 		}
@@ -135,7 +147,7 @@ func applyExtensionEnv(c *Config, lookup LookupEnv) error {
 		if e.Env == nil {
 			continue
 		}
-		if err := e.Env(lookup, c.Extensions[e.Section]); err != nil {
+		if err := e.Env(lookup, e.valueOf(*c)); err != nil {
 			return err
 		}
 	}
@@ -147,7 +159,7 @@ func validateExtensions(c Config) error {
 		if e.Validate == nil {
 			continue
 		}
-		if err := e.Validate(c, c.Extensions[e.Section]); err != nil {
+		if err := e.Validate(c, e.valueOf(c)); err != nil {
 			return err
 		}
 	}
@@ -161,7 +173,7 @@ func ExtensionProductionIssues(c Config, lookup LookupEnv) []string {
 		if e.ProductionIssues == nil {
 			continue
 		}
-		issues = append(issues, e.ProductionIssues(c, lookup, c.Extensions[e.Section])...)
+		issues = append(issues, e.ProductionIssues(c, lookup, e.valueOf(c))...)
 	}
 	return issues
 }
