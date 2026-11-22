@@ -37,20 +37,16 @@ Set `HYDRO_SITE_URL` (or `http.site_url`) to the external frontend/website URL (
 
 ## Production Secret Validation
 
-For PayTR, set `payments.paytr.timeout_limit` in minutes (default 20; valid
-values are 5–29). Keep it below the 30-minute stock reservation period:
-otherwise a shopper may pay after the reservation expires, leaving a payment
-that cannot safely fulfill the order.
+Keep any payment gateway's payment time limit below the 30-minute stock
+reservation period: otherwise a shopper may pay after the reservation expires,
+leaving a payment that cannot safely fulfill the order.
 
 When running in production (`HYDRO_ENV=production`, `APP_ENV=production`, or `GO_ENV=production`), HydroGo enforces strict security validation on startup. The process will refuse to start with an explicit error if any critical secret is empty or set to placeholder values (`CHANGE_ME`):
 
 - `HYDRO_JWT_SECRET`: signing key for JWT tokens (must be at least 32 characters).
 - `RECOVER_SECRET` (or `HYDRO_RECOVER_SECRET`): salt/secret for password recovery tokens.
 - Webhook secrets: `secret` fields declared under `webhooks` or `HYDRO_WEBHOOK_SECRET`.
-- Enabled payment gateway secrets:
-  - PayTR: `payments.paytr.merchant_key` and `merchant_salt`.
-  - İyzico: `payments.iyzico.api_key` and `secret_key`.
-  - Shopier: `SHOPIER_API_KEY` and `SHOPIER_API_SECRET`.
+- Secrets of any enabled payment gateway (see the add-on module's documentation).
 
 In non-production environments (development/testing), HydroGo starts normally while logging actionable warnings.
 
@@ -100,7 +96,6 @@ Deploy your frontend separately and point it at the API. The SvelteKit starter r
 
 HydroGo supports both manual and provider-driven shipping fulfillment:
 
-- **Yurtiçi Kargo Integration (`modules/shipping/yurtici`)**: The integration uses `order.ID` as the cargo and invoice key (`CargoKey`/`InvoiceKey`) and returns `order.ID` as the default `TrackingNumber`. There is no automated barcode or shipping label generation in this integration; tracking queries reference the `order.ID`.
 - **Manual Carrier Selection (`manual`)**: In production deployments where physical branches generate barcodes or shipping labels at dispatch, operators select the manual carrier option and input the tracking number and tracking URL manually either via the embedded admin panel or via `POST /api/v1/admin/commerce/orders/{id}/shipment`.
 
 ## Tamper-evident audit log
