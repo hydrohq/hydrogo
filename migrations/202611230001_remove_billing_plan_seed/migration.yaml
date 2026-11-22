@@ -1,0 +1,30 @@
+id: "202611230001_remove_billing_plan_seed"
+module: "core"
+requires_modules:
+  - "auth"
+class:
+  sqlite: "maintenance"
+  postgres: "maintenance"
+  mysql: "maintenance"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "888d6731959bb118f850449510b109cd0e5582a7134804419d5b7e7781391c61"
+  postgres: "888d6731959bb118f850449510b109cd0e5582a7134804419d5b7e7781391c61"
+  mysql: "f43c98a60e0efc8b2a3d1e24f8a45849740a9a83d323a8846137a3df2e9aaca5"
+dependencies:
+  - "202611080001_saas_billing_subscription"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "202611080001_saas_billing_subscription is applied"
+lock_timeout: "Not certified; one DELETE of at most two rows by primary key"
+disk_estimate: "None; removes at most two plan rows"
+compatibility: "Data only. Plans that an order or subscription references are left untouched; no schema change."
+smoke:
+  - "A fresh database no longer contains plan_monthly or plan_yearly; a plan referenced by a subscription survives."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; re-insert the plan rows manually if they are needed."
