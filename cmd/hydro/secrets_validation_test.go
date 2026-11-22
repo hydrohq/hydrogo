@@ -11,14 +11,6 @@ import (
 
 func TestValidateSecretsInProduction(t *testing.T) {
 	validCfg := config.Config{
-		Payments: config.Payments{
-			PayTR: config.PayTR{
-				MerchantID:   "m-1",
-				MerchantKey:  "valid-merchant-key",
-				MerchantSalt: "valid-merchant-salt",
-				BaseURL:      "https://paytr.example.com",
-			},
-		},
 		Webhooks: []config.Webhook{
 			{URL: "https://hook.example.com", Secret: "valid-hook-secret"},
 		},
@@ -30,10 +22,6 @@ func TestValidateSecretsInProduction(t *testing.T) {
 			return "super-secure-random-jwt-secret-at-least-32-chars", true
 		case "RECOVER_SECRET":
 			return "super-secure-recover-secret-value", true
-		case "SHOPIER_API_KEY":
-			return "shopier-key-123", true
-		case "SHOPIER_API_SECRET":
-			return "shopier-secret-456", true
 		}
 		return "", false
 	}
@@ -74,53 +62,7 @@ func TestValidateSecretsInProduction(t *testing.T) {
 		t.Fatalf("expected error for CHANGE_ME webhook secret, got: %v", err)
 	}
 
-	// 5. Insecure PayTR merchant_key in production: must fail
-	badPayTRCfg := validCfg
-	badPayTRCfg.Payments.PayTR.MerchantKey = "CHANGE_ME"
-	if err := validateSecrets(badPayTRCfg, validLookup, true, nil); err == nil || !strings.Contains(err.Error(), "payments.paytr.merchant_key") {
-		t.Fatalf("expected error for CHANGE_ME paytr merchant_key, got: %v", err)
-	}
-
-	// 6. Havale enabled in production without HYDRO_PAYMENTS_HAVALE_IBAN env var: must fail
-	havaleCfg := validCfg
-	havaleCfg.Payments.Havale = config.Havale{
-		IBAN:          "TR330006100519786457841326",
-		BankName:      "Ziraat Bankası",
-		AccountHolder: "BEYOND DERİ A.Ş.",
-	}
-	if err := validateSecrets(havaleCfg, validLookup, true, nil); err == nil || !strings.Contains(err.Error(), "HYDRO_PAYMENTS_HAVALE_IBAN") {
-		t.Fatalf("expected error when Havale enabled without HYDRO_PAYMENTS_HAVALE_IBAN, got: %v", err)
-	}
-
-	// 7. Havale with placeholder IBAN in production: must fail
-	placeholderHavaleCfg := validCfg
-	placeholderHavaleCfg.Payments.Havale = config.Havale{
-		IBAN:          "TR00 0000 0000 0000 0000 0000 00",
-		BankName:      "TODO Banka",
-		AccountHolder: "BEYOND",
-	}
-	havaleLookup := func(key string) (string, bool) {
-		if key == "HYDRO_PAYMENTS_HAVALE_IBAN" {
-			return "TR00 0000 0000 0000 0000 0000 00", true
-		}
-		return validLookup(key)
-	}
-	if err := validateSecrets(placeholderHavaleCfg, havaleLookup, true, nil); err == nil || !strings.Contains(err.Error(), "payments.havale.iban") {
-		t.Fatalf("expected error for placeholder Havale IBAN, got: %v", err)
-	}
-
-	// 8. Havale with env var and valid fields in production: must pass
-	validHavaleLookup := func(key string) (string, bool) {
-		if key == "HYDRO_PAYMENTS_HAVALE_IBAN" {
-			return "TR330006100519786457841326", true
-		}
-		return validLookup(key)
-	}
-	if err := validateSecrets(havaleCfg, validHavaleLookup, true, nil); err != nil {
-		t.Fatalf("expected valid env-backed Havale config to pass in production, got: %v", err)
-	}
-
-	// 9. Analytics local-dev-key in production: must fail
+	// 5. Analytics local-dev-key in production: must fail
 	badAnalyticsCfg := validCfg
 	badAnalyticsCfg.Analytics = config.Analytics{
 		NoCookieEnabled: true,
@@ -133,14 +75,6 @@ func TestValidateSecretsInProduction(t *testing.T) {
 
 func TestValidateSecretsInDevelopmentWarnsInsteadOfFailing(t *testing.T) {
 	insecureCfg := config.Config{
-		Payments: config.Payments{
-			PayTR: config.PayTR{
-				MerchantID:   "m-1",
-				MerchantKey:  "CHANGE_ME",
-				MerchantSalt: "",
-				BaseURL:      "https://paytr.example.com",
-			},
-		},
 		Webhooks: []config.Webhook{
 			{URL: "https://hook.example.com", Secret: "CHANGE_ME"},
 		},

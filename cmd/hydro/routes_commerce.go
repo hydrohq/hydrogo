@@ -49,17 +49,10 @@ func (a *serveApp) commercePaymentProviderName() string {
 	}
 	// Every payments-module provider records the order id as its notification
 	// event id, which is what reconcile joins on.
-	if !paymentsEnabled(a.modules, a.cfg.Payments) {
+	if !paymentsEnabled(a.modules, a.cfg) {
 		return ""
 	}
-	var names []string
-	for name, on := range map[string]bool{"paytr": a.cfg.Payments.PayTR.Enabled(), "iyzico": a.cfg.Payments.Iyzico.Enabled(), "havale": a.cfg.Payments.Havale.Enabled()} {
-		if on {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	return strings.Join(names, ",")
+	return strings.Join(a.paymentMethodNames(), ",")
 }
 
 // commerceCSRFExemptPaths names the routes a payment provider calls
@@ -167,7 +160,7 @@ func (a *serveApp) commerceRoutes() []router.Route {
 	}
 	handler.ShippingProvider = a.commerceShippingProvider()
 	handler.InvoiceProvider = a.commerceInvoiceProvider()
-	handler.AutoIssueInvoiceOnPaid = a.cfg.Invoicing.AutoIssueOnPaid
+	handler.AutoIssueInvoiceOnPaid = a.invoiceAutoIssueOnPaid()
 
 	transportRoutes := append(handler.Routes(), paymentRoutes...)
 	transportRoutes = append(transportRoutes, a.shippingRoutes(handler.Service, handler.ClientIP)...)
