@@ -294,6 +294,25 @@ export async function handleDemoRequest<T>(
 
   if (path.startsWith('/api/v1/admin/site')) {
     const section = path.split('/')[5] || 'general';
+    if (section === 'settings') {
+      if (!Array.isArray(state.site.settings)) {
+        state.site.settings = [];
+      }
+      if ((method === 'PUT' || method === 'POST' || method === 'PATCH') && Array.isArray(payload?.settings)) {
+        const map = new Map<string, string>(
+          (state.site.settings as Array<{ key: string; value: string }>).map((item) => [item.key, item.value])
+        );
+        for (const item of payload.settings) {
+          if (item && typeof item.key === 'string') {
+            map.set(item.key, String(item.value ?? ''));
+          }
+        }
+        state.site.settings = Array.from(map.entries()).map(([key, value]) => ({ key, value }));
+        recordAudit(state, 'site.settings.update', 'settings', method);
+        saveState(state);
+      }
+      return { data: state.site.settings } as T;
+    }
     if (method === 'PUT' || method === 'POST' || method === 'PATCH') {
       state.site[section] = { ...(state.site[section] || {}), ...payload };
       recordAudit(state, `site.${section}.update`, section, method);

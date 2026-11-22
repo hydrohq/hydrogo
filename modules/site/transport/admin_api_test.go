@@ -411,4 +411,37 @@ func TestAdminNavigationGeneratesIDsAndPersistsStorefrontKeys(t *testing.T) {
 	if public["appearance.logo_url"] != "/media/logo.svg" || public["storefront.popup_code"] != "HOSGELDIN10" || public["site.business_profile"] == "" {
 		t.Fatalf("public settings=%+v", public)
 	}
+
+	// Reject CSS-injection tokens and unknown theme IDs.
+	badTheme := `{"settings":[{"key":"storefront.theme_id","value":"evil"},{"key":"storefront.theme_tokens","value":"{\"accent\":\"red;background:url(x)\"}"}]}`
+	if resp := call(t, mux, http.MethodPut, "/api/v1/admin/site/settings", badTheme); resp.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for invalid theme settings, got %d body=%s", resp.Code, resp.Body.String())
+	}
+
+	// Save valid theme ID and token overrides, then verify public /api/v1/site/themes and preview.
+	goodTheme := `{"settings":[{"key":"storefront.theme_id","value":"boutique"},{"key":"storefront.theme_tokens","value":"{\"accent\":\"#112233\",\"radius\":\"lg\"}"}]}`
+	if resp := call(t, mux, http.MethodPut, "/api/v1/admin/site/settings", goodTheme); resp.Code != http.StatusOK {
+		t.Fatalf("save theme settings status=%d body=%s", resp.Code, resp.Body.String())
+	}
+
+	var themesResp struct {
+		Themes  []site.ThemeManifest `json:"themes"`
+		Active  site.ThemeManifest   `json:"active"`
+		Tokens  site.ThemeTokens     `json:"tokens"`
+		Preview bool                 `json:"preview"`
+	}
+	decodeData(t, call(t, mux, http.MethodGet, "/api/v1/site/themes", ""), &themesResp)
+	if len(themesResp.Themes) < 4 || themesResp.Active.ID != "boutique" || themesResp.Tokens.Accent != "#112233" || themesResp.Tokens.Radius != "lg" || themesResp.Preview {
+		t.Fatalf("unexpected /api/v1/site/themes response: %+v", themesResp)
+	}
+
+	var previewResp struct {
+		Active  site.ThemeManifest `json:"active"`
+		Tokens  site.ThemeTokens   `json:"tokens"`
+		Preview bool               `json:"preview"`
+	}
+	decodeData(t, call(t, mux, http.MethodGet, "/api/v1/site/themes?theme_preview=editorial", ""), &previewResp)
+	if previewResp.Active.ID != "editorial" || !previewResp.Preview {
+		t.Fatalf("unexpected preview response: %+v", previewResp)
+	}
 }
