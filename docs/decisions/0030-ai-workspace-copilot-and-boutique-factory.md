@@ -3,6 +3,9 @@
 Date: 2026-10-31
 Status: Accepted
 
+Scope note: the boutique factory and superadmin consultant described here belong to
+the hosted platform overlay and are not part of this repository.
+
 ## Context
 
 Store owners and workspace administrators need to manage their catalog, pricing, and storefront visual themes using natural language instructions ("AI Copilot"), while the platform operator needs the flexibility to connect each tenant workspace to different AI providers (Gemini, OpenAI, Anthropic Claude, or OpenAI-compatible local/cloud endpoints like Ollama, Groq, and DeepSeek) with optional tenant-owned API keys (BYOK) and strict monthly token quotas.

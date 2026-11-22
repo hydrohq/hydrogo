@@ -238,4 +238,4 @@ We welcome community contributions! Please review:
 ## Community & License
 
 - **Questions & Showcases:** Share what you are building or ask questions in [GitHub Discussions](https://github.com/hydrohq/hydrogo/discussions), or file bugs via [GitHub Issues](https://github.com/hydrohq/hydrogo/issues) (include `hydro version --json` and `hydro doctor` output for faster triage).
-- **License:** [PolyForm Shield License 1.0.0](LICENSE). Free to use, modify, and self-host for your own applications, websites, stores, and client projects. You may not offer HydroGo as a competing managed CMS product or hosted CMS service.
+- **License:** [PolyForm Shield License 1.0.0](LICENSE). The source is public and this is a source-available license, not an OSI-approved open-source one. Free to use, modify, and self-host for your own applications, websites, stores, and client projects. You may not offer HydroGo as a competing managed CMS product or hosted CMS service.

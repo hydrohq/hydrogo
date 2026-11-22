@@ -2,6 +2,10 @@
 
 - Status: Accepted
 - Date: 2026-10-31
+- Scope note: the orchestrator, superadmin console and billing routes described here
+  belong to the hosted platform overlay and are not part of this repository
+  (`cmd/hydro/cloud_stubs.go` answers 404 without the `hydrocloud` build tag). The
+  migrations named here ship in core and stay for upgrade compatibility.
 
 ## Context
 
