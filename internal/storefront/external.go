@@ -159,16 +159,18 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 // ultra-low latency and caching; dynamic page requests are proxied to Upstream.
 func (s *ExternalStorefront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.staticDir != "" && dirExists(s.staticDir) && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-		if s.tryServeStatic(w, r) {
-			return
-		}
-		// If no upstream proxy is configured, serve index.html for SPA page routes
-		if s.proxy == nil || strings.TrimSpace(s.cfg.Upstream) == "" {
-			if !strings.HasPrefix(r.URL.Path, "/_app/") && !strings.HasPrefix(r.URL.Path, "/assets/") {
-				indexPath := filepath.Join(s.staticDir, "index.html")
-				if stat, err := os.Stat(indexPath); err == nil && !stat.IsDir() {
-					s.serveFile(w, r, indexPath, stat)
-					return
+		if root, err := os.OpenRoot(s.staticDir); err == nil {
+			defer root.Close()
+			if s.tryServeStatic(w, r, root) {
+				return
+			}
+			// If no upstream proxy is configured, serve index.html for SPA page routes
+			if s.proxy == nil || strings.TrimSpace(s.cfg.Upstream) == "" {
+				if !strings.HasPrefix(r.URL.Path, "/_app/") && !strings.HasPrefix(r.URL.Path, "/assets/") {
+					if stat, err := root.Stat("index.html"); err == nil && !stat.IsDir() {
+						s.serveRootFile(w, r, root, "index.html", stat)
+						return
+					}
 				}
 			}
 		}
@@ -253,51 +255,43 @@ func (s *ExternalStorefront) tryServeEmbedded(w http.ResponseWriter, r *http.Req
 	return true
 }
 
-func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Request) bool {
+func (s *ExternalStorefront) tryServeStatic(w http.ResponseWriter, r *http.Request, root *os.Root) bool {
 	urlPath := r.URL.Path
 	if !strings.HasPrefix(urlPath, "/") {
 		urlPath = "/" + urlPath
 	}
 	cleaned := path.Clean(urlPath)
-	if cleaned == "/" || cleaned == "." {
-		indexPath := filepath.Join(s.staticDir, "index.html")
-		if stat, err := os.Stat(indexPath); err == nil && !stat.IsDir() {
-			s.serveFile(w, r, indexPath, stat)
+	rel := strings.TrimPrefix(cleaned, "/")
+	if rel == "" || rel == "." {
+		if stat, err := root.Stat("index.html"); err == nil && !stat.IsDir() {
+			s.serveRootFile(w, r, root, "index.html", stat)
 			return true
 		}
 		return false
 	}
 
-	rel := strings.TrimPrefix(cleaned, "/")
-	diskPath := filepath.Join(s.staticDir, filepath.FromSlash(rel))
-
-	cleanStaticDir := filepath.Clean(s.staticDir)
-	if !strings.HasPrefix(diskPath, cleanStaticDir) {
-		return false
-	}
-
-	stat, err := os.Stat(diskPath)
+	stat, err := root.Stat(rel)
 	if err != nil {
 		return false
 	}
 	if stat.IsDir() {
-		indexPath := filepath.Join(diskPath, "index.html")
-		if subStat, err := os.Stat(indexPath); err == nil && !subStat.IsDir() {
-			s.serveFile(w, r, indexPath, subStat)
+		indexRel := path.Join(rel, "index.html")
+		if subStat, err := root.Stat(indexRel); err == nil && !subStat.IsDir() {
+			s.serveRootFile(w, r, root, indexRel, subStat)
 			return true
 		}
 		return false
 	}
 
-	s.serveFile(w, r, diskPath, stat)
+	s.serveRootFile(w, r, root, rel, stat)
 	return true
 }
 
-func (s *ExternalStorefront) serveFile(w http.ResponseWriter, r *http.Request, diskPath string, stat os.FileInfo) {
+func (s *ExternalStorefront) serveRootFile(w http.ResponseWriter, r *http.Request, root *os.Root, relPath string, stat os.FileInfo) {
 	cleaned := path.Clean(r.URL.Path)
 	if strings.HasPrefix(cleaned, "/_app/immutable/") || strings.HasPrefix(cleaned, "/assets/") {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	} else if strings.HasSuffix(diskPath, ".html") {
+	} else if strings.HasSuffix(relPath, ".html") {
 		w.Header().Set("Cache-Control", "no-cache")
 	} else {
 		w.Header().Set("Cache-Control", s.staticCacheControl())
@@ -306,15 +300,13 @@ func (s *ExternalStorefront) serveFile(w http.ResponseWriter, r *http.Request, d
 	acceptEncoding := r.Header.Get("Accept-Encoding")
 	// 1. Try Brotli precompressed asset
 	if strings.Contains(acceptEncoding, "br") {
-		brPath := diskPath + ".br"
-		if brStat, err := os.Stat(brPath); err == nil && !brStat.IsDir() {
-			brFile, err := os.Open(brPath)
-			if err == nil {
+		if brStat, err := root.Stat(relPath + ".br"); err == nil && !brStat.IsDir() {
+			if brFile, err := root.Open(relPath + ".br"); err == nil {
 				defer brFile.Close()
-				s.setMimeType(w, diskPath)
+				s.setMimeType(w, relPath)
 				w.Header().Set("Content-Encoding", "br")
 				w.Header().Set("Vary", "Accept-Encoding")
-				http.ServeContent(w, r, filepath.Base(diskPath), brStat.ModTime(), brFile)
+				http.ServeContent(w, r, path.Base(relPath), brStat.ModTime(), brFile)
 				return
 			}
 		}
@@ -322,22 +314,26 @@ func (s *ExternalStorefront) serveFile(w http.ResponseWriter, r *http.Request, d
 
 	// 2. Try Gzip precompressed asset
 	if strings.Contains(acceptEncoding, "gzip") {
-		gzPath := diskPath + ".gz"
-		if gzStat, err := os.Stat(gzPath); err == nil && !gzStat.IsDir() {
-			gzFile, err := os.Open(gzPath)
-			if err == nil {
+		if gzStat, err := root.Stat(relPath + ".gz"); err == nil && !gzStat.IsDir() {
+			if gzFile, err := root.Open(relPath + ".gz"); err == nil {
 				defer gzFile.Close()
-				s.setMimeType(w, diskPath)
+				s.setMimeType(w, relPath)
 				w.Header().Set("Content-Encoding", "gzip")
 				w.Header().Set("Vary", "Accept-Encoding")
-				http.ServeContent(w, r, filepath.Base(diskPath), gzStat.ModTime(), gzFile)
+				http.ServeContent(w, r, path.Base(relPath), gzStat.ModTime(), gzFile)
 				return
 			}
 		}
 	}
 
-	s.setMimeType(w, diskPath)
-	http.ServeFile(w, r, diskPath)
+	f, err := root.Open(relPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	s.setMimeType(w, relPath)
+	http.ServeContent(w, r, path.Base(relPath), stat.ModTime(), f)
 }
 
 func (s *ExternalStorefront) setMimeType(w http.ResponseWriter, filePath string) {
@@ -392,7 +388,7 @@ func (s *ExternalStorefront) runChildProcess(ctx context.Context) error {
 		return errors.New("empty command")
 	}
 
-	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd := exec.Command(parts[0], parts[1:]...) // #nosec G204 -- operator-configured storefront command from config.yaml
 	if s.cfg.Dir != "" {
 		cmd.Dir = s.cfg.Dir
 	}
@@ -465,7 +461,7 @@ func (s *ExternalStorefront) streamLogs(r io.Reader, stream string) {
 }
 
 func parseEnvFile(filePath string) (map[string]string, error) {
-	file, err := os.Open(filePath)
+	file, err := os.Open(filePath) // #nosec G304 -- operator-configured env_file path from config.yaml
 	if err != nil {
 		return nil, err
 	}
