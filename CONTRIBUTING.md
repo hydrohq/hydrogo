@@ -11,4 +11,14 @@ Thanks for helping. Short version: open an issue for anything bigger than a bug 
 - **New content types** are YAML only (`content-types/`); see [docs/content-types.md](docs/content-types.md). **New migrations** need all three dialects.
 - **Security issues:** do not open a public issue; see [docs/SECURITY.md](docs/SECURITY.md).
 
+## Developer Certificate of Origin
+
+Every commit must carry a `Signed-off-by` line (`git commit -s`) certifying the [Developer Certificate of Origin 1.1](https://developercertificate.org/): you wrote the change or have the right to submit it under this project's license.
+
+## License of contributions
+
 By contributing you agree your work is licensed under the PolyForm Shield 1.0.0 license of this repository (see LICENSE).
+
+## Conduct
+
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).

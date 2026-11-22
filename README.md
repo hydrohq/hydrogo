@@ -2,7 +2,6 @@
 
 **Single-binary headless CMS and application engine written in Go.**
 
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions)](https://github.com/hydrohq/hydrogo/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/hydrohq/hydrogo)](https://github.com/hydrohq/hydrogo/releases/latest)
 [![License: PolyForm Shield 1.0.0](https://img.shields.io/badge/License-PolyForm%20Shield%201.0.0-blue.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/hydrohq/hydrogo.svg)](https://pkg.go.dev/github.com/hydrohq/hydrogo)
@@ -12,7 +11,7 @@ HydroGo is a self-contained, high-performance headless CMS and application engin
 
 Run it on SQLite with zero external dependencies, or connect to PostgreSQL or MySQL for distributed workloads.
 
-[Try the Admin Playground](https://hydro.ardalabs.dev/playground) (zero install, runs in-browser) &bull; [Documentation](https://hydro.ardalabs.dev/docs) &bull; [Architecture Vision](docs/VISION.md)
+[Documentation](https://hydrogo.dev/docs) &bull; [Architecture Vision](docs/VISION.md)
 
 ---
 

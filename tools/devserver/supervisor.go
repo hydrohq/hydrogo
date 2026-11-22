@@ -142,7 +142,7 @@ func (s *supervisor) rebuild(ctx context.Context, reason string, rebuild bool) {
 	if !ready {
 		// Restore the last known-good binary when the newly built binary cannot
 		// serve. This keeps the dev environment usable while exposing the real
-		// failure in the overlay instead of falsely reporting "Ready".
+		// failure in the extension instead of falsely reporting "Ready".
 		s.stopChild()
 		if _, restoreErr := os.Stat(previousBinary); restoreErr == nil {
 			if copyErr := copyFile(previousBinary, s.binary); copyErr == nil {

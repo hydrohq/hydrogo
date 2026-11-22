@@ -137,7 +137,7 @@ type Options struct {
 }
 
 // Starters lists the frontend starters Create can copy into a project.
-// In HydroGo Core, frontend starters are hosted in Hydro Cloud (https://github.com/hydrohq/cloud).
+// HydroGo Core ships no frontend starters; it scaffolds headless backend CMS projects.
 func Starters() []string { return nil }
 
 // Create writes a new project into opts.Dir. It refuses to overwrite an
@@ -162,7 +162,7 @@ func Create(opts Options) (Preset, error) {
 		opts.Name = filepath.Base(abs)
 	}
 	if opts.Starter != "" {
-		return Preset{}, fmt.Errorf("frontend starters are managed in Hydro Cloud (https://github.com/hydrohq/cloud); HydroGo Core scaffolds headless backend CMS projects")
+		return Preset{}, fmt.Errorf("frontend starters are not part of HydroGo Core; it scaffolds headless backend CMS projects")
 	}
 	for _, existing := range []string{"config.yaml", "content-types", "e2e"} {
 		if _, statErr := os.Stat(filepath.Join(opts.Dir, existing)); statErr == nil {

@@ -46,7 +46,7 @@ async function waitFor(url: string, what: string, server: ChildProcess, log: () 
 export default async function globalSetup() {
   const work = mkdtempSync(join(tmpdir(), "hydro-journeys-"));
   const bin = join(work, process.platform === "win32" ? "hydro.exe" : "hydro");
-  // HYDRO_BUILD_TAGS lets an overlay (the private hosted platform) run its own journeys against its own build.
+  // HYDRO_BUILD_TAGS lets an extension build run its own journeys against its own binary.
   const tags = process.env.HYDRO_BUILD_TAGS ? ["-tags", process.env.HYDRO_BUILD_TAGS] : [];
   runCommand("go", ["build", ...tags, "-o", bin, "./cmd/hydro"], { cwd: repo });
 
