@@ -115,9 +115,9 @@
       await api.patch(`/api/v1/admin/members/${selectedMember.id}`, { email: editEmail.trim() });
       selectedMember.email = editEmail.trim();
       await loadMembers();
-      feedbackMessage = { type: 'success', text: 'E-posta adresi başarıyla güncellendi.' };
+      feedbackMessage = { type: 'success', text: t('members.emailUpdated') };
     } catch (err: any) {
-      feedbackMessage = { type: 'error', text: err?.message || 'E-posta güncellenemedi.' };
+      feedbackMessage = { type: 'error', text: err?.message || t('members.emailUpdateFailed') };
     } finally {
       actionLoading = false;
     }
@@ -130,9 +130,9 @@
     try {
       await api.patch(`/api/v1/admin/members/${selectedMember.id}`, { password: editPassword.trim() });
       editPassword = '';
-      feedbackMessage = { type: 'success', text: 'Üye şifresi başarıyla güncellendi.' };
+      feedbackMessage = { type: 'success', text: t('members.passwordUpdated') };
     } catch (err: any) {
-      feedbackMessage = { type: 'error', text: err?.message || 'Şifre güncellenemedi (en az 6 karakter).' };
+      feedbackMessage = { type: 'error', text: err?.message || t('members.passwordUpdateFailed') };
     } finally {
       actionLoading = false;
     }
@@ -149,7 +149,7 @@
       selectedMember = null;
       await loadMembers();
     } catch (err: any) {
-      feedbackMessage = { type: 'error', text: err?.message || 'Üye silinemedi.' };
+      feedbackMessage = { type: 'error', text: err?.message || t('members.deleteFailed') };
     } finally {
       actionLoading = false;
     }
@@ -172,7 +172,7 @@
       newMemberPassword = '';
       await loadMembers();
     } catch (err: any) {
-      createError = err?.message || 'Üye oluşturulamadı.';
+      createError = err?.message || t('members.createFailed');
     } finally {
       actionLoading = false;
     }
@@ -221,9 +221,9 @@
 
 <ConfirmDialog
   open={deleteConfirmOpen}
-  title="Üye Hesabını Sil"
-  description={`"${selectedMember?.email ?? ''}" hesabını kalıcı olarak silmek istediğinize emin misiniz?`}
-  confirmLabel="Üyeyi Sil"
+  title={t('members.deleteTitle')}
+  description={t('members.deleteDesc', { email: selectedMember?.email ?? '' })}
+  confirmLabel={t('members.deleteConfirm')}
   variant="destructive"
   loading={actionLoading}
   onconfirm={confirmDeleteMember}
@@ -233,8 +233,8 @@
 <!-- Create Member Modal -->
 <Modal
   open={createOpen}
-  title="Yeni Üye Oluştur"
-  description="Mağaza için doğrudan yeni bir müşteri hesabı tanımlayın."
+  title={t('members.createTitle')}
+  description={t('members.createDesc')}
   onclose={() => { createOpen = false; }}
 >
   <form onsubmit={submitCreateMember} class="space-y-4">
@@ -244,35 +244,35 @@
       </div>
     {/if}
     <div class="space-y-1.5">
-      <label class="text-xs font-medium text-foreground" for="new-member-email">E-Posta Adresi</label>
+      <label class="text-xs font-medium text-foreground" for="new-member-email">{t('members.emailLabel')}</label>
       <input
         id="new-member-email"
         type="email"
         required
-        placeholder="ornek@domain.com"
+        placeholder={t('members.emailPlaceholder')}
         bind:value={newMemberEmail}
         class="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
     </div>
     <div class="space-y-1.5">
-      <label class="text-xs font-medium text-foreground" for="new-member-password">Şifre (en az 6 karakter)</label>
+      <label class="text-xs font-medium text-foreground" for="new-member-password">{t('members.passwordLabel')}</label>
       <input
         id="new-member-password"
         type="text"
         required
         minlength="6"
-        placeholder="Güçlü bir şifre belirleyin"
+        placeholder={t('members.passwordPlaceholder')}
         bind:value={newMemberPassword}
         class="h-9 w-full rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
     </div>
     <label class="flex items-center gap-2 text-xs text-foreground cursor-pointer">
       <input type="checkbox" bind:checked={newMemberVerified} class="rounded border-input" />
-      <span>E-posta adresini doğrulanmış olarak işaretle</span>
+      <span>{t('members.markVerifiedOnCreate')}</span>
     </label>
     <div class="flex justify-end gap-2 pt-2">
       <Button variant="secondary" size="sm" onclick={() => { createOpen = false; }}>{t('common.cancel')}</Button>
-      <Button type="submit" variant="primary" size="sm" loading={actionLoading}>Üye Oluştur</Button>
+      <Button type="submit" variant="primary" size="sm" loading={actionLoading}>{t('members.createSubmit')}</Button>
     </div>
   </form>
 </Modal>
@@ -316,34 +316,34 @@
 
       <!-- Direct Email Change -->
       <div class="p-3.5 rounded-lg border border-border bg-card space-y-2">
-        <label class="block text-xs font-medium text-foreground" for="admin-member-email">E-Posta Adresini Değiştir</label>
+        <label class="block text-xs font-medium text-foreground" for="admin-member-email">{t('members.changeEmailLabel')}</label>
         <div class="flex gap-2">
           <input
             id="admin-member-email"
             type="email"
             bind:value={editEmail}
-            placeholder="Yeni e-posta adresi"
+            placeholder={t('members.changeEmailPlaceholder')}
             class="h-8 flex-1 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <Button variant="outline" size="sm" loading={actionLoading} onclick={saveMemberEmail}>
-            Güncelle
+            {t('members.updateBtn')}
           </Button>
         </div>
       </div>
 
       <!-- Direct Password Reset -->
       <div class="p-3.5 rounded-lg border border-border bg-card space-y-2">
-        <label class="block text-xs font-medium text-foreground" for="admin-member-password">Yeni Şifre Belirle</label>
+        <label class="block text-xs font-medium text-foreground" for="admin-member-password">{t('members.newPasswordLabel')}</label>
         <div class="flex gap-2">
           <input
             id="admin-member-password"
             type="text"
             bind:value={editPassword}
-            placeholder="En az 6 karakter yeni şifre"
+            placeholder={t('members.newPasswordPlaceholder')}
             class="h-8 flex-1 rounded-md border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <Button variant="outline" size="sm" loading={actionLoading} onclick={saveMemberPassword}>
-            Şifreyi Kaydet
+            {t('members.savePasswordBtn')}
           </Button>
         </div>
       </div>
@@ -376,7 +376,7 @@
           loading={actionLoading}
           onclick={() => { deleteConfirmOpen = true; }}
         >
-          Üye Hesabını Kalıcı Olarak Sil
+          {t('members.deletePermanent')}
         </Button>
       </div>
     </div>
@@ -437,7 +437,7 @@
             onclick={() => { createError = ''; newMemberEmail = ''; newMemberPassword = ''; createOpen = true; }}
             class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground hover:opacity-90 text-xs font-medium transition-opacity cursor-pointer shrink-0 shadow-xs"
           >
-            <span>+ Yeni Üye</span>
+            <span>{t('members.newBtn')}</span>
           </button>
         </div>
       </div>

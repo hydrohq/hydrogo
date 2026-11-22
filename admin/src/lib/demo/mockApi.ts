@@ -1,6 +1,6 @@
 import { createInitialDemoState, buildDashboardPayload, type DemoState } from './seedData';
 
-const STORAGE_KEY = 'hydrogo_admin_demo_v2';
+const STORAGE_KEY = 'hydrogo_admin_demo_v3';
 
 function loadState(): DemoState {
   if (typeof window === 'undefined') return createInitialDemoState();
@@ -242,7 +242,21 @@ export async function handleDemoRequest<T>(
   }
 
   if (path.startsWith('/api/v1/admin/members')) {
-    const subId = path.split('/')[5];
+    const parts = path.split('/');
+    const subId = parts[5];
+    const action = parts[6];
+    if (method === 'POST' && subId && action === 'verify') {
+      const m = state.members.find((item) => item.id === subId);
+      if (m) {
+        m.email_verified_at = new Date().toISOString();
+        m.email_verified = true;
+        saveState(state);
+      }
+      return { ok: true, data: m } as T;
+    }
+    if (method === 'POST' && !subId) {
+      payload.email_verified_at = payload.email_verified ? new Date().toISOString() : null;
+    }
     return crudList(state.members, method, subId, payload, state, 'mem', 'members') as T;
   }
 

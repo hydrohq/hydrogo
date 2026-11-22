@@ -149,7 +149,7 @@
   }
 
   async function dismissNotFound(path: string) {
-    if (!(await confirmAction({ title: 'Bu kayıt silinsin mi?', description: `${path} için sayılan 404 isabetleri listeden kalıcı olarak silinir.`, confirmLabel: 'Sil', cancelLabel: 'Vazgeç', variant: 'destructive' }))) return;
+    if (!(await confirmAction({ title: t('common.delete'), description: path, confirmLabel: t('common.delete'), cancelLabel: t('common.cancel'), variant: 'destructive' }))) return;
     try {
       await api.delete('/api/v1/admin/site/not-found', { body: JSON.stringify({ path }) });
       notFoundHits = notFoundHits.filter((h) => h.path !== path);

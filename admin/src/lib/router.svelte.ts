@@ -6,7 +6,7 @@ class Router {
 
   // Unsaved changes protection
   isDirty = $state(false);
-  dirtyMessage = $state('Kaydedilmemiş değişiklikleriniz var. Ayrılmak istediğinizden emin misiniz?');
+  dirtyMessage = $state('You have unsaved changes. Are you sure you want to leave?');
   showUnsavedModal = $state(false);
   pendingTarget = $state<string | null>(null);
 

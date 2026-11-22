@@ -502,9 +502,9 @@
                 <!-- Total Stock -->
                 <td class="px-4 py-3 whitespace-nowrap">
                   {#if stockInfo.isZero}
-                    <Badge variant="destructive" size="sm">Stok yok</Badge>
+                    <Badge variant="destructive" size="sm">Out of stock</Badge>
                   {:else if stockInfo.isLow}
-                    <Badge variant="warning" size="sm">Düşük</Badge>
+                    <Badge variant="warning" size="sm">Low</Badge>
                   {:else}
                     <span class="text-xs font-mono text-foreground">{stockInfo.total}</span>
                   {/if}
@@ -513,9 +513,9 @@
                 <!-- Status -->
                 <td class="px-4 py-3 whitespace-nowrap">
                   {#if product.status === 'draft'}
-                    <Badge variant="outline" size="sm">Taslak</Badge>
+                    <Badge variant="outline" size="sm">{t('common.draft')}</Badge>
                   {:else}
-                    <Badge variant="success" size="sm">Yayında</Badge>
+                    <Badge variant="success" size="sm">{t('common.published')}</Badge>
                   {/if}
                 </td>
               </tr>

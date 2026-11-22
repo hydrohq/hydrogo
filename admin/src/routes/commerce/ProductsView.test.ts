@@ -110,9 +110,9 @@ describe('ProductsView', () => {
     expect(screen.getAllByText('Clothing').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Accessories').length).toBeGreaterThanOrEqual(1);
 
-    // Status badges
-    expect(screen.getAllByText('Yayında').length).toBe(2);
-    expect(screen.getByText('Taslak')).toBeTruthy();
+    // Status badges (plus the status filter <option> elements)
+    expect(screen.getAllByText('Published').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Draft').length).toBeGreaterThanOrEqual(1);
   });
 
   it('requests the first page with limit 20 and loads variants only for visible products', async () => {
@@ -168,11 +168,11 @@ describe('ProductsView', () => {
 
     expect(await screen.findByText('Silk Shirt')).toBeTruthy();
 
-    // p1 has v1 with 2 available (<= 3), so 'Düşük' badge should show
-    expect(screen.getByText('Düşük')).toBeTruthy();
+    // p1 has v1 with 2 available (<= 3), so 'Low' badge should show
+    expect(screen.getByText('Low')).toBeTruthy();
 
-    // p2 has v3 with 0 available, and p3 has no variants (0 total), so 'Stok yok' should show
-    expect(screen.getAllByText('Stok yok').length).toBeGreaterThanOrEqual(1);
+    // p2 has v3 with 0 available, and p3 has no variants (0 total), so 'Out of stock' should show
+    expect(screen.getAllByText('Out of stock').length).toBeGreaterThanOrEqual(1);
   });
 
   it('navigates to product editor when clicking a product row', async () => {

@@ -76,7 +76,7 @@
     } catch (err: any) {
       if (!isPublicPath(router.path)) {
         fatalError = {
-          message: err?.message || 'Uygulama başlatılamadı.',
+          message: err?.message || 'Failed to initialize application.',
           code: err?.code || (err?.status ? `HTTP_${err.status}` : undefined),
           requestId: err?.requestId || err?.request_id || undefined,
           status: err?.status,

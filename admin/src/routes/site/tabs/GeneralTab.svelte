@@ -83,7 +83,7 @@
         id="sf-announcement"
         rows={3}
         bind:value={settings['storefront.announcement_bar']}
-        placeholder={'Tüm siparişlerde ücretsiz kargo | /teslimat-kosullari\nAynı gün kargo | /teslimat-kosullari'}
+        placeholder={'Free shipping on all orders | /shipping\nSame-day dispatch | /shipping'}
         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
       ></textarea>
       <p class="text-[11px] text-muted-foreground mt-1">{t('site.storefront.announcementHelp')}</p>
@@ -92,11 +92,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label for="sf-whatsapp" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.whatsapp')}</label>
-        <Input id="sf-whatsapp" type="tel" bind:value={settings['storefront.whatsapp_number']} placeholder="+90 555 000 00 00" />
+        <Input id="sf-whatsapp" type="tel" bind:value={settings['storefront.whatsapp_number']} placeholder="+1 555 000 0000" />
       </div>
       <div>
         <label for="sf-tagline" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.footerTagline')}</label>
-        <Input id="sf-tagline" type="text" bind:value={settings['storefront.footer_tagline']} placeholder="Hakiki deri, el işçiliği kemer koleksiyonu." />
+        <Input id="sf-tagline" type="text" bind:value={settings['storefront.footer_tagline']} placeholder="Modern digital storefront." />
       </div>
     </div>
 
@@ -109,25 +109,25 @@
         </div>
         <div>
           <label for="sf-hero-title" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroTitle')}</label>
-          <Input id="sf-hero-title" type="text" bind:value={settings['storefront.hero_title']} placeholder="Her detayda | hakiki deri" />
+          <Input id="sf-hero-title" type="text" bind:value={settings['storefront.hero_title']} placeholder="Built for speed | and scale" />
         </div>
       </div>
       <div>
         <label for="sf-hero-sub" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroSubtitle')}</label>
-        <Input id="sf-hero-sub" type="text" bind:value={settings['storefront.hero_subtitle']} placeholder="Klasik, spor ve otomatik modeller..." />
+        <Input id="sf-hero-sub" type="text" bind:value={settings['storefront.hero_subtitle']} placeholder="Explore the new collection..." />
       </div>
       <div>
         <label for="sf-hero-img" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroImage')}</label>
-        <MediaUrlInput id="sf-hero-img" bind:value={settings['storefront.hero_image_url']} placeholder="/home/hero-kemer.jpg" />
+        <MediaUrlInput id="sf-hero-img" bind:value={settings['storefront.hero_image_url']} placeholder="/media/hero.jpg" />
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="sf-hero-cta" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroCtaLabel')}</label>
-          <Input id="sf-hero-cta" type="text" bind:value={settings['storefront.hero_cta_label']} placeholder="Kemerleri İncele" />
+          <Input id="sf-hero-cta" type="text" bind:value={settings['storefront.hero_cta_label']} placeholder="Browse Catalog" />
         </div>
         <div>
           <label for="sf-hero-href" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroCtaHref')}</label>
-          <Input id="sf-hero-href" type="text" bind:value={settings['storefront.hero_cta_href']} placeholder="/urunler" />
+          <Input id="sf-hero-href" type="text" bind:value={settings['storefront.hero_cta_href']} placeholder="/products" />
         </div>
       </div>
     </div>

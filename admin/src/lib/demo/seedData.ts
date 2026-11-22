@@ -318,12 +318,12 @@ export function createInitialDemoState(): DemoState {
       },
     ],
     members: [
-      { id: 'mem_01', email: 'member-01@example.com', name: 'Workspace Account 01', status: 'active', email_verified: true, created_at: daysAgoIso(21) },
-      { id: 'mem_02', email: 'member-02@example.com', name: 'Workspace Account 02', status: 'active', email_verified: true, created_at: daysAgoIso(14) },
-      { id: 'mem_03', email: 'member-03@example.com', name: 'API Consumer 03', status: 'active', email_verified: true, created_at: daysAgoIso(9) },
-      { id: 'mem_04', email: 'member-04@example.com', name: 'Partner Client 04', status: 'active', email_verified: false, created_at: daysAgoIso(5) },
-      { id: 'mem_05', email: 'member-05@example.com', name: 'Webhook Client 05', status: 'active', email_verified: true, created_at: daysAgoIso(3) },
-      { id: 'mem_06', email: 'member-06@example.com', name: 'Sandbox Account 06', status: 'pending', email_verified: false, created_at: daysAgoIso(1) },
+      { id: 'mem_01', email: 'member-01@example.com', name: 'Workspace Account 01', active: true, email_verified_at: daysAgoIso(20), status: 'active', email_verified: true, created_at: daysAgoIso(21) },
+      { id: 'mem_02', email: 'member-02@example.com', name: 'Workspace Account 02', active: true, email_verified_at: daysAgoIso(13), status: 'active', email_verified: true, created_at: daysAgoIso(14) },
+      { id: 'mem_03', email: 'member-03@example.com', name: 'API Consumer 03', active: true, email_verified_at: daysAgoIso(8), status: 'active', email_verified: true, created_at: daysAgoIso(9) },
+      { id: 'mem_04', email: 'member-04@example.com', name: 'Partner Client 04', active: true, email_verified_at: null, status: 'active', email_verified: false, created_at: daysAgoIso(5) },
+      { id: 'mem_05', email: 'member-05@example.com', name: 'Webhook Client 05', active: true, email_verified_at: daysAgoIso(2), status: 'active', email_verified: true, created_at: daysAgoIso(3) },
+      { id: 'mem_06', email: 'member-06@example.com', name: 'Sandbox Account 06', active: false, email_verified_at: null, status: 'pending', email_verified: false, created_at: daysAgoIso(1) },
     ],
     media: [
       {

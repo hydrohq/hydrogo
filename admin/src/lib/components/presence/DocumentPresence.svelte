@@ -57,10 +57,10 @@
   }
 
   function formatActiveTime(secs: number): string {
-    if (secs <= 2) return 'Şu anda aktif';
-    if (secs < 60) return `${secs} sn önce`;
+    if (secs <= 2) return 'Active now';
+    if (secs < 60) return `${secs}s ago`;
     const mins = Math.floor(secs / 60);
-    return `${mins} dk önce`;
+    return `${mins}m ago`;
   }
 </script>
 
@@ -149,7 +149,7 @@
             {/each}
           </div>
           <p class="mt-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 p-1.5 rounded leading-tight">
-            Aynı anda yapılan değişiklikler son kaydedenin verisinin geçerli olmasına (çakışmaya) neden olabilir.
+            Concurrent edits may overwrite the most recently saved changes.
           </p>
         </div>
       {/if}
