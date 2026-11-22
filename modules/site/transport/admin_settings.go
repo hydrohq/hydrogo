@@ -38,6 +38,8 @@ var plainSettingKeys = map[string]func(string) bool{
 	"storefront.popup_enabled":    func(v string) bool { return v == "" || v == "true" || v == "false" },
 	"storefront.popup_code":       maxLen(40),
 	"storefront.popup_percent":    validPercentOption,
+	site.ThemeSettingIDKey:        site.ValidateThemeID,
+	site.ThemeSettingTokensKey:    site.ValidateThemeTokensJSON,
 	// The language the admin panel opens in for users who did not pick one.
 	// Admin panel branding (see ValidBrandColor); empty values mean the HydroGo defaults.
 	"admin.brand_name":     maxLen(60),

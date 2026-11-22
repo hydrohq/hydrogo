@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/analytics"
@@ -66,6 +67,7 @@ type Handler struct {
 func (h Handler) Routes() []Route {
 	routes := []Route{
 		{Pattern: "GET /api/v1/site/settings", Public: true, Handler: http.HandlerFunc(h.publicSettings)},
+		{Pattern: "GET /api/v1/site/themes", Public: true, Handler: http.HandlerFunc(h.publicThemes)},
 		{Pattern: "GET /api/v1/site/maintenance", Public: true, Handler: http.HandlerFunc(h.publicMaintenance)},
 		{Pattern: "GET /api/v1/site/navigation/{locale}", Public: true, Handler: http.HandlerFunc(h.navigation)},
 		{Pattern: "GET /api/v1/site/redirects", Public: true, Handler: http.HandlerFunc(h.publicRedirects)},
@@ -180,6 +182,30 @@ func (h Handler) publicSettings(w http.ResponseWriter, r *http.Request) {
 		result[setting.Key] = setting.Value
 	}
 	api.WriteData(w, http.StatusOK, result, nil)
+}
+
+func (h Handler) publicThemes(w http.ResponseWriter, r *http.Request) {
+	var activeID, rawTokens string
+	if database.RequireExecutor(h.DB) == nil && !guards.IsNil(h.Store) {
+		if settings, err := h.Store.ListPublicSettings(r.Context(), h.DB); err == nil {
+			for _, setting := range settings {
+				switch setting.Key {
+				case site.ThemeSettingIDKey:
+					activeID = setting.Value
+				case site.ThemeSettingTokensKey:
+					rawTokens = setting.Value
+				}
+			}
+		}
+	}
+	previewID := r.URL.Query().Get("theme_preview")
+	active, tokens := site.ResolveTheme(activeID, rawTokens, previewID)
+	api.WriteData(w, http.StatusOK, map[string]any{
+		"themes":  site.DefaultThemes(),
+		"active":  active,
+		"tokens":  tokens,
+		"preview": strings.TrimSpace(previewID) != "" && active.ID == strings.TrimSpace(previewID),
+	}, nil)
 }
 
 func (h Handler) publicMaintenance(w http.ResponseWriter, r *http.Request) {

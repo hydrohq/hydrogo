@@ -9,6 +9,7 @@
   import Input from '$lib/components/ui/Input.svelte';
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import GeneralTab from './tabs/GeneralTab.svelte';
+  import ThemesTab from './tabs/ThemesTab.svelte';
   import BusinessSocialTab from './tabs/BusinessSocialTab.svelte';
   import RedirectsTab, { type RedirectRuleRow } from './tabs/RedirectsTab.svelte';
   import NavigationTab from './tabs/NavigationTab.svelte';
@@ -33,7 +34,7 @@
     last_seen: string;
   }
 
-  type TabKey = 'general' | 'navigation' | 'forms' | 'inbox' | 'translations' | 'maintenance' | 'notice' | 'business' | 'redirects' | 'notfound';
+  type TabKey = 'general' | 'themes' | 'navigation' | 'forms' | 'inbox' | 'translations' | 'maintenance' | 'notice' | 'business' | 'redirects' | 'notfound';
   let activeTab = $state<TabKey>('general');
   let loading = $state(false);
   let saving = $state(false);
@@ -60,6 +61,8 @@
     'storefront.popup_enabled': 'true',
     'storefront.popup_code': '',
     'storefront.popup_percent': '',
+    'storefront.theme_id': 'minimal',
+    'storefront.theme_tokens': '',
     'admin.default_locale': '',
     'admin.brand_name': '',
     'admin.brand_logo_url': '',
@@ -436,6 +439,7 @@
 
     <div class="flex items-center gap-1 border-b border-border overflow-x-auto pb-px">
       <button type="button" onclick={() => (activeTab = 'general')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'general' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.general')}</button>
+      <button type="button" onclick={() => (activeTab = 'themes')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'themes' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.themes')}</button>
       <button type="button" onclick={() => (activeTab = 'navigation')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'navigation' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.navigation')}</button>
       {#if schema.modules['forms']}
         <button type="button" onclick={() => (activeTab = 'forms')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'forms' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.forms')}</button>
@@ -451,6 +455,8 @@
 
     {#if activeTab === 'general'}
       <GeneralTab bind:settings {saving} onsubmit={handleSaveGeneral} />
+    {:else if activeTab === 'themes'}
+      <ThemesTab bind:settings {saving} onsubmit={handleSaveGeneral} />
     {:else if activeTab === 'maintenance'}
       <form onsubmit={handleSaveMaintenance} class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
         <div class="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
