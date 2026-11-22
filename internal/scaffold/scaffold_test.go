@@ -41,6 +41,7 @@ func TestCreateWritesAnE2EHarness(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
+		filepath.Join(dir, "AGENTS.md"),
 		filepath.Join(dir, "e2e", "package.json"),
 		filepath.Join(dir, "e2e", "playwright.config.ts"),
 		filepath.Join(dir, "e2e", "README.md"),

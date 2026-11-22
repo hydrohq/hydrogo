@@ -189,6 +189,7 @@ func Create(opts Options) (Preset, error) {
 		"config.yaml": renderConfig(preset),
 		".gitignore":  "/data/\n*.db\n*.db-shm\n*.db-wal\n.env\n",
 		"README.md":   renderReadme(opts.Name, preset),
+		"AGENTS.md":   renderAgentsGuide(opts.Name, preset),
 	}
 	for name, content := range files {
 		path := filepath.Join(opts.Dir, name)
@@ -355,6 +356,38 @@ security:
   secure_cookies: false
   enable_hsts: false
 %s`, preset.Name, strings.Join(preset.Modules, ", "), preset.Config)
+}
+
+func renderAgentsGuide(name string, preset Preset) string {
+	typesList := "none"
+	if len(preset.ContentTypes) > 0 {
+		typesList = strings.Join(preset.ContentTypes, ", ")
+	}
+	return fmt.Sprintf(`# %s — HydroGo Project Guide for AI Agents
+
+This project is a headless backend powered by **HydroGo** (preset: `+"`%s`"+`).
+
+## Project layout
+- `+"`config.yaml`"+` — server, database, media, and enabled modules (`+"`[%s]`"+`).
+- `+"`content-types/*.yaml`"+` — schema definitions (%s). Edit these and run `+"`hydro content-type validate`"+`.
+- `+"`e2e/`"+` — Playwright E2E harness (`+"`hydro generate tests`"+`).
+- Never commit `+"`.env`"+`, `+"`data/`"+`, or secrets into git; use `+"`HYDRO_*`"+` environment variables in production.
+
+## Essential commands
+- Start dev server (API + Admin Studio at `+"`/admin`"+`): `+"`hydro serve --config config.yaml`"+`
+- Create a new content type: `+"`hydro content-type new <name>`"+`
+- Validate schemas: `+"`hydro content-type validate`"+`
+- Run migrations & health check: `+"`hydro migrate --config config.yaml && hydro doctor --config config.yaml`"+`
+
+## Frontend & API rules
+- Keep `+"`HYDRO_API_ORIGIN`"+` server-side in SSR loaders / API routes (never expose admin tokens to the browser).
+- Public read endpoints (for types with `+"`public: true`"+`):
+  - `+"`GET /api/v1/content/{type}`"+` and `+"`GET /api/v1/content/{type}/{id}`"+`
+  - `+"`GET /api/v1/pages/by-slug?locale=en&slug=<slug>`"+`
+  - `+"`GET /api/v1/news?locale=en`"+`
+- Mutating requests using cookie auth require CSRF: fetch `+"`GET /csrf-token`"+` first and send `+"`X-CSRF-Token`"+`.
+- Full documentation for LLMs: https://hydrogo.dev/llms-full.txt
+`, name, preset.Name, strings.Join(preset.Modules, ", "), typesList)
 }
 
 func renderReadme(name string, preset Preset) string {
