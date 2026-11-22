@@ -329,7 +329,8 @@ func upgradeStatus(args []string, stdout, stderr io.Writer) error {
 	}
 	status, err := updater.Check(context.Background(), nil, updater.CheckOptions{
 		CurrentVersion:   version,
-		Edition:          "core",
+		Edition:          edition,
+		SDKVersion:       sdkVersion,
 		Runtime:          updater.DetectCurrentRuntime(false),
 		ManifestURL:      *manifestURL,
 		TrustedPublicKey: pub,
@@ -364,7 +365,8 @@ func upgradeApply(args []string, stdout, stderr io.Writer) error {
 	res, err := updater.Apply(context.Background(), nil, updater.ApplyOptions{
 		CheckOptions: updater.CheckOptions{
 			CurrentVersion:   version,
-			Edition:          "core",
+			Edition:          edition,
+			SDKVersion:       sdkVersion,
 			Runtime:          updater.DetectCurrentRuntime(false),
 			ManifestURL:      *manifestURL,
 			TrustedPublicKey: pub,

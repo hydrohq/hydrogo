@@ -250,3 +250,59 @@ func TestApplyRejectsChecksumMismatchAndDocker(t *testing.T) {
 		t.Fatalf("checksum apply err = %v, want ErrChecksumMismatch", err)
 	}
 }
+
+func TestCheckAndApplyRejectSDKIncompatible(t *testing.T) {
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	platformKey := runtime.GOOS + "/" + runtime.GOARCH
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manifest := UpdateManifest{
+			FormatVersion: 1,
+			Version:       "v0.6.0",
+			Edition:       "core",
+			MinSDKVersion: "1.2.0",
+			MaxSDKVersion: "1.9.0",
+			Assets: map[string]Asset{
+				platformKey: {URL: srv.URL + "/bin", SHA256: strings.Repeat("a", 64), Size: 4},
+			},
+		}
+		raw, _ := json.Marshal(manifest)
+		sig := ed25519.Sign(priv, raw)
+		_ = json.NewEncoder(w).Encode(SignedUpdateManifest{
+			Manifest:  raw,
+			PublicKey: base64.StdEncoding.EncodeToString(pub),
+			Signature: base64.StdEncoding.EncodeToString(sig),
+		})
+	}))
+	defer srv.Close()
+
+	st, err := Check(context.Background(), srv.Client(), CheckOptions{
+		CurrentVersion:   "v0.5.1",
+		Edition:          "core",
+		SDKVersion:       "1.0.0",
+		Runtime:          RuntimeStandalone,
+		ManifestURL:      srv.URL + "/manifest.json",
+		TrustedPublicKey: pub,
+	})
+	if err != nil {
+		t.Fatalf("Check failed: %v", err)
+	}
+	if st.CanSelfUpdate || !strings.Contains(st.Reason, "min_sdk_version") {
+		t.Fatalf("expected CanSelfUpdate=false with min_sdk_version reason, got %+v", st)
+	}
+
+	_, err = Apply(context.Background(), srv.Client(), ApplyOptions{
+		CheckOptions: CheckOptions{
+			CurrentVersion:   "v0.5.1",
+			Edition:          "core",
+			SDKVersion:       "2.0.0",
+			Runtime:          RuntimeStandalone,
+			ManifestURL:      srv.URL + "/manifest.json",
+			TrustedPublicKey: pub,
+		},
+		ExecutablePath: filepath.Join(t.TempDir(), "hydro"),
+	})
+	if !errors.Is(err, ErrSDKIncompatible) {
+		t.Fatalf("Apply err = %v, want ErrSDKIncompatible", err)
+	}
+}

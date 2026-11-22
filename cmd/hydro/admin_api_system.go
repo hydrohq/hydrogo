@@ -251,7 +251,7 @@ func (a *serveApp) adminSystemUpdatesHandler(w http.ResponseWriter, r *http.Requ
 	status := updater.UpdateStatus{
 		CurrentVersion: version,
 		LatestVersion:  version,
-		Edition:        "core",
+		Edition:        edition,
 		RuntimeMode:    rt,
 		CanSelfUpdate:  rt != updater.RuntimeDocker,
 		CheckedAt:      time.Now().UTC().Format(time.RFC3339),
@@ -263,7 +263,8 @@ func (a *serveApp) adminSystemUpdatesHandler(w http.ResponseWriter, r *http.Requ
 		if pub, err := decodeUpdatePublicKey(publicKeyB64); err == nil {
 			if checked, err := updater.Check(r.Context(), nil, updater.CheckOptions{
 				CurrentVersion:   version,
-				Edition:          "core",
+				Edition:          edition,
+				SDKVersion:       sdkVersion,
 				Runtime:          rt,
 				ManifestURL:      manifestURL,
 				TrustedPublicKey: pub,
@@ -316,7 +317,8 @@ func (a *serveApp) adminSystemUpdatesApplyHandler(w http.ResponseWriter, r *http
 	res, err := updater.Apply(r.Context(), nil, updater.ApplyOptions{
 		CheckOptions: updater.CheckOptions{
 			CurrentVersion:   version,
-			Edition:          "core",
+			Edition:          edition,
+			SDKVersion:       sdkVersion,
 			Runtime:          rt,
 			ManifestURL:      manifestURL,
 			TrustedPublicKey: pub,

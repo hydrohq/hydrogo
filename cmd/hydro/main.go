@@ -49,8 +49,10 @@ func clearPublicCaches(page pageCache, newsItems newsCache, html *server.PublicH
 }
 
 var (
-	// version is overridden at release time: -ldflags "-X main.version=v1.2.3".
+	// version, edition, and sdkVersion are overridden at release time via -ldflags.
 	version     = "0.4.1"
+	edition     = "core"
+	sdkVersion  = "1.0.0"
 	buildCommit = "unknown"
 	buildTime   = "unknown"
 )

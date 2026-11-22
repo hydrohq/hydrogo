@@ -36,6 +36,7 @@ var (
 	ErrChecksumMismatch      = errors.New("downloaded binary sha256 mismatch")
 	ErrSelfUpdateUnsupported = errors.New("in-place self-update is not supported in this runtime")
 	ErrEditionMismatch       = errors.New("update manifest edition does not match running binary")
+	ErrSDKIncompatible       = errors.New("update manifest sdk version range is incompatible")
 	ErrNoRollbackAvailable   = errors.New("no previous binary (.prev) found for rollback")
 )
 
@@ -84,6 +85,8 @@ type UpdateManifest struct {
 	FormatVersion int              `json:"format_version"`
 	Version       string           `json:"version"`
 	Edition       string           `json:"edition"`
+	MinSDKVersion string           `json:"min_sdk_version,omitempty"`
+	MaxSDKVersion string           `json:"max_sdk_version,omitempty"`
 	PublishedAt   string           `json:"published_at,omitempty"`
 	Notes         string           `json:"notes,omitempty"`
 	Assets        map[string]Asset `json:"assets"`
@@ -98,6 +101,7 @@ type SignedUpdateManifest struct {
 type CheckOptions struct {
 	CurrentVersion   string
 	Edition          string
+	SDKVersion       string
 	Runtime          RuntimeMode
 	ManifestURL      string
 	TrustedPublicKey ed25519.PublicKey
@@ -237,6 +241,12 @@ func Check(ctx context.Context, client *http.Client, opts CheckOptions) (UpdateS
 	case manifest.Edition != edition:
 		status.CanSelfUpdate = false
 		status.Reason = fmt.Sprintf("Edition mismatch (%s vs %s); custom editions require their own manifest.", edition, manifest.Edition)
+	case strings.TrimSpace(opts.SDKVersion) != "" && strings.TrimSpace(manifest.MinSDKVersion) != "" && CompareSemver(opts.SDKVersion, manifest.MinSDKVersion) < 0:
+		status.CanSelfUpdate = false
+		status.Reason = fmt.Sprintf("Installed SDK (%s) is older than required min_sdk_version (%s).", opts.SDKVersion, manifest.MinSDKVersion)
+	case strings.TrimSpace(opts.SDKVersion) != "" && strings.TrimSpace(manifest.MaxSDKVersion) != "" && CompareSemver(opts.SDKVersion, manifest.MaxSDKVersion) > 0:
+		status.CanSelfUpdate = false
+		status.Reason = fmt.Sprintf("Installed SDK (%s) exceeds max_sdk_version (%s).", opts.SDKVersion, manifest.MaxSDKVersion)
 	case !hasAsset || strings.TrimSpace(asset.URL) == "":
 		status.CanSelfUpdate = false
 		status.Reason = fmt.Sprintf("No binary asset published for %s.", platformKey)
@@ -263,6 +273,9 @@ func Apply(ctx context.Context, client *http.Client, opts ApplyOptions) (ApplyRe
 	if !status.CanSelfUpdate {
 		if strings.Contains(status.Reason, "Edition mismatch") {
 			return ApplyResult{}, fmt.Errorf("%w: %s", ErrEditionMismatch, status.Reason)
+		}
+		if strings.Contains(status.Reason, "min_sdk_version") || strings.Contains(status.Reason, "max_sdk_version") {
+			return ApplyResult{}, fmt.Errorf("%w: %s", ErrSDKIncompatible, status.Reason)
 		}
 		return ApplyResult{}, fmt.Errorf("%w: %s", ErrSelfUpdateUnsupported, status.Reason)
 	}
