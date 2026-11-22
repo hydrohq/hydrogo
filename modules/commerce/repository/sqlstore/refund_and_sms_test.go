@@ -28,7 +28,7 @@ func TestRefundRequiredStoreDeduplicationAndResolution(t *testing.T) {
 	item := commerce.RefundRequired{
 		ID:          "rrq-1",
 		OrderID:     "order-dup-1",
-		Provider:    "paytr",
+		Provider:    "gateway",
 		AmountCents: 15000,
 		Currency:    "TRY",
 		Reason:      "currency mismatch",

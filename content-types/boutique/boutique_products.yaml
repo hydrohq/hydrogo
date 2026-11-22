@@ -21,5 +21,5 @@ fields:
   - {id: badge, label: Vitrin Rozeti, kind: select, options: [Yeni Sezon, Tükendi, Son 3 Ürün, İndirim, Özel Tasarım], list: true, filterable: true}
   - {id: fabric_care, label: Kumaş ve Yıkama Bilgisi, kind: textarea, searchable: true}
   - {id: description, label: Ürün Açıklaması, kind: richtext, searchable: true}
-  - {id: payment_link, label: Hızlı Ödeme Linki (Shopier / İyzico), kind: text}
+  - {id: payment_link, label: Hızlı Ödeme Linki, kind: text}
   - {id: featured, label: Ana Sayfada Göster, kind: boolean, list: true, filterable: true}

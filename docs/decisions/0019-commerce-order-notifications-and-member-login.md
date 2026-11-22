@@ -44,7 +44,7 @@ synchronously right after `Checkout` succeeds, the same precedent
 must never fail the checkout itself." `runCommerceReconciliationAlert`
 also pushes a notification on a non-clean report, alongside its existing
 `slog` warning. New config: `notifications.telegram.{bot_token,chat_id}`,
-both-or-neither validated the same way `PayTR.Enabled()` is cheap to
+both-or-neither validated the same way `Provider.Enabled()` is cheap to
 precheck from `cmd/hydro`.
 
 **Member login for the storefront.** `examples/commerce-starter` gained
@@ -69,6 +69,6 @@ field for a logged-in member.
   and `/member/me` then returns 401.
 - Real gaps found and left named, not hidden: this repo's GitHub Actions
   is disabled, so "passes CI" only ever means the local `go run
-  ./tools/check` gate, not independent CI validation. PayTR has still
+  ./tools/check` gate, not independent CI validation. the payment gateway has still
   never been exercised against real or sandbox credentials. There is still
   no admin UI screen for commerce orders at all.

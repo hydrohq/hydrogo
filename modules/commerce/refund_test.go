@@ -36,7 +36,7 @@ func paidOrder(t *testing.T, key string) (commerce.Service, commerce.Order, cont
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "iyzico", EventID: order.ID, ProviderPaymentID: "pay-77", OrderID: order.ID, AmountCents: order.TotalCents}); err != nil {
+	if _, err := svc.ConfirmPayment(ctx, commerce.Payment{Provider: "Gateway2", EventID: order.ID, ProviderPaymentID: "pay-77", OrderID: order.ID, AmountCents: order.TotalCents}); err != nil {
 		t.Fatal(err)
 	}
 	return svc, order, ctx
@@ -49,7 +49,7 @@ func TestRefundOrderReturnsMoneyOnceAndRecordsIt(t *testing.T) {
 	if err != nil || got.PaymentStatus != commerce.PaymentRefunded {
 		t.Fatalf("got %+v, %v", got, err)
 	}
-	if refunder.calls != 1 || refunder.got.Provider != "iyzico" || refunder.got.ProviderPaymentID != "pay-77" {
+	if refunder.calls != 1 || refunder.got.Provider != "Gateway2" || refunder.got.ProviderPaymentID != "pay-77" {
 		t.Fatalf("the provider must get the recorded charge: %+v (%d calls)", refunder.got, refunder.calls)
 	}
 	if refunder.order.IdempotencyKey != "ref_"+order.ID {
@@ -118,7 +118,7 @@ func TestRefundShippedOrderRequiresApprovalAndDoesNotRestoreStock(t *testing.T) 
 		if err != nil || !claimed {
 			return err
 		}
-		shipped, err := svc.Repository.RecordShipment(ctx, tx, order.ID, commerce.ShipmentResult{Carrier: "yurtici", TrackingNumber: "TRK-123", TrackingURL: "http://track"}, time.Now().UTC())
+		shipped, err := svc.Repository.RecordShipment(ctx, tx, order.ID, commerce.ShipmentResult{Carrier: "carrierb", TrackingNumber: "TRK-123", TrackingURL: "http://track"}, time.Now().UTC())
 		if err != nil || !shipped {
 			return err
 		}

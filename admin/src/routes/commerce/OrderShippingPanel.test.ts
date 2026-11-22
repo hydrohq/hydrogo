@@ -37,12 +37,12 @@ describe('OrderShippingPanel', () => {
     confirmAction.mockReset().mockResolvedValue(true);
   });
 
-  it('fetches Geliver offers, selects an offer, and creates shipment barcode', async () => {
+  it('fetches carrier offers, selects an offer, and creates shipment barcode', async () => {
     get.mockResolvedValue({
       data: {
         configured: true,
-        default_carrier: 'geliver',
-        carriers: [{ key: 'geliver', supports_offers: true, supports_cancel: true }],
+        default_carrier: 'quote-carrier',
+        carriers: [{ key: 'quote-carrier', supports_offers: true, supports_cancel: true }],
       },
     });
     post
@@ -52,7 +52,7 @@ describe('OrderShippingPanel', () => {
           cheapest_id: 'offer_1',
           fastest_id: 'offer_2',
           offers: [
-            { id: 'offer_1', carrier: 'yurtici', carrier_name: 'Yurtici Kargo', amount: '75.00', currency: 'TRY' },
+            { id: 'offer_1', carrier: 'carrierb', carrier_name: 'Carrier B', amount: '75.00', currency: 'TRY' },
             { id: 'offer_2', carrier: 'aras', carrier_name: 'Aras Kargo', service_code: 'EXPRESS', amount: '90.00', currency: 'TRY', estimated_delivery: '1 gun' },
           ],
         },
@@ -75,7 +75,7 @@ describe('OrderShippingPanel', () => {
     const fetchBtn = await screen.findByRole('button', { name: 'Get carrier offers' });
     await fireEvent.click(fetchBtn);
 
-    expect(post).toHaveBeenNthCalledWith(1, '/api/v1/admin/commerce/orders/order_1/shipment/offers', { carrier: 'geliver' });
+    expect(post).toHaveBeenNthCalledWith(1, '/api/v1/admin/commerce/orders/order_1/shipment/offers', { carrier: 'quote-carrier' });
     expect(await screen.findByText('Aras Kargo')).toBeTruthy();
 
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];
@@ -88,7 +88,7 @@ describe('OrderShippingPanel', () => {
 
     await waitFor(() => {
       expect(post).toHaveBeenNthCalledWith(2, '/api/v1/admin/commerce/orders/order_1/shipment', {
-        carrier: 'geliver',
+        carrier: 'quote-carrier',
         offer_id: 'offer_2',
         shipment_id: 'glv_ship_1',
       });
@@ -104,8 +104,8 @@ describe('OrderShippingPanel', () => {
     get.mockResolvedValue({
       data: {
         configured: true,
-        default_carrier: 'geliver',
-        carriers: [{ key: 'geliver', supports_offers: true, supports_cancel: true }],
+        default_carrier: 'quote-carrier',
+        carriers: [{ key: 'quote-carrier', supports_offers: true, supports_cancel: true }],
       },
     });
     const omittedCancelOrder = {
@@ -118,7 +118,7 @@ describe('OrderShippingPanel', () => {
 
     const shippedOrder = makeOrder({
       fulfillment_status: 'shipped',
-      shipping_carrier: 'yurtici',
+      shipping_carrier: 'carrierb',
       shipping_tracking_number: 'YK999',
       shipping_tracking_url: 'https://track.example.test/YK999',
       shipping_shipment_id: 'glv_ship_9',
@@ -156,7 +156,7 @@ describe('OrderShippingPanel', () => {
     expect(await screen.findByRole('button', { name: 'Get carrier offers' })).toBeTruthy();
   });
 
-  it('falls back to manual carrier form when Geliver is not configured', async () => {
+  it('falls back to manual carrier form when no offer carrier is configured', async () => {
     get.mockResolvedValue({
       data: {
         configured: true,
