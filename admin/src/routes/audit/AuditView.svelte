@@ -9,6 +9,7 @@
   import Input from '$lib/components/ui/Input.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import AuditActivityStream from './AuditActivityStream.svelte';
 
   interface AuditEntry {
     id: string;
@@ -346,111 +347,29 @@
 
       <!-- TAB 1: Activity Stream -->
       {#if activeTab === 'events'}
-        <!-- Filters Row -->
-        <div class="">
-          <form onsubmit={handleFilter} class="p-3 rounded-xl border border-border bg-card shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-            <Input label={t('audit.filter.actor')} placeholder={t('audit.filter.actorPlaceholder')} bind:value={filterActor} />
-            <Input label={t('audit.filter.action')} placeholder={t('audit.filter.actionPlaceholder')} bind:value={filterAction} />
-            <Input label={t('audit.filter.resource')} placeholder={t('audit.filter.resourcePlaceholder')} bind:value={filterResource} />
-            <div class="flex gap-2">
-              <button
-                type="submit"
-                class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium shadow-xs transition-colors cursor-pointer"
-              >
-                {t('audit.filter.apply')}
-              </button>
-              <button
-                type="button"
-                class="h-9 px-4 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors cursor-pointer"
-                onclick={() => {
-                  filterActor = '';
-                  filterAction = '';
-                  filterResource = '';
-                  offset = 0;
-                  loadLogs();
-                }}
-              >
-                {t('audit.filter.reset')}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Table Container -->
-        <div class="">
-          <div class="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-            {#if loading}
-              <PageSpinner compact />
-            {:else if entries.length === 0}
-              <div class="p-12 text-center text-xs text-muted-foreground">{t('audit.empty')}</div>
-            {:else}
-              <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-foreground caption-bottom">
-                  <thead class="sticky top-0 z-10 bg-muted/50 border-b border-border text-xs text-muted-foreground font-medium">
-                    <tr>
-                      <th class="h-10 px-4 font-medium">{t('audit.col.timestamp')}</th>
-                      <th class="h-10 px-4 font-medium">{t('audit.col.actor')}</th>
-                      <th class="h-10 px-4 font-medium">{t('audit.col.action')}</th>
-                      <th class="h-10 px-4 font-medium">{t('audit.col.resource')}</th>
-                      <th class="h-10 px-4 font-medium">{t('audit.col.target')}</th>
-                      <th class="h-10 w-24 px-4 font-medium text-right">{t('audit.col.details')}</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-border">
-                    {#each entries as entry (entry.id)}
-                      {@const badgeInfo = actionBadge(entry.action)}
-                      <tr class="hover:bg-muted/40 transition-colors">
-                        <td class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{formatDate(entry.at)}</td>
-                        <td class="px-4 py-3 font-medium text-xs text-foreground">{entry.actor}</td>
-                        <td class="px-4 py-3">
-                          <Badge variant={badgeInfo.variant} size="sm">{badgeInfo.label}</Badge>
-                        </td>
-                        <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{entry.resource}</td>
-                        <td class="px-4 py-3 font-mono text-xs text-muted-foreground truncate max-w-[160px]" title={entry.target}>
-                          {entry.target}
-                        </td>
-                        <td class="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            class="text-xs text-primary hover:underline font-medium cursor-pointer"
-                            onclick={() => { selectedEntry = entry; }}
-                          >
-                            {t('audit.inspect')}
-                          </button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Pagination -->
-              <div class="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-                <div>
-                  {t('audit.showingRange', { from: offset + 1, to: Math.min(offset + entries.length, total), total })}
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={offset === 0}
-                    onclick={() => { offset = Math.max(0, offset - limit); loadLogs(); }}
-                    class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
-                  >
-                    {t('common.previous')}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={offset + entries.length >= total}
-                    onclick={() => { offset += limit; loadLogs(); }}
-                    class="h-7 px-2.5 rounded-md border border-input bg-background text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent transition-colors"
-                  >
-                    {t('common.next')}
-                  </button>
-                </div>
-              </div>
-            {/if}
-          </div>
-        </div>
+        <AuditActivityStream
+          {entries}
+          {total}
+          {limit}
+          {offset}
+          {loading}
+          bind:filterActor
+          bind:filterAction
+          bind:filterResource
+          {actionBadge}
+          {formatDate}
+          {parseMetadata}
+          onFilter={handleFilter}
+          onReset={() => {
+            filterActor = '';
+            filterAction = '';
+            filterResource = '';
+            offset = 0;
+            loadLogs();
+          }}
+          onInspect={(entry) => { selectedEntry = entry as AuditEntry; }}
+          onPageChange={(newOffset) => { offset = newOffset; loadLogs(); }}
+        />
       {/if}
 
       <!-- TAB 2: Security & Sign-in Attempts -->
