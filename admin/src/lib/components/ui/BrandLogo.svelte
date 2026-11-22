@@ -43,19 +43,37 @@
     >
       <svg
         class="{svgSizes[size]}"
-        viewBox="0 0 24 24"
+        viewBox="0 0 32 32"
         fill="none"
       >
         <path
-          d="M12 2.5C12 2.5 5.5 10.2 5.5 15C5.5 18.59 8.41 21.5 12 21.5C15.59 21.5 18.5 18.59 18.5 15C18.5 10.2 12 2.5 12 2.5Z"
+          d="M10.4 17.4C12.2 16.2 14.1 16.2 16 17.4C17.9 18.6 19.8 18.6 21.6 17.4V24.2C21.6 25.4 20.6 26.4 19.4 26.4H12.6C11.4 26.4 10.4 25.4 10.4 24.2V17.4Z"
           fill="#00ADD8"
         />
         <path
-          d="M9.4 15.8C9.4 14 10.4 11.7 11.7 9.8"
-          stroke="#FFFFFF"
-          stroke-width="1.6"
+          d="M10.4 17.4C12.2 16.2 14.1 16.2 16 17.4C17.9 18.6 19.8 18.6 21.6 17.4"
+          stroke="#7DD3FC"
+          stroke-width="1.2"
           stroke-linecap="round"
-          opacity="0.85"
+        />
+        <path
+          d="M13.5 6.2H18.5V9.8C18.5 10.7 19.1 11.4 19.9 11.9C21.3 12.7 22.2 14 22.2 15.6V24.2C22.2 25.8 20.9 27 19.3 27H12.7C11.1 27 9.8 25.8 9.8 24.2V15.6C9.8 14 10.7 12.7 12.1 11.9C12.9 11.4 13.5 10.7 13.5 9.8V6.2Z"
+          stroke="#FFFFFF"
+          stroke-width="1.8"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M12.4 5.5H19.6"
+          stroke="#FFFFFF"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+        <path
+          d="M12.2 15.2V22.5"
+          stroke="#FFFFFF"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          opacity="0.45"
         />
       </svg>
     </div>
