@@ -10,7 +10,7 @@ func printUsage(w io.Writer) {
 
 Usage:
   Start a project
-  hydro new DIR [--preset minimal|blog|corporate|news|crm|erp-lite|docs|commerce] [--starter sveltekit|crm|commerce] [--admin-email EMAIL [--admin-password-stdin]]
+  hydro new DIR [--preset minimal|blog|corporate|news|tr-news|crm|erp-lite|docs|commerce|boutique|restaurant|saas] [--starter sveltekit|crm|commerce] [--admin-email EMAIL [--admin-password-stdin]]
   hydro init [same options]  (scaffold in the current directory)
 
   Run and develop
@@ -24,7 +24,7 @@ Usage:
   hydro migrate [runtime flags]
   hydro rollback [--snapshot PATH] --confirm [runtime flags]
   hydro migration create --id YYYYMMDDHHMM_name --module MODULE --out migrations
-  hydro upgrade check [runtime flags]
+  hydro upgrade check|status|apply|rollback [flags]
   hydro schema diff --baseline RELEASE.json --current RELEASE.json --public-key KEY
   hydro db diff [runtime flags]
   hydro db reindex [runtime flags]
