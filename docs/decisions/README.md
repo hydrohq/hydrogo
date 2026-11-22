@@ -36,8 +36,7 @@
 | [0032](0032-fail-closed-rls-and-zero-dependency-memory-engine.md) | Fail-Closed PostgreSQL RLS, Zero-Dependency In-Memory Engine, and Storefront Resilience | Accepted |
 | [0033](0033-payments-module.md) | Decoupled payments module with PayTR and Iyzico integrations | Accepted |
 | [0034](0034-shipping-module.md) | Decoupled shipping module with Yurtiçi and Geliver integrations | Accepted |
-| [0035](0035-framework-like-application-engine-vision.md) | Realigning HydroGo as a Framework-like Go CMS & Application Engine | Superseded by 0036 |
-| [0036](0036-open-core-boundary-and-external-gateway.md) | Open-Core Boundary and External Storefront Gateway | Accepted |
+| [0035](0035-framework-like-application-engine-vision.md) | Realigning HydroGo as a Framework-like Go CMS & Application Engine | Superseded|
 
 Write a record only when a change moves a module boundary, changes a public
 contract (routes, API, config, migrations), or reverses a decision listed here.
