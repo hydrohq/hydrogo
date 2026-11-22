@@ -103,5 +103,16 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 	app.startWorkers()
 	listenErr := app.listen(routes)
 	app.waitForWorkers()
+	app.restartMu.Lock()
+	restartPath := app.restartExecutable
+	app.restartMu.Unlock()
+	if restartPath != "" && listenErr == nil {
+		if err := app.close(); err != nil {
+			app.logger.Warn("close before restart failed", "error", err)
+		}
+		if err := syscall.Exec(restartPath, os.Args, os.Environ()); err != nil { // #nosec G204 -- verified signed binary path
+			return fmt.Errorf("re-exec %s: %w", restartPath, err)
+		}
+	}
 	return listenErr
 }

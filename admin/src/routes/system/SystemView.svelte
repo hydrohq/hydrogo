@@ -123,6 +123,9 @@
   let health = $state<HealthStatus | null>(null);
   let metrics = $state<RuntimeMetrics | null>(null);
   let updates = $state<UpdateStatus | null>(null);
+  let updating = $state(false);
+  let updateMessage = $state<string | null>(null);
+  let updateError = $state<string | null>(null);
   let loading = $state(true);
   let autoRefresh = $state(false);
   let refreshTimer: any = null;
@@ -156,6 +159,38 @@
       console.warn('System telemetry load error:', e);
     } finally {
       loading = false;
+    }
+  }
+
+  async function applySelfUpdate() {
+    if (!updates?.update_available || !updates?.can_self_update || updating) return;
+    updating = true;
+    updateError = null;
+    updateMessage = `Updating to ${updates.latest_version}...`;
+    const targetVersion = updates.latest_version;
+    try {
+      await api.post('/api/v1/admin/system/updates/apply', { confirm: true });
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 600));
+        try {
+          const res = await api.get<ApiResponse<SystemInfo>>('/api/v1/admin/system/info');
+          if (res?.data?.version === targetVersion) {
+            await loadData();
+            updateMessage = `Updated to ${targetVersion}`;
+            updating = false;
+            return;
+          }
+        } catch {
+          // Server is restarting; keep polling
+        }
+      }
+      await loadData();
+      updateMessage = `Restart requested (${targetVersion})`;
+    } catch (e: any) {
+      updateError = e?.message || 'Update failed';
+      updateMessage = null;
+    } finally {
+      updating = false;
     }
   }
 
@@ -376,18 +411,29 @@
         <div class="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
           <h3 class="text-sm font-semibold text-foreground">{t('system.server')}</h3>
           <div class="divide-y divide-border/60 text-xs">
-            <div class="py-2.5 flex justify-between">
+            <div class="py-2.5 flex items-center justify-between gap-2">
               <span class="text-muted-foreground">{t('system.coreVersion')}</span>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap justify-end">
                 <span class="font-mono font-medium text-foreground">{info?.version || 'dev'}</span>
                 {#if updates?.runtime_mode}
                   <Badge variant="outline" class="font-mono text-[10px] uppercase">{updates.runtime_mode}</Badge>
                 {/if}
                 {#if updates?.update_available}
                   <Badge variant="warning" class="font-mono text-[10px]">{updates.latest_version}</Badge>
+                  {#if updates.can_self_update}
+                    <Button size="sm" variant="primary" class="h-6 px-2.5 text-[11px] cursor-pointer" disabled={updating} onclick={applySelfUpdate}>
+                      {updating ? 'Updating...' : `Update to ${updates.latest_version}`}
+                    </Button>
+                  {/if}
                 {/if}
               </div>
             </div>
+            {#if updateMessage}
+              <div class="py-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">{updateMessage}</div>
+            {/if}
+            {#if updateError}
+              <div class="py-2 text-[11px] text-destructive font-medium">{updateError}</div>
+            {/if}
             <div class="py-2.5 flex justify-between">
               <span class="text-muted-foreground">{t('system.goVersion')}</span>
               <span class="font-mono text-foreground">{info?.go_version || 'go1.24'}</span>

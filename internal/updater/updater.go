@@ -274,6 +274,9 @@ func Apply(ctx context.Context, client *http.Client, opts ApplyOptions) (ApplyRe
 		}
 		exePath = resolved
 	}
+	if resolved, err := filepath.EvalSymlinks(exePath); err == nil {
+		exePath = resolved
+	}
 	if err := pathguard.RejectSymlinkComponents(filepath.Dir(exePath)); err != nil {
 		return ApplyResult{}, err
 	}

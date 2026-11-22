@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -275,4 +276,81 @@ func (a *serveApp) adminSystemUpdatesHandler(w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
 	api.WriteData(w, http.StatusOK, status, nil)
+}
+
+// adminSystemUpdatesApplyHandler verifies and applies a signed binary update,
+// runs database migrations with the new binary, and schedules a graceful re-exec.
+func (a *serveApp) adminSystemUpdatesApplyHandler(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !activePlatformAdmin(user) {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+	var payload struct {
+		Confirm bool `json:"confirm"`
+	}
+	if !api.DecodeJSON(w, r, &payload, 4<<10) {
+		return
+	}
+	if !payload.Confirm {
+		api.WriteValidation(w, r, map[string]string{"confirm": "must be true"})
+		return
+	}
+	manifestURL := strings.TrimSpace(os.Getenv("HYDRO_UPDATE_MANIFEST_URL"))
+	publicKeyB64 := strings.TrimSpace(os.Getenv("HYDRO_UPDATE_PUBLIC_KEY"))
+	if manifestURL == "" || publicKeyB64 == "" {
+		api.WriteError(w, r, http.StatusBadRequest, "update manifest not configured", nil)
+		return
+	}
+	pub, err := decodeUpdatePublicKey(publicKeyB64)
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+	exePath, err := os.Executable()
+	if err != nil {
+		api.WriteError(w, r, http.StatusInternalServerError, "cannot resolve executable", nil)
+		return
+	}
+	rt := updater.DetectCurrentRuntime(a.opts.cgi)
+	res, err := updater.Apply(r.Context(), nil, updater.ApplyOptions{
+		CheckOptions: updater.CheckOptions{
+			CurrentVersion:   version,
+			Edition:          "core",
+			Runtime:          rt,
+			ManifestURL:      manifestURL,
+			TrustedPublicKey: pub,
+		},
+		ExecutablePath: exePath,
+	})
+	if err != nil {
+		api.WriteError(w, r, http.StatusBadRequest, err.Error(), nil)
+		return
+	}
+
+	// Run migrations with the new binary before restarting; rollback if migrations fail.
+	migrateArgs := []string{"migrate", "--database-dialect", string(a.cfg.Database.Dialect), "--database-dsn", a.cfg.Database.DSN}
+	if out, migErr := exec.CommandContext(r.Context(), exePath, migrateArgs...).CombinedOutput(); migErr != nil { // #nosec G204 -- verified signed binary path
+		_ = updater.Rollback(exePath)
+		api.WriteError(w, r, http.StatusInternalServerError, "migration failed after update, rolled back: "+string(out), nil)
+		return
+	}
+
+	a.restartMu.Lock()
+	a.restartExecutable = exePath
+	a.restartMu.Unlock()
+
+	w.Header().Set("Cache-Control", "private, no-store")
+	api.WriteData(w, http.StatusAccepted, map[string]any{
+		"version":    res.Version,
+		"runtime":    res.Runtime,
+		"restarting": !a.opts.cgi,
+	}, nil)
+
+	if !a.opts.cgi && a.stop != nil {
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			a.stop()
+		}()
+	}
 }

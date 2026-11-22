@@ -79,6 +79,9 @@ type serveApp struct {
 	// with a partial file left behind.
 	workers sync.WaitGroup
 
+	restartMu         sync.Mutex
+	restartExecutable string
+
 	tenantResolver      *tenant.HostResolver
 	tenantGovernor      *tenant.Governor
 	tenantScopes        []tenant.Scope
