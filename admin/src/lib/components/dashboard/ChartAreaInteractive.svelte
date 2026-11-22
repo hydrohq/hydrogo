@@ -39,7 +39,9 @@
 
   let { analytics, runtime }: Props = $props();
 
-  let activeView = $state<'categories' | 'traffic'>('categories');
+  let activeView = $state<'categories' | 'traffic'>(
+    import.meta.env.VITE_DEMO_MODE === 'true' ? 'traffic' : 'categories'
+  );
   let categories = $state<CategoryItem[]>([]);
   let totalArticles = $state(0);
   let loadingCategories = $state(true);
