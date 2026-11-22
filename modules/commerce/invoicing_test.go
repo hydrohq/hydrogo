@@ -188,14 +188,14 @@ func TestBuildInvoiceDocumentValidation(t *testing.T) {
 	// Corporate valid -> IsCompany=true
 	corpDoc, err := commerce.BuildInvoiceDocument(baseOrder, items, commerce.PricingConfig{}, commerce.InvoiceCustomerInfo{
 		InvoiceType: "kurumsal",
-		CompanyName: "Beyond Sports A.S.",
+		CompanyName: "Acme Sports A.S.",
 		VKN:         "1234567890",
 		TaxOffice:   "Kadikoy",
 	}, true, now)
 	if err != nil {
 		t.Fatalf("corporate valid error: %v", err)
 	}
-	if !corpDoc.Customer.IsCompany || corpDoc.Customer.TaxNo != "1234567890" || corpDoc.Customer.TaxOffice != "Kadikoy" || corpDoc.Customer.Title != "Beyond Sports A.S." {
+	if !corpDoc.Customer.IsCompany || corpDoc.Customer.TaxNo != "1234567890" || corpDoc.Customer.TaxOffice != "Kadikoy" || corpDoc.Customer.Title != "Acme Sports A.S." {
 		t.Fatalf("unexpected corporate customer: %+v", corpDoc.Customer)
 	}
 

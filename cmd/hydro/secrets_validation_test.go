@@ -66,7 +66,7 @@ func TestValidateSecretsInProduction(t *testing.T) {
 	badAnalyticsCfg := validCfg
 	badAnalyticsCfg.Analytics = config.Analytics{
 		NoCookieEnabled: true,
-		HashKey:         "beyond-analytics-hash-secret-2026-local-dev-key",
+		HashKey:         "acme-analytics-hash-secret-2026-local-dev-key",
 	}
 	if err := validateSecrets(badAnalyticsCfg, validLookup, true, nil); err == nil || !strings.Contains(err.Error(), "analytics.hash_key") {
 		t.Fatalf("expected error for local-dev analytics.hash_key, got: %v", err)
