@@ -352,7 +352,7 @@ export interface SuperadminWorkspace {
   expires_at?: string;
 }
 
-// SaaS Subscription & Shopier Billing Types
+// SaaS subscription and billing types
 export interface BillingPlan {
   id: string;
   name: string;

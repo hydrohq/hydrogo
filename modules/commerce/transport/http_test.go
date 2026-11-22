@@ -1115,7 +1115,7 @@ func TestRefundsRequiredAdminEndpoints(t *testing.T) {
 	rrq := commerce.RefundRequired{
 		ID:          "rrq-test-1",
 		OrderID:     "ord-1",
-		Provider:    "paytr",
+		Provider:    "gateway",
 		AmountCents: 5000,
 		Currency:    "TRY",
 		Reason:      "payment currency mismatch",
@@ -1241,7 +1241,7 @@ func TestRefundOrderAdminWithShippedStatus(t *testing.T) {
 	order := created.Data
 
 	// Confirm payment
-	if _, err := h.Service.ConfirmPayment(ctx, commerce.Payment{Provider: "paytr", EventID: order.ID, OrderID: order.ID, AmountCents: order.TotalCents}); err != nil {
+	if _, err := h.Service.ConfirmPayment(ctx, commerce.Payment{Provider: "gateway", EventID: order.ID, OrderID: order.ID, AmountCents: order.TotalCents}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1251,7 +1251,7 @@ func TestRefundOrderAdminWithShippedStatus(t *testing.T) {
 		if err != nil || !claimed {
 			return err
 		}
-		shipped, err := h.Service.Repository.RecordShipment(ctx, tx, order.ID, commerce.ShipmentResult{Carrier: "yurtici", TrackingNumber: "TRK-999", TrackingURL: "http://track"}, time.Now().UTC())
+		shipped, err := h.Service.Repository.RecordShipment(ctx, tx, order.ID, commerce.ShipmentResult{Carrier: "carrierb", TrackingNumber: "TRK-999", TrackingURL: "http://track"}, time.Now().UTC())
 		if err != nil || !shipped {
 			return err
 		}
@@ -1680,9 +1680,9 @@ func (f *fakeFullShippingProvider) CancelOrderShipment(_ context.Context, order 
 	return nil
 }
 
-func (f *fakeFullShippingProvider) DefaultCarrier() string { return "geliver" }
+func (f *fakeFullShippingProvider) DefaultCarrier() string { return "aggregator" }
 func (f *fakeFullShippingProvider) CarrierInfos() []commerce.CarrierInfo {
-	return []commerce.CarrierInfo{{Key: "geliver", SupportsOffers: true, SupportsCancel: true}}
+	return []commerce.CarrierInfo{{Key: "aggregator", SupportsOffers: true, SupportsCancel: true}}
 }
 
 func TestShippingCarriersOffersAndCancelEndpoints(t *testing.T) {
@@ -1708,9 +1708,9 @@ func TestShippingCarriersOffersAndCancelEndpoints(t *testing.T) {
 
 	provider := &fakeFullShippingProvider{
 		fakeShippingProvider: fakeShippingProvider{
-			name: "geliver",
+			name: "aggregator",
 			result: commerce.ShipmentResult{
-				Carrier:        "Yurtiçi Kargo",
+				Carrier:        "Carrier B",
 				TrackingNumber: "TRK-GEL-1",
 				TrackingURL:    "https://track.example/TRK-GEL-1",
 				ShipmentID:     "shp_gel_1",
@@ -1720,7 +1720,7 @@ func TestShippingCarriersOffersAndCancelEndpoints(t *testing.T) {
 		offerDraft: commerce.ShipmentOfferDraft{
 			ShipmentID: "shp_gel_1",
 			CheapestID: "off_1",
-			Offers:     []commerce.ShipmentOffer{{ID: "off_1", Carrier: "YURTICI", CarrierName: "Yurtiçi Kargo", Amount: "99.00", Currency: "TRY"}},
+			Offers:     []commerce.ShipmentOffer{{ID: "off_1", Carrier: "CARRIERB", CarrierName: "Carrier B", Amount: "99.00", Currency: "TRY"}},
 		},
 	}
 	h.ShippingProvider = provider
@@ -1737,12 +1737,12 @@ func TestShippingCarriersOffersAndCancelEndpoints(t *testing.T) {
 		Carriers       []commerce.CarrierInfo `json:"carriers"`
 	}
 	decodeBody(t, rec, &carriersPayload)
-	if !carriersPayload.Configured || carriersPayload.DefaultCarrier != "geliver" || len(carriersPayload.Carriers) != 1 || !carriersPayload.Carriers[0].SupportsOffers {
+	if !carriersPayload.Configured || carriersPayload.DefaultCarrier != "aggregator" || len(carriersPayload.Carriers) != 1 || !carriersPayload.Carriers[0].SupportsOffers {
 		t.Fatalf("unexpected carriers payload: %+v", carriersPayload)
 	}
 
 	// 2. POST /shipment/offers
-	offerReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment/offers", strings.NewReader(`{"carrier":"geliver","parcel":{"weight_kg":"2.5"}}`))
+	offerReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment/offers", strings.NewReader(`{"carrier":"aggregator","parcel":{"weight_kg":"2.5"}}`))
 	offerReq.SetPathValue("id", order.ID)
 	offerRec := httptest.NewRecorder()
 	h.listShipmentOffers(offerRec, offerReq)
@@ -1756,7 +1756,7 @@ func TestShippingCarriersOffersAndCancelEndpoints(t *testing.T) {
 	}
 
 	// 3. POST /shipment with selected offer_id
-	shipReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", strings.NewReader(`{"carrier":"geliver","offer_id":"off_1","shipment_id":"shp_gel_1"}`))
+	shipReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/orders/"+order.ID+"/shipment", strings.NewReader(`{"carrier":"aggregator","offer_id":"off_1","shipment_id":"shp_gel_1"}`))
 	shipReq.SetPathValue("id", order.ID)
 	shipRec := httptest.NewRecorder()
 	h.createShipment(shipRec, shipReq)

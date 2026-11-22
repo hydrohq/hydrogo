@@ -32,7 +32,7 @@ func TestRecordPaymentNotificationHandlesPostgresAndSQLiteUniqueViolation(t *tes
 	// 1. PostgreSQL error code 23505 via pgconn.PgError
 	storePG := Store{Dialect: database.Postgres}
 	pgExec := mockErrorExecutor{err: &pgconn.PgError{Code: "23505"}}
-	isNew, err := storePG.RecordPaymentNotification(ctx, pgExec, "paytr", "dup-event-pg")
+	isNew, err := storePG.RecordPaymentNotification(ctx, pgExec, "gateway", "dup-event-pg")
 	if err != nil {
 		t.Fatalf("expected nil error for pgx 23505 duplicate, got %v", err)
 	}
@@ -43,7 +43,7 @@ func TestRecordPaymentNotificationHandlesPostgresAndSQLiteUniqueViolation(t *tes
 	// 2. SQLite UNIQUE constraint failed error
 	storeSQLite := Store{Dialect: database.SQLite}
 	sqliteExec := mockErrorExecutor{err: errors.New("constraint failed: UNIQUE constraint failed: commerce_payment_notifications.provider, commerce_payment_notifications.provider_event_id")}
-	isNew, err = storeSQLite.RecordPaymentNotification(ctx, sqliteExec, "iyzico", "dup-event-sqlite")
+	isNew, err = storeSQLite.RecordPaymentNotification(ctx, sqliteExec, "Gateway2", "dup-event-sqlite")
 	if err != nil {
 		t.Fatalf("expected nil error for sqlite unique constraint duplicate, got %v", err)
 	}
@@ -53,7 +53,7 @@ func TestRecordPaymentNotificationHandlesPostgresAndSQLiteUniqueViolation(t *tes
 
 	// 3. Unrelated database error must still return error (not swallowed)
 	unrelatedExec := mockErrorExecutor{err: errors.New("connection reset by peer")}
-	_, err = storePG.RecordPaymentNotification(ctx, unrelatedExec, "paytr", "err-event")
+	_, err = storePG.RecordPaymentNotification(ctx, unrelatedExec, "gateway", "err-event")
 	if err == nil {
 		t.Fatalf("expected error for unrelated failure, got nil")
 	}

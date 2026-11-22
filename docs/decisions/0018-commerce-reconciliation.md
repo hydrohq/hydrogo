@@ -7,7 +7,7 @@
 
 [0012](0012-commerce-catalog-as-content-types.md) through
 [0017](0017-commerce-tax-shipping-discounts-currencies.md) built a complete
-commerce path -- catalog, stock, cart, checkout, PayTR, tax, shipping,
+commerce path -- catalog, stock, cart, checkout, the payment gateway, tax, shipping,
 discounts -- each phase verified against a real `hydro serve` instance
 before merging. That verification proves the code is correct against the
 scenarios it was run through; it cannot prove the integration is correct
@@ -52,8 +52,8 @@ reports, so running it can never make a real inconsistency worse:
   itself isn't running, not that payment is merely slow.
 - **`NotifiedButNotPaid`**: a new repository query joining
   `commerce_payment_notifications` to `commerce_customer_orders` (for
-  PayTR, `provider_event_id` IS the order id -- see
-  `modules/commerce/providers/paytr/transport.go`) for orders whose
+  the payment gateway, `provider_event_id` IS the order id -- see
+  the gateway provider) for orders whose
   `payment_status` isn't `paid` despite a recorded notification. Skipped
   entirely when no provider is passed in, rather than reported as an
   anomaly against a project with no payment provider configured.
@@ -63,7 +63,7 @@ reports, so running it can never make a real inconsistency worse:
   support, and this module runs across SQLite, PostgreSQL and MySQL alike.
 
 Exposed two ways, both calling the same `Service.Reconcile`:
-`hydro commerce reconcile [--provider paytr] [--hold] [--stale-after]
+`hydro commerce reconcile [--provider <name>] [--hold] [--stale-after]
 [--json]` (`cmd/hydro/commerce_cmd.go`) for an on-demand report -- before a
 launch, after an incident, or from an operator's own cron feeding their
 alerting -- using the same unscoped, cross-tenant database access
@@ -90,8 +90,8 @@ otherwise).
 - Verified against a real `hydro serve` instance, not mocked: scaffolded a
   fresh `--preset commerce` project, enabled the `commerce` module,
   migrated, seeded a stale pending order, a stock row with `reserved=2`
-  and no matching pending-order quantity, and a `paytr` notification for
-  an order still `pending` -- `hydro commerce reconcile --provider paytr
+  and no matching pending-order quantity, and a `gateway` notification for
+  an order still `pending` -- `hydro commerce reconcile --provider <name>
   --json` correctly reported all three, and reported a clean, empty
   result against the same project before seeding anything.
 - `modules/commerce/reconcile_test.go` covers all three checks plus the

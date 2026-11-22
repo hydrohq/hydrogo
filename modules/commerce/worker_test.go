@@ -76,7 +76,7 @@ func TestWorkerExpireDueHoldsBankTransferAndExtendedHoldOrders(t *testing.T) {
 	// Card order 45 minutes old: should expire with 30m Hold.
 	cardCart := seedCartWithItem(t, svc, db, "variant-w-card", 1, 100)
 	cardOrder, err := svc.Checkout(ctx, commerce.CheckoutRequest{
-		CartID: cardCart.ID, GuestEmail: "card@example.com", IdempotencyKey: "worker-card-1", PaymentMethod: "paytr",
+		CartID: cardCart.ID, GuestEmail: "card@example.com", IdempotencyKey: "worker-card-1", PaymentMethod: "gateway",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +96,7 @@ func TestWorkerExpireDueHoldsBankTransferAndExtendedHoldOrders(t *testing.T) {
 	// Card order under 24h fraud review hold: must NOT expire at +2h.
 	fraudCart := seedCartWithItem(t, svc, db, "variant-w-fraud", 1, 100)
 	fraudOrder, err := svc.Checkout(ctx, commerce.CheckoutRequest{
-		CartID: fraudCart.ID, GuestEmail: "fraud@example.com", IdempotencyKey: "worker-fraud-1", PaymentMethod: "iyzico",
+		CartID: fraudCart.ID, GuestEmail: "fraud@example.com", IdempotencyKey: "worker-fraud-1", PaymentMethod: "Gateway2",
 	})
 	if err != nil {
 		t.Fatal(err)

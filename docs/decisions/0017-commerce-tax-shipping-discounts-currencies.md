@@ -18,7 +18,7 @@ differs store to store.
 
 Multi-currency in particular was scoped deliberately narrow: a storefront
 can **show** prices in USD/EUR using a static, operator-maintained
-conversion rate, but checkout and PayTR always charge in one configured
+conversion rate, but checkout and the payment gateway always charge in one configured
 currency. Real multi-currency settlement (charging a card in the
 currency it shows) brings FX risk and settlement complexity a static-rate
 display switcher does not, and was not asked for.

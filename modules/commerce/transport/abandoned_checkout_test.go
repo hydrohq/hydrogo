@@ -121,7 +121,7 @@ func TestAbandonedCheckoutMaxPendingOrdersPerIP(t *testing.T) {
 	if len(orderIDs) > 0 {
 		ctx := context.Background()
 		_, err := svc.ConfirmPayment(ctx, commerce.Payment{
-			Provider:    "paytr",
+			Provider:    "gateway",
 			EventID:     orderIDs[0],
 			OrderID:     orderIDs[0],
 			AmountCents: 1000,
