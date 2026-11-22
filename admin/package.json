@@ -23,7 +23,7 @@
     "@tailwindcss/vite": "^4.0.9",
     "@testing-library/svelte": "^5.2.8",
     "jsdom": "^31.0.1",
-    "svelte": "^5.57.3",
+    "svelte": "^5.58.0",
     "svelte-check": "^4.7.8",
     "tailwindcss": "^4.3.5",
     "typescript": "^6.0.3",
