@@ -6,7 +6,7 @@
       "layer": "cmd",
       "files": 70,
       "fan_in": 0,
-      "fan_out": 80,
+      "fan_out": 81,
       "imports": [
         "internal/adminstudio",
         "internal/adminstudio/sqlstore",
@@ -69,6 +69,7 @@
         "internal/trash",
         "internal/trash/sqlstore",
         "internal/trash/transport",
+        "internal/updater",
         "internal/webhooks",
         "migrations",
         "modules/commerce",
@@ -1057,7 +1058,7 @@
       "layer": "internal",
       "doc": "Package pathguard contains filesystem path checks shared by destructive and release-sensitive workflows.",
       "files": 1,
-      "fan_in": 6,
+      "fan_in": 7,
       "fan_out": 0,
       "imports": [],
       "imported_by": [
@@ -1066,7 +1067,8 @@
         "internal/erasure",
         "internal/media",
         "internal/release",
-        "internal/server"
+        "internal/server",
+        "internal/updater"
       ]
     },
     {
@@ -1606,6 +1608,20 @@
         "internal/auth",
         "internal/router",
         "internal/trash"
+      ],
+      "imported_by": [
+        "cmd/hydro"
+      ]
+    },
+    {
+      "id": "internal/updater",
+      "layer": "internal",
+      "doc": "Package updater implements signed, runtime-aware self-update checks, atomic binary replacement, and rollback for HydroGo.",
+      "files": 1,
+      "fan_in": 1,
+      "fan_out": 1,
+      "imports": [
+        "internal/pathguard"
       ],
       "imported_by": [
         "cmd/hydro"

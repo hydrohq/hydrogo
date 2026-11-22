@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/hydrohq/hydrogo/internal/i18n"
 	"github.com/hydrohq/hydrogo/internal/security"
 	"github.com/hydrohq/hydrogo/internal/tenant"
+	"github.com/hydrohq/hydrogo/internal/updater"
 )
 
 const adminLocaleCookieName = i18n.AdminLocaleCookieName
@@ -231,4 +233,46 @@ func (a *serveApp) adminClientErrorHandler(limiter security.RateLimiter) http.Ha
 		logger.Warn("admin client error", "request_id", security.RequestIDFromContext(r.Context()), "user_id", user.ID, "message", input.Message, "url", input.URL, "user_agent", input.UserAgent, "stack", input.Stack)
 		w.WriteHeader(http.StatusAccepted)
 	}
+}
+
+// adminSystemUpdatesHandler reports current version, runtime mode (standalone,
+// cgi, docker), and signed update availability when configured.
+func (a *serveApp) adminSystemUpdatesHandler(w http.ResponseWriter, r *http.Request) {
+	user := auth.UserFromContext(r.Context())
+	if !activePlatformAdmin(user) {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return
+	}
+	rt := updater.DetectCurrentRuntime(false)
+	manifestURL := strings.TrimSpace(os.Getenv("HYDRO_UPDATE_MANIFEST_URL"))
+	publicKeyB64 := strings.TrimSpace(os.Getenv("HYDRO_UPDATE_PUBLIC_KEY"))
+
+	status := updater.UpdateStatus{
+		CurrentVersion: version,
+		LatestVersion:  version,
+		Edition:        "core",
+		RuntimeMode:    rt,
+		CanSelfUpdate:  rt != updater.RuntimeDocker,
+		CheckedAt:      time.Now().UTC().Format(time.RFC3339),
+	}
+	if rt == updater.RuntimeDocker {
+		status.Reason = "In-place updates are disabled inside containers; pull the new container image instead."
+	}
+	if manifestURL != "" && publicKeyB64 != "" {
+		if pub, err := decodeUpdatePublicKey(publicKeyB64); err == nil {
+			if checked, err := updater.Check(r.Context(), nil, updater.CheckOptions{
+				CurrentVersion:   version,
+				Edition:          "core",
+				Runtime:          rt,
+				ManifestURL:      manifestURL,
+				TrustedPublicKey: pub,
+			}); err == nil {
+				status = checked
+			} else {
+				status.Reason = err.Error()
+			}
+		}
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	api.WriteData(w, http.StatusOK, status, nil)
 }

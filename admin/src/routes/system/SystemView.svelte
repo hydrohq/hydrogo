@@ -107,9 +107,22 @@
     TopPaths?: PathStatsSnapshot[];
   }
 
+  interface UpdateStatus {
+    current_version: string;
+    latest_version: string;
+    update_available: boolean;
+    edition: string;
+    runtime_mode: 'standalone' | 'cgi' | 'docker';
+    can_self_update: boolean;
+    reason?: string;
+    notes?: string;
+    checked_at: string;
+  }
+
   let info = $state<SystemInfo | null>(null);
   let health = $state<HealthStatus | null>(null);
   let metrics = $state<RuntimeMetrics | null>(null);
+  let updates = $state<UpdateStatus | null>(null);
   let loading = $state(true);
   let autoRefresh = $state(false);
   let refreshTimer: any = null;
@@ -120,10 +133,11 @@
     loading = true;
     if (schema.modules.hooks) void loadHookServices().then((list) => (services = list));
     try {
-      const [infoRes, healthRes, metricsRes] = await Promise.allSettled([
+      const [infoRes, healthRes, metricsRes, updatesRes] = await Promise.allSettled([
         api.get<ApiResponse<SystemInfo>>('/api/v1/admin/system/info'),
         api.get<ApiResponse<HealthStatus>>('/api/v1/admin/system/health'),
         api.get<ApiResponse<RuntimeMetrics>>('/api/v1/admin/system/metrics'),
+        api.get<ApiResponse<UpdateStatus>>('/api/v1/admin/system/updates'),
       ]);
 
       if (infoRes.status === 'fulfilled' && infoRes.value?.data) {
@@ -134,6 +148,9 @@
       }
       if (metricsRes.status === 'fulfilled' && metricsRes.value?.data) {
         metrics = metricsRes.value.data;
+      }
+      if (updatesRes.status === 'fulfilled' && updatesRes.value?.data) {
+        updates = updatesRes.value.data;
       }
     } catch (e) {
       console.warn('System telemetry load error:', e);
@@ -361,7 +378,15 @@
           <div class="divide-y divide-border/60 text-xs">
             <div class="py-2.5 flex justify-between">
               <span class="text-muted-foreground">{t('system.coreVersion')}</span>
-              <span class="font-mono font-medium text-foreground">{info?.version || 'dev'}</span>
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-medium text-foreground">{info?.version || 'dev'}</span>
+                {#if updates?.runtime_mode}
+                  <Badge variant="outline" class="font-mono text-[10px] uppercase">{updates.runtime_mode}</Badge>
+                {/if}
+                {#if updates?.update_available}
+                  <Badge variant="warning" class="font-mono text-[10px]">{updates.latest_version}</Badge>
+                {/if}
+              </div>
             </div>
             <div class="py-2.5 flex justify-between">
               <span class="text-muted-foreground">{t('system.goVersion')}</span>

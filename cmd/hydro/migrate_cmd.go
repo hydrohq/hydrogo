@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,6 +21,7 @@ import (
 	backupstore "github.com/hydrohq/hydrogo/internal/backup"
 	"github.com/hydrohq/hydrogo/internal/capacity"
 	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/updater"
 	"github.com/hydrohq/hydrogo/migrations"
 )
 
@@ -251,13 +254,28 @@ func migrationCommand(args []string, stdout, stderr io.Writer) error {
 }
 
 func upgrade(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "check" {
-		return errors.New("upgrade requires the check subcommand")
+	if len(args) == 0 {
+		return errors.New("upgrade requires a subcommand (check, status, apply, or rollback)")
 	}
+	switch args[0] {
+	case "check":
+		return upgradeCheck(args[1:], stdout, stderr)
+	case "status":
+		return upgradeStatus(args[1:], stdout, stderr)
+	case "apply":
+		return upgradeApply(args[1:], stdout, stderr)
+	case "rollback":
+		return upgradeRollback(args[1:], stdout, stderr)
+	default:
+		return fmt.Errorf("unknown upgrade subcommand %q (use check, status, apply, or rollback)", args[0])
+	}
+}
+
+func upgradeCheck(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("upgrade check", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	values := addRuntimeFlags(flags)
-	if err := flags.Parse(args[1:]); err != nil {
+	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
@@ -285,6 +303,96 @@ func upgrade(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("upgrade is not ready: %w", err)
 	}
 	_, err = fmt.Fprintf(stdout, "upgrade-ready profile=%s database=%s\n", cfg.Profile, cfg.Database.Dialect)
+	return err
+}
+
+func decodeUpdatePublicKey(raw string) (ed25519.PublicKey, error) {
+	b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(raw))
+	if err != nil || len(b) != ed25519.PublicKeySize {
+		return nil, errors.New("invalid --public-key (expected base64 Ed25519 public key)")
+	}
+	return ed25519.PublicKey(b), nil
+}
+
+func upgradeStatus(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("upgrade status", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	manifestURL := flags.String("manifest-url", os.Getenv("HYDRO_UPDATE_MANIFEST_URL"), "Signed update manifest URL")
+	publicKeyB64 := flags.String("public-key", os.Getenv("HYDRO_UPDATE_PUBLIC_KEY"), "Base64 Ed25519 public key")
+	asJSON := flags.Bool("json", false, "Output JSON")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	pub, err := decodeUpdatePublicKey(*publicKeyB64)
+	if err != nil {
+		return err
+	}
+	status, err := updater.Check(context.Background(), nil, updater.CheckOptions{
+		CurrentVersion:   version,
+		Edition:          "core",
+		Runtime:          updater.DetectCurrentRuntime(false),
+		ManifestURL:      *manifestURL,
+		TrustedPublicKey: pub,
+	})
+	if err != nil {
+		return err
+	}
+	if *asJSON {
+		return json.NewEncoder(stdout).Encode(status)
+	}
+	_, err = fmt.Fprintf(stdout, "version=%s latest=%s update_available=%t runtime=%s can_self_update=%t\n", status.CurrentVersion, status.LatestVersion, status.UpdateAvailable, status.RuntimeMode, status.CanSelfUpdate)
+	return err
+}
+
+func upgradeApply(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("upgrade apply", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	manifestURL := flags.String("manifest-url", os.Getenv("HYDRO_UPDATE_MANIFEST_URL"), "Signed update manifest URL")
+	publicKeyB64 := flags.String("public-key", os.Getenv("HYDRO_UPDATE_PUBLIC_KEY"), "Base64 Ed25519 public key")
+	exePath := flags.String("executable", "", "Target executable path (defaults to current binary)")
+	yes := flags.Bool("yes", false, "Confirm applying the binary update")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if !*yes {
+		return errors.New("upgrade apply requires --yes")
+	}
+	pub, err := decodeUpdatePublicKey(*publicKeyB64)
+	if err != nil {
+		return err
+	}
+	res, err := updater.Apply(context.Background(), nil, updater.ApplyOptions{
+		CheckOptions: updater.CheckOptions{
+			CurrentVersion:   version,
+			Edition:          "core",
+			Runtime:          updater.DetectCurrentRuntime(false),
+			ManifestURL:      *manifestURL,
+			TrustedPublicKey: pub,
+		},
+		ExecutablePath: *exePath,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "upgrade-applied version=%s runtime=%s backup=%s\n", res.Version, res.Runtime, res.BackupPath)
+	return err
+}
+
+func upgradeRollback(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("upgrade rollback", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	exePath := flags.String("executable", "", "Target executable path (defaults to current binary)")
+	yes := flags.Bool("yes", false, "Confirm rolling back to .prev binary")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if !*yes {
+		return errors.New("upgrade rollback requires --yes")
+	}
+	if err := updater.Rollback(*exePath); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(stdout, "upgrade-rolled-back")
 	return err
 }
 

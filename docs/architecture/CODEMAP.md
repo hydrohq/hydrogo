@@ -11,7 +11,7 @@ Read this first when you are new to the code or an AI assistant asked to change 
 |---|---:|---|
 | `cmd` | 1 | Binary entry points: CLI commands, server composition, HTTP routes and admin APIs. |
 | `extension` | 2 | Public extension SDK. |
-| `internal` | 87 | Cross-cutting capabilities: auth, database, outbox, jobs, mailer, audit, config and more. |
+| `internal` | 88 | Cross-cutting capabilities: auth, database, outbox, jobs, mailer, audit, config and more. |
 | `modules` | 17 | Feature modules: pages, news, members, site, seo, commerce. |
 | `other` | 2 |  |
 | `tests` | 3 | Contract and end-to-end tests. |
@@ -23,7 +23,7 @@ The number is how many package-to-package imports cross that line.
 
 ```mermaid
 flowchart LR
-  cmd -->|62| internal
+  cmd -->|63| internal
   cmd -->|17| modules
   cmd -->|1| other
   extension -->|1| internal
@@ -54,9 +54,9 @@ Changing one of these touches the most code.
 | `internal/contenttypes` | 8 | 7 |
 | `internal/realtime` | 8 | 2 |
 | `internal/collections` | 7 | 2 |
+| `internal/pathguard` | 7 | 0 |
 | `extension/v1` | 6 | 2 |
 | `internal/audit` | 6 | 5 |
-| `internal/observability` | 6 | 2 |
 
 ## Packages that import the most
 
@@ -64,7 +64,7 @@ Usually composition code: the place to look when wiring changes.
 
 | Package | Imports | Imported by |
 |---|---:|---:|
-| `cmd/hydro` | 80 | 0 |
+| `cmd/hydro` | 81 | 0 |
 | `modules/pages/transport` | 18 | 1 |
 | `modules/site/transport` | 18 | 1 |
 | `modules/news` | 13 | 3 |
@@ -87,7 +87,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 
 ### cmd
 
-- `cmd/hydro`: (no package comment) (in 0, out 80)
+- `cmd/hydro`: (no package comment) (in 0, out 81)
 
 ### extension
 
@@ -147,7 +147,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/ops`: Package ops contains deterministic operational alarm evaluation. (in 0, out 0)
 - `internal/outbox`: (no package comment) (in 2, out 0)
 - `internal/outbox/sqlstore`: (no package comment) (in 1, out 4)
-- `internal/pathguard`: Package pathguard contains filesystem path checks shared by destructive and release-sensitive workflows. (in 6, out 0)
+- `internal/pathguard`: Package pathguard contains filesystem path checks shared by destructive and release-sensitive workflows. (in 7, out 0)
 - `internal/portable`: Package portable defines the allowlisted, secret-free content export format. (in 1, out 1)
 - `internal/preview`: (no package comment) (in 3, out 0)
 - `internal/push`: Package push delivers bounded, opt-in notifications to registered Web Push and FCM devices. (in 3, out 4)
@@ -181,6 +181,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/trash`: (no package comment) (in 3, out 2)
 - `internal/trash/sqlstore`: (no package comment) (in 1, out 3)
 - `internal/trash/transport`: (no package comment) (in 1, out 4)
+- `internal/updater`: Package updater implements signed, runtime-aware self-update checks, atomic binary replacement, and rollback for HydroGo. (in 1, out 1)
 - `internal/webhooks`: Package webhooks delivers signed application events to configured external systems. (in 1, out 5)
 - `internal/xlsx`: Package xlsx writes bounded UTF-8 spreadsheets without external runtimes. (in 2, out 0)
 

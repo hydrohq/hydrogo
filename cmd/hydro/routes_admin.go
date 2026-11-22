@@ -62,6 +62,7 @@ func (a *serveApp) adminRoutes() []router.Route {
 		protected("GET /api/v1/admin/system/info", a.adminSystemInfoHandler),
 		protected("GET /api/v1/admin/system/metrics", a.adminSystemMetricsHandler),
 		protected("GET /api/v1/admin/system/health", a.adminSystemHealthHandler(a.readiness)),
+		protected("GET /api/v1/admin/system/updates", a.adminSystemUpdatesHandler),
 		protected("POST /api/v1/admin/client-errors", a.adminClientErrorHandler(a.newRateLimiter(10, time.Minute))),
 		// Jobs are core-owned (see docs/decisions/0010-generic-reports-and-jobs.md),
 		// so this is always registered, independent of which modules are enabled.
