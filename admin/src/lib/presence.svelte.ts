@@ -29,17 +29,6 @@ export function createPresence(
     const id = getId();
     if (!endpoint || !id || id === 'new') return;
     try {
-      api.post(`${endpoint}/leave`, {}).catch(() => {});
-    } catch {
-      // Ignore
-    }
-  }
-
-  function handleBeforeUnload() {
-    const endpoint = getEndpoint();
-    const id = getId();
-    if (!endpoint || !id || id === 'new') return;
-    try {
       const token = getCsrfToken();
       fetch(`${endpoint}/leave`, {
         method: 'POST',
@@ -50,6 +39,10 @@ export function createPresence(
     } catch {
       // Ignore
     }
+  }
+
+  function handleBeforeUnload() {
+    sendLeave();
   }
 
   $effect(() => {

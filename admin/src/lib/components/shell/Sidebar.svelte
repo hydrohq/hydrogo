@@ -66,12 +66,17 @@
   });
 
   function loadRefundCount() {
-    if (moduleOn('commerce') && can('admin.commerce.read')) {
+    if (schema.schema && schema.modules['commerce'] === true && can('admin.commerce.read')) {
       void Promise.resolve(api.get<{ data: RefundsRequiredCount }>('/api/v1/admin/commerce/refunds-required/count'))
         .then((response) => { unresolvedRefundCount = response.data.count; })
         .catch(() => {});
     }
   }
+
+  $effect(() => {
+    void schema.schema;
+    loadRefundCount();
+  });
 
   onMount(() => {
     loadRefundCount();

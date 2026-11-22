@@ -658,3 +658,64 @@ func TestAdminMemberMutationRoutesRequirePermissionAndCSRF(t *testing.T) {
 		t.Fatal("test requires distinct member sessions")
 	}
 }
+
+func TestMemberChangePasswordAndEmailHandlers(t *testing.T) {
+	store := newMemoryMemberStore()
+	sessions := newMemorySessionStore()
+	service := members.Service{Members: store, Sessions: sessions, ArgonParams: auth.DefaultArgon2Params}
+	member, err := service.Register(context.Background(), "member@example.com", "Hydro-Strong-Pass-987!")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := service.CreateSession(context.Background(), member.ID, "browser", "127.0.0.1", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := transport.Handler{Service: service}
+	mux := http.NewServeMux()
+	for _, route := range handler.Routes() {
+		mux.Handle(route.Pattern, route.Handler)
+	}
+
+	t.Run("change-password unauthenticated returns 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/member/password", strings.NewReader(`{"current_password":"a","new_password":"Hydro-New-Strong-654!"}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status=%d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("change-password wrong current password returns 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/member/password", strings.NewReader(`{"current_password":"Wrong","new_password":"Hydro-New-Strong-654!"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: members.SessionCookieName, Value: token})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status=%d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("change-password valid updates password", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/member/password", strings.NewReader(`{"current_password":"Hydro-Strong-Pass-987!","new_password":"Hydro-New-Strong-654!"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: members.SessionCookieName, Value: token})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s, want 200", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("change-email unauthenticated returns 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/member/email", strings.NewReader(`{"new_email":"new@example.com","password":"Hydro-New-Strong-654!"}`))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status=%d, want 401", rec.Code)
+		}
+	})
+}
