@@ -10,12 +10,20 @@ export interface ThemeTokens {
   header_variant: "split" | "centered" | "minimal";
 }
 
+export interface ThemeBlockBlueprint {
+  type: string;
+  label: string;
+  props?: Record<string, unknown>;
+}
+
 export interface ThemeManifest {
   id: string;
   name: string;
   description: string;
   supported_presets: string[];
   required_modules?: string[];
+  recommended_layout: string;
+  default_blocks: ThemeBlockBlueprint[];
   default_tokens: ThemeTokens;
 }
 

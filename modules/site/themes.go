@@ -26,22 +26,39 @@ type ThemeTokens struct {
 	HeaderVariant string `json:"header_variant"`
 }
 
+// ThemeBlockBlueprint defines a starter block compatible with the pages block editor.
+type ThemeBlockBlueprint struct {
+	Type  string         `json:"type"`
+	Label string         `json:"label"`
+	Props map[string]any `json:"props,omitempty"`
+}
+
 // ThemeManifest describes a built-in selectable storefront theme.
 type ThemeManifest struct {
-	ID               string      `json:"id"`
-	Name             string      `json:"name"`
-	Description      string      `json:"description"`
-	SupportedPresets []string    `json:"supported_presets"`
-	RequiredModules  []string    `json:"required_modules,omitempty"`
-	DefaultTokens    ThemeTokens `json:"default_tokens"`
+	ID                string                `json:"id"`
+	Name              string                `json:"name"`
+	Description       string                `json:"description"`
+	SupportedPresets  []string              `json:"supported_presets"`
+	RequiredModules   []string              `json:"required_modules,omitempty"`
+	RecommendedLayout string                `json:"recommended_layout"`
+	DefaultBlocks     []ThemeBlockBlueprint `json:"default_blocks"`
+	DefaultTokens     ThemeTokens           `json:"default_tokens"`
 }
 
 var defaultThemes = []ThemeManifest{
 	{
-		ID:               "minimal",
-		Name:             "Minimal",
-		Description:      "Clean, fast-loading layout for corporate sites, portfolios, and SaaS landing pages.",
-		SupportedPresets: []string{"minimal", "corporate", "docs", "saas"},
+		ID:                "minimal",
+		Name:              "Minimal",
+		Description:       "Clean, fast-loading layout for corporate sites, portfolios, and SaaS landing pages.",
+		SupportedPresets:  []string{"minimal", "corporate", "docs", "saas"},
+		RecommendedLayout: "landing",
+		DefaultBlocks: []ThemeBlockBlueprint{
+			{Type: "hero", Label: "Hero", Props: map[string]any{"title": "Build faster with clarity", "subtitle": "Clean modular sections ready for your content."}},
+			{Type: "feature_list", Label: "Feature list"},
+			{Type: "stats", Label: "Statistics"},
+			{Type: "pricing_table", Label: "Pricing table"},
+			{Type: "cta", Label: "Call to action"},
+		},
 		DefaultTokens: ThemeTokens{
 			Bg:            "#ffffff",
 			Surface:       "#f8fafc",
@@ -55,11 +72,19 @@ var defaultThemes = []ThemeManifest{
 		},
 	},
 	{
-		ID:               "boutique",
-		Name:             "Boutique",
-		Description:      "Visual-first commerce storefront with editorial hero, lookbook grid, and slide-over cart.",
-		SupportedPresets: []string{"boutique", "commerce"},
-		RequiredModules:  []string{"commerce"},
+		ID:                "boutique",
+		Name:              "Boutique",
+		Description:       "Visual-first commerce storefront with editorial hero, lookbook grid, and slide-over cart.",
+		SupportedPresets:  []string{"boutique", "commerce"},
+		RequiredModules:   []string{"commerce"},
+		RecommendedLayout: "landing",
+		DefaultBlocks: []ThemeBlockBlueprint{
+			{Type: "hero", Label: "Hero", Props: map[string]any{"title": "New Season Collection", "subtitle": "Curated essentials crafted for everyday wear."}},
+			{Type: "carousel", Label: "Image carousel"},
+			{Type: "trust_bar", Label: "Trust badges"},
+			{Type: "testimonials", Label: "Testimonials"},
+			{Type: "cta", Label: "Call to action"},
+		},
 		DefaultTokens: ThemeTokens{
 			Bg:            "#faf8f5",
 			Surface:       "#f2ede4",
@@ -73,10 +98,17 @@ var defaultThemes = []ThemeManifest{
 		},
 	},
 	{
-		ID:               "editorial",
-		Name:             "Editorial",
-		Description:      "Typography-led newsroom and magazine layout with category rails and featured stories.",
-		SupportedPresets: []string{"news", "tr-news", "blog"},
+		ID:                "editorial",
+		Name:              "Editorial",
+		Description:       "Typography-led newsroom and magazine layout with category rails and featured stories.",
+		SupportedPresets:  []string{"news", "tr-news", "blog"},
+		RecommendedLayout: "contained",
+		DefaultBlocks: []ThemeBlockBlueprint{
+			{Type: "hero", Label: "Hero", Props: map[string]any{"title": "Featured Dispatch", "subtitle": "Independent reporting and deep-dive essays."}},
+			{Type: "columns", Label: "Columns"},
+			{Type: "callout", Label: "Callout"},
+			{Type: "faq", Label: "FAQ"},
+		},
 		DefaultTokens: ThemeTokens{
 			Bg:            "#ffffff",
 			Surface:       "#f4f4f5",
@@ -90,11 +122,19 @@ var defaultThemes = []ThemeManifest{
 		},
 	},
 	{
-		ID:               "b2b-catalog",
-		Name:             "B2B Catalog",
-		Description:      "High-density wholesale catalog with quick-order matrix, SKU search, and dealer pricing.",
-		SupportedPresets: []string{"erp-lite", "commerce"},
-		RequiredModules:  []string{"commerce"},
+		ID:                "b2b-catalog",
+		Name:              "B2B Catalog",
+		Description:       "High-density wholesale catalog with quick-order matrix, SKU search, and dealer pricing.",
+		SupportedPresets:  []string{"erp-lite", "commerce"},
+		RequiredModules:   []string{"commerce"},
+		RecommendedLayout: "default",
+		DefaultBlocks: []ThemeBlockBlueprint{
+			{Type: "hero", Label: "Hero", Props: map[string]any{"title": "Wholesale & Dealer Portal", "subtitle": "Bulk ordering, tiered pricing, and fast dispatch."}},
+			{Type: "trust_bar", Label: "Trust badges"},
+			{Type: "feature_list", Label: "Feature list"},
+			{Type: "pricing_table", Label: "Pricing table"},
+			{Type: "contact_cta", Label: "Call / WhatsApp contact"},
+		},
 		DefaultTokens: ThemeTokens{
 			Bg:            "#f8fafc",
 			Surface:       "#ffffff",

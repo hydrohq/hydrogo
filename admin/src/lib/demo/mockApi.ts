@@ -225,6 +225,27 @@ export async function handleDemoRequest<T>(
     return { data: [] } as T;
   }
 
+  if (path === '/api/v1/admin/pages/blocks') {
+    return {
+      data: {
+        types: [
+          { type: 'hero', label: 'Hero', badge: 'Hero', payload_mode: 'fields' },
+          { type: 'cta', label: 'Call to action', badge: 'CTA', payload_mode: 'fields' },
+          { type: 'faq', label: 'FAQ', badge: 'FAQ', payload_mode: 'items' },
+          { type: 'pricing_table', label: 'Pricing table', badge: 'Pricing', payload_mode: 'items' },
+          { type: 'testimonials', label: 'Testimonials', badge: 'Testimonials', payload_mode: 'items' },
+          { type: 'carousel', label: 'Image carousel', badge: 'Carousel', payload_mode: 'json' },
+          { type: 'columns', label: 'Columns', badge: 'Columns', payload_mode: 'json' },
+          { type: 'feature_list', label: 'Feature list', badge: 'Features', payload_mode: 'json' },
+          { type: 'stats', label: 'Statistics', badge: 'Stats', payload_mode: 'json' },
+          { type: 'trust_bar', label: 'Trust badges', badge: 'Trust', payload_mode: 'json' },
+          { type: 'callout', label: 'Callout', badge: 'Callout', payload_mode: 'json' },
+          { type: 'contact_cta', label: 'Call / WhatsApp contact', badge: 'Contact', payload_mode: 'json' },
+        ],
+      },
+    } as T;
+  }
+
   if (path.startsWith('/api/v1/admin/pages')) {
     const subId = path.split('/')[5];
     return crudList(state.pages, method, subId, payload, state, 'pg', 'pages') as T;

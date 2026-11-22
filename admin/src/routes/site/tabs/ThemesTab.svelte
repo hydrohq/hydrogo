@@ -17,12 +17,20 @@
     header_variant: string;
   }
 
+  export interface ThemeBlockBlueprint {
+    type: string;
+    label: string;
+    props?: Record<string, any>;
+  }
+
   export interface ThemeManifest {
     id: string;
     name: string;
     description: string;
     supported_presets: string[];
     required_modules?: string[];
+    recommended_layout: string;
+    default_blocks: ThemeBlockBlueprint[];
     default_tokens: ThemeTokens;
   }
 
@@ -32,6 +40,14 @@
       name: 'Minimal',
       description: 'Clean, fast-loading layout for corporate sites, portfolios, and SaaS landing pages.',
       supported_presets: ['minimal', 'corporate', 'docs', 'saas'],
+      recommended_layout: 'landing',
+      default_blocks: [
+        { type: 'hero', label: 'Hero', props: { title: 'Build faster with clarity', subtitle: 'Clean modular sections ready for your content.' } },
+        { type: 'feature_list', label: 'Feature list' },
+        { type: 'stats', label: 'Statistics' },
+        { type: 'pricing_table', label: 'Pricing table' },
+        { type: 'cta', label: 'Call to action' },
+      ],
       default_tokens: {
         bg: '#ffffff',
         surface: '#f8fafc',
@@ -50,6 +66,14 @@
       description: 'Visual-first commerce storefront with editorial hero, lookbook grid, and slide-over cart.',
       supported_presets: ['boutique', 'commerce'],
       required_modules: ['commerce'],
+      recommended_layout: 'landing',
+      default_blocks: [
+        { type: 'hero', label: 'Hero', props: { title: 'New Season Collection', subtitle: 'Curated essentials crafted for everyday wear.' } },
+        { type: 'carousel', label: 'Image carousel' },
+        { type: 'trust_bar', label: 'Trust badges' },
+        { type: 'testimonials', label: 'Testimonials' },
+        { type: 'cta', label: 'Call to action' },
+      ],
       default_tokens: {
         bg: '#faf8f5',
         surface: '#f2ede4',
@@ -67,6 +91,13 @@
       name: 'Editorial',
       description: 'Typography-led newsroom and magazine layout with category rails and featured stories.',
       supported_presets: ['news', 'tr-news', 'blog'],
+      recommended_layout: 'contained',
+      default_blocks: [
+        { type: 'hero', label: 'Hero', props: { title: 'Featured Dispatch', subtitle: 'Independent reporting and deep-dive essays.' } },
+        { type: 'columns', label: 'Columns' },
+        { type: 'callout', label: 'Callout' },
+        { type: 'faq', label: 'FAQ' },
+      ],
       default_tokens: {
         bg: '#ffffff',
         surface: '#f4f4f5',
@@ -85,6 +116,14 @@
       description: 'High-density wholesale catalog with quick-order matrix, SKU search, and dealer pricing.',
       supported_presets: ['erp-lite', 'commerce'],
       required_modules: ['commerce'],
+      recommended_layout: 'default',
+      default_blocks: [
+        { type: 'hero', label: 'Hero', props: { title: 'Wholesale & Dealer Portal', subtitle: 'Bulk ordering, tiered pricing, and fast dispatch.' } },
+        { type: 'trust_bar', label: 'Trust badges' },
+        { type: 'feature_list', label: 'Feature list' },
+        { type: 'pricing_table', label: 'Pricing table' },
+        { type: 'contact_cta', label: 'Call / WhatsApp contact' },
+      ],
       default_tokens: {
         bg: '#f8fafc',
         surface: '#ffffff',
@@ -141,9 +180,47 @@
     settings['storefront.theme_tokens'] = JSON.stringify(tokens);
   }
 
+  let applyingBlocks = $state(false);
+  let blocksStatus = $state<string | null>(null);
+
   function resetTokens() {
     tokens = { ...activeManifest.default_tokens };
     settings['storefront.theme_tokens'] = '';
+  }
+
+  async function applyThemeBlocksToHomePage() {
+    applyingBlocks = true;
+    blocksStatus = null;
+    try {
+      const listRes = await api.get<ApiResponse<any[]>>('/api/v1/admin/pages', { params: { limit: 50 } });
+      const pagesList = Array.isArray(listRes?.data) ? listRes.data : [];
+      const home = pagesList.find((p) => p.slug === 'home' || p.slug === '/' || p.slug === '') ?? pagesList[0];
+      const nextBlocks = activeManifest.default_blocks.map((b) => ({
+        type: b.type,
+        props: { title: b.props?.title || b.label, subtitle: b.props?.subtitle || '', ...(b.props || {}) },
+        items: [],
+      }));
+      if (home?.id) {
+        await api.put(`/api/v1/admin/pages/${home.id}`, {
+          ...home,
+          layout_template: activeManifest.recommended_layout,
+          blocks: nextBlocks,
+        });
+      } else {
+        await api.post('/api/v1/admin/pages', {
+          title: 'Home',
+          slug: 'home',
+          locale: 'en',
+          layout_template: activeManifest.recommended_layout,
+          blocks: nextBlocks,
+        });
+      }
+      blocksStatus = t('site.themes.blocksApplied');
+    } catch {
+      blocksStatus = t('site.themes.blocksFailed');
+    } finally {
+      applyingBlocks = false;
+    }
   }
 
   onMount(async () => {
@@ -165,16 +242,33 @@
         <h3 class="text-sm font-semibold text-foreground">{t('site.themes.title')}</h3>
         <p class="text-xs text-muted-foreground mt-0.5">{t('site.themes.subtitle')}</p>
       </div>
-      <a
-        href={`/?theme_preview=${encodeURIComponent(activeThemeId)}`}
-        target="_blank"
-        rel="noreferrer"
-        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors"
-      >
-        <span>{t('site.themes.preview')}</span>
-        <span aria-hidden="true">↗</span>
-      </a>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={applyingBlocks}
+          onclick={applyThemeBlocksToHomePage}
+        >
+          {t('site.themes.applyBlocks')}
+        </Button>
+        <a
+          href={`/?theme_preview=${encodeURIComponent(activeThemeId)}`}
+          target="_blank"
+          rel="noreferrer"
+          class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground transition-colors"
+        >
+          <span>{t('site.themes.preview')}</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
     </div>
+
+    {#if blocksStatus}
+      <div class="p-2.5 px-3 rounded-lg bg-primary/10 border border-primary/20 text-foreground text-xs">
+        {blocksStatus}
+      </div>
+    {/if}
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       {#each themes as theme (theme.id)}
@@ -226,6 +320,12 @@
                   {/if}
                 </div>
                 <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{theme.description}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-1">
+                  <span class="text-[10px] font-medium text-muted-foreground mr-0.5">{t('site.themes.blocksLabel')}</span>
+                  {#each theme.default_blocks as block}
+                    <span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-foreground">{block.label}</span>
+                  {/each}
+                </div>
               </div>
             </div>
           </div>
