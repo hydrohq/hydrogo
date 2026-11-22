@@ -38,22 +38,22 @@ database:
 	}
 }
 
-func TestLoadCommerceAndPayTRDefaultsAndOverrides(t *testing.T) {
+func TestLoadCommerceDefaultsAndOverrides(t *testing.T) {
 	cfg, err := Load("", lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:defaults.sqlite"}), Overrides{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Payments.PayTR.TimeoutLimit != 20 || cfg.Commerce.MaxPendingOrdersPerIP != 25 || cfg.Commerce.MaxLineQuantity != 100 {
-		t.Fatalf("defaults: timeout=%d pending=%d", cfg.Payments.PayTR.TimeoutLimit, cfg.Commerce.MaxPendingOrdersPerIP)
+	if cfg.Commerce.MaxPendingOrdersPerIP != 25 || cfg.Commerce.MaxLineQuantity != 100 {
+		t.Fatalf("defaults: pending=%d", cfg.Commerce.MaxPendingOrdersPerIP)
 	}
 
-	path := writeConfig(t, "commerce:\n  max_pending_orders_per_ip: 9\n  max_line_quantity: 7\npayments:\n  paytr:\n    timeout_limit: 12\n")
+	path := writeConfig(t, "commerce:\n  max_pending_orders_per_ip: 9\n  max_line_quantity: 7\n")
 	cfg, err = Load(path, lookup(map[string]string{"HYDRO_DATABASE_DSN": "file:overrides.sqlite"}), Overrides{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Payments.PayTR.TimeoutLimit != 12 || cfg.Commerce.MaxPendingOrdersPerIP != 9 || cfg.Commerce.MaxLineQuantity != 7 {
-		t.Fatalf("configured values: timeout=%d pending=%d", cfg.Payments.PayTR.TimeoutLimit, cfg.Commerce.MaxPendingOrdersPerIP)
+	if cfg.Commerce.MaxPendingOrdersPerIP != 9 || cfg.Commerce.MaxLineQuantity != 7 {
+		t.Fatalf("configured values: pending=%d", cfg.Commerce.MaxPendingOrdersPerIP)
 	}
 }
 

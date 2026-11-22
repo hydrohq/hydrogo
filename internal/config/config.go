@@ -2,8 +2,9 @@ package config
 
 import (
 	"regexp"
-	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/hydrohq/hydrogo/internal/capacity"
 	"github.com/hydrohq/hydrogo/internal/database"
@@ -38,12 +39,15 @@ type Config struct {
 	Audit           Audit            `yaml:"audit"`
 	Limits          Limits           `yaml:"limits"`
 	Commerce        Commerce         `yaml:"commerce"`
-	Payments        Payments         `yaml:"payments"`
-	Carriers        Carriers         `yaml:"carriers"`
-	Invoicing       Invoicing        `yaml:"invoicing"`
 	Notifications   Notifications    `yaml:"notifications"`
-	Factory         Factory          `yaml:"factory"`
-	Storefront      StorefrontConfig `yaml:"storefront"`
+	// Extensions holds the decoded sections owned by optional add-on modules (see
+	// RegisterExtension). It is empty when no add-on module is built in.
+	Extensions map[string]any `yaml:"-"`
+	// ExtensionSections receives top-level keys that core does not know; Load hands
+	// the ones a registered extension owns to it and rejects the rest.
+	ExtensionSections map[string]yaml.Node `yaml:",inline"`
+	Factory           Factory              `yaml:"factory"`
+	Storefront        StorefrontConfig     `yaml:"storefront"`
 }
 
 // Factory configures the automated multi-tenant store factory infrastructure.
@@ -367,158 +371,3 @@ func (c Config) InvitationDuration() time.Duration {
 	value, _ := time.ParseDuration(c.Security.InvitationTTL)
 	return value
 }
-
-// Payments configures the optional `payments` module: the methods a
-// storefront can offer at checkout. Each is enabled by its own key; secrets
-// (merchant_key, merchant_salt, secret_key) belong only in a protected,
-// untracked config file -- there is no HYDRO_* override for them.
-type Payments struct {
-	// Default is the method used when the shopper sends none.
-	Default string `yaml:"default"`
-	PayTR   PayTR  `yaml:"paytr"`
-	Iyzico  Iyzico `yaml:"iyzico"`
-	Havale  Havale `yaml:"havale"`
-}
-
-// PayTR is one merchant's PayTR (hosted iFrame) credentials.
-type PayTR struct {
-	MerchantID   string `yaml:"merchant_id"`
-	MerchantKey  string `yaml:"merchant_key"`
-	MerchantSalt string `yaml:"merchant_salt"`
-	// BaseURL is the gateway origin from the merchant documentation.
-	BaseURL        string `yaml:"base_url"`
-	TestMode       bool   `yaml:"test_mode"`
-	NoInstallment  bool   `yaml:"no_installment"`
-	MaxInstallment int    `yaml:"max_installment"`
-	OKURL          string `yaml:"ok_url"`
-	FailURL        string `yaml:"fail_url"`
-	TimeoutLimit   int    `yaml:"timeout_limit"`
-}
-
-// Enabled reports whether PayTR is configured.
-func (p PayTR) Enabled() bool { return p.MerchantID != "" }
-
-// Iyzico is one merchant's iyzico Checkout Form credentials.
-type Iyzico struct {
-	APIKey    string `yaml:"api_key"`
-	SecretKey string `yaml:"secret_key"`
-	// BaseURL is the API origin from iyzico's docs (sandbox or live).
-	BaseURL string `yaml:"base_url"`
-	// CallbackURL is this server's public .../api/v1/payments/iyzico/callback.
-	CallbackURL         string `yaml:"callback_url"`
-	OKURL               string `yaml:"ok_url"`
-	FailURL             string `yaml:"fail_url"`
-	EnabledInstallments []int  `yaml:"enabled_installments"`
-}
-
-// Enabled reports whether iyzico is configured.
-func (i Iyzico) Enabled() bool { return i.APIKey != "" }
-
-// Havale is a manual bank transfer, confirmed by an operator.
-type Havale struct {
-	IBAN          string `yaml:"iban"`
-	BankName      string `yaml:"bank_name"`
-	AccountHolder string `yaml:"account_holder"`
-	WhatsApp      string `yaml:"whatsapp"`
-	// DiscountPercent is taken off the subtotal when the shopper picks this
-	// method (0 = none, up to 100).
-	DiscountPercent float64 `yaml:"discount_percent"`
-}
-
-// Enabled reports whether bank transfer is configured.
-func (h Havale) Enabled() bool { return h.IBAN != "" }
-
-// Carriers configures the optional `shipping` module: the carriers a paid
-// order can be handed to from the admin Orders screen. Secrets (ws_password,
-// geliver.token, geliver.webhook_secret) belong only in a protected, untracked
-// config file.
-// Invoicing configures optional external e-Fatura / e-Arşiv invoicing for commerce orders.
-type Invoicing struct {
-	AutoIssueOnPaid bool                `yaml:"auto_issue_on_paid"`
-	BizimHesap      BizimHesapInvoicing `yaml:"bizimhesap"`
-}
-
-// BizimHesapInvoicing configures BizimHesap sales invoice submission.
-type BizimHesapInvoicing struct {
-	FirmID      string `yaml:"firm_id"`
-	EndpointURL string `yaml:"endpoint_url"`
-	APIKey      string `yaml:"api_key"`
-	Token       string `yaml:"token"`
-}
-
-// Enabled reports whether BizimHesap invoicing configuration is non-empty.
-func (b BizimHesapInvoicing) Enabled() bool {
-	return strings.TrimSpace(b.FirmID) != "" ||
-		strings.TrimSpace(b.EndpointURL) != "" ||
-		strings.TrimSpace(b.APIKey) != "" ||
-		strings.TrimSpace(b.Token) != ""
-}
-
-type Carriers struct {
-	// Default is the carrier used when the operator names none.
-	Default string         `yaml:"default"`
-	Manual  ManualCarrier  `yaml:"manual"`
-	Yurtici YurticiCarrier `yaml:"yurtici"`
-	HTTP    HTTPCarrier    `yaml:"http"`
-	Geliver GeliverCarrier `yaml:"geliver"`
-}
-
-// GeliverCarrier configures Geliver shipping marketplace integration.
-type GeliverCarrier struct {
-	Token               string `yaml:"token"`
-	SenderAddressID     string `yaml:"sender_address_id"`
-	BaseURL             string `yaml:"base_url"`
-	WebhookSecret       string `yaml:"webhook_secret"`
-	ProviderServiceCode string `yaml:"provider_service_code"`
-	ProviderAccountID   string `yaml:"provider_account_id"`
-	DefaultLengthCm     string `yaml:"default_length_cm"`
-	DefaultWidthCm      string `yaml:"default_width_cm"`
-	DefaultHeightCm     string `yaml:"default_height_cm"`
-	DefaultWeightKg     string `yaml:"default_weight_kg"`
-	TestMode            bool   `yaml:"test_mode"`
-}
-
-// Enabled reports whether Geliver shipping integration is configured.
-func (g GeliverCarrier) Enabled() bool { return strings.TrimSpace(g.Token) != "" }
-
-// ManualCarrier records a shipment booked in the carrier's own portal.
-type ManualCarrier struct {
-	Enabled bool `yaml:"enabled"`
-	// TrackingURLTemplate builds a tracking link; "{tracking_number}" is replaced.
-	TrackingURLTemplate string `yaml:"tracking_url_template"`
-}
-
-// YurticiCarrier is one account's Yurtiçi Kargo web service access. The
-// integration is reconstructed from public descriptions and has not been run
-// against the real service: verify it with the carrier before relying on it.
-type YurticiCarrier struct {
-	WSUserName string `yaml:"ws_username"`
-	WSPassword string `yaml:"ws_password"`
-	// BaseURL is the SOAP endpoint from the carrier's integration documents.
-	BaseURL string `yaml:"base_url"`
-	// Namespace is the SOAP service namespace from the same documents.
-	Namespace string `yaml:"namespace"`
-	// TrackingURLTemplate builds the tracking link; "{tracking_number}" is replaced.
-	TrackingURLTemplate string `yaml:"tracking_url_template"`
-	Language            string `yaml:"language"`
-}
-
-// Enabled reports whether Yurtiçi is configured.
-func (y YurticiCarrier) Enabled() bool { return y.WSUserName != "" }
-
-// HTTPCarrier connects any carrier or aggregator that takes an HTTP request and
-// answers with a tracking number, with no code: see modules/shipping/httpcarrier.
-// Headers usually carry credentials, so keep them in an untracked config file.
-type HTTPCarrier struct {
-	// Name is stored on the order as the carrier ("Aras Kargo", ...).
-	Name                string            `yaml:"name"`
-	URL                 string            `yaml:"url"`
-	Method              string            `yaml:"method"`
-	Headers             map[string]string `yaml:"headers"`
-	BodyTemplate        string            `yaml:"body_template"`
-	TrackingPath        string            `yaml:"tracking_path"`
-	TrackingURLTemplate string            `yaml:"tracking_url_template"`
-}
-
-// Enabled reports whether an HTTP carrier is configured.
-func (h HTTPCarrier) Enabled() bool { return h.URL != "" }

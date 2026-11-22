@@ -44,16 +44,10 @@ func (c Config) Validate() error {
 	if c.Backup.Enabled && (c.Backup.RetentionDays < 1 || c.Backup.RetentionDays > 3650 || c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 || strings.ContainsAny(c.Backup.Prefix, "..\\")) {
 		return errors.New("invalid scheduled backup retention, UTC hour, or prefix")
 	}
-	if err := c.Carriers.validate(); err != nil {
-		return err
-	}
-	if err := c.Invoicing.validate(); err != nil {
-		return err
-	}
 	if c.Security.PublicContentRatePerMinute < 0 {
 		return errors.New("security.public_content_rate_per_minute must not be negative")
 	}
-	if err := c.Payments.validate(); err != nil {
+	if err := validateExtensions(c); err != nil {
 		return err
 	}
 	if (c.Notifications.Telegram.BotToken == "") != (c.Notifications.Telegram.ChatID == "") {
@@ -431,17 +425,6 @@ func (c Config) Validate() error {
 		}
 	}
 	if publicOrigin != nil && publicOrigin.Scheme == "https" {
-		if c.Payments.Havale.Enabled() {
-			if IsPlaceholderHavaleIBAN(c.Payments.Havale.IBAN) {
-				return errors.New("payments.havale.iban contains a placeholder value under an HTTPS public origin")
-			}
-			if strings.TrimSpace(c.Payments.Havale.BankName) == "" || IsPlaceholderText(c.Payments.Havale.BankName) {
-				return errors.New("payments.havale.bank_name is missing or contains a placeholder under an HTTPS public origin")
-			}
-			if strings.TrimSpace(c.Payments.Havale.AccountHolder) == "" || IsPlaceholderText(c.Payments.Havale.AccountHolder) {
-				return errors.New("payments.havale.account_holder is missing or contains a placeholder under an HTTPS public origin")
-			}
-		}
 		if strings.TrimSpace(c.Analytics.HashKey) != "" && IsTestAnalyticsHashKey(c.Analytics.HashKey) {
 			return errors.New("analytics.hash_key contains a development/placeholder key under an HTTPS public origin")
 		}
@@ -459,19 +442,6 @@ func IsPlaceholderText(val string) bool {
 	return upper == "CHANGE_ME" || upper == "CHANGEME" || strings.Contains(upper, "CHANGE_ME") || strings.Contains(upper, "TODO")
 }
 
-// IsPlaceholderHavaleIBAN reports whether an IBAN value is an unconfigured template placeholder.
-func IsPlaceholderHavaleIBAN(iban string) bool {
-	compact := strings.Join(strings.Fields(strings.ToUpper(iban)), "")
-	if compact == "" {
-		return false
-	}
-	return strings.HasPrefix(compact, "TR00") ||
-		strings.Contains(compact, "000000000000") ||
-		strings.Contains(compact, "TODO") ||
-		strings.Contains(compact, "CHANGE_ME") ||
-		strings.Contains(compact, "CHANGEME")
-}
-
 // IsTestAnalyticsHashKey reports whether an analytics hash key contains local/dev placeholder markers.
 func IsTestAnalyticsHashKey(val string) bool {
 	lower := strings.ToLower(strings.TrimSpace(val))
@@ -479,64 +449,4 @@ func IsTestAnalyticsHashKey(val string) bool {
 		return false
 	}
 	return strings.Contains(lower, "local-dev") || strings.Contains(lower, "dev-key") || IsPlaceholderText(val)
-}
-
-func (p Payments) validate() error {
-	if p.PayTR.Enabled() && (p.PayTR.MerchantKey == "" || p.PayTR.MerchantSalt == "" || p.PayTR.BaseURL == "") {
-		return errors.New("payments.paytr requires merchant_key, merchant_salt and base_url once merchant_id is set")
-	}
-	if p.PayTR.TimeoutLimit != 0 && (p.PayTR.TimeoutLimit < 5 || p.PayTR.TimeoutLimit >= 30) {
-		return errors.New("payments.paytr.timeout_limit must be between 5 and 29 minutes (less than the 30-minute stock reservation period)")
-	}
-	if p.Iyzico.Enabled() && (p.Iyzico.SecretKey == "" || p.Iyzico.CallbackURL == "" || p.Iyzico.BaseURL == "") {
-		return errors.New("payments.iyzico requires secret_key, callback_url and base_url once api_key is set")
-	}
-	if p.Havale.DiscountPercent < 0 || p.Havale.DiscountPercent > 100 {
-		return errors.New("payments.havale.discount_percent must be between 0 and 100")
-	}
-	switch p.Default {
-	case "", "paytr", "iyzico", "havale":
-	default:
-		return errors.New("payments.default must be paytr, iyzico or havale")
-	}
-	return nil
-}
-
-func (c Carriers) validate() error {
-	if c.Yurtici.Enabled() && (c.Yurtici.WSPassword == "" || c.Yurtici.BaseURL == "" || c.Yurtici.Namespace == "") {
-		return errors.New("carriers.yurtici requires ws_password, base_url and namespace once ws_username is set")
-	}
-	if c.HTTP.Enabled() && (c.HTTP.TrackingPath == "" || c.HTTP.BodyTemplate == "" || c.HTTP.Name == "") {
-		return errors.New("carriers.http requires name, body_template and tracking_path once url is set")
-	}
-	if strings.TrimSpace(c.Geliver.BaseURL) != "" {
-		parsed, err := url.Parse(strings.TrimSpace(c.Geliver.BaseURL))
-		if err != nil || !isHTTPBaseURL(parsed) {
-			return fmt.Errorf("invalid carriers.geliver base URL %q", c.Geliver.BaseURL)
-		}
-	}
-	switch c.Default {
-	case "", "manual", "yurtici", "http", "geliver":
-	default:
-		return errors.New("carriers.default must be manual, yurtici, http or geliver")
-	}
-	return nil
-}
-
-func (i Invoicing) validate() error {
-	if !i.BizimHesap.Enabled() {
-		return nil
-	}
-	if strings.TrimSpace(i.BizimHesap.FirmID) == "" {
-		return errors.New("invoicing.bizimhesap.firm_id is required when invoicing.bizimhesap is configured")
-	}
-	endpoint := strings.TrimSpace(i.BizimHesap.EndpointURL)
-	if endpoint == "" {
-		return errors.New("invoicing.bizimhesap.endpoint_url is required when invoicing.bizimhesap is configured")
-	}
-	parsed, err := url.Parse(endpoint)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return errors.New("invoicing.bizimhesap.endpoint_url must be a valid http or https URL")
-	}
-	return nil
 }

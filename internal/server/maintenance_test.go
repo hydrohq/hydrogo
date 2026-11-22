@@ -9,6 +9,7 @@ import (
 )
 
 func TestMaintenanceMiddleware(t *testing.T) {
+	AllowDuringMaintenance("/api/v1/example/callback")
 	mw := MaintenanceMiddleware(MaintenanceConfig{Enabled: func(*http.Request) bool { return true }, Render: func(*http.Request) ([]byte, error) { return []byte("maintenance page"), nil }, Allowlist: func(*http.Request) []string { return []string{"192.0.2.0/24"} }})
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	handler := mw(next)
@@ -20,9 +21,8 @@ func TestMaintenanceMiddleware(t *testing.T) {
 		{"/", "192.0.2.8:99", 200},
 		{"/login", "198.51.100.2:99", 200},
 		{"/designsystem/static/site.css", "198.51.100.2:99", 200},
-		{"/api/v1/commerce/payments/paytr/callback", "198.51.100.2:99", 200},
-		{"/api/v1/payments/iyzico/callback", "198.51.100.2:99", 200},
-		{"/api/v1/payments/iyzico/webhook", "198.51.100.2:99", 200},
+		{"/api/v1/example/callback", "198.51.100.2:99", 200},
+		{"/api/v1/example/other", "198.51.100.2:99", 503},
 	}
 	for _, tc := range cases {
 		r := httptest.NewRequest("GET", tc.path, nil)
