@@ -18,8 +18,8 @@ import (
 // Custom providers can still be plugged in through RegisterShippingProvider and
 // RegisterInvoiceProvider.
 
-func paymentsEnabled(map[string]bool, config.Payments) bool             { return false }
-func paymentsCSRFExemptPaths(map[string]bool, config.Payments) []string { return nil }
+func paymentsEnabled(map[string]bool, config.Config) bool             { return false }
+func paymentsCSRFExemptPaths(map[string]bool, config.Config) []string { return nil }
 
 func (a *serveApp) buildPayments(commerce.Service, notify.Sender) (commerce.PaymentProvider, []commercetransport.Route) {
 	return nil, nil
@@ -27,7 +27,7 @@ func (a *serveApp) buildPayments(commerce.Service, notify.Sender) (commerce.Paym
 
 func (a *serveApp) methodDiscounts() map[string]float64 { return nil }
 
-func shippingCSRFExemptPaths(map[string]bool, config.Carriers) []string { return nil }
+func shippingCSRFExemptPaths(map[string]bool, config.Config) []string { return nil }
 
 func (a *serveApp) shippingRoutes(commerce.Service, func(*http.Request) string) []commercetransport.Route {
 	return nil
@@ -36,3 +36,7 @@ func (a *serveApp) shippingRoutes(commerce.Service, func(*http.Request) string) 
 func (a *serveApp) buildCarriers() commerce.ShippingProvider { return nil }
 
 func (a *serveApp) configuredInvoiceProvider() commerce.InvoiceProvider { return nil }
+
+func (a *serveApp) paymentMethodNames() []string { return nil }
+
+func (a *serveApp) invoiceAutoIssueOnPaid() bool { return false }

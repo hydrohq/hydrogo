@@ -45,72 +45,8 @@ func validateSecrets(cfg config.Config, lookup config.LookupEnv, isProd bool, lo
 		issues = append(issues, "RECOVER_SECRET is empty or set to CHANGE_ME")
 	}
 
-	// 4. Payment secrets in config
-	if cfg.Payments.PayTR.Enabled() {
-		if isInsecureSecret(cfg.Payments.PayTR.MerchantKey) {
-			issues = append(issues, "payments.paytr.merchant_key is empty or set to CHANGE_ME")
-		}
-		if isInsecureSecret(cfg.Payments.PayTR.MerchantSalt) {
-			issues = append(issues, "payments.paytr.merchant_salt is empty or set to CHANGE_ME")
-		}
-	}
-	if cfg.Payments.Iyzico.Enabled() {
-		if isInsecureSecret(cfg.Payments.Iyzico.APIKey) {
-			issues = append(issues, "payments.iyzico.api_key is empty or set to CHANGE_ME")
-		}
-		if isInsecureSecret(cfg.Payments.Iyzico.SecretKey) {
-			issues = append(issues, "payments.iyzico.secret_key is empty or set to CHANGE_ME")
-		}
-	}
-	shopierKey, hasShopierKey := lookup("SHOPIER_API_KEY")
-	shopierSecret, hasShopierSecret := lookup("SHOPIER_API_SECRET")
-	if hasShopierKey || hasShopierSecret {
-		if isInsecureSecret(shopierKey) {
-			issues = append(issues, "SHOPIER_API_KEY is empty or set to CHANGE_ME")
-		}
-		if isInsecureSecret(shopierSecret) {
-			issues = append(issues, "SHOPIER_API_SECRET is empty or set to CHANGE_ME")
-		}
-	}
-
-	// 5. Shipping secrets in config
-	if cfg.Carriers.Geliver.Enabled() {
-		if isInsecureSecret(cfg.Carriers.Geliver.Token) {
-			issues = append(issues, "carriers.geliver.token is empty or set to CHANGE_ME")
-		}
-		if isInsecureSecret(cfg.Carriers.Geliver.WebhookSecret) {
-			issues = append(issues, "carriers.geliver.webhook_secret is empty or set to CHANGE_ME")
-		}
-	}
-
-	// 6. Invoicing credentials in config (optional APIKey/Token are validated only if set to CHANGE_ME)
-	if cfg.Invoicing.BizimHesap.Enabled() {
-		if isInsecureSecret(cfg.Invoicing.BizimHesap.FirmID) {
-			issues = append(issues, "invoicing.bizimhesap.firm_id is empty or set to CHANGE_ME")
-		}
-		if strings.TrimSpace(cfg.Invoicing.BizimHesap.APIKey) != "" && isInsecureSecret(cfg.Invoicing.BizimHesap.APIKey) {
-			issues = append(issues, "invoicing.bizimhesap.api_key is set to CHANGE_ME")
-		}
-		if strings.TrimSpace(cfg.Invoicing.BizimHesap.Token) != "" && isInsecureSecret(cfg.Invoicing.BizimHesap.Token) {
-			issues = append(issues, "invoicing.bizimhesap.token is set to CHANGE_ME")
-		}
-	}
-
-	// 7. Havale bank transfer details must not use placeholder values or bypass env in production
-	if cfg.Payments.Havale.Enabled() {
-		if config.IsPlaceholderHavaleIBAN(cfg.Payments.Havale.IBAN) {
-			issues = append(issues, "payments.havale.iban contains a placeholder IBAN (e.g. TR00...)")
-		}
-		if strings.TrimSpace(cfg.Payments.Havale.BankName) == "" || config.IsPlaceholderText(cfg.Payments.Havale.BankName) {
-			issues = append(issues, "payments.havale.bank_name is empty or contains a placeholder")
-		}
-		if strings.TrimSpace(cfg.Payments.Havale.AccountHolder) == "" || config.IsPlaceholderText(cfg.Payments.Havale.AccountHolder) {
-			issues = append(issues, "payments.havale.account_holder is empty or contains a placeholder")
-		}
-		if envIBAN, ok := lookup("HYDRO_PAYMENTS_HAVALE_IBAN"); !ok || strings.TrimSpace(envIBAN) == "" {
-			issues = append(issues, "payments.havale is enabled without HYDRO_PAYMENTS_HAVALE_IBAN environment variable")
-		}
-	}
+	// 4. Secrets and settings of optional add-on modules (registered config extensions)
+	issues = append(issues, config.ExtensionProductionIssues(cfg, lookup)...)
 
 	// 8. Analytics hash key must not remain on a local/dev key
 	if cfg.Analytics.NoCookieEnabled || strings.TrimSpace(cfg.Analytics.HashKey) != "" {
