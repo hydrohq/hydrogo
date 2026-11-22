@@ -128,9 +128,9 @@ Available presets (`hydro new --list-presets`):
 Run the diagnostic suite before starting your server:
 
 ```bash
-hydro doctor
+hydro doctor --config config.yaml
 # Or automatically repair safe local issues (directory permissions, SQLite pragmas):
-hydro doctor --fix
+hydro doctor --config config.yaml --fix
 ```
 
 ### 4. Start the Engine
