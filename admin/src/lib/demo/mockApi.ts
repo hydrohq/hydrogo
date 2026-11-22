@@ -1,6 +1,6 @@
 import { createInitialDemoState, buildDashboardPayload, type DemoState } from './seedData';
 
-const STORAGE_KEY = 'hydrogo_admin_demo_v1';
+const STORAGE_KEY = 'hydrogo_admin_demo_v2';
 
 function loadState(): DemoState {
   if (typeof window === 'undefined') return createInitialDemoState();
@@ -57,12 +57,13 @@ function newId(prefix: string): string {
 function recordAudit(state: DemoState, action: string, target: string, method: string): void {
   state.audit.unshift({
     id: newId('aud'),
+    at: new Date().toISOString(),
     action,
+    resource: action.split('.')[0] || 'system',
     actor: state.user.email,
     target,
     request_id: newId('req'),
-    created_at: new Date().toISOString(),
-    metadata: { ip: '127.0.0.1', method, email: state.user.email },
+    after_json: JSON.stringify({ ip: '127.0.0.1', method, email: state.user.email }),
   });
   if (state.audit.length > 50) state.audit.length = 50;
 }
@@ -187,7 +188,12 @@ export async function handleDemoRequest<T>(
   }
 
   if (path === '/api/v1/admin/audit') {
-    return { data: state.audit, items: state.audit, total: state.audit.length } as T;
+    return {
+      data: state.audit,
+      items: state.audit,
+      total: state.audit.length,
+      metadata: { total: state.audit.length, limit: 25, offset: 0 },
+    } as T;
   }
 
   if (path === '/api/v1/admin/notifications') {
