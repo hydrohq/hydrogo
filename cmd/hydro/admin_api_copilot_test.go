@@ -403,3 +403,31 @@ func TestAdminAICopilotSiteSettingsAndDesignIntent(t *testing.T) {
 		t.Errorf("expected hero_title 'Yeni Çağ', got %v", updated.Data["hero_title"])
 	}
 }
+
+func TestAdminAICopilotRejectsLowPrivilegeUser(t *testing.T) {
+	app := &serveApp{}
+	viewer := &auth.User{ID: "viewer-1", Email: "viewer@example.com", Role: auth.RoleViewer, Active: true}
+	ctx := auth.WithUser(context.Background(), viewer)
+
+	for _, tc := range []struct {
+		name    string
+		handler http.HandlerFunc
+		method  string
+		path    string
+		body    string
+	}{
+		{"copilot", app.adminAICopilotHandler, http.MethodPost, "/api/v1/admin/ai/copilot", `{"prompt":"hello"}`},
+		{"actions", app.adminAIActionsListHandler, http.MethodGet, "/api/v1/admin/ai/actions", ""},
+		{"undo", app.adminAIActionUndoHandler, http.MethodPost, "/api/v1/admin/ai/actions/act-1/undo", ""},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, bytes.NewBufferString(tc.body)).WithContext(ctx)
+		if tc.name == "undo" {
+			req.SetPathValue("id", "act-1")
+		}
+		rec := httptest.NewRecorder()
+		tc.handler(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("%s: expected 403 Forbidden for viewer, got %d: %s", tc.name, rec.Code, rec.Body.String())
+		}
+	}
+}

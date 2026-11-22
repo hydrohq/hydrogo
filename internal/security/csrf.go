@@ -30,16 +30,32 @@ func GenerateCSRFToken() (string, error) {
 // apiTokenPrefix mirrors auth.APITokenPrefix; security cannot import auth.
 const apiTokenPrefix = "hyd_"
 
+func isValidTokenShape(tok string, allowHex64 bool) bool {
+	if strings.HasPrefix(tok, apiTokenPrefix) && len(tok) > 12 {
+		return true
+	}
+	if allowHex64 && len(tok) == 64 {
+		for i := 0; i < len(tok); i++ {
+			c := tok[i]
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // carriesAPIToken checks whether the request presents an explicit token (X-API-Key
 // or Authorization: Bearer <token>) rather than relying on ambient browser credentials.
 // Stateless API requests carrying explicit bearer tokens or API keys bypass cookie-based
 // double-submit CSRF checks.
 func carriesAPIToken(r *http.Request) bool {
-	if strings.TrimSpace(r.Header.Get("X-API-Key")) != "" {
+	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); isValidTokenShape(key, false) {
 		return true
 	}
 	parts := strings.Fields(r.Header.Get("Authorization"))
-	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && strings.TrimSpace(parts[1]) != ""
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && isValidTokenShape(strings.TrimSpace(parts[1]), true)
 }
 
 func isSafeCSRFMethod(method string) bool {

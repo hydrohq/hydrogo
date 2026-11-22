@@ -244,11 +244,14 @@
           {#if !isNew}
             <button
               type="button"
+              disabled
+              aria-disabled="true"
               onclick={() => { aiModalOpen = true; }}
-              class="h-8 px-2.5 rounded-md border border-primary/30 bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              class="h-8 px-2.5 rounded-md border border-border bg-muted/40 text-xs font-medium text-muted-foreground opacity-75 cursor-not-allowed shadow-xs flex items-center gap-1.5"
+              title={`${t('ai.assist')} (Soon)`}
             >
-              <span>✨</span>
               <span>{t('ai.assist')}</span>
+              <span class="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">Soon</span>
             </button>
             <button
               type="button"

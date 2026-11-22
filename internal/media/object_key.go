@@ -13,6 +13,13 @@ func isQuarantineKey(parts []string) bool {
 	return len(parts) >= 4 && parts[0] == "tenants" && parts[1] != "" && parts[2] == "quarantine"
 }
 
+func isQuarantineKeyForTenant(parts []string, tenantID string) bool {
+	if tenantID == "" {
+		return isQuarantineKey(parts)
+	}
+	return len(parts) >= 4 && parts[0] == "tenants" && parts[1] == tenantID && parts[2] == "quarantine"
+}
+
 func validateObjectKey(raw string) (string, []string, error) {
 	key := strings.TrimSpace(raw)
 	if key == "" || len(key) > 1024 {

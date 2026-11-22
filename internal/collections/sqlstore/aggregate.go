@@ -86,6 +86,9 @@ func buildAggregateQuery(dialect database.Dialect, tenantID, collectionID string
 		if agg.Field != "" && !validFieldID(agg.Field) {
 			return "", nil, collections.ErrInvalidQuery
 		}
+		if agg.Alias == "" || !validFieldID(agg.Alias) {
+			return "", nil, collections.ErrInvalidQuery
+		}
 		var expr string
 		switch agg.Func {
 		case collections.AggCount:

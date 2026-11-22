@@ -149,7 +149,7 @@
             {/each}
           </div>
           <p class="mt-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 p-1.5 rounded leading-tight">
-            ⚠️ Aynı anda yapılan değişiklikler son kaydedenin verisinin geçerli olmasına (çakışmaya) neden olabilir.
+            Aynı anda yapılan değişiklikler son kaydedenin verisinin geçerli olmasına (çakışmaya) neden olabilir.
           </p>
         </div>
       {/if}

@@ -53,4 +53,16 @@ func TestCSRFMiddlewareBearerTokensBypassCSRF(t *testing.T) {
 	if reached || recNoAuth.Code != http.StatusForbidden {
 		t.Fatalf("expected unauthenticated request without CSRF token to be rejected, reached=%v status=%d", reached, recNoAuth.Code)
 	}
+
+	// 5. Arbitrary non-token Bearer / X-API-Key values must NOT bypass CSRF
+	for _, hdr := range [][2]string{{"Authorization", "Bearer not-a-valid-token"}, {"X-API-Key", "not-a-hyd-key"}} {
+		reached = false
+		reqBad := httptest.NewRequest(http.MethodPost, "/api/v1/content/messages", strings.NewReader(`{"text":"hello"}`))
+		reqBad.Header.Set(hdr[0], hdr[1])
+		recBad := httptest.NewRecorder()
+		handler.ServeHTTP(recBad, reqBad)
+		if reached || recBad.Code != http.StatusForbidden {
+			t.Fatalf("expected %s=%q without CSRF token to be rejected, reached=%v status=%d", hdr[0], hdr[1], reached, recBad.Code)
+		}
+	}
 }

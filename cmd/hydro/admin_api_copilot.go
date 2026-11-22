@@ -36,10 +36,21 @@ func (a *serveApp) currentWorkspaceTenantID(r *http.Request) string {
 	return "default"
 }
 
-func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request) {
+func requireCopilotAccess(w http.ResponseWriter, r *http.Request) bool {
 	user := auth.UserFromContext(r.Context())
 	if user == nil || !user.Active {
 		api.WriteError(w, r, http.StatusUnauthorized, "unauthorized", nil)
+		return false
+	}
+	if !auth.Can(user, auth.PermissionContentWrite) && !activePlatformAdmin(user) {
+		api.WriteError(w, r, http.StatusForbidden, "forbidden", nil)
+		return false
+	}
+	return true
+}
+
+func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireCopilotAccess(w, r) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
@@ -153,9 +164,7 @@ func (a *serveApp) adminAICopilotHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *serveApp) adminAIActionsListHandler(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
-		api.WriteError(w, r, http.StatusUnauthorized, "unauthorized", nil)
+	if !requireCopilotAccess(w, r) {
 		return
 	}
 	tenantID := a.currentWorkspaceTenantID(r)
@@ -174,9 +183,7 @@ func (a *serveApp) adminAIActionsListHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (a *serveApp) adminAIActionUndoHandler(w http.ResponseWriter, r *http.Request) {
-	user := auth.UserFromContext(r.Context())
-	if user == nil || !user.Active {
-		api.WriteError(w, r, http.StatusUnauthorized, "unauthorized", nil)
+	if !requireCopilotAccess(w, r) {
 		return
 	}
 	actionID := strings.TrimSpace(r.PathValue("id"))

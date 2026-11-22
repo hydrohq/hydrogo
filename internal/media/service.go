@@ -1,17 +1,20 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"image"
 	"image/png"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/hydrohq/hydrogo/internal/database"
 	"github.com/hydrohq/hydrogo/internal/guards"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 var ErrAssetRepositoryRequired = errors.New("asset repository is required")
@@ -333,28 +336,36 @@ func (s Service) CompleteQuarantineUpload(ctx context.Context, id, objectKey str
 			return err
 		}
 	}
-	if _, parts, err := validateObjectKey(objectKey); err != nil || !isQuarantineKey(parts) {
+	scope, _ := tenant.FromContext(ctx)
+	if _, parts, err := validateObjectKey(objectKey); err != nil || !isQuarantineKeyForTenant(parts, scope.TenantID) {
+		return ErrQuarantineCompletion
+	}
+	maxBytes := int64(100 << 20)
+	if s.Uploader != nil && s.Uploader.MaxBytes > 0 {
+		maxBytes = s.Uploader.MaxBytes
+	}
+	if expectedSize > maxBytes {
 		return ErrQuarantineCompletion
 	}
 	if expectedSHA256 != "" {
 		if err := VerifyObject(ctx, s.BlobStore, objectKey, expectedSize, expectedSHA256); err != nil {
 			return err
 		}
-	} else if expectedSize >= 0 {
-		rc, err := s.BlobStore.Get(ctx, objectKey)
-		if err != nil {
-			return ErrQuarantineCompletion
-		}
-		defer rc.Close()
-		if expectedSize > 0 {
-			n, _ := io.Copy(io.Discard, rc)
-			if n != expectedSize {
-				return ErrQuarantineCompletion
-			}
-		}
+	}
+	rc, err := s.BlobStore.Get(ctx, objectKey)
+	if err != nil {
+		return ErrQuarantineCompletion
+	}
+	data, readErr := io.ReadAll(io.LimitReader(rc, maxBytes+1))
+	_ = rc.Close()
+	if readErr != nil || int64(len(data)) > maxBytes || (expectedSize > 0 && int64(len(data)) != expectedSize) {
+		return ErrQuarantineCompletion
+	}
+	if err := s.validateAndSanitizeQuarantineObject(ctx, objectKey, data, maxBytes); err != nil {
+		return err
 	}
 	var asset Asset
-	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+	err = s.Transactions.Within(ctx, func(tx database.Executor) error {
 		if verified, ok := s.Assets.(VerifiedAssetRepository); ok {
 			if err := verified.MarkReadyVerified(ctx, tx, id, objectKey, visibility); err != nil {
 				return err
@@ -378,6 +389,32 @@ func (s Service) CompleteQuarantineUpload(ctx context.Context, id, objectKey str
 	}
 	if s.Optimizer != nil && asset.ID != "" {
 		s.Optimizer.Enqueue(asset)
+	}
+	return nil
+}
+
+func (s Service) validateAndSanitizeQuarantineObject(ctx context.Context, objectKey string, data []byte, maxBytes int64) error {
+	if len(data) == 0 {
+		return ErrQuarantineCompletion
+	}
+	head := data
+	if len(head) > 512 {
+		head = head[:512]
+	}
+	if ValidateMagicBytes("image/svg+xml", head) {
+		var sanitized bytes.Buffer
+		if err := SanitizeSVG(bytes.NewReader(data), &sanitized, maxBytes); err != nil {
+			return ErrQuarantineCompletion
+		}
+		if err := s.BlobStore.Put(ctx, objectKey, bytes.NewReader(sanitized.Bytes()), int64(sanitized.Len()), "image/svg+xml"); err != nil {
+			return err
+		}
+		return nil
+	}
+	detectedMime := http.DetectContentType(head)
+	detectedMime = strings.ToLower(strings.TrimSpace(strings.Split(detectedMime, ";")[0]))
+	if _, allowed := AllowedMimeTypes[detectedMime]; !allowed || !ValidateMagicBytes(detectedMime, head) {
+		return ErrQuarantineCompletion
 	}
 	return nil
 }

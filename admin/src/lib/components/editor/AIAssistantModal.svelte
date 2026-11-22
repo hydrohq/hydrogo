@@ -92,7 +92,7 @@
   }
 </script>
 
-<Modal {open} title={`✨ ${t('ai.title')}`} size="xl" {onclose}>
+<Modal {open} title={t('ai.title')} size="xl" {onclose}>
   <div class="flex flex-col gap-4 text-sm">
     {#if errorMsg}
       <div class="p-3 text-xs rounded-md bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-between">
@@ -108,52 +108,48 @@
         <button
           type="button"
           onclick={() => { operation = 'refine'; suggestion = null; }}
-          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all ${
+          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-colors ${
             operation === 'refine'
               ? 'border-primary bg-primary/10 text-primary shadow-xs'
               : 'border-border bg-card hover:bg-accent text-foreground'
           }`}
         >
-          <span class="text-base mb-1">✨</span>
           <span>{t('ai.refine')}</span>
         </button>
 
         <button
           type="button"
           onclick={() => { operation = 'seo'; suggestion = null; }}
-          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all ${
+          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-colors ${
             operation === 'seo'
               ? 'border-primary bg-primary/10 text-primary shadow-xs'
               : 'border-border bg-card hover:bg-accent text-foreground'
           }`}
         >
-          <span class="text-base mb-1">🔍</span>
           <span>{t('ai.seo')}</span>
         </button>
 
         <button
           type="button"
           onclick={() => { operation = 'summary'; suggestion = null; }}
-          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all ${
+          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-colors ${
             operation === 'summary'
               ? 'border-primary bg-primary/10 text-primary shadow-xs'
               : 'border-border bg-card hover:bg-accent text-foreground'
           }`}
         >
-          <span class="text-base mb-1">📝</span>
           <span>{t('ai.summarize')}</span>
         </button>
 
         <button
           type="button"
           onclick={() => { operation = 'translate'; suggestion = null; }}
-          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all ${
+          class={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-colors ${
             operation === 'translate'
               ? 'border-primary bg-primary/10 text-primary shadow-xs'
               : 'border-border bg-card hover:bg-accent text-foreground'
           }`}
         >
-          <span class="text-base mb-1">🌐</span>
           <span>{t('ai.translate')}</span>
         </button>
       </div>
@@ -203,9 +199,9 @@
     {#if suggestion}
       <div class="flex flex-col gap-3 mt-2 border-t pt-3">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ai.preview')}</span>
+          <span class="text-xs font-semibold text-muted-foreground">{t('ai.preview')}</span>
           <Button variant="primary" size="sm" loading={applying} onclick={handleApply}>
-            ✓ {t('ai.apply')}
+            {t('ai.apply')}
           </Button>
         </div>
 
@@ -223,7 +219,7 @@
 
           <!-- After -->
           <div class="flex flex-col gap-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
-            <span class="text-xs font-semibold text-primary">✨ {t('ai.suggestedVersion')}</span>
+            <span class="text-xs font-semibold text-primary">{t('ai.suggestedVersion')}</span>
             <div class="text-xs font-medium text-foreground line-clamp-2">
               <span class="text-muted-foreground">Title:</span> {suggestion.title}
             </div>

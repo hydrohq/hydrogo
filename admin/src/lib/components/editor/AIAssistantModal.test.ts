@@ -28,7 +28,7 @@ describe('AIAssistantModal', () => {
       },
     });
 
-    expect(screen.getByText('✨ AI Content Assistant')).toBeTruthy();
+    expect(screen.getByText('AI Content Assistant')).toBeTruthy();
     expect(screen.getByText('Polish & Refine')).toBeTruthy();
     expect(screen.getByText('SEO Optimize')).toBeTruthy();
     expect(screen.getByText('Summarize')).toBeTruthy();
@@ -68,7 +68,7 @@ describe('AIAssistantModal', () => {
     });
 
     // Click Apply to Editor
-    const applyBtn = screen.getByText('✓ Apply to Editor');
+    const applyBtn = screen.getByText('Apply to Editor');
     await fireEvent.click(applyBtn);
 
     expect(onapply).toHaveBeenCalledWith('Refined Title', 'Refined Body Content');

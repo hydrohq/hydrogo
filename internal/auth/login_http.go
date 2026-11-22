@@ -51,7 +51,7 @@ func (h HTTPHandler) login(w http.ResponseWriter, r *http.Request) {
 			}
 			h.recordAuthFailure(r, email)
 			if h.LoginTarpit != nil {
-				if err := h.LoginTarpit.Wait(r.Context(), loginAttemptKey(r)); err != nil {
+				if err := h.LoginTarpit.Wait(r.Context(), clientIP(r)+":"+strings.ToLower(strings.TrimSpace(email))); err != nil {
 					return
 				}
 			}

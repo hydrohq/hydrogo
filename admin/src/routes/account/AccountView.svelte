@@ -493,8 +493,12 @@
             {#if mfaQrData}
               <div class="p-3 bg-white rounded-lg inline-block shadow-xs">
                 {#if mfaQrData.startsWith('<svg')}
-                  <!-- SVG format -->
-                  {@html mfaQrData}
+                  <!-- Rendered as an isolated image data URI so SVG cannot execute scripts -->
+                  <img
+                    src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(mfaQrData)}`}
+                    alt="MFA QR code"
+                    class="size-40"
+                  />
                 {:else}
                   <p class="text-xs text-black font-mono break-all">{mfaQrData}</p>
                 {/if}

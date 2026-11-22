@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-22
+
+- **Security: Direct/quarantine upload validation & tenant isolation:** Enforced `AllowedMimeTypes`, `MaxBytes`, filename checks, magic-byte content verification (`http.DetectContentType` + `ValidateMagicBytes`), SVG sanitization, and strict `tenants/<tenantID>/quarantine/...` prefix checks on presigned/direct uploads (`internal/media`).
+- **Security: AI Copilot admin endpoint authorization:** Added `content:write` / platform-admin authorization guards to `adminAICopilotHandler`, `adminAIActionsListHandler`, and `adminAIActionUndoHandler` (`cmd/hydro/admin_api_copilot.go`).
+- **Security: MCP per-type permissions & CSRF token shape:** Enforced `Definition.Permissions.For(write)` in MCP `query_collection` and `mutate_record` tools (`internal/mcp`), and required `hyd_` (or 64-char hex bearer) token shapes for CSRF bypass (`internal/security`).
+- **Security: Admin UI XSS & defense-in-depth:** Replaced raw SVG `{@html}` rendering with a data-URI `<img>` in `AccountView.svelte`, allowlisted safe URL protocols in `deltaToHtml.ts`, escaped quantity in `OrderExtras.svelte`, keyed login tarpit by `IP:email` (`internal/auth`), and validated aggregate aliases (`internal/collections/sqlstore`).
+- **Admin UI polish:** Removed decorative emojis, non-live pulse animations, gradients, and off-grid spacing across admin views and editor modals.
+
 ## [0.5.0] - 2026-11-22
 
 - **Open-source readiness & onboarding:** Updated `README.md` and `docs/getting-started.md` with clear PocketBase/Payload positioning, 3 onboarding scenarios, all 12 scaffold presets, `Licensor Line of Business` notice in `LICENSE`, and `API`/`MCP` hints in `hydro new`. Removed customer-specific placeholder strings from admin UI tabs and storefront tests.

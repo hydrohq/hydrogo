@@ -538,6 +538,9 @@ func (h *Handler) toolQueryCollection(ctx context.Context, args json.RawMessage)
 	if input.Type == "" {
 		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: "type is required"}}}, nil
 	}
+	if err := h.requireTypeAccess(ctx, input.Type, false); err != nil {
+		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: err.Error()}}}, nil
+	}
 	if input.Limit <= 0 || input.Limit > 100 {
 		input.Limit = 20
 	}
@@ -587,6 +590,9 @@ func (h *Handler) toolMutateRecord(ctx context.Context, args json.RawMessage) (T
 
 	if input.Type == "" || input.Operation == "" {
 		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: "type and operation are required"}}}, nil
+	}
+	if err := h.requireTypeAccess(ctx, input.Type, true); err != nil {
+		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: err.Error()}}}, nil
 	}
 
 	var resultRecord any
@@ -683,6 +689,37 @@ func (h *Handler) requireScope(ctx context.Context, scope string) error {
 		return fmt.Errorf("authentication required for MCP endpoint")
 	}
 
+	return nil
+}
+
+func (h *Handler) requireTypeAccess(ctx context.Context, typeID string, write bool) error {
+	for _, def := range h.contentTypes(ctx) {
+		if def.ID != typeID {
+			continue
+		}
+		perm := def.Permissions.For(write)
+		if perm == "" {
+			return nil
+		}
+		if principal := auth.PrincipalFromContext(ctx); len(principal.Scopes) > 0 {
+			for _, s := range principal.Scopes {
+				if s == auth.ScopeAdmin || s == "agent:admin" || s == perm {
+					return nil
+				}
+			}
+			return fmt.Errorf("insufficient agent permissions for %s: requires %s", typeID, perm)
+		}
+		if user := auth.UserFromContext(ctx); user != nil {
+			if user.Role == auth.RoleAdmin || auth.Can(user, perm) {
+				return nil
+			}
+			return fmt.Errorf("insufficient user permissions for %s: requires %s", typeID, perm)
+		}
+		if h.cfg.RequireAuth {
+			return fmt.Errorf("authentication required for %s", typeID)
+		}
+		return nil
+	}
 	return nil
 }
 

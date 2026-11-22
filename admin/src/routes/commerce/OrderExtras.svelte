@@ -102,7 +102,7 @@
       ? `<div class="label"><div class="to">ALICI</div>${addr}<div class="ref">Sipariş #${esc(order.id.replace('order_', '').slice(0, 8).toUpperCase())}</div></div>`
       : `<h1>Paketleme fişi</h1><p>Sipariş #${esc(order.id.replace('order_', '').slice(0, 8).toUpperCase())} · ${esc(when(order.created_at))}</p>
          <h2>Alıcı</h2>${addr}
-         <h2>Ürünler</h2><table>${order.items.map((i) => `<tr><td>☐</td><td>${esc(i.title)}<br><small>${esc(i.sku)}</small></td><td class="q">× ${i.quantity}</td></tr>`).join('')}</table>`;
+         <h2>Ürünler</h2><table>${order.items.map((i) => `<tr><td>☐</td><td>${esc(i.title)}<br><small>${esc(i.sku)}</small></td><td class="q">× ${esc(String(i.quantity))}</td></tr>`).join('')}</table>`;
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${kind === 'label' ? 'Adres etiketi' : 'Paketleme fişi'}</title>
       <style>body{font:15px/1.5 system-ui,sans-serif;margin:32px;color:#111}h1{font-size:22px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;margin:22px 0 6px;color:#555}
       table{width:100%;border-collapse:collapse}td{padding:8px 6px;border-bottom:1px solid #ddd}.q{text-align:right;white-space:nowrap}

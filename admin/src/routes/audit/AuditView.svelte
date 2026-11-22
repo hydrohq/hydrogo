@@ -244,11 +244,11 @@
       <!-- Top Security Posture & Metrics Overview Cards -->
       <div class="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 lg:grid-cols-4 lg:px-6">
         <!-- Posture Card -->
-        <div class="rounded-xl border border-border bg-gradient-to-t from-primary/5 to-card dark:bg-card p-5 shadow-xs text-card-foreground relative">
+        <div class="rounded-xl border border-border bg-card p-5 shadow-xs text-card-foreground relative">
           <div class="flex items-center justify-between pb-2">
             <span class="text-xs font-medium text-muted-foreground">{t('audit.posture')}</span>
             <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-              <span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="size-1.5 rounded-full bg-emerald-500"></span>
               {t('audit.protected')}
             </span>
           </div>

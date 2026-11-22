@@ -41,6 +41,13 @@ func (h HTTPHandler) uploadURL(w http.ResponseWriter, r *http.Request) {
 		}
 		input.Filename = safeOriginalFilename(input.Filename)
 	}
+	if input.MimeType != "" {
+		input.MimeType = strings.ToLower(strings.TrimSpace(strings.Split(input.MimeType, ";")[0]))
+		if _, allowed := AllowedMimeTypes[input.MimeType]; !allowed {
+			api.WriteValidation(w, r, map[string]string{"mime_type": "disallowed mime type"})
+			return
+		}
+	}
 	if input.SizeBytes < 0 {
 		api.WriteValidation(w, r, map[string]string{"size_bytes": "invalid size"})
 		return
@@ -128,6 +135,23 @@ func (h HTTPHandler) confirmUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(input.ObjectKey) == "" {
 		api.WriteValidation(w, r, map[string]string{"object_key": "object_key is required"})
+		return
+	}
+	if input.Filename != "" {
+		if err := validateUploadFilename(input.Filename); err != nil {
+			api.WriteValidation(w, r, map[string]string{"filename": "disallowed file extension"})
+			return
+		}
+	}
+	if input.MimeType != "" {
+		input.MimeType = strings.ToLower(strings.TrimSpace(strings.Split(input.MimeType, ";")[0]))
+		if _, allowed := AllowedMimeTypes[input.MimeType]; !allowed {
+			api.WriteValidation(w, r, map[string]string{"mime_type": "disallowed mime type"})
+			return
+		}
+	}
+	if input.SizeBytes < 0 || (h.Service.Uploader != nil && h.Service.Uploader.MaxBytes > 0 && input.SizeBytes > h.Service.Uploader.MaxBytes) {
+		api.WriteValidation(w, r, map[string]string{"size_bytes": "exceeds maximum allowed size"})
 		return
 	}
 	if input.Visibility == "" {

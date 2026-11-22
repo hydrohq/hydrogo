@@ -279,7 +279,7 @@
           {:else}
             <h3 class="text-base font-semibold leading-none tracking-tight text-foreground">{t('dashboard.chart.visitors')}</h3>
             <span class="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-              <span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="size-1.5 rounded-full bg-emerald-500"></span>
               {t('dashboard.chart.live')}
             </span>
           {/if}

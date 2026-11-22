@@ -60,7 +60,7 @@
   {/if}
 
   <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
-    <div class="w-full max-w-[340px] flex flex-col items-center">
+    <div class="w-full max-w-sm flex flex-col items-center">
       <!-- Minimal Centered Brand -->
       <div class="mb-4">
         <BrandLogo size="lg" showText={false} />

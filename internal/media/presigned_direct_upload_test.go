@@ -14,6 +14,7 @@ import (
 
 	"github.com/hydrohq/hydrogo/internal/auth"
 	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 type memoryBlobStore struct {
@@ -144,7 +145,7 @@ func TestUploadURLAndConfirmUpload(t *testing.T) {
 	}
 
 	// 5. Direct upload simulation: simulate client uploading directly to S3
-	payload := []byte("hello png content")
+	payload := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde")
 	_ = memStore.Put(context.Background(), res.Data.ObjectKey, bytes.NewReader(payload), int64(len(payload)), "image/png")
 
 	// 6. Confirm upload
@@ -160,6 +161,41 @@ func TestUploadURLAndConfirmUpload(t *testing.T) {
 
 	if asset, ok := repo.assets[res.Data.AssetID]; !ok || asset.Status != "ready" || asset.Visibility != "public" {
 		t.Fatalf("expected asset promoted to ready and public, got %+v", asset)
+	}
+
+	// 7. Disallowed mime_type in upload-url and confirm is rejected
+	req = httptest.NewRequest("POST", "/api/v1/media/upload-url", strings.NewReader(`{"filename":"page.png","mime_type":"text/html","size_bytes":128}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(auth.WithUser(context.Background(), editor))
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for text/html mime_type, got %d", w.Code)
+	}
+
+	// 8. HTML payload disguised in quarantine is rejected on confirm
+	badKey := "quarantine/fake-html"
+	_ = memStore.Put(context.Background(), badKey, strings.NewReader("<html><script>alert(1)</script></html>"), 38, "image/png")
+	req = httptest.NewRequest("POST", "/api/v1/media/confirm", strings.NewReader(`{"object_key":"`+badKey+`","visibility":"public"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(auth.WithUser(context.Background(), editor))
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for HTML payload in quarantine, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// 9. Cross-tenant quarantine key is rejected
+	otherTenantKey := "tenants/tenant-b/quarantine/item-1"
+	_ = memStore.Put(context.Background(), otherTenantKey, bytes.NewReader(payload), int64(len(payload)), "image/png")
+	tenantCtx := tenant.WithScope(auth.WithUser(context.Background(), editor), tenant.Scope{TenantID: "tenant-a", Slug: "tenant-a"})
+	req = httptest.NewRequest("POST", "/api/v1/media/confirm", strings.NewReader(`{"object_key":"`+otherTenantKey+`","visibility":"private"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(tenantCtx)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for cross-tenant quarantine key, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

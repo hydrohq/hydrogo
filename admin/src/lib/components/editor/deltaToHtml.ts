@@ -29,6 +29,17 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
+function isSafeHref(raw: string): boolean {
+  const trimmed = raw.trim().toLowerCase();
+  if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
+  return (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('mailto:') ||
+    trimmed.startsWith('tel:')
+  );
+}
+
 function formatInline(text: string, attrs?: QuillOp['attributes']): string {
   if (!text) return '';
   let formatted = escapeHtml(text);
@@ -38,7 +49,9 @@ function formatInline(text: string, attrs?: QuillOp['attributes']): string {
   if (attrs.italic) formatted = `<em>${formatted}</em>`;
   if (attrs.underline) formatted = `<u>${formatted}</u>`;
   if (attrs.strike) formatted = `<s>${formatted}</s>`;
-  if (attrs.link) formatted = `<a href="${escapeHtml(attrs.link)}" target="_blank" rel="noopener noreferrer">${formatted}</a>`;
+  if (attrs.link && isSafeHref(attrs.link)) {
+    formatted = `<a href="${escapeHtml(attrs.link)}" target="_blank" rel="noopener noreferrer">${formatted}</a>`;
+  }
   return formatted;
 }
 
