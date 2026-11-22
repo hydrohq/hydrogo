@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Config extensions for add-on modules** (`docs/decisions/0036-config-extensions-for-add-on-modules.md`): provider-specific settings (`payments:`, `carriers:`, `invoicing:`) are no longer part of core. Add-on modules register their own section with `config.RegisterExtension`; unknown sections are still rejected, so core without the module refuses them. Maintenance-mode bypass paths for add-on callbacks are registered with `server.AllowDuringMaintenance`.
 - **Fix: PostgreSQL RLS blocked the default single-tenant scope.** Policies now match `tenant_id = ''` when the tenant context is absent or empty, while continuing to isolate named tenants and reject writes into another scope.
 - **Fix: the admin media list always failed.** `GET /api/v1/admin/media` asked the store for a 500-row window while the store caps a list at 200, so every call answered 500 and the cause was never logged. The window is 200 now, and media request failures log their cause.
 - **Fix: `hydro version` reported 0.4.0 on a 0.4.1 build.**
