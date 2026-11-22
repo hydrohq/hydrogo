@@ -3,7 +3,8 @@ $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $stamp = Get-Date -Format "yyyyMMddHHmmss"
 $dbName = "hydrogo_backup_drill_$stamp"
-$dsn = "postgres://arda@/${dbName}?host=/var/run/postgresql"
+$pgUser = if ($env:PGUSER) { $env:PGUSER } else { "postgres" }
+$dsn = "postgres://$pgUser@/${dbName}?host=/var/run/postgresql"
 $created = $false
 try {
     & wsl psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $dbName"

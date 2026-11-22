@@ -69,98 +69,94 @@ Third-Party Dependency License Attributions
     License: BSD 3-Clause License
     Copyright (c) 2013 Gorilla web toolkit authors
 
-16. geliver-go (github.com/GeliverApp/geliver-go)
-    License: MIT License
-    Copyright (c) 2025 Geliver A.Ş
-
-17. webpush-go (github.com/SherClockHolmes/webpush-go)
+16. webpush-go (github.com/SherClockHolmes/webpush-go)
     License: MIT License
     Copyright (c) 2016 Ethan Holmes
 
-18. brotli (github.com/andybalholm/brotli)
+17. brotli (github.com/andybalholm/brotli)
     License: MIT License
     Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors
 
-19. backoff (github.com/cenkalti/backoff/v5)
+18. backoff (github.com/cenkalti/backoff/v5)
     License: MIT License
     Copyright (c) 2014 Cenk Altı
 
-20. webp (github.com/deepteams/webp)
+19. webp (github.com/deepteams/webp)
     License: MIT License
     Copyright (c) 2025 DeepTeams
 
-21. go-sql-driver/mysql (github.com/go-sql-driver/mysql)
+20. go-sql-driver/mysql (github.com/go-sql-driver/mysql)
     License: Mozilla Public License 2.0 (file-level copyleft). HydroGo uses this package unmodified; its source is available at https://github.com/go-sql-driver/mysql.
     Copyright The Go-MySQL-Driver Authors
 
-22. golang-jwt (github.com/golang-jwt/jwt/v5)
+21. golang-jwt (github.com/golang-jwt/jwt/v5)
     License: MIT License
     Copyright (c) 2012 Dave Grijalva
 
-23. grpc-gateway (github.com/grpc-ecosystem/grpc-gateway/v2)
+22. grpc-gateway (github.com/grpc-ecosystem/grpc-gateway/v2)
     License: BSD 3-Clause License
     Copyright (c) 2015, Gengo, Inc.
 
-24. klauspost (github.com/klauspost/compress, cpuid/v2, crc32)
+23. klauspost (github.com/klauspost/compress, cpuid/v2, crc32)
     License: Apache License 2.0 (compress), MIT License (cpuid), BSD 3-Clause License (crc32)
     Copyright (c) 2012 The Go Authors; Copyright (c) 2015 Klaus Post
 
-25. go-isatty (github.com/mattn/go-isatty)
+24. go-isatty (github.com/mattn/go-isatty)
     License: MIT License
     Copyright (c) Yasuhiro MATSUMOTO
 
-26. MinIO (github.com/minio/minio-go/v7, md5-simd, crc64nvme)
+25. MinIO (github.com/minio/minio-go/v7, md5-simd, crc64nvme)
     License: Apache License 2.0
     Copyright MinIO, Inc.
 
-27. go-strftime (github.com/ncruces/go-strftime)
+26. go-strftime (github.com/ncruces/go-strftime)
     License: MIT License
     Copyright (c) 2022 Nuno Cruces
 
-28. maxminddb-golang (github.com/oschwald/maxminddb-golang/v2)
+27. maxminddb-golang (github.com/oschwald/maxminddb-golang/v2)
     License: ISC License
     Copyright (c) 2015, Gregory J. Oschwald
 
-29. fwd and msgp (github.com/philhofer/fwd, github.com/tinylib/msgp)
+28. fwd and msgp (github.com/philhofer/fwd, github.com/tinylib/msgp)
     License: MIT License
     Copyright (c) 2014-2015 Philip Hofer
 
-30. xid (github.com/rs/xid)
+29. xid (github.com/rs/xid)
     License: MIT License
     Copyright (c) 2015 Olivier Poitrey
 
-31. pdf-viewer (github.com/tucats/pdf-viewer)
+30. pdf-viewer (github.com/tucats/pdf-viewer)
     License: MIT License
     Copyright (c) 2026 Tom Cole
 
-32. xxh3 (github.com/zeebo/xxh3)
+31. xxh3 (github.com/zeebo/xxh3)
     License: BSD 2-Clause License
     Copyright (c) 2012-2014, Yann Collet
 
-33. OpenTelemetry Go (go.opentelemetry.io/otel and sub-modules, auto/sdk, proto/otlp)
+32. OpenTelemetry Go (go.opentelemetry.io/otel and sub-modules, auto/sdk, proto/otlp)
     License: Apache License 2.0
     Copyright The OpenTelemetry Authors
 
-34. go-logr (github.com/go-logr/logr, stdr)
+33. go-logr (github.com/go-logr/logr, stdr)
     License: Apache License 2.0
     Copyright 2019 The logr Authors
 
-35. uber-go/atomic (go.uber.org/atomic)
+34. uber-go/atomic (go.uber.org/atomic)
     License: MIT License
     Copyright (c) 2016 Uber Technologies, Inc.
 
-36. gRPC-Go and protobuf (google.golang.org/grpc, genproto, protobuf)
+35. gRPC-Go and protobuf (google.golang.org/grpc, genproto, protobuf)
     License: Apache License 2.0 (grpc, genproto), BSD 3-Clause License (protobuf)
     Copyright The gRPC Authors; Copyright (c) 2018 The Go Authors
 
-37. ini (gopkg.in/ini.v1)
+36. ini (gopkg.in/ini.v1)
     License: Apache License 2.0
     Copyright 2014 Unknwon
 
-38. yaml (go.yaml.in/yaml/v3)
+37. yaml (go.yaml.in/yaml/v3)
     License: MIT and Apache License 2.0
     Copyright (c) 2006-2011 Kirill Simonov; Copyright 2011-2019 Canonical Ltd.
 
-39. edwards25519 and bigfft (filippo.io/edwards25519, github.com/remyoudompheng/bigfft)
+38. edwards25519 and bigfft (filippo.io/edwards25519, github.com/remyoudompheng/bigfft)
     License: BSD 3-Clause License
     Copyright (c) 2009 The Go Authors

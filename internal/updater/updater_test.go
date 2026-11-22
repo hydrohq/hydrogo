@@ -120,7 +120,7 @@ func TestCheckApplyAndRollbackSignedUpdate(t *testing.T) {
 	// 2. Edition mismatch must block self-update
 	customStatus, err := Check(context.Background(), srv.Client(), CheckOptions{
 		CurrentVersion:   "v0.5.1",
-		Edition:          "beyond",
+		Edition:          "custom",
 		Runtime:          RuntimeStandalone,
 		ManifestURL:      srv.URL + "/manifest.json",
 		TrustedPublicKey: pub,

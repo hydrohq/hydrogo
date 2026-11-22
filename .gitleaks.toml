@@ -18,8 +18,10 @@ paths = [
   '''(^|/)deploy/[^/]*\.example$''',
   '''(^|/)internal/database/mysql_integration_test\.go$''',
 ]
-# two old commits that embedded a localStorage key name in minified JS (not credentials)
+# old commits that embedded a localStorage key name in minified JS (not credentials)
 commits = [
   "8a9c2bdc19ed5fc087480b83011f39d081926987",
   "cf961e418367a4f7723e4556358f7eaad089bfe0",
+  "f8beb1148ddba0ab3ce001a0fa25100fde5e6b0d",
+  "53f1a96a6729bfbc01e388ac02171ccdd560a2d2",
 ]
