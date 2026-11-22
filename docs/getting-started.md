@@ -28,7 +28,7 @@ curl -fsSL https://github.com/hydrohq/hydrogo/releases/latest/download/install.s
 irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 | iex
 ```
 
-**Docker:** `docker run -p 8080:8080 -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest` (mount your own `config.yaml` at `/app/config.yaml`; see [deployment](deployment.md)).
+**Docker:** `docker run -p 8080:8080 -e HYDRO_HTTP_ADDRESS=0.0.0.0:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest serve --config /app/config.yaml` (the image has no default command and listens on loopback unless `HYDRO_HTTP_ADDRESS` is set; see [deployment](deployment.md)).
 
 Check it: `hydro version`. Every download has a checksum in `SHA256SUMS`; the install scripts verify it.
 

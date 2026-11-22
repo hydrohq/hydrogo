@@ -61,7 +61,7 @@ Navigate to [http://127.0.0.1:8090/admin/](http://127.0.0.1:8090/admin/) and log
 ├── cmd/hydro/           # CLI entrypoints (serve, migrate, seed-demo, create-admin)
 ├── content-types/       # Declarative YAML schemas for custom content types
 ├── docs/                # Architecture decisions, guides, and API specifications
-├── examples/            # Example client frontends (examples/sveltekit-starter)
+├── examples/            # Benchmark harness and a side-service example
 ├── internal/            # Core CMS engine: auth, database, security, media, api
 ├── migrations/          # Tri-dialect SQL migrations (SQLite, PostgreSQL, MySQL)
 ├── modules/             # Built-in CMS modules (pages, news, members, site)
@@ -169,7 +169,7 @@ const news = await hydro.listNews('en', 10);          // NewsItem[]
 const faq = await hydro.listContent('faq', { limit: 20 }); // any content type
 ```
 
-A complete server-rendered site is in [`examples/sveltekit-starter`](../examples/sveltekit-starter).
+Frontend guides (SvelteKit, Next.js, Astro) are on [hydrogo.dev](https://hydrogo.dev); frontend starters are not part of this repository.
 
 ---
 

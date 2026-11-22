@@ -90,7 +90,7 @@ irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 | ie
 
 **Docker:**
 ```bash
-docker run -p 8080:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest
+docker run -p 8080:8080 -e HYDRO_HTTP_ADDRESS=0.0.0.0:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest serve --config /app/config.yaml
 ```
 *(Or download a platform installer - macOS `.pkg`, Windows `Setup.exe`, Linux `.deb`/`.rpm` - from [Releases](https://github.com/hydrohq/hydrogo/releases/latest). See [Getting Started](docs/getting-started.md) for details.)*
 

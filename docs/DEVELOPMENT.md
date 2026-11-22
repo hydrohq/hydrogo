@@ -22,7 +22,7 @@ go run ./tools/check -short   # skip tests
 To run the GitHub CI jobs themselves on this machine (Docker and [act](https://github.com/nektos/act) needed):
 
 ```bash
-scripts/ci-local.sh                   # go, first-run, sveltekit-starter, crm-starter
+scripts/ci-local.sh                   # go, first-run
 scripts/ci-local.sh go                # one job
 ```
 
