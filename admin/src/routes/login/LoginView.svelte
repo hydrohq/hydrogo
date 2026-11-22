@@ -9,10 +9,14 @@
 
   let email = $state('');
   let password = $state('');
+  let showPassword = $state(false);
   let code = $state('');
   let mfaRequired = $state(false);
   let loading = $state(false);
   let errorMessage = $state<string | null>(null);
+  const isDemoHost = $derived(
+    typeof window !== 'undefined' && (window.location.hostname === 'demo.hydrogo.dev' || router.query.get('demo') === '1')
+  );
   // Shown after the page that sets a new password sends people back here.
   const notice = $derived(
     router.query.get('password_reset') === '1' ? t('login.passwordReset') : router.query.get('invite_accepted') === '1' ? t('login.inviteAccepted') : null
@@ -48,26 +52,31 @@
   }
 </script>
 
-<div class="min-h-screen w-full flex flex-col items-center justify-center p-6 md:p-10 bg-muted/40 text-foreground">
-  <div class="w-full max-w-sm flex flex-col gap-6">
-    <!-- Brand -->
-    <div class="self-center">
-      <BrandLogo size="md" />
+<div class="min-h-screen w-full flex flex-col bg-background text-foreground">
+  {#if isDemoHost}
+    <div class="w-full border-b border-border bg-muted/50 px-4 py-2 text-center text-xs text-muted-foreground">
+      This is a live demo of <strong class="font-medium text-foreground">HydroGo</strong>. Demo data resets periodically.
     </div>
+  {/if}
 
-    <!-- Login Card -->
-    <div class="rounded-xl border border-border bg-card text-card-foreground shadow-xs p-6 sm:p-8">
-      <div class="flex flex-col space-y-1.5 text-center mb-6">
-        <h1 class="text-2xl font-semibold tracking-tight">{t('login.welcome')}</h1>
-        <p class="text-sm text-muted-foreground">{t('login.subtitle')}</p>
+  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+    <div class="w-full max-w-[340px] flex flex-col items-center">
+      <!-- Minimal Centered Brand -->
+      <div class="mb-4">
+        <BrandLogo size="lg" showText={false} />
       </div>
 
+      <h1 class="text-lg font-medium tracking-tight text-foreground mb-7">
+        {t('login.welcome')}
+      </h1>
+
       {#if notice}
-        <div class="mb-4 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs" role="status">{notice}</div>
+        <div class="w-full mb-4 px-3.5 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs text-center" role="status">{notice}</div>
       {/if}
-      <form onsubmit={handleLogin} class="flex flex-col gap-4">
+
+      <form onsubmit={handleLogin} class="w-full flex flex-col gap-4">
         {#if errorMessage}
-          <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2">
+          <div class="px-3.5 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-start gap-2">
             <svg class="size-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -86,13 +95,34 @@
           autofocus
         />
 
-        <Input
-          label={t('login.password')}
-          type="password"
-          placeholder="••••••••"
-          bind:value={password}
-          required
-        />
+        <div class="relative">
+          <Input
+            label={t('login.password')}
+            type={showPassword ? 'text' : 'password'}
+            placeholder="••••••••"
+            bind:value={password}
+            required
+          />
+          <button
+            type="button"
+            onclick={() => (showPassword = !showPassword)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            class="absolute right-2.5 bottom-2 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            {#if showPassword}
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            {:else}
+              <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            {/if}
+          </button>
+        </div>
 
         {#if mfaRequired}
           <Input
@@ -109,10 +139,14 @@
           type="submit"
           variant="primary"
           size="md"
-          class="w-full mt-2 font-medium"
+          class="w-full mt-2 font-medium gap-2"
           {loading}
         >
-          {mfaRequired ? t('login.verify') : t('login.signIn')}
+          <span>{mfaRequired ? t('login.verify') : t('login.signIn')}</span>
+          <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
         </Button>
       </form>
     </div>
