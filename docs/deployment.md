@@ -121,9 +121,17 @@ from the repository, set the config file to `deploy/railway/railway.json`, add a
 
 ### Verified and not verified
 
-The image, the entrypoint (first boot, restart, production mode, Litestream restore onto a wiped disk) and the Cloudflare
-Worker (type check, `wrangler deploy --dry-run` including the image build) are tested. A live deploy on each platform is not:
-report what you hit.
+Tested locally: the image, the entrypoint (first boot, restart, production mode, Litestream restore onto a wiped disk) and
+the Cloudflare Worker (type check, `wrangler deploy --dry-run` including the image build).
+
+Tested live on **Fly.io**: deploy from a clean checkout, `/healthz` and the admin panel over HTTPS, HSTS, data surviving a
+machine restart, an idle machine waking on the first request (about 2 seconds), and a custom domain with
+`HYDRO_HTTP_PUBLIC_ORIGIN` switched to it.
+
+Not tested live: Cloudflare Containers, Render and Railway. Report what you hit.
+
+Point a custom domain at Fly with a **CNAME** to `<app>.fly.dev` rather than A/AAAA records: the IP addresses belong to the
+app and change if it is destroyed and recreated.
 
 ## Production Secret Validation
 
