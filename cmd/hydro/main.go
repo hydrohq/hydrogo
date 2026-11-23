@@ -217,15 +217,6 @@ func (f *repeatedFlag) Set(value string) error {
 	return nil
 }
 
-func containsString(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted || strings.HasPrefix(value, wanted+"=") {
-			return true
-		}
-	}
-	return false
-}
-
 var migrationIDPattern = regexp.MustCompile(`^[0-9]{12}_[a-z][a-z0-9_]{1,62}$`)
 
 func currentVersionInfo() (versionInfo, error) {

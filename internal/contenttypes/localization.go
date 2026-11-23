@@ -159,14 +159,6 @@ func (a AdminAPI) ListLocalized(r *http.Request, collection adminstudio.Collecti
 	return result, nil
 }
 
-// CanCopyLocale offers copying another locale's values into the locale being
-// edited. The default locale is never a copy target: its values are the
-// record, edited and versioned through the normal form.
-func (a AdminAPI) CanCopyLocale(r *http.Request, collection adminstudio.Collection, _ string, from string) bool {
-	target := r.URL.Query().Get("locale")
-	return a.translatable(collection.ID, target) && a.Locales.Has(from) && from != target
-}
-
 // CopyLocale saves the values readers of from currently see (its
 // translation with the default locale as fallback) as the translation in
 // to, if that is still at expectedVersion.

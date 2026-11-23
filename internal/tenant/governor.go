@@ -97,16 +97,6 @@ func (g *Governor) Invalidate(tenantID string) {
 	g.mu.Unlock()
 }
 
-// InvalidateAll clears all cached governance records.
-func (g *Governor) InvalidateAll() {
-	if g == nil {
-		return
-	}
-	g.mu.Lock()
-	g.cache = make(map[string]cachedGovernance)
-	g.mu.Unlock()
-}
-
 func (g *Governor) loadGovernance(ctx context.Context, tenantID string, now time.Time) Governance {
 	g.mu.RLock()
 	entry, ok := g.cache[tenantID]

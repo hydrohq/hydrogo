@@ -207,12 +207,6 @@ func clockOn(day time.Time, value string) (time.Time, error) {
 	}
 	return time.Date(day.Year(), day.Month(), day.Day(), parsed.Hour(), parsed.Minute(), 0, 0, day.Location()), nil
 }
-func businessHoursLabel(hours BusinessHours) string {
-	if hours.Closed {
-		return "Closed"
-	}
-	return hours.Opens + "–" + hours.Closes
-}
 func validBusinessEmail(value string) bool {
 	addr, err := mail.ParseAddress(value)
 	return err == nil && addr.Address == value && len(value) <= 320

@@ -284,11 +284,6 @@ func (s Store) DigestPreferencesAfter(ctx context.Context, db database.QueryExec
 	return items, rows.Err()
 }
 
-func (s Store) DigestPreferenceFor(ctx context.Context, db database.Executor, userID string) (bool, string, error) {
-	enabled, timezone, _, err := s.DigestPreferenceDetailsFor(ctx, db, userID)
-	return enabled, timezone, err
-}
-
 func (s Store) DigestPreferenceDetailsFor(ctx context.Context, db database.Executor, userID string) (bool, string, string, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return false, "UTC", string(adminstudio.DigestMonthly), err

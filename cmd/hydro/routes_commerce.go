@@ -29,16 +29,6 @@ var (
 	registeredPaymentProvider  commerce.PaymentProvider
 )
 
-// RegisterShippingProvider registers a custom shipping carrier implementation.
-func RegisterShippingProvider(p commerce.ShippingProvider) {
-	registeredShippingProvider = p
-}
-
-// RegisterPaymentProvider registers a custom payment gateway implementation.
-func RegisterPaymentProvider(p commerce.PaymentProvider) {
-	registeredPaymentProvider = p
-}
-
 // commercePaymentProviderName names the configured payment provider for
 // Service.Reconcile's NotifiedButNotPaid check -- "" when none is
 // configured, which correctly skips that check rather than flagging every

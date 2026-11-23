@@ -123,9 +123,6 @@ func MonthlyDigestWindow(now time.Time, timezone string) (start, end time.Time, 
 	return start, end, monthKey, due, nil
 }
 
-func BuildWeeklyDigestText(stats WeeklyDigestStats, start, end time.Time) string {
-	return BuildDigestText(stats, start, end, DigestWeekly)
-}
 func BuildDigestText(stats DigestStats, start, end time.Time, frequency DigestFrequency) string {
 	label := "Weekly site summary"
 	if frequency == DigestMonthly {

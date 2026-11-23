@@ -27,10 +27,10 @@ flowchart LR
   cmd -->|17| modules
   cmd -->|1| other
   extension -->|1| internal
-  internal -->|4| extension
+  internal -->|3| extension
   internal -->|2| other
   modules -->|3| extension
-  modules -->|101| internal
+  modules -->|100| internal
   tests -->|6| internal
   tools -->|5| internal
   tools -->|1| other
@@ -53,10 +53,10 @@ Changing one of these touches the most code.
 | `internal/router` | 9 | 2 |
 | `internal/realtime` | 8 | 2 |
 | `internal/pathguard` | 7 | 0 |
-| `extension/v1` | 6 | 2 |
 | `internal/audit` | 6 | 5 |
 | `internal/contenttypes` | 6 | 7 |
 | `internal/observability` | 6 | 2 |
+| `extension/v1` | 5 | 2 |
 
 ## Packages that import the most
 
@@ -92,11 +92,11 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 ### extension
 
 - `extension`: Package extension contains the experimental v0 surface available to Client Editions. (in 2, out 0)
-- `extension/v1`: Package v1 contains provider-neutral contracts that generated Client Editions may import without reaching into HydroGo internals. (in 6, out 2)
+- `extension/v1`: Package v1 contains provider-neutral contracts that generated Client Editions may import without reaching into HydroGo internals. (in 5, out 2)
 
 ### internal
 
-- `internal/adminstudio`: Package adminstudio provides the metadata boundary used by generated admin surfaces. (in 5, out 1)
+- `internal/adminstudio`: Package adminstudio provides the metadata boundary used by generated admin surfaces. (in 5, out 0)
 - `internal/adminstudio/sqlstore`: (no package comment) (in 2, out 3)
 - `internal/adminui`: (no package comment) (in 1, out 1)
 - `internal/ai`: Package ai contains the provider-neutral, opt-in content assistance boundary. (in 2, out 3)
@@ -110,7 +110,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/auth/sqlstore`: (no package comment) (in 3, out 3)
 - `internal/backup`: Package backup contains bounded, staging-first recovery primitives. (in 1, out 3)
 - `internal/blueprints`: (no package comment) (in 1, out 3)
-- `internal/cache`: (no package comment) (in 4, out 3)
+- `internal/cache`: (no package comment) (in 3, out 3)
 - `internal/canonical`: (no package comment) (in 12, out 0)
 - `internal/capacity`: Package capacity defines topology profiles and their bounded local budgets. (in 2, out 0)
 - `internal/collections`: Package collections stores user-defined collection schemas and records in bounded, pre-migrated tables. (in 5, out 2)
@@ -120,7 +120,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/contenttypes`: Package contenttypes turns YAML content-type definitions into the two runtime shapes HydroGo needs: a collections.Schema for storage and validation, and an a... (in 6, out 7)
 - `internal/contracts/customerorders`: Package customerorders defines the narrow order projection exposed to the member account surface. (in 2, out 1)
 - `internal/cron`: Package cron parses five-field cron expressions ("minute hour day month weekday") and answers whether a minute matches. (in 2, out 0)
-- `internal/customcode`: Package customcode validates and prepares operator-managed site integrations. (in 2, out 0)
+- `internal/customcode`: Package customcode validates and prepares operator-managed site integrations. (in 1, out 0)
 - `internal/database`: (no package comment) (in 51, out 3)
 - `internal/database/baselinegen`: Package baselinegen builds and verifies the schema baseline (ADR 0009). (in 2, out 1)
 - `internal/erasure`: Package erasure stores durable, replayable deletion intents outside the application DB. (in 1, out 2)
@@ -130,7 +130,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/geolocation`: Package geolocation resolves coarse request locations from an operator-managed offline database and explicitly trusted proxy metadata. (in 2, out 1)
 - `internal/guards`: Package guards contains small boundary checks shared by infrastructure and domain adapters. (in 14, out 0)
 - `internal/hooks`: Package hooks defines the small, dialect-free event hook contract shared by Core modules and Editions. (in 0, out 0)
-- `internal/i18n`: Package i18n contains bounded, locale-aware presentation helpers. (in 5, out 1)
+- `internal/i18n`: (no package comment) (in 5, out 1)
 - `internal/jobs`: Package jobs contains bounded, idempotent in-process job lease primitives. (in 3, out 0)
 - `internal/jobs/sqlstore`: Package sqlstore provides a durable job lease store for SQLite and PostgreSQL. (in 1, out 2)
 - `internal/linkcheck`: Package linkcheck crawls one public HTTP origin and reports broken links and assets. (in 1, out 0)
@@ -153,7 +153,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/push/sqlstore`: (no package comment) (in 1, out 3)
 - `internal/query`: Package query defines the bounded, provider-neutral query contract used by generated transports. (in 0, out 1)
 - `internal/realtime`: (no package comment) (in 8, out 2)
-- `internal/release`: Package release builds deterministic release manifests and signatures. (in 1, out 2)
+- `internal/release`: Package release builds deterministic release manifests and signatures. (in 1, out 1)
 - `internal/requestmeta`: Package requestmeta derives request metadata at the HTTP trust boundary. (in 12, out 0)
 - `internal/richtext`: Package richtext holds the server-side helpers for stored rich text: the HTML sanitizer applied on save and a plain-text projection of the Quill Delta format... (in 4, out 0)
 - `internal/router`: (no package comment) (in 9, out 2)
@@ -199,7 +199,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `modules/pages/service`: (no package comment) (in 2, out 8)
 - `modules/pages/transport`: (no package comment) (in 1, out 18)
 - `modules/seo`: Package seo contains provider-neutral public discovery and social metadata. (in 2, out 0)
-- `modules/site`: (no package comment) (in 4, out 7)
+- `modules/site`: (no package comment) (in 4, out 6)
 - `modules/site/repository/sqlstore`: (no package comment) (in 1, out 4)
 - `modules/site/transport`: (no package comment) (in 1, out 18)
 
@@ -240,7 +240,6 @@ By import path prefix, with the number of repository packages that import them.
 | `golang.org/x/net` | 5 |
 | `github.com/go-sql-driver/mysql` | 4 |
 | `golang.org/x/sync` | 3 |
-| `golang.org/x/text` | 3 |
 | `github.com/minio/minio-go` | 2 |
 | `github.com/pquerna/otp` | 2 |
 | `go.opentelemetry.io/otel` | 2 |
@@ -248,6 +247,7 @@ By import path prefix, with the number of repository packages that import them.
 | `golang.org/x/crypto` | 2 |
 | `golang.org/x/image` | 2 |
 | `golang.org/x/sys` | 2 |
+| `golang.org/x/text` | 2 |
 | `github.com/SherClockHolmes/webpush-go` | 1 |
 | `github.com/andybalholm/brotli` | 1 |
 | `github.com/deepteams/webp` | 1 |

@@ -16,11 +16,6 @@ import (
 
 var registeredInvoiceProvider commerce.InvoiceProvider
 
-// RegisterInvoiceProvider registers a custom invoice provider implementation (for tests or extensions).
-func RegisterInvoiceProvider(p commerce.InvoiceProvider) {
-	registeredInvoiceProvider = p
-}
-
 func (a *serveApp) commerceInvoiceProvider() commerce.InvoiceProvider {
 	if registeredInvoiceProvider != nil {
 		return registeredInvoiceProvider

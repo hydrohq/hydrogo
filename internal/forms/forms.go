@@ -2,12 +2,8 @@
 package forms
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/mail"
-	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -338,48 +334,6 @@ func StableFields(fields []Field) []Field {
 	return result
 }
 
-func NewSubmissionToken() (string, error) {
-	value := make([]byte, 24)
-	if _, err := rand.Read(value); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(value), nil
-}
-
-func publicInputType(kind FieldType) string {
-	if kind == Email {
-		return "email"
-	}
-	if kind == Number {
-		return "number"
-	}
-	if kind == Document {
-		return "file"
-	}
-	if kind == Phone {
-		return "tel"
-	}
-	return "text"
-}
-
-func publicFormSubmitLabel(label string) string {
-	if strings.TrimSpace(label) == "" {
-		return "Send message"
-	}
-	return label
-}
-
-func publicMetaPixelEvent(f Form) string {
-	if !f.ConversionTracking {
-		return ""
-	}
-	if f.MetaPixelEventName == "" {
-		return "Lead"
-	}
-	return f.MetaPixelEventName
-}
-
-func publicFormHasSteps(f Form) bool { return f.MultiStep && maximumFormStep(f) > 1 }
 func maximumFormStep(f Form) int {
 	maxStep := 1
 	for _, field := range f.Fields {
@@ -394,53 +348,4 @@ func publicFieldStep(field Field) int {
 		return 1
 	}
 	return field.Step
-}
-func publicCascadeOptions(field Field) string {
-	data, _ := json.Marshal(field.CascadeOptions)
-	return string(data)
-}
-func phoneInputMode(kind FieldType) string {
-	if kind == Phone {
-		return "tel"
-	}
-	return "text"
-}
-func phoneAutocomplete(kind FieldType) string {
-	if kind == Phone {
-		return "tel"
-	}
-	return "off"
-}
-
-func safeFormAction(action, formID string) string {
-	action = strings.TrimSpace(action)
-	u, err := url.Parse(action)
-	if err == nil && strings.HasPrefix(action, "/") && !strings.HasPrefix(action, "//") && !u.IsAbs() && u.Host == "" && !strings.ContainsAny(action, "\r\n\\") {
-		return action
-	}
-	return "/forms/" + formID + "/submit"
-}
-
-func publicFormViewEndpoint(formID string) string {
-	return "/forms/" + url.PathEscape(formID) + "/view"
-}
-
-func publicSubmissionToken(token string) string {
-	if ValidateIdempotencyToken(token) == nil {
-		return token
-	}
-	token, _ = NewSubmissionToken()
-	return token
-}
-
-func ValidateIdempotencyToken(token string) error {
-	if len(token) < 16 || len(token) > 128 || strings.TrimSpace(token) != token {
-		return fmt.Errorf("invalid submission token")
-	}
-	for i := 0; i < len(token); i++ {
-		if token[i] < 0x21 || token[i] > 0x7e {
-			return fmt.Errorf("invalid submission token")
-		}
-	}
-	return nil
 }

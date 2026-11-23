@@ -213,10 +213,3 @@ func writeSDKFile(path string, body []byte) error {
 	}
 	return nil
 }
-
-// Ensure the template output remains valid UTF-8 source and that a destination
-// path cannot escape the requested output directory.
-func validSDKPath(root, path string) bool {
-	rel, err := filepath.Rel(root, path)
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
-}

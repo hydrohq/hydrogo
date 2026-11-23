@@ -166,26 +166,6 @@ func (s Service) SaveSetting(ctx context.Context, value Setting) error {
 	})
 }
 
-func (s Service) SaveContactWidget(ctx context.Context, value ContactWidget) error {
-	if err := value.Validate(); err != nil {
-		return err
-	}
-	if err := s.requireStore(); err != nil {
-		return err
-	}
-	return s.Transactions.Within(ctx, func(tx database.Executor) error {
-		for _, setting := range value.Settings() {
-			if err := s.Store.UpsertSetting(ctx, tx, setting); err != nil {
-				return err
-			}
-		}
-		if err := s.audit(ctx, tx, "site.contact_widget.updated", "contact widget"); err != nil {
-			return err
-		}
-		return s.emit(ctx, tx, "contact_widget")
-	})
-}
-
 func (s Service) SaveSocialProfiles(ctx context.Context, profiles []SocialProfile) error {
 	profiles, err := NormalizeSocialProfiles(profiles)
 	if err != nil {

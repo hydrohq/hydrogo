@@ -37,13 +37,6 @@ type Handler struct {
 	VerificationEnabled  bool
 }
 
-func (h Handler) defaultLocale() string {
-	if strings.TrimSpace(h.DefaultLocale) != "" {
-		return strings.TrimSpace(h.DefaultLocale)
-	}
-	return "tr"
-}
-
 func (h Handler) Routes() []router.Route {
 	routes := []router.Route{
 		// Consumer/mobile authentication is intentionally separate from the

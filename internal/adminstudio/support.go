@@ -59,7 +59,3 @@ func SupportConfigFromContext(ctx context.Context) SupportConfig {
 	config, _ := ctx.Value(supportContextKey{}).(SupportConfig)
 	return config
 }
-
-func SupportConfigMiddleware(config SupportConfig) func(http.Handler) http.Handler {
-	return SupportConfigResolverMiddleware(config, nil)
-}

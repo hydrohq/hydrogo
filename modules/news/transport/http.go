@@ -162,20 +162,6 @@ func (h Handler) ready(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// writeItem answers with the stored item, which carries the version the
-// client needs for its next mutation.
-func (h Handler) writeItem(w http.ResponseWriter, r *http.Request, id string, status int) {
-	if !h.ready(w, r) {
-		return
-	}
-	item, err := h.Service.Repository.Get(r.Context(), h.DB, id)
-	if err != nil {
-		writeNewsReadError(w, r, err)
-		return
-	}
-	api.WriteData(w, status, item, nil)
-}
-
 func writeNewsReadError(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, database.ErrDatabaseRequired) || errors.Is(err, news.ErrRepositoryRequired) {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "news is unavailable", nil)

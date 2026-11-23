@@ -23,15 +23,6 @@ import (
 
 const adminLocaleCookieName = i18n.AdminLocaleCookieName
 
-func adminLocaleFromRequest(r *http.Request) string {
-	if r != nil {
-		if cookie, err := r.Cookie(adminLocaleCookieName); err == nil && i18n.IsSupportedCatalogLocale(cookie.Value) {
-			return i18n.ResolveCatalogLocale(cookie.Value)
-		}
-	}
-	return i18n.ResolveCatalogLocale("")
-}
-
 func setAdminLocaleCookie(w http.ResponseWriter, locale string, secure bool) {
 	http.SetCookie(w, &http.Cookie{Name: adminLocaleCookieName, Value: i18n.ResolveCatalogLocale(locale), Path: "/", MaxAge: int((365 * 24 * time.Hour).Seconds()), Secure: secure, HttpOnly: true, SameSite: http.SameSiteLaxMode}) // #nosec G124 -- Secure follows the secure_cookies setting (off only for plain-HTTP development); the cookie is HttpOnly and SameSite
 }

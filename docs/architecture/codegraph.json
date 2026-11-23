@@ -122,14 +122,13 @@
       "layer": "extension",
       "doc": "Package v1 contains provider-neutral contracts that generated Client Editions may import without reaching into HydroGo internals.",
       "files": 19,
-      "fan_in": 6,
+      "fan_in": 5,
       "fan_out": 2,
       "imports": [
         "extension",
         "internal/canonical"
       ],
       "imported_by": [
-        "internal/adminstudio",
         "internal/analytics",
         "internal/analytics/sqlstore",
         "modules/news",
@@ -141,12 +140,10 @@
       "id": "internal/adminstudio",
       "layer": "internal",
       "doc": "Package adminstudio provides the metadata boundary used by generated admin surfaces.",
-      "files": 13,
+      "files": 12,
       "fan_in": 5,
-      "fan_out": 1,
-      "imports": [
-        "extension/v1"
-      ],
+      "fan_out": 0,
+      "imports": [],
       "imported_by": [
         "cmd/hydro",
         "internal/adminstudio/sqlstore",
@@ -408,8 +405,8 @@
     {
       "id": "internal/cache",
       "layer": "internal",
-      "files": 6,
-      "fan_in": 4,
+      "files": 5,
+      "fan_in": 3,
       "fan_out": 3,
       "imports": [
         "internal/guards",
@@ -418,7 +415,6 @@
       ],
       "imported_by": [
         "cmd/hydro",
-        "internal/release",
         "modules/news",
         "modules/pages/service"
       ]
@@ -580,12 +576,11 @@
       "layer": "internal",
       "doc": "Package customcode validates and prepares operator-managed site integrations.",
       "files": 1,
-      "fan_in": 2,
+      "fan_in": 1,
       "fan_out": 0,
       "imports": [],
       "imported_by": [
-        "internal/server",
-        "modules/site"
+        "internal/server"
       ]
     },
     {
@@ -672,7 +667,7 @@
       "id": "internal/erasure",
       "layer": "internal",
       "doc": "Package erasure stores durable, replayable deletion intents outside the application DB.",
-      "files": 3,
+      "files": 2,
       "fan_in": 1,
       "fan_out": 2,
       "imports": [
@@ -701,7 +696,7 @@
       "id": "internal/forms",
       "layer": "internal",
       "doc": "Package forms defines a bounded, provider-neutral form contract.",
-      "files": 4,
+      "files": 3,
       "fan_in": 4,
       "fan_out": 0,
       "imports": [],
@@ -781,8 +776,7 @@
     {
       "id": "internal/i18n",
       "layer": "internal",
-      "doc": "Package i18n contains bounded, locale-aware presentation helpers.",
-      "files": 4,
+      "files": 2,
       "fan_in": 5,
       "fan_out": 1,
       "imports": [
@@ -841,7 +835,7 @@
       "id": "internal/mailer",
       "layer": "internal",
       "doc": "Package mailer provides bounded outbound notification adapters.",
-      "files": 9,
+      "files": 8,
       "fan_in": 5,
       "fan_out": 2,
       "imports": [
@@ -964,7 +958,7 @@
       "id": "internal/observability",
       "layer": "internal",
       "doc": "Package observability contains bounded, process-local operational signals.",
-      "files": 9,
+      "files": 8,
       "fan_in": 6,
       "fan_out": 2,
       "imports": [
@@ -1148,11 +1142,10 @@
       "id": "internal/release",
       "layer": "internal",
       "doc": "Package release builds deterministic release manifests and signatures.",
-      "files": 4,
+      "files": 2,
       "fan_in": 1,
-      "fan_out": 2,
+      "fan_out": 1,
       "imports": [
-        "internal/cache",
         "internal/pathguard"
       ],
       "imported_by": [
@@ -1248,7 +1241,7 @@
       "id": "internal/search",
       "layer": "internal",
       "doc": "Package search defines the provider-neutral search boundary.",
-      "files": 5,
+      "files": 4,
       "fan_in": 1,
       "fan_out": 5,
       "imports": [
@@ -1265,7 +1258,7 @@
     {
       "id": "internal/security",
       "layer": "internal",
-      "files": 23,
+      "files": 22,
       "fan_in": 16,
       "fan_out": 3,
       "imports": [
@@ -1906,12 +1899,11 @@
     {
       "id": "modules/site",
       "layer": "modules",
-      "files": 9,
+      "files": 8,
       "fan_in": 4,
-      "fan_out": 7,
+      "fan_out": 6,
       "imports": [
         "internal/canonical",
-        "internal/customcode",
         "internal/database",
         "internal/forms",
         "internal/guards",
@@ -2158,10 +2150,6 @@
       "packages": 3
     },
     {
-      "path": "golang.org/x/text",
-      "packages": 3
-    },
-    {
       "path": "github.com/minio/minio-go",
       "packages": 2
     },
@@ -2187,6 +2175,10 @@
     },
     {
       "path": "golang.org/x/sys",
+      "packages": 2
+    },
+    {
+      "path": "golang.org/x/text",
       "packages": 2
     },
     {

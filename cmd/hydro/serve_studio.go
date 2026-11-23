@@ -43,25 +43,6 @@ func (a *serveApp) initAdminStudio() error {
 	return a.initNewsHTTP(previewSigner)
 }
 
-// localizeStudioCollection switches the body to the rich-text editor and the
-// locale field to the configured locales (hidden when i18n is off).
-func (a *serveApp) localizeStudioCollection(collection *adminstudio.Collection) {
-	cfg := a.cfg
-	for i := range collection.Fields {
-		if collection.Fields[i].ID == "body" {
-			collection.Fields[i].Widget = "richtext"
-		}
-		if collection.Fields[i].ID == "locale" {
-			if !cfg.I18N.Enabled {
-				collection.Fields[i].Widget = "hidden"
-				collection.Fields[i].VisibleInList = false
-			} else if len(cfg.I18N.Locales) > 0 {
-				collection.Fields[i].Options = cfg.I18N.Locales
-			}
-		}
-	}
-}
-
 // newPreviewSigner uses the configured HYDRO_PREVIEW_SIGNING_KEY. Without
 // one it signs with a random per-process key, so the editor's draft preview
 // works out of the box; links then stop verifying after a restart or on

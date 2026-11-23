@@ -58,18 +58,6 @@ func Take(ctx context.Context, db *sql.DB, dialect database.Dialect) (*Snapshot,
 	return snapshot, nil
 }
 
-// Tables lists the table names of the snapshot.
-func (s *Snapshot) Tables() []string {
-	var tables []string
-	for _, object := range s.Objects {
-		if object.Kind == "table" {
-			tables = append(tables, object.Name)
-		}
-	}
-	sort.Strings(tables)
-	return tables
-}
-
 // Diff lists how two snapshots differ semantically; empty means equivalent.
 func Diff(want, got *Snapshot) []string {
 	var problems []string

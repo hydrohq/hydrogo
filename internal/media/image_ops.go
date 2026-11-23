@@ -3,7 +3,6 @@ package media
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/text/unicode/norm"
 	"image"
 	"image/color"
 	"math"
@@ -12,11 +11,14 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/text/unicode/norm"
+
+	imagedraw "image/draw"
+
 	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
-	imagedraw "image/draw"
 )
 
 // FocalPoint is a normalized image coordinate. Values are clamped to [0,1].
@@ -265,28 +267,6 @@ func encode83(v, n int) string {
 	return b.String()
 }
 
-// BlurHashColor returns the average color encoded by the BlurHash DC term.
-func BlurHashColor(hash string) string {
-	if len(hash) < 6 {
-		return "#e5e7eb"
-	}
-	decode := func(s string) int {
-		n := 0
-		for _, r := range s {
-			i := strings.IndexRune(blurAlphabet, r)
-			if i < 0 {
-				return -1
-			}
-			n = n*83 + i
-		}
-		return n
-	}
-	n := decode(hash[2:6])
-	if n < 0 {
-		return "#e5e7eb"
-	}
-	return fmt.Sprintf("#%02x%02x%02x", (n>>16)&255, (n>>8)&255, n&255)
-}
 func clamp01(v float64) float64 { return math.Max(0, math.Min(1, v)) }
 
 // NormalizeFilename returns an accent-free, URL-safe filename slug.

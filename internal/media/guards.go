@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -108,20 +107,4 @@ func ContentTypeForDocument(name string) string {
 		return "application/msword"
 	}
 	return mime.TypeByExtension(filepath.Ext(name))
-}
-
-// ReadDocument is useful at bounded upload boundaries where multipart readers
-// must not allocate beyond the configured request limit.
-func ReadDocument(r io.Reader, maxBytes int64) ([]byte, error) {
-	if maxBytes <= 0 {
-		return nil, ErrInvalidDocument
-	}
-	data, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(data)) > maxBytes {
-		return nil, ErrInvalidDocument
-	}
-	return data, nil
 }

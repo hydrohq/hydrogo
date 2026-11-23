@@ -145,14 +145,6 @@ func (r *responseCapture) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
 
-func writeCachedFile(baseDir, urlPath string, content []byte) error {
-	return writeCachedFileForHostLimit(baseDir, "localhost", urlPath, content, staticCacheFileLimit, staticCacheTotalLimit)
-}
-
-func writeCachedFileLimit(baseDir, urlPath string, content []byte, maxEntries int, maxTotal int64) error {
-	return writeCachedFileForHostLimit(baseDir, "localhost", urlPath, content, maxEntries, maxTotal)
-}
-
 func writeCachedFileForHostLimit(baseDir, host, urlPath string, content []byte, maxEntries int, maxTotal int64) error {
 	if len(content) > staticCacheBodyLimit {
 		return nil
@@ -301,10 +293,6 @@ func staticHTMLRequestAllowed(r *http.Request, sessionCookie string, excluded []
 		return staticCacheSegment.MatchString(parts[2]) && staticCacheSegment.MatchString(parts[3])
 	}
 	return false
-}
-
-func staticCachePath(baseDir, urlPath string) (string, error) {
-	return staticCachePathForHost(baseDir, "localhost", urlPath)
 }
 
 func staticCachePathForHost(baseDir, host, urlPath string) (string, error) {

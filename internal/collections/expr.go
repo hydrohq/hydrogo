@@ -62,10 +62,6 @@ type (
 // Fields lists the field names the expression reads.
 func (e *Expr) Fields() []string { return append([]string(nil), e.fields...) }
 
-// Eval computes the expression. vars returns a field's value: nil, bool,
-// string or *big.Rat.
-func (e *Expr) Eval(vars func(string) Value) (Value, error) { return e.root.eval(vars) }
-
 // EvalBool evaluates a condition; anything but a bool is an error.
 func (e *Expr) EvalBool(vars func(string) Value) (bool, error) {
 	value, err := e.root.eval(vars)

@@ -709,14 +709,6 @@ func readMigrationMetadata(migrationFS fs.FS, migrationID string) (migrationMeta
 	return metadata, nil
 }
 
-func migrationModule(migrationFS fs.FS, migrationID string) (string, error) {
-	metadata, err := readMigrationMetadata(migrationFS, migrationID)
-	if err != nil {
-		return "", err
-	}
-	return metadata.Module, nil
-}
-
 func migrationSelected(migrationFS fs.FS, migrationID string, enabled map[string]bool) (bool, error) {
 	metadata, err := readMigrationMetadata(migrationFS, migrationID)
 	if err != nil {

@@ -70,10 +70,6 @@ func (w Worker) EnqueueDue(ctx context.Context, db database.Executor, now time.T
 	return nil
 }
 
-func (w Worker) EnqueueSchedule(itemID string, generation int64, availableAt time.Time) error {
-	return w.EnqueueScheduleContext(context.Background(), itemID, generation, availableAt)
-}
-
 func (w Worker) EnqueueScheduleContext(ctx context.Context, itemID string, generation int64, availableAt time.Time) error {
 	if (w.Queue == nil && guards.IsNil(w.Durable)) || itemID == "" || generation <= 0 {
 		return ErrScheduleStale

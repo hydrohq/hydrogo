@@ -112,13 +112,6 @@ func CanTransition(from, to PublicationState) bool {
 	}
 }
 
-func ValidateTransition(from, to PublicationState) error {
-	if !CanTransition(from, to) {
-		return ErrInvalidTransition
-	}
-	return nil
-}
-
 // PreviewURL appends a short-lived preview marker to a same-origin path. The
 // caller is responsible for signing/expiring the marker at its auth boundary.
 func PreviewURL(path, token string) (string, error) {

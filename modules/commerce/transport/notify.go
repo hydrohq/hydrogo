@@ -119,23 +119,6 @@ func NotifyOrderPaidAsync(ctx context.Context, notifier notify.Sender, reader Or
 	}()
 }
 
-// NotifyOperator sends an alert notification synchronously to the operator.
-func NotifyOperator(ctx context.Context, notifier notify.Sender, title, orderID string, amountCents int64, currency, provider string, logger *slog.Logger) {
-	if notifier == nil {
-		return
-	}
-	total := FormatMoney(amountCents, currency)
-	body := fmt.Sprintf("Order No: %s, Amount: %s, Provider: %s", orderID, total, provider)
-	pingCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), notifyTimeout)
-	defer cancel()
-	if err := notifier.Send(pingCtx, notify.Message{
-		Title: title,
-		Body:  body,
-	}); err != nil && logger != nil {
-		logger.WarnContext(pingCtx, "could not send operator notification", "order_id", orderID, "error", err)
-	}
-}
-
 // NotifyOperatorAsync sends an alert notification to the operator in a background goroutine
 // with exponential backoff retries.
 func NotifyOperatorAsync(ctx context.Context, notifier notify.Sender, title, orderID string, amountCents int64, currency, provider string, logger *slog.Logger) {

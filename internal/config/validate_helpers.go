@@ -39,11 +39,6 @@ func isHTTPBaseURL(parsed *url.URL) bool {
 	return len(parsed.Path) <= 512 && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
-func isHTTPSCallbackURL(raw string) bool {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	return err == nil && parsed != nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.Hostname() != "" && parsed.User == nil && parsed.Opaque == "" && parsed.Fragment == ""
-}
-
 func validConfigComponent(value string) bool {
 	value = strings.TrimSpace(value)
 	if value == "" || len(value) > 128 {
