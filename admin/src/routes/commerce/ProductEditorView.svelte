@@ -11,7 +11,7 @@
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
   import RelationField from '$lib/schema/RelationField.svelte';
   import VariantsTab from './product/VariantsTab.svelte';
-  import BucklesTab from './product/BucklesTab.svelte';
+  import { productTabs, type ProductTabContext } from './product/productTabs';
   import MediaTab from './product/MediaTab.svelte';
 
   import { slugify } from '$lib/commerce/slugify';
@@ -41,7 +41,6 @@ export interface ProductRecord {
   seo_title?: string | null;
   seo_description?: string | null;
   status?: 'published' | 'draft' | string;
-  compatible_buckles?: string[];
   [key: string]: unknown;
 }
 
@@ -56,7 +55,7 @@ export interface ProductRecord {
   let successMessage = $state('');
   let fieldErrors = $state<Record<string, string>>({});
 
-  let activeTab = $state<'general' | 'variants' | 'media' | 'buckles'>('general');
+  let activeTab = $state<string>('general');
   let mediaPickerOpen = $state(false);
   let showAdvanced = $state(false);
   let slugEditedManually = $state(false);
@@ -91,12 +90,12 @@ export interface ProductRecord {
   function syncTabFromHash() {
     if (typeof window === 'undefined') return;
     const h = window.location.hash.replace(/^#/, '');
-    if (h === 'variants' || h === 'media' || h === 'buckles' || h === 'general') {
+    if (h === 'variants' || h === 'media' || h === 'general' || productTabs.some((x) => x.id === h)) {
       activeTab = h;
     }
   }
 
-  function setTab(tab: 'general' | 'variants' | 'media' | 'buckles') {
+  function setTab(tab: string) {
     activeTab = tab;
     if (typeof window !== 'undefined') {
       window.location.hash = `#${tab}`;
@@ -125,10 +124,10 @@ export interface ProductRecord {
     }
   }
 
-  const isBuckleProduct = $derived.by(() => {
+  function productInCategory(slug: string): boolean {
     if (!product || isNew) return false;
     if (typeof product.category === 'object' && product.category !== null) {
-      if ((product.category as { slug?: string }).slug === 'tokalar') return true;
+      if ((product.category as { slug?: string }).slug === slug) return true;
     }
     let catId = '';
     if (typeof product.category === 'object' && product.category !== null) {
@@ -139,12 +138,17 @@ export interface ProductRecord {
     if (!catId && formData.category) {
       catId = formData.category;
     }
-    const buckleCat = categories.find((c) => c.slug === 'tokalar');
-    return Boolean(buckleCat && catId === buckleCat.id);
+    const cat = categories.find((c) => c.slug === slug);
+    return Boolean(cat && catId === cat.id);
+  }
+
+  const extensionTabs = $derived.by(() => {
+    const ctx: ProductTabContext = { product, isNew, isInCategory: productInCategory };
+    return productTabs.filter((x) => !x.visible || x.visible(ctx));
   });
 
   $effect(() => {
-    if (isBuckleProduct && activeTab === 'buckles') {
+    if (!['general', 'variants', 'media'].includes(activeTab) && !extensionTabs.some((x) => x.id === activeTab)) {
       activeTab = 'general';
     }
   });
@@ -470,19 +474,19 @@ export interface ProductRecord {
         >
           Photos & Video
         </button>
-        {#if !isBuckleProduct}
+        {#each extensionTabs as ext (ext.id)}
           <button
             type="button"
             role="tab"
-            id="tab-buckles"
-            aria-selected={activeTab === 'buckles'}
-            aria-controls="tabpanel-buckles"
-            onclick={() => setTab('buckles')}
-            class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'buckles' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+            id="tab-{ext.id}"
+            aria-selected={activeTab === ext.id}
+            aria-controls="tabpanel-{ext.id}"
+            onclick={() => setTab(ext.id)}
+            class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === ext.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
           >
-            {t('products.editor.tabBuckles')}
+            {ext.label}
           </button>
-        {/if}
+        {/each}
       </div>
     </div>
 
@@ -703,18 +707,23 @@ export interface ProductRecord {
       <div id="tabpanel-media" role="tabpanel" aria-labelledby="tab-media">
         <MediaTab {product} />
       </div>
-    {:else if activeTab === 'buckles' && !isBuckleProduct}
-      <div id="tabpanel-buckles" role="tabpanel" aria-labelledby="tab-buckles">
-        <BucklesTab
-          {product}
-          onsaved={(updated) => {
-            product = updated;
-            if (typeof updated.status === 'string') {
-              formData.status = updated.status;
-            }
-          }}
-        />
-      </div>
+    {:else}
+      {#each extensionTabs as ext (ext.id)}
+        {#if activeTab === ext.id}
+          {@const Ext = ext.component}
+          <div id="tabpanel-{ext.id}" role="tabpanel" aria-labelledby="tab-{ext.id}">
+            <Ext
+              {product}
+              onsaved={(updated: ProductRecord) => {
+                product = updated;
+                if (typeof updated.status === 'string') {
+                  formData.status = updated.status;
+                }
+              }}
+            />
+          </div>
+        {/if}
+      {/each}
     {/if}
   {/if}
 </div>

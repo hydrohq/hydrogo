@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Product editor extension slot; Buckles tab removed from core:** `*.svelte` files in `admin/src/routes/commerce/product/extensions/` that export a `tab` descriptor become extra product-editor tabs (`productTabs.ts`). The customer-specific "Buckles" (compatible belt buckles) tab, its `products.buckles.*` i18n keys and the `tokalar` category rule moved out of core into the BEYOND project, which re-adds it through this slot.
+
 - **Hosted-platform code moved out of core:** the AI site generator (`internal/sitegen`, `sitegen_system.prompt`), the blueprint demo-data generators and seeders (`Generate*Catalog`, `Seed*Store`, `SeedArchetypeSite`, the editorial instruction JSON) and `tools/factory` now live in the private hydrocloud overlay. Core keeps the archetype schemas (`ArchetypeDefinitions`, `EnsureArchetypeSchemas`, `EnsureBoutiqueSchemas`).
 - **English-only matching and text in core:** `NormalizeArchetype` and the copilot's deterministic fallback recognise English keywords only, `copilot_system.prompt` is English, commerce operator notifications are English, and the stock `ads` and `homepage_sections` content types use English option values (`manset_alti` -> `below_headline`, `sur_manset_yani` -> `beside_headline`, `haber_ici` -> `in_article`, `tumu` -> `all`, `anasayfa` -> `home`, `kategori` -> `category`, `haber_detay` -> `article_detail`, `son_haberler` -> `latest_news`, `bulten` -> `newsletter`, `ikinci_grid` -> `second_grid`, `cok_okunan` -> `most_read`, `galeri` -> `gallery`, `kategori_vitrini` -> `category_showcase`). Existing records and frontends that read the old values need to be updated.
 
