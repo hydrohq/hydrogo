@@ -44,7 +44,6 @@ go run ./tools/devserver
 This starts:
 - The Go backend at `http://127.0.0.1:8091`
 - Admin Studio Vite HMR at `http://127.0.0.1:5173/admin/`
-- Svelte Starter Frontend Vite HMR at `http://127.0.0.1:3000/`
 - A reverse development proxy at `http://127.0.0.1:8090/` which proxies all services under a single port!
 
 ### Local Admin Login
@@ -58,13 +57,13 @@ Navigate to [http://127.0.0.1:8090/admin/](http://127.0.0.1:8090/admin/) and log
 ```
 .
 ├── admin/               # Embedded Svelte 5 + TypeScript + Tailwind Admin Studio SPA
-├── cmd/hydro/           # CLI entrypoints (serve, migrate, seed-demo, create-admin)
+├── cmd/hydro/           # CLI entrypoints (serve, migrate, seed, create-admin)
 ├── content-types/       # Declarative YAML schemas for custom content types
 ├── docs/                # Architecture decisions, guides, and API specifications
 ├── examples/            # Benchmark harness and a side-service example
 ├── internal/            # Core CMS engine: auth, database, security, media, api
 ├── migrations/          # Tri-dialect SQL migrations (SQLite, PostgreSQL, MySQL)
-├── modules/             # Built-in CMS modules (pages, news, members, site)
+├── modules/             # Built-in CMS modules (pages, news, members, site, commerce, seo, analytics)
 └── tools/               # Local devserver, code guards, and test runners
 ```
 
@@ -128,10 +127,11 @@ All successful API responses adhere to the standard envelope:
 ```json
 {
   "data": [...],
-  "meta": {
+  "metadata": {
     "total": 42,
-    "page": 1,
-    "limit": 20
+    "limit": 20,
+    "offset": 0,
+    "has_more": true
   }
 }
 ```

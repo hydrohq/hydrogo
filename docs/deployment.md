@@ -196,7 +196,7 @@ HydroGo supports both manual and provider-driven shipping fulfillment:
 
 - **Manual Carrier Selection (`manual`)**: In production deployments where physical branches generate barcodes or shipping labels at dispatch, operators select the manual carrier option and input the tracking number and tracking URL manually either via the embedded admin panel or via `POST /api/v1/admin/commerce/orders/{id}/shipment`.
 
-## Tamper-evident audit log
+## Hash-chained audit log
 
 Audit events are already immutable in the database (triggers reject updates
 and deletes). For businesses that must show the log was not altered, turn on

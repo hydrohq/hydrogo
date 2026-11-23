@@ -10,7 +10,7 @@ All JSON endpoints respond with standard envelopes:
 ```json
 {
   "data": { ... },
-  "meta": {
+  "metadata": {
     "total": 42,
     "offset": 0,
     "limit": 20,
@@ -74,31 +74,30 @@ To register a new content collection (e.g. Products, Testimonials, Team), add a 
 
 ```yaml
 id: team
-plural: team
+name: Team Members
 singular: Team Member
-label: Team Members
-icon: 👥
+plural: Team Members
 public: true
 drafts: true
 fields:
-  - name: name
-    label: Full Name
-    kind: text
+  - id: name
+    name: Full Name
+    type: text
     required: true
     list: true
-  - name: role
-    label: Position
-    kind: text
+  - id: role
+    name: Position
+    type: text
     list: true
-  - name: bio
-    label: Biography
-    kind: richtext
-  - name: photo
-    label: Photo
-    kind: media
+  - id: bio
+    name: Biography
+    type: rich_text
+  - id: photo
+    name: Photo
+    type: media
 ```
 
-Upon server restart, the collection automatically gets:
-- Full Admin CRUD UI at `#/content/team`
+Upon server restart (or immediately when applied via MCP `schema_apply`), the collection automatically gets:
+- Full Admin CRUD UI at `/admin/content/team`
 - Public read API at `/api/v1/content/team` (supports pagination, search query `?q=`, and sorting)
 - Full revision control and draft workflow.

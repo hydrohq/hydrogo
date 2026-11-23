@@ -90,4 +90,4 @@ Give your AI coding assistant (Cursor / Claude Code) this prompt:
 
 ## 4. Security & Audit Trail
 
-All tool calls executed by AI agents are authenticated and cryptographically recorded in the HydroGo audit log ledger (`hydro_audit_logs`) with SHA-256 tamper-evident chaining.
+All tool calls executed by AI agents are authenticated and cryptographically recorded in the HydroGo audit log ledger (`hydro_audit_logs`) with SHA-256 hash chaining.

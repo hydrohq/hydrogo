@@ -3,8 +3,7 @@
 HydroGo can serve several separate customers/sites from one shared
 database instead of one deployment per customer. This is a core,
 opt-in architecture feature of the whole platform (every content
-module, not something specific to news or commerce) -- it has existed
-in the codebase for a while but had no written documentation until now.
+module, not something specific to news or commerce).
 
 ## Default: single-tenant
 
@@ -84,9 +83,9 @@ tenant id; always run it with `--dry-run` first.
 
 ## Platform Orchestrator & Resource Governor
 
-> The orchestrator REST endpoints, onboarding and billing described below belong to the hosted platform overlay (`cmd/hydro/cloud_stubs.go` answers 404 without the `hydrocloud` build tag). The resource governor, tenant lifecycle checks and tenant-scoped storage live in core.
+> **Hosted Overlay Note:** The REST endpoints for orchestrator provisioning, onboarding, billing, and the AI copilot described below belong to the optional hosted platform overlay (built with `-tags hydrocloud`). In standard open-core builds, `cmd/hydro/cloud_stubs.go` returns `404` for those routes, while the underlying resource governor, tenant lifecycle checks, and tenant-scoped storage live in core.
 
-In addition to static `hosts` configuration and CLI provisioning, HydroGo includes a built-in **Platform Orchestrator** and **Resource Governor** (see [ADR 0029](decisions/0029-platform-orchestrator-and-resource-governor.md)):
+When built with the hosted platform overlay (see [ADR 0029](decisions/0029-platform-orchestrator-and-resource-governor.md)):
 
 - **Zero-Restart Provisioning & Domain Routing**: Workspaces provisioned via `POST /api/v1/admin/orchestrator/tenants` immediately register their `subdomain` and `custom_domain` in `HostResolver` and synchronize collection schemas without restarting the server.
 - **Lifecycle & Subscription Auto-Degradation**: Each workspace has a `lifecycle_state` (`provisioning`, `active`, `readonly`, `suspended`, `archived`) and optional `trial_ends_at` / `subscription_ends_at` timestamps. When a trial or subscription expires, the workspace automatically degrades to `readonly` mode: public `GET`/`HEAD` requests continue serving the storefront while mutating requests return `402 Payment Required`.
