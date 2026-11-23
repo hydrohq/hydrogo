@@ -1,14 +1,14 @@
 id: boutique_categories
-label: Butik Kategorileri
-description: Vitrin üst menüsü ve koleksiyon kategorileri.
-group: Mağaza Yönetimi
+label: Boutique Categories
+description: Storefront top menu and collection categories.
+group: Store Management
 icon: folder
 title_field: name
 public: true
 revisions: true
 fields:
-  - {id: name, label: Kategori Adı, kind: text, required: true, list: true, searchable: true}
-  - {id: slug, label: URL Kodu (Slug), kind: text, required: true, unique: true, list: true, filterable: true}
-  - {id: cover_image, label: Kategori Görseli, kind: media, list: true}
-  - {id: sort_order, label: Sıralama, kind: number, list: true}
-  - {id: featured, label: Vitrinde Öne Çıkar, kind: boolean, list: true, filterable: true}
+  - {id: name, label: Category Name, kind: text, required: true, list: true, searchable: true}
+  - {id: slug, label: URL Slug, kind: text, required: true, unique: true, list: true, filterable: true}
+  - {id: cover_image, label: Category Image, kind: media, list: true}
+  - {id: sort_order, label: Sort Order, kind: number, list: true}
+  - {id: featured, label: Feature on Storefront, kind: boolean, list: true, filterable: true}

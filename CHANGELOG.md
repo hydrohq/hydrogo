@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Demo content and preset schemas are English:** the boutique, corporate, news, portfolio, restaurant and SaaS blueprints, their seeded sample records, the `content-types/boutique|restaurant|saas` presets and `internal/blueprints/instructions/editorial.json` no longer ship Turkish labels and copy, real brand names or a real street address. Status values changed from Turkish slugs to English (`yeni` -> `new`, `onaylandi` -> `confirmed`, `kargolandi` -> `shipped`, `teslim_edildi` -> `delivered`, `iptal` -> `cancelled`, `bekliyor` -> `pending`, `tamamlandi` -> `completed`, and the CRM-style `gorusuluyor`, `teklif_verildi`, `cevaplandi`, `anlasildi`, `arsiv`). Projects scaffolded earlier keep their own copy of the YAML and are unaffected. `hydro seed --locale tr` still ships Turkish demo content.
+
 ## [0.5.1] - 2026-11-22
 
 - **Security: Direct/quarantine upload validation & tenant isolation:** Enforced `AllowedMimeTypes`, `MaxBytes`, filename checks, magic-byte content verification (`http.DetectContentType` + `ValidateMagicBytes`), SVG sanitization, and strict `tenants/<tenantID>/quarantine/...` prefix checks on presigned/direct uploads (`internal/media`).

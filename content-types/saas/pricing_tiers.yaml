@@ -1,17 +1,17 @@
 id: pricing_tiers
-label: Fiyatlandırma Paketleri
-description: Aylık ve yıllık abonelik planları, özellik listeleri.
-group: SaaS Yönetimi
+label: Pricing Plans
+description: Monthly and yearly subscription plans with feature lists.
+group: SaaS Management
 icon: credit-card
 title_field: name
 public: true
 revisions: true
 fields:
-  - {id: name, label: Plan Adı, kind: text, required: true, list: true, searchable: true}
-  - {id: price_monthly, label: Aylık Ücret, kind: number, required: true, list: true}
-  - {id: price_annual, label: Yıllık Ücret, kind: number, required: true, list: true}
-  - {id: description, label: Plan Açıklaması, kind: text}
-  - {id: features_list, label: Dahil Olan Özellikler, kind: textarea, required: true}
-  - {id: is_highlighted, label: Öne Çıkarılan Plan, kind: boolean, list: true, filterable: true}
-  - {id: button_label, label: Buton Metni, kind: text}
-  - {id: button_link, label: Buton Linki, kind: text}
+  - {id: name, label: Plan Name, kind: text, required: true, list: true, searchable: true}
+  - {id: price_monthly, label: Monthly Price, kind: number, required: true, list: true}
+  - {id: price_annual, label: Yearly Price, kind: number, required: true, list: true}
+  - {id: description, label: Plan Description, kind: text}
+  - {id: features_list, label: Included Features, kind: textarea, required: true}
+  - {id: is_highlighted, label: Featured Plan, kind: boolean, list: true, filterable: true}
+  - {id: button_label, label: Button Text, kind: text}
+  - {id: button_link, label: Button Link, kind: text}

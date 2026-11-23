@@ -1,17 +1,17 @@
 id: reservations
-label: Masa Rezervasyonları
-description: Web sitesinden gelen online rezervasyon talepleri.
-group: Rezervasyonlar
+label: Table Reservations
+description: Online reservation requests from the website.
+group: Reservations
 icon: calendar
 title_field: guest_name
 public: false
 revisions: true
 fields:
-  - {id: guest_name, label: Misafir Ad Soyad, kind: text, required: true, list: true, searchable: true}
-  - {id: phone, label: Telefon, kind: text, required: true, list: true, searchable: true}
-  - {id: email, label: E-Posta, kind: text, list: true, searchable: true}
-  - {id: party_size, label: Kişi Sayısı, kind: number, required: true, list: true}
-  - {id: reservation_date, label: Tarih, kind: date, required: true, list: true, filterable: true}
-  - {id: reservation_time, label: Saat, kind: text, required: true, list: true}
-  - {id: special_requests, label: Özel İstek / Not, kind: textarea}
-  - {id: status, label: Durum, kind: select, options: [bekliyor, onaylandi, tamamlandi, iptal], list: true, filterable: true}
+  - {id: guest_name, label: Guest Full Name, kind: text, required: true, list: true, searchable: true}
+  - {id: phone, label: Phone, kind: text, required: true, list: true, searchable: true}
+  - {id: email, label: Email, kind: text, list: true, searchable: true}
+  - {id: party_size, label: Party Size, kind: number, required: true, list: true}
+  - {id: reservation_date, label: Date, kind: date, required: true, list: true, filterable: true}
+  - {id: reservation_time, label: Time, kind: text, required: true, list: true}
+  - {id: special_requests, label: Special Request / Note, kind: textarea}
+  - {id: status, label: Status, kind: select, options: [pending, confirmed, completed, cancelled], list: true, filterable: true}

@@ -1,22 +1,22 @@
 id: site_settings
-label: SaaS Ürün & Sayfa Ayarları
-description: Ürün başlıkları, CTA butonları, ana renkler ve iletişim.
-group: SaaS Yönetimi
+label: SaaS Product & Page Settings
+description: Product headlines, CTA buttons, primary colors and contact details.
+group: SaaS Management
 icon: cpu
 title_field: brand_name
 public: true
 singleton: true
 revisions: true
 fields:
-  - {id: brand_name, label: Ürün / SaaS Adı, kind: text, required: true, list: true}
-  - {id: tagline, label: Ürün Sloganı, kind: text, list: true}
-  - {id: primary_color, label: Ana Vurgu Rengi, kind: text}
-  - {id: bg_tone, label: Arka Plan Tonu, kind: text}
-  - {id: font_preset, label: Tipografi Paleti, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
-  - {id: contact_email, label: İletişim E-Postası, kind: text, list: true}
-  - {id: hero_badge, label: Hero Rozet, kind: text}
-  - {id: hero_title, label: Hero Başlık, kind: text}
-  - {id: hero_subtitle, label: Hero Alt Metin, kind: textarea}
-  - {id: cta_label, label: Ana CTA Buton Metni, kind: text}
-  - {id: cta_link, label: Ana CTA Bağlantısı, kind: text}
-  - {id: hero_image, label: Hero Dashboard Görseli, kind: media}
+  - {id: brand_name, label: Product / SaaS Name, kind: text, required: true, list: true}
+  - {id: tagline, label: Product Tagline, kind: text, list: true}
+  - {id: primary_color, label: Primary Accent Color, kind: text}
+  - {id: bg_tone, label: Background Tone, kind: text}
+  - {id: font_preset, label: Typography Palette, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
+  - {id: contact_email, label: Contact Email, kind: text, list: true}
+  - {id: hero_badge, label: Hero Badge, kind: text}
+  - {id: hero_title, label: Hero Title, kind: text}
+  - {id: hero_subtitle, label: Hero Subtext, kind: textarea}
+  - {id: cta_label, label: Primary CTA Button Text, kind: text}
+  - {id: cta_link, label: Primary CTA Link, kind: text}
+  - {id: hero_image, label: Hero Dashboard Image, kind: media}

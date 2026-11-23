@@ -58,14 +58,14 @@ func main() {
 	flag.StringVar(&opts.Dialect, "dialect", "sqlite", "Database dialect (sqlite, postgres, mysql)")
 	flag.StringVar(&opts.DSN, "dsn", "hydro.db", "Database DSN or SQLite file path")
 	flag.StringVar(&opts.TenantID, "tenant", "", "Unique workspace tenant ID (e.g. ipek-butik)")
-	flag.StringVar(&opts.DisplayName, "name", "", "Store display name (e.g. İpek Butik)")
+	flag.StringVar(&opts.DisplayName, "name", "", "Store display name (e.g. Silk Boutique)")
 	flag.StringVar(&opts.AdminEmail, "email", "", "Store owner admin email")
 	flag.StringVar(&opts.AdminPassword, "password", "", "Optional initial admin password (auto-generated if empty)")
 	flag.StringVar(&opts.Subdomain, "subdomain", "", "Platform subdomain (defaults to <tenant>.butik.local)")
 	flag.StringVar(&opts.CustomDomain, "domain", "", "Optional custom domain (e.g. www.ipekbutik.com)")
 	flag.StringVar(&opts.Plan, "plan", "pro", "Subscription plan preset (starter, pro, vip)")
-	flag.StringVar(&opts.OwnerPhone, "phone", "+905550000000", "WhatsApp order & owner phone (+905...)")
-	flag.StringVar(&opts.Prompt, "prompt", "Kadın ipek gömlek ve keten takım satan zarif bir butik", "Natural language store description for theme and catalog seeding")
+	flag.StringVar(&opts.OwnerPhone, "phone", "+905550000000", "WhatsApp order & owner phone (+90...)")
+	flag.StringVar(&opts.Prompt, "prompt", "An elegant boutique selling women's silk shirts and linen suits", "Natural language store description for theme and catalog seeding")
 	flag.StringVar(&opts.ContentTypesDir, "content-types-dir", "content-types/boutique", "Path to boutique content-type YAML schemas")
 	flag.IntVar(&opts.TrialDays, "trial-days", 14, "Trial period in days")
 	flag.Parse()
@@ -271,10 +271,10 @@ func buildBoutiqueCatalogFromPrompt(prompt, displayName, phone string) (string, 
 
 	settings := map[string]any{
 		"store_name":              displayName,
-		"slogan":                  "Zamansız Zarafet & Seçkin Tasarımlar",
+		"slogan":                  "Timeless Elegance & Distinguished Designs",
 		"whatsapp_number":         phone,
 		"instagram_handle":        "@" + strings.ReplaceAll(strings.ToLower(displayName), " ", ""),
-		"announcement_bar":        "1500 TL ve Üzeri Siparişlerde Ücretsiz Kargo · WhatsApp İle Hızlı Sipariş",
+		"announcement_bar":        "Free Shipping on Orders Over 1500 TRY · Quick Order via WhatsApp",
 		"free_shipping_threshold": 1500.0,
 		"theme_preset":            themePreset,
 		"bg_primary_color":        bgColor,
@@ -282,25 +282,25 @@ func buildBoutiqueCatalogFromPrompt(prompt, displayName, phone string) (string, 
 		"accent_color":            accentColor,
 		"font_heading":            fontHeading,
 		"border_radius_style":     radiusStyle,
-		"hero_title":              displayName + " Yeni Sezon Koleksiyonu",
-		"hero_cta_text":           "Koleksiyonu Keşfet",
+		"hero_title":              displayName + " New Season Collection",
+		"hero_cta_text":           "Discover the Collection",
 	}
 
 	categories := []map[string]any{
 		{
-			"name":       "Yeni Sezon",
+			"name":       "New Season",
 			"slug":       "yeni-sezon",
 			"sort_order": 1.0,
 			"featured":   true,
 		},
 		{
-			"name":       "Üst Giyim & Gömlek",
+			"name":       "Tops & Shirts",
 			"slug":       "ust-giyim",
 			"sort_order": 2.0,
 			"featured":   true,
 		},
 		{
-			"name":       "Elbise & Takım",
+			"name":       "Dresses & Suits",
 			"slug":       "elbise-takim",
 			"sort_order": 3.0,
 			"featured":   true,
@@ -309,57 +309,57 @@ func buildBoutiqueCatalogFromPrompt(prompt, displayName, phone string) (string, 
 
 	products := []map[string]any{
 		{
-			"title":            "Saf İpek Kruvaze Gömlek",
+			"title":            "Pure Silk Double-Breasted Shirt",
 			"slug":             "saf-ipek-kruvaze-gomlek",
 			"sku":              "BTK-101",
 			"price":            1850.0,
 			"compare_at_price": 2200.0,
 			"sizes":            "S, M, L",
-			"colors":           "Ekru, Siyah, Çağla Yeşili",
+			"colors":           "Ecru, Black, Pistachio Green",
 			"stock_quantity":   14.0,
-			"badge":            "Yeni Sezon",
-			"fabric_care":      "%100 Saf İpek dokuma. Elde soğuk suda yıkama veya kuru temizleme önerilir.",
-			"description":      "Doğal dokusu ve dökümlü kesimiyle gün boyu zarafet sunan özel tasarım ipek gömlek.",
+			"badge":            "New Season",
+			"fabric_care":      "100% pure silk weave. Cold hand wash or dry clean recommended.",
+			"description":      "A signature silk shirt that offers all-day elegance with its natural texture and draped cut.",
 			"featured":         true,
 		},
 		{
-			"title":          "Yüksek Bel Keten Palazzo Pantolon",
+			"title":          "High-Waist Linen Palazzo Trousers",
 			"slug":           "yuksek-bel-keten-palazzo-pantolon",
 			"sku":            "BTK-102",
 			"price":          1490.0,
 			"sizes":          "S, M, L, XL",
-			"colors":         "Bej, Taş Rengi, Lacivert",
+			"colors":         "Beige, Stone, Navy",
 			"stock_quantity": 20.0,
-			"badge":          "Özel Tasarım",
-			"fabric_care":    "%100 Doğal Keten. 30 derecede hassas yıkama.",
-			"description":    "Nefes alan keten kumaşı ve rahat kalıbıyla yaz-bahar gardırobunuzun vazgeçilmez parçası.",
+			"badge":          "Signature Design",
+			"fabric_care":    "100% natural linen. Gentle wash at 30 degrees.",
+			"description":    "An essential piece of your spring-summer wardrobe with breathable linen fabric and a relaxed fit.",
 			"featured":       true,
 		},
 		{
-			"title":            "Saten Dokulu Midi Boy Abiye Elbise",
+			"title":            "Satin Midi Evening Dress",
 			"slug":             "saten-dokulu-midi-boy-abiye-elbise",
 			"sku":              "BTK-103",
 			"price":            2450.0,
 			"compare_at_price": 2950.0,
 			"sizes":            "S, M, L",
-			"colors":           "Şampanya, Zümrüt, Siyah",
+			"colors":           "Champagne, Emerald, Black",
 			"stock_quantity":   3.0,
-			"badge":            "Son 3 Ürün",
-			"fabric_care":      "Yalnızca kuru temizleme.",
-			"description":      "Özel davetler için tasarlanmış, zarif sırt detaylı midi boy saten elbise.",
+			"badge":            "Last 3 Items",
+			"fabric_care":      "Dry clean only.",
+			"description":      "An elegant satin midi dress with back detail, designed for special invitations.",
 			"featured":         true,
 		},
 		{
-			"title":          "İtalyan Kesim Keten Blazer Ceket",
+			"title":          "Italian-Cut Linen Blazer",
 			"slug":           "italyan-kesim-keten-blazer-ceket",
 			"sku":            "BTK-104",
 			"price":          2190.0,
 			"sizes":          "S, M, L",
-			"colors":         "Krem, Kahve",
+			"colors":         "Cream, Brown",
 			"stock_quantity": 9.0,
-			"badge":          "Yeni Sezon",
-			"fabric_care":    "%85 Keten, %15 Pamuk astar.",
-			"description":    "Hem günlük şıklıkta hem ofis kombinlerinde kullanabileceğiniz zamansız keten blazer.",
+			"badge":          "New Season",
+			"fabric_care":    "85% linen, 15% cotton lining.",
+			"description":    "A timeless linen blazer that works for both everyday elegance and office outfits.",
 			"featured":       false,
 		},
 	}

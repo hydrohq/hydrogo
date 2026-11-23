@@ -1,13 +1,13 @@
 id: faqs
-label: Sıkça Sorulan Sorular
-description: Fiyatlandırma, teknik destek ve entegrasyon soruları.
-group: SaaS Yönetimi
+label: Frequently Asked Questions
+description: Pricing, technical support and integration questions.
+group: SaaS Management
 icon: help-circle
 title_field: question
 public: true
 revisions: true
 fields:
-  - {id: question, label: Soru, kind: text, required: true, list: true, searchable: true}
-  - {id: answer, label: Cevap, kind: textarea, required: true, searchable: true}
-  - {id: category, label: Kategori, kind: select, options: [Genel, Teknik, Fiyatlandırma, Güvenlik], list: true, filterable: true}
-  - {id: sort_order, label: Sıralama, kind: number, list: true}
+  - {id: question, label: Question, kind: text, required: true, list: true, searchable: true}
+  - {id: answer, label: Answer, kind: textarea, required: true, searchable: true}
+  - {id: category, label: Category, kind: select, options: [Genel, Technical, Pricing, Security], list: true, filterable: true}
+  - {id: sort_order, label: Sort Order, kind: number, list: true}

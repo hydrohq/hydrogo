@@ -1,18 +1,18 @@
 id: menu_items
-label: Menü Kalemleri (Yiyecek & İçecek)
-description: Yemekler, fiyatlar, içerikler ve alerjen bilgileri.
-group: Menü Yönetimi
+label: Menu Items (Food & Drink)
+description: Dishes, prices, ingredients and allergen information.
+group: Menu Management
 icon: coffee
 title_field: name
 public: true
 revisions: true
 fields:
-  - {id: name, label: Yemek / İçecek Adı, kind: text, required: true, list: true, searchable: true}
-  - {id: category_slug, label: Kategori, kind: relation, to: menu_categories, required: true, list: true, filterable: true}
-  - {id: price, label: Fiyat (TL), kind: number, decimals: 2, min: 0, required: true, list: true}
-  - {id: description, label: İçerik & Sunum Açıklaması, kind: textarea, list: true, searchable: true}
-  - {id: image_url, label: Görsel, kind: media, list: true}
-  - {id: is_chef_special, label: Şefin İmzası, kind: boolean, list: true, filterable: true}
-  - {id: is_vegetarian, label: Vejetaryen, kind: boolean, list: true, filterable: true}
-  - {id: is_gluten_free, label: Glutensiz, kind: boolean, list: true, filterable: true}
-  - {id: is_available, label: Serviste Mevcut, kind: boolean, list: true, filterable: true}
+  - {id: name, label: Dish / Drink Name, kind: text, required: true, list: true, searchable: true}
+  - {id: category_slug, label: Category, kind: relation, to: menu_categories, required: true, list: true, filterable: true}
+  - {id: price, label: Price (TRY), kind: number, decimals: 2, min: 0, required: true, list: true}
+  - {id: description, label: Ingredients & Presentation Description, kind: textarea, list: true, searchable: true}
+  - {id: image_url, label: Image, kind: media, list: true}
+  - {id: is_chef_special, label: Chef's Signature, kind: boolean, list: true, filterable: true}
+  - {id: is_vegetarian, label: Vegetarian, kind: boolean, list: true, filterable: true}
+  - {id: is_gluten_free, label: Gluten-Free, kind: boolean, list: true, filterable: true}
+  - {id: is_available, label: Available for Service, kind: boolean, list: true, filterable: true}

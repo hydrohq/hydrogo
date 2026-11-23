@@ -1,23 +1,23 @@
 id: site_settings
-label: Restoran & Menü Ayarları
-description: Mekan bilgileri, çalışma saatleri, konum ve tema renkleri.
-group: Restoran Yönetimi
+label: Restaurant & Menu Settings
+description: Venue details, opening hours, location and theme colors.
+group: Restaurant Management
 icon: utensils
 title_field: brand_name
 public: true
 singleton: true
 revisions: true
 fields:
-  - {id: brand_name, label: Restoran / Kafe Adı, kind: text, required: true, list: true}
-  - {id: tagline, label: Slogan / Konsept, kind: text, list: true}
-  - {id: primary_color, label: Ana Vurgu Rengi, kind: text}
-  - {id: bg_tone, label: Arka Plan Tonu, kind: text}
-  - {id: font_preset, label: Tipografi Paleti, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
-  - {id: phone, label: Telefon Numarası, kind: text, list: true}
-  - {id: whatsapp_number, label: WhatsApp Hattı, kind: text, list: true}
-  - {id: address, label: Adres / Konum, kind: text}
-  - {id: opening_hours, label: Çalışma Saatleri, kind: text}
-  - {id: hero_badge, label: Hero Rozet, kind: text}
-  - {id: hero_title, label: Hero Başlık, kind: text}
-  - {id: hero_subtitle, label: Hero Alt Metin, kind: textarea}
-  - {id: hero_image, label: Hero Görseli, kind: media}
+  - {id: brand_name, label: Restaurant / Cafe Name, kind: text, required: true, list: true}
+  - {id: tagline, label: Tagline / Concept, kind: text, list: true}
+  - {id: primary_color, label: Primary Accent Color, kind: text}
+  - {id: bg_tone, label: Background Tone, kind: text}
+  - {id: font_preset, label: Typography Palette, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
+  - {id: phone, label: Phone Number, kind: text, list: true}
+  - {id: whatsapp_number, label: WhatsApp Line, kind: text, list: true}
+  - {id: address, label: Address / Location, kind: text}
+  - {id: opening_hours, label: Opening Hours, kind: text}
+  - {id: hero_badge, label: Hero Badge, kind: text}
+  - {id: hero_title, label: Hero Title, kind: text}
+  - {id: hero_subtitle, label: Hero Subtext, kind: textarea}
+  - {id: hero_image, label: Hero Image, kind: media}

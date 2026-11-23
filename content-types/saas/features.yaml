@@ -1,15 +1,15 @@
 id: features
-label: Ürün Özellikleri
-description: Platformun sunduğu temel özellikler ve modüller.
-group: SaaS Yönetimi
+label: Product Features
+description: Core features and modules the platform offers.
+group: SaaS Management
 icon: zap
 title_field: title
 public: true
 revisions: true
 fields:
-  - {id: title, label: Özellik Başlığı, kind: text, required: true, list: true, searchable: true}
-  - {id: badge, label: Rozet / Kategori, kind: text, list: true, filterable: true}
-  - {id: description, label: Açıklama, kind: textarea, required: true, list: true, searchable: true}
-  - {id: icon, label: İkon, kind: text}
-  - {id: image_url, label: Görsel, kind: media, list: true}
-  - {id: sort_order, label: Sıralama, kind: number, list: true}
+  - {id: title, label: Feature Title, kind: text, required: true, list: true, searchable: true}
+  - {id: badge, label: Badge / Category, kind: text, list: true, filterable: true}
+  - {id: description, label: Description, kind: textarea, required: true, list: true, searchable: true}
+  - {id: icon, label: Icon, kind: text}
+  - {id: image_url, label: Image, kind: media, list: true}
+  - {id: sort_order, label: Sort Order, kind: number, list: true}

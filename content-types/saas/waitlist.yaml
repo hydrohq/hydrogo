@@ -1,13 +1,13 @@
 id: waitlist
-label: Erken Erişim Bekleme Listesi
-description: Lansman öncesi veya ücretsiz deneme için kayıt bırakanlar.
-group: Leads & Büyüme
+label: Early Access Waitlist
+description: People who signed up before launch or for a free trial.
+group: Leads & Growth
 icon: user-plus
 title_field: email
 public: false
 revisions: true
 fields:
-  - {id: email, label: E-Posta Adresi, kind: text, required: true, list: true, searchable: true}
-  - {id: full_name, label: Ad Soyad, kind: text, list: true, searchable: true}
-  - {id: company_name, label: Şirket Adı, kind: text, list: true, searchable: true}
-  - {id: use_case, label: Kullanım Amacı, kind: textarea}
+  - {id: email, label: Email Address, kind: text, required: true, list: true, searchable: true}
+  - {id: full_name, label: Full Name, kind: text, list: true, searchable: true}
+  - {id: company_name, label: Company Name, kind: text, list: true, searchable: true}
+  - {id: use_case, label: Use Case, kind: textarea}

@@ -1,141 +1,141 @@
 {
   "ceramic": {
-    "hero_badge": "2026 GÜZ KOLEKSİYONU · EL TORNASI ATÖLYE SERİSİ",
-    "hero_title": "Topraktan Sofraya, Sabırla Şekillenen Formlar",
-    "hero_subtitle": "Doğal killer ve kurşunsuz sırlarla atölyemizde tek tek el tornasında çekilen, 1240 derecede pişirilmiş zamansız stoneware parçalar.",
+    "hero_badge": "2026 AUTUMN COLLECTION · HAND-THROWN STUDIO SERIES",
+    "hero_title": "From Earth to Table: Forms Shaped with Patience",
+    "hero_subtitle": "Timeless stoneware pieces hand-thrown one by one in our studio from natural clays and lead-free glazes, fired at 1240 degrees.",
     "hero_image": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=1200&q=80",
-    "story_badge": "ZANAAT VE SABIR",
-    "story_title": "Çamurun 14 Günlük Dönüşüm Hikayesi",
-    "story_text": "Atölyemizde hiçbir nesne seri üretimin aceleciliğiyle üretilmez. Doğal çamurun el tornasında çekilmesi, yavaşça kuruması, 950 derecede ilk bisküvi fırınlaması, doğal mineral sırlarla elde sırlanması ve son olarak 1240 derecelik nihai fırın yolculuğu... Masanıza gelen her tabak ve kupa, iki haftalık sabırlı bir zanaat emeğini barındırır.",
-    "story_quote": "Kusursuz simetri yerine, doğallığın ve ustanın el izinin sıcaklığına inanıyoruz.",
+    "story_badge": "CRAFT AND PATIENCE",
+    "story_title": "The 14-Day Transformation of Clay",
+    "story_text": "Nothing in our studio is made in the rush of mass production. Natural clay is thrown by hand, dried slowly, bisque-fired at 950 degrees, hand-glazed with natural mineral glazes and finally taken through a 1240-degree firing. Every plate and mug that reaches your table carries two weeks of patient craftsmanship.",
+    "story_quote": "Instead of perfect symmetry, we believe in the warmth of natural character and the maker's hand.",
     "story_image": "https://images.unsplash.com/photo-1576020799627-aeac76d580dc?auto=format&fit=crop&w=1000&q=80",
-    "pillars_title": "Atölye Sözümüz & Zanaat İlkelerimiz",
+    "pillars_title": "Our Studio Promise & Craft Principles",
     "pillars": [
       {
-        "title": "1240°C Stoneware Mukavemeti",
-        "desc": "Yüksek ısı fırınlaması sayesinde porselen sertliğinde, bulaşık makinesi ve fırına tam dayanıklı."
+        "title": "1240°C Stoneware Strength",
+        "desc": "High-temperature firing gives porcelain-like hardness, fully dishwasher and oven safe."
       },
       {
-        "title": "Kurşunsuz Doğal Sırlar",
-        "desc": "Gıda ile temasa %100 uygun, kimyasal içermeyen mineral bazlı doğal atölye sırları."
+        "title": "Lead-Free Natural Glazes",
+        "desc": "Mineral-based studio glazes that are 100% food safe and free of chemicals."
       },
       {
-        "title": "Kırılma Garantili Kargo",
-        "desc": "Özel mukavva ve petek kraft koruma ile kapınıza kadar sıfır hasar taahhüdü."
+        "title": "Breakage-Guaranteed Shipping",
+        "desc": "Custom cardboard and honeycomb kraft protection with a zero-damage promise to your door."
       }
     ],
     "testimonials": [
       {
-        "customer": "Zeynep S.",
-        "location": "Kadıköy, İstanbul",
-        "quote": "Kupaların ağırlığı, elde duruşu ve sırın mat dokusu olağanüstü. Sabah kahvesi ritüelim tamamen değişti.",
-        "item": "Rustik Stoneware Fincan"
+        "customer": "Emma S.",
+        "location": "Brooklyn, New York",
+        "quote": "The weight of the mugs, how they sit in the hand and the matte texture of the glaze are outstanding. My morning coffee ritual has completely changed.",
+        "item": "Rustic Stoneware Cup"
       },
       {
-        "customer": "Caner B.",
-        "location": "Alsancak, İzmir",
-        "quote": "Sofrada sunduğumuz her yemek tabaklarla birlikte bir sanat eserine dönüşüyor. Kesinlikle tavsiye ederim.",
-        "item": "Geniş Makarna Tabağı"
+        "customer": "Daniel B.",
+        "location": "Portland, Oregon",
+        "quote": "Every dish we serve becomes a work of art on these plates. Highly recommended.",
+        "item": "Wide Pasta Plate"
       }
     ],
     "faqs": [
       {
-        "question": "Ürünler bulaşık makinesinde yıkanabilir mi?",
-        "answer": "Evet. 1240°C yüksek ısı stoneware fırınlaması sayesinde tüm tabak ve kupalarımız bulaşık makinesinde güvenle yıkanabilir."
+        "question": "Can the products be washed in the dishwasher?",
+        "answer": "Yes. Thanks to the 1240°C high-temperature stoneware firing, all our plates and mugs can be safely washed in the dishwasher."
       },
       {
-        "question": "Kargo sırasında kırılma olursa ne yapıyorsunuz?",
-        "answer": "Kargo paketlerimizi darbeye dayanıklı özel petek ambalajlarla hazırlıyoruz. Olası bir hasarda fotoğraf göndermeniz yeterlidir; anında yenisini gönderiyoruz."
+        "question": "What do you do if something breaks during shipping?",
+        "answer": "We pack our parcels in shock-resistant honeycomb packaging. In case of damage, just send us a photo and we will ship a replacement right away."
       }
     ],
-    "atelier_address": "Caferağa Mah. Moda Cad. No:42/A Kadıköy / İstanbul",
-    "atelier_hours": "Salı - Cumartesi: 11:00 - 19:00",
+    "atelier_address": "24 Potters Lane, Studio 3, Springfield",
+    "atelier_hours": "Tuesday - Saturday: 11:00 - 19:00",
     "instagram": "@veraceramics"
   },
   "leather": {
-    "hero_badge": "GELENEKSEL SARAÇ İŞÇİLİĞİ · SINIRLI ÜRETİM",
-    "hero_title": "Zamanla Güzelleşen, Nesilden Nesile Kalan Deri Eserler",
-    "hero_subtitle": "Bitkisel tabaklanmış İtalyan vaketa derilerinden, el dikişi mumlu iplerle tek tek üretilmiş ömürlük aksesuarlar.",
+    "hero_badge": "TRADITIONAL SADDLER CRAFT · LIMITED PRODUCTION",
+    "hero_title": "Leather Goods That Grow More Beautiful with Time and Last for Generations",
+    "hero_subtitle": "Lifelong accessories made one by one with hand-stitched waxed thread from vegetable-tanned Italian leather.",
     "hero_image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1200&q=80",
-    "story_badge": "MİRAS VE KALİTE",
-    "story_title": "Mumlu İpler ve Çift İğne El Dikişi",
-    "story_text": "Makineler dikişi hızlı bitirebilir ancak bir dikiş koptuğunda tamamı sökülür. Biz her deliği el keskisiyle açıyor, iki ayrı iğne ve mumlanmış keten iple birbirine kenetlenen geleneksel saraç dikişi uyguluyoruz. Derilerimiz kromla değil, meşe palamudu ve kestane kabuklarıyla tabaklanır; yıllar geçtikçe yaşayan, patine alan asil bir doku kazanır.",
-    "story_quote": "Hızlı tüketim dünyasında, eskidikçe değer kazanan zamansız parçalar üretiyoruz.",
+    "story_badge": "HERITAGE AND QUALITY",
+    "story_title": "Waxed Thread and Double-Needle Hand Stitching",
+    "story_text": "Machines can finish a seam quickly, but when one stitch breaks the whole seam unravels. We punch every hole with a hand chisel and use the traditional saddle stitch, locking two needles and waxed linen thread together. Our leathers are tanned with oak bark and chestnut shells rather than chrome, and over the years they develop a living, noble patina.",
+    "story_quote": "In a fast-consumption world, we make timeless pieces that gain value as they age.",
     "story_image": "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=1000&q=80",
-    "pillars_title": "Ustalık İlkelerimiz",
+    "pillars_title": "Our Principles of Craftsmanship",
     "pillars": [
       {
-        "title": "Geleneksel Saraç El Dikişi",
-        "desc": "Makinelerin asla taklit edemeyeceği mukavemette, çift iğneyle elde dikilen dikişler."
+        "title": "Traditional Saddle Hand Stitching",
+        "desc": "Seams hand-stitched with two needles, with a strength no machine can imitate."
       },
       {
-        "title": "Bitkisel Tabaklanmış Vaketa Deri",
-        "desc": "Zararlı kimyasallar içermeyen, doğal bitki özleriyle işlenmiş ve zamanla patine alan doğal deri."
+        "title": "Vegetable-Tanned Leather",
+        "desc": "Natural leather treated with plant extracts, free of harmful chemicals, that develops a patina over time."
       },
       {
-        "title": "Ömür Boyu Dikiş Garantisi",
-        "desc": "Atölyemizden çıkan her el yapımı deri üründe dikiş atmasına karşı ömür boyu ücretsiz onarım."
+        "title": "Lifetime Stitching Guarantee",
+        "desc": "Every handmade leather product from our workshop comes with free lifetime repair against stitch failure."
       }
     ],
     "testimonials": [
       {
-        "customer": "Murat K.",
-        "location": "Beşiktaş, İstanbul",
-        "quote": "Cüzdanı 6 aydır her gün kullanıyorum, rengi koyulaştıkça ve deri oturdukça güzelleşiyor. İşçilik muazzam.",
-        "item": "Minimalist Kartlık Cüzdan"
+        "customer": "Mark K.",
+        "location": "Camden, London",
+        "quote": "I have used the wallet every day for six months. It gets better as the color darkens and the leather settles. The craftsmanship is superb.",
+        "item": "Minimalist Cardholder Wallet"
       }
     ],
     "faqs": [
       {
-        "question": "Deri bakımı için ne önerirsiniz?",
-        "answer": "Yılda bir kez doğal balmumu veya renksiz doğal deri bakım kremi sürmeniz, derinin yumuşak kalması ve su iticiliği için yeterlidir."
+        "question": "How do you recommend caring for leather?",
+        "answer": "Applying natural beeswax or a colorless natural leather conditioner once a year is enough to keep the leather soft and water-repellent."
       }
     ],
-    "atelier_address": "Asmalı Mescit Mah. Meşrutiyet Cad. No:18 Beyoğlu / İstanbul",
-    "atelier_hours": "Pazartesi - Cumartesi: 10:30 - 19:30",
+    "atelier_address": "18 Tanners Row, Old Town, Springfield",
+    "atelier_hours": "Monday - Saturday: 10:30 - 19:30",
     "instagram": "@veraleather"
   },
   "default": {
-    "hero_badge": "BUTİK ATÖLYE SEÇKİSİ · ÖZEL SERİ",
-    "hero_title": "Zamansız Estetik ve Zarafet Dolu Yaşam Alanları",
-    "hero_subtitle": "Özenle seçilmiş materyaller ve seçkin zanaatkarlıkla hayat bulan özel butik tasarım ürünleri.",
+    "hero_badge": "BOUTIQUE STUDIO SELECTION · SPECIAL SERIES",
+    "hero_title": "Timeless Aesthetics and Elegant Living Spaces",
+    "hero_subtitle": "Special boutique design products brought to life with carefully chosen materials and distinguished craftsmanship.",
     "hero_image": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80",
-    "story_badge": "ÖZGÜN TASARIM",
-    "story_title": "Sadeliğin ve Özgün Detayların Gücü",
-    "story_text": "Koleksiyonumuzdaki her bir parça, modern yaşam alanlarına şıklık, sükunet ve karakter katmak amacıyla özenle tasarlanmıştır.",
-    "story_quote": "Gerçek lüks, ayrıntılarda saklanan zarafettir.",
+    "story_badge": "ORIGINAL DESIGN",
+    "story_title": "The Power of Simplicity and Original Details",
+    "story_text": "Every piece in our collection is carefully designed to add elegance, calm and character to modern living spaces.",
+    "story_quote": "True luxury is the elegance hidden in the details.",
     "story_image": "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=1000&q=80",
-    "pillars_title": "Hizmet ve Kalite Standartlarımız",
+    "pillars_title": "Our Service and Quality Standards",
     "pillars": [
       {
-        "title": "Kusursuz Paketleme",
-        "desc": "Tüm siparişleriniz özel hediye kutusunda ve koruyucu ambalajında hazırlanır."
+        "title": "Flawless Packaging",
+        "desc": "All your orders are prepared in a special gift box with protective packaging."
       },
       {
-        "title": "Hızlı WhatsApp Destek",
-        "desc": "Sipariş öncesi ve sonrası doğrudan atölye ekibimizle anında iletişim imkanı."
+        "title": "Fast WhatsApp Support",
+        "desc": "Instant contact with our studio team before and after your order."
       },
       {
-        "title": "Güvenli Teslimat",
-        "desc": "Tüm Türkiye'ye sigortalı ve kırılma garantili hızlı kargo gönderimi."
+        "title": "Secure Delivery",
+        "desc": "Fast, insured, breakage-guaranteed shipping nationwide."
       }
     ],
     "testimonials": [
       {
-        "customer": "Selin D.",
-        "location": "Çankaya, Ankara",
-        "quote": "Siparişim 2 günde ulaştı, paketleme o kadar zarifti ki açmaya kıyamadım. Ürünler fotoğraflardan çok daha güzel.",
-        "item": "Özel Tasarım Koleksiyon Parçası"
+        "customer": "Sophie D.",
+        "location": "Austin, Texas",
+        "quote": "My order arrived in 2 days and the packaging was so elegant I almost did not want to open it. The products are much better than in the photos.",
+        "item": "Signature Collection Piece"
       }
     ],
     "faqs": [
       {
-        "question": "Siparişler ne kadar sürede kargolanır?",
-        "answer": "Stokta bulunan ürünlerimiz 1-2 iş günü içerisinde özenle paketlenerek kargoya teslim edilmektedir."
+        "question": "How long does it take for orders to ship?",
+        "answer": "In-stock products are carefully packed and handed to the carrier within 1-2 business days."
       }
     ],
-    "atelier_address": "Nispetiye Cad. No:24 Etiler / Beşiktaş / İstanbul",
-    "atelier_hours": "Hafta içi: 10:00 - 18:30",
+    "atelier_address": "24 Main Street, Studio 5, Springfield",
+    "atelier_hours": "Weekdays: 10:00 - 18:30",
     "instagram": "@butikatelier"
   }
 }

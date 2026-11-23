@@ -1,29 +1,29 @@
 id: store_settings
-label: Mağaza ve Görünüm Ayarları
-description: Butik mağaza kimliği, renk paleti, tipografi ve hızlı sipariş ayarları.
-group: Mağaza Yönetimi
+label: Store and Appearance Settings
+description: Boutique store identity, color palette, typography and quick-order settings.
+group: Store Management
 icon: palette
 title_field: store_name
 public: true
 revisions: true
 singleton: true
 fields:
-  - {id: store_name, label: Mağaza Adı, kind: text, required: true, list: true}
-  - {id: slogan, label: Slogan / Alt Başlık, kind: text, list: true}
-  - {id: logo, label: Mağaza Logosu, kind: media}
-  - {id: whatsapp_number, label: WhatsApp Sipariş Hattı (+905...), kind: text, required: true, list: true}
-  - {id: instagram_handle, label: Instagram Kullanıcı Adı, kind: text}
-  - {id: announcement_bar, label: Üst Duyuru Bandı (Kargo / İndirim), kind: text}
-  - {id: layout_mode, label: Vitrin Sayfa Mimarisi, kind: select, options: [hybrid, single_page, multipage]}
-  - {id: font_preset, label: Tipografi & Yazı Tipi Paleti, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
-  - {id: free_shipping_threshold, label: Ücretsiz Kargo Alt Limiti (TL), kind: number, min: 0}
-  - {id: theme_preset, label: Tasarım Şablonu, kind: select, options: [minimal_cream, noir_gold, pastel_blush, emerald_silk], filterable: true}
-  - {id: bg_primary_color, label: Arka Plan Rengi (Hex), kind: text}
-  - {id: text_primary_color, label: Ana Metin Rengi (Hex), kind: text}
-  - {id: accent_color, label: Vurgu / Buton Rengi (Hex), kind: text}
-  - {id: font_heading, label: Başlık Yazı Tipi, kind: select, options: [Cormorant Garamond, Playfair Display, Bodoni Moda, Plus Jakarta Sans]}
-  - {id: border_radius_style, label: Köşe Yuvarlaklığı, kind: select, options: [sharp, soft, pill]}
-  - {id: hero_banner_image, label: Ana Vitrin Görseli, kind: media}
-  - {id: hero_title, label: Vitrin Başlığı, kind: text}
-  - {id: hero_cta_text, label: Vitrin Buton Yazısı, kind: text}
-  - {id: layout_json, label: Özel Bölüm Düzeni (JSON), kind: textarea}
+  - {id: store_name, label: Store Name, kind: text, required: true, list: true}
+  - {id: slogan, label: Slogan / Subtitle, kind: text, list: true}
+  - {id: logo, label: Store Logo, kind: media}
+  - {id: whatsapp_number, label: WhatsApp Order Line (+90...), kind: text, required: true, list: true}
+  - {id: instagram_handle, label: Instagram Handle, kind: text}
+  - {id: announcement_bar, label: Top Announcement Bar (Shipping / Sale), kind: text}
+  - {id: layout_mode, label: Storefront Page Layout, kind: select, options: [hybrid, single_page, multipage]}
+  - {id: font_preset, label: Typography & Font Palette, kind: select, options: [v0_geist, editorial_playfair, artisan_garamond, monumental_cinzel, avantgarde_syne, modern_grotesk]}
+  - {id: free_shipping_threshold, label: Free Shipping Threshold (TRY), kind: number, min: 0}
+  - {id: theme_preset, label: Design Template, kind: select, options: [minimal_cream, noir_gold, pastel_blush, emerald_silk], filterable: true}
+  - {id: bg_primary_color, label: Background Color (Hex), kind: text}
+  - {id: text_primary_color, label: Primary Text Color (Hex), kind: text}
+  - {id: accent_color, label: Accent / Button Color (Hex), kind: text}
+  - {id: font_heading, label: Heading Font, kind: select, options: [Cormorant Garamond, Playfair Display, Bodoni Moda, Plus Jakarta Sans]}
+  - {id: border_radius_style, label: Corner Roundness, kind: select, options: [sharp, soft, pill]}
+  - {id: hero_banner_image, label: Main Storefront Image, kind: media}
+  - {id: hero_title, label: Storefront Title, kind: text}
+  - {id: hero_cta_text, label: Storefront Button Text, kind: text}
+  - {id: layout_json, label: Custom Section Layout (JSON), kind: textarea}
