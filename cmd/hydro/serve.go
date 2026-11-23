@@ -110,7 +110,7 @@ func serve(args []string, stderr io.Writer) (serveErr error) {
 		if err := app.close(); err != nil {
 			app.logger.Warn("close before restart failed", "error", err)
 		}
-		if err := syscall.Exec(restartPath, os.Args, os.Environ()); err != nil { // #nosec G204 -- verified signed binary path
+		if err := syscall.Exec(restartPath, os.Args, os.Environ()); err != nil { // #nosec G204 G702 -- verified signed binary path
 			return fmt.Errorf("re-exec %s: %w", restartPath, err)
 		}
 	}

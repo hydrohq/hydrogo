@@ -53,7 +53,7 @@ Run it on SQLite with zero external dependencies, or connect to PostgreSQL or My
 - **Declarative YAML Content Modeling:** Define schemas in `content-types/*.yaml`. HydroGo automatically generates typed admin screens, REST CRUD endpoints, search filters, and real-time subscription streams.
 - **Model Context Protocol (MCP) Built-In:** First-class native MCP server (`hydro mcp`) allows AI agents (Cursor, Windsurf, Claude Desktop) to inspect schemas, query content, execute workflows, and verify cryptographic audit trails.
 - **Self-Healing Diagnostics (`hydro doctor`):** Automated health checks verify database schema integrity, SQLite WAL pragmas, content-type schemas, media permissions, and port availability with optional automatic repairs (`--fix`).
-- **High-Performance Read/Write Pipeline:** Zero-copy database row scanning, `singleflight` query deduplication, conditional `ETag` / `304 Not Modified` caching, and optimized SQLite pragmas delivering over 2,780 reads/sec with sub-10ms latency.
+- **High-Performance Read/Write Pipeline:** Zero-copy database row scanning, `singleflight` query deduplication, conditional `ETag` / `304 Not Modified` caching, and optimized SQLite pragmas. See [Performance Benchmarks](#performance-benchmarks) for measured throughput and memory.
 - **Zero Build on Publish:** Content edits and publications take effect immediately in the database and API. No static site generator rebuilds or deployment delays.
 - **Multi-Tenant Agency Isolation:** Opt-in multi-tenancy with fail-closed PostgreSQL Row-Level Security (RLS) and tenant-scoped connection pools.
 - **Unslop Design Standard:** Admin UI crafted with Quiet Chrome, Zinc tokens, strict 4px layout grids, and zero visual noise.
@@ -62,13 +62,29 @@ Run it on SQLite with zero external dependencies, or connect to PostgreSQL or My
 
 ## Performance Benchmarks
 
-Measured using `tools/bench` on a standard single-core commodity VPS running SQLite in WAL mode:
+Measured with `go run ./tools/bench` on one machine (Apple M4, 10 cores, 16 GB), SQLite in WAL mode, `profile: standard`. The tool first publishes 1,000 articles, so a read returns a real page (25 items, about 20 KB). Each scenario runs 10 seconds; the figures are the median of three runs on a fresh database, and the runs differed by under 8%. Every run had 0 errors.
 
-| Benchmark Scenario | Concurrency | Throughput | Latency (p50) | Latency (p95) | Error Rate |
-|---|---|---|---|---|---|
-| **Public Content Reads** (cached + ETag) | 50 workers | **2,783.1 req/s** | **9.66 ms** | 44.42 ms | 0.00% |
-| **Concurrent Record Writes** | 10 workers | **959.5 writes/s** | **7.85 ms** | 89.20 ms | 0.00% |
-| **Realtime SSE Broadcast** | 20 listeners | **100% delivered** | < 1.00 ms | < 2.50 ms | 0.00% |
+| Setup | Scenario | Clients | Throughput | p50 | p95 | p99 |
+|---|---|---|---|---|---|---|
+| All 10 cores, native | Public content reads | 30 | **5,080 req/s** | 5.3 ms | 11.8 ms | 15.6 ms |
+| | Record writes (authenticated) | 50 | **1,830 writes/s** | 24.3 ms | 55.9 ms | 74.8 ms |
+| One thread (`GOMAXPROCS=1`) | Public content reads | 30 | **2,480 req/s** | 5.0 ms | 6.7 ms | 415 ms |
+| | Record writes (authenticated) | 50 | **1,810 writes/s** | 2.6 ms | 5.0 ms | 1.3 s |
+| Linux arm64 container, 1 CPU, 512 MB | Public content reads | 30 | **1,815 req/s** | 10.1 ms | 53.2 ms | 62.5 ms |
+| | Record writes (authenticated) | 50 | **1,320 writes/s** | 34.7 ms | 71.0 ms | 91.5 ms |
+
+The container row is the closest to a small VPS: Docker Desktop on the same Mac, with the load generator on the host going through Docker's port forwarding, so it understates what a Linux host does. The single-thread row shares that thread between server and load generator; its p99 is dominated by pauses under contention, not steady-state latency. Realtime: 20 of 20 SSE streams opened, p95 about 1 ms to establish (the tool measures connection setup, not message fan-out).
+
+### Resource use
+
+| Measure | Value |
+|---|---|
+| Binary size (release flags, `CGO_ENABLED=0`) | 62.6 MB (linux/arm64), 63.8 MB (macOS arm64) |
+| Time from start to `/healthz` ready | about 90 ms (macOS, empty database, migrations applied) |
+| Memory at idle (RSS) | about 105 MB (Linux container with `standard`; macOS measured 104 to 105 MB for both `compact` and `standard`) |
+| Memory under load (RSS) | 95 to 107 MB in the 1 CPU container; up to about 190 MB natively with 30 to 50 concurrent clients |
+
+CPU use is not reported: the single-CPU rows already show the throughput one core delivers. Your numbers will depend on hardware, content size and disk. Run `go run ./tools/bench` to measure your own machine, or point it at a running server with `-target`, `-token` and `-host`.
 
 ---
 

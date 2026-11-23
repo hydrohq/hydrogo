@@ -5,12 +5,13 @@
 // Usage:
 //
 //	go run ./tools/bench
-//	go run ./tools/bench -target http://127.0.0.1:8090
+//	go run ./tools/bench -target http://127.0.0.1:8090 -token hyd_... -host 127.0.0.1:8090
 package main
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -53,12 +55,17 @@ fields:
 func main() {
 	targetURL := flag.String("target", "", "existing HydroGo server base URL (e.g. http://127.0.0.1:8090)")
 	duration := flag.Duration("duration", 3*time.Second, "benchmark scenario duration")
+	targetToken := flag.String("token", os.Getenv("HYDRO_BENCH_TOKEN"), "bearer token with admin.content.write for -target (service-account create)")
+	targetHost := flag.String("host", "", "Host header for -target when it differs from the URL host (http.public_origin)")
 	flag.Parse()
 
 	var cleanup func()
 	baseURL := *targetURL
-	var token string
+	token := *targetToken
 	hostHeader := "127.0.0.1"
+	if *targetHost != "" {
+		hostHeader = *targetHost
+	}
 
 	if baseURL == "" {
 		srvURL, srvToken, srvHost, srvCleanup, err := startEphemeralServer()
@@ -79,6 +86,17 @@ func main() {
 	fmt.Println("================================================================================")
 
 	var results []Result
+
+	// Reads against an empty collection would only measure the HTTP stack, so
+	// publish a realistic page of content first.
+	if token != "" {
+		if err := seedArticles(baseURL, hostHeader, token, seedCount); err != nil {
+			fmt.Fprintf(os.Stderr, "seed articles: %v\n", err)
+			os.Exit(1)
+		}
+		items, size := readSample(baseURL, hostHeader)
+		fmt.Printf(" Seeded %d published articles; one public read returns %d items, %d bytes\n", seedCount, items, size)
+	}
 
 	// Scenario A: Cached Public Reads
 	fmt.Println("==> Running Scenario A: High-Throughput Public Collection Reads...")
@@ -105,6 +123,67 @@ func main() {
 		}
 	}
 	fmt.Println("PASS: All performance & load benchmark gates satisfied.")
+}
+
+const seedCount = 1000
+
+// seedArticles publishes n articles with a paragraph of body text each.
+func seedArticles(baseURL, hostHeader, token string, n int) error {
+	body := strings.Repeat("HydroGo benchmark paragraph. ", 20)
+	client := &http.Client{Transport: &http.Transport{MaxIdleConnsPerHost: 8}, Timeout: 10 * time.Second}
+	var next atomic.Int64
+	var failed atomic.Int64
+	var wg sync.WaitGroup
+	for w := 0; w < 8; w++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for {
+				i := int(next.Add(1))
+				if i > n {
+					return
+				}
+				payload := fmt.Sprintf(`{"title":"Seed article %d","content":%q,"status":"published"}`, i, body)
+				req, _ := http.NewRequest("POST", baseURL+"/api/v1/admin/content/articles", bytes.NewBufferString(payload))
+				req.Host = hostHeader
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("Authorization", "Bearer "+token)
+				req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.2.%d.%d", worker+1, (i%200)+1))
+				resp, err := client.Do(req)
+				if err != nil {
+					failed.Add(1)
+					continue
+				}
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+					failed.Add(1)
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+	if f := failed.Load(); f > 0 {
+		return fmt.Errorf("%d of %d seed writes failed", f, n)
+	}
+	return nil
+}
+
+// readSample fetches the benchmarked public URL once and reports what a read returns.
+func readSample(baseURL, hostHeader string) (items, size int) {
+	req, _ := http.NewRequest("GET", baseURL+"/api/v1/content/articles", nil)
+	req.Host = hostHeader
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, 0
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	var parsed struct {
+		Data []json.RawMessage `json:"data"`
+	}
+	_ = json.Unmarshal(raw, &parsed)
+	return len(parsed.Data), len(raw)
 }
 
 func freePort() (int, error) {
@@ -159,6 +238,9 @@ content_types_dir: "content-types"
 security:
   secure_cookies: false
   enable_hsts: false
+  # The default per-IP limit (120/min) would turn this capacity benchmark into
+  # a rate-limit test; production keeps its own default.
+  public_content_rate_per_minute: 10000000
 `, port, host, filepath.Join(dataDir, "bench.sqlite"))
 
 	cfgPath := filepath.Join(tempDir, "config.yaml")
@@ -282,12 +364,12 @@ func benchPublicReads(baseURL, hostHeader string, concurrency int, duration time
 				t0 := time.Now()
 				resp, err := client.Do(req)
 				dur := time.Since(t0)
-				reqCancel()
 
 				if err != nil {
 					atomic.AddInt64(&errCount, 1)
 				} else if resp.StatusCode != http.StatusOK {
 					atomic.AddInt64(&errCount, 1)
+					_, _ = io.Copy(io.Discard, resp.Body) // keep the connection reusable
 					_ = resp.Body.Close()
 				} else {
 					_, _ = io.Copy(io.Discard, resp.Body)
@@ -295,6 +377,7 @@ func benchPublicReads(baseURL, hostHeader string, concurrency int, duration time
 					localLat = append(localLat, dur)
 					atomic.AddInt64(&totalReqs, 1)
 				}
+				reqCancel() // after the body is drained, or the connection is torn down
 			}
 			mu.Lock()
 			latencies = append(latencies, localLat...)
@@ -363,12 +446,12 @@ func benchConcurrentWrites(baseURL, hostHeader, token string, concurrency int, d
 				t0 := time.Now()
 				resp, err := client.Do(req)
 				dur := time.Since(t0)
-				reqCancel()
 
 				if err != nil {
 					atomic.AddInt64(&errCount, 1)
 				} else if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 					atomic.AddInt64(&errCount, 1)
+					_, _ = io.Copy(io.Discard, resp.Body) // keep the connection reusable
 					_ = resp.Body.Close()
 				} else {
 					_, _ = io.Copy(io.Discard, resp.Body)
@@ -376,6 +459,7 @@ func benchConcurrentWrites(baseURL, hostHeader, token string, concurrency int, d
 					localLat = append(localLat, dur)
 					atomic.AddInt64(&totalReqs, 1)
 				}
+				reqCancel() // after the body is drained, or the connection is torn down
 			}
 			mu.Lock()
 			latencies = append(latencies, localLat...)
@@ -390,7 +474,7 @@ func benchConcurrentWrites(baseURL, hostHeader, token string, concurrency int, d
 	rps := float64(totalReqs) / elapsed.Seconds()
 
 	return Result{
-		Scenario:    "Concurrent Writes (100 VUs)",
+		Scenario:    "Concurrent Writes (50 writers)",
 		Concurrency: concurrency,
 		TotalReqs:   totalReqs,
 		Duration:    elapsed,
