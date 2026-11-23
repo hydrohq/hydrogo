@@ -28,7 +28,7 @@ curl -fsSL https://github.com/hydrohq/hydrogo/releases/latest/download/install.s
 irm https://github.com/hydrohq/hydrogo/releases/latest/download/install.ps1 | iex
 ```
 
-**Docker:** `docker run -p 8080:8080 -e HYDRO_HTTP_ADDRESS=0.0.0.0:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest serve --config /app/config.yaml` (the image has no default command and listens on loopback unless `HYDRO_HTTP_ADDRESS` is set; see [deployment](deployment.md)).
+**Docker:** `docker run -p 8080:8080 -e HYDRO_HTTP_ADDRESS=0.0.0.0:8080 -v "$PWD/config.yaml:/app/config.yaml:ro" -v hydro-data:/app/data ghcr.io/hydrohq/hydrogo:latest serve --config /app/config.yaml` (the image has no default command and listens on loopback unless `HYDRO_HTTP_ADDRESS` is set; see [deployment](deployment.md)). To run without managing a server, see the managed platforms section of [deployment](deployment.md#managed-container-platforms-flyio-cloudflare-containers-render-railway) (Fly.io, Cloudflare Containers, Render, Railway).
 
 Check it: `hydro version`. Every download has a checksum in `SHA256SUMS`; the install scripts verify it.
 

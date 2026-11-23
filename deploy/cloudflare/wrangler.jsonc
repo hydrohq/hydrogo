@@ -1,0 +1,45 @@
+{
+	// HydroGo on Cloudflare Containers (Workers Paid plan, beta). Deploy from this
+	// directory: `npm install && npx wrangler deploy`. See docs/deployment.md.
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "hydro-site",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-11-23",
+
+	"containers": [
+		{
+			"class_name": "HydroContainer",
+			"scheduling_policy": "durable_object",
+			"images": {
+				"base": {
+					"dockerfile": "../paas/Dockerfile",
+					// the repository root, so the Dockerfile can COPY the whole tree
+					"build_context": "../.."
+				}
+			}
+		}
+	],
+	"durable_objects": {
+		"bindings": [{ "name": "SITE", "class_name": "HydroContainer" }]
+	},
+	"exports": {
+		"HydroContainer": { "type": "durable-object", "storage": "sqlite" }
+	},
+
+	// Non-secret settings. Secrets (HYDRO_ADMIN_PASSWORD, LITESTREAM_ACCESS_KEY_ID,
+	// LITESTREAM_SECRET_ACCESS_KEY, HYDRO_JWT_SECRET, RECOVER_SECRET, ...) go in with
+	// `npx wrangler secret put NAME`. Every HYDRO_*/LITESTREAM_* value is passed to the container.
+	"vars": {
+		"HYDRO_HTTP_PUBLIC_ORIGIN": "https://test.example.com",
+		"HYDRO_ADMIN_EMAIL": "admin@example.com",
+		// The container disk is ephemeral: replicate SQLite to R2 and keep media in R2.
+		"LITESTREAM_REPLICA_URL": "s3://hydro-site/db",
+		"LITESTREAM_ENDPOINT": "https://<ACCOUNT_ID>.r2.cloudflarestorage.com",
+		"LITESTREAM_REGION": "auto"
+	},
+
+	// Serve the site on your own domain (the zone must be on this Cloudflare account):
+	// "routes": [{ "pattern": "test.example.com", "custom_domain": true }],
+
+	"observability": { "enabled": true }
+}

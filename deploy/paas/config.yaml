@@ -1,0 +1,17 @@
+# Template rendered by deploy/paas/entrypoint.sh into /tmp/hydro-config.yaml.
+# Everything deployment-specific arrives as HYDRO_* environment variables
+# (public origin, database, media, SMTP, secrets); only the proxy list is
+# substituted here because it has no environment variable.
+profile: compact
+modules: [core, auth, members, pages, media, site, news, collections, analytics]
+http:
+  address: "0.0.0.0:8080"
+  public_origin: ""
+  # The platform's edge proxy terminates TLS and forwards X-Forwarded-For.
+  behind_proxy: true
+  trusted_proxies: __TRUSTED_PROXIES__
+database:
+  dialect: "sqlite"
+  dsn: ""
+media:
+  dir: "data/media"

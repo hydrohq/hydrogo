@@ -7,7 +7,7 @@
 | [content-types.md](content-types.md) | The YAML content type format and its public API |
 | [commerce.md](commerce.md) | The opt-in commerce module: endpoints, CLI, config |
 | [multi-tenancy.md](multi-tenancy.md) | Serving several customers from one shared database |
-| [deployment.md](deployment.md) | VPS, Docker, shared hosting, databases, backups |
+| [deployment.md](deployment.md) | VPS, Docker, managed platforms (Fly.io, Cloudflare Containers, Render, Railway), shared hosting, databases, backups |
 | [upgrading.md](upgrading.md) | Versioning policy, upgrade steps, how to cut a release |
 | [HEADLESS_API.md](HEADLESS_API.md) | The REST API |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Running, checking and generating code |

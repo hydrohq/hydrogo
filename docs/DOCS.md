@@ -190,4 +190,11 @@ go build -o bin/hydro ./cmd/hydro
 
 HydroGo supports both standard HTTP reverse-proxies (Nginx, Caddy, Cloudflare) and FastCGI (`--fastcgi`) environments.
 
+### Without running a server
+
+One Docker image (`deploy/paas/Dockerfile`) runs on Fly.io, Cloudflare Containers, Render and Railway, with SQLite
+(persistent volume, or replicated to S3/R2 with Litestream) or PostgreSQL. Config files for each platform live in
+`deploy/fly`, `deploy/cloudflare`, `deploy/render` and `deploy/railway`; see
+[deployment.md](deployment.md#managed-container-platforms-flyio-cloudflare-containers-render-railway).
+
 More: [getting-started.md](getting-started.md), [deployment.md](deployment.md), [upgrading.md](upgrading.md).
