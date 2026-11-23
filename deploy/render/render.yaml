@@ -1,0 +1,26 @@
+# HydroGo on Render: Blueprint. In the dashboard choose New > Blueprint, point it at
+# the repository and set "Blueprint file path" to deploy/render/render.yaml.
+# A persistent disk needs a paid instance type. See docs/deployment.md.
+services:
+  - type: web
+    name: hydro-site
+    runtime: docker
+    dockerfilePath: ./deploy/paas/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /healthz
+    disk:
+      name: hydro-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: HYDRO_ADMIN_EMAIL
+        value: admin@example.com
+      - key: HYDRO_ADMIN_PASSWORD
+        sync: false # asked for in the dashboard, never stored in git
+      # Set to the custom domain once attached; until then the Render URL is used.
+      # - key: HYDRO_HTTP_PUBLIC_ORIGIN
+      #   value: https://www.example.com

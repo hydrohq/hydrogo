@@ -35,6 +35,104 @@ Set `HYDRO_PUBLIC_ORIGIN` (or `http.public_origin`) to the address people use. H
 
 Set `HYDRO_SITE_URL` (or `http.site_url`) to the external frontend/website URL (e.g. `http://localhost:3000` during local development or `https://www.example.com` in production). The admin panel's "Live" link in the top bar uses this target. If omitted, it falls back to `http.public_origin`; if neither is configured, the button is hidden.
 
+## Managed container platforms (Fly.io, Cloudflare Containers, Render, Railway)
+
+For sites where you do not want to run a server: no OS patching, no firewall, no TLS to renew.
+All four use one image, [`deploy/paas/Dockerfile`](../deploy/paas/Dockerfile), built from the repository root.
+Its [entrypoint](../deploy/paas/entrypoint.sh) fixes volume permissions, generates the production secrets,
+restores the database from a replica when the disk is empty, runs `hydro migrate`, creates the first admin on a
+fresh database and starts the server. Configuration is environment variables only.
+
+| Platform | Config | Disk | Notes |
+|---|---|---|---|
+| Fly.io | [`deploy/fly/fly.toml`](../deploy/fly/fly.toml) | volume (persistent) | cheapest always-on option; machine stops when idle |
+| Cloudflare Containers | [`deploy/cloudflare/`](../deploy/cloudflare) | ephemeral | Workers Paid plan, beta. Needs Litestream + R2 |
+| Render | [`deploy/render/render.yaml`](../deploy/render/render.yaml) | disk (paid instances) | Blueprint, secrets asked in the dashboard |
+| Railway | [`deploy/railway/railway.json`](../deploy/railway/railway.json) | volume | add a volume at `/app/data` in the dashboard |
+
+Any other Docker host (Koyeb, Northflank, a VPS with Docker) works with the same image.
+
+### What fits where
+
+- **Content sites** (corporate, blog, news, docs, restaurant): the default. SQLite on a persistent volume, or SQLite
+  replicated to S3/R2 with Litestream when the disk is ephemeral. One app per site.
+- **Commerce and anything that moves money**: use PostgreSQL. Set `HYDRO_DATABASE_DIALECT=postgres` and
+  `HYDRO_DATABASE_DSN` (the entrypoint then skips SQLite and Litestream), and keep media in S3/R2. A volume lives on a
+  single host with only periodic snapshots, which is not enough for orders and payments.
+- **Many tenants on one deployment**: use `tenancy` with PostgreSQL (see [multi-tenancy](multi-tenancy.md)), not one
+  app per customer.
+- **Frontend**: HydroGo is headless. Host the storefront or site (SvelteKit, Astro) on Cloudflare Pages or any static/Node
+  host and point it at the API origin.
+
+### Environment
+
+| Variable | Purpose |
+|---|---|
+| `HYDRO_HTTP_PUBLIC_ORIGIN` | the site's canonical https origin. Falls back to the platform URL on Fly, Render and Railway |
+| `HYDRO_ADMIN_EMAIL`, `HYDRO_ADMIN_PASSWORD` | first admin, created only on a fresh SQLite database (or with `HYDRO_BOOTSTRAP_ADMIN=true`, which resets that user's password). Keep the password in the platform's secret store |
+| `HYDRO_JWT_SECRET`, `RECOVER_SECRET` | generated into the data directory when unset. Set them as secrets when the disk is ephemeral, otherwise every restart signs everyone out |
+| `LITESTREAM_REPLICA_URL` | `s3://bucket/path`. Replicates SQLite every second and restores it on boot. Also `LITESTREAM_ACCESS_KEY_ID`, `LITESTREAM_SECRET_ACCESS_KEY`, `LITESTREAM_ENDPOINT` (R2 or other S3-compatible), `LITESTREAM_REGION` |
+| `HYDRO_MEDIA_STORAGE_DRIVER=s3` | Litestream replicates the database only. On an ephemeral disk keep uploads in S3/R2 (`HYDRO_MEDIA_S3_BUCKET`, `_ENDPOINT`, `_REGION`, `_ACCESS_KEY`, `_SECRET_KEY`) |
+| `HYDRO_AUTO_MIGRATE` | `true` by default; set `false` to run `hydro migrate` yourself before each rollout |
+| `HYDRO_PAAS_TRUSTED_PROXIES` | CIDRs whose `X-Forwarded-For` is believed. Defaults to private address space, which is where platform proxies connect from |
+
+The server answers `421` to any `Host` other than the public origin. Attach a custom domain on the platform, then set
+`HYDRO_HTTP_PUBLIC_ORIGIN` to it; the platform's own hostname stops working. Health checks therefore use a TCP check
+(Fly) or the platform's own probe; the image's built-in `HEALTHCHECK` calls `127.0.0.1`, which is exempt.
+
+### Fly.io
+
+```bash
+cp deploy/fly/fly.toml fly.toml          # Fly builds from the directory holding fly.toml
+fly launch --no-deploy --copy-config --name my-site --region fra
+fly secrets set HYDRO_ADMIN_PASSWORD='...' HYDRO_HTTP_PUBLIC_ORIGIN=https://www.example.com
+fly deploy --ha=false                    # exactly one machine: SQLite has a single writer
+fly certs add www.example.com            # then a CNAME to my-site.fly.dev
+```
+
+The volume is snapshotted daily by Fly; `hydro backup sqlite` and `fly ssh console` cover manual backups. Set a spending
+alert in the Fly dashboard: usage above the included credit is billed.
+
+### Cloudflare Containers
+
+Needs the Workers Paid plan; Containers are in beta, so expect changes. The Worker in `deploy/cloudflare/src/index.ts` proxies
+every request to one container, passes every `HYDRO_*` and `LITESTREAM_*` variable and secret into it, and probes
+`/healthz` before forwarding.
+
+```bash
+cd deploy/cloudflare && npm install
+npx wrangler r2 bucket create my-site                   # database replica (and media if you use S3 mode)
+npx wrangler secret put HYDRO_ADMIN_PASSWORD
+npx wrangler secret put LITESTREAM_ACCESS_KEY_ID        # R2 API token, S3-compatible
+npx wrangler secret put LITESTREAM_SECRET_ACCESS_KEY
+npx wrangler secret put HYDRO_JWT_SECRET                # and RECOVER_SECRET, so sessions survive sleep
+npx wrangler deploy                                     # edit vars and routes in wrangler.jsonc first
+```
+
+The container sleeps after ten idle minutes and the next request waits for a cold start (a few seconds plus the
+Litestream restore). One Worker deployment (`name` in `wrangler.jsonc`) per site. The default `lite` instance has 256 MiB:
+set `CONTAINER_INSTANCE` to `basic` if the process is killed for memory.
+
+### Render and Railway
+
+Render: New > Blueprint, blueprint path `deploy/render/render.yaml`, fill in the admin password. Railway: create a service
+from the repository, set the config file to `deploy/railway/railway.json`, add a volume mounted at `/app/data`, then set
+`HYDRO_ADMIN_EMAIL` and `HYDRO_ADMIN_PASSWORD`.
+
+### Verified and not verified
+
+Tested locally: the image, the entrypoint (first boot, restart, production mode, Litestream restore onto a wiped disk) and
+the Cloudflare Worker (type check, `wrangler deploy --dry-run` including the image build).
+
+Tested live on **Fly.io**: deploy from a clean checkout, `/healthz` and the admin panel over HTTPS, HSTS, data surviving a
+machine restart, an idle machine waking on the first request (about 2 seconds), and a custom domain with
+`HYDRO_HTTP_PUBLIC_ORIGIN` switched to it.
+
+Not tested live: Cloudflare Containers, Render and Railway. Report what you hit.
+
+Point a custom domain at Fly with a **CNAME** to `<app>.fly.dev` rather than A/AAAA records: the IP addresses belong to the
+app and change if it is destroyed and recreated.
+
 ## Production Secret Validation
 
 Keep any payment gateway's payment time limit below the 30-minute stock

@@ -1,0 +1,14 @@
+{
+	"name": "hydro-site-cloudflare",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"types": "wrangler types",
+		"check": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20261123.0",
+		"typescript": "^5.6.0",
+		"wrangler": "^4.0.0"
+	}
+}
