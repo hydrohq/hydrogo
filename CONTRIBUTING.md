@@ -11,13 +11,17 @@ Thanks for helping. Short version: open an issue for anything bigger than a bug 
 - **New content types** are YAML only (`content-types/`); see [docs/content-types.md](docs/content-types.md). **New migrations** need all three dialects.
 - **Security issues:** do not open a public issue; see [docs/SECURITY.md](docs/SECURITY.md).
 
-## Developer Certificate of Origin
+## Contributor License Agreement
 
-Every commit must carry a `Signed-off-by` line (`git commit -s`) certifying the [Developer Certificate of Origin 1.1](https://developercertificate.org/): you wrote the change or have the right to submit it under this project's license.
+Before your first pull request is merged, sign the [Contributor License Agreement](CLA.md). The CLA bot comments on your pull request with the sentence to post; you sign once and it covers all your later contributions.
+
+You keep the copyright in your work. The CLA gives the licensor (Arda Özyıldırım) the right to distribute it under the repository's license and under other terms, including commercial ones. That keeps the open-core model working: the same code can ship in the source-available core and in hosted or commercial editions.
+
+Also add a `Signed-off-by` line to every commit (`git commit -s`), certifying the [Developer Certificate of Origin 1.1](https://developercertificate.org/).
 
 ## License of contributions
 
-By contributing you agree your work is licensed under the PolyForm Shield 1.0.0 license of this repository (see LICENSE).
+Contributions are distributed under the PolyForm Shield 1.0.0 license of this repository (see LICENSE) and are licensed to the licensor under the terms of [CLA.md](CLA.md).
 
 ## Conduct
 
