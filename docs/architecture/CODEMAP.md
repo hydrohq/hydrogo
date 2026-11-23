@@ -11,11 +11,11 @@ Read this first when you are new to the code or an AI assistant asked to change 
 |---|---:|---|
 | `cmd` | 1 | Binary entry points: CLI commands, server composition, HTTP routes and admin APIs. |
 | `extension` | 2 | Public extension SDK. |
-| `internal` | 88 | Cross-cutting capabilities: auth, database, outbox, jobs, mailer, audit, config and more. |
+| `internal` | 86 | Cross-cutting capabilities: auth, database, outbox, jobs, mailer, audit, config and more. |
 | `modules` | 17 | Feature modules: pages, news, members, site, seo, commerce. |
 | `other` | 2 |  |
 | `tests` | 3 | Contract and end-to-end tests. |
-| `tools` | 13 | Repository guards and developer tooling. |
+| `tools` | 12 | Repository guards and developer tooling. |
 
 ## How layers import each other
 
@@ -32,8 +32,8 @@ flowchart LR
   modules -->|3| extension
   modules -->|101| internal
   tests -->|6| internal
-  tools -->|11| internal
-  tools -->|2| other
+  tools -->|5| internal
+  tools -->|1| other
 ```
 
 ## Most imported packages
@@ -42,21 +42,21 @@ Changing one of these touches the most code.
 
 | Package | Imported by | Imports |
 |---|---:|---:|
-| `internal/database` | 52 | 3 |
-| `internal/tenant` | 42 | 0 |
-| `internal/auth` | 22 | 10 |
+| `internal/database` | 51 | 3 |
+| `internal/tenant` | 40 | 0 |
+| `internal/auth` | 21 | 10 |
 | `internal/security` | 16 | 3 |
 | `internal/guards` | 14 | 0 |
 | `internal/api` | 13 | 1 |
 | `internal/canonical` | 12 | 0 |
 | `internal/requestmeta` | 12 | 0 |
 | `internal/router` | 9 | 2 |
-| `internal/contenttypes` | 8 | 7 |
 | `internal/realtime` | 8 | 2 |
-| `internal/collections` | 7 | 2 |
 | `internal/pathguard` | 7 | 0 |
 | `extension/v1` | 6 | 2 |
 | `internal/audit` | 6 | 5 |
+| `internal/contenttypes` | 6 | 7 |
+| `internal/observability` | 6 | 2 |
 
 ## Packages that import the most
 
@@ -69,7 +69,7 @@ Usually composition code: the place to look when wiring changes.
 | `modules/site/transport` | 18 | 1 |
 | `modules/news` | 13 | 3 |
 | `modules/news/transport` | 12 | 1 |
-| `internal/auth` | 10 | 22 |
+| `internal/auth` | 10 | 21 |
 | `internal/server` | 10 | 1 |
 | `modules/members/transport` | 10 | 1 |
 | `internal/mcp` | 8 | 1 |
@@ -99,30 +99,29 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/adminstudio`: Package adminstudio provides the metadata boundary used by generated admin surfaces. (in 5, out 1)
 - `internal/adminstudio/sqlstore`: (no package comment) (in 2, out 3)
 - `internal/adminui`: (no package comment) (in 1, out 1)
-- `internal/ai`: Package ai contains the provider-neutral, opt-in content assistance boundary. (in 3, out 3)
-- `internal/ai/prompts`: (no package comment) (in 3, out 0)
+- `internal/ai`: Package ai contains the provider-neutral, opt-in content assistance boundary. (in 2, out 3)
+- `internal/ai/prompts`: (no package comment) (in 2, out 0)
 - `internal/analytics`: (no package comment) (in 3, out 6)
 - `internal/analytics/sqlstore`: Package sqlstore provides the optional, aggregate-only analytics store. (in 1, out 4)
 - `internal/api`: (no package comment) (in 13, out 1)
 - `internal/audit`: (no package comment) (in 6, out 5)
 - `internal/audit/sqlstore`: (no package comment) (in 3, out 4)
-- `internal/auth`: (no package comment) (in 22, out 10)
+- `internal/auth`: (no package comment) (in 21, out 10)
 - `internal/auth/sqlstore`: (no package comment) (in 3, out 3)
 - `internal/backup`: Package backup contains bounded, staging-first recovery primitives. (in 1, out 3)
-- `internal/blueprints`: (no package comment) (in 1, out 4)
-- `internal/blueprints/instructions`: (no package comment) (in 1, out 0)
+- `internal/blueprints`: (no package comment) (in 1, out 3)
 - `internal/cache`: (no package comment) (in 4, out 3)
 - `internal/canonical`: (no package comment) (in 12, out 0)
 - `internal/capacity`: Package capacity defines topology profiles and their bounded local budgets. (in 2, out 0)
-- `internal/collections`: Package collections stores user-defined collection schemas and records in bounded, pre-migrated tables. (in 7, out 2)
-- `internal/collections/sqlstore`: Package sqlstore persists dynamic collection metadata and JSON records in static, versioned tables. (in 2, out 3)
+- `internal/collections`: Package collections stores user-defined collection schemas and records in bounded, pre-migrated tables. (in 5, out 2)
+- `internal/collections/sqlstore`: Package sqlstore persists dynamic collection metadata and JSON records in static, versioned tables. (in 1, out 3)
 - `internal/config`: (no package comment) (in 2, out 5)
 - `internal/content`: (no package comment) (in 1, out 0)
-- `internal/contenttypes`: Package contenttypes turns YAML content-type definitions into the two runtime shapes HydroGo needs: a collections.Schema for storage and validation, and an a... (in 8, out 7)
+- `internal/contenttypes`: Package contenttypes turns YAML content-type definitions into the two runtime shapes HydroGo needs: a collections.Schema for storage and validation, and an a... (in 6, out 7)
 - `internal/contracts/customerorders`: Package customerorders defines the narrow order projection exposed to the member account surface. (in 2, out 1)
 - `internal/cron`: Package cron parses five-field cron expressions ("minute hour day month weekday") and answers whether a minute matches. (in 2, out 0)
 - `internal/customcode`: Package customcode validates and prepares operator-managed site integrations. (in 2, out 0)
-- `internal/database`: (no package comment) (in 52, out 3)
+- `internal/database`: (no package comment) (in 51, out 3)
 - `internal/database/baselinegen`: Package baselinegen builds and verifies the schema baseline (ADR 0009). (in 2, out 1)
 - `internal/erasure`: Package erasure stores durable, replayable deletion intents outside the application DB. (in 1, out 2)
 - `internal/eventcatalog`: Package eventcatalog defines the stable event names that may cross the HydroGo Core boundary through the durable outbox and signed webhook layer. (in 3, out 0)
@@ -167,13 +166,12 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/security/bffsession`: Package bffsession contains a bounded reference session adapter for a web BFF. (in 1, out 0)
 - `internal/security/sqlstore`: (no package comment) (in 1, out 2)
 - `internal/server`: (no package comment) (in 1, out 10)
-- `internal/sitegen`: (no package comment) (in 0, out 5)
 - `internal/storage`: Package storage contains bounded filesystem protection primitives. (in 2, out 0)
 - `internal/storage/sqlite`: (no package comment) (in 2, out 0)
 - `internal/storefront`: (no package comment) (in 1, out 1)
 - `internal/taxonomy`: Package taxonomy contains the provider-neutral taxonomy contract. (in 0, out 1)
 - `internal/telemetry`: Package telemetry contains dependency-light tracing primitives usable by low-level packages without importing HTTP/auth observability middleware. (in 1, out 0)
-- `internal/tenant`: Package tenant contains the opt-in tenant-scope primitives used by shared multi-tenant adapters. (in 42, out 0)
+- `internal/tenant`: Package tenant contains the opt-in tenant-scope primitives used by shared multi-tenant adapters. (in 40, out 0)
 - `internal/testgen`: Package testgen turns content-type definitions into Playwright specs that prove every admin role gets exactly the read/write access its declared permissions ... (in 1, out 1)
 - `internal/testhttp`: Package testhttp contains in-memory HTTP transports for tests that do not need to exercise socket behavior. (in 0, out 0)
 - `internal/testmysql`: Package testmysql creates isolated databases for opt-in MySQL integration contracts. (in 0, out 2)
@@ -208,7 +206,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 ### other
 
 - `content-types`: Package contenttypedata embeds the stock content type definitions so the hydro binary can scaffold new projects without the source tree. (in 1, out 0)
-- `migrations`: (no package comment) (in 4, out 0)
+- `migrations`: (no package comment) (in 3, out 0)
 
 ### tests
 
@@ -226,7 +224,6 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `tools/codeguard`: Command codeguard ratchets two code-shape rules for tracked Go sources: (in 0, out 0)
 - `tools/devserver`: Command devserver provides a local-only live development proxy for HydroGo. (in 0, out 1)
 - `tools/e2egen`: Command e2egen generates deterministic Playwright tests from explicit Admin Studio and frontend manifests. (in 0, out 0)
-- `tools/factory`: (no package comment) (in 0, out 7)
 - `tools/migrationguard`: (no package comment) (in 0, out 2)
 - `tools/moduleguard`: Command moduleguard enforces the declared direct dependency graph between HydroGo modules. (in 0, out 0)
 - `tools/openapidiff`: (no package comment) (in 0, out 0)

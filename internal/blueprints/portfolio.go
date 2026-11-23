@@ -1,13 +1,7 @@
 package blueprints
 
 import (
-	"context"
-	"fmt"
-	"strings"
-
-	"github.com/hydrohq/hydrogo/internal/collections"
 	"github.com/hydrohq/hydrogo/internal/contenttypes"
-	"github.com/hydrohq/hydrogo/internal/tenant"
 )
 
 // PortfolioDefinitions returns collections for a creative studio / architect / artist portfolio.
@@ -90,114 +84,4 @@ func PortfolioDefinitions() []contenttypes.Definition {
 			},
 		},
 	}
-}
-
-// GeneratePortfolioCatalog generates default portfolio data.
-func GeneratePortfolioCatalog(name, phone, prompt string) (map[string]any, []map[string]any, []map[string]any) {
-	brandName := strings.TrimSpace(name)
-	if brandName == "" {
-		brandName = "Apex Architecture & Design Studio"
-	}
-
-	settings := map[string]any{
-		"artist_name":   brandName,
-		"tagline":       "Minimalist Architecture, Spatial Experience and Sustainable Design",
-		"primary_color": "#0F172A", // Deep Charcoal / Slate
-		"bg_tone":       "#F8FAFC", // Museum White
-		"font_preset":   "monumental_cinzel",
-		"contact_email": "studio@" + strings.ToLower(strings.ReplaceAll(brandName, " ", "")) + ".com",
-		"phone":         phone,
-		"location":      "Lisbon / Berlin",
-		"instagram":     "@apex_studio",
-		"bio":           "We design human-centered, timeless buildings and interiors with light, material honesty and spatial fluidity at their core.",
-		"hero_title":    "Contemporary Architecture That Shapes the Spirit of Place",
-		"hero_subtitle": "Residential, commercial and cultural designs that blend brutalism with nature.",
-	}
-
-	works := []map[string]any{
-		{
-			"title":       "Coastal House: A Dance of Stone and Light",
-			"slug":        "bodrum-evi-tas-ve-isik",
-			"category":    "Residential Architecture",
-			"year":        "2025",
-			"client":      "Private Client",
-			"cover_image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-			"description": "A zero-energy villa set into the coastal landscape with local slate stone and sustainable olive-wood canopies.",
-			"featured":    true,
-		},
-		{
-			"title":       "Harbor Loft & Artist Residence",
-			"slug":        "galata-loft-rezidans",
-			"category":    "Interior Architecture & Restoration",
-			"year":        "2024",
-			"client":      "Collector's Home",
-			"cover_image": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80",
-			"description": "A 120-year-old historic brick vault reinterpreted with modern raw concrete and sculptural steel staircases.",
-			"featured":    true,
-		},
-		{
-			"title":       "Pavilion X: Contemporary Sculpture Pavilion",
-			"slug":        "pavilion-x-sanat",
-			"category":    "Cultural Space",
-			"year":        "2024",
-			"client":      "City Arts Foundation",
-			"cover_image": "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
-			"description": "A semi-open exhibition space built with parametric timber beams for temporary installations.",
-			"featured":    true,
-		},
-		{
-			"title":       "Nordic Monolith Villa",
-			"slug":        "nordic-monolith-villa",
-			"category":    "Residential Architecture",
-			"year":        "2023",
-			"client":      "Signature Design",
-			"cover_image": "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80",
-			"description": "A lakeside design with a monolithic black timber shell and a floor-to-ceiling panoramic glass facade.",
-			"featured":    false,
-		},
-	}
-
-	awards := []map[string]any{
-		{
-			"title":        "Residential Design of the Year",
-			"organization": "National Architecture Awards",
-			"year":         "2025",
-			"project_name": "Coastal House",
-		},
-		{
-			"title":        "Special Award for Adaptive Reuse of a Historic Building",
-			"organization": "European Heritage Design Awards",
-			"year":         "2024",
-			"project_name": "Harbor Loft",
-		},
-		{
-			"title":        "Sustainable Architecture Medal",
-			"organization": "Sustainable Building Council",
-			"year":         "2023",
-			"project_name": "Pavilion X",
-		},
-	}
-
-	return settings, works, awards
-}
-
-// SeedPortfolioStore provisions schemas and initial data for portfolio archetype.
-func SeedPortfolioStore(ctx context.Context, colSvc collections.Service, scope tenant.Scope, name, phone, prompt string) error {
-	tenantCtx := tenant.WithScope(ctx, scope)
-	settings, works, awards := GeneratePortfolioCatalog(name, phone, prompt)
-
-	if _, err := colSvc.CreateRecord(tenantCtx, "site_settings", settings); err != nil {
-		return fmt.Errorf("seed portfolio site_settings: %w", err)
-	}
-	for _, w := range works {
-		if _, err := colSvc.CreateRecord(tenantCtx, "works", w); err != nil {
-			return fmt.Errorf("seed work %q: %w", w["title"], err)
-		}
-	}
-	for _, a := range awards {
-		if _, err := colSvc.CreateRecord(tenantCtx, "awards", a); err != nil {
-			return fmt.Errorf("seed award: %w", err)
-		}
-	}
-	return nil
 }

@@ -189,7 +189,7 @@
       "layer": "internal",
       "doc": "Package ai contains the provider-neutral, opt-in content assistance boundary.",
       "files": 4,
-      "fan_in": 3,
+      "fan_in": 2,
       "fan_out": 3,
       "imports": [
         "internal/ai/prompts",
@@ -198,7 +198,6 @@
       ],
       "imported_by": [
         "cmd/hydro",
-        "internal/sitegen",
         "modules/pages/transport"
       ]
     },
@@ -206,13 +205,12 @@
       "id": "internal/ai/prompts",
       "layer": "internal",
       "files": 1,
-      "fan_in": 3,
+      "fan_in": 2,
       "fan_out": 0,
       "imports": [],
       "imported_by": [
         "cmd/hydro",
-        "internal/ai",
-        "internal/sitegen"
+        "internal/ai"
       ]
     },
     {
@@ -321,7 +319,7 @@
       "id": "internal/auth",
       "layer": "internal",
       "files": 26,
-      "fan_in": 22,
+      "fan_in": 21,
       "fan_out": 10,
       "imports": [
         "internal/api",
@@ -356,8 +354,7 @@
         "modules/pages/transport",
         "modules/site/transport",
         "tests/e2e/support/seedinvite",
-        "tests/e2e/support/seedroles",
-        "tools/factory"
+        "tests/e2e/support/seedroles"
       ]
     },
     {
@@ -396,28 +393,16 @@
     {
       "id": "internal/blueprints",
       "layer": "internal",
-      "files": 8,
+      "files": 7,
       "fan_in": 1,
-      "fan_out": 4,
+      "fan_out": 3,
       "imports": [
-        "internal/blueprints/instructions",
         "internal/collections",
         "internal/contenttypes",
         "internal/tenant"
       ],
       "imported_by": [
         "cmd/hydro"
-      ]
-    },
-    {
-      "id": "internal/blueprints/instructions",
-      "layer": "internal",
-      "files": 1,
-      "fan_in": 1,
-      "fan_out": 0,
-      "imports": [],
-      "imported_by": [
-        "internal/blueprints"
       ]
     },
     {
@@ -478,7 +463,7 @@
       "layer": "internal",
       "doc": "Package collections stores user-defined collection schemas and records in bounded, pre-migrated tables.",
       "files": 15,
-      "fan_in": 7,
+      "fan_in": 5,
       "fan_out": 2,
       "imports": [
         "internal/database",
@@ -489,9 +474,7 @@
         "internal/blueprints",
         "internal/collections/sqlstore",
         "internal/contenttypes",
-        "internal/mcp",
-        "internal/sitegen",
-        "tools/factory"
+        "internal/mcp"
       ]
     },
     {
@@ -499,7 +482,7 @@
       "layer": "internal",
       "doc": "Package sqlstore persists dynamic collection metadata and JSON records in static, versioned tables.",
       "files": 8,
-      "fan_in": 2,
+      "fan_in": 1,
       "fan_out": 3,
       "imports": [
         "internal/collections",
@@ -507,8 +490,7 @@
         "internal/tenant"
       ],
       "imported_by": [
-        "cmd/hydro",
-        "tools/factory"
+        "cmd/hydro"
       ]
     },
     {
@@ -545,7 +527,7 @@
       "layer": "internal",
       "doc": "Package contenttypes turns YAML content-type definitions into the two runtime shapes HydroGo needs: a collections.Schema for storage and validation, and an a...",
       "files": 20,
-      "fan_in": 8,
+      "fan_in": 6,
       "fan_out": 7,
       "imports": [
         "internal/adminstudio",
@@ -562,9 +544,7 @@
         "internal/blueprints",
         "internal/mcp",
         "internal/openapi",
-        "internal/sitegen",
-        "internal/testgen",
-        "tools/factory"
+        "internal/testgen"
       ]
     },
     {
@@ -612,7 +592,7 @@
       "id": "internal/database",
       "layer": "internal",
       "files": 14,
-      "fan_in": 52,
+      "fan_in": 51,
       "fan_out": 3,
       "imports": [
         "internal/storage/sqlite",
@@ -670,8 +650,7 @@
         "tests/e2e/support/seedinvite",
         "tests/e2e/support/seedroles",
         "tools/baselinegen",
-        "tools/devserver",
-        "tools/factory"
+        "tools/devserver"
       ]
     },
     {
@@ -1388,21 +1367,6 @@
       ]
     },
     {
-      "id": "internal/sitegen",
-      "layer": "internal",
-      "files": 4,
-      "fan_in": 0,
-      "fan_out": 5,
-      "imports": [
-        "internal/ai",
-        "internal/ai/prompts",
-        "internal/collections",
-        "internal/contenttypes",
-        "internal/tenant"
-      ],
-      "imported_by": []
-    },
-    {
       "id": "internal/storage",
       "layer": "internal",
       "doc": "Package storage contains bounded filesystem protection primitives.",
@@ -1469,7 +1433,7 @@
       "layer": "internal",
       "doc": "Package tenant contains the opt-in tenant-scope primitives used by shared multi-tenant adapters.",
       "files": 9,
-      "fan_in": 42,
+      "fan_in": 40,
       "fan_out": 0,
       "imports": [],
       "imported_by": [
@@ -1500,7 +1464,6 @@
         "internal/search",
         "internal/security",
         "internal/server",
-        "internal/sitegen",
         "internal/trash/sqlstore",
         "internal/webhooks",
         "modules/commerce/repository/sqlstore",
@@ -1513,8 +1476,7 @@
         "modules/pages/transport",
         "modules/site",
         "modules/site/repository/sqlstore",
-        "modules/site/transport",
-        "tools/factory"
+        "modules/site/transport"
       ]
     },
     {
@@ -1662,14 +1624,13 @@
       "id": "migrations",
       "layer": "other",
       "files": 1,
-      "fan_in": 4,
+      "fan_in": 3,
       "fan_out": 0,
       "imports": [],
       "imported_by": [
         "cmd/hydro",
         "internal/testmysql",
-        "tools/baselinegen",
-        "tools/factory"
+        "tools/baselinegen"
       ]
     },
     {
@@ -2131,23 +2092,6 @@
       "fan_in": 0,
       "fan_out": 0,
       "imports": [],
-      "imported_by": []
-    },
-    {
-      "id": "tools/factory",
-      "layer": "tools",
-      "files": 1,
-      "fan_in": 0,
-      "fan_out": 7,
-      "imports": [
-        "internal/auth",
-        "internal/collections",
-        "internal/collections/sqlstore",
-        "internal/contenttypes",
-        "internal/database",
-        "internal/tenant",
-        "migrations"
-      ],
       "imported_by": []
     },
     {

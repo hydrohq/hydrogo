@@ -474,10 +474,10 @@ func TestNotifyOrderPaid(t *testing.T) {
 		t.Fatalf("expected 1 call, got %d", len(notifier.calls))
 	}
 	msg := notifier.calls[0]
-	if msg.Title != "Yeni sipariş (ödendi)" {
+	if msg.Title != "New order (paid)" {
 		t.Fatalf("unexpected title: %q", msg.Title)
 	}
-	wantBody := "ord-test-1 — 45.00 TRY (mock-provider, 2 kalem (Tişört x2, Şapka x1))"
+	wantBody := "ord-test-1 — 45.00 TRY (mock-provider, 2 item(s) (Tişört x2, Şapka x1))"
 	if msg.Body != wantBody {
 		t.Fatalf("body = %q, want %q", msg.Body, wantBody)
 	}

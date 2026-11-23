@@ -350,14 +350,14 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 				}
 
 				// 1. Theme and color palette
-				if strings.Contains(lower, "koyu") || strings.Contains(lower, "dark") || strings.Contains(lower, "siyah") {
+				if strings.Contains(lower, "dark") || strings.Contains(lower, "black") {
 					if hasField["bg_tone"] {
 						updates["bg_tone"] = "#09090B"
 					}
 					if hasField["primary_color"] {
 						updates["primary_color"] = "#FAFAFA"
 					}
-				} else if strings.Contains(lower, "açık") || strings.Contains(lower, "light") || strings.Contains(lower, "krem") || strings.Contains(lower, "beyaz") {
+				} else if strings.Contains(lower, "light") || strings.Contains(lower, "cream") || strings.Contains(lower, "white") {
 					if hasField["bg_tone"] {
 						updates["bg_tone"] = "#FAF8F5"
 					}
@@ -366,18 +366,18 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 					}
 				}
 
-				if strings.Contains(lower, "altın") || strings.Contains(lower, "gold") {
+				if strings.Contains(lower, "gold") {
 					if hasField["primary_color"] {
 						updates["primary_color"] = "#D4AF37"
 					}
 					if hasField["accent_color"] {
 						updates["accent_color"] = "#D4AF37"
 					}
-				} else if strings.Contains(lower, "zümrüt") || strings.Contains(lower, "yeşil") || strings.Contains(lower, "emerald") {
+				} else if strings.Contains(lower, "emerald") || strings.Contains(lower, "green") {
 					if hasField["primary_color"] {
 						updates["primary_color"] = "#059669"
 					}
-				} else if strings.Contains(lower, "mavi") || strings.Contains(lower, "kobalt") || strings.Contains(lower, "blue") {
+				} else if strings.Contains(lower, "blue") || strings.Contains(lower, "cobalt") {
 					if hasField["primary_color"] {
 						updates["primary_color"] = "#2563EB"
 					}
@@ -415,7 +415,7 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 				}
 
 				// 3. Title / Slogan extraction if provided in quotes
-				if strings.Contains(lower, "başlık") || strings.Contains(lower, "başlığ") || strings.Contains(lower, "baslik") || strings.Contains(lower, "title") {
+				if strings.Contains(lower, "title") || strings.Contains(lower, "headline") {
 					if start := strings.Index(prompt, "\""); start != -1 {
 						if end := strings.Index(prompt[start+1:], "\""); end != -1 {
 							quoted := prompt[start+1 : start+1+end]
@@ -436,7 +436,7 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 						Data:         updates,
 					})
 					return aicore.CopilotPlan{
-						Reply:      "Tasarım ve tema ayarlarınız isteğinize tam uyumlu olarak güncellendi. İstediğiniz zaman panelden tek tıkla geri alabilirsiniz.",
+						Reply:      "Your design and theme settings were updated to match your request. You can undo this from the panel at any time.",
 						Operations: ops,
 					}
 				}
@@ -445,7 +445,7 @@ func (a *serveApp) localHeuristicCopilotPlan(ctx context.Context, prompt string,
 	}
 
 	return aicore.CopilotPlan{
-		Reply:      "İsteğiniz alındı ve çalışma alanı asistanı tarafından değerlendirildi.",
+		Reply:      "Your request was received and reviewed by the workspace assistant.",
 		Operations: ops,
 	}
 }

@@ -265,15 +265,15 @@ func main() {
 		time.Sleep(1200 * time.Millisecond)
 		fmt.Printf(`
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  🚀 HydroGo Tek Port Geliştirme Gateway'i Hazır!                        │
-│  👉 http://%s                                                  │
+│  HydroGo single-port development gateway is ready.                       │
+│    http://%s                                                    │
 │                                                                          │
-│  • Ana Sayfa (Starter Vitrini):  http://%s/                     │
-│  • Admin Studio (Yönetim):       http://%s/admin                │
+│  • Home (storefront):              http://%s/                     │
+│  • Admin Studio:                   http://%s/admin                │
 │  • REST API:                     http://%s/api/v1/...           │
 │                                                                          │
-│  ℹ️ Vite :3000 ve :5173 portları iç Hot-Reload (HMR) servisleridir.      │
-│     Doğrudan tek bir port üzerinden (8090) çalışabilirsiniz!             │
+│    Vite :3000 and :5173 are internal hot-reload (HMR) services.            │
+│    You can work through the single port (8090) directly.                   │
 └──────────────────────────────────────────────────────────────────────────┘
 `, *address, *address, *address, *address)
 	}()

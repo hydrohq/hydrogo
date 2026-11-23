@@ -23,36 +23,40 @@ const (
 func NormalizeArchetype(s string) string {
 	lower := strings.ToLower(strings.TrimSpace(s))
 	switch lower {
-	case "corporate", "kurumsal", "b2b", "agency", "ajans":
+	case "corporate", "b2b", "agency", "consulting":
 		return ArchetypeCorporate
-	case "restaurant", "restoran", "cafe", "kafe", "menu", "gastro":
+	case "restaurant", "cafe", "menu", "gastro", "bistro":
 		return ArchetypeRestaurant
-	case "saas", "software", "yazilim", "app", "startup":
+	case "saas", "software", "app", "startup":
 		return ArchetypeSaaS
-	case "portfolio", "portfolyo", "studio", "stüdyo", "architect", "artist", "sanatci":
+	case "portfolio", "studio", "architect", "artist", "photographer":
 		return ArchetypePortfolio
-	case "news", "haber", "portal", "medya", "gazete", "dergi", "press":
+	case "news", "portal", "media", "magazine", "newspaper", "press":
 		return ArchetypeNews
-	case "boutique", "eticaret", "e-ticaret", "ecommerce", "store", "magaza":
-		return ArchetypeBoutique
-	default:
-		if strings.Contains(lower, "kurumsal") || strings.Contains(lower, "ajans") || strings.Contains(lower, "corp") || strings.Contains(lower, "b2b") {
-			return ArchetypeCorporate
-		}
-		if strings.Contains(lower, "restoran") || strings.Contains(lower, "restaurant") || strings.Contains(lower, "menu") || strings.Contains(lower, "kafe") || strings.Contains(lower, "cafe") || strings.Contains(lower, "bistro") {
-			return ArchetypeRestaurant
-		}
-		if strings.Contains(lower, "saas") || strings.Contains(lower, "yazilim") || strings.Contains(lower, "software") || strings.Contains(lower, "startup") {
-			return ArchetypeSaaS
-		}
-		if strings.Contains(lower, "portfolyo") || strings.Contains(lower, "portfolio") || strings.Contains(lower, "sanat") || strings.Contains(lower, "mimar") || strings.Contains(lower, "studio") {
-			return ArchetypePortfolio
-		}
-		if strings.Contains(lower, "haber") || strings.Contains(lower, "gazete") || strings.Contains(lower, "news") || strings.Contains(lower, "portal") || strings.Contains(lower, "medya") {
-			return ArchetypeNews
-		}
+	case "boutique", "ecommerce", "e-commerce", "store", "shop":
 		return ArchetypeBoutique
 	}
+	has := func(words ...string) bool {
+		for _, w := range words {
+			if strings.Contains(lower, w) {
+				return true
+			}
+		}
+		return false
+	}
+	switch {
+	case has("corp", "b2b", "agency", "consult"):
+		return ArchetypeCorporate
+	case has("restaurant", "menu", "cafe", "bistro"):
+		return ArchetypeRestaurant
+	case has("saas", "software", "startup"):
+		return ArchetypeSaaS
+	case has("portfolio", "architect", "artist", "photograph", "studio"):
+		return ArchetypePortfolio
+	case has("news", "magazine", "portal", "press"):
+		return ArchetypeNews
+	}
+	return ArchetypeBoutique
 }
 
 // ArchetypeDefinitions returns the content type definitions for the specified archetype.
@@ -86,24 +90,4 @@ func EnsureArchetypeSchemas(ctx context.Context, colSvc collections.Service, sco
 		return fmt.Errorf("sync %s collections: %w", archetype, err)
 	}
 	return nil
-}
-
-// SeedArchetypeSite provisions demo data tailored to the chosen archetype.
-func SeedArchetypeSite(ctx context.Context, colSvc collections.Service, scope tenant.Scope, archetype, name, phone, prompt string) error {
-	arch := NormalizeArchetype(archetype)
-	switch arch {
-	case ArchetypeCorporate:
-		return SeedCorporateStore(ctx, colSvc, scope, name, phone, prompt)
-	case ArchetypeRestaurant:
-		return SeedRestaurantStore(ctx, colSvc, scope, name, phone, prompt)
-	case ArchetypeSaaS:
-		return SeedSaaSStore(ctx, colSvc, scope, name, phone, prompt)
-	case ArchetypePortfolio:
-		return SeedPortfolioStore(ctx, colSvc, scope, name, phone, prompt)
-	case ArchetypeNews:
-		return SeedNewsStore(ctx, colSvc, scope, name, phone, prompt)
-	default:
-		settings, products := GenerateLuxuryCatalog(name, phone, prompt)
-		return SeedBoutiqueStore(ctx, colSvc, scope, settings, products)
-	}
 }

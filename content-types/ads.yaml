@@ -6,9 +6,9 @@ public: true
 drafts: true
 fields:
   - {id: name, label: Ad name, kind: text, required: true, list: true, searchable: true}
-  - {id: zone, label: Placement zone, kind: select, options: [header_top, manset_alti, sur_manset_yani, haber_ici, sidebar, footer, home_grid_1, home_grid_2], required: true, list: true, filterable: true}
+  - {id: zone, label: Placement zone, kind: select, options: [header_top, below_headline, beside_headline, in_article, sidebar, footer, home_grid_1, home_grid_2], required: true, list: true, filterable: true}
   - {id: ad_type, label: Ad type, kind: select, options: [banner, native, script], list: true, filterable: true}
-  - {id: page_scope, label: Show on page type, kind: select, options: [tumu, anasayfa, kategori, haber_detay], list: true, filterable: true}
+  - {id: page_scope, label: Show on page type, kind: select, options: [all, home, category, article_detail], list: true, filterable: true}
   - {id: disabled, label: "Disabled? (when checked the ad is not shown anywhere)", kind: boolean, list: true}
   - {id: banner_image, label: Desktop image, kind: media, list: true}
   - {id: mobile_image, label: Mobile image, kind: media}

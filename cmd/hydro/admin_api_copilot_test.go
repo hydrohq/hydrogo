@@ -374,8 +374,8 @@ func TestAdminAICopilotSiteSettingsAndDesignIntent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Request: "arka planı koyu yap, ana rengi zümrüt yeşili yap, fontu cinzel olarak ayarla ve başlığı "Yeni Çağ" yap"
-	prompt := `arka planı koyu yap, ana rengi zümrüt yeşili yap, fontu cinzel olarak ayarla ve başlığı "Yeni Çağ" yap`
+	// Request: make the background dark, the main color emerald green, set the font to cinzel and the title to "New Era"
+	prompt := `make the background dark, the main color emerald green, set the font to cinzel and set the title to "New Era"`
 	reqBody, _ := json.Marshal(map[string]any{"prompt": prompt})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/ai/copilot", bytes.NewReader(reqBody)).WithContext(tenantCtx)
 	rec := httptest.NewRecorder()
@@ -399,8 +399,8 @@ func TestAdminAICopilotSiteSettingsAndDesignIntent(t *testing.T) {
 	if updated.Data["font_preset"] != "monumental_cinzel" {
 		t.Errorf("expected font_preset monumental_cinzel, got %v", updated.Data["font_preset"])
 	}
-	if updated.Data["hero_title"] != "Yeni Çağ" {
-		t.Errorf("expected hero_title 'Yeni Çağ', got %v", updated.Data["hero_title"])
+	if updated.Data["hero_title"] != "New Era" {
+		t.Errorf("expected hero_title 'New Era', got %v", updated.Data["hero_title"])
 	}
 }
 

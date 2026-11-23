@@ -191,7 +191,7 @@ func TestIssueOrderInvoiceEndpointStates(t *testing.T) {
 		t.Fatalf("refund status = %d, want 200 (%s)", refundRec.Code, refundRec.Body.String())
 	}
 	WaitNotifications()
-	if len(notifier.messages) != 1 || !strings.Contains(notifier.messages[0].Title, "e-Fatura") || !strings.Contains(notifier.messages[0].Body, "GUID-"+order.ID) {
+	if len(notifier.messages) != 1 || !strings.Contains(notifier.messages[0].Title, "e-invoice") || !strings.Contains(notifier.messages[0].Body, "GUID-"+order.ID) {
 		t.Fatalf("expected issued-invoice refund alert, got %+v", notifier.messages)
 	}
 

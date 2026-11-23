@@ -1,16 +1,9 @@
 package blueprints
 
 import (
-	"context"
-	"path/filepath"
 	"testing"
 
-	"github.com/hydrohq/hydrogo/internal/collections"
-	collectionstore "github.com/hydrohq/hydrogo/internal/collections/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/contenttypes"
-	"github.com/hydrohq/hydrogo/internal/database"
-	"github.com/hydrohq/hydrogo/internal/tenant"
-	"github.com/hydrohq/hydrogo/migrations"
 )
 
 func TestArchetypeDefinitions(t *testing.T) {
@@ -70,64 +63,21 @@ func TestArchetypeDefinitions(t *testing.T) {
 	}
 }
 
-func TestSeedEveryArchetypeIntoSQLite(t *testing.T) {
-	ctx := context.Background()
-	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "blueprints.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
-		t.Fatalf("ApplyMigrations: %v", err)
-	}
-
-	colSvc := collections.Service{
-		Repository: collectionstore.Store{
-			DB:                 db,
-			Dialect:            database.SQLite,
-			RequireTenantScope: true,
-		},
-	}
-
-	arches := []string{
-		ArchetypeBoutique,
-		ArchetypeCorporate,
-		ArchetypeRestaurant,
-		ArchetypeSaaS,
-		ArchetypePortfolio,
-		ArchetypeNews,
-	}
-
-	for _, arch := range arches {
-		t.Run(arch, func(t *testing.T) {
-			scope, err := tenant.NewScope("t-"+arch, "t-"+arch)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := EnsureArchetypeSchemas(ctx, colSvc, scope, arch); err != nil {
-				t.Fatalf("EnsureArchetypeSchemas(%s): %v", arch, err)
-			}
-			if err := SeedArchetypeSite(ctx, colSvc, scope, arch, "Demo "+arch, "+905551112233", "test prompt"); err != nil {
-				t.Fatalf("SeedArchetypeSite(%s): %v", arch, err)
-			}
-		})
-	}
-}
-
 func TestNormalizeArchetype(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
 	}{
-		{"kurumsal", ArchetypeCorporate},
-		{"B2B Ajans", ArchetypeCorporate},
-		{"restoran", ArchetypeRestaurant},
+		{"corporate", ArchetypeCorporate},
+		{"B2B Agency", ArchetypeCorporate},
+		{"restaurant", ArchetypeRestaurant},
 		{"Gourmet Cafe", ArchetypeRestaurant},
 		{"saas startup", ArchetypeSaaS},
-		{"yazilim", ArchetypeSaaS},
-		{"mimarlik portfolyo", ArchetypePortfolio},
-		{"sanatci", ArchetypePortfolio},
-		{"butik", ArchetypeBoutique},
+		{"software", ArchetypeSaaS},
+		{"architecture portfolio", ArchetypePortfolio},
+		{"artist", ArchetypePortfolio},
+		{"daily newspaper", ArchetypeNews},
+		{"boutique", ArchetypeBoutique},
 		{"unknown", ArchetypeBoutique},
 	}
 

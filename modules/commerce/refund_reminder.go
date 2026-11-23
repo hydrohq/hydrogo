@@ -32,8 +32,8 @@ func (w RefundReminderWorker) RemindDue(ctx context.Context) (int, error) {
 	}
 	if count > 0 && w.Notifier != nil {
 		msg := notify.Message{
-			Title: "İade Bekleyen İşlemler",
-			Body:  fmt.Sprintf("Çözülmemiş %d adet iade işlemi bekliyor.", count),
+			Title: "Pending Refunds",
+			Body:  fmt.Sprintf("%d refund request(s) are waiting to be resolved.", count),
 		}
 		if err := w.Notifier.Send(ctx, msg); err != nil {
 			return count, err

@@ -29,22 +29,3 @@ func TestBoutiqueDefinitions(t *testing.T) {
 		t.Errorf("missing core definitions: settings=%v, products=%v, orders=%v", foundSettings, foundProducts, foundOrders)
 	}
 }
-
-func TestGenerateLuxuryCatalog(t *testing.T) {
-	settings, products := GenerateLuxuryCatalog("Vera Deri", "+905551234567", "El yapımı deri cüzdan ve çanta, taba tonları")
-
-	if settings["brand_name"] != "Vera Deri" {
-		t.Errorf("expected brand_name 'Vera Deri', got %v", settings["brand_name"])
-	}
-	if settings["whatsapp_number"] != "+905551234567" {
-		t.Errorf("expected whatsapp_number '+905551234567', got %v", settings["whatsapp_number"])
-	}
-	if len(products) != 6 {
-		t.Errorf("expected 6 luxury products, got %d", len(products))
-	}
-	for i, p := range products {
-		if p["title"] == "" || p["price"] == nil || p["slug"] == "" {
-			t.Errorf("product %d is missing required fields: %+v", i, p)
-		}
-	}
-}

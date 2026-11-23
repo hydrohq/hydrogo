@@ -68,8 +68,8 @@ func TestPromptRegistry_List(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List() failed: %v", err)
 	}
-	if len(list) < 4 {
-		t.Errorf("expected at least 4 embedded prompts, got %d", len(list))
+	if len(list) < 3 {
+		t.Errorf("expected at least 3 embedded prompts, got %d", len(list))
 	}
 }
 

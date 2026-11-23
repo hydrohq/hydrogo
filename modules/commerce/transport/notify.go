@@ -71,7 +71,7 @@ func formatPaidOrderMessage(ctx context.Context, reader OrderReader, orderID, pr
 	}
 
 	total := FormatMoney(order.TotalCents, order.Currency)
-	itemSummary := fmt.Sprintf("%d kalem", len(items))
+	itemSummary := fmt.Sprintf("%d item(s)", len(items))
 	if len(items) > 0 {
 		var titles []string
 		for _, item := range items {
@@ -80,13 +80,13 @@ func formatPaidOrderMessage(ctx context.Context, reader OrderReader, orderID, pr
 			}
 		}
 		if len(titles) > 0 {
-			itemSummary = fmt.Sprintf("%d kalem (%s)", len(items), strings.Join(titles, ", "))
+			itemSummary = fmt.Sprintf("%d item(s) (%s)", len(items), strings.Join(titles, ", "))
 		}
 	}
 
 	body := fmt.Sprintf("%s — %s (%s, %s)", orderID, total, provider, itemSummary)
 	return notify.Message{
-		Title: "Yeni sipariş (ödendi)",
+		Title: "New order (paid)",
 		Body:  body,
 	}
 }
@@ -125,7 +125,7 @@ func NotifyOperator(ctx context.Context, notifier notify.Sender, title, orderID 
 		return
 	}
 	total := FormatMoney(amountCents, currency)
-	body := fmt.Sprintf("Sipariş No: %s, Tutar: %s, Sağlayıcı: %s", orderID, total, provider)
+	body := fmt.Sprintf("Order No: %s, Amount: %s, Provider: %s", orderID, total, provider)
 	pingCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), notifyTimeout)
 	defer cancel()
 	if err := notifier.Send(pingCtx, notify.Message{
@@ -144,7 +144,7 @@ func NotifyOperatorAsync(ctx context.Context, notifier notify.Sender, title, ord
 	}
 	bgCtx := context.WithoutCancel(ctx)
 	total := FormatMoney(amountCents, currency)
-	body := fmt.Sprintf("Sipariş No: %s, Tutar: %s, Sağlayıcı: %s", orderID, total, provider)
+	body := fmt.Sprintf("Order No: %s, Amount: %s, Provider: %s", orderID, total, provider)
 	msg := notify.Message{Title: title, Body: body}
 	notificationWG.Add(1)
 	go func() {

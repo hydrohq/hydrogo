@@ -223,8 +223,8 @@ func (h Handler) refundOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	if order.InvoiceStatus == commerce.InvoiceIssued && h.Notifier != nil {
 		DispatchNotificationAsync(h.Notifier, notify.Message{
-			Title: "Faturalı sipariş iade edildi — e-Fatura/e-Arşiv iptali gerekli",
-			Body:  "Sipariş: " + order.ID + "\nFatura No: " + order.InvoiceNo + "\nGUID: " + order.InvoiceGUID,
+			Title: "Invoiced order refunded - e-invoice cancellation required",
+			Body:  "Order: " + order.ID + "\nInvoice No: " + order.InvoiceNo + "\nGUID: " + order.InvoiceGUID,
 		}, nil)
 	}
 	api.WriteData(w, http.StatusOK, order, nil)
