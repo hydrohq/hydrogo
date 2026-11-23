@@ -41,7 +41,7 @@ HydroGo supports three authentication methods:
 
 2. **Personal Access & Mobile Bearer Tokens:**
    - Header: `Authorization: Bearer <token>`
-   - Generated via `GET /api/v1/admin/me/tokens` or staff UI in Admin.
+   - Issued with `POST /api/v1/admin/account/tokens` (listed with `GET`, revoked with `DELETE /api/v1/admin/account/tokens/{id}`) or from the account screen in Admin.
 
 3. **API Keys (Headless Frontend / SSR / SSG):**
    - Header: `X-API-Key: <api-key>`

@@ -14,4 +14,4 @@
 | [SECURITY.md](SECURITY.md) | Reporting vulnerabilities |
 | [decisions/](decisions/) | Decision records that are in force |
 | [api/](api/) | OpenAPI contracts and compatibility baselines |
-| [schemas/](schemas/) | JSON Schema for blueprint files |
+| [schemas/](schemas/) | JSON Schema for content-type YAML files |

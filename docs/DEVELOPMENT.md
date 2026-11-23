@@ -41,7 +41,6 @@ minutes.
 | `tools/codeguard` | No HTML in Go string literals; files stay under 800 lines. Existing violations are frozen in `tools/codeguard/baseline.json` and may only shrink. After you remove some, run `go run ./tools/codeguard -update` and commit the smaller baseline. |
 | `tools/migrationguard` | Migration metadata, checksums and dependencies are consistent. |
 | `tools/moduleguard` | `modules/*` only import what `modules/dependencies.json` declares. |
-| `tools/assetguard` | Theme asset cache-busters agree across templates. |
 
 ## Generated files
 

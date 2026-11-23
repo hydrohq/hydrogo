@@ -113,6 +113,6 @@ func init() {
 
 See the `commerce:` section of `config.example.yaml` for optional keys (tax, shipping fees, currencies) and `notifications.telegram` for order/reconciliation alerts. Everything under `commerce:` is optional -- with it empty, cart and checkout still work with no payment provider, no carrier, no tax, no shipping fee and TRY/USD/EUR as the configured currency.
 
-## Starter
+## Storefront
 
-`examples/commerce-starter` is a SvelteKit storefront (catalog, cart, guest and member checkout, order confirmation, member login/account/order history) built against this API. `hydro new --starter commerce` copies it into a project's `frontend/`.
+Core ships no storefront. Build one in any framework against this API (catalog, cart, guest and member checkout, order confirmation, member login/account/order history) and either deploy it separately or let HydroGo proxy it with `storefront.external.enabled` and `storefront.external.upstream` (`HYDRO_STOREFRONT_EXTERNAL_ENABLED`, `HYDRO_STOREFRONT_EXTERNAL_UPSTREAM`). See [deployment.md](deployment.md#storefront-in-front-of-hydro-lessons-from-a-real-launch) for routing a separate storefront on the same domain.
