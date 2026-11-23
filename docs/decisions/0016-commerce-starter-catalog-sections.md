@@ -44,13 +44,13 @@ APIs with no further backend changes:
   `searchable: true` flags) - no new backend capability, just a page that
   uses one that already existed.
 - The homepage becomes up to several "by category" sections (a few
-  products each, a "tümünü gör" link to the category page) instead of one
+  products each, a "view all" link to the category page) instead of one
   flat grid; an empty or just-launched catalog with no categorised
   products falls back to the original flat "newest" grid so it never shows
   nothing.
 - The product page gained a gallery (cover image + `product_images`,
   clickable thumbnails) that swaps to a variant's own `image` when one is
-  selected, and a "benzer ürünler" (related products) strip from the same
+  selected, and a "related products" strip from the same
   category, excluding the current product.
 - `ProductCard`/`ProductGrid` were factored out of the homepage into
   `src/lib/components/`, now shared by the homepage, category, search and
@@ -70,7 +70,7 @@ APIs with no further backend changes:
   category page's sort links (verified the content API itself accepts
   `sort=-base_price` without error), search finding a real match and
   correctly showing nothing for a non-match, the product page's gallery
-  thumbnails and variant-driven image swap, and "benzer ürünler" showing
+  thumbnails and variant-driven image swap, and "related products" showing
   the other product in the same category while excluding itself.
 - `npm run smoke`'s stub-API run extended to cover the new routes
   (`/kategori/does-not-exist` is a 404, `/arama` renders with no results)

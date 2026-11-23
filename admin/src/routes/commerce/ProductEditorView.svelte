@@ -56,7 +56,7 @@ export interface ProductRecord {
   let successMessage = $state('');
   let fieldErrors = $state<Record<string, string>>({});
 
-  let activeTab = $state<'genel' | 'varyantlar' | 'medya' | 'tokalar'>('genel');
+  let activeTab = $state<'general' | 'variants' | 'media' | 'buckles'>('general');
   let mediaPickerOpen = $state(false);
   let showAdvanced = $state(false);
   let slugEditedManually = $state(false);
@@ -91,12 +91,12 @@ export interface ProductRecord {
   function syncTabFromHash() {
     if (typeof window === 'undefined') return;
     const h = window.location.hash.replace(/^#/, '');
-    if (h === 'varyantlar' || h === 'medya' || h === 'tokalar' || h === 'genel') {
+    if (h === 'variants' || h === 'media' || h === 'buckles' || h === 'general') {
       activeTab = h;
     }
   }
 
-  function setTab(tab: 'genel' | 'varyantlar' | 'medya' | 'tokalar') {
+  function setTab(tab: 'general' | 'variants' | 'media' | 'buckles') {
     activeTab = tab;
     if (typeof window !== 'undefined') {
       window.location.hash = `#${tab}`;
@@ -144,8 +144,8 @@ export interface ProductRecord {
   });
 
   $effect(() => {
-    if (isBuckleProduct && activeTab === 'tokalar') {
-      activeTab = 'genel';
+    if (isBuckleProduct && activeTab === 'buckles') {
+      activeTab = 'general';
     }
   });
 
@@ -267,7 +267,7 @@ export interface ProductRecord {
         const res = await api.post<{ data: ProductRecord }>('/api/v1/admin/content/products', payload);
         const created = res.data ?? (res as unknown as ProductRecord);
         product = created;
-        router.navigate(`/commerce/products/${created.id}#varyantlar`);
+        router.navigate(`/commerce/products/${created.id}#variants`);
       } else {
         payload.version = product?.version;
         const res = await api.put<{ data: ProductRecord }>(`/api/v1/admin/content/products/${id}`, payload);
@@ -381,7 +381,7 @@ export interface ProductRecord {
       <!-- Preview link (hidden when new) -->
       {#if !isNew && formData.slug}
         <a
-          href={`${typeof window !== 'undefined' ? window.location.origin : ''}/urun/${encodeURIComponent(formData.slug)}`}
+          href={`${typeof window !== 'undefined' ? window.location.origin : ''}/products/${encodeURIComponent(formData.slug)}`}
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-foreground transition-colors shadow-xs"
@@ -440,45 +440,45 @@ export interface ProductRecord {
         <button
           type="button"
           role="tab"
-          id="tab-genel"
-          aria-selected={activeTab === 'genel'}
-          aria-controls="tabpanel-genel"
-          onclick={() => setTab('genel')}
-          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'genel' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+          id="tab-general"
+          aria-selected={activeTab === 'general'}
+          aria-controls="tabpanel-general"
+          onclick={() => setTab('general')}
+          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'general' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
         >
           {t('products.editor.tabGeneral')}
         </button>
         <button
           type="button"
           role="tab"
-          id="tab-varyantlar"
-          aria-selected={activeTab === 'varyantlar'}
-          aria-controls="tabpanel-varyantlar"
-          onclick={() => setTab('varyantlar')}
-          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'varyantlar' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+          id="tab-variants"
+          aria-selected={activeTab === 'variants'}
+          aria-controls="tabpanel-variants"
+          onclick={() => setTab('variants')}
+          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'variants' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
         >
           {t('products.editor.tabVariants')}
         </button>
         <button
           type="button"
           role="tab"
-          id="tab-medya"
-          aria-selected={activeTab === 'medya'}
-          aria-controls="tabpanel-medya"
-          onclick={() => setTab('medya')}
-          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'medya' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+          id="tab-media"
+          aria-selected={activeTab === 'media'}
+          aria-controls="tabpanel-media"
+          onclick={() => setTab('media')}
+          class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'media' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
         >
-          Fotoğraf & Video
+          Photos & Video
         </button>
         {#if !isBuckleProduct}
           <button
             type="button"
             role="tab"
-            id="tab-tokalar"
-            aria-selected={activeTab === 'tokalar'}
-            aria-controls="tabpanel-tokalar"
-            onclick={() => setTab('tokalar')}
-            class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'tokalar' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+            id="tab-buckles"
+            aria-selected={activeTab === 'buckles'}
+            aria-controls="tabpanel-buckles"
+            onclick={() => setTab('buckles')}
+            class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'buckles' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
           >
             {t('products.editor.tabBuckles')}
           </button>
@@ -487,8 +487,8 @@ export interface ProductRecord {
     </div>
 
     <!-- Tab Panels -->
-    {#if activeTab === 'genel'}
-      <div id="tabpanel-genel" role="tabpanel" aria-labelledby="tab-genel" class="space-y-6">
+    {#if activeTab === 'general'}
+      <div id="tabpanel-general" role="tabpanel" aria-labelledby="tab-general" class="space-y-6">
         <div class="rounded-xl border border-border bg-card p-6 shadow-xs space-y-5">
           <!-- Name & Slug -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -695,16 +695,16 @@ export interface ProductRecord {
           </div>
         </div>
       </div>
-    {:else if activeTab === 'varyantlar'}
-      <div id="tabpanel-varyantlar" role="tabpanel" aria-labelledby="tab-varyantlar">
+    {:else if activeTab === 'variants'}
+      <div id="tabpanel-variants" role="tabpanel" aria-labelledby="tab-variants">
         <VariantsTab {product} />
       </div>
-    {:else if activeTab === 'medya'}
-      <div id="tabpanel-medya" role="tabpanel" aria-labelledby="tab-medya">
+    {:else if activeTab === 'media'}
+      <div id="tabpanel-media" role="tabpanel" aria-labelledby="tab-media">
         <MediaTab {product} />
       </div>
-    {:else if activeTab === 'tokalar' && !isBuckleProduct}
-      <div id="tabpanel-tokalar" role="tabpanel" aria-labelledby="tab-tokalar">
+    {:else if activeTab === 'buckles' && !isBuckleProduct}
+      <div id="tabpanel-buckles" role="tabpanel" aria-labelledby="tab-buckles">
         <BucklesTab
           {product}
           onsaved={(updated) => {

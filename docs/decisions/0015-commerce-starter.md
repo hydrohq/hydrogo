@@ -76,7 +76,7 @@ missing by actually being built against the real API, not assumed:
   production (`node build`) storefront driven through the full guest
   flow - browse, add to cart, checkout, a forged-but-correctly-signed the payment gateway
   callback (signed independently in Python, matching the discipline from
-  0014) - confirmed the order flips from "Ödeme bekleniyor" to "Ödendi" on
+  0014) - confirmed the order flips from "Awaiting payment" to "Paid" on
   the confirmation page, stock settles at the correct `available`/`reserved`
   split, and the sold-out state renders correctly once stock reaches zero.
 - Found and fixed live: the idempotency-key cookie (`checkout_idem`, local

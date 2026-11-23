@@ -206,7 +206,7 @@ func TestExternalStorefront_UpstreamDownReturns503(t *testing.T) {
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503, got %d", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "Mağaza Hazırlanıyor") {
+	if !strings.Contains(rec.Body.String(), "Preparing the Store") {
 		t.Fatalf("expected friendly startup page, got %q", rec.Body.String())
 	}
 

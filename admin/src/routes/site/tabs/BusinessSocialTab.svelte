@@ -42,7 +42,7 @@
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
     <div>
       <label for="b-tax-office" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.taxOffice')}</label>
-      <Input id="b-tax-office" type="text" bind:value={business.tax_office} placeholder="Beyoğlu VD" />
+      <Input id="b-tax-office" type="text" bind:value={business.tax_office} placeholder="Downtown Tax Office" />
     </div>
     <div>
       <label for="b-tax" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.tax')}</label>
@@ -76,15 +76,15 @@
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
     <div class="md:col-span-2">
       <label for="b-addr" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.address')}</label>
-      <Input id="b-addr" type="text" bind:value={business.address} placeholder="İstiklal Cad. No: 1" />
+      <Input id="b-addr" type="text" bind:value={business.address} placeholder="1 Main Street" />
     </div>
     <div>
       <label for="b-city" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.city')}</label>
-      <Input id="b-city" type="text" bind:value={business.city} placeholder="İstanbul" />
+      <Input id="b-city" type="text" bind:value={business.city} placeholder="Springfield" />
     </div>
     <div>
       <label for="b-country" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.country')}</label>
-      <Input id="b-country" type="text" bind:value={business.country} placeholder="Türkiye" />
+      <Input id="b-country" type="text" bind:value={business.country} placeholder="United States" />
     </div>
   </div>
 

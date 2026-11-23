@@ -65,7 +65,7 @@ if ($skipContractTests) {
         try { npm test } finally { Pop-Location }
     }
 } else {
-    Write-Warning "npm bulunamadı; headless starter contract smoke atlandı (CI/browser-e2e job'ında zorunludur)."
+    Write-Warning "npm not found; headless starter contract smoke skipped (required in the CI/browser-e2e job)."
 }
 Invoke-Required "ADR index drift check" { & (Join-Path $PSScriptRoot "adr-drift-check.ps1") }
 if (-not $skipContractTests) {

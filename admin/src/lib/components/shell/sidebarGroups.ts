@@ -14,7 +14,7 @@ export interface CollectionGroup<T extends GroupableCollection = GroupableCollec
 
 export function isAdvancedGroup(name: string): boolean {
   const n = (name || '').trim().toLowerCase();
-  return n === 'advanced' || n === 'gelismis' || n === 'gelişmiş';
+  return n === 'advanced';
 }
 
 export function isDefaultContentGroup(name: string): boolean {
@@ -22,11 +22,7 @@ export function isDefaultContentGroup(name: string): boolean {
   return (
     n === '' ||
     n === 'content' ||
-    n === 'documents' ||
-    n === 'içerik' ||
-    n === 'icerik' ||
-    n === 'içerikler' ||
-    n === 'icerikler'
+    n === 'documents'
   );
 }
 

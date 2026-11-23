@@ -31,8 +31,8 @@ func (n NotificationSender) SendOrderConfirmation(ctx context.Context, email, or
 	}{OrderID: orderID, Total: total, Items: items})
 	return n.Sender.Send(ctx, Message{
 		To:       email,
-		Subject:  "Siparişiniz alındı: " + orderID,
-		Body:     fmt.Sprintf("Siparişiniz alındı. Sipariş numarası: %s. Toplam: %s.", orderID, total),
+		Subject:  "Order received: " + orderID,
+		Body:     fmt.Sprintf("Your order was received. Order number: %s. Total: %s.", orderID, total),
 		HTMLBody: html,
 	})
 }

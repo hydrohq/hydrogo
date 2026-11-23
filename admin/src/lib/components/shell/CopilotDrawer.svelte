@@ -252,9 +252,9 @@
       <!-- Prompt Input Form -->
       {#if !governance || !governance.ai_enabled}
         <div class="border-t border-border bg-muted/40 p-4 text-center space-y-1.5">
-          <p class="text-xs font-semibold text-foreground">AI Asistan Bağlı Değil</p>
+          <p class="text-xs font-semibold text-foreground">AI Assistant Not Connected</p>
           <p class="text-[11px] text-muted-foreground leading-relaxed">
-            Bu mağazada yapay zeka asistanı yapılandırılmamıştır veya devre dışıdır. Kullanabilmek için bir yapay zeka sağlayıcısı (Gemini, OpenAI vb.) API anahtarı bağlamalısınız.
+            The AI assistant is not configured or is disabled for this store. Connect an API key from an AI provider (Gemini, OpenAI, etc.) to use it.
           </p>
         </div>
       {:else}

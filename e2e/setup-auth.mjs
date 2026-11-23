@@ -23,7 +23,7 @@ if (!login.ok()) throw new Error(`sign-in failed with HTTP ${login.status()}`);
 await page.waitForURL((url) => !url.href.includes("login"));
 // Persist the onboarding-tour dismissal so admin journeys interact with the
 // editor instead of the first-run dialog — same as a returning admin who
-// clicked "Bu rehberi bir daha gösterme" (plain key + role-scoped key).
+// clicked "Do not show this guide again" (plain key + role-scoped key).
 await page.evaluate(() => {
   localStorage.setItem("hydro-onboarding-dismissed", "1");
   const role = document.body?.dataset?.studioRole || "admin";

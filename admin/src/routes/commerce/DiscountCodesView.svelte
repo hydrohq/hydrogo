@@ -30,7 +30,7 @@
     }
   }
 
-  // Percent: whole number 1-100. Fixed: entered in TL, stored as kuruş. Dates: <input type=date> -> RFC3339 (end = end of that day).
+  // Percent: whole number 1-100. Fixed: entered in the major currency unit, stored in minor units. Dates: <input type=date> -> RFC3339 (end = end of that day).
   async function create(event: Event) {
     event.preventDefault();
     feedback = '';

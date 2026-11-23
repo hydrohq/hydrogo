@@ -56,7 +56,7 @@ type InvoiceCustomer struct {
 }
 
 // InvoiceLine holds one pre-tax, tax, and tax-inclusive line item in integer cents
-// so accounting adapters never lose a kuruş to floating-point accumulation.
+// so accounting adapters never lose a cent to floating-point accumulation.
 type InvoiceLine struct {
 	ProductID        string
 	SKU              string
@@ -95,7 +95,7 @@ type InvoiceDocument struct {
 	TaxInclusive bool
 }
 
-// BuildInvoiceDocument constructs a kuruş-balanced invoice document from an order,
+// BuildInvoiceDocument constructs a cent-balanced invoice document from an order,
 // its items, configured pricing/tax rules, and optional customer tax info.
 func BuildInvoiceDocument(order Order, items []OrderItem, pricing PricingConfig, taxInfo InvoiceCustomerInfo, hasTaxInfo bool, issuedAt time.Time) (InvoiceDocument, error) {
 	if order.TotalCents <= 0 {
@@ -135,7 +135,7 @@ func BuildInvoiceDocument(order Order, items []OrderItem, pricing PricingConfig,
 		amounts.TotalCents += line.TotalCents
 	}
 
-	note := fmt.Sprintf("Sipariş #%s", order.ID)
+	note := fmt.Sprintf("Order #%s", order.ID)
 	if strings.TrimSpace(order.DiscountCode) != "" {
 		note += fmt.Sprintf(" (%s)", strings.TrimSpace(order.DiscountCode))
 	}
@@ -188,7 +188,7 @@ func resolveCustomer(order Order, taxInfo InvoiceCustomerInfo, hasTaxInfo bool) 
 		title = strings.TrimSpace(order.GuestEmail)
 	}
 	if title == "" {
-		title = "Müşteri"
+		title = "Customer"
 	}
 	tckn := stripSpaces(taxInfo.TCKN)
 	if tckn == "" {
@@ -269,7 +269,7 @@ func buildInclusiveLines(order Order, items []OrderItem, taxRatePct int) []Invoi
 			discountNetCents = preNet - netCents
 		default:
 			// Multi-unit tax-inclusive item whose per-unit net division leaves a
-			// sub-kuruş rounding delta: keep Qty=1 so UnitPrice*Qty==Gross==Net.
+			// sub-cent rounding delta: keep Qty=1 so UnitPrice*Qty==Gross==Net.
 			lineQty = 1
 			lineName = title
 			if qty > 1 {
@@ -304,7 +304,7 @@ func buildInclusiveLines(order Order, items []OrderItem, taxRatePct int) []Invoi
 		lines = append(lines, InvoiceLine{
 			ProductID:        "SHIPPING",
 			SKU:              "SHIPPING",
-			ProductName:      "Kargo Ücreti",
+			ProductName:      "Shipping Fee",
 			TaxRatePct:       taxRatePct,
 			Quantity:         1,
 			UnitPriceCents:   netCents,
@@ -377,7 +377,7 @@ func buildExclusiveLines(order Order, items []OrderItem, taxRatePct int) []Invoi
 		lines = append(lines, InvoiceLine{
 			ProductID:        "SHIPPING",
 			SKU:              "SHIPPING",
-			ProductName:      "Kargo Ücreti",
+			ProductName:      "Shipping Fee",
 			TaxRatePct:       0,
 			Quantity:         1,
 			UnitPriceCents:   order.ShippingCents,
@@ -459,7 +459,7 @@ func lineTitle(it OrderItem) string {
 	if s := strings.TrimSpace(it.SKU); s != "" {
 		return s
 	}
-	return "Ürün"
+	return "Product"
 }
 
 func formatInvoiceAddress(order Order) string {

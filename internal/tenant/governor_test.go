@@ -168,7 +168,7 @@ func TestGovernorLifecycleAndSubscriptionExpiry(t *testing.T) {
 	if !strings.Contains(recBrowser.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("expected Content-Type text/html, got %s", recBrowser.Header().Get("Content-Type"))
 	}
-	if !strings.Contains(recBrowser.Body.String(), "Bu Mağaza Geçici Olarak Askıya Alınmıştır") {
+	if !strings.Contains(recBrowser.Body.String(), "This Store Is Temporarily Suspended") {
 		t.Fatalf("expected HTML body to contain explanation title, got: %s", recBrowser.Body.String())
 	}
 	if !strings.Contains(recBrowser.Body.String(), "req-test-12345") {

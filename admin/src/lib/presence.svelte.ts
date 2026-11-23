@@ -96,7 +96,7 @@ export function createPresence(
       dismissedBanner = v;
     },
     get names() {
-      return activeEditors.map((e) => e.name || e.email || 'Bir editör').join(', ');
+      return activeEditors.map((e) => e.name || e.email || 'An editor').join(', ');
     },
     dismiss() {
       dismissedBanner = true;

@@ -209,7 +209,7 @@ func clockOn(day time.Time, value string) (time.Time, error) {
 }
 func businessHoursLabel(hours BusinessHours) string {
 	if hours.Closed {
-		return "Kapalı"
+		return "Closed"
 	}
 	return hours.Opens + "–" + hours.Closes
 }

@@ -62,7 +62,7 @@ func (s Service) RefundOrder(ctx context.Context, refunder PaymentRefunder, orde
 			return ErrOrderNotRefundable
 		}
 
-		// Kargo durumu kontrolü: shipped/delivered ise izin gerektir
+		// Shipment status check: require permission when shipped/delivered
 		if order.FulfillmentStatus == FulfillmentShipped || order.FulfillmentStatus == FulfillmentDelivered {
 			if !cfg.AllowShipped {
 				return ErrOrderShippedRequiresApproval
@@ -109,7 +109,7 @@ func (s Service) RefundOrder(ctx context.Context, refunder PaymentRefunder, orde
 			return ErrRefundAlreadyInProgress
 		}
 
-		// Stok iadesini sadece sipariş gönderilmemişse yap
+		// Only restock when the order has not been shipped
 		if order.FulfillmentStatus != FulfillmentShipped && order.FulfillmentStatus != FulfillmentDelivered {
 			items, err := s.Repository.ListOrderItems(ctx, tx, orderID)
 			if err != nil {

@@ -193,15 +193,15 @@ func (h Handler) adminCreate(w http.ResponseWriter, r *http.Request) {
 	created, err := h.Service.AdminCreateMember(r.Context(), input.Email, input.Password, active, verified)
 	if err != nil {
 		if errors.Is(err, members.ErrMemberExists) {
-			api.WriteError(w, r, http.StatusConflict, "Bu e-posta adresi zaten kayıtlı.", nil)
+			api.WriteError(w, r, http.StatusConflict, "This email address is already registered.", nil)
 			return
 		}
 		if errors.Is(err, auth.ErrWeakPassword) {
-			api.WriteError(w, r, http.StatusBadRequest, "Şifre en az 6 karakter olmalıdır.", nil)
+			api.WriteError(w, r, http.StatusBadRequest, "The password must be at least 6 characters.", nil)
 			return
 		}
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			api.WriteError(w, r, http.StatusBadRequest, "Geçerli bir e-posta adresi giriniz.", nil)
+			api.WriteError(w, r, http.StatusBadRequest, "Enter a valid email address.", nil)
 			return
 		}
 		api.WriteError(w, r, http.StatusServiceUnavailable, "member create failed", nil)
@@ -238,11 +238,11 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if input.Email != nil && strings.TrimSpace(*input.Email) != "" {
 		if err := h.Service.UpdateEmail(r.Context(), member.ID, *input.Email); err != nil {
 			if errors.Is(err, members.ErrMemberExists) {
-				api.WriteError(w, r, http.StatusConflict, "Bu e-posta adresi zaten kayıtlı.", nil)
+				api.WriteError(w, r, http.StatusConflict, "This email address is already registered.", nil)
 				return
 			}
 			if errors.Is(err, auth.ErrInvalidCredentials) {
-				api.WriteError(w, r, http.StatusBadRequest, "Geçerli bir e-posta adresi giriniz.", nil)
+				api.WriteError(w, r, http.StatusBadRequest, "Enter a valid email address.", nil)
 				return
 			}
 			api.WriteError(w, r, http.StatusServiceUnavailable, "member email update failed", nil)
@@ -252,7 +252,7 @@ func (h Handler) adminUpdate(w http.ResponseWriter, r *http.Request) {
 	if input.Password != nil && strings.TrimSpace(*input.Password) != "" {
 		if err := h.Service.UpdatePassword(r.Context(), member.ID, *input.Password); err != nil {
 			if errors.Is(err, auth.ErrWeakPassword) {
-				api.WriteError(w, r, http.StatusBadRequest, "Şifre en az 6 karakter olmalıdır.", nil)
+				api.WriteError(w, r, http.StatusBadRequest, "The password must be at least 6 characters.", nil)
 				return
 			}
 			api.WriteError(w, r, http.StatusServiceUnavailable, "member password update failed", nil)

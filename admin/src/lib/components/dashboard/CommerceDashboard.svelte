@@ -78,7 +78,7 @@
   const money = (cents: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(cents / 100);
   const day = (ms: number) => new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(ms);
   const shortId = (id: string) => id.replace('order_', '').slice(0, 8).toUpperCase();
-  const statusLabel: Record<string, string> = { paid: 'Ödendi', pending: 'Bekliyor', failed: 'Başarısız', refunded: 'İade' };
+  const statusLabel: Record<string, string> = { paid: 'Paid', pending: 'Pending', failed: 'Failed', refunded: 'Refunded' };
   const statusTone: Record<string, string> = { paid: 'text-emerald-600', pending: 'text-amber-600', failed: 'text-destructive', refunded: 'text-muted-foreground' };
 
   const go = (path: string) => router.navigate(path);
@@ -93,7 +93,7 @@
     { label: t('dashboard.commerce.reviews'), value: String(pendingReviews), note: t('dashboard.commerce.reviewsNote'), to: '/content/reviews', alert: pendingReviews > 0, tone: 'bg-amber-500' },
     { label: t('dashboard.commerce.returns'), value: String(openReturns), note: t('dashboard.commerce.returnsNote'), to: '/content/return_requests', alert: openReturns > 0, tone: 'bg-amber-500' },
     { label: t('dashboard.commerce.lowStock'), value: String(lowStock.length), note: t('dashboard.commerce.lowStockNote'), to: '/commerce/stock', alert: lowStock.length > 0, tone: 'bg-amber-500' },
-    { label: t('dashboard.commerce.members'), value: members.toLocaleString('tr-TR'), note: visitors > 0 ? `${visitors} ziyaretçi bugün` : t('dashboard.commerce.membersNote'), to: '/members', alert: false, tone: 'bg-muted-foreground' },
+    { label: t('dashboard.commerce.members'), value: members.toLocaleString(), note: visitors > 0 ? `${visitors} visitors today` : t('dashboard.commerce.membersNote'), to: '/members', alert: false, tone: 'bg-muted-foreground' },
   ]);
   const periodTotal = $derived(days.reduce((acc, d) => acc + d.total, 0));
 </script>

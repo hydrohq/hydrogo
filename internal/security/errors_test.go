@@ -92,7 +92,7 @@ func TestErrorMiddlewareBrowserHTMLWithCSP(t *testing.T) {
 		t.Fatalf("expected CSP to allow unsafe-inline styles for error page, got %q", csp)
 	}
 	body := res.Body.String()
-	if !strings.Contains(body, "Sayfa Bulunamadı") {
-		t.Fatalf("expected styled HTML error page with Turkish title, got %q", body)
+	if !strings.Contains(body, "Page Not Found") {
+		t.Fatalf("expected styled HTML error page with English title, got %q", body)
 	}
 }

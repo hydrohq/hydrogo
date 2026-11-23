@@ -84,6 +84,8 @@ tenant id; always run it with `--dry-run` first.
 
 ## Platform Orchestrator & Resource Governor
 
+> The orchestrator REST endpoints, onboarding and billing described below belong to the hosted platform overlay (`cmd/hydro/cloud_stubs.go` answers 404 without the `hydrocloud` build tag). The resource governor, tenant lifecycle checks and tenant-scoped storage live in core.
+
 In addition to static `hosts` configuration and CLI provisioning, HydroGo includes a built-in **Platform Orchestrator** and **Resource Governor** (see [ADR 0029](decisions/0029-platform-orchestrator-and-resource-governor.md)):
 
 - **Zero-Restart Provisioning & Domain Routing**: Workspaces provisioned via `POST /api/v1/admin/orchestrator/tenants` immediately register their `subdomain` and `custom_domain` in `HostResolver` and synchronize collection schemas without restarting the server.
@@ -94,13 +96,5 @@ In addition to static `hosts` configuration and CLI provisioning, HydroGo includ
 ## Multi-Adapter AI Copilot & Boutique Store Factory
 
 - **Per-Workspace AI Adapters & BYOK**: Each workspace in `tenant_governance` can be assigned `gemini`, `openai`, `anthropic`, or `openai_compatible` (Ollama/Groq/DeepSeek) along with a model name, monthly token cap (`ai_monthly_token_limit`), and an optional AES-256-GCM encrypted API key (`ai_encrypted_api_key`).
-- **Workspace Copilot & One-Click Undo**: Store owners can open the **AI Asistan** drawer in the admin header (`POST /api/v1/admin/ai/copilot`) to create/update/delete records or change storefront theme tokens in natural language, and revert any action in one click via `POST /api/v1/admin/ai/actions/{id}/undo`.
-- **60-Second Boutique Factory (`tools/factory`)**:
-  ```bash
-  go run ./tools/factory \
-    --tenant ipek-butik \
-    --name "İpek Butik" \
-    --phone "+905551112233" \
-    --prompt "Kadın ipek gömlek ve keten takım satan lüks butik"
-  ```
-  Provisions the tenant workspace, applies `tenant_governance` quotas, syncs `content-types/boutique/*.yaml`, and seeds initial theme settings, categories, and products.
+- **Workspace Copilot & One-Click Undo**: Store owners can open the **AI Assistant** drawer in the admin header (`POST /api/v1/admin/ai/copilot`) to create/update/delete records or change storefront theme tokens in natural language, and revert any action in one click via `POST /api/v1/admin/ai/actions/{id}/undo`.
+- **Boutique factory (hosted overlay)**: one-command tenant provisioning with a seeded boutique catalog (`tools/factory`) is part of the hosted platform overlay and is not shipped in this repository.

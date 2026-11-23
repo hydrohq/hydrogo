@@ -335,7 +335,7 @@
       <div class="pt-3 border-t border-border space-y-3">
         {#if canWrite && selected.payment_status === 'paid'}
           <Button variant="danger" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>
-            {t('commerce.order.refund')} (Ödemeyi İade Et)
+            {t('commerce.order.refund')} (Refund Payment)
           </Button>
         {:else if canWrite && selected.payment_status === 'pending'}
           <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
@@ -346,16 +346,16 @@
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
               </svg>
               <div>
-                <p class="font-medium">Ödeme Bekleniyor</p>
+                <p class="font-medium">Awaiting Payment</p>
                 <p class="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                  Bu sipariş henüz ödenmediği için banka/kart para iadesi yapılamaz. Müşteri ödemeyi tamamlayıp sipariş "Ödendi" durumuna geçtiğinde <strong>İade Et</strong> butonu burada otomatik olarak görünecektir.
+                  This order has not been paid yet, so a bank or card refund is not possible. Once the customer completes payment and the order becomes "Paid", the <strong>Refund</strong> button appears here automatically.
                 </p>
               </div>
             </div>
           </div>
         {:else if selected.payment_status === 'refunded'}
           <div class="p-3 rounded-lg bg-muted text-xs text-muted-foreground text-center">
-            Bu siparişin ücreti daha önce iade edilmiştir.
+            This order has already been refunded.
           </div>
         {/if}
         <OrderShippingPanel
@@ -417,7 +417,7 @@
               <polyline points="9 14 4 9 9 4"></polyline>
               <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
             </svg>
-            İade ve İptal Talepleri
+            Refund and Cancellation Requests
           </a>
           <div class="relative w-full sm:w-64">
             <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -9,7 +9,7 @@ After [0019](0019-commerce-order-notifications-and-member-login.md) and
 an earlier decision record, two gaps were named rather than
 fixed: there was no admin screen for commerce orders at all (an operator
 could only reach an order by calling the API with its id), and
-`commerce.Order` carried a city but no district (`ilçe`), which every
+`commerce.Order` carried a city but no district (district), which every
 Turkish carrier's schema wants separately.
 
 A third question was whether to keep pushing on the payment gateway and the carrier

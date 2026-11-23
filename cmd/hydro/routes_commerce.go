@@ -246,8 +246,8 @@ func runCommerceReconciliationAlert(ctx context.Context, service commerce.Servic
 			}
 			if notifier != nil {
 				_ = notifier.Send(ctx, notify.Message{
-					Title: "Mutabakat uyarısı",
-					Body: fmt.Sprintf("Bekleyen eski sipariş: %d, bildirimi gelip ödenmemiş: %d, stok tutarsızlığı: %d",
+					Title: "Reconciliation alert",
+					Body: fmt.Sprintf("Stale pending orders: %d, notified but unpaid: %d, stock mismatches: %d",
 						len(report.StalePendingOrders), len(report.NotifiedButNotPaid), len(report.ReservationDrift)),
 				})
 			}

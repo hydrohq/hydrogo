@@ -26,7 +26,7 @@
   const normColor = (c?: string) => (c ?? '').trim();
   const scopeItems = $derived(
     items
-      .filter((i) => normColor(i.variant_color).toLocaleLowerCase('tr') === scope.toLocaleLowerCase('tr'))
+      .filter((i) => normColor(i.variant_color).toLocaleLowerCase() === scope.toLocaleLowerCase())
       .sort((a, b) => Number(Boolean(b.is_cover)) - Number(Boolean(a.is_cover)) || (a.sort_order ?? 0) - (b.sort_order ?? 0))
   );
   const url = (v?: string) => (!v ? '' : /^(https?:)?\/\/|^\//.test(v) ? v : `/media/${v}`);
@@ -44,7 +44,7 @@
       items = mediaRes.data ?? [];
       colors = [...new Set((variantRes.data ?? []).map((v) => normColor(v.color)).filter(Boolean))];
     } catch (e) {
-      error = msg(e, 'Medya yüklenemedi.');
+      error = msg(e, 'Media could not be uploaded.');
     } finally {
       loading = false;
     }
@@ -78,7 +78,7 @@
       }
       await load();
     } catch (err) {
-      error = msg(err, 'Yükleme başarısız.');
+      error = msg(err, 'Upload failed.');
       await load();
     } finally {
       busy = false;
@@ -115,7 +115,7 @@
       await api.put(`${API}/${item.id}`, body({ ...item, is_cover: turnOn }));
       await load();
     } catch (err) {
-      error = msg(err, 'Kapak değiştirilemedi.');
+      error = msg(err, 'The cover could not be changed.');
     } finally {
       busy = false;
     }
@@ -137,14 +137,14 @@
       }
       await load();
     } catch (err) {
-      error = msg(err, 'Sıra değiştirilemedi.');
+      error = msg(err, 'The order could not be changed.');
     } finally {
       busy = false;
     }
   }
 
   async function remove(item: Item) {
-    const ok = await confirmAction({ title: 'Bu medya silinsin mi?', description: 'Ürün sayfasından kaldırılır. Medya kütüphanesindeki dosya silinmez.', confirmLabel: 'Sil', cancelLabel: 'Vazgeç', variant: 'destructive' });
+    const ok = await confirmAction({ title: 'Delete this media?', description: 'It is removed from the product page. The file in the media library is not deleted.', confirmLabel: 'Delete', cancelLabel: 'Cancel', variant: 'destructive' });
     if (!ok) return;
     busy = true;
     try {
@@ -159,34 +159,34 @@
 </script>
 
 {#if !productId}
-  <p class="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">Fotoğraf ve video eklemek için önce ürünü kaydedin.</p>
+  <p class="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">Save the product first to add photos and videos.</p>
 {:else if loading}
   <PageSpinner />
 {:else}
   <div class="space-y-5">
     <div>
-      <h2 class="text-sm font-semibold">Fotoğraf ve videolar</h2>
-      <p class="mt-1 text-xs text-muted-foreground">Birden fazla dosya yükleyebilirsiniz. Bir renk seçip yalnızca o renkte görünecek görseller ve o rengin kapağını belirleyin; “Tüm renkler”dekiler her renkte görünür. Kapak olarak seçilen video sessiz ve otomatik oynar, diğer videolarda oynat tuşu görünür.</p>
+      <h2 class="text-sm font-semibold">Photos and videos</h2>
+      <p class="mt-1 text-xs text-muted-foreground">You can upload several files. Pick a color to set the images shown only for that color and that color's cover; items under “All colors” appear for every color. A video chosen as the cover plays muted and automatically; other videos show a play button.</p>
     </div>
 
     <div class="flex flex-wrap gap-2" role="tablist" aria-label="Renk">
       {#each ['', ...colors] as c (c)}
         <button type="button" role="tab" aria-selected={scope === c} onclick={() => (scope = c)} class="h-8 rounded-full border px-3 text-xs font-medium transition-colors cursor-pointer {scope === c ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'}">
-          {c || 'Tüm renkler'}<span class="ml-1.5 opacity-70">{items.filter((i) => normColor(i.variant_color).toLocaleLowerCase('tr') === c.toLocaleLowerCase('tr')).length}</span>
+          {c || 'All colors'}<span class="ml-1.5 opacity-70">{items.filter((i) => normColor(i.variant_color).toLocaleLowerCase() === c.toLocaleLowerCase()).length}</span>
         </button>
       {/each}
     </div>
-    {#if colors.length === 0}<p class="text-xs text-muted-foreground">Renge özel görsel için önce Varyantlar sekmesinde renk ekleyin.</p>{/if}
+    {#if colors.length === 0}<p class="text-xs text-muted-foreground">To add color-specific images, add colors in the Variants tab first.</p>{/if}
 
     <div class="flex flex-wrap gap-2">
       <input bind:this={fileInput} type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" class="hidden" onchange={uploadFiles} />
-      <Button size="sm" loading={busy} onclick={() => fileInput?.click()}>Fotoğraf / video yükle</Button>
-      <Button size="sm" variant="outline" disabled={busy} onclick={() => { posterFor = null; pickerOpen = true; }}>Kütüphaneden seç</Button>
+      <Button size="sm" loading={busy} onclick={() => fileInput?.click()}>Upload photo / video</Button>
+      <Button size="sm" variant="outline" disabled={busy} onclick={() => { posterFor = null; pickerOpen = true; }}>Choose from library</Button>
     </div>
     {#if error}<p role="alert" class="text-xs text-destructive">{error}</p>{/if}
 
     {#if scopeItems.length === 0}
-      <p class="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">{scope ? `${scope} rengi için henüz özel medya yok.` : 'Henüz medya yok.'}</p>
+      <p class="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">{scope ? `No media for ${scope} yet.` : 'No media yet.'}</p>
     {:else}
       <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {#each scopeItems as item, i (item.id)}
@@ -201,11 +201,11 @@
               {#if item.is_cover}<span class="absolute left-2 top-2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">Kapak</span>{/if}
             </div>
             <div class="flex flex-wrap items-center gap-1 p-2">
-              <button type="button" disabled={busy} onclick={() => toggleCover(item)} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer disabled:opacity-50">{item.is_cover ? 'Kapağı kaldır' : 'Kapak yap'}</button>
-              <button type="button" disabled={busy || i === 0} aria-label="Öne al" onclick={() => move(item, -1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">←</button>
-              <button type="button" disabled={busy || i === scopeItems.length - 1} aria-label="Geriye al" onclick={() => move(item, 1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">→</button>
-              {#if isVideo(item)}<button type="button" disabled={busy} onclick={() => { posterFor = item; pickerOpen = true; }} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer">Video kapağı</button>{/if}
-              <button type="button" disabled={busy} aria-label="Sil" onclick={() => remove(item)} class="ml-auto h-7 w-7 rounded border border-input text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer">✕</button>
+              <button type="button" disabled={busy} onclick={() => toggleCover(item)} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer disabled:opacity-50">{item.is_cover ? 'Remove cover' : 'Make cover'}</button>
+              <button type="button" disabled={busy || i === 0} aria-label="Move earlier" onclick={() => move(item, -1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">←</button>
+              <button type="button" disabled={busy || i === scopeItems.length - 1} aria-label="Move later" onclick={() => move(item, 1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">→</button>
+              {#if isVideo(item)}<button type="button" disabled={busy} onclick={() => { posterFor = item; pickerOpen = true; }} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer">Video cover</button>{/if}
+              <button type="button" disabled={busy} aria-label="Delete" onclick={() => remove(item)} class="ml-auto h-7 w-7 rounded border border-input text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer">✕</button>
             </div>
           </li>
         {/each}

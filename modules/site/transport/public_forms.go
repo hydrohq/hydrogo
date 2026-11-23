@@ -35,7 +35,7 @@ type publicFormView struct {
 }
 
 func defaultContactForm() forms.Form {
-	return forms.Form{ID: "contact", Title: "İletişim", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "E-posta", Required: true}, {ID: "name", Type: forms.Text, Label: "Adınız"}, {ID: "message", Type: forms.Textarea, Label: "Mesaj", Required: true}}}
+	return forms.Form{ID: "contact", Title: "Contact", Fields: []forms.Field{{ID: "email", Type: forms.Email, Label: "Email", Required: true}, {ID: "name", Type: forms.Text, Label: "Your name"}, {ID: "message", Type: forms.Textarea, Label: "Message", Required: true}}}
 }
 
 func (h Handler) loadPublicForm(ctx context.Context, id string) (forms.Form, error) {

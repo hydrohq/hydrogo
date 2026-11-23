@@ -298,7 +298,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <!-- View Mode Switch: Kategori Dağılımı vs Ziyaretçi Grafiği -->
+        <!-- View Mode Switch: Category Breakdown vs Visitors Chart -->
         <div class="flex items-center rounded-lg border border-border p-0.5 bg-background text-xs">
           <button
             type="button"

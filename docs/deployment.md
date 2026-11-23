@@ -21,7 +21,7 @@ ExecStart=/usr/local/bin/hydro serve --config config.yaml
 Restart=on-failure
 ```
 
-4. Put Caddy or nginx in front for TLS: see [`deploy/caddy`](../deploy/caddy) and [`deploy/nginx`](../deploy/nginx). When running behind a reverse proxy or CDN, set `http.behind_proxy: true` and list the proxy ranges in `http.trusted_proxies`. `http.trust_cf_connecting_ip` yalnızca trafiğin Cloudflare üzerinden geldiği ve yönlendirici proxy'nin (Caddy/nginx) Cloudflare dışı kaynaklardaki CF-Connecting-IP başlığını sildiği/yok saydığı kurulumlarda açılmalı; aksi halde IP sahteciliği mümkündür.
+4. Put Caddy or nginx in front for TLS: see [`deploy/caddy`](../deploy/caddy) and [`deploy/nginx`](../deploy/nginx). When running behind a reverse proxy or CDN, set `http.behind_proxy: true` and list the proxy ranges in `http.trusted_proxies`. Enable `http.trust_cf_connecting_ip` only when all traffic arrives through Cloudflare and the front proxy (Caddy/nginx) strips or ignores the `CF-Connecting-IP` header from non-Cloudflare sources; otherwise client IPs can be spoofed.
 
 ## Docker
 

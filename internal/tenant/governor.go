@@ -276,7 +276,7 @@ func writeGovernorError(w http.ResponseWriter, r *http.Request, status int, code
 	if wantsGovernorHTML(r) {
 		name := strings.TrimSpace(storeName)
 		if name == "" {
-			name = "Mağaza"
+			name = "Store"
 		}
 		view := governorErrorView{
 			StoreName:  name,
@@ -286,24 +286,24 @@ func writeGovernorError(w http.ResponseWriter, r *http.Request, status int, code
 		}
 		switch code {
 		case "workspace_suspended":
-			view.Title = "Bu Mağaza Geçici Olarak Askıya Alınmıştır"
-			view.Explanation = "Bu çalışma alanı veya vitrin, platform yöneticisi tarafından geçici olarak askıya alınmış ya da arşivlenmiştir. Durumunuzu kontrol etmek için platform yönetim konsoluna başvurabilirsiniz."
-			view.StatusLabel = "503 · Askıda"
+			view.Title = "This Store Is Temporarily Suspended"
+			view.Explanation = "This workspace or storefront has been temporarily suspended or archived by the platform administrator. Contact the platform console to check your status."
+			view.StatusLabel = "503 · Suspended"
 			view.BadgeClass = "badge-rose"
 		case "workspace_readonly_subscription_expired":
-			view.Title = "Abonelik Süresi Sona Erdi"
-			view.Explanation = "Bu mağazanın deneme veya abonelik süresi sona erdiği için salt-okunur moda alınmıştır. Yeni işlem gerçekleştirebilmek için lütfen planınızı yenileyiniz."
-			view.StatusLabel = "402 · Süre Doldu"
+			view.Title = "Subscription Expired"
+			view.Explanation = "This store is in read-only mode because its trial or subscription has ended. Renew your plan to make changes."
+			view.StatusLabel = "402 · Expired"
 			view.BadgeClass = "badge-amber"
 		case "tenant_rate_limit_exceeded", "tenant_concurrency_exceeded":
-			view.Title = "İstek Yoğunluğu Sınırı Aşıldı"
-			view.Explanation = "Çalışma alanına yönelik istek yoğunluğu sınırı aştı. Lütfen birkaç saniye bekleyip sayfayı yenileyiniz."
-			view.StatusLabel = "429 · Yoğunluk"
+			view.Title = "Request Rate Limit Exceeded"
+			view.Explanation = "The request rate for this workspace exceeded its limit. Please wait a few seconds and refresh the page."
+			view.StatusLabel = "429 · Rate Limited"
 			view.BadgeClass = "badge-amber"
 		default:
-			view.Title = "Servis Geçici Olarak Kullanılamıyor"
+			view.Title = "Service Temporarily Unavailable"
 			view.Explanation = message
-			view.StatusLabel = fmt.Sprintf("%d · Servis Hatası", status)
+			view.StatusLabel = fmt.Sprintf("%d · Service Error", status)
 			view.BadgeClass = "badge-rose"
 		}
 

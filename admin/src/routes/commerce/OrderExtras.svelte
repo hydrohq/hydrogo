@@ -60,10 +60,10 @@
 
   async function cancelOrder() {
     const ok = await confirmAction({
-      title: 'Sipariş iptal edilsin mi?',
-      description: 'Ödeme gelmemiş sipariş başarısız yapılır, stok serbest kalır ve kuponu geri verilir. Müşteri ödemeyi bu sipariş için artık tamamlayamaz.',
-      confirmLabel: 'Evet, iptal et',
-      cancelLabel: 'Vazgeç',
+      title: 'Cancel this order?',
+      description: 'An unpaid order is marked as failed, its stock is released and its coupon is returned. The customer can no longer complete payment for this order.',
+      confirmLabel: 'Yes, cancel it',
+      cancelLabel: 'Keep it',
       variant: 'destructive'
     });
     if (!ok) return;
@@ -73,7 +73,7 @@
       await api.post(`/api/v1/admin/commerce/orders/${encodeURIComponent(order.id)}/cancel`);
       onchanged();
     } catch (e) {
-      error = e instanceof ApiClientError ? e.message : 'Sipariş iptal edilemedi.';
+      error = e instanceof ApiClientError ? e.message : 'The order could not be cancelled.';
     } finally {
       busy = false;
     }
@@ -82,10 +82,10 @@
   const when = (v?: string) => (v ? new Date(v).toLocaleString('tr-TR') : '');
   // Only what is actually recorded: the payment time is not stored, so no time is shown for it.
   const timeline = $derived([
-    { label: 'Sipariş oluşturuldu', at: order.created_at },
-    ...(order.payment_status === 'paid' ? [{ label: 'Ödeme alındı', at: '' }] : []),
-    ...(order.payment_status === 'failed' ? [{ label: 'Ödeme gelmedi / sipariş iptal', at: '' }] : []),
-    ...(order.payment_status === 'refunded' ? [{ label: 'Ödeme iade edildi', at: '' }] : []),
+    { label: 'Order created', at: order.created_at },
+    ...(order.payment_status === 'paid' ? [{ label: 'Payment received', at: '' }] : []),
+    ...(order.payment_status === 'failed' ? [{ label: 'Payment failed / order cancelled', at: '' }] : []),
+    ...(order.payment_status === 'refunded' ? [{ label: 'Payment refunded', at: '' }] : []),
     ...(order.shipped_at && !order.shipped_at.startsWith('0001') ? [{ label: 'Kargoya verildi', at: order.shipped_at }] : []),
     ...(order.delivered_at && !order.delivered_at.startsWith('0001') ? [{ label: 'Teslim edildi', at: order.delivered_at }] : []),
     ...(order.invoiced_at && !order.invoiced_at.startsWith('0001') ? [{ label: 'Fatura kesildi', at: order.invoiced_at }] : [])
@@ -99,11 +99,11 @@
     if (!w) return;
     const addr = addressLines().map((l) => `<div>${esc(l)}</div>`).join('');
     const body = kind === 'label'
-      ? `<div class="label"><div class="to">ALICI</div>${addr}<div class="ref">Sipariş #${esc(order.id.replace('order_', '').slice(0, 8).toUpperCase())}</div></div>`
-      : `<h1>Paketleme fişi</h1><p>Sipariş #${esc(order.id.replace('order_', '').slice(0, 8).toUpperCase())} · ${esc(when(order.created_at))}</p>
-         <h2>Alıcı</h2>${addr}
-         <h2>Ürünler</h2><table>${order.items.map((i) => `<tr><td>☐</td><td>${esc(i.title)}<br><small>${esc(i.sku)}</small></td><td class="q">× ${esc(String(i.quantity))}</td></tr>`).join('')}</table>`;
-    w.document.write(`<!doctype html><meta charset="utf-8"><title>${kind === 'label' ? 'Adres etiketi' : 'Paketleme fişi'}</title>
+      ? `<div class="label"><div class="to">RECIPIENT</div>${addr}<div class="ref">Order #${esc(order.id.replace('order_', '').slice(0, 8).toUpperCase())}</div></div>`
+      : `<h1>Packing slip</h1><p>Order #${esc(order.id.replace('order_', '').slice(0, 8).toUpperCase())} · ${esc(when(order.created_at))}</p>
+         <h2>Recipient</h2>${addr}
+         <h2>Items</h2><table>${order.items.map((i) => `<tr><td>☐</td><td>${esc(i.title)}<br><small>${esc(i.sku)}</small></td><td class="q">× ${esc(String(i.quantity))}</td></tr>`).join('')}</table>`;
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>${kind === 'label' ? 'Address label' : 'Packing slip'}</title>
       <style>body{font:15px/1.5 system-ui,sans-serif;margin:32px;color:#111}h1{font-size:22px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;margin:22px 0 6px;color:#555}
       table{width:100%;border-collapse:collapse}td{padding:8px 6px;border-bottom:1px solid #ddd}.q{text-align:right;white-space:nowrap}
       .label{border:2px solid #111;padding:24px;max-width:420px;font-size:20px;line-height:1.4}.to{font-size:12px;letter-spacing:.2em;margin-bottom:8px}.ref{margin-top:16px;font-size:12px;color:#555}
@@ -114,7 +114,7 @@
 
 <div class="space-y-4 border-t border-border pt-4 text-xs">
   <section>
-    <h3 class="mb-2 font-medium text-muted-foreground">Süreç</h3>
+    <h3 class="mb-2 font-medium text-muted-foreground">Timeline</h3>
     <ol class="space-y-1.5 border-l border-border pl-4">
       {#each timeline as step (step.label)}
         <li class="relative"><span class="absolute -left-[1.3rem] top-1.5 size-2 rounded-full bg-primary"></span>{step.label}{#if step.at}<span class="ml-2 text-muted-foreground">{when(step.at)}</span>{/if}</li>
@@ -123,10 +123,10 @@
   </section>
 
   <section class="flex flex-wrap gap-2">
-    <Button variant="outline" size="sm" onclick={() => printSheet('slip')}>Paketleme fişi yazdır</Button>
-    <Button variant="outline" size="sm" onclick={() => printSheet('label')}>Adres etiketi yazdır</Button>
+    <Button variant="outline" size="sm" onclick={() => printSheet('slip')}>Print packing slip</Button>
+    <Button variant="outline" size="sm" onclick={() => printSheet('label')}>Print address label</Button>
     {#if canWrite && order.payment_status === 'pending'}
-      <Button variant="danger" size="sm" loading={busy} onclick={cancelOrder}>Siparişi iptal et</Button>
+      <Button variant="danger" size="sm" loading={busy} onclick={cancelOrder}>Cancel order</Button>
     {/if}
   </section>
 
@@ -134,7 +134,7 @@
     <section>
       <h3 class="mb-2 font-medium text-muted-foreground">Fatura bilgisi</h3>
       <dl class="grid grid-cols-[8rem_1fr] gap-y-1 rounded-md border border-border bg-muted/40 p-3">
-        <dt class="text-muted-foreground">Tür</dt><dd class="capitalize">{invoice.invoice_type}</dd>
+        <dt class="text-muted-foreground">Type</dt><dd class="capitalize">{invoice.invoice_type}</dd>
         {#if invoice.invoice_type === 'kurumsal'}
           <dt class="text-muted-foreground">Unvan</dt><dd>{invoice.company_name}</dd>
           <dt class="text-muted-foreground">VKN</dt><dd class="font-mono">{invoice.vkn}</dd>
@@ -148,8 +148,8 @@
 
   {#if notesAvailable}
     <section>
-      <h3 class="mb-2 font-medium text-muted-foreground">Sipariş notları (yalnızca ekip görür)</h3>
-      {#if notes.length === 0}<p class="text-muted-foreground">Henüz not yok.</p>{/if}
+      <h3 class="mb-2 font-medium text-muted-foreground">Order notes (visible to the team only)</h3>
+      {#if notes.length === 0}<p class="text-muted-foreground">No notes yet.</p>{/if}
       <ul class="space-y-2">
         {#each notes as n (n.id)}
           <li class="rounded-md border border-border bg-muted/40 p-2.5"><p class="whitespace-pre-wrap text-foreground">{n.note}</p><p class="mt-1 text-[11px] text-muted-foreground">{n.author ?? ''} {when(n.created_at)}</p></li>
@@ -157,8 +157,8 @@
       </ul>
       {#if canWrite}
         <div class="mt-2 flex gap-2">
-          <textarea bind:value={draft} rows="2" placeholder="Not ekle…" class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"></textarea>
-          <Button size="sm" disabled={busy || !draft.trim()} onclick={addNote}>Ekle</Button>
+          <textarea bind:value={draft} rows="2" placeholder="Add a note…" class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"></textarea>
+          <Button size="sm" disabled={busy || !draft.trim()} onclick={addNote}>Add</Button>
         </div>
       {/if}
     </section>

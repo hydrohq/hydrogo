@@ -127,24 +127,24 @@ func BuildWeeklyDigestText(stats WeeklyDigestStats, start, end time.Time) string
 	return BuildDigestText(stats, start, end, DigestWeekly)
 }
 func BuildDigestText(stats DigestStats, start, end time.Time, frequency DigestFrequency) string {
-	label := "Haftalık site özeti"
+	label := "Weekly site summary"
 	if frequency == DigestMonthly {
-		label = "Aylık yönetici özeti"
+		label = "Monthly admin summary"
 	}
 	var out strings.Builder
 	fmt.Fprintf(&out, "%s · %s – %s\n\n", label, start.Format("02.01.2006"), end.AddDate(0, 0, -1).Format("02.01.2006"))
-	fmt.Fprintf(&out, "Yeni müşteri talepleri: %d\nYanıt bekleyen talepler: %d\n", stats.NewLeads, stats.UnresolvedLeads)
+	fmt.Fprintf(&out, "New customer requests: %d\nRequests awaiting a reply: %d\n", stats.NewLeads, stats.UnresolvedLeads)
 	if frequency == DigestMonthly {
-		fmt.Fprintf(&out, "Toplam ziyaret: %d\nTekil ziyaretçi: %d\nYeni üye: %d\n", stats.TotalVisits, stats.UniqueVisitors, stats.NewMembers)
+		fmt.Fprintf(&out, "Total visits: %d\nUnique visitors: %d\nNew members: %d\n", stats.TotalVisits, stats.UniqueVisitors, stats.NewMembers)
 		if len(stats.TopPages) > 0 {
-			out.WriteString("\nEn çok görüntülenen sayfalar:\n")
+			out.WriteString("\nMost viewed pages:\n")
 			for _, p := range stats.TopPages {
 				fmt.Fprintf(&out, "• %s: %d\n", p.Path, p.Count)
 			}
 		}
 	}
 	if len(stats.TopReferrers) > 0 {
-		out.WriteString("\nEn çok ziyaretçi getiren kaynaklar:\n")
+		out.WriteString("\nTop traffic sources:\n")
 		for _, r := range stats.TopReferrers {
 			fmt.Fprintf(&out, "• %s: %d\n", r.Host, r.Count)
 		}
@@ -155,9 +155,9 @@ func BuildWeeklyDigestHTML(stats WeeklyDigestStats, start, end time.Time) string
 	return BuildDigestHTML(stats, start, end, DigestWeekly)
 }
 func BuildDigestHTML(stats DigestStats, start, end time.Time, frequency DigestFrequency) string {
-	label := "Haftalık site özeti"
+	label := "Weekly site summary"
 	if frequency == DigestMonthly {
-		label = "Aylık yönetici özeti"
+		label = "Monthly admin summary"
 	}
 	var out strings.Builder
 	from, to := start.Format("02.01.2006"), end.AddDate(0, 0, -1).Format("02.01.2006")

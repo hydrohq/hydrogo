@@ -64,13 +64,13 @@ assert.equal(registered.token_type, "Bearer");
 
 const errorClient = createHydroGoClient({
   origin: "https://hydrogo.example",
-  fetch: async () => new Response(JSON.stringify({ code: "denied", message: "Erişim reddedildi", request_id: "req-contract-1" }), { status: 403, headers: { "x-request-id": "req-contract-1" } }),
+  fetch: async () => new Response(JSON.stringify({ code: "denied", message: "Access denied", request_id: "req-contract-1" }), { status: 403, headers: { "x-request-id": "req-contract-1" } }),
 });
 await assert.rejects(() => errorClient.listNews(), (error) => {
   assert.ok(error instanceof HydroGoError);
   assert.equal(error.code, "denied");
   assert.equal(error.requestId, "req-contract-1");
-  assert.equal(error.message, "Erişim reddedildi");
+  assert.equal(error.message, "Access denied");
   return true;
 });
 

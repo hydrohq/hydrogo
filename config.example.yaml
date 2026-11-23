@@ -22,10 +22,10 @@ http:
   # ban on an abusive client bans the whole site instead.
   behind_proxy: false
   trusted_proxies: []
-  # trust_cf_connecting_ip yalnızca trafiğin Cloudflare üzerinden geldiği ve
-  # yönlendirici proxy'nin (Caddy/nginx) Cloudflare dışı kaynaklardaki
-  # CF-Connecting-IP başlığını sildiği/yok saydığı kurulumlarda açılmalı;
-  # aksi halde IP sahteciliği mümkündür.
+  # Enable trust_cf_connecting_ip only when all traffic arrives through
+  # Cloudflare and the front proxy (Caddy/nginx) strips or ignores the
+  # CF-Connecting-IP header from non-Cloudflare sources; otherwise client
+  # IPs can be spoofed.
   trust_cf_connecting_ip: false
 # Optional: serve several customers/sites from one shared database instead
 # of one deployment per customer. See docs/multi-tenancy.md. Disabled (the
@@ -151,14 +151,14 @@ carriers:
     namespace: ""        # SOAP service namespace, same documents
     tracking_url_template: ""   # public tracking page with {tracking_number}
     language: "TR"
-  # Geliver kargo pazaryeri entegrasyonu (resmi geliver-go SDK).
+  # Geliver shipping marketplace integration (official geliver-go SDK).
   geliver:
-    token: ""                  # Geliver API token (yalnizca git disi config dosyasinda tutun)
-    sender_address_id: ""      # bos birakilirsa Geliver varsayilan gonderici adresi kullanilir
-    base_url: ""               # istege bagli ozel API adresi; bos birakilirsa SDK varsayilani kullanilir
-    webhook_secret: ""         # /api/v1/commerce/shipping/geliver/webhook dogrulama gizli anahtari
-    provider_service_code: ""  # tek tikla gonderimde tercih edilecek servis kodu (orn. SURAT_STANDART)
-    provider_account_id: ""    # istege bagli kendi kargo anlasma hesabi ID'si
+    token: ""                  # Geliver API token (keep it only in a config file outside git)
+    sender_address_id: ""      # if empty, the Geliver default sender address is used
+    base_url: ""               # optional custom API address; if empty, the SDK default is used
+    webhook_secret: ""         # secret used to verify /api/v1/commerce/shipping/geliver/webhook
+    provider_service_code: ""  # preferred service code for one-click shipping (e.g. SURAT_STANDART)
+    provider_account_id: ""    # optional ID of your own carrier contract account
     default_length_cm: "10.0"
     default_width_cm: "10.0"
     default_height_cm: "10.0"
@@ -192,7 +192,7 @@ payments:
     test_mode: true
     no_installment: false
     max_installment: 0
-    ok_url: ""           # storefront /odeme/sonuc (?oid=<order> is appended)
+    ok_url: ""           # storefront payment result page (?oid=<order> is appended)
     fail_url: ""
     timeout_limit: 20    # minutes; keep below the 30-minute stock reservation to prevent late-payment failures (valid: 5–29)
   iyzico:

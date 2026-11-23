@@ -41,7 +41,7 @@ func TestMonthlyDigestIncludesMetricsAndEscapesPagePaths(t *testing.T) {
 	stats := DigestStats{NewLeads: 2, TotalVisits: 30, UniqueVisitors: 20, NewMembers: 4, TopPages: []PageCount{{Path: "/\"><script>", Count: 8}}}
 	body := BuildDigestText(stats, time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), DigestMonthly)
 	html := BuildDigestHTML(stats, time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), DigestMonthly)
-	for _, want := range []string{"Toplam ziyaret: 30", "Tekil ziyaretçi: 20", "Yeni üye: 4", "/\"><script>: 8"} {
+	for _, want := range []string{"Total visits: 30", "Unique visitors: 20", "New members: 4", "/\"><script>: 8"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("text lacks %q: %s", want, body)
 		}

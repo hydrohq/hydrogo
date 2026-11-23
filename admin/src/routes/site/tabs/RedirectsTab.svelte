@@ -43,7 +43,7 @@
     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
       <div class="md:col-span-4">
         <label for="red-from" class="block text-xs font-medium text-foreground mb-1">{t('site.redir.from')}</label>
-        <Input id="red-from" type="text" bind:value={newPattern} placeholder="/eski-urun" required />
+        <Input id="red-from" type="text" bind:value={newPattern} placeholder="/old-product" required />
       </div>
       <div class="md:col-span-4">
         <label for="red-to" class="block text-xs font-medium text-foreground mb-1">{t('site.redir.to')}</label>

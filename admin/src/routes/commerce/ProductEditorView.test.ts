@@ -106,7 +106,7 @@ describe('ProductEditorView', () => {
     // Preview link is present
     const previewLink = screen.getByRole('link', { name: /önizleme/i });
     expect(previewLink).toBeTruthy();
-    expect(previewLink.getAttribute('href')).toContain('/urun/hakiki-deri-kemer');
+    expect(previewLink.getAttribute('href')).toContain('/products/hakiki-deri-kemer');
 
     // Publish/Unpublish toggle button is present
     expect(screen.getByRole('button', { name: /taslağa al/i })).toBeTruthy();
@@ -165,7 +165,7 @@ describe('ProductEditorView', () => {
       );
     });
 
-    expect(router.navigate).toHaveBeenCalledWith('/commerce/products/p99#varyantlar');
+    expect(router.navigate).toHaveBeenCalledWith('/commerce/products/p99#variants');
   });
 
   it('update sends version', async () => {

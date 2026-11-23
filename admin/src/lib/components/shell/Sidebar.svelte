@@ -159,7 +159,7 @@
     {#if isConsoleMode}
       <!-- Pure Console / SaaS Factory Navigation -->
       <div class="flex flex-col gap-1 pt-1">
-        <!-- Mağaza Fabrikası -->
+        <!-- Store factory -->
         <a
           href="/admin/console"
           onclick={() => handleNavigate('/console')}
@@ -176,7 +176,7 @@
           {/if}
         </a>
 
-        <!-- Yöneticiler -->
+        <!-- Administrators -->
         {#if isAdmin && can('admin.users.manage')}
         <a
           href="/admin/users"
@@ -208,7 +208,7 @@
         </a>
         {/if}
 
-        <!-- Denetim Günlüğü -->
+        <!-- Audit log -->
         {#if isAdmin}
         <a
           href="/admin/audit"
@@ -500,7 +500,7 @@
       {/if}
 
       {#if schema.platform}
-      <!-- Abonelik & Ödeme -->
+      <!-- Subscription & billing -->
       <a
         href="/admin/subscription"
         onclick={() => handleNavigate('/subscription')}

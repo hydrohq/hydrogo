@@ -81,10 +81,10 @@ func (h AdminSearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h AdminSearchHandler) search(ctx context.Context, query Query, tenantID string, user *auth.User) ([]adminSearchItem, error) {
 	documents := make([]adminSearchItem, 0, 64)
 	for _, source := range []adminSearchSource{
-		{"pages", "pages", "id", "locale", "title", "body", "Sayfa", auth.PermissionContentRead},
-		{"news", "news_items", "id", "locale", "title", "excerpt", "Haber", auth.PermissionContentRead},
-		{"members", "members", "id", "", "email", "", "Üye", auth.PermissionMembersManage},
-		{"media", "media_assets", "id", "", "original_filename", "mime_type", "Medya", auth.PermissionMediaManage},
+		{"pages", "pages", "id", "locale", "title", "body", "Page", auth.PermissionContentRead},
+		{"news", "news_items", "id", "locale", "title", "excerpt", "News", auth.PermissionContentRead},
+		{"members", "members", "id", "", "email", "", "Member", auth.PermissionMembersManage},
+		{"media", "media_assets", "id", "", "original_filename", "mime_type", "Media", auth.PermissionMediaManage},
 	} {
 		if !h.Modules[source.module] || !auth.Can(user, source.permission) {
 			continue

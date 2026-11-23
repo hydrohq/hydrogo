@@ -123,9 +123,9 @@ func runAdminWeeklyDigestOnce(ctx context.Context, now time.Time, db database.Qu
 						if err != nil || !claimed {
 							return err
 						}
-						subject, eventKey := "Haftalık site özeti", "admin-weekly:"
-						if strings.Contains(body, "Aylık yönetici özeti") {
-							subject, eventKey = "Aylık yönetici özeti", "admin-monthly:"
+						subject, eventKey := "Weekly site summary", "admin-weekly:"
+						if strings.Contains(body, "Monthly admin summary") {
+							subject, eventKey = "Monthly admin summary", "admin-monthly:"
 						}
 						if err := spool.Enqueue(deliveryCtx, exec, site.EmailNotification{EventKey: eventKey + account.ID + ":" + period, To: account.Email, Subject: subject, Body: body, HTMLBody: htmlBody}); err != nil {
 							return err

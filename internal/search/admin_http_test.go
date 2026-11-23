@@ -57,7 +57,7 @@ func TestAdminSearchReturnsCategorizedContentWithoutSettingsValues(t *testing.T)
 	for _, item := range response.Items {
 		badges[item.Badge] = true
 	}
-	for _, badge := range []string{"Sayfa", "Haber", "Üye", "Medya"} {
+	for _, badge := range []string{"Page", "News", "Member", "Media"} {
 		if !badges[badge] {
 			t.Errorf("missing %s result in %#v", badge, response.Items)
 		}
@@ -183,15 +183,15 @@ func TestAdminSearchHonorsRoleAndPermissionOverridesPerSource(t *testing.T) {
 		}
 	}
 
-	assertBadges("editor defaults", &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "Sayfa", "Haber", "Medya")
-	assertBadges("viewer defaults", &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, "Sayfa", "Haber")
+	assertBadges("editor defaults", &auth.User{ID: "editor", Role: auth.RoleEditor, Active: true}, "Page", "News", "Media")
+	assertBadges("viewer defaults", &auth.User{ID: "viewer", Role: auth.RoleViewer, Active: true}, "Page", "News")
 	assertBadges("content and media denied", &auth.User{ID: "restricted-editor", Role: auth.RoleEditor, Active: true, PermissionOverrides: map[string]bool{
 		auth.PermissionContentRead: false,
 		auth.PermissionMediaManage: false,
 	}})
 	assertBadges("explicit media allow", &auth.User{ID: "media-viewer", Role: auth.RoleViewer, Active: true, PermissionOverrides: map[string]bool{
 		auth.PermissionMediaManage: true,
-	}}, "Sayfa", "Haber", "Medya")
+	}}, "Page", "News", "Media")
 	assertBadges("admin restricted by overrides", &auth.User{ID: "restricted-admin", Role: auth.RoleAdmin, Active: true, PermissionOverrides: map[string]bool{
 		auth.PermissionContentRead:   false,
 		auth.PermissionMembersManage: false,

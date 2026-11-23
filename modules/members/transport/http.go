@@ -304,7 +304,7 @@ func (h Handler) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	_ = h.Service.RevokeAllSessions(r.Context(), member.ID)
 	http.SetCookie(w, &http.Cookie{Name: members.SessionCookieName, Value: "", Path: "/", MaxAge: -1, Expires: time.Unix(0, 0), HttpOnly: true, Secure: h.Secure, SameSite: http.SameSiteLaxMode}) // #nosec G124
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(map[string]any{"deleted": true, "message": "Hesabınız başarıyla silindi."})
+	_ = json.NewEncoder(w).Encode(map[string]any{"deleted": true, "message": "Your account was deleted."})
 }
 
 func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
@@ -319,7 +319,7 @@ func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-chpw:"+requestmeta.ClientIP(r)+":"+member.ID) {
-		http.Error(w, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.", http.StatusTooManyRequests)
+		http.Error(w, "Too many attempts. Please try again shortly.", http.StatusTooManyRequests)
 		return
 	}
 	var payload struct {
@@ -341,21 +341,21 @@ func (h Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Service.ChangeOwnPassword(r.Context(), member.ID, sess.ID, payload.CurrentPassword, payload.NewPassword); err != nil {
 		if errors.Is(err, members.ErrInvalidCredentials) {
-			http.Error(w, "Mevcut şifreniz hatalı.", http.StatusUnauthorized)
+			http.Error(w, "Your current password is incorrect.", http.StatusUnauthorized)
 			return
 		}
 		if errors.Is(err, auth.ErrWeakPassword) {
-			http.Error(w, "Yeni şifre en az 6 karakter olmalıdır.", http.StatusBadRequest)
+			http.Error(w, "The new password must be at least 6 characters.", http.StatusBadRequest)
 			return
 		}
-		http.Error(w, "Şifre güncellenemedi.", http.StatusInternalServerError)
+		http.Error(w, "The password could not be updated.", http.StatusInternalServerError)
 		return
 	}
 	if h.Mobile != nil {
 		_ = h.Mobile.RevokeAll(r.Context(), member.ID)
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(map[string]any{"updated": true, "message": "Şifreniz başarıyla güncellendi."})
+	_ = json.NewEncoder(w).Encode(map[string]any{"updated": true, "message": "Your password was updated."})
 }
 
 func (h Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
@@ -370,7 +370,7 @@ func (h Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-chem:"+requestmeta.ClientIP(r)+":"+member.ID) {
-		http.Error(w, "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.", http.StatusTooManyRequests)
+		http.Error(w, "Too many attempts. Please try again shortly.", http.StatusTooManyRequests)
 		return
 	}
 	var payload struct {
@@ -392,18 +392,18 @@ func (h Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Service.ChangeOwnEmail(r.Context(), member.ID, payload.CurrentPassword, payload.NewEmail); err != nil {
 		if errors.Is(err, members.ErrInvalidCredentials) {
-			http.Error(w, "Mevcut şifreniz hatalı.", http.StatusUnauthorized)
+			http.Error(w, "Your current password is incorrect.", http.StatusUnauthorized)
 			return
 		}
 		if errors.Is(err, members.ErrMemberExists) {
-			http.Error(w, "Bu e-posta adresi başka bir hesapta kullanılıyor.", http.StatusConflict)
+			http.Error(w, "This email address is used by another account.", http.StatusConflict)
 			return
 		}
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			http.Error(w, "Geçerli bir e-posta adresi giriniz.", http.StatusBadRequest)
+			http.Error(w, "Enter a valid email address.", http.StatusBadRequest)
 			return
 		}
-		http.Error(w, "E-posta güncellenemedi.", http.StatusInternalServerError)
+		http.Error(w, "The email address could not be updated.", http.StatusInternalServerError)
 		return
 	}
 	updated, _ := h.Service.Members.GetByID(r.Context(), member.ID)
@@ -429,7 +429,7 @@ func (h Handler) verifyMemberEmail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	if h.DB == nil {
-		http.Error(w, "Doğrulama şu anda kullanılamıyor.", http.StatusServiceUnavailable)
+		http.Error(w, "Verification is not available right now.", http.StatusServiceUnavailable)
 		return
 	}
 	token := r.URL.Query().Get("token")
@@ -437,7 +437,7 @@ func (h Handler) verifyMemberEmail(w http.ResponseWriter, r *http.Request) {
 		return h.Verification.Verify(r.Context(), tx, token)
 	})
 	if err != nil {
-		http.Error(w, "Doğrulama bağlantısı geçersiz veya süresi dolmuş. Yeni bağlantı için destek ekibiyle iletişime geçin.", http.StatusBadRequest)
+		http.Error(w, "The verification link is invalid or has expired. Contact support for a new link.", http.StatusBadRequest)
 		return
 	}
 	http.Redirect(w, r, "/member/login?email_verified=1", http.StatusSeeOther)

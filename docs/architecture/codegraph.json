@@ -1788,7 +1788,7 @@
     {
       "id": "modules/news/transport",
       "layer": "modules",
-      "files": 6,
+      "files": 5,
       "fan_in": 1,
       "fan_out": 12,
       "imports": [

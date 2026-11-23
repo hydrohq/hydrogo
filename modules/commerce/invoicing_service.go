@@ -25,7 +25,7 @@ var (
 	ErrInvoiceProviderFailed = errors.New("invoice provider request failed")
 )
 
-// IssueOrderInvoice claims a paid, uninvoiced order, builds a kuruş-balanced
+// IssueOrderInvoice claims a paid, uninvoiced order, builds a cent-balanced
 // invoice document (including optional checkout tax registration info), submits
 // it to provider outside any database transaction, and persists the resulting
 // invoice metadata and `order.invoiced` outbox event.
@@ -178,7 +178,7 @@ func (w InvoiceWorker) IssueDue(ctx context.Context) (int, error) {
 			if w.Notifier != nil {
 				_ = w.Notifier.Send(ctx, notify.Message{
 					Title: "e-Fatura kesilemedi",
-					Body:  fmt.Sprintf("Sipariş: %s\nSağlayıcı: %s\nHata: %s", order.ID, w.Provider.Name(), err.Error()),
+					Body:  fmt.Sprintf("Order: %s\nProvider: %s\nError: %s", order.ID, w.Provider.Name(), err.Error()),
 				})
 			}
 			continue

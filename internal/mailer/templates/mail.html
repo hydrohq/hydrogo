@@ -22,12 +22,12 @@
 {{define "order_confirmation"}}<!doctype html>
 <html><body style="margin:0;background:#f4f6f8;color:#17212b;font-family:Arial,sans-serif">
 <main style="max-width:600px;margin:24px auto;padding:24px;background:#fff;border-radius:12px">
-<h1 style="font-size:20px">Siparişiniz alındı</h1>
-<p style="font-size:15px">Sipariş numaranız: <strong>{{.OrderID}}</strong></p>
+<h1 style="font-size:20px">Order received</h1>
+<p style="font-size:15px">Your order number: <strong>{{.OrderID}}</strong></p>
 <table style="width:100%;border-collapse:collapse;margin:16px 0">
 {{range .Items}}<tr><td style="padding:6px 0;border-bottom:1px solid #e6e9ed">{{.Title}} &times; {{.Quantity}}</td><td style="padding:6px 0;border-bottom:1px solid #e6e9ed;text-align:right">{{.Total}}</td></tr>
 {{end}}</table>
-<p style="font-size:16px"><strong>Toplam: {{.Total}}</strong></p>
+<p style="font-size:16px"><strong>Total: {{.Total}}</strong></p>
 </main>
 </body></html>{{end}}
 

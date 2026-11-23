@@ -148,22 +148,22 @@ func (c *errorCapture) commit(r *http.Request) {
 			msg = publicServerErrorMessage(c.status)
 		}
 
-		title := "Bir Hata Oluştu"
+		title := "An Error Occurred"
 		switch c.status {
 		case http.StatusBadRequest:
-			title = "Geçersiz İstek"
+			title = "Invalid Request"
 		case http.StatusUnauthorized:
 			title = "Yetkilendirme Gerekli"
 		case http.StatusForbidden:
-			title = "Erişim Reddedildi"
+			title = "Access Denied"
 		case http.StatusNotFound:
-			title = "Sayfa Bulunamadı"
+			title = "Page Not Found"
 		case http.StatusTooManyRequests:
-			title = "Çok Fazla İstek"
+			title = "Too Many Requests"
 		case http.StatusInternalServerError:
-			title = "Sunucu Hatası"
+			title = "Server Error"
 		case http.StatusBadGateway, http.StatusServiceUnavailable:
-			title = "Servis Geçici Olarak Kullanılamıyor"
+			title = "Service Temporarily Unavailable"
 		}
 
 		c.header.Set("Content-Type", "text/html; charset=utf-8")
