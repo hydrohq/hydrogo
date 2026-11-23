@@ -176,7 +176,7 @@ jobs:
       - name: Enforce code shape (no HTML in Go strings, file size ratchet)
         run: go run ./tools/codeguard
       - name: Enforce internal module boundaries
-        run: go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json
+        run: go run ./tools/moduleguard -root modules -allow modules/api -dependencies modules/dependencies.json -optional modules/payments,modules/shipping,modules/invoicing
       - name: Enforce migration metadata consistency
         run: go run ./tools/migrationguard -root migrations
       - name: Run Linux binary health/readiness smoke
