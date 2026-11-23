@@ -96,9 +96,3 @@ CREATE TABLE IF NOT EXISTS payment_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_events_ref ON payment_events(provider, provider_reference);
-
-INSERT INTO plans (id, name, code, description, price_cents, currency, billing_interval, interval_count, features, active, tenant_id, created_at, updated_at)
-VALUES
-    ('plan_monthly', 'HydroCloud Pro (Aylık)', 'monthly', 'Tam donanımlı mağaza ve SaaS altyapısı - Aylık abonelik', 49900, 'TRY', 'month', 1, '["Sınırsız Ürün ve Sayfa", "Shopier Güvenli Ödeme", "Özel Alan Adı Bağlama", "Yapay Zeka Destekli Copilot", "7/24 Teknik Destek"]', TRUE, '', '2026-11-08T00:00:00Z', '2026-11-08T00:00:00Z'),
-    ('plan_yearly', 'HydroCloud Pro (Yıllık)', 'yearly', 'Tam donanımlı mağaza ve SaaS altyapısı - Yıllık abonelik (2 Ay Ücretsiz)', 499000, 'TRY', 'year', 1, '["Sınırsız Ürün ve Sayfa", "Shopier Güvenli Ödeme", "Özel Alan Adı Bağlama", "Yapay Zeka Destekli Copilot", "Öncelikli 7/24 VIP Destek", "Yıllık Ödemede 2 Ay Hediye"]', TRUE, '', '2026-11-08T00:00:00Z', '2026-11-08T00:00:00Z')
-ON CONFLICT (id) DO NOTHING;

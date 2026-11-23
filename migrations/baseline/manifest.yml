@@ -73,9 +73,9 @@ groups:
         - 202611010002_custom_roles_rbac
         - 202611080001_saas_billing_subscription
       checksums:
-        mysql: 8390a331d9442fec493f85d920530be2d299e5bc84e172c559ecccb81b885cd0
-        postgres: 44564700a9611fc52c620b929252302009f2df18af8901acc47fa3ded0568c4f
-        sqlite: 6eebc74cf77ae09e47dc415b34422850c9c32ad6b4abe6343c1690e62b41532d
+        mysql: 661607a11fc7aa6182b80e5990ce63bab0146b692c26520c4a59ec3f97660bc3
+        postgres: 54ae3ed38e335caa2f9c0783718ce6549548666cfdff411039e4ee4ba8e89092
+        sqlite: 22d28f12fcce4f3d4fb7f847d4ab22c17b69921978c2a1c1e667b7b7a4a33734
     - id: certificates
       modules:
         - certificates

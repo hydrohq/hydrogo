@@ -434,3 +434,35 @@ func TestEnablingPagesOnACoreCreatedDatabaseWorksWithTheBaseline(t *testing.T) {
 		t.Fatal("the pages table was not created")
 	}
 }
+
+// v0.5.0-v0.5.1 shipped 202611080001 with hosted-plan seed rows that were later
+// removed from the script; databases that applied the old script must still start.
+func TestSQLiteAcceptsPreviousReleaseChecksum(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.SQLite, filepath.Join(t.TempDir(), "hydro.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatal(err)
+	}
+	const id = "202611080001_saas_billing_subscription"
+	setChecksum := func(sum string) {
+		t.Helper()
+		if _, err := db.ExecContext(ctx, "UPDATE schema_migrations SET checksum = ? WHERE id = ?", sum, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setChecksum("d5f806abfb590fbbdb4096211a60e8c8e7c0b32774a19f070dc6fcae13d05e70")
+	if err := database.ApplyMigrations(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatalf("apply with previous release checksum: %v", err)
+	}
+	if err := database.CheckCompatibility(ctx, db, database.SQLite, migrations.FS); err != nil {
+		t.Fatalf("compatibility with previous release checksum: %v", err)
+	}
+	setChecksum(strings.Repeat("0", 64))
+	if err := database.CheckCompatibility(ctx, db, database.SQLite, migrations.FS); err == nil {
+		t.Fatal("an unlisted checksum was accepted")
+	}
+}

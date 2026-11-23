@@ -97,8 +97,3 @@ CREATE TABLE IF NOT EXISTS `payment_events` (
     UNIQUE KEY `uq_payment_events_ref` (`provider`, `provider_reference`, `event_type`),
     INDEX `idx_payment_events_ref` (`provider`, `provider_reference`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-INSERT IGNORE INTO `plans` (`id`, `name`, `code`, `description`, `price_cents`, `currency`, `billing_interval`, `interval_count`, `features`, `active`, `tenant_id`, `created_at`, `updated_at`)
-VALUES
-    ('plan_monthly', 'HydroCloud Pro (Aylık)', 'monthly', 'Tam donanımlı mağaza ve SaaS altyapısı - Aylık abonelik', 49900, 'TRY', 'month', 1, '["Sınırsız Ürün ve Sayfa", "Shopier Güvenli Ödeme", "Özel Alan Adı Bağlama", "Yapay Zeka Destekli Copilot", "7/24 Teknik Destek"]', 1, '', '2026-11-08 00:00:00', '2026-11-08 00:00:00'),
-    ('plan_yearly', 'HydroCloud Pro (Yıllık)', 'yearly', 'Tam donanımlı mağaza ve SaaS altyapısı - Yıllık abonelik (2 Ay Ücretsiz)', 499000, 'TRY', 'year', 1, '["Sınırsız Ürün ve Sayfa", "Shopier Güvenli Ödeme", "Özel Alan Adı Bağlama", "Yapay Zeka Destekli Copilot", "Öncelikli 7/24 VIP Destek", "Yıllık Ödemede 2 Ay Hediye"]', 1, '', '2026-11-08 00:00:00', '2026-11-08 00:00:00');

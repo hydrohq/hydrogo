@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -134,7 +135,9 @@ func applyMigrationsOnConnection(ctx context.Context, conn *sql.Conn, dialect Di
 			return err
 		}
 		if existingChecksum, ok := existingMap[migrationID]; ok {
-			if existingChecksum != checksum {
+			if accepted, err := checksumAccepted(migrationFS, migrationID, dialect, existingChecksum, checksum); err != nil {
+				return err
+			} else if !accepted {
 				return fmt.Errorf("migration %s checksum mismatch", migrationID)
 			}
 			continue
@@ -264,7 +267,9 @@ func PendingMigrations(ctx context.Context, db *sql.DB, dialect Dialect, migrati
 			return nil, err
 		}
 		if prior, ok := applied[id]; ok {
-			if prior != checksum {
+			if accepted, err := checksumAccepted(migrationFS, id, dialect, prior, checksum); err != nil {
+				return nil, err
+			} else if !accepted {
 				return nil, fmt.Errorf("migration %s checksum mismatch", id)
 			}
 			continue
@@ -377,7 +382,9 @@ func applyNonTransactionalMigration(ctx context.Context, db Executor, dialect Di
 			var existing string
 			err = db.QueryRowContext(ctx, `SELECT checksum FROM schema_migrations WHERE id = ?`, migrationID).Scan(&existing)
 			if err == nil {
-				if existing != checksum {
+				if accepted, err := checksumAccepted(migrationFS, migrationID, dialect, existing, checksum); err != nil {
+					return err
+				} else if !accepted {
 					return fmt.Errorf("migration %s checksum mismatch", migrationID)
 				}
 				return nil
@@ -574,7 +581,9 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 			}
 			return fmt.Errorf("schema is not ready for migration %s: %w", migrationID, err)
 		}
-		if got != want {
+		if accepted, err := checksumAccepted(migrationFS, migrationID, dialect, got, want); err != nil {
+			return err
+		} else if !accepted {
 			return fmt.Errorf("migration %s checksum mismatch", migrationID)
 		}
 	}
@@ -592,6 +601,23 @@ func CheckCompatibilityForModules(ctx context.Context, db *sql.DB, dialect Diale
 type migrationMetadata struct {
 	Module          string   `yaml:"module"`
 	RequiresModules []string `yaml:"requires_modules"`
+	// PreviousChecksums lists ledger checksums from an earlier release of the
+	// same migration. Only for edits that leave an applied database in the
+	// state the new script produces (or one a later migration converges).
+	PreviousChecksums map[string][]string `yaml:"previous_checksum_sha256"`
+}
+
+// checksumAccepted reports whether a ledger checksum matches the current
+// script, or one the migration's metadata lists as a previous release.
+func checksumAccepted(migrationFS fs.FS, migrationID string, dialect Dialect, ledger, current string) (bool, error) {
+	if ledger == current {
+		return true, nil
+	}
+	metadata, err := readMigrationMetadata(migrationFS, migrationID)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(metadata.PreviousChecksums[string(dialect)], ledger), nil
 }
 
 type sqliteShadowMetadata struct {

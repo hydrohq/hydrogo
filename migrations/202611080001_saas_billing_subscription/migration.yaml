@@ -11,9 +11,17 @@ transactional:
   postgres: true
   mysql: false
 checksum_sha256:
-  sqlite: "d5f806abfb590fbbdb4096211a60e8c8e7c0b32774a19f070dc6fcae13d05e70"
-  postgres: "466007ba0d0ad41bae30018d51d997e714d771030506daced659e62841b46ede"
-  mysql: "878737337bf37537c6d442459d77586936ba74db09ef85512c6620f8c70afed9"
+  sqlite: "2d2c88244d1184a0c1a13590b8b3e0f910c7e9c5fe5875ebd53dcc2f7f203129"
+  postgres: "af9788d9d1c7f8bf5ab7f69360e4ed8eaa85e91f775706ffeaa9d7d053714259"
+  mysql: "b0e238dd552c4ea7626c88a16192994c3ee5fa247f0cd6c3dee606b12ca3bfb0"
+previous_checksum_sha256:
+  # v0.5.0-v0.5.1 shipped this migration with two hosted-plan seed rows; databases that applied it keep this checksum.
+  sqlite:
+    - "d5f806abfb590fbbdb4096211a60e8c8e7c0b32774a19f070dc6fcae13d05e70"
+  postgres:
+    - "466007ba0d0ad41bae30018d51d997e714d771030506daced659e62841b46ede"
+  mysql:
+    - "878737337bf37537c6d442459d77586936ba74db09ef85512c6620f8c70afed9"
 dependencies:
   - "202611020002_postgres_rls_fail_closed"
   - "202609200002_auth_security_tenant_scope"
