@@ -77,7 +77,7 @@ func generateOutboxID() (string, error) {
 	return "nob_" + hex.EncodeToString(b), nil
 }
 
-func (s OutboxStore) Enqueue(ctx context.Context, db database.Executor, channel string, msg Message) error {
+func (s OutboxStore) enqueue(ctx context.Context, db database.Executor, channel string, msg Message) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (s OutboxStore) Enqueue(ctx context.Context, db database.Executor, channel 
 	return err
 }
 
-func (s OutboxStore) ClaimDue(ctx context.Context, db database.QueryExecutor, now time.Time, maxAttempts, limit int) ([]NotificationRecord, error) {
+func (s OutboxStore) claimDue(ctx context.Context, db database.QueryExecutor, now time.Time, maxAttempts, limit int) ([]NotificationRecord, error) {
 	if db == nil {
 		return nil, errors.New("database is required")
 	}
@@ -166,7 +166,7 @@ func (s OutboxStore) ClaimDue(ctx context.Context, db database.QueryExecutor, no
 	return records, rows.Err()
 }
 
-func (s OutboxStore) MarkSent(ctx context.Context, db database.Executor, id string, sentAt time.Time) error {
+func (s OutboxStore) markSent(ctx context.Context, db database.Executor, id string, sentAt time.Time) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (s OutboxStore) MarkSent(ctx context.Context, db database.Executor, id stri
 	return err
 }
 
-func (s OutboxStore) RecordRetry(ctx context.Context, db database.Executor, id string, attempts int, nextAttempt time.Time, lastErr string) error {
+func (s OutboxStore) recordRetry(ctx context.Context, db database.Executor, id string, attempts int, nextAttempt time.Time, lastErr string) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (s OutboxStore) RecordRetry(ctx context.Context, db database.Executor, id s
 	return err
 }
 
-func (s OutboxStore) MarkDeadLetter(ctx context.Context, db database.Executor, id string, attempts int, lastErr string) error {
+func (s OutboxStore) markDeadLetter(ctx context.Context, db database.Executor, id string, attempts int, lastErr string) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -193,6 +193,59 @@ func (s OutboxStore) MarkDeadLetter(ctx context.Context, db database.Executor, i
 	query := `UPDATE notification_outbox SET attempts = ` + s.p(1) + `, next_attempt_at = ` + s.p(2) + `, last_error = ` + s.p(3) + ` WHERE id = ` + s.p(4)
 	_, err := db.ExecContext(ctx, query, attempts, s.dbTime(farFuture), deadErr, id)
 	return err
+}
+
+// bound runs fn on db bound to the context tenant for PostgreSQL row-level
+// security. The worker passes a raw *sql.DB; without the transaction-local
+// app.current_tenant_id the fail-closed policy hides every named tenant's
+// rows. Without a scope, or on an open transaction (its caller bound it),
+// db is used as is.
+func (s OutboxStore) bound(ctx context.Context, db database.Executor, fn func(database.Executor) error) error {
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	handle, ok := db.(database.DB)
+	if _, scopeErr := tenant.FromContext(ctx); s.Dialect != database.Postgres || !ok || scopeErr != nil {
+		return fn(db)
+	}
+	return database.NewTenantTransactor(handle, s.Dialect, true).Within(ctx, fn)
+}
+
+func (s OutboxStore) Enqueue(ctx context.Context, db database.Executor, channel string, msg Message) error {
+	return s.bound(ctx, db, func(exec database.Executor) error { return s.enqueue(ctx, exec, channel, msg) })
+}
+
+func (s OutboxStore) ClaimDue(ctx context.Context, db database.QueryExecutor, now time.Time, maxAttempts, limit int) (records []NotificationRecord, err error) {
+	if db == nil {
+		return nil, errors.New("database is required")
+	}
+	err = s.bound(ctx, db, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("notification claim requires a query executor")
+		}
+		var claimErr error
+		records, claimErr = s.claimDue(ctx, queryer, now, maxAttempts, limit)
+		return claimErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (s OutboxStore) MarkSent(ctx context.Context, db database.Executor, id string, sentAt time.Time) error {
+	return s.bound(ctx, db, func(exec database.Executor) error { return s.markSent(ctx, exec, id, sentAt) })
+}
+
+func (s OutboxStore) RecordRetry(ctx context.Context, db database.Executor, id string, attempts int, nextAttempt time.Time, lastErr string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		return s.recordRetry(ctx, exec, id, attempts, nextAttempt, lastErr)
+	})
+}
+
+func (s OutboxStore) MarkDeadLetter(ctx context.Context, db database.Executor, id string, attempts int, lastErr string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error { return s.markDeadLetter(ctx, exec, id, attempts, lastErr) })
 }
 
 type OutboxSender struct {

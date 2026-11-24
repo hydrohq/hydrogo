@@ -34,9 +34,7 @@ func (s Store) Enqueue(ctx context.Context, tx database.Executor, id, topic, agg
 	return err
 }
 
-// EnqueueScoped requires an explicit tenant scope. It is the shared-database
-// outbox boundary; legacy Enqueue remains for single-customer deployments.
-func (s Store) EnqueueScoped(ctx context.Context, tx database.Executor, id, topic, aggregateID string, payloadVersion int) error {
+func (s Store) enqueueScoped(ctx context.Context, tx database.Executor, id, topic, aggregateID string, payloadVersion int) error {
 	scope, err := tenant.Require(ctx)
 	if err != nil {
 		return err
@@ -92,10 +90,7 @@ func (s Store) Claim(ctx context.Context, db database.Executor, worker string, n
 	return event, leaseToken, true, nil
 }
 
-// ClaimScoped claims only events belonging to the context tenant. The tenant
-// predicate is part of both the read and lease update to prevent cross-tenant
-// worker claims in a shared database.
-func (s Store) ClaimScoped(ctx context.Context, db database.Executor, worker string, now time.Time, lease time.Duration) (outbox.Event, string, bool, error) {
+func (s Store) claimScoped(ctx context.Context, db database.Executor, worker string, now time.Time, lease time.Duration) (outbox.Event, string, bool, error) {
 	scope, err := tenant.Require(ctx)
 	if err != nil {
 		return outbox.Event{}, "", false, err
@@ -132,7 +127,7 @@ func (s Store) ClaimScoped(ctx context.Context, db database.Executor, worker str
 	return event, leaseToken, true, nil
 }
 
-func (s Store) AckScoped(ctx context.Context, db database.Executor, id, worker, token string) error {
+func (s Store) ackScoped(ctx context.Context, db database.Executor, id, worker, token string) error {
 	scope, err := tenant.Require(ctx)
 	if err != nil {
 		return err
@@ -154,7 +149,7 @@ func (s Store) AckScoped(ctx context.Context, db database.Executor, id, worker, 
 	return nil
 }
 
-func (s Store) RetryScoped(ctx context.Context, db database.Executor, id, worker, token string, availableAt time.Time, reason string) error {
+func (s Store) retryScoped(ctx context.Context, db database.Executor, id, worker, token string, availableAt time.Time, reason string) error {
 	scope, err := tenant.Require(ctx)
 	if err != nil {
 		return err
@@ -250,7 +245,7 @@ func (s Store) DeadLetter(ctx context.Context, db database.Executor, event outbo
 	return nil
 }
 
-func (s Store) DeadLetterScoped(ctx context.Context, db database.Executor, event outbox.Event, worker, token, reason string) error {
+func (s Store) deadLetterScoped(ctx context.Context, db database.Executor, event outbox.Event, worker, token, reason string) error {
 	scope, err := tenant.Require(ctx)
 	if err != nil {
 		return err
@@ -273,6 +268,64 @@ func (s Store) DeadLetterScoped(ctx context.Context, db database.Executor, event
 		return outbox.ErrLeaseInvalid
 	}
 	return nil
+}
+
+// bound runs fn on db bound to the context tenant for PostgreSQL row-level
+// security. Workers pass a raw *sql.DB; without the transaction-local
+// app.current_tenant_id the fail-closed policy hides every named tenant's
+// rows. An open transaction (not a database.DB) is used as is: its caller
+// already bound it.
+func (s Store) bound(ctx context.Context, db database.Executor, fn func(database.Executor) error) error {
+	if _, err := tenant.Require(ctx); err != nil {
+		return err
+	}
+	if err := database.RequireExecutor(db); err != nil {
+		return err
+	}
+	handle, ok := db.(database.DB)
+	if s.Dialect != database.Postgres || !ok {
+		return fn(db)
+	}
+	return database.NewTenantTransactor(handle, s.Dialect, true).Within(ctx, fn)
+}
+
+// EnqueueScoped requires an explicit tenant scope. It is the shared-database
+// outbox boundary; legacy Enqueue remains for single-customer deployments.
+func (s Store) EnqueueScoped(ctx context.Context, db database.Executor, id, topic, aggregateID string, payloadVersion int) error {
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		return s.enqueueScoped(ctx, exec, id, topic, aggregateID, payloadVersion)
+	})
+}
+
+// ClaimScoped claims only events belonging to the context tenant. The tenant
+// predicate is part of both the read and lease update to prevent cross-tenant
+// worker claims in a shared database.
+func (s Store) ClaimScoped(ctx context.Context, db database.Executor, worker string, now time.Time, lease time.Duration) (event outbox.Event, token string, claimed bool, err error) {
+	err = s.bound(ctx, db, func(exec database.Executor) error {
+		var claimErr error
+		event, token, claimed, claimErr = s.claimScoped(ctx, exec, worker, now, lease)
+		return claimErr
+	})
+	if err != nil {
+		return outbox.Event{}, "", false, err
+	}
+	return event, token, claimed, nil
+}
+
+func (s Store) AckScoped(ctx context.Context, db database.Executor, id, worker, token string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error { return s.ackScoped(ctx, exec, id, worker, token) })
+}
+
+func (s Store) RetryScoped(ctx context.Context, db database.Executor, id, worker, token string, availableAt time.Time, reason string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		return s.retryScoped(ctx, exec, id, worker, token, availableAt, reason)
+	})
+}
+
+func (s Store) DeadLetterScoped(ctx context.Context, db database.Executor, event outbox.Event, worker, token, reason string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		return s.deadLetterScoped(ctx, exec, event, worker, token, reason)
+	})
 }
 
 func insertDeadLetter(ctx context.Context, db database.Executor, s Store, event outbox.Event, tenantID, reason string) error {
