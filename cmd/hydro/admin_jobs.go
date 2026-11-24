@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/api"
 	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/jobs"
 	jobstore "github.com/hydrohq/hydrogo/internal/jobs/sqlstore"
 )
 
@@ -75,7 +78,7 @@ func (a *serveApp) adminJobDeadLetterRequeueHandler(w http.ResponseWriter, r *ht
 		return
 	}
 	if err := a.jobsStore().RequeueDeadLetter(r.Context(), a.db, id, time.Now().UTC()); err != nil {
-		api.WriteError(w, r, http.StatusNotFound, "requeue job: "+err.Error(), nil)
+		writeJobActionError(w, r, "requeue", err)
 		return
 	}
 	api.WriteData(w, http.StatusOK, map[string]any{"id": id}, nil)
@@ -94,8 +97,19 @@ func (a *serveApp) adminJobDeadLetterDeleteHandler(w http.ResponseWriter, r *htt
 		return
 	}
 	if err := a.jobsStore().DeleteDeadLetter(r.Context(), a.db, id); err != nil {
-		api.WriteError(w, r, http.StatusNotFound, "delete job: "+err.Error(), nil)
+		writeJobActionError(w, r, "delete", err)
 		return
 	}
 	api.WriteData(w, http.StatusOK, map[string]any{"id": id}, nil)
+}
+
+// writeJobActionError answers 404 only for a job that is not (or no longer) a
+// dead letter; other store errors are logged and answered generically.
+func writeJobActionError(w http.ResponseWriter, r *http.Request, action string, err error) {
+	if errors.Is(err, jobs.ErrLeaseInvalid) {
+		api.WriteError(w, r, http.StatusNotFound, "job not found", nil)
+		return
+	}
+	slog.Default().ErrorContext(r.Context(), "admin_job_action_failed", slog.String("action", action), slog.Any("error", err))
+	api.WriteError(w, r, http.StatusInternalServerError, "could not "+action+" job", nil)
 }

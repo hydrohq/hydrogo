@@ -3,6 +3,7 @@ package contenttypes
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -107,6 +108,12 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// failed fills an item's status and message from the shared service error
+	// mapping, so raw database text never reaches the client.
+	failed := func(res PublicBatchItemResult, err error) PublicBatchItemResult {
+		res.Status, res.Error, _ = batchFailure(r, err)
+		return res
+	}
 	executeOp := func(svc collections.Service, index int, op PublicBatchOperation) (PublicBatchItemResult, error) {
 		def, _ := p.definition(op.Type)
 		switch op.Op {
@@ -127,7 +134,7 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 			}
 			record, err := svc.CreateRecord(r.Context(), op.Type, op.Fields)
 			if err != nil {
-				return PublicBatchItemResult{Index: index, Action: "create", Type: op.Type, Status: http.StatusUnprocessableEntity, Error: err.Error()},
+				return failed(PublicBatchItemResult{Index: index, Action: "create", Type: op.Type}, err),
 					fmt.Errorf("operations[%d]: %w", index, err)
 			}
 			if def.Realtime && p.Hub != nil {
@@ -142,7 +149,7 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 			}
 			stored, err := svc.GetRecord(r.Context(), op.Type, op.ID)
 			if err != nil {
-				return PublicBatchItemResult{Index: index, Action: "update", Type: op.Type, ID: op.ID, Status: http.StatusNotFound, Error: err.Error()},
+				return failed(PublicBatchItemResult{Index: index, Action: "update", Type: op.Type, ID: op.ID}, err),
 					fmt.Errorf("operations[%d]: %w", index, err)
 			}
 			allowed, err := EvaluateRule(rule, principal, stored.Data, false)
@@ -164,7 +171,7 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 			}
 			record, err := svc.UpdateRecord(r.Context(), op.Type, op.ID, op.Fields)
 			if err != nil {
-				return PublicBatchItemResult{Index: index, Action: "update", Type: op.Type, ID: op.ID, Status: http.StatusUnprocessableEntity, Error: err.Error()},
+				return failed(PublicBatchItemResult{Index: index, Action: "update", Type: op.Type, ID: op.ID}, err),
 					fmt.Errorf("operations[%d]: %w", index, err)
 			}
 			if def.Realtime && p.Hub != nil {
@@ -179,7 +186,7 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 			}
 			stored, err := svc.GetRecord(r.Context(), op.Type, op.ID)
 			if err != nil {
-				return PublicBatchItemResult{Index: index, Action: "delete", Type: op.Type, ID: op.ID, Status: http.StatusNotFound, Error: err.Error()},
+				return failed(PublicBatchItemResult{Index: index, Action: "delete", Type: op.Type, ID: op.ID}, err),
 					fmt.Errorf("operations[%d]: %w", index, err)
 			}
 			allowed, err := EvaluateRule(rule, principal, stored.Data, false)
@@ -188,7 +195,7 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 					fmt.Errorf("operations[%d]: delete not allowed by access rules", index)
 			}
 			if err := svc.DeleteRecord(r.Context(), op.Type, op.ID); err != nil {
-				return PublicBatchItemResult{Index: index, Action: "delete", Type: op.Type, ID: op.ID, Status: http.StatusUnprocessableEntity, Error: err.Error()},
+				return failed(PublicBatchItemResult{Index: index, Action: "delete", Type: op.Type, ID: op.ID}, err),
 					fmt.Errorf("operations[%d]: %w", index, err)
 			}
 			if def.Realtime && p.Hub != nil {
@@ -213,7 +220,8 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 		if err != nil {
-			api.WriteError(w, r, http.StatusUnprocessableEntity, err.Error(), nil)
+			status, message, fields := batchFailure(r, err)
+			api.WriteError(w, r, status, message, fields)
 			return
 		}
 	} else {
@@ -227,4 +235,14 @@ func (p PublicAPI) Batch(w http.ResponseWriter, r *http.Request) {
 		"results": results,
 		"count":   len(results),
 	}, nil)
+}
+
+// batchFailure maps a batch operation error to a client-safe status and
+// message; unexpected errors are logged and answered generically.
+func batchFailure(r *http.Request, err error) (int, string, map[string]string) {
+	status, message, fields := serviceFailure(err, collections.Schema{})
+	if status == http.StatusInternalServerError {
+		slog.Default().ErrorContext(r.Context(), "content_batch_failed", slog.Any("error", err))
+	}
+	return status, message, fields
 }

@@ -23,7 +23,7 @@ The number is how many package-to-package imports cross that line.
 
 ```mermaid
 flowchart LR
-  cmd -->|63| internal
+  cmd -->|64| internal
   cmd -->|17| modules
   cmd -->|1| other
   extension -->|1| internal
@@ -64,7 +64,7 @@ Usually composition code: the place to look when wiring changes.
 
 | Package | Imports | Imported by |
 |---|---:|---:|
-| `cmd/hydro` | 81 | 0 |
+| `cmd/hydro` | 82 | 0 |
 | `modules/pages/transport` | 18 | 1 |
 | `modules/site/transport` | 18 | 1 |
 | `modules/news` | 13 | 3 |
@@ -87,7 +87,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 
 ### cmd
 
-- `cmd/hydro`: (no package comment) (in 0, out 81)
+- `cmd/hydro`: (no package comment) (in 0, out 82)
 
 ### extension
 
@@ -131,7 +131,7 @@ Each line: package, one-sentence purpose (its package comment), imported by / im
 - `internal/guards`: Package guards contains small boundary checks shared by infrastructure and domain adapters. (in 14, out 0)
 - `internal/hooks`: Package hooks defines the small, dialect-free event hook contract shared by Core modules and Editions. (in 0, out 0)
 - `internal/i18n`: (no package comment) (in 5, out 1)
-- `internal/jobs`: Package jobs contains bounded, idempotent in-process job lease primitives. (in 3, out 0)
+- `internal/jobs`: Package jobs contains bounded, idempotent in-process job lease primitives. (in 4, out 0)
 - `internal/jobs/sqlstore`: Package sqlstore provides a durable job lease store for SQLite and PostgreSQL. (in 1, out 2)
 - `internal/linkcheck`: Package linkcheck crawls one public HTTP origin and reports broken links and assets. (in 1, out 0)
 - `internal/mailer`: Package mailer provides bounded outbound notification adapters. (in 5, out 2)

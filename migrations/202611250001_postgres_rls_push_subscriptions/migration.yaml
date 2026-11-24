@@ -1,0 +1,29 @@
+id: "202611250001_postgres_rls_push_subscriptions"
+module: "push"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "df0dfe80de9c6ea650f688a9471511da3a5249c38fddc44cf8f0e8a9c479d364"
+  postgres: "a9789f60af6fdbf3a829fa2bc08a710e2b11ba02f8be63cf4f71e00b7f202d56"
+  mysql: "aa399c33de23576a8a6948a02a973e6ad2d28d733d5f5f9548f5fff0ee8b2744"
+dependencies:
+  - "202609290003_push"
+  - "202611110001_postgres_rls_single_tenant_default"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "push module enabled"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Enables row-level security and adds one policy on push_subscriptions; no data rewrite"
+compatibility: "push_subscriptions had a tenant_id column but no RLS. Every push store query already runs in a tenant-bound transaction (internal/push/sqlstore), so the fail-closed policy matches what the application reads and writes."
+smoke:
+  - "Push subscriptions of one tenant are invisible to another tenant's transaction; default-scope rows still work."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."
