@@ -1,0 +1,30 @@
+id: "202611250004_admin_notifications_tenant_rls"
+module: "pages"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "4491a0e42606c4f26343661a9b1aec220fba81bb9373730b041e2aca56dcad3e"
+  postgres: "93269797b31194566836c5b10c7b18d0983604d07caa7339ccd18af5cfaf3dd4"
+  mysql: "6b75077c541481ae4f0ba2b18dae2af4c98fdf3e7b26047cb8b876f5b1499799"
+dependencies:
+  - "202609280005_admin_notifications"
+  - "202609280006_admin_weekly_digest"
+  - "202611110001_postgres_rls_single_tenant_default"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "pages module enabled"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Rewrites admin_notifications rows that have a NULL tenant_id (single-tenant notifications) to the empty default partition; adds RLS policies on two tables"
+compatibility: "Single-tenant notifications used NULL tenant_id, which no fail-closed policy can match; they move to '' like every other single-tenant row, and internal/adminstudio/sqlstore now reads and writes '' and binds each query to the request tenant."
+smoke:
+  - "Single-tenant admin notifications and digest preferences still list and update; another tenant's notifications are invisible."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

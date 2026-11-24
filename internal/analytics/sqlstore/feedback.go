@@ -33,8 +33,10 @@ func (s Store) RecordFeedback(ctx context.Context, tenantID, contentType, conten
 	default:
 		query = `INSERT INTO analytics_feedback_daily (tenant_id,content_type,content_id,day,reaction,event_count) VALUES (?,?,?,?,?,1) ON CONFLICT(tenant_id,content_type,content_id,day,reaction) DO UPDATE SET event_count=event_count+1`
 	}
-	_, err := s.Executor.ExecContext(ctx, query, tenantID, contentType, contentID, dayValue, reaction)
-	return err
+	return s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, query, tenantID, contentType, contentID, dayValue, reaction)
+		return err
+	})
 }
 
 func (s Store) FeedbackTotals(ctx context.Context, tenantID, contentType, contentID string) (FeedbackTotals, error) {
@@ -47,30 +49,32 @@ func (s Store) FeedbackTotals(ctx context.Context, tenantID, contentType, conten
 	if strings.TrimSpace(tenantID) == "" || len(tenantID) > 128 || (contentType != "news" && contentType != "faq") || strings.TrimSpace(contentID) == "" || len(contentID) > 128 {
 		return FeedbackTotals{}, errors.New("invalid feedback query")
 	}
-	queryer, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return FeedbackTotals{}, errors.New("feedback totals require query executor")
-	}
 	query := `SELECT reaction,SUM(event_count) FROM analytics_feedback_daily WHERE tenant_id=` + placeholder(s.Dialect, 1) + ` AND content_type=` + placeholder(s.Dialect, 2) + ` AND content_id=` + placeholder(s.Dialect, 3) + ` GROUP BY reaction`
-	rows, err := queryer.QueryContext(ctx, query, tenantID, contentType, contentID)
+	var totals FeedbackTotals
+	err := s.withTenantQuery(ctx, tenantID, func(queryer database.QueryExecutor) error {
+		rows, err := queryer.QueryContext(ctx, query, tenantID, contentType, contentID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var reaction string
+			var count int64
+			if err := rows.Scan(&reaction, &count); err != nil {
+				return err
+			}
+			if reaction == "up" {
+				totals.Up = count
+			} else if reaction == "down" {
+				totals.Down = count
+			}
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return FeedbackTotals{}, err
 	}
-	defer rows.Close()
-	var totals FeedbackTotals
-	for rows.Next() {
-		var reaction string
-		var count int64
-		if err := rows.Scan(&reaction, &count); err != nil {
-			return FeedbackTotals{}, err
-		}
-		if reaction == "up" {
-			totals.Up = count
-		} else if reaction == "down" {
-			totals.Down = count
-		}
-	}
-	return totals, rows.Err()
+	return totals, nil
 }
 
 func (s Store) FeedbackCounts(ctx context.Context, tenantID, contentType string, contentIDs []string) (map[string]analytics.FeedbackTotals, error) {
@@ -86,10 +90,6 @@ func (s Store) FeedbackCounts(ctx context.Context, tenantID, contentType string,
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	queryer, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("feedback counts require query executor")
-	}
 	args := []any{tenantID, contentType}
 	placeholders := make([]string, 0, len(contentIDs))
 	for _, id := range contentIDs {
@@ -100,25 +100,31 @@ func (s Store) FeedbackCounts(ctx context.Context, tenantID, contentType string,
 		placeholders = append(placeholders, placeholder(s.Dialect, len(args)))
 	}
 	query := `SELECT content_id,reaction,SUM(event_count) FROM analytics_feedback_daily WHERE tenant_id=` + placeholder(s.Dialect, 1) + ` AND content_type=` + placeholder(s.Dialect, 2) + ` AND content_id IN (` + strings.Join(placeholders, ",") + ") GROUP BY content_id,reaction"
-	rows, err := queryer.QueryContext(ctx, query, args...)
+	counts := make(map[string]analytics.FeedbackTotals, len(contentIDs))
+	err := s.withTenantQuery(ctx, tenantID, func(queryer database.QueryExecutor) error {
+		rows, err := queryer.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id, reaction string
+			var count int64
+			if err := rows.Scan(&id, &reaction, &count); err != nil {
+				return err
+			}
+			totals := counts[id]
+			if reaction == "up" {
+				totals.Up = count
+			} else if reaction == "down" {
+				totals.Down = count
+			}
+			counts[id] = totals
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	counts := make(map[string]analytics.FeedbackTotals, len(contentIDs))
-	for rows.Next() {
-		var id, reaction string
-		var count int64
-		if err := rows.Scan(&id, &reaction, &count); err != nil {
-			return nil, err
-		}
-		totals := counts[id]
-		if reaction == "up" {
-			totals.Up = count
-		} else if reaction == "down" {
-			totals.Down = count
-		}
-		counts[id] = totals
-	}
-	return counts, rows.Err()
+	return counts, nil
 }

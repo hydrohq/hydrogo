@@ -57,19 +57,16 @@ var expectedRLSTables = []string{
 	"api_tokens",
 	"notification_outbox",
 	"push_subscriptions",
+	"outbox_dead_letters",
+	"analytics_content_daily",
+	"analytics_feedback_daily",
+	"admin_notifications",
+	"admin_digest_preferences",
 }
 
 // tenantColumnWithoutRLS lists tables that have a tenant_id column but no RLS,
 // with the reason. Shrink it; do not grow it without a reason.
 var tenantColumnWithoutRLS = map[string]string{
-	// Known gaps: their stores query outside a tenant-bound transaction
-	// (and admin_notifications stores NULL tenant ids), so a fail-closed
-	// policy would hide rows. Move the stores onto database.Transactor first.
-	"admin_notifications":      "gap: internal/adminstudio/sqlstore plain queries, NULL tenant_id",
-	"admin_digest_preferences": "gap: internal/adminstudio/sqlstore plain queries",
-	"analytics_content_daily":  "gap: internal/analytics/sqlstore plain queries, cross-tenant rollups",
-	"analytics_feedback_daily": "gap: internal/analytics/sqlstore plain queries",
-	"outbox_dead_letters":      "gap: internal/outbox/sqlstore plain queries, cross-tenant worker",
 	// Platform control plane and SaaS billing: cross-tenant by design.
 	"tenants":             "platform: tenant registry",
 	"tenant_governance":   "platform: orchestrator governance",

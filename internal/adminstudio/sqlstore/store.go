@@ -15,13 +15,38 @@ import (
 )
 
 type Store struct{ Dialect database.Dialect }
+
+// bound runs fn with db bound to the request tenant for PostgreSQL row-level
+// security: the scope's tenant when the context has one, the single-tenant
+// partition otherwise. A db that cannot begin transactions (an open *sql.Tx)
+// is used as is; its caller already bound it.
+func (s Store) bound(ctx context.Context, db database.Executor, fn func(database.Executor) error) error {
+	handle, ok := db.(database.DB)
+	if s.Dialect != database.Postgres || !ok {
+		return fn(db)
+	}
+	_, scopeErr := tenant.FromContext(ctx)
+	return database.NewTenantTransactor(handle, s.Dialect, scopeErr == nil).Within(ctx, fn)
+}
+
+// boundQuery is bound for callbacks that read rows.
+func (s Store) boundQuery(ctx context.Context, db database.Executor, fn func(database.QueryExecutor) error) error {
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("admin studio query requires a query executor")
+		}
+		return fn(queryer)
+	})
+}
+
 type Notification struct {
 	ID, Title, Message, TargetPath string
 	CreatedAt                      time.Time
 	Read                           bool
 }
 
-func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor, start, end time.Time, analyticsEnabled bool, membersEnabled ...bool) (adminstudio.WeeklyDigestStats, error) {
+func (s Store) weeklyDigestStats(ctx context.Context, db database.QueryExecutor, start, end time.Time, analyticsEnabled bool, membersEnabled ...bool) (adminstudio.WeeklyDigestStats, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return adminstudio.WeeklyDigestStats{}, err
 	}
@@ -102,15 +127,17 @@ func (s Store) Add(ctx context.Context, db database.Executor, userID, title, mes
 		return err
 	}
 	id := hex.EncodeToString(idBytes)
-	var tenantID any
+	tenantID := ""
 	if scope, err := tenant.FromContext(ctx); err == nil {
 		tenantID = scope.TenantID
 	}
-	_, err := db.ExecContext(ctx, "INSERT INTO admin_notifications (id,tenant_id,user_id,title,message,target_path) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+","+s.p(4)+","+s.p(5)+","+s.p(6)+")", id, tenantID, userID, title, message, target)
-	return err
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		_, err := exec.ExecContext(ctx, "INSERT INTO admin_notifications (id,tenant_id,user_id,title,message,target_path) VALUES ("+s.p(1)+","+s.p(2)+","+s.p(3)+","+s.p(4)+","+s.p(5)+","+s.p(6)+")", id, tenantID, userID, title, message, target)
+		return err
+	})
 }
 
-func (s Store) List(ctx context.Context, db database.QueryExecutor, userID string, limit int) ([]Notification, error) {
+func (s Store) list(ctx context.Context, db database.QueryExecutor, userID string, limit int) ([]Notification, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
@@ -123,7 +150,7 @@ func (s Store) List(ctx context.Context, db database.QueryExecutor, userID strin
 		query += " AND tenant_id=" + s.p(2)
 		args = append(args, scope.TenantID)
 	} else {
-		query += " AND tenant_id IS NULL"
+		query += " AND tenant_id = ''"
 	}
 	query += " ORDER BY created_at DESC LIMIT " + s.p(len(args)+1)
 	args = append(args, limit)
@@ -154,7 +181,7 @@ func (s Store) List(ctx context.Context, db database.QueryExecutor, userID strin
 	return result, rows.Err()
 }
 
-func (s Store) MarkAllRead(ctx context.Context, db database.Executor, userID string) error {
+func (s Store) markAllRead(ctx context.Context, db database.Executor, userID string) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -167,13 +194,13 @@ func (s Store) MarkAllRead(ctx context.Context, db database.Executor, userID str
 		query += " AND tenant_id=" + s.p(3)
 		args = append(args, scope.TenantID)
 	} else {
-		query += " AND tenant_id IS NULL"
+		query += " AND tenant_id = ''"
 	}
 	_, err := db.ExecContext(ctx, query, args...)
 	return err
 }
 
-func (s Store) Dismiss(ctx context.Context, db database.Executor, userID, id string) error {
+func (s Store) dismiss(ctx context.Context, db database.Executor, userID, id string) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -186,13 +213,13 @@ func (s Store) Dismiss(ctx context.Context, db database.Executor, userID, id str
 		query += " AND tenant_id=" + s.p(4)
 		args = append(args, scope.TenantID)
 	} else {
-		query += " AND tenant_id IS NULL"
+		query += " AND tenant_id = ''"
 	}
 	_, err := db.ExecContext(ctx, query, args...)
 	return err
 }
 
-func (s Store) UnreadCount(ctx context.Context, db database.Executor, userID string) (int, error) {
+func (s Store) unreadCount(ctx context.Context, db database.Executor, userID string) (int, error) {
 	if database.RequireExecutor(db) != nil || userID == "" {
 		return 0, ErrInvalid
 	}
@@ -202,7 +229,7 @@ func (s Store) UnreadCount(ctx context.Context, db database.Executor, userID str
 		query += " AND tenant_id=" + s.p(2)
 		args = append(args, scope.TenantID)
 	} else {
-		query += " AND tenant_id IS NULL"
+		query += " AND tenant_id = ''"
 	}
 	var count int
 	err := db.QueryRowContext(ctx, query, args...).Scan(&count)
@@ -213,7 +240,7 @@ func (s Store) SetDigestPreference(ctx context.Context, db database.Executor, us
 	return s.SetDigestPreferenceWithFrequency(ctx, db, userID, timezone, string(adminstudio.DigestWeekly), enabled)
 }
 
-func (s Store) SetDigestPreferenceWithFrequency(ctx context.Context, db database.Executor, userID, timezone, frequency string, enabled bool) error {
+func (s Store) setDigestPreferenceWithFrequency(ctx context.Context, db database.Executor, userID, timezone, frequency string, enabled bool) error {
 	if err := database.RequireExecutor(db); err != nil {
 		return err
 	}
@@ -242,7 +269,7 @@ func (s Store) DigestPreferences(ctx context.Context, db database.QueryExecutor)
 	return s.DigestPreferencesAfter(ctx, db, "", 500)
 }
 
-func (s Store) DigestPreferencesAfter(ctx context.Context, db database.QueryExecutor, after string, limit int) ([]adminstudio.DigestPreference, error) {
+func (s Store) digestPreferencesAfter(ctx context.Context, db database.QueryExecutor, after string, limit int) ([]adminstudio.DigestPreference, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return nil, err
 	}
@@ -284,7 +311,7 @@ func (s Store) DigestPreferencesAfter(ctx context.Context, db database.QueryExec
 	return items, rows.Err()
 }
 
-func (s Store) DigestPreferenceDetailsFor(ctx context.Context, db database.Executor, userID string) (bool, string, string, error) {
+func (s Store) digestPreferenceDetailsFor(ctx context.Context, db database.Executor, userID string) (bool, string, string, error) {
 	if err := database.RequireExecutor(db); err != nil {
 		return false, "UTC", string(adminstudio.DigestMonthly), err
 	}
@@ -350,4 +377,66 @@ func (s Store) dbTimeValue(t time.Time) any {
 }
 func safeTarget(value string) bool {
 	return len(value) > 0 && value[0] == '/' && (len(value) == 1 || (value[1] != '/' && value[1] != '\\'))
+}
+
+// The exported methods below bind db to the request tenant (see bound) and
+// delegate to the unexported implementations above.
+
+func (s Store) WeeklyDigestStats(ctx context.Context, db database.QueryExecutor, start, end time.Time, analyticsEnabled bool, membersEnabled ...bool) (stats adminstudio.WeeklyDigestStats, err error) {
+	err = s.boundQuery(ctx, db, func(q database.QueryExecutor) error {
+		var e error
+		stats, e = s.weeklyDigestStats(ctx, q, start, end, analyticsEnabled, membersEnabled...)
+		return e
+	})
+	return stats, err
+}
+
+func (s Store) List(ctx context.Context, db database.QueryExecutor, userID string, limit int) (items []Notification, err error) {
+	err = s.boundQuery(ctx, db, func(q database.QueryExecutor) error {
+		var e error
+		items, e = s.list(ctx, q, userID, limit)
+		return e
+	})
+	return items, err
+}
+
+func (s Store) MarkAllRead(ctx context.Context, db database.Executor, userID string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error { return s.markAllRead(ctx, exec, userID) })
+}
+
+func (s Store) Dismiss(ctx context.Context, db database.Executor, userID, id string) error {
+	return s.bound(ctx, db, func(exec database.Executor) error { return s.dismiss(ctx, exec, userID, id) })
+}
+
+func (s Store) UnreadCount(ctx context.Context, db database.Executor, userID string) (count int, err error) {
+	err = s.bound(ctx, db, func(exec database.Executor) error {
+		var e error
+		count, e = s.unreadCount(ctx, exec, userID)
+		return e
+	})
+	return count, err
+}
+
+func (s Store) SetDigestPreferenceWithFrequency(ctx context.Context, db database.Executor, userID, timezone, frequency string, enabled bool) error {
+	return s.bound(ctx, db, func(exec database.Executor) error {
+		return s.setDigestPreferenceWithFrequency(ctx, exec, userID, timezone, frequency, enabled)
+	})
+}
+
+func (s Store) DigestPreferencesAfter(ctx context.Context, db database.QueryExecutor, after string, limit int) (prefs []adminstudio.DigestPreference, err error) {
+	err = s.boundQuery(ctx, db, func(q database.QueryExecutor) error {
+		var e error
+		prefs, e = s.digestPreferencesAfter(ctx, q, after, limit)
+		return e
+	})
+	return prefs, err
+}
+
+func (s Store) DigestPreferenceDetailsFor(ctx context.Context, db database.Executor, userID string) (enabled bool, timezone, frequency string, err error) {
+	err = s.bound(ctx, db, func(exec database.Executor) error {
+		var e error
+		enabled, timezone, frequency, e = s.digestPreferenceDetailsFor(ctx, exec, userID)
+		return e
+	})
+	return enabled, timezone, frequency, err
 }
