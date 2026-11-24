@@ -237,10 +237,14 @@ func OpenWithOptions(ctx context.Context, dialect Dialect, dsn string, options O
 			return nil, err
 		}
 	} else {
-		var err error
-		db, err = sql.Open(driver, dsn)
-		if err != nil {
-			return nil, err
+		if dialect == SQLite && options.MaxOpenConns > 1 {
+			db = openGatedSQLite(dsn)
+		} else {
+			var err error
+			db, err = sql.Open(driver, dsn)
+			if err != nil {
+				return nil, err
+			}
 		}
 		db.SetMaxOpenConns(options.MaxOpenConns)
 		db.SetMaxIdleConns(options.MaxIdleConns)
