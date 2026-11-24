@@ -183,3 +183,25 @@ func TestPublicBatchNonAtomicContinues(t *testing.T) {
 		t.Fatalf("expected 2 records stored, got %d", len(records))
 	}
 }
+
+type leakyRepository struct{ collections.Repository }
+
+func (leakyRepository) SaveRecord(context.Context, string, string, map[string]any, []collections.Field, int) (collections.Record, error) {
+	return collections.Record{}, fmt.Errorf(`pq: duplicate key value violates unique constraint "hydro_secret_idx"`)
+}
+
+func TestPublicBatchDoesNotLeakDatabaseErrors(t *testing.T) {
+	api, service := setupPublicBatchAPI(t)
+	api.Service = collections.Service{Repository: leakyRepository{service.Repository}}
+	body := `{"atomic":false,"operations":[{"action":"create","type":"items","data":{"title":"a","value":1}}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/content/items/batch", strings.NewReader(body))
+	req.SetPathValue("type", "items")
+	w := httptest.NewRecorder()
+	api.Batch(w, req)
+	if strings.Contains(w.Body.String(), "hydro_secret_idx") || strings.Contains(w.Body.String(), "pq:") {
+		t.Fatalf("batch response leaks the database error: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"status":500`) {
+		t.Fatalf("expected the failed item to report status 500: %s", w.Body.String())
+	}
+}

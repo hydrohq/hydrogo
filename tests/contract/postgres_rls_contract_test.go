@@ -56,6 +56,29 @@ var expectedRLSTables = []string{
 	"admin_user_permissions",
 	"api_tokens",
 	"notification_outbox",
+	"push_subscriptions",
+}
+
+// tenantColumnWithoutRLS lists tables that have a tenant_id column but no RLS,
+// with the reason. Shrink it; do not grow it without a reason.
+var tenantColumnWithoutRLS = map[string]string{
+	// Known gaps: their stores query outside a tenant-bound transaction
+	// (and admin_notifications stores NULL tenant ids), so a fail-closed
+	// policy would hide rows. Move the stores onto database.Transactor first.
+	"admin_notifications":      "gap: internal/adminstudio/sqlstore plain queries, NULL tenant_id",
+	"admin_digest_preferences": "gap: internal/adminstudio/sqlstore plain queries",
+	"analytics_content_daily":  "gap: internal/analytics/sqlstore plain queries, cross-tenant rollups",
+	"analytics_feedback_daily": "gap: internal/analytics/sqlstore plain queries",
+	"outbox_dead_letters":      "gap: internal/outbox/sqlstore plain queries, cross-tenant worker",
+	// Platform control plane and SaaS billing: cross-tenant by design.
+	"tenants":             "platform: tenant registry",
+	"tenant_governance":   "platform: orchestrator governance",
+	"tenant_system_audit": "platform: provisioning audit",
+	"plans":               "platform: billing",
+	"subscriptions":       "platform: billing",
+	"orders":              "platform: billing",
+	"payments":            "platform: billing",
+	"payment_events":      "platform: billing",
 }
 
 // TestPostgresTenantRLSContract certifies ADR-0156 and ADR-0180:
@@ -102,6 +125,36 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 	_ = rows.Close()
 	if len(failOpen) > 0 {
 		t.Fatalf("tenant policies still fail open via app.tenant_rls_enforced: %v", failOpen)
+	}
+
+	// 0b. Every table with a tenant_id column must enforce RLS, except the ones
+	// listed in tenantColumnWithoutRLS. A new tenant table without a policy
+	// fails here instead of silently relying on application WHERE filters.
+	missingRLS, err := db.QueryContext(ctx, `SELECT c.relname FROM pg_class c
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped
+		WHERE n.nspname = CURRENT_SCHEMA() AND c.relkind = 'r'
+		  AND NOT (c.relrowsecurity AND c.relforcerowsecurity)
+		ORDER BY c.relname`)
+	if err != nil {
+		t.Fatalf("query tenant tables without RLS: %v", err)
+	}
+	var unprotected []string
+	for missingRLS.Next() {
+		var name string
+		if err := missingRLS.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		if _, allowed := tenantColumnWithoutRLS[name]; !allowed {
+			unprotected = append(unprotected, name)
+		}
+	}
+	if err := missingRLS.Err(); err != nil {
+		t.Fatal(err)
+	}
+	_ = missingRLS.Close()
+	if len(unprotected) > 0 {
+		t.Fatalf("tables with tenant_id but no forced RLS (add a policy or justify them in tenantColumnWithoutRLS): %v", unprotected)
 	}
 
 	// 1. Verify RLS enabled and forced on all expected tables
