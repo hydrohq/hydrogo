@@ -5,6 +5,7 @@ pages, news, media, members, content types, a high-performance REST API, and an
 embedded Svelte 5 admin workspace. HydroGo Core focuses strictly
 on headless backend operations. Background:
 `docs/decisions/0001-cms-focus.md`, `docs/decisions/0005-admin-svelte-spa.md`.
+Product, licensing and benchmark context: `docs/PROJECT_CONTEXT.md`.
 
 ## Branches
 
