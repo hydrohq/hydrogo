@@ -128,7 +128,7 @@ func (h Handler) createDiscountCode(w http.ResponseWriter, r *http.Request) {
 	}
 	token, err := randomToken()
 	if err != nil {
-		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		api.WriteInternalError(w, r, "could not create discount code", err)
 		return
 	}
 	record := commerce.DiscountCode{

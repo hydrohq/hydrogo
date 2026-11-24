@@ -135,11 +135,7 @@ func (h Handler) checkout(w http.ResponseWriter, r *http.Request) {
 	if created {
 		if _, items, itemsErr := h.Service.OrderWithItems(r.Context(), order.ID); itemsErr == nil {
 			bgCtx := context.WithoutCancel(r.Context())
-			notificationWG.Add(1)
-			go func() {
-				defer notificationWG.Done()
-				h.notifyNewOrder(bgCtx, order, items)
-			}()
+			goNotification(nil, func() { h.notifyNewOrder(bgCtx, order, items) })
 		}
 		if order.PaymentStatus == commerce.PaymentPaid {
 			NotifyOrderPaidAsync(r.Context(), h.Notifier, h.Service, order.ID, order.PaymentMethod, slog.Default())

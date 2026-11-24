@@ -35,7 +35,7 @@ func (a *serveApp) adminJobsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	jobs, err := a.jobsStore().List(r.Context(), a.db, jobsListLimit(r))
 	if err != nil {
-		api.WriteError(w, r, http.StatusInternalServerError, "list jobs: "+err.Error(), nil)
+		api.WriteInternalError(w, r, "could not list jobs", err)
 		return
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -51,7 +51,7 @@ func (a *serveApp) adminJobDeadLettersHandler(w http.ResponseWriter, r *http.Req
 	}
 	listed, err := a.jobsStore().ListDeadLetters(r.Context(), a.db, jobsListLimit(r))
 	if err != nil {
-		api.WriteError(w, r, http.StatusInternalServerError, "list dead-letter jobs: "+err.Error(), nil)
+		api.WriteInternalError(w, r, "could not list dead-letter jobs", err)
 		return
 	}
 	summaries := make([]jobstore.JobSummary, len(listed))
