@@ -1,0 +1,29 @@
+id: "202611250002_postgres_rls_outbox_dead_letters"
+module: "core"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "df0dfe80de9c6ea650f688a9471511da3a5249c38fddc44cf8f0e8a9c479d364"
+  postgres: "9eb4ccd53d21a96b91e0798f2246cad4d46de9f6e45843fd05a298ec183a3d3e"
+  mysql: "aa399c33de23576a8a6948a02a973e6ad2d28d733d5f5f9548f5fff0ee8b2744"
+dependencies:
+  - "202609210002_outbox_dead_letters"
+  - "202611110001_postgres_rls_single_tenant_default"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "outbox_dead_letters exists (202609210002)"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Enables row-level security and adds one policy on outbox_dead_letters; no data rewrite"
+compatibility: "outbox_dead_letters is written only in the same executor as the outbox_events delete, which already runs under the fail-closed policy, so dead letters get the same tenant visibility as the events they come from."
+smoke:
+  - "A dead letter written for one tenant is invisible to another tenant transaction."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

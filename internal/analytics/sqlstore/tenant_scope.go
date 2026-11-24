@@ -56,13 +56,26 @@ func (s Store) withTenant(ctx context.Context, tenantID string, fn func(database
 	return tx.Commit()
 }
 
+// withTenantQuery is withTenant for reads that need QueryContext.
+func (s Store) withTenantQuery(ctx context.Context, tenantID string, fn func(database.QueryExecutor) error) error {
+	return s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		queryer, ok := exec.(database.QueryExecutor)
+		if !ok {
+			return errors.New("analytics query requires a query executor")
+		}
+		return fn(queryer)
+	})
+}
+
 // retentionTenants lists the tenant partitions a retention purge must visit.
 // Row-level security hides every tenant but the bound one, so a purge cannot
 // simply delete across tenants on PostgreSQL. The default single-tenant
-// partition and the request tenant, when present, are always included.
+// partitions and the request tenant, when present, are always included.
 func (s Store) retentionTenants(ctx context.Context) ([]string, error) {
-	tenants := []string{""}
-	seen := map[string]bool{"": true}
+	// "" is the core single-tenant partition; "default" is the one the
+	// single-tenant analytics, feedback and content-view handlers write.
+	tenants := []string{"", "default"}
+	seen := map[string]bool{"": true, "default": true}
 	add := func(id string) {
 		if !seen[id] {
 			seen[id] = true

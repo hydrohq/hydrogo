@@ -43,10 +43,6 @@ func (s Store) ContentViewCounts(ctx context.Context, tenantID, contentType stri
 	if err := s.validate(); err != nil {
 		return nil, err
 	}
-	queryExecutor, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("analytics content counts require query executor")
-	}
 	args := []any{tenantID, contentType}
 	placeholders := make([]string, 0, len(contentIDs))
 	for _, id := range contentIDs {
@@ -57,21 +53,27 @@ func (s Store) ContentViewCounts(ctx context.Context, tenantID, contentType stri
 		placeholders = append(placeholders, placeholder(s.Dialect, len(args)))
 	}
 	query := "SELECT content_id,SUM(view_count) FROM analytics_content_daily WHERE tenant_id=" + placeholder(s.Dialect, 1) + " AND content_type=" + placeholder(s.Dialect, 2) + " AND content_id IN (" + strings.Join(placeholders, ",") + ") GROUP BY content_id"
-	rows, err := queryExecutor.QueryContext(ctx, query, args...)
+	counts := make(map[string]int64, len(contentIDs))
+	err := s.withTenantQuery(ctx, tenantID, func(queryer database.QueryExecutor) error {
+		rows, err := queryer.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			var count int64
+			if err := rows.Scan(&id, &count); err != nil {
+				return err
+			}
+			counts[id] = count
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	counts := make(map[string]int64, len(contentIDs))
-	for rows.Next() {
-		var id string
-		var count int64
-		if err := rows.Scan(&id, &count); err != nil {
-			return nil, err
-		}
-		counts[id] = count
-	}
-	return counts, rows.Err()
+	return counts, nil
 }
 
 // RecordContentView updates a consent-gated daily aggregate. No visitor or
@@ -98,18 +100,26 @@ func (s Store) RecordContentView(ctx context.Context, consentID, purposeVersion 
 	if err := s.requireGrantedConsent(ctx, consentID, purposeVersion); err != nil {
 		return err
 	}
-	if s.Dialect == database.Postgres {
-		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES ($1,$2,$3,$4,$5,$6,1)
-			ON CONFLICT (day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=analytics_content_daily.view_count+1`, event.Day, event.TenantID, event.ContentType, event.ContentID, event.Locale, purposeVersion)
-		return err
+	return s.withTenant(ctx, event.TenantID, func(exec database.Executor) error {
+		return s.upsertContentView(ctx, exec, event.Day, event.TenantID, event.ContentType, event.ContentID, event.Locale, purposeVersion)
+	})
+}
+
+// upsertContentView adds one view to a daily content aggregate.
+func (s Store) upsertContentView(ctx context.Context, exec database.Executor, day, tenantID, contentType, contentID, locale, purpose string) error {
+	var query string
+	switch s.Dialect {
+	case database.Postgres:
+		query = `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES ($1,$2,$3,$4,$5,$6,1)
+			ON CONFLICT (day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=analytics_content_daily.view_count+1`
+	case database.MySQL:
+		query = `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
+			ON DUPLICATE KEY UPDATE view_count=view_count+1`
+	default:
+		query = `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
+			ON CONFLICT(day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=view_count+1`
 	}
-	if s.Dialect == database.MySQL {
-		_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
-			ON DUPLICATE KEY UPDATE view_count=view_count+1`, event.Day, event.TenantID, event.ContentType, event.ContentID, event.Locale, purposeVersion)
-		return err
-	}
-	_, err := s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
-		ON CONFLICT(day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=view_count+1`, event.Day, event.TenantID, event.ContentType, event.ContentID, event.Locale, purposeVersion)
+	_, err := exec.ExecContext(ctx, query, day, tenantID, contentType, contentID, locale, purpose)
 	return err
 }
 
@@ -119,10 +129,6 @@ func (s Store) ListContentViews(ctx context.Context, filter ContentViewFilter) (
 	}
 	if err := contextErr(ctx); err != nil {
 		return nil, err
-	}
-	queryExecutor, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return nil, errors.New("analytics content report requires query executor")
 	}
 	if strings.TrimSpace(filter.TenantID) == "" || len(filter.TenantID) > 128 {
 		return nil, errors.New("invalid analytics tenant scope")
@@ -145,20 +151,26 @@ func (s Store) ListContentViews(ctx context.Context, filter ContentViewFilter) (
 	add("day", ">=", filter.FromDay)
 	add("day", "<=", filter.ToDay)
 	query := "SELECT day,tenant_id,content_type,content_id,locale,view_count FROM analytics_content_daily WHERE " + strings.Join(clauses, " AND ") + " ORDER BY day DESC,view_count DESC LIMIT " + fmt.Sprintf("%d", filter.Limit)
-	rows, err := queryExecutor.QueryContext(ctx, query, args...)
+	result := make([]ContentViewAggregate, 0)
+	err := s.withTenantQuery(ctx, strings.TrimSpace(filter.TenantID), func(queryer database.QueryExecutor) error {
+		rows, err := queryer.QueryContext(ctx, query, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var item ContentViewAggregate
+			if err := rows.Scan(&item.Day, &item.TenantID, &item.ContentType, &item.ContentID, &item.Locale, &item.ViewCount); err != nil {
+				return err
+			}
+			result = append(result, item)
+		}
+		return rows.Err()
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	result := make([]ContentViewAggregate, 0)
-	for rows.Next() {
-		var item ContentViewAggregate
-		if err := rows.Scan(&item.Day, &item.TenantID, &item.ContentType, &item.ContentID, &item.Locale, &item.ViewCount); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
+	return result, nil
 }
 
 // IncrementContentView atomically updates the daily view count for the content
@@ -181,21 +193,11 @@ func (s Store) IncrementContentView(ctx context.Context, tenantID, contentType, 
 	day := time.Now().UTC().Format("2006-01-02")
 	purpose := "content-views-v1"
 
-	var err error
-	if s.Dialect == database.Postgres {
-		_, err = s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES ($1,$2,$3,$4,$5,$6,1)
-			ON CONFLICT (day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=analytics_content_daily.view_count+1`, day, tenantID, contentType, contentID, locale, purpose)
-	} else if s.Dialect == database.MySQL {
-		_, err = s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
-			ON DUPLICATE KEY UPDATE view_count=view_count+1`, day, tenantID, contentType, contentID, locale, purpose)
-	} else {
-		_, err = s.Executor.ExecContext(ctx, `INSERT INTO analytics_content_daily (day,tenant_id,content_type,content_id,locale,purpose_version,view_count) VALUES (?,?,?,?,?,?,1)
-			ON CONFLICT(day,tenant_id,content_type,content_id,locale,purpose_version) DO UPDATE SET view_count=view_count+1`, day, tenantID, contentType, contentID, locale, purpose)
-	}
-	if err != nil {
+	if err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+		return s.upsertContentView(ctx, exec, day, tenantID, contentType, contentID, locale, purpose)
+	}); err != nil {
 		return 0, err
 	}
-
 	return s.ContentViewTotal(ctx, tenantID, contentType, contentID)
 }
 
@@ -210,13 +212,11 @@ func (s Store) ContentViewTotal(ctx context.Context, tenantID, contentType, cont
 	if strings.TrimSpace(tenantID) == "" {
 		tenantID = "default"
 	}
-	queryExecutor, ok := s.Executor.(database.QueryExecutor)
-	if !ok {
-		return 0, errors.New("analytics content total requires query executor")
-	}
 	query := "SELECT COALESCE(SUM(view_count), 0) FROM analytics_content_daily WHERE tenant_id=" + placeholder(s.Dialect, 1) + " AND content_type=" + placeholder(s.Dialect, 2) + " AND content_id=" + placeholder(s.Dialect, 3)
 	var total int64
-	err := queryExecutor.QueryRowContext(ctx, query, tenantID, contentType, contentID).Scan(&total)
+	err := s.withTenantQuery(ctx, tenantID, func(queryer database.QueryExecutor) error {
+		return queryer.QueryRowContext(ctx, query, tenantID, contentType, contentID).Scan(&total)
+	})
 	if err != nil {
 		return 0, err
 	}

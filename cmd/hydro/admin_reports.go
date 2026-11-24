@@ -179,7 +179,13 @@ func contentViewFilterFromRequest(r *http.Request, limit int) analyticsstore.Con
 		return filter
 	}
 	q := r.URL.Query()
-	filter.TenantID, filter.ContentType, filter.ContentID, filter.Locale = strings.TrimSpace(q.Get("tenant_id")), strings.TrimSpace(q.Get("content_type")), strings.TrimSpace(q.Get("content_id")), strings.TrimSpace(q.Get("locale"))
+	// The tenant always comes from the request scope, never the query string:
+	// a tenant_id parameter let one tenant's admin read another's report.
+	filter.TenantID = "default"
+	if scope, err := tenant.FromContext(r.Context()); err == nil {
+		filter.TenantID = scope.TenantID
+	}
+	filter.ContentType, filter.ContentID, filter.Locale = strings.TrimSpace(q.Get("content_type")), strings.TrimSpace(q.Get("content_id")), strings.TrimSpace(q.Get("locale"))
 	switch q.Get("range") {
 	case "7d", "30d", "90d":
 		days := 7

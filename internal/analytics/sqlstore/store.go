@@ -244,9 +244,6 @@ func (s Store) PurgeBefore(ctx context.Context, before time.Time) error {
 		return err
 	}
 	cutoff := before.UTC().Format("2006-01-02")
-	if _, err := s.Executor.ExecContext(ctx, "DELETE FROM analytics_feedback_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff); err != nil {
-		return err
-	}
 	tenants := []string{""}
 	if s.Dialect == database.Postgres {
 		var err error
@@ -256,6 +253,9 @@ func (s Store) PurgeBefore(ctx context.Context, before time.Time) error {
 	}
 	for _, tenantID := range tenants {
 		if err := s.withTenant(ctx, tenantID, func(exec database.Executor) error {
+			if _, err := exec.ExecContext(ctx, "DELETE FROM analytics_feedback_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff); err != nil {
+				return err
+			}
 			_, err := exec.ExecContext(ctx, "DELETE FROM analytics_search_daily WHERE day < "+placeholder(s.Dialect, 1), cutoff)
 			return err
 		}); err != nil {
