@@ -80,6 +80,30 @@ func TestPostgresTenantRLSContract(t *testing.T) {
 		t.Fatalf("failed to apply migrations: %v", err)
 	}
 
+	// 0. No tenant policy may stay fail-open behind the old app.tenant_rls_enforced
+	// switch, which nothing sets; ADR 0032 requires every policy to fail closed.
+	rows, err := db.QueryContext(ctx, `SELECT tablename FROM pg_policies
+		WHERE schemaname = CURRENT_SCHEMA() AND policyname = 'hydrogo_tenant_isolation'
+		  AND (coalesce(qual, '') LIKE '%tenant_rls_enforced%' OR coalesce(with_check, '') LIKE '%tenant_rls_enforced%')`)
+	if err != nil {
+		t.Fatalf("query fail-open policies: %v", err)
+	}
+	var failOpen []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		failOpen = append(failOpen, name)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	_ = rows.Close()
+	if len(failOpen) > 0 {
+		t.Fatalf("tenant policies still fail open via app.tenant_rls_enforced: %v", failOpen)
+	}
+
 	// 1. Verify RLS enabled and forced on all expected tables
 	for _, tableName := range expectedRLSTables {
 		t.Run("RLSEnabled/"+tableName, func(t *testing.T) {

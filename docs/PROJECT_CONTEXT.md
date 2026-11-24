@@ -19,8 +19,11 @@ Short product and positioning brief for people and AI agents. For code layout se
 ## 2. Stack
 
 - **Engine:** Go (version in `go.mod`), stdlib `net/http` routing, `sync.Pool` buffer reuse
-  (`internal/server/http_optimization.go`).
-- **Databases:** PostgreSQL with row-level security for tenant isolation, SQLite in WAL mode, MySQL.
+  (`internal/server/http_optimization.go`). Low-allocation, not zero-allocation: there is no
+  `unsafe` and no router benchmark yet.
+- **Databases:** PostgreSQL with fail-closed row-level security (transaction-local
+  `app.current_tenant_id`, pool reset on release; guarded by `tests/contract`), SQLite in WAL
+  mode, MySQL.
 - **Edge:** Caddy reverse proxy behind Cloudflare (WAF, DNS, edge cache).
 - **AI layer:** MCP server and CLI for natural-language store administration.
 - **Storefront:** embedded `embed.FS` HTML or an external SvelteKit / Next.js SSR app.
