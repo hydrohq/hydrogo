@@ -158,7 +158,7 @@ func TestSQLiteOnlineExpandAllowsConcurrentReadContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = reader.Close() })
-	readTx, err := reader.BeginTx(ctx, nil)
+	readTx, err := reader.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}

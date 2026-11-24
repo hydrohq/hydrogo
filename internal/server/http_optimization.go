@@ -120,8 +120,7 @@ func CompressionMiddleware(next http.Handler) http.Handler {
 		compressed.Reset()
 		err := compressBody(encoding, capture.buf.Bytes(), compressed)
 		if err != nil {
-			compressed.Reset()
-			responseBuffers.Put(compressed)
+			putResponseBuffer(compressed)
 			capture.commitPlain()
 			capture.release()
 			return
@@ -132,8 +131,7 @@ func CompressionMiddleware(next http.Handler) http.Handler {
 		header.Set("Content-Length", strconv.Itoa(compressed.Len()))
 		capture.writer.WriteHeader(capture.status)
 		_, _ = w.Write(compressed.Bytes())
-		compressed.Reset()
-		responseBuffers.Put(compressed)
+		putResponseBuffer(compressed)
 		capture.release()
 	})
 }
@@ -297,6 +295,18 @@ func (w *boundedResponseWriter) commitPlain() {
 }
 
 func (w *boundedResponseWriter) release() {
-	w.buf.Reset()
-	responseBuffers.Put(w.buf)
+	putResponseBuffer(w.buf)
+}
+
+// maxPooledBufferBytes caps buffers returned to responseBuffers. One large
+// response must not pin its capacity in the pool and inflate RSS for every
+// later small one; oversized buffers are left to the GC.
+const maxPooledBufferBytes = 64 << 10
+
+func putResponseBuffer(buf *bytes.Buffer) {
+	if buf.Cap() > maxPooledBufferBytes {
+		return
+	}
+	buf.Reset()
+	responseBuffers.Put(buf)
 }
