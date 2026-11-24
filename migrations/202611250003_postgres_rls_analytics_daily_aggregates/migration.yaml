@@ -1,0 +1,30 @@
+id: "202611250003_postgres_rls_analytics_daily_aggregates"
+module: "analytics"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "df0dfe80de9c6ea650f688a9471511da3a5249c38fddc44cf8f0e8a9c479d364"
+  postgres: "707edf9865369db2e64398151321dff3ae374fcaa9af9fa400f853909e818457"
+  mysql: "aa399c33de23576a8a6948a02a973e6ad2d28d733d5f5f9548f5fff0ee8b2744"
+dependencies:
+  - "202609220001_analytics_content_views"
+  - "202609290011_analytics_feedback"
+  - "202611110001_postgres_rls_single_tenant_default"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "analytics module enabled"
+lock_timeout: "Migration runner deadline"
+disk_estimate: "Enables row-level security and adds one policy on each of two aggregate tables; no data rewrite"
+compatibility: "internal/analytics/sqlstore now runs every content-view and feedback query in a transaction bound to the aggregate tenant (including the single-tenant \"default\" partition), and the retention purge visits each tenant partition."
+smoke:
+  - "Content-view and feedback aggregates of one tenant are invisible to another tenant; single-tenant \"default\" rows still read and write."
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."
