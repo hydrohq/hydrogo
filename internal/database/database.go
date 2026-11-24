@@ -338,6 +338,11 @@ func applySQLiteProfile(query url.Values, profile string) {
 	query.Set("_foreign_keys", "on")
 	query.Set("_journal_mode", "WAL")
 	query.Set("_synchronous", "NORMAL")
+	// Writers take the lock at BEGIN. A DEFERRED read-then-write transaction
+	// gets SQLITE_BUSY at once (busy_timeout is not applied to the lock
+	// upgrade) when another connection writes, which failed most concurrent
+	// checkouts on multi-connection profiles. Read-only transactions stay deferred.
+	query.Set("_txlock", "immediate")
 	query.Del("_pragma")
 	switch profile {
 	case SQLiteCompactProfile:

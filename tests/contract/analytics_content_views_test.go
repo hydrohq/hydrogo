@@ -9,6 +9,7 @@ import (
 
 	"github.com/hydrohq/hydrogo/internal/analytics/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/database"
+	"github.com/hydrohq/hydrogo/internal/tenant"
 	"github.com/hydrohq/hydrogo/migrations"
 )
 
@@ -54,7 +55,15 @@ func runContentViewCountsContract(t *testing.T, dialect database.Dialect) {
 		{"2026-09-01", "tenant-b", "page", "p1", "en", 100},
 		{"2026-09-01", "tenant-a", "news", "p1", "en", 200},
 	} {
-		if _, err := db.ExecContext(ctx, insert, row.day, row.tenant, row.typ, row.id, row.locale, "v1", row.count); err != nil {
+		// Seed each row under its own tenant, as the RLS policies require.
+		scope, err := tenant.NewScope(row.tenant, row.tenant)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := database.NewTenantTransactor(db, dialect, true).Within(tenant.WithScope(ctx, scope), func(tx database.Executor) error {
+			_, err := tx.ExecContext(ctx, insert, row.day, row.tenant, row.typ, row.id, row.locale, "v1", row.count)
+			return err
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}

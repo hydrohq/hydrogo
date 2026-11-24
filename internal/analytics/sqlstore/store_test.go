@@ -110,7 +110,10 @@ func runFormAnalyticsContract(t *testing.T, db database.QueryExecutor, dialect d
 func runFeedbackContract(t *testing.T, db database.QueryExecutor, dialect database.Dialect) {
 	t.Helper()
 	ctx := context.Background()
-	store := Store{Executor: db, Dialect: dialect}
+	// Retention reaches named tenants only through TenantIDs, as in serve.
+	store := Store{Executor: db, Dialect: dialect, TenantIDs: func(context.Context) ([]string, error) {
+		return []string{"tenant-a", "tenant-b"}, nil
+	}}
 	day := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
 	for _, reaction := range []string{"up", "up", "down"} {
 		if err := store.RecordFeedback(ctx, "tenant-a", "news", "article-a", reaction, day); err != nil {

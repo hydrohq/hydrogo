@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
@@ -102,6 +103,16 @@ func TestCompressionMiddlewareSkipsSmallAndAlreadyCompressedBodies(t *testing.T)
 		handler.ServeHTTP(response, request)
 		if response.Header().Get("Content-Encoding") != "" || response.Body.String() != test.body {
 			t.Fatalf("unexpected encoding for %s: headers=%v", test.typ, response.Header())
+		}
+	}
+}
+
+func TestPutResponseBufferDropsOversizedBuffers(t *testing.T) {
+	big := bytes.NewBuffer(make([]byte, 0, maxPooledBufferBytes*4))
+	putResponseBuffer(big)
+	for i := 0; i < 8; i++ {
+		if got := responseBuffers.Get().(*bytes.Buffer); got == big {
+			t.Fatalf("oversized buffer (cap %d) was returned to the pool", big.Cap())
 		}
 	}
 }

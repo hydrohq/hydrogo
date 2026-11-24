@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -25,16 +26,31 @@ func WaitNotifications() {
 	notificationWG.Wait()
 }
 
+// goNotification runs fn in a tracked background goroutine. net/http only
+// recovers panics in the handler goroutine, so a panicking notifier adapter
+// would otherwise take the whole process down after the response was sent.
+func goNotification(logger *slog.Logger, fn func()) {
+	notificationWG.Add(1)
+	go func() {
+		defer notificationWG.Done()
+		defer func() {
+			if value := recover(); value != nil {
+				if logger == nil {
+					logger = slog.Default()
+				}
+				logger.Error("commerce notification panicked", "panic", fmt.Sprint(value), "stack", string(debug.Stack()))
+			}
+		}()
+		fn()
+	}()
+}
+
 // DispatchNotificationAsync sends an arbitrary notification in a background goroutine with exponential retry.
 func DispatchNotificationAsync(notifier notify.Sender, msg notify.Message, logger *slog.Logger) {
 	if notifier == nil {
 		return
 	}
-	notificationWG.Add(1)
-	go func() {
-		defer notificationWG.Done()
-		sendWithRetry(context.Background(), notifier, msg, logger)
-	}()
+	goNotification(logger, func() { sendWithRetry(context.Background(), notifier, msg, logger) })
 }
 
 func sendWithRetry(ctx context.Context, notifier notify.Sender, msg notify.Message, logger *slog.Logger) {
@@ -112,11 +128,7 @@ func NotifyOrderPaidAsync(ctx context.Context, notifier notify.Sender, reader Or
 	}
 	bgCtx := context.WithoutCancel(ctx)
 	msg := formatPaidOrderMessage(bgCtx, reader, orderID, provider, logger)
-	notificationWG.Add(1)
-	go func() {
-		defer notificationWG.Done()
-		sendWithRetry(bgCtx, notifier, msg, logger)
-	}()
+	goNotification(logger, func() { sendWithRetry(bgCtx, notifier, msg, logger) })
 }
 
 // NotifyOperatorAsync sends an alert notification to the operator in a background goroutine
@@ -129,9 +141,5 @@ func NotifyOperatorAsync(ctx context.Context, notifier notify.Sender, title, ord
 	total := FormatMoney(amountCents, currency)
 	body := fmt.Sprintf("Order No: %s, Amount: %s, Provider: %s", orderID, total, provider)
 	msg := notify.Message{Title: title, Body: body}
-	notificationWG.Add(1)
-	go func() {
-		defer notificationWG.Done()
-		sendWithRetry(bgCtx, notifier, msg, logger)
-	}()
+	goNotification(logger, func() { sendWithRetry(bgCtx, notifier, msg, logger) })
 }
