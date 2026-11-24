@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/hydrohq/hydrogo/internal/security"
@@ -56,6 +57,18 @@ func WriteError(w http.ResponseWriter, r *http.Request, status int, message stri
 		Fields:    fields,
 		RequestID: security.RequestIDFromContext(r.Context()),
 	})
+}
+
+// WriteInternalError answers 500 with only the given client-safe message and
+// logs err, which may carry SQL, paths or driver detail, server-side under the
+// request id the client receives.
+func WriteInternalError(w http.ResponseWriter, r *http.Request, message string, err error) {
+	slog.Default().ErrorContext(r.Context(), "http_internal_error",
+		slog.String("request_id", security.RequestIDFromContext(r.Context())),
+		slog.String("path", r.URL.Path),
+		slog.String("message", message),
+		slog.Any("error", err))
+	WriteError(w, r, http.StatusInternalServerError, message, nil)
 }
 
 // WriteValidation answers 422 with per-field codes ("required", "invalid",

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -325,7 +326,7 @@ func (a *serveApp) adminSystemUpdatesApplyHandler(w http.ResponseWriter, r *http
 	migrateArgs := []string{"migrate", "--database-dialect", string(a.cfg.Database.Dialect), "--database-dsn", a.cfg.Database.DSN}
 	if out, migErr := exec.CommandContext(r.Context(), exePath, migrateArgs...).CombinedOutput(); migErr != nil { // #nosec G204 -- verified signed binary path
 		_ = updater.Rollback(exePath)
-		api.WriteError(w, r, http.StatusInternalServerError, "migration failed after update, rolled back: "+string(out), nil)
+		api.WriteInternalError(w, r, "migration failed after update, rolled back", errors.Join(migErr, errors.New(string(out))))
 		return
 	}
 

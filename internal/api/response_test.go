@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -150,5 +151,21 @@ func TestWriteValidationAnswers422WithFieldCodes(t *testing.T) {
 	}
 	if decoded.Fields["email"] != "required" {
 		t.Fatalf("fields = %+v", decoded.Fields)
+	}
+}
+
+func TestWriteInternalErrorHidesErrorDetail(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/roles", nil)
+	WriteInternalError(rec, req, "role operation failed", errors.New(`pq: relation "hydro_roles" does not exist`))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, "hydro_roles") || strings.Contains(body, "pq:") {
+		t.Fatalf("response leaks the underlying error: %s", body)
+	}
+	if !strings.Contains(body, "role operation failed") {
+		t.Fatalf("response lacks the client message: %s", body)
 	}
 }

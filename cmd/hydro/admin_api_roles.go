@@ -20,7 +20,7 @@ func (a *serveApp) adminRolesListHandler(w http.ResponseWriter, r *http.Request)
 	}
 	roles, err := a.roleStore.ListRoles(r.Context())
 	if err != nil {
-		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		api.WriteInternalError(w, r, "role operation failed", err)
 		return
 	}
 	if roles == nil {
@@ -45,7 +45,7 @@ func (a *serveApp) adminRoleGetHandler(w http.ResponseWriter, r *http.Request) {
 			api.WriteError(w, r, http.StatusNotFound, "role not found", nil)
 			return
 		}
-		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		api.WriteInternalError(w, r, "role operation failed", err)
 		return
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -95,7 +95,7 @@ func (a *serveApp) adminRoleSaveHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := a.roleStore.SaveRole(r.Context(), role); err != nil {
-		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		api.WriteInternalError(w, r, "role operation failed", err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (a *serveApp) adminRoleDeleteHandler(w http.ResponseWriter, r *http.Request
 			api.WriteError(w, r, http.StatusNotFound, "role not found", nil)
 			return
 		}
-		api.WriteError(w, r, http.StatusInternalServerError, err.Error(), nil)
+		api.WriteInternalError(w, r, "role operation failed", err)
 		return
 	}
 
