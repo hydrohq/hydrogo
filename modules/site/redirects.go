@@ -261,6 +261,11 @@ func (r *RedirectRegistry) Match(scope tenant.Scope, requestPath string) (Redire
 			} else {
 				result.TargetPath = rule.re.ReplaceAllString(requestPath, result.TargetPath)
 			}
+			// Guard against protocol-relative open redirects (e.g. //evil.com) from wildcard/regex captures.
+			if !strings.HasPrefix(result.TargetPath, "/") || strings.HasPrefix(result.TargetPath, "//") || strings.HasPrefix(result.TargetPath, "/\\") {
+				r.mu.RUnlock()
+				return RedirectRule{}, false
+			}
 		}
 		rule.hits.Add(1)
 		r.mu.RUnlock()

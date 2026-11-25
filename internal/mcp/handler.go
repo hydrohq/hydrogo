@@ -485,9 +485,11 @@ func (h *Handler) toolDefineContentType(ctx context.Context, args json.RawMessag
 		dir = "content-types"
 	}
 	if h.cfg.RequireTenantScope {
-		if scope, err := tenant.FromContext(ctx); err == nil && scope.TenantID != "" {
-			dir = filepath.Join(dir, "tenants", scope.TenantID)
+		scope, err := tenant.FromContext(ctx)
+		if err != nil || scope.TenantID == "" {
+			return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: "tenant scope required to define content type"}}}, nil
 		}
+		dir = filepath.Join(dir, "tenants", scope.TenantID)
 	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return ToolCallResult{IsError: true, Content: []ToolContent{{Type: "text", Text: fmt.Sprintf("failed to create directory: %v", err)}}}, nil

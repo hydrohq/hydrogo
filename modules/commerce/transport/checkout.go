@@ -169,13 +169,34 @@ func FormatMoney(cents int64, currency string) string {
 	return fmt.Sprintf("%.2f %s", float64(cents)/100, currency)
 }
 
-// getOrder is an order confirmation/status read. A guest has no account, so
-// knowing the order's unguessable id is the access check; admins reach the
-// same handler through the protected route.
+// authorizeOrderAccess enforces member ownership when an order belongs to a
+// registered member account; guest orders remain accessible via their
+// 120-bit unguessable order ID.
+func (h Handler) authorizeOrderAccess(w http.ResponseWriter, r *http.Request, order commerce.Order) bool {
+	if order.MemberID == "" {
+		return true
+	}
+	if h.MemberID == nil {
+		api.WriteError(w, r, http.StatusForbidden, "sign in as the owning member to access this order", nil)
+		return false
+	}
+	memberID, ok := h.MemberID(r)
+	if !ok || memberID != order.MemberID {
+		api.WriteError(w, r, http.StatusForbidden, "sign in as the owning member to access this order", nil)
+		return false
+	}
+	return true
+}
+
+// getOrder is an order confirmation/status read. Member orders require the
+// owning member session; guest orders rely on the unguessable order id.
 func (h Handler) getOrder(w http.ResponseWriter, r *http.Request) {
 	order, items, err := h.Service.OrderWithItems(r.Context(), r.PathValue("id"))
 	if err != nil {
 		writeServiceError(w, r, err)
+		return
+	}
+	if !h.authorizeOrderAccess(w, r, order) {
 		return
 	}
 	views := make([]orderItemView, 0, len(items))
@@ -187,10 +208,18 @@ func (h Handler) getOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // startOrderPayment restarts a payment for a pending order after the first
-// attempt failed. Same id-knowledge trust model as getOrder.
+// attempt failed. Member orders require the owning member session.
 func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 	if h.PaymentProvider == nil {
 		api.WriteError(w, r, http.StatusServiceUnavailable, "no payment provider is configured", nil)
+		return
+	}
+	order, err := h.Service.Order(r.Context(), r.PathValue("id"))
+	if err != nil {
+		writeServiceError(w, r, err)
+		return
+	}
+	if !h.authorizeOrderAccess(w, r, order) {
 		return
 	}
 	var input struct {
@@ -215,13 +244,16 @@ func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 }
 
 // cancelOrder lets a shopper abandon a still-unpaid order at once instead of
-// waiting for the expiry sweep: pending -> failed, stock released. Same
-// id-knowledge trust model as startOrderPayment; a payment that still lands
-// afterwards takes the existing late-payment (refund required) path.
+// waiting for the expiry sweep: pending -> failed, stock released. Member
+// orders require the owning member session.
 func (h Handler) cancelOrder(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, err := h.Service.Order(r.Context(), id); err != nil {
+	order, err := h.Service.Order(r.Context(), id)
+	if err != nil {
 		writeServiceError(w, r, err)
+		return
+	}
+	if !h.authorizeOrderAccess(w, r, order) {
 		return
 	}
 	applied, err := h.Service.ExpireOrder(r.Context(), id)
