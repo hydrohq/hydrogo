@@ -93,7 +93,7 @@ func (h Handler) mobileRegister(w http.ResponseWriter, r *http.Request) {
 		api.WriteError(w, r, http.StatusBadRequest, "Invalid device metadata.", nil)
 		return
 	}
-	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-mobile-register:"+requestmeta.ClientIP(r)+":"+auth.NormalizeEmail(input.Email)) {
+	if h.Limiter != nil && !security.AllowForRequest(h.Limiter, r.Context(), "member-mobile-register:"+requestmeta.ClientIP(r)) {
 		api.WriteError(w, r, http.StatusTooManyRequests, "Too many registration attempts.", nil)
 		return
 	}

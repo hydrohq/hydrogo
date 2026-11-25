@@ -126,7 +126,9 @@ func (s OAuthStore) markEmailVerified(ctx context.Context, tx database.Executor,
 		return nil
 	}
 	now := time.Now().UTC()
-	query := `UPDATE members SET email_verified_at=COALESCE(email_verified_at,` + s.bind(1) + `) WHERE id=` + s.bind(2) + ` AND tenant_id=` + s.bind(3)
+	// Clear any unverified pre-set password_hash so an attacker cannot retain
+	// password access to an unverified account that is later claimed via OAuth.
+	query := `UPDATE members SET email_verified_at=COALESCE(email_verified_at,` + s.bind(1) + `), password_hash='' WHERE id=` + s.bind(2) + ` AND tenant_id=` + s.bind(3)
 	// MySQL and PostgreSQL drivers marshal time.Time natively; only SQLite
 	// (TEXT storage) needs the string form. See the same fix in
 	// internal/auth/sqlstore/oauth.go's markOAuthEmailVerified: sending
@@ -139,6 +141,7 @@ func (s OAuthStore) markEmailVerified(ctx context.Context, tx database.Executor,
 		return err
 	}
 	member.EmailVerifiedAt = &now
+	member.PasswordHash = ""
 	return nil
 }
 

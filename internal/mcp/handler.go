@@ -318,11 +318,11 @@ func (h *Handler) handleToolsCall(ctx context.Context, w http.ResponseWriter, re
 			res, err = h.toolMutateRecord(ctx, callParams.Arguments)
 		}
 	case "system_info":
-		if err = h.requireScope(ctx, "agent:read"); err == nil {
+		if err = h.requireScope(ctx, "agent:ops"); err == nil {
 			res, err = h.toolSystemInfo(ctx)
 		}
 	case "system_verify_audit":
-		if err = h.requireScope(ctx, "agent:read"); err == nil {
+		if err = h.requireScope(ctx, "agent:ops"); err == nil {
 			res, err = h.toolSystemVerifyAudit(ctx)
 		}
 	default:
@@ -680,6 +680,9 @@ func (h *Handler) requireScope(ctx context.Context, scope string) error {
 			return nil
 		}
 		if (scope == "agent:mutate" || scope == "agent:schema") && auth.Can(user, auth.PermissionContentWrite) {
+			return nil
+		}
+		if scope == "agent:ops" && auth.Can(user, auth.PermissionOperations) {
 			return nil
 		}
 		return fmt.Errorf("insufficient user permissions: requires %s scope", scope)
