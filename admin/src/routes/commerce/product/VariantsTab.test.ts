@@ -15,6 +15,7 @@ vi.mock('$lib/api/client', () => ({
   api: {
     get: vi.fn(),
     post: vi.fn().mockResolvedValue({ data: { id: 'v-new' } }),
+    put: vi.fn().mockResolvedValue({ data: { id: 'v1', version: 2 } }),
     delete: vi.fn().mockResolvedValue({}),
   },
   ApiClientError: class ApiClientError extends Error {

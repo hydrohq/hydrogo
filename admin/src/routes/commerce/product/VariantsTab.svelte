@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, ApiClientError } from '$lib/api/client';
   import { auth } from '$lib/stores/auth.svelte';
+  import { schema } from '$lib/stores/schema.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import { confirmAction } from '$lib/confirm';
@@ -12,6 +13,8 @@
     id: string;
     slug?: string;
     name?: string;
+    base_price?: number | string | null;
+    currency?: string;
     [key: string]: unknown;
   }
 
@@ -27,6 +30,9 @@
     sku?: string | null;
     size?: string | null;
     color?: string | null;
+    price_override?: number | string | null;
+    image?: string | null;
+    version?: number;
   }
 
   interface StockItem {
@@ -60,6 +66,25 @@
 
   let cellStatus = $state<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   let cellError = $state<Record<string, string>>({});
+  let priceStatus = $state<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  let priceError = $state<Record<string, string>>({});
+
+  const variantFields = $derived(schema.getCollection('variants')?.fields ?? []);
+  const colorLabel = $derived(
+    variantFields.find((f) => (f.id || f.name) === 'color')?.label || t('products.variants.colors')
+  );
+  const sizeLabel = $derived(
+    variantFields.find((f) => (f.id || f.name) === 'size')?.label || t('products.variants.sizes')
+  );
+  const priceLabel = $derived(
+    variantFields.find((f) => (f.id || f.name) === 'price_override')?.label || t('products.variants.price')
+  );
+  const currencyLabel = $derived(product?.currency || 'TRY');
+  const basePricePlaceholder = $derived(
+    product?.base_price != null && product.base_price !== ''
+      ? String(product.base_price)
+      : t('products.variants.pricePlaceholder')
+  );
 
   const matrixCells = $derived.by(() => {
     const map: Record<string, Variant> = {};
@@ -69,6 +94,17 @@
       map[`${c}:${s}`] = v;
     }
     return map;
+  });
+
+  const singleAxisVariants = $derived.by(() => {
+    if (colors.length > 0 && sizes.length > 0) return [];
+    if (sizes.length > 0) {
+      return sizes.map((s) => ({ key: `:${s}`, label: s, variant: matrixCells[`:${s}`] }));
+    }
+    if (colors.length > 0) {
+      return colors.map((c) => ({ key: `${c}:`, label: c, variant: matrixCells[`${c}:`] }));
+    }
+    return [];
   });
 
   const missingCombos = $derived(getMissingCombos(colors, sizes, variants));
@@ -292,6 +328,60 @@
     }
   }
 
+  async function handleSavePrice(variant: Variant, inputVal: string) {
+    if (!canWrite || !product?.id) return;
+    const trimmed = inputVal.trim();
+    const prevRaw = variant.price_override;
+    const prevNum = prevRaw === null || prevRaw === undefined || prevRaw === '' ? null : Number(prevRaw);
+
+    let nextVal: number | null;
+    if (trimmed === '') {
+      nextVal = null;
+    } else {
+      const parsed = Number(trimmed);
+      if (Number.isNaN(parsed) || parsed < 0) return;
+      nextVal = parsed;
+    }
+
+    if (nextVal === prevNum) return;
+
+    priceStatus[variant.id] = 'saving';
+    priceError[variant.id] = '';
+
+    const payload: Record<string, unknown> = {
+      product: typeof variant.product === 'object' && variant.product ? variant.product.id : (variant.product || product.id),
+      sku: variant.sku || '',
+      price_override: nextVal,
+    };
+    if (variant.color) payload.color = variant.color;
+    if (variant.size) payload.size = variant.size;
+    if (variant.image) payload.image = variant.image;
+    if (variant.version !== undefined) payload.version = variant.version;
+
+    try {
+      const res = await api.put<{ data?: Variant }>(`/api/v1/admin/content/variants/${variant.id}`, payload);
+      const updated = res?.data;
+      variants = variants.map((v) =>
+        v.id === variant.id
+          ? {
+              ...v,
+              price_override: nextVal,
+              version: updated?.version ?? (v.version !== undefined ? v.version + 1 : undefined),
+            }
+          : v
+      );
+      priceStatus[variant.id] = 'saved';
+      setTimeout(() => {
+        if (priceStatus[variant.id] === 'saved') {
+          priceStatus[variant.id] = 'idle';
+        }
+      }, 2000);
+    } catch (err: unknown) {
+      priceStatus[variant.id] = 'error';
+      priceError[variant.id] = err instanceof ApiClientError ? err.message : t('products.variants.priceSaveError');
+    }
+  }
+
   async function handleCreateMissing() {
     if (isNew || !product?.id || missingCombos.length === 0 || creatingMissing || !canWrite) return;
     const prodId = product.id;
@@ -416,7 +506,7 @@
       <!-- Colors Chip Editor -->
       <div class="space-y-1.5">
         <label for="color-input" class="text-xs font-medium text-foreground">
-          {t('products.variants.colors')}
+          {colorLabel}
         </label>
         <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-input bg-background min-h-10">
           {#each colors as color}
@@ -463,7 +553,7 @@
       <!-- Sizes Chip Editor -->
       <div class="space-y-1.5">
         <label for="size-input" class="text-xs font-medium text-foreground">
-          {t('products.variants.sizes')}
+          {sizeLabel}
         </label>
         <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-input bg-background min-h-10">
           {#each sizes as size}
@@ -561,7 +651,7 @@
       </div>
     {/if}
 
-    <!-- 2. The MATRIX -->
+    <!-- 2. Variant Matrix (2D color x size) or Single-Axis Table (size-only / color-only) -->
     {#if colors.length > 0 && sizes.length > 0}
       <div class="overflow-x-auto rounded-lg border border-border">
         <table class="w-full border-collapse text-left text-sm">
@@ -584,7 +674,7 @@
                   <td class="px-3 py-2.5 text-center">
                     {#if variant}
                       {@const variantStock = stock[variant.id] ?? { available: 0, reserved: 0 }}
-                      <div class="flex flex-col items-center gap-0.5">
+                      <div class="flex flex-col items-center gap-1">
                         <div class="relative flex items-center justify-center">
                           <input
                             type="number"
@@ -614,6 +704,34 @@
                             </span>
                           {/if}
                         </div>
+                        <div class="relative flex items-center justify-center">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            aria-label={`${product?.name ?? ''} ${color || ''} ${size || ''} ${priceLabel}`.trim()}
+                            placeholder={basePricePlaceholder}
+                            value={variant.price_override ?? ''}
+                            disabled={!canWrite}
+                            class="h-7 w-20 rounded border border-input bg-background px-1.5 py-0.5 text-center font-mono text-[11px] text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            onkeydown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSavePrice(variant, (e.currentTarget as HTMLInputElement).value);
+                                (e.currentTarget as HTMLInputElement).blur();
+                              }
+                            }}
+                            onblur={(e) => {
+                              handleSavePrice(variant, (e.currentTarget as HTMLInputElement).value);
+                            }}
+                          />
+                          {#if priceStatus[variant.id] === 'saved'}
+                            <span class="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600 text-[9px] text-white shadow-xs" title={t('stock.saved')}>
+                              <svg class="h-2 w-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </span>
+                          {/if}
+                        </div>
                         {#if variantStock.reserved > 0}
                           <span class="text-[10px] text-muted-foreground whitespace-nowrap leading-tight">
                             {t('stock.reserved', { count: variantStock.reserved })}
@@ -624,6 +742,11 @@
                             {cellError[variant.id]}
                           </span>
                         {/if}
+                        {#if priceStatus[variant.id] === 'error'}
+                          <span class="text-[10px] text-destructive leading-tight" role="alert">
+                            {priceError[variant.id]}
+                          </span>
+                        {/if}
                       </div>
                     {:else}
                       <div class="mx-auto flex h-8 w-16 items-center justify-center rounded border border-dashed border-border/60 text-muted-foreground font-mono text-xs select-none">
@@ -632,6 +755,121 @@
                     {/if}
                   </td>
                 {/each}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {:else if singleAxisVariants.length > 0}
+      <div class="overflow-x-auto rounded-lg border border-border">
+        <table class="w-full border-collapse text-left text-sm">
+          <thead>
+            <tr class="border-b border-border bg-muted/40 text-xs text-muted-foreground">
+              <th class="whitespace-nowrap px-4 py-2.5 font-medium">{sizes.length > 0 ? sizeLabel : colorLabel}</th>
+              <th class="whitespace-nowrap px-4 py-2.5 font-medium">SKU</th>
+              <th class="whitespace-nowrap px-4 py-2.5 font-medium">{priceLabel} ({currencyLabel})</th>
+              <th class="whitespace-nowrap px-4 py-2.5 font-medium">{t('products.col.stock')}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-border/60">
+            {#each singleAxisVariants as row (row.key)}
+              {@const variant = row.variant}
+              <tr class="hover:bg-muted/30 transition-colors">
+                <td class="whitespace-nowrap px-4 py-3 font-medium text-xs text-foreground">
+                  {row.label}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {variant?.sku || '-'}
+                </td>
+                <td class="px-4 py-2.5">
+                  {#if variant}
+                    <div class="flex flex-col gap-0.5">
+                      <div class="relative inline-flex items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          aria-label={`${product?.name ?? ''} ${row.label} ${priceLabel}`.trim()}
+                          placeholder={basePricePlaceholder}
+                          value={variant.price_override ?? ''}
+                          disabled={!canWrite}
+                          class="h-8 w-28 rounded border border-input bg-background px-2.5 py-1 font-mono text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          onkeydown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSavePrice(variant, (e.currentTarget as HTMLInputElement).value);
+                              (e.currentTarget as HTMLInputElement).blur();
+                            }
+                          }}
+                          onblur={(e) => {
+                            handleSavePrice(variant, (e.currentTarget as HTMLInputElement).value);
+                          }}
+                        />
+                        {#if priceStatus[variant.id] === 'saved'}
+                          <span class="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] text-white shadow-xs" title={t('stock.saved')}>
+                            <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </span>
+                        {/if}
+                      </div>
+                      {#if priceStatus[variant.id] === 'error'}
+                        <span class="text-[10px] text-destructive leading-tight" role="alert">
+                          {priceError[variant.id]}
+                        </span>
+                      {/if}
+                    </div>
+                  {:else}
+                    <span class="text-xs text-muted-foreground">-</span>
+                  {/if}
+                </td>
+                <td class="px-4 py-2.5">
+                  {#if variant}
+                    {@const variantStock = stock[variant.id] ?? { available: 0, reserved: 0 }}
+                    <div class="flex flex-col gap-0.5">
+                      <div class="relative inline-flex items-center">
+                        <input
+                          type="number"
+                          min="0"
+                          aria-label={`${product?.name ?? ''} ${row.label}`.trim()}
+                          value={variantStock.available}
+                          disabled={!canWrite}
+                          class="h-8 w-20 rounded border px-2 py-1 text-center font-mono text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 {stockCellClass(variantStock.available)}"
+                          onkeydown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveStock(variant.id, (e.currentTarget as HTMLInputElement).value);
+                              (e.currentTarget as HTMLInputElement).blur();
+                            }
+                          }}
+                          onblur={(e) => {
+                            handleSaveStock(variant.id, (e.currentTarget as HTMLInputElement).value);
+                          }}
+                          onchange={(e) => {
+                            handleSaveStock(variant.id, (e.currentTarget as HTMLInputElement).value);
+                          }}
+                        />
+                        {#if cellStatus[variant.id] === 'saved'}
+                          <span class="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] text-white shadow-xs" title={t('stock.saved')}>
+                            <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </span>
+                        {/if}
+                      </div>
+                      {#if variantStock.reserved > 0}
+                        <span class="text-[10px] text-muted-foreground whitespace-nowrap leading-tight">
+                          {t('stock.reserved', { count: variantStock.reserved })}
+                        </span>
+                      {/if}
+                      {#if cellStatus[variant.id] === 'error'}
+                        <span class="text-[10px] text-destructive leading-tight" role="alert">
+                          {cellError[variant.id]}
+                        </span>
+                      {/if}
+                    </div>
+                  {:else}
+                    <span class="text-xs text-muted-foreground">-</span>
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>

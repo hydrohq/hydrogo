@@ -41,8 +41,13 @@ describe('variantSku helpers', () => {
     expect(getMissingCombos(colors, sizes, existing)).toEqual([]);
   });
 
-  it('returns empty when colors or sizes are empty', () => {
-    expect(getMissingCombos([], ['S'], [])).toEqual([]);
-    expect(getMissingCombos(['Siyah'], [], [])).toEqual([]);
+  it('supports single-axis (size-only or color-only) combos and returns empty when both are empty', () => {
+    expect(getMissingCombos([], [], [])).toEqual([]);
+    expect(getMissingCombos([], ['100 gr', '250 gr'], [{ size: '100 gr' }])).toEqual([
+      { color: '', size: '250 gr' },
+    ]);
+    expect(getMissingCombos(['Siyah', 'Beyaz'], [], [{ color: 'Siyah' }])).toEqual([
+      { color: 'Beyaz', size: '' },
+    ]);
   });
 });
