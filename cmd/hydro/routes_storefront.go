@@ -32,5 +32,5 @@ func (a *serveApp) rootWelcomeHandler(w http.ResponseWriter, r *http.Request) {
 func (a *serveApp) robotsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	fmt.Fprintf(w, "User-agent: *\nAllow: /\n\nSitemap: /sitemap.xml\n")
+	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: /admin\n\nSitemap: /sitemap.xml\n")
 }

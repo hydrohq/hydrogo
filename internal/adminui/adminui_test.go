@@ -30,6 +30,9 @@ func TestAdminUIRoutes(t *testing.T) {
 		if etag := rec.Header().Get("ETag"); etag == "" {
 			t.Errorf("expected ETag header to be set")
 		}
+		if robots := rec.Header().Get("X-Robots-Tag"); !strings.Contains(robots, "noindex") || !strings.Contains(robots, "nofollow") {
+			t.Errorf("expected X-Robots-Tag noindex,nofollow, got %q", robots)
+		}
 		if !strings.Contains(rec.Body.String(), "HydroGo Admin") {
 			t.Errorf("expected body to contain HydroGo Admin, got %q", rec.Body.String())
 		}

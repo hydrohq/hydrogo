@@ -33,6 +33,9 @@ func Routes() []router.Route {
 	fileServer := http.FileServer(http.FS(sub))
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Never allow search engines to index or archive the admin panel.
+		w.Header().Set("X-Robots-Tag", "noindex, nofollow, noarchive")
+
 		reqPath := strings.TrimPrefix(r.URL.Path, "/admin")
 		reqPath = strings.TrimPrefix(reqPath, "/")
 
