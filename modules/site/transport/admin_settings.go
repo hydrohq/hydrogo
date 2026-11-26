@@ -35,9 +35,14 @@ var plainSettingKeys = map[string]func(string) bool{
 	"storefront.hero_image_url":   validAssetURL,
 	"storefront.hero_cta_label":   maxLen(80),
 	"storefront.hero_cta_href":    validInternalOrHTTPSURL,
-	"storefront.popup_enabled":    func(v string) bool { return v == "" || v == "true" || v == "false" },
-	"storefront.popup_code":       maxLen(40),
-	"storefront.popup_percent":    validPercentOption,
+	"storefront.popup_enabled":       func(v string) bool { return v == "" || v == "true" || v == "false" },
+	"storefront.popup_code":          maxLen(40),
+	"storefront.popup_percent":       validPercentOption,
+	"storefront.popup_trigger":       func(v string) bool { return v == "" || v == "scroll" || v == "delay" || v == "immediate" },
+	"storefront.popup_delay_seconds": validIntRange(0, 120),
+	"storefront.popup_dismiss_days":  validIntRange(0, 365),
+	"storefront.popup_starts_at":     validOptionalDate,
+	"storefront.popup_ends_at":       validOptionalDate,
 	site.ThemeSettingIDKey:        site.ValidateThemeID,
 	site.ThemeSettingTokensKey:    site.ValidateThemeTokensJSON,
 	// The language the admin panel opens in for users who did not pick one.
@@ -66,6 +71,26 @@ func validPercentOption(value string) bool {
 	}
 	n, err := strconv.Atoi(value)
 	return err == nil && n >= 1 && n <= 99
+}
+
+func validIntRange(minVal, maxVal int) func(string) bool {
+	return func(value string) bool {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return true
+		}
+		n, err := strconv.Atoi(value)
+		return err == nil && n >= minVal && n <= maxVal
+	}
+}
+
+func validOptionalDate(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return true
+	}
+	_, err := time.Parse("2006-01-02", value)
+	return err == nil
 }
 
 // ValidBrandColor accepts an empty value or a #rrggbb colour.

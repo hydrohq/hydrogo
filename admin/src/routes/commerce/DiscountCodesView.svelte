@@ -16,7 +16,68 @@
   let form = $state({ code: '', kind: 'percent', value: '', min: '', max: '', startsAt: '', endsAt: '' });
   const canWrite = $derived(auth.hasPermission('admin.commerce.write'));
 
+  let popupAvailable = $state(false);
+  let popupSaving = $state(false);
+  let popupFeedback = $state('');
+  let popup = $state({
+    enabled: true,
+    code: '',
+    percent: '',
+    trigger: 'scroll',
+    delaySeconds: '5',
+    dismissDays: '7',
+    startsAt: '',
+    endsAt: ''
+  });
+
   const fail = (err: unknown, fallback: string) => (err instanceof ApiClientError ? `${err.message}${err.requestId ? ` (${err.requestId})` : ''}` : fallback);
+
+  async function loadPopupSettings() {
+    try {
+      const res = await api.get<{ data: Array<{ key: string; value: string }> }>('/api/v1/admin/site/settings');
+      const map: Record<string, string> = {};
+      for (const item of res?.data || []) map[item.key] = item.value;
+      popup = {
+        enabled: map['storefront.popup_enabled'] !== 'false',
+        code: map['storefront.popup_code'] || '',
+        percent: map['storefront.popup_percent'] || '',
+        trigger: map['storefront.popup_trigger'] || 'scroll',
+        delaySeconds: map['storefront.popup_delay_seconds'] || '5',
+        dismissDays: map['storefront.popup_dismiss_days'] ?? '7',
+        startsAt: map['storefront.popup_starts_at'] || '',
+        endsAt: map['storefront.popup_ends_at'] || ''
+      };
+      popupAvailable = true;
+    } catch {
+      popupAvailable = false;
+    }
+  }
+
+  async function savePopupSettings(event: Event) {
+    event.preventDefault();
+    popupFeedback = '';
+    popupSaving = true;
+    try {
+      await api.put('/api/v1/admin/site/settings', {
+        settings: [
+          { key: 'storefront.popup_enabled', value: popup.enabled ? 'true' : 'false' },
+          { key: 'storefront.popup_code', value: popup.code.trim().toUpperCase() },
+          { key: 'storefront.popup_percent', value: String(popup.percent || '').trim() },
+          { key: 'storefront.popup_trigger', value: popup.trigger || 'scroll' },
+          { key: 'storefront.popup_delay_seconds', value: String(popup.delaySeconds ?? '5').trim() },
+          { key: 'storefront.popup_dismiss_days', value: String(popup.dismissDays ?? '7').trim() },
+          { key: 'storefront.popup_starts_at', value: popup.startsAt || '' },
+          { key: 'storefront.popup_ends_at', value: popup.endsAt || '' }
+        ]
+      });
+      popup.code = popup.code.trim().toUpperCase();
+      popupFeedback = t('commerce.discounts.popup.saved');
+    } catch (err) {
+      popupFeedback = fail(err, t('commerce.discounts.popup.saveFailed'));
+    } finally {
+      popupSaving = false;
+    }
+  }
 
   async function load() {
     loading = true;
@@ -67,7 +128,10 @@
     }
   }
 
-  onMount(() => { void load(); });
+  onMount(() => {
+    void load();
+    void loadPopupSettings();
+  });
   const tl = (cents: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(cents / 100);
   const amount = (c: DiscountCode) => (c.kind === 'percent' ? `%${c.value}` : tl(c.value));
   const day = (v: string) => (!v || v.startsWith('0001') ? '—' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(v)));
@@ -139,4 +203,105 @@
       </tbody>
     </table>
   </div>
+
+  {#if popupAvailable}
+    <form onsubmit={savePopupSettings} class="space-y-4 rounded-lg border border-border bg-card p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold tracking-tight">{t('commerce.discounts.popup.title')}</h2>
+          <p class="mt-0.5 text-xs text-muted-foreground">{t('commerce.discounts.popup.subtitle')}</p>
+        </div>
+        <label class="flex cursor-pointer select-none items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
+          <input type="checkbox" bind:checked={popup.enabled} disabled={!canWrite} class="size-4 rounded text-primary" />
+          <span>{t('commerce.discounts.popup.enabled')}</span>
+        </label>
+      </div>
+
+      {#if popupFeedback}<p role="status" class="text-xs text-muted-foreground">{popupFeedback}</p>{/if}
+
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="flex w-full flex-col gap-1.5">
+          <label for="popup-code" class="text-xs font-medium text-foreground/90">{t('commerce.discounts.popup.code')}</label>
+          <input
+            id="popup-code"
+            list="discount-code-options"
+            type="text"
+            maxlength="40"
+            disabled={!canWrite}
+            bind:value={popup.code}
+            placeholder="HOSGELDIN10"
+            class="h-9 rounded-md border border-input bg-background px-3 text-sm uppercase placeholder:normal-case"
+          />
+          <datalist id="discount-code-options">
+            {#each codes.filter((c) => c.active) as c (c.id)}
+              <option value={c.code}></option>
+            {/each}
+          </datalist>
+        </div>
+
+        <Input
+          label={t('commerce.discounts.popup.percent')}
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          disabled={!canWrite}
+          bind:value={popup.percent}
+          placeholder="10"
+        />
+
+        <div class="flex w-full flex-col gap-1.5">
+          <label for="popup-trigger" class="text-xs font-medium text-foreground/90">{t('commerce.discounts.popup.trigger')}</label>
+          <select id="popup-trigger" disabled={!canWrite} bind:value={popup.trigger} class="h-9 rounded-md border border-input bg-background px-2 text-sm">
+            <option value="scroll">{t('commerce.discounts.popup.triggerScroll')}</option>
+            <option value="delay">{t('commerce.discounts.popup.triggerDelay')}</option>
+            <option value="immediate">{t('commerce.discounts.popup.triggerImmediate')}</option>
+          </select>
+        </div>
+
+        {#if popup.trigger === 'delay'}
+          <Input
+            label={t('commerce.discounts.popup.delaySeconds')}
+            type="number"
+            min="0"
+            max="120"
+            step="1"
+            disabled={!canWrite}
+            bind:value={popup.delaySeconds}
+          />
+        {/if}
+
+        <Input
+          label={t('commerce.discounts.popup.dismissDays')}
+          type="number"
+          min="0"
+          max="365"
+          step="1"
+          hint={t('commerce.discounts.popup.dismissHint')}
+          disabled={!canWrite}
+          bind:value={popup.dismissDays}
+        />
+
+        <Input
+          label={t('commerce.discounts.popup.startsAt')}
+          type="date"
+          disabled={!canWrite}
+          bind:value={popup.startsAt}
+        />
+
+        <Input
+          label={t('commerce.discounts.popup.endsAt')}
+          type="date"
+          disabled={!canWrite}
+          bind:value={popup.endsAt}
+        />
+      </div>
+
+      {#if canWrite}
+        <div class="flex justify-end">
+          <Button type="submit" disabled={popupSaving}>{popupSaving ? '…' : t('commerce.discounts.popup.save')}</Button>
+        </div>
+      {/if}
+    </form>
+  {/if}
 </section>

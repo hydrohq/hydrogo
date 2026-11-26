@@ -17,6 +17,7 @@
 
   interface Order {
     id: string;
+    order_number?: string;
     member_id?: string;
     guest_name?: string;
     guest_email?: string;
@@ -85,7 +86,13 @@
   const visibleOrders = $derived.by(() => {
     const q = search.trim().toLowerCase();
     if (!q) return orders;
-    return orders.filter((o) => o.id.toLowerCase().includes(q) || (o.guest_email ?? '').toLowerCase().includes(q) || (o.guest_name ?? '').toLowerCase().includes(q));
+    return orders.filter(
+      (o) =>
+        o.id.toLowerCase().includes(q) ||
+        (o.order_number ?? '').toLowerCase().includes(q) ||
+        (o.guest_email ?? '').toLowerCase().includes(q) ||
+        (o.guest_name ?? '').toLowerCase().includes(q)
+    );
   });
 
   function errorText(err: unknown, fallback: string): string {
@@ -255,7 +262,7 @@
 
 <Modal
   open={detailOpen}
-  title={selected?.id ?? t('commerce.order.detail')}
+  title={selected ? (selected.order_number || selected.id) : t('commerce.order.detail')}
   description={selected?.created_at ? `${selected.member_id ? t('commerce.order.member') : t('commerce.order.guest')} · ${new Date(selected.created_at).toLocaleString()}` : ''}
   size="xl"
   onclose={() => {
@@ -346,9 +353,9 @@
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
               </svg>
               <div>
-                <p class="font-medium">Awaiting Payment</p>
+                <p class="font-medium">{t('commerce.order.awaitingPayment')}</p>
                 <p class="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                  This order has not been paid yet, so a bank or card refund is not possible. Once the customer completes payment and the order becomes "Paid", the <strong>Refund</strong> button appears here automatically.
+                  {t('commerce.order.awaitingPaymentHint')}
                 </p>
               </div>
             </div>
@@ -459,7 +466,7 @@
                 <tbody class="divide-y divide-border">
                   {#each visibleOrders as o (o.id)}
                     <tr class="hover:bg-muted/50 transition-colors cursor-pointer" onclick={() => openOrder(o)}>
-                      <td class="px-4 py-3 font-mono text-xs text-foreground">{o.id}</td>
+                      <td class="px-4 py-3 font-mono text-xs text-foreground">{o.order_number || `#${o.id.replace('order_', '').slice(0, 8).toUpperCase()}`}</td>
                       <td class="px-4 py-3">
                         <div class="text-foreground font-medium text-xs">{o.guest_name || '—'}</div>
                         <div class="text-muted-foreground text-xs">{o.guest_email || ''}</div>

@@ -133,29 +133,6 @@
         </div>
       </div>
     </div>
-
-    <div class="space-y-3 pt-2 border-t border-border">
-      <p class="text-xs font-medium text-foreground">{t('site.storefront.popupSection')}</p>
-      <label class="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={settings['storefront.popup_enabled'] !== 'false'}
-          onchange={(e) => (settings['storefront.popup_enabled'] = e.currentTarget.checked ? 'true' : 'false')}
-          class="size-4 rounded text-primary"
-        />
-        <span>{t('site.storefront.popupEnabled')}</span>
-      </label>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="sf-popup-code" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.popupCode')}</label>
-          <Input id="sf-popup-code" type="text" bind:value={settings['storefront.popup_code']} placeholder="WELCOME10" maxlength={40} />
-        </div>
-        <div>
-          <label for="sf-popup-pct" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.popupPercent')}</label>
-          <Input id="sf-popup-pct" type="number" min={1} max={99} bind:value={settings['storefront.popup_percent']} placeholder="10" />
-        </div>
-      </div>
-    </div>
   </div>
   {/if}
 

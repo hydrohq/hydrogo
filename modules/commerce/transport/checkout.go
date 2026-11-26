@@ -188,15 +188,57 @@ func (h Handler) authorizeOrderAccess(w http.ResponseWriter, r *http.Request, or
 	return true
 }
 
+// lookupOrder resolves a short order_number (or legacy order_... id) plus the
+// matching guest e-mail to the order's canonical unguessable ID. Both values
+// must match so short order numbers cannot be probed.
+func (h Handler) lookupOrder(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		OrderNumber string `json:"order_number"`
+		Email       string `json:"email"`
+	}
+	if !api.DecodeJSON(w, r, &input, api.DefaultMaxBodyBytes) {
+		return
+	}
+	code := strings.TrimSpace(input.OrderNumber)
+	email := strings.TrimSpace(input.Email)
+	if code == "" || email == "" {
+		api.WriteError(w, r, http.StatusNotFound, "order not found", nil)
+		return
+	}
+	order, err := h.Service.OrderByNumber(r.Context(), code)
+	if err != nil || !strings.EqualFold(strings.TrimSpace(order.GuestEmail), email) {
+		api.WriteError(w, r, http.StatusNotFound, "order not found", nil)
+		return
+	}
+	if !h.authorizeOrderAccess(w, r, order) {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	api.WriteData(w, http.StatusOK, map[string]string{
+		"id":           order.ID,
+		"order_number": order.OrderNumber,
+	}, nil)
+}
+
 // getOrder is an order confirmation/status read. Member orders require the
 // owning member session; guest orders rely on the unguessable order id.
 func (h Handler) getOrder(w http.ResponseWriter, r *http.Request) {
+	h.serveOrder(w, r, true)
+}
+
+// adminGetOrder is the protected admin order detail read; admin permissions are
+// enforced by the router, so member ownership is not required.
+func (h Handler) adminGetOrder(w http.ResponseWriter, r *http.Request) {
+	h.serveOrder(w, r, false)
+}
+
+func (h Handler) serveOrder(w http.ResponseWriter, r *http.Request, requireMember bool) {
 	order, items, err := h.Service.OrderWithItems(r.Context(), r.PathValue("id"))
 	if err != nil {
 		writeServiceError(w, r, err)
 		return
 	}
-	if !h.authorizeOrderAccess(w, r, order) {
+	if requireMember && !h.authorizeOrderAccess(w, r, order) {
 		return
 	}
 	views := make([]orderItemView, 0, len(items))
@@ -247,13 +289,23 @@ func (h Handler) startOrderPayment(w http.ResponseWriter, r *http.Request) {
 // waiting for the expiry sweep: pending -> failed, stock released. Member
 // orders require the owning member session.
 func (h Handler) cancelOrder(w http.ResponseWriter, r *http.Request) {
+	h.serveCancelOrder(w, r, true)
+}
+
+// adminCancelOrder is the protected admin cancel endpoint; admin permissions
+// are enforced by the router, so member ownership is not required.
+func (h Handler) adminCancelOrder(w http.ResponseWriter, r *http.Request) {
+	h.serveCancelOrder(w, r, false)
+}
+
+func (h Handler) serveCancelOrder(w http.ResponseWriter, r *http.Request, requireMember bool) {
 	id := r.PathValue("id")
 	order, err := h.Service.Order(r.Context(), id)
 	if err != nil {
 		writeServiceError(w, r, err)
 		return
 	}
-	if !h.authorizeOrderAccess(w, r, order) {
+	if requireMember && !h.authorizeOrderAccess(w, r, order) {
 		return
 	}
 	applied, err := h.Service.ExpireOrder(r.Context(), id)

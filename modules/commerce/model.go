@@ -125,6 +125,7 @@ type CartItem struct {
 // produce exactly one order -- see repository/sqlstore's Checkout.
 type Order struct {
 	ID              string `json:"id"`
+	OrderNumber     string `json:"order_number,omitempty"`
 	MemberID        string `json:"member_id,omitempty"`
 	GuestName       string `json:"guest_name,omitempty"`
 	GuestEmail      string `json:"guest_email,omitempty"`

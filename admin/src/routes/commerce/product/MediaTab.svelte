@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, ApiClientError } from '$lib/api/client';
   import { confirmAction } from '$lib/confirm';
+  import { t } from '$lib/i18n/index.svelte';
   import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import MediaPickerModal from '$lib/components/media/MediaPickerModal.svelte';
@@ -144,7 +145,13 @@
   }
 
   async function remove(item: Item) {
-    const ok = await confirmAction({ title: 'Delete this media?', description: 'It is removed from the product page. The file in the media library is not deleted.', confirmLabel: 'Delete', cancelLabel: 'Cancel', variant: 'destructive' });
+    const ok = await confirmAction({
+      title: t('commerce.media.deleteTitle'),
+      description: t('commerce.media.deleteDesc'),
+      confirmLabel: t('commerce.media.deleteConfirm'),
+      cancelLabel: t('commerce.media.deleteCancel'),
+      variant: 'destructive'
+    });
     if (!ok) return;
     busy = true;
     try {
@@ -159,34 +166,34 @@
 </script>
 
 {#if !productId}
-  <p class="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">Save the product first to add photos and videos.</p>
+  <p class="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">{t('commerce.media.saveFirst')}</p>
 {:else if loading}
   <PageSpinner />
 {:else}
   <div class="space-y-5">
     <div>
-      <h2 class="text-sm font-semibold">Photos and videos</h2>
-      <p class="mt-1 text-xs text-muted-foreground">You can upload several files. Pick a color to set the images shown only for that color and that color's cover; items under “All colors” appear for every color. A video chosen as the cover plays muted and automatically; other videos show a play button.</p>
+      <h2 class="text-sm font-semibold">{t('commerce.media.title')}</h2>
+      <p class="mt-1 text-xs text-muted-foreground">{t('commerce.media.help')}</p>
     </div>
 
     <div class="flex flex-wrap gap-2" role="tablist" aria-label="Renk">
       {#each ['', ...colors] as c (c)}
         <button type="button" role="tab" aria-selected={scope === c} onclick={() => (scope = c)} class="h-8 rounded-full border px-3 text-xs font-medium transition-colors cursor-pointer {scope === c ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground'}">
-          {c || 'All colors'}<span class="ml-1.5 opacity-70">{items.filter((i) => normColor(i.variant_color).toLocaleLowerCase() === c.toLocaleLowerCase()).length}</span>
+          {c || t('commerce.media.allColors')}<span class="ml-1.5 opacity-70">{items.filter((i) => normColor(i.variant_color).toLocaleLowerCase() === c.toLocaleLowerCase()).length}</span>
         </button>
       {/each}
     </div>
-    {#if colors.length === 0}<p class="text-xs text-muted-foreground">To add color-specific images, add colors in the Variants tab first.</p>{/if}
+    {#if colors.length === 0}<p class="text-xs text-muted-foreground">{t('commerce.media.colorsHint')}</p>{/if}
 
     <div class="flex flex-wrap gap-2">
       <input bind:this={fileInput} type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" class="hidden" onchange={uploadFiles} />
-      <Button size="sm" loading={busy} onclick={() => fileInput?.click()}>Upload photo / video</Button>
-      <Button size="sm" variant="outline" disabled={busy} onclick={() => { posterFor = null; pickerOpen = true; }}>Choose from library</Button>
+      <Button size="sm" loading={busy} onclick={() => fileInput?.click()}>{t('commerce.media.upload')}</Button>
+      <Button size="sm" variant="outline" disabled={busy} onclick={() => { posterFor = null; pickerOpen = true; }}>{t('commerce.media.library')}</Button>
     </div>
     {#if error}<p role="alert" class="text-xs text-destructive">{error}</p>{/if}
 
     {#if scopeItems.length === 0}
-      <p class="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">{scope ? `No media for ${scope} yet.` : 'No media yet.'}</p>
+      <p class="rounded-lg border border-dashed border-border p-8 text-center text-xs text-muted-foreground">{scope ? t('commerce.media.emptyColor', { color: scope }) : t('commerce.media.empty')}</p>
     {:else}
       <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {#each scopeItems as item, i (item.id)}
@@ -198,14 +205,14 @@
               {:else}
                 <img src={url(item.image)} alt="" class="size-full object-cover" loading="lazy" />
               {/if}
-              {#if item.is_cover}<span class="absolute left-2 top-2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">Kapak</span>{/if}
+              {#if item.is_cover}<span class="absolute left-2 top-2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">{t('commerce.media.cover')}</span>{/if}
             </div>
             <div class="flex flex-wrap items-center gap-1 p-2">
-              <button type="button" disabled={busy} onclick={() => toggleCover(item)} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer disabled:opacity-50">{item.is_cover ? 'Remove cover' : 'Make cover'}</button>
-              <button type="button" disabled={busy || i === 0} aria-label="Move earlier" onclick={() => move(item, -1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">←</button>
-              <button type="button" disabled={busy || i === scopeItems.length - 1} aria-label="Move later" onclick={() => move(item, 1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">→</button>
-              {#if isVideo(item)}<button type="button" disabled={busy} onclick={() => { posterFor = item; pickerOpen = true; }} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer">Video cover</button>{/if}
-              <button type="button" disabled={busy} aria-label="Delete" onclick={() => remove(item)} class="ml-auto h-7 w-7 rounded border border-input text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer">✕</button>
+              <button type="button" disabled={busy} onclick={() => toggleCover(item)} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer disabled:opacity-50">{item.is_cover ? t('commerce.media.removeCover') : t('commerce.media.makeCover')}</button>
+              <button type="button" disabled={busy || i === 0} aria-label={t('commerce.media.moveEarlier')} onclick={() => move(item, -1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">←</button>
+              <button type="button" disabled={busy || i === scopeItems.length - 1} aria-label={t('commerce.media.moveLater')} onclick={() => move(item, 1)} class="h-7 w-7 rounded border border-input text-xs hover:bg-accent cursor-pointer disabled:opacity-40">→</button>
+              {#if isVideo(item)}<button type="button" disabled={busy} onclick={() => { posterFor = item; pickerOpen = true; }} class="h-7 rounded border border-input px-2 text-[11px] hover:bg-accent cursor-pointer">{t('commerce.media.videoCover')}</button>{/if}
+              <button type="button" disabled={busy} aria-label={t('commerce.media.deleteConfirm')} onclick={() => remove(item)} class="ml-auto h-7 w-7 rounded border border-input text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer">✕</button>
             </div>
           </li>
         {/each}

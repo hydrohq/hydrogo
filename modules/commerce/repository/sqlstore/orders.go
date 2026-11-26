@@ -31,9 +31,9 @@ func (s Store) CreateOrder(ctx context.Context, db database.Executor, order comm
 	}
 	memberID := nullable(order.MemberID)
 	holdUntil := s.nullableTime(order.HoldUntil)
-	query := s.insertIgnoreSQL(`commerce_customer_orders (id, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
-		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `,` + s.p(24) + `,` + s.p(25) + `,` + s.p(26) + `,` + s.p(27) + `)`)
-	res, err := db.ExecContext(ctx, query, order.ID, memberID, order.GuestName, order.GuestEmail, order.GuestPhone, order.GuestAddress, order.GuestCity, order.GuestDistrict, order.GuestCountry, order.GuestPostalCode,
+	query := s.insertIgnoreSQL(`commerce_customer_orders (id, order_number, member_id, guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, created_at, updated_at, tenant_id) VALUES (` +
+		s.p(1) + `,` + s.p(2) + `,` + s.p(3) + `,` + s.p(4) + `,` + s.p(5) + `,` + s.p(6) + `,` + s.p(7) + `,` + s.p(8) + `,` + s.p(9) + `,` + s.p(10) + `,` + s.p(11) + `,` + s.p(12) + `,` + s.p(13) + `,` + s.p(14) + `,` + s.p(15) + `,` + s.p(16) + `,` + s.p(17) + `,` + s.p(18) + `,` + s.p(19) + `,` + s.p(20) + `,` + s.p(21) + `,` + s.p(22) + `,` + s.p(23) + `,` + s.p(24) + `,` + s.p(25) + `,` + s.p(26) + `,` + s.p(27) + `,` + s.p(28) + `)`)
+	res, err := db.ExecContext(ctx, query, order.ID, order.OrderNumber, memberID, order.GuestName, order.GuestEmail, order.GuestPhone, order.GuestAddress, order.GuestCity, order.GuestDistrict, order.GuestCountry, order.GuestPostalCode,
 		order.IdempotencyKey, order.IdempotencyHash, order.Currency, order.SubtotalCents, order.DiscountCode, order.DiscountCents, order.TaxCents, order.ShippingCents, order.TotalCents, order.PaymentMethod, order.PaymentRef, holdUntil, string(order.PaymentStatus), string(order.FulfillmentStatus), s.dbTime(order.CreatedAt), s.dbTime(order.UpdatedAt), tenantID)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -98,6 +98,24 @@ func (s Store) GetOrder(ctx context.Context, db database.Executor, id string) (c
 	return order, nil
 }
 
+// GetOrderByNumber returns the most recent order matching a human-readable order number.
+func (s Store) GetOrderByNumber(ctx context.Context, db database.Executor, orderNumber string) (commerce.Order, error) {
+	args := []any{strings.TrimSpace(orderNumber)}
+	filter, args, err := s.scope(ctx, args)
+	if err != nil {
+		return commerce.Order{}, err
+	}
+	row := db.QueryRowContext(ctx, `SELECT `+orderColumns+` FROM commerce_customer_orders WHERE UPPER(order_number) = UPPER(`+s.p(1)+`)`+filter+` ORDER BY created_at DESC LIMIT 1`, args...)
+	order, found, err := s.scanOrder(row)
+	if err != nil {
+		return commerce.Order{}, err
+	}
+	if !found {
+		return commerce.Order{}, commerce.ErrOrderNotFound
+	}
+	return order, nil
+}
+
 // ListOrderItems returns the line items of one order -- used to release
 // their stock reservations when a payment fails or its hold expires
 // (worker.go), since reservation and release both operate per variant.
@@ -142,7 +160,7 @@ func (s Store) scanOrderRow(scanner orderScanner) (commerce.Order, error) {
 	var order commerce.Order
 	var paymentStatus, fulfillmentStatus, invoiceStatus string
 	var holdUntil, shippedAt, deliveredAt, invoiceClaimedAt, invoicedAt, created, updated any
-	if err := scanner.Scan(&order.ID, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestDistrict, &order.GuestCountry, &order.GuestPostalCode,
+	if err := scanner.Scan(&order.ID, &order.OrderNumber, &order.MemberID, &order.GuestName, &order.GuestEmail, &order.GuestPhone, &order.GuestAddress, &order.GuestCity, &order.GuestDistrict, &order.GuestCountry, &order.GuestPostalCode,
 		&order.IdempotencyKey, &order.IdempotencyHash, &order.Currency, &order.SubtotalCents, &order.DiscountCode, &order.DiscountCents, &order.TaxCents, &order.ShippingCents, &order.TotalCents,
 		&order.PaymentMethod, &order.PaymentRef, &holdUntil,
 		&paymentStatus, &fulfillmentStatus, &order.ShippingCarrier, &order.ShippingTrackingNumber, &order.ShippingTrackingURL, &order.ShippingShipmentID, &order.ShippingLabelURL, &shippedAt, &deliveredAt,
@@ -206,7 +224,7 @@ func (s Store) scanOrder(row *sql.Row) (commerce.Order, bool, error) {
 	return order, true, nil
 }
 
-const orderColumns = `id, COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipping_shipment_id, shipping_label_url, shipped_at, delivered_at, invoice_status, invoice_provider, invoice_guid, invoice_no, invoice_url, invoice_error, invoice_claimed_at, invoiced_at, created_at, updated_at`
+const orderColumns = `id, COALESCE(order_number,''), COALESCE(member_id,''), guest_name, guest_email, guest_phone, guest_address, guest_city, guest_district, guest_country, guest_postal_code, idempotency_key, idempotency_hash, currency, subtotal_cents, discount_code, discount_cents, tax_cents, shipping_cents, total_cents, payment_method, payment_ref, hold_until, payment_status, fulfillment_status, shipping_carrier, shipping_tracking_number, shipping_tracking_url, shipping_shipment_id, shipping_label_url, shipped_at, delivered_at, invoice_status, invoice_provider, invoice_guid, invoice_no, invoice_url, invoice_error, invoice_claimed_at, invoiced_at, created_at, updated_at`
 
 func (s Store) nullableTime(t time.Time) any {
 	if t.IsZero() {

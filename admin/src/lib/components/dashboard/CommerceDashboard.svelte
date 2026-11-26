@@ -6,6 +6,7 @@
 
   interface Order {
     id: string;
+    order_number?: string;
     created_at: string;
     currency: string;
     total_cents: number;
@@ -77,8 +78,13 @@
 
   const money = (cents: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(cents / 100);
   const day = (ms: number) => new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(ms);
-  const shortId = (id: string) => id.replace('order_', '').slice(0, 8).toUpperCase();
-  const statusLabel: Record<string, string> = { paid: 'Paid', pending: 'Pending', failed: 'Failed', refunded: 'Refunded' };
+  const shortId = (o: Order) => o.order_number || `#${o.id.replace('order_', '').slice(0, 8).toUpperCase()}`;
+  const statusLabel = (s: string) => {
+    if (s === 'paid' || s === 'pending' || s === 'failed' || s === 'refunded') {
+      return t(`commerce.payment.${s}` as Parameters<typeof t>[0]);
+    }
+    return s;
+  };
   const statusTone: Record<string, string> = { paid: 'text-emerald-600', pending: 'text-amber-600', failed: 'text-destructive', refunded: 'text-muted-foreground' };
 
   const go = (path: string) => router.navigate(path);
@@ -188,9 +194,9 @@
               class="border-t border-border hover:bg-muted/40 transition-colors cursor-pointer"
               onclick={() => go(`/commerce?order=${encodeURIComponent(o.id)}`)}
             >
-              <td class="px-4 py-3 sm:px-5"><span class="font-mono text-xs text-foreground">#{shortId(o.id)}</span>{#if o.guest_name}<span class="ml-2 block text-muted-foreground sm:inline">{o.guest_name}</span>{/if}<span class="mt-0.5 block text-[11px] text-muted-foreground sm:hidden">{day(new Date(o.created_at).getTime())}</span></td>
+              <td class="px-4 py-3 sm:px-5"><span class="font-mono text-xs text-foreground">{shortId(o)}</span>{#if o.guest_name}<span class="ml-2 block text-muted-foreground sm:inline">{o.guest_name}</span>{/if}<span class="mt-0.5 block text-[11px] text-muted-foreground sm:hidden">{day(new Date(o.created_at).getTime())}</span></td>
               <td class="hidden px-5 py-3 text-muted-foreground sm:table-cell">{day(new Date(o.created_at).getTime())}</td>
-              <td class="px-4 py-3 sm:px-5 {statusTone[o.payment_status] ?? ''}">{statusLabel[o.payment_status] ?? o.payment_status}</td>
+              <td class="px-4 py-3 sm:px-5 {statusTone[o.payment_status] ?? ''}">{statusLabel(o.payment_status)}</td>
               <td class="whitespace-nowrap px-4 py-3 text-right font-mono text-xs tabular-nums sm:px-5">{money(o.total_cents)}</td>
             </tr>
           {/each}

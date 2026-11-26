@@ -2,15 +2,28 @@ package commerce
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hydrohq/hydrogo/internal/database"
 )
+
+// newOrderNumber generates a short, human-readable order number (YYMMDD-XXXX)
+// while Order.ID remains the 120-bit unguessable token for guest URL security.
+func newOrderNumber(now time.Time) string {
+	n, err := rand.Int(rand.Reader, big.NewInt(9000))
+	if err != nil {
+		return fmt.Sprintf("%s-%04d", now.Format("060102"), now.UnixNano()%9000+1000)
+	}
+	return fmt.Sprintf("%s-%04d", now.Format("060102"), n.Int64()+1000)
+}
 
 // CheckoutRequest carries what Checkout needs beyond the cart itself.
 type CheckoutRequest struct {
@@ -195,7 +208,7 @@ func (s Service) PlaceOrder(ctx context.Context, req CheckoutRequest) (Order, bo
 		breakdown := s.Pricing.Price(subtotal, discountCents)
 
 		order := Order{
-			ID: orderID, MemberID: req.MemberID,
+			ID: orderID, OrderNumber: newOrderNumber(now), MemberID: req.MemberID,
 			GuestName: req.GuestName, GuestEmail: req.GuestEmail, GuestPhone: req.GuestPhone,
 			GuestAddress: req.GuestAddress, GuestCity: req.GuestCity, GuestDistrict: req.GuestDistrict, GuestCountry: req.GuestCountry, GuestPostalCode: req.GuestPostalCode,
 			IdempotencyKey: req.IdempotencyKey, IdempotencyHash: hash, Currency: currency,

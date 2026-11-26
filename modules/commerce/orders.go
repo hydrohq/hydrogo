@@ -50,6 +50,31 @@ type Payment struct {
 	AmountCents int64
 }
 
+// OrderByNumber loads an order by its human-readable order_number (or by ID when
+// the input starts with "order_").
+func (s Service) OrderByNumber(ctx context.Context, code string) (Order, error) {
+	trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(code), "#"))
+	if trimmed == "" {
+		return Order{}, ErrOrderNotFound
+	}
+	if strings.HasPrefix(trimmed, "order_") {
+		return s.Order(ctx, trimmed)
+	}
+	finder, ok := s.Repository.(interface {
+		GetOrderByNumber(context.Context, database.Executor, string) (Order, error)
+	})
+	if !ok {
+		return Order{}, ErrOrderNotFound
+	}
+	var order Order
+	err := s.Transactions.Within(ctx, func(tx database.Executor) error {
+		var err error
+		order, err = finder.GetOrderByNumber(ctx, tx, trimmed)
+		return err
+	})
+	return order, err
+}
+
 // ConfirmPayment applies a verified payment notification. It is idempotent:
 // a redelivered event is recorded at most once and the pending -> paid
 // transition applies at most once. applied is true only for the call that

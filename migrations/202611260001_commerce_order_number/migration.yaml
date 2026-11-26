@@ -1,0 +1,28 @@
+id: "202611260001_commerce_order_number"
+module: "commerce"
+class:
+  sqlite: "expand"
+  postgres: "expand"
+  mysql: "expand"
+transactional:
+  sqlite: true
+  postgres: true
+  mysql: false
+checksum_sha256:
+  sqlite: "5e4a0fc33979553007f7f4588dba8f6dd573f344419a35054b7af35f8e0ff155"
+  postgres: "f50e5ad2df567dfb065d320e44c5538bfee3365837c1d4207fdae243f096f5e5"
+  mysql: "a8c6063923238ac1deeb33968a6f007001497eacd47315a2a4036268613f2af6"
+dependencies:
+  - "202611130003_commerce_order_invoicing"
+schema:
+  readable_epoch: 1
+  writable_epoch: 1
+preconditions:
+  - "commerce module enabled"
+lock_timeout: "Not certified; one ALTER TABLE adding one column and one index"
+disk_estimate: "One short text column and lookup index per order row"
+compatibility: "Additive only. Existing orders default to empty order_number."
+smoke:
+  - "An order created before this migration still reads back without error"
+restart: "Safe to rerun; committed checksum is verified before no-op"
+rollback: "No destructive down migration; restore or forward migration only."

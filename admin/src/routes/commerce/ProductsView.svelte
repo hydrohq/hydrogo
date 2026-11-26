@@ -502,9 +502,9 @@
                 <!-- Total Stock -->
                 <td class="px-4 py-3 whitespace-nowrap">
                   {#if stockInfo.isZero}
-                    <Badge variant="destructive" size="sm">Out of stock</Badge>
+                    <Badge variant="destructive" size="sm">{t('commerce.products.outOfStock')}</Badge>
                   {:else if stockInfo.isLow}
-                    <Badge variant="warning" size="sm">Low</Badge>
+                    <Badge variant="warning" size="sm">{t('commerce.products.lowStock')}</Badge>
                   {:else}
                     <span class="text-xs font-mono text-foreground">{stockInfo.total}</span>
                   {/if}

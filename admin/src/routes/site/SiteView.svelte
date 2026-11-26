@@ -58,9 +58,6 @@
     'storefront.hero_image_url': '',
     'storefront.hero_cta_label': '',
     'storefront.hero_cta_href': '',
-    'storefront.popup_enabled': 'true',
-    'storefront.popup_code': '',
-    'storefront.popup_percent': '',
     'storefront.theme_id': 'minimal',
     'storefront.theme_tokens': '',
     'admin.default_locale': '',
@@ -135,7 +132,7 @@
       if (res?.data && Array.isArray(res.data)) {
         for (const item of res.data) {
           if (item.key === 'site.home_path' && !item.value) continue;
-          if (item.key === 'storefront.popup_enabled' && !item.value) continue;
+          if (item.key.startsWith('storefront.popup_')) continue;
           settings[item.key] = item.value;
         }
       }
