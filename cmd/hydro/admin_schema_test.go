@@ -109,7 +109,7 @@ func TestAdminBrandingIsPublicAndEmptyWithoutTheSiteModule(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"name", "logo_url", "color", "default_locale"} {
+	for _, key := range []string{"name", "logo_url", "color", "favicon_url", "default_locale"} {
 		if value, ok := body.Data[key]; !ok || value != "" {
 			t.Errorf("%s = %q (present %v), want empty", key, value, ok)
 		}

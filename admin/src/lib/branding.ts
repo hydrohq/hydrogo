@@ -2,6 +2,7 @@ export interface Branding {
   name: string;
   logo_url: string;
   color: string;
+  favicon_url?: string;
 }
 
 /** Converts #rrggbb to the "h s% l%" triple the theme variables use. */
@@ -38,4 +39,32 @@ export function applyBrandColor(color: string | undefined, root: HTMLElement = d
   }
   root.style.setProperty('--primary', parsed.triple);
   root.style.setProperty('--primary-foreground', parsed.light ? '240 6% 10%' : '0 0% 98%');
+}
+
+const DEFAULT_ADMIN_FAVICON = '/admin/favicon.svg';
+
+/** Applies the storefront/custom favicon to the admin document, or restores the default. */
+export function applyBrandFavicon(faviconUrl: string | undefined, doc: Document = document) {
+  const href = (faviconUrl || '').trim() || DEFAULT_ADMIN_FAVICON;
+  const cleanPath = href.split('?')[0].split('#')[0].toLowerCase();
+  const mime = cleanPath.endsWith('.svg')
+    ? 'image/svg+xml'
+    : cleanPath.endsWith('.png')
+      ? 'image/png'
+      : cleanPath.endsWith('.ico')
+        ? 'image/x-icon'
+        : '';
+
+  let link = doc.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!link) {
+    link = doc.createElement('link');
+    link.rel = 'icon';
+    doc.head.appendChild(link);
+  }
+  if (mime) {
+    link.type = mime;
+  } else {
+    link.removeAttribute('type');
+  }
+  link.href = href;
 }

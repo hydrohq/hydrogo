@@ -10,7 +10,12 @@ class BrandingState {
     try {
       const res = await api.get<ApiResponse<AdminBranding & { default_locale?: string }>>('/api/v1/admin/branding');
       if (res?.data) {
-        this.branding = { name: res.data.name, logo_url: res.data.logo_url, color: res.data.color };
+        this.branding = {
+          name: res.data.name,
+          logo_url: res.data.logo_url,
+          color: res.data.color,
+          favicon_url: res.data.favicon_url || '',
+        };
         this.defaultLocale = res.data.default_locale || null;
       }
     } catch {

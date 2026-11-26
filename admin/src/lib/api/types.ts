@@ -161,6 +161,7 @@ export interface AdminBranding {
   name: string;
   logo_url: string;
   color: string;
+  favicon_url?: string;
 }
 
 export interface AdminSchema {

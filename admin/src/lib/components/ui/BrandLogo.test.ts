@@ -20,15 +20,17 @@ describe('BrandLogo', () => {
     expect(screen.getByText('HydroGo')).toBeTruthy();
   });
 
-  it('shows the project name once branding loads', () => {
+  it('shows only the project name without a default icon when no logo_url is set', () => {
     // Arrange
-    brandingStore.set({ name: 'Acme Admin' } as any);
+    brandingStore.set({ name: 'Acme Admin', logo_url: '' } as any);
 
     // Act
-    render(BrandLogo, { props: {} });
+    const { container } = render(BrandLogo, { props: {} });
 
     // Assert
     expect(screen.getByText('Acme Admin')).toBeTruthy();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
   });
 
   it('renders a logo image instead of the icon when a logo_url is set', () => {

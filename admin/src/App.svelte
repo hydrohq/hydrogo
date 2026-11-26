@@ -43,7 +43,7 @@
   const loadSubscriptionView = cloudLoader('subscription');
 
   import { i18n, isLocale } from '$lib/i18n/index.svelte';
-  import { applyBrandColor } from '$lib/branding';
+  import { applyBrandColor, applyBrandFavicon } from '$lib/branding';
   import { brandingStore } from '$lib/stores/branding.svelte';
 
   let initializing = $state(true);
@@ -103,6 +103,7 @@
   $effect(() => {
     const branding = brandingStore.branding ?? schema.schema?.branding;
     applyBrandColor(branding?.color);
+    applyBrandFavicon(branding?.favicon_url);
     const name = branding?.name;
     if (name) document.title = name;
   });

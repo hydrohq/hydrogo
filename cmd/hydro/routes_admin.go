@@ -112,12 +112,13 @@ type adminSchema struct {
 	SiteURL      string                   `json:"site_url"`
 }
 
-// adminBranding is the name, logo and accent colour an administrator set in
-// Site settings; empty fields mean the HydroGo defaults.
+// adminBranding is the name, logo, accent colour and favicon an administrator
+// set in Site settings; empty fields mean the HydroGo defaults.
 type adminBranding struct {
-	Name    string `json:"name"`
-	LogoURL string `json:"logo_url"`
-	Color   string `json:"color"`
+	Name       string `json:"name"`
+	LogoURL    string `json:"logo_url"`
+	Color      string `json:"color"`
+	FaviconURL string `json:"favicon_url"`
 }
 
 type adminSchemaContentType struct {
@@ -189,7 +190,12 @@ func (a *serveApp) adminBranding(ctx context.Context) adminBranding {
 		}
 		return setting.Value
 	}
-	branding := adminBranding{Name: get("admin.brand_name"), LogoURL: get("admin.brand_logo_url"), Color: get("admin.brand_color")}
+	branding := adminBranding{
+		Name:       get("admin.brand_name"),
+		LogoURL:    get("admin.brand_logo_url"),
+		Color:      get("admin.brand_color"),
+		FaviconURL: get("appearance.favicon_url"),
+	}
 	if !sitetransport.ValidBrandColor(branding.Color) {
 		branding.Color = ""
 	}

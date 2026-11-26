@@ -10,7 +10,9 @@
   let { size = 'md', showIcon = true, showText = true, class: className = '' }: Props = $props();
 
   const brand = $derived(brandingStore.branding);
-  const brandName = $derived(brand?.name || 'HydroGo');
+  const hasCustomName = $derived(Boolean(brand?.name?.trim()));
+  const brandName = $derived(brand?.name?.trim() || 'HydroGo');
+  const brandInitial = $derived(brandName.charAt(0).toUpperCase());
 
   const iconSizes = {
     sm: 'size-6',
@@ -37,7 +39,7 @@
 <div class="flex items-center gap-2.5 select-none {className}">
   {#if showIcon && brand?.logo_url}
     <img src={brand.logo_url} alt="" class="{iconSizes[size]} shrink-0 rounded-lg object-contain" />
-  {:else if showIcon}
+  {:else if showIcon && !hasCustomName}
     <div
       class="flex {iconSizes[size]} shrink-0 items-center justify-center rounded-lg bg-[#09090B] text-[#00ADD8] font-semibold shadow-xs border border-border/40"
     >
@@ -58,6 +60,13 @@
           opacity="0.85"
         />
       </svg>
+    </div>
+  {:else if showIcon && !showText && hasCustomName}
+    <div
+      class="flex {iconSizes[size]} shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-semibold shadow-xs border border-border/40"
+      aria-hidden="true"
+    >
+      <span class="{textSizes[size]} leading-none">{brandInitial}</span>
     </div>
   {/if}
   {#if showText}
