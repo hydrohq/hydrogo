@@ -13,8 +13,9 @@ import (
 )
 
 type expectedHost struct {
-	host string
-	port string
+	host   string
+	port   string
+	origin string // scheme://host[:port] exactly as configured, used as the redirect target
 }
 
 // NewHostMiddleware binds requests to the configured canonical origin. An
@@ -32,6 +33,12 @@ func NewHostMiddleware(publicOrigin string) (func(http.Handler) http.Handler, er
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !requestMatchesHost(r.Host, expected) && !isLoopbackDirectRequest(r) {
+				// The www./apex twin of the public origin is the same site:
+				// send the visitor to the canonical host instead of an error page.
+				if isWWWSibling(r.Host, expected) {
+					http.Redirect(w, r, expected.origin+r.URL.RequestURI(), http.StatusPermanentRedirect)
+					return
+				}
 				http.Error(w, hostMismatchMessage(r.Host, expected), http.StatusMisdirectedRequest)
 				return
 			}
@@ -106,7 +113,24 @@ func parseExpectedHost(origin string) (expectedHost, error) {
 	if err != nil || portNumber < 1 || portNumber > 65535 {
 		return expectedHost{}, fmt.Errorf("invalid public origin port %q", port)
 	}
-	return expectedHost{host: hostname, port: port}, nil
+	return expectedHost{host: hostname, port: port, origin: parsed.Scheme + "://" + parsed.Host}, nil
+}
+
+// isWWWSibling reports whether value is the "www." twin of the expected host
+// (public origin apex -> www.apex) or its apex (public origin www.x -> x), on
+// the expected port. IP addresses and other hosts never qualify.
+func isWWWSibling(value string, expected expectedHost) bool {
+	if net.ParseIP(expected.host) != nil {
+		return false
+	}
+	sibling := "www." + expected.host
+	if strings.HasPrefix(expected.host, "www.") {
+		sibling = strings.TrimPrefix(expected.host, "www.")
+	}
+	if sibling == "" || !strings.Contains(sibling, ".") {
+		return false
+	}
+	return requestMatchesHost(value, expectedHost{host: sibling, port: expected.port})
 }
 
 func requestMatchesHost(value string, expected expectedHost) bool {

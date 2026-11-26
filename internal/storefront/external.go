@@ -38,6 +38,15 @@ type ExternalStorefront struct {
 	isUnixSocket bool
 	socketPath   string
 	staticDir    string
+	routes       *routeChecker
+}
+
+// SetSlugLookup tells the storefront how to check dynamic routes declared in
+// routes.json (see RoutesManifestFile). Safe to call at any time.
+func (s *ExternalStorefront) SetSlugLookup(fn SlugLookup) {
+	if s.routes != nil {
+		s.routes.setLookup(fn)
+	}
 }
 
 // staticCacheControl is the Cache-Control for plain static files (images, fonts...).
@@ -60,6 +69,9 @@ func NewExternalStorefront(cfg config.ExternalStorefrontConfig, logger *slog.Log
 		cfg:       cfg,
 		logger:    logger,
 		staticDir: cfg.StaticDir,
+	}
+	if cfg.StaticDir != "" {
+		es.routes = newRouteChecker(cfg.StaticDir)
 	}
 
 	// Pure static / single-binary mode: when no upstream or command is specified and a static directory is provided
@@ -168,6 +180,17 @@ func (s *ExternalStorefront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if s.proxy == nil || strings.TrimSpace(s.cfg.Upstream) == "" {
 				if !strings.HasPrefix(r.URL.Path, "/_app/") && !strings.HasPrefix(r.URL.Path, "/assets/") {
 					if stat, err := root.Stat("index.html"); err == nil && !stat.IsDir() {
+						if s.routes != nil && !s.routes.known(r.Context(), r.URL.Path) {
+							// Real 404 for URLs the SPA does not have, with the SPA's own
+							// "not found" view as the body. Conditional headers are dropped
+							// so a cached copy can never turn into a 304 for a missing page.
+							nr := r.Clone(r.Context())
+							nr.Header.Del("If-Modified-Since")
+							nr.Header.Del("If-None-Match")
+							w.Header().Set("X-Robots-Tag", "noindex")
+							s.serveRootFile(&statusOverrideWriter{ResponseWriter: w, code: http.StatusNotFound}, nr, root, "index.html", stat)
+							return
+						}
 						s.serveRootFile(w, r, root, "index.html", stat)
 						return
 					}

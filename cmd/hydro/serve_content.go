@@ -8,6 +8,7 @@ import (
 
 	auditstore "github.com/hydrohq/hydrogo/internal/audit/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/auth"
+	"github.com/hydrohq/hydrogo/internal/collections"
 	formsruntime "github.com/hydrohq/hydrogo/internal/forms"
 	formstore "github.com/hydrohq/hydrogo/internal/forms/sqlstore"
 	"github.com/hydrohq/hydrogo/internal/geolocation"
@@ -300,5 +301,31 @@ func (a *serveApp) initStorefront() error {
 		return fmt.Errorf("configure external storefront: %w", err)
 	}
 	a.externalStorefront = es
+	es.SetSlugLookup(a.storefrontSlugExists)
 	return nil
+}
+
+// storefrontSlugExists answers the dynamic routes of the storefront's
+// routes.json (/urun/{slug}, /{legal-page}...): is there a published record
+// of the collection with this field value? It reads the collection lazily on
+// each call because the collection service is built after the storefront.
+func (a *serveApp) storefrontSlugExists(ctx context.Context, collection, field, value string) (bool, error) {
+	if !a.modules["collections"] || a.collectionService.Repository == nil {
+		return true, nil // cannot verify: the storefront fails open
+	}
+	records, err := a.collectionService.QueryRecords(ctx, collection, collections.Query{
+		Limit: 5,
+		Where: []collections.Condition{{Field: field, Op: collections.Equals, Value: value}},
+	})
+	if err != nil {
+		return true, err
+	}
+	for _, record := range records {
+		// Drafts and archived records are not public pages.
+		if status, ok := record.Data["status"].(string); ok && status != "" && status != "published" {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
 }

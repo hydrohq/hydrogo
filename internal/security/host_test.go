@@ -39,6 +39,38 @@ func TestHostMiddlewareBindsCanonicalOrigin(t *testing.T) {
 	}
 }
 
+func TestHostMiddlewareRedirectsWWWTwinToCanonicalOrigin(t *testing.T) {
+	for _, test := range []struct {
+		name, origin, host, want string
+		code                     int
+	}{
+		{name: "www to apex", origin: "https://example.test", host: "www.example.test", want: "https://example.test/urun/x?a=1", code: http.StatusPermanentRedirect},
+		{name: "www with default port", origin: "https://example.test", host: "www.example.test:443", want: "https://example.test/urun/x?a=1", code: http.StatusPermanentRedirect},
+		{name: "apex to www origin", origin: "https://www.example.test", host: "example.test", want: "https://www.example.test/urun/x?a=1", code: http.StatusPermanentRedirect},
+		{name: "unrelated subdomain is still refused", origin: "https://example.test", host: "evil.example.test", code: http.StatusMisdirectedRequest},
+		{name: "look-alike www is still refused", origin: "https://example.test", host: "www.example.test.evil.test", code: http.StatusMisdirectedRequest},
+		{name: "www on wrong port is still refused", origin: "https://example.test", host: "www.example.test:8443", code: http.StatusMisdirectedRequest},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			middleware, err := NewHostMiddleware(test.origin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			handler := middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("must not run") }))
+			req := httptest.NewRequest(http.MethodGet, "/urun/x?a=1", nil)
+			req.Host = test.host
+			res := httptest.NewRecorder()
+			handler.ServeHTTP(res, req)
+			if res.Code != test.code {
+				t.Fatalf("status = %d, want %d", res.Code, test.code)
+			}
+			if test.want != "" && res.Header().Get("Location") != test.want {
+				t.Fatalf("Location = %q, want %q", res.Header().Get("Location"), test.want)
+			}
+		})
+	}
+}
+
 func TestHostMiddlewareAllowsUnconfiguredLocalDevelopment(t *testing.T) {
 	middleware, err := NewHostMiddleware("")
 	if err != nil {

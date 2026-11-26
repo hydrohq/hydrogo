@@ -72,8 +72,9 @@
     }
   }
 
-  // Load once the schema says the module is on. The derived boolean keeps a
-  // schema reload (new object, same answer) from fetching again.
+  // The notification inbox belongs to the pages module (its table and routes only
+  // exist with it). Without the module there is nothing to show, so the bell is
+  // not drawn at all instead of sitting there permanently empty.
   const notificationsOn = $derived(!!schema.schema && schema.modules.pages === true);
   $effect(() => {
     if (notificationsOn) loadNotifications();
@@ -100,6 +101,7 @@
   }}
 />
 
+{#if notificationsOn}
 <div class="relative notification-container">
   <!-- Bell button -->
   <button
@@ -193,3 +195,4 @@
     </div>
   {/if}
 </div>
+{/if}

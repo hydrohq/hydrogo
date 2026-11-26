@@ -27,15 +27,15 @@ describe('NotificationPopover', () => {
     vi.mocked(api.post).mockReset();
   });
 
-  it('does not fetch notifications when the pages module is off', async () => {
+  it('draws no bell and fetches nothing when the pages module is off', async () => {
     // Arrange
     schema.schema = { modules: { pages: false } } as any;
 
     // Act
     render(NotificationPopover, { props: {} });
-    await fireEvent.click(screen.getByLabelText('Notifications'));
 
     // Assert
+    expect(screen.queryByLabelText('Notifications')).toBeNull();
     expect(api.get).not.toHaveBeenCalled();
   });
 
