@@ -34,6 +34,10 @@ class SchemaState {
     return this.schema?.site_url || '';
   }
 
+  get externalStorefront(): boolean {
+    return Boolean(this.schema?.external_storefront);
+  }
+
   getCollection(id: string): Collection | undefined {
     return this.resources.find(r => r.id === id);
   }

@@ -107,9 +107,10 @@ type adminSchema struct {
 	Modules      map[string]bool          `json:"modules"`
 	Locales      adminSchemaLocales       `json:"locales"`
 	Permissions  []string                 `json:"permissions"`
-	Branding     adminBranding            `json:"branding"`
-	Platform     bool                     `json:"platform"`
-	SiteURL      string                   `json:"site_url"`
+	Branding           adminBranding            `json:"branding"`
+	Platform           bool                     `json:"platform"`
+	SiteURL            string                   `json:"site_url"`
+	ExternalStorefront bool                     `json:"external_storefront"`
 }
 
 // adminBranding is the name, logo, accent colour and favicon an administrator
@@ -217,8 +218,9 @@ func (a *serveApp) buildAdminSchemaForTypes(defs []contenttypes.Definition) admi
 		Modules:      make(map[string]bool, len(a.modules)),
 		Locales:      adminSchemaLocales{Enabled: localized, Default: a.contentLocales.Default, All: append([]string{}, a.contentLocales.All...)},
 		Permissions:  a.authSvc.AvailablePermissions(),
-		Platform:     a.isPlatformMode(),
-		SiteURL:      a.resolvedSiteURL(),
+		Platform:           a.isPlatformMode(),
+		SiteURL:            a.resolvedSiteURL(),
+		ExternalStorefront: a.cfg.Storefront.External.Enabled,
 	}
 	for _, definition := range defs {
 		schema.ContentTypes = append(schema.ContentTypes, adminSchemaContentType{

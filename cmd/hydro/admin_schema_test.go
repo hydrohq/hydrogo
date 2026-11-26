@@ -94,6 +94,13 @@ func TestAdminSchemaListsContentTypesAndModules(t *testing.T) {
 	if !app.buildAdminSchema().Modules["hooks"] {
 		t.Fatal("configured hook services are not announced to the admin")
 	}
+	if app.buildAdminSchema().ExternalStorefront {
+		t.Fatal("external_storefront should default to false")
+	}
+	app.cfg.Storefront.External.Enabled = true
+	if !app.buildAdminSchema().ExternalStorefront {
+		t.Fatal("external_storefront should be true when storefront.external.enabled is set")
+	}
 }
 
 func TestAdminBrandingIsPublicAndEmptyWithoutTheSiteModule(t *testing.T) {

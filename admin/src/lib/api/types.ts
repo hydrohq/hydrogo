@@ -174,6 +174,7 @@ export interface AdminSchema {
   branding?: AdminBranding;
   platform?: boolean;
   site_url?: string;
+  external_storefront?: boolean;
 }
 
 export interface ContentItem {

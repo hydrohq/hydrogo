@@ -436,7 +436,9 @@
 
     <div class="flex items-center gap-1 border-b border-border overflow-x-auto pb-px">
       <button type="button" onclick={() => (activeTab = 'general')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'general' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.general')}</button>
-      <button type="button" onclick={() => (activeTab = 'themes')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'themes' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.themes')}</button>
+      {#if !schema.externalStorefront}
+        <button type="button" onclick={() => (activeTab = 'themes')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'themes' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.themes')}</button>
+      {/if}
       <button type="button" onclick={() => (activeTab = 'navigation')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'navigation' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.navigation')}</button>
       {#if schema.modules['forms']}
         <button type="button" onclick={() => (activeTab = 'forms')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'forms' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.forms')}</button>
@@ -450,7 +452,7 @@
       <button type="button" onclick={() => (activeTab = 'notfound')} class="px-3.5 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'notfound' ? 'border-primary text-foreground font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}">{t('site.tab.notfoundCount', { count: notFounds.length })}</button>
     </div>
 
-    {#if activeTab === 'general'}
+    {#if activeTab === 'general' || (activeTab === 'themes' && schema.externalStorefront)}
       <GeneralTab bind:settings {saving} onsubmit={handleSaveGeneral} />
     {:else if activeTab === 'themes'}
       <ThemesTab bind:settings {saving} onsubmit={handleSaveGeneral} />
