@@ -110,6 +110,9 @@ describe('ProductEditorView', () => {
 
     // Publish/Unpublish toggle button is present
     expect(screen.getByRole('button', { name: /taslağa al/i })).toBeTruthy();
+
+    // Genuine leather checkbox is hidden when products schema does not define genuine_leather
+    expect(screen.queryByText('Hakiki deri')).toBeNull();
   });
 
   it('slug auto-generates from name input for new products until manually edited', async () => {

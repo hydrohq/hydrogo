@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
+  import { schema } from '$lib/stores/schema.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -23,6 +24,9 @@
   let { id }: Props = $props();
 
   const isNew = $derived(id === 'new');
+  const hasGenuineLeatherField = $derived(
+    Boolean(schema.getCollection('products')?.fields?.some((f) => (f.id || f.name) === 'genuine_leather'))
+  );
 
 export interface ProductRecord {
   id: string;
@@ -260,12 +264,14 @@ export interface ProductRecord {
           formData.compare_at_price !== '' && formData.compare_at_price != null && !isNaN(Number(formData.compare_at_price))
             ? Number(formData.compare_at_price)
             : null,
-        genuine_leather: Boolean(formData.genuine_leather),
         is_bestseller: Boolean(formData.is_bestseller),
         sku: formData.sku.trim() || null,
         seo_title: formData.seo_title.trim() || null,
         seo_description: formData.seo_description.trim() || null,
       };
+      if (hasGenuineLeatherField) {
+        payload.genuine_leather = Boolean(formData.genuine_leather);
+      }
 
       if (isNew) {
         const res = await api.post<{ data: ProductRecord }>('/api/v1/admin/content/products', payload);
@@ -634,17 +640,19 @@ export interface ProductRecord {
             </div>
           </div>
 
-          <!-- Genuine Leather Toggle -->
-          <div class="pt-2">
-            <label class="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                bind:checked={formData.genuine_leather}
-                class="size-4 rounded border-input text-primary focus:ring-ring"
-              />
-              <span class="text-xs font-medium text-foreground">{t('products.editor.genuineLeather')}</span>
-            </label>
-          </div>
+          <!-- Genuine Leather Toggle (only shown when the products schema defines genuine_leather) -->
+          {#if hasGenuineLeatherField}
+            <div class="pt-2">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  bind:checked={formData.genuine_leather}
+                  class="size-4 rounded border-input text-primary focus:ring-ring"
+                />
+                <span class="text-xs font-medium text-foreground">{t('products.editor.genuineLeather')}</span>
+              </label>
+            </div>
+          {/if}
 
           <!-- Advanced Collapsed Section -->
           <div class="border-t border-border pt-4">
