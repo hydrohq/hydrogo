@@ -31,6 +31,7 @@
   let folders = $state<Folder[]>([]);
   let loading = $state(true);
   let uploading = $state(false);
+  let uploadError = $state<string | null>(null);
 
   let search = $state('');
   let selectedFolder = $state<string>('');
@@ -78,6 +79,7 @@
 
   async function handleUploadFiles(files: FileList) {
     uploading = true;
+    uploadError = null;
     try {
       for (let i = 0; i < files.length; i++) {
         const formData = new FormData();
@@ -92,6 +94,7 @@
       await loadAssets();
     } catch (e: any) {
       console.error('Upload failed:', e);
+      uploadError = e?.message ? `${t('media.upload.failed')} (${e.message})` : t('media.upload.failed');
     } finally {
       uploading = false;
     }
@@ -165,11 +168,16 @@
   <div class="@container/main flex flex-1 flex-col gap-2">
     <div class="flex flex-col gap-4 md:gap-6">
       <!-- Upload Dropzone Container -->
-      <div class="">
+      <div class="space-y-2">
         <MediaUploadDropzone
           {uploading}
           onupload={handleUploadFiles}
         />
+        {#if uploadError}
+          <div class="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs" role="alert">
+            {uploadError}
+          </div>
+        {/if}
       </div>
 
       <!-- Toolbar: Folders / Kind tabs + Search & New Folder -->

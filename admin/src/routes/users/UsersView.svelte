@@ -68,6 +68,7 @@
   // New API Key Modal
   let keyModalOpen = $state(false);
   let newKeyName = $state('');
+  let newKeyScope = $state<'read' | 'preview'>('read');
   let creatingKey = $state(false);
   let issuedKeyValue = $state<string | null>(null);
   let copiedKey = $state(false);
@@ -77,11 +78,15 @@
   let revokingKey = $state(false);
 
   const availablePermissions = $derived([
-    { id: 'content.write', label: t('users.perm.content'), desc: t('users.perm.contentDesc') },
-    { id: 'media.upload', label: t('users.perm.media'), desc: t('users.perm.mediaDesc') },
-    { id: 'site.manage', label: t('users.perm.site'), desc: t('users.perm.siteDesc') },
-    { id: 'users.manage', label: t('users.perm.users'), desc: t('users.perm.usersDesc') },
-    { id: 'telemetry.read', label: t('users.perm.telemetry'), desc: t('users.perm.telemetryDesc') },
+    { id: 'admin.content.read', label: t('users.perm.contentRead'), desc: t('users.perm.contentReadDesc') },
+    { id: 'admin.content.write', label: t('users.perm.content'), desc: t('users.perm.contentDesc') },
+    { id: 'admin.commerce.read', label: t('users.perm.commerceRead'), desc: t('users.perm.commerceReadDesc') },
+    { id: 'admin.commerce.write', label: t('users.perm.commerceWrite'), desc: t('users.perm.commerceWriteDesc') },
+    { id: 'admin.members.manage', label: t('users.perm.membersManage'), desc: t('users.perm.membersManageDesc') },
+    { id: 'admin.media.manage', label: t('users.perm.media'), desc: t('users.perm.mediaDesc') },
+    { id: 'admin.site.manage', label: t('users.perm.site'), desc: t('users.perm.siteDesc') },
+    { id: 'admin.users.manage', label: t('users.perm.users'), desc: t('users.perm.usersDesc') },
+    { id: 'admin.operations.manage', label: t('users.perm.telemetry'), desc: t('users.perm.telemetryDesc') },
   ]);
 
   function notify(msg: string, isErr = false) {
@@ -211,7 +216,8 @@
     if (!toggleActiveTarget) return;
     togglingActive = true;
     try {
-      await api.post(`/api/v1/admin/users/${toggleActiveTarget.id}/disable`, {});
+      const action = toggleActiveTarget.active ? 'disable' : 'enable';
+      await api.post(`/api/v1/admin/users/${toggleActiveTarget.id}/${action}`, {});
       notify(t('users.notify.toggled', { email: toggleActiveTarget.email }));
       toggleActiveTarget = null;
       await loadUsers();
@@ -229,6 +235,7 @@
     try {
       const res = await api.post<ApiResponse<{ token?: string; key?: string }>>('/api/v1/admin/api-keys', {
         name: newKeyName.trim(),
+        scope: newKeyScope,
       });
       issuedKeyValue = res?.data?.key || res?.data?.token || t('users.keyGenerated');
       await loadAPIKeys();
@@ -368,8 +375,8 @@
                       onclick={() => {
                         permModalUser = u;
                         userPerms = {};
-                        if (Array.isArray(u.permissions)) {
-                          for (const p of u.permissions) userPerms[p] = true;
+                        for (const perm of availablePermissions) {
+                          userPerms[perm.id] = Array.isArray(u.permissions) && u.permissions.includes(perm.id);
                         }
                       }}
                       title={t('users.configurePerms')}
@@ -441,9 +448,7 @@
         class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
       >
         <option value="editor">{t('users.roleEditorDesc')}</option>
-        <option value="author">{t('users.roleAuthorDesc')}</option>
         <option value="viewer">{t('users.roleViewerDesc')}</option>
-        <option value="admin">{t('users.roleAdminDesc')}</option>
       </select>
     </div>
     <div class="flex justify-end gap-2 pt-2">
@@ -466,7 +471,6 @@
           class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
         >
           <option value="editor">{t('users.roleEditor')}</option>
-          <option value="author">{t('users.roleAuthor')}</option>
           <option value="viewer">{t('users.roleViewer')}</option>
           <option value="admin">{t('users.roleAdmin')}</option>
         </select>
@@ -567,6 +571,17 @@
       <div>
         <label for="ak-name" class="block text-xs font-medium text-foreground mb-1">{t('users.keyName')}</label>
         <Input id="ak-name" type="text" bind:value={newKeyName} placeholder={t('users.keyNamePlaceholder')} required />
+      </div>
+      <div>
+        <label for="ak-scope" class="block text-xs font-medium text-foreground mb-1">{t('users.keyScope')}</label>
+        <select
+          id="ak-scope"
+          bind:value={newKeyScope}
+          class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+        >
+          <option value="read">{t('users.keyScopeRead')}</option>
+          <option value="preview">{t('users.keyScopePreview')}</option>
+        </select>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onclick={() => (keyModalOpen = false)}>{t('common.cancel')}</Button>

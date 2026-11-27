@@ -71,8 +71,8 @@
     </div>
   </div>
 
-  <!-- Storefront & Campaign Controls (only shown when commerce is enabled) -->
-  {#if schema.modules?.commerce === true}
+  <!-- Storefront & Campaign Controls (only shown for built-in commerce storefront) -->
+  {#if schema.modules?.commerce === true && !schema.externalStorefront}
   <div class="space-y-4 rounded-lg border border-border p-4">
     <div>
       <p class="text-xs font-semibold text-foreground">{t('site.storefront.title')}</p>

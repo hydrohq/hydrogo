@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -20,12 +21,39 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxAuthFormBytes)
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid account update", http.StatusBadRequest)
-		return
+	var newEmail, currentPassword, newPassword, confirmPassword string
+	var invalidateOthers bool
+	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		var req struct {
+			Email                   string `json:"email"`
+			CurrentPassword         string `json:"current_password"`
+			NewPassword             string `json:"new_password"`
+			ConfirmPassword         string `json:"confirm_password"`
+			InvalidateOtherSessions *bool  `json:"invalidate_other_sessions"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid account update", http.StatusBadRequest)
+			return
+		}
+		newEmail = strings.TrimSpace(req.Email)
+		currentPassword = req.CurrentPassword
+		newPassword = req.NewPassword
+		confirmPassword = req.ConfirmPassword
+		if confirmPassword == "" {
+			confirmPassword = req.NewPassword
+		}
+		invalidateOthers = req.InvalidateOtherSessions == nil || *req.InvalidateOtherSessions
+	} else {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid account update", http.StatusBadRequest)
+			return
+		}
+		newEmail = strings.TrimSpace(r.FormValue("email"))
+		currentPassword = r.FormValue("current_password")
+		newPassword = r.FormValue("new_password")
+		confirmPassword = r.FormValue("confirm_password")
+		invalidateOthers = r.FormValue("invalidate_other_sessions") == "true"
 	}
-	newEmail := strings.TrimSpace(r.FormValue("email"))
-	newPassword := r.FormValue("new_password")
 	if newEmail == user.Email {
 		newEmail = ""
 	}
@@ -33,7 +61,7 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no account changes requested", http.StatusBadRequest)
 		return
 	}
-	if newPassword != "" && newPassword != r.FormValue("confirm_password") {
+	if newPassword != "" && newPassword != confirmPassword {
 		http.Error(w, "new passwords do not match", http.StatusBadRequest)
 		return
 	}
@@ -48,7 +76,7 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	err := h.Transactions.Within(r.Context(), func(tx database.Executor) error {
-		return h.Service.ChangeCredentials(r.Context(), user.ID, r.FormValue("current_password"), newEmail, newPassword, tx)
+		return h.Service.ChangeCredentials(r.Context(), user.ID, currentPassword, newEmail, newPassword, tx)
 	})
 	if errors.Is(err, ErrInvalidCredentials) {
 		http.Error(w, "current password is incorrect", http.StatusUnauthorized)
@@ -62,7 +90,7 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 		writeAuthDependencyError(w, "account update failed", err, http.StatusBadRequest)
 		return
 	}
-	if r.FormValue("invalidate_other_sessions") == "true" {
+	if invalidateOthers {
 		if err := h.Service.RevokeOtherUserSessions(r.Context(), user.ID, HashSessionToken(sessionToken(r))); err != nil {
 			writeAuthDependencyError(w, "account update failed", err, http.StatusInternalServerError)
 			return
@@ -76,8 +104,41 @@ func (h HTTPHandler) changeCredentials(w http.ResponseWriter, r *http.Request) {
 	if h.Audit != nil {
 		h.recordAuthEvent(r, "auth.credentials_changed", user.ID)
 	}
-	if r.FormValue("invalidate_other_sessions") != "true" {
+	if !invalidateOthers {
 		ClearSessionCookie(w, h.Secure)
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h HTTPHandler) enableUser(w http.ResponseWriter, r *http.Request) {
+	if h.Service == nil {
+		http.Error(w, "authentication unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	actor := UserFromContext(r.Context())
+	if !h.adminUserManage(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	targetID := r.PathValue("id")
+	if targetID == "" || targetID == actor.ID {
+		http.Error(w, "administrator cannot modify the current account", http.StatusConflict)
+		return
+	}
+	if err := h.Service.SetUserActive(r.Context(), targetID, true); err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		writeAuthDependencyError(w, "user state update failed", err, http.StatusInternalServerError)
+		return
+	}
+	if h.Audit != nil {
+		if err := h.Audit.Record(r.Context(), "auth.user_enabled", targetID); err != nil {
+			_ = h.Service.SetUserActive(r.Context(), targetID, false)
+			http.Error(w, "audit failed", http.StatusInternalServerError)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

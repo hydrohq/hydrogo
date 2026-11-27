@@ -19,23 +19,37 @@
   let liveLoading = $state(false);
   let liveResults = $state<Array<{ title: string; subtitle: string; path: string; icon: string }>>([]);
 
+  const pagesEnabled = $derived(schema.modules?.pages !== false);
+  const newsEnabled = $derived(schema.modules?.news !== false);
+  const mediaEnabled = $derived(schema.modules?.media !== false);
+  const membersEnabled = $derived(schema.modules?.members !== false);
+  const commerceEnabled = $derived(schema.modules?.commerce === true);
+
   const baseNavItems = $derived([
     { title: t('nav.dashboard'), category: t('search.cat.navigation'), path: '/dashboard', icon: 'dashboard', desc: t('search.desc.dashboard') },
-    { title: t('nav.pages'), category: t('search.cat.navigation'), path: '/pages', icon: 'pages', desc: t('search.desc.pages') },
-    { title: t('nav.news'), category: t('search.cat.navigation'), path: '/news', icon: 'news', desc: t('search.desc.news') },
-    { title: t('nav.media'), category: t('search.cat.navigation'), path: '/media', icon: 'media', desc: t('search.desc.media') },
-    { title: t('nav.members'), category: t('search.cat.navigation'), path: '/members', icon: 'members', desc: t('search.desc.members') },
+    ...(commerceEnabled
+      ? [
+          { title: t('nav.products'), category: t('nav.store'), path: '/commerce/products', icon: 'collection', desc: t('products.search') },
+          { title: t('nav.orders'), category: t('nav.store'), path: '/commerce', icon: 'collection', desc: t('commerce.orders.search') },
+          { title: t('nav.stock'), category: t('nav.store'), path: '/commerce/stock', icon: 'collection', desc: t('stock.title') },
+          { title: t('nav.discountCodes'), category: t('nav.store'), path: '/commerce/discounts', icon: 'collection', desc: t('commerce.discounts.title') },
+        ]
+      : []),
+    ...(pagesEnabled ? [{ title: t('nav.pages'), category: t('search.cat.navigation'), path: '/pages', icon: 'pages', desc: t('search.desc.pages') }] : []),
+    ...(newsEnabled ? [{ title: t('nav.news'), category: t('search.cat.navigation'), path: '/news', icon: 'news', desc: t('search.desc.news') }] : []),
+    ...(mediaEnabled ? [{ title: t('nav.media'), category: t('search.cat.navigation'), path: '/media', icon: 'media', desc: t('search.desc.media') }] : []),
+    ...(membersEnabled ? [{ title: t('nav.members'), category: t('search.cat.navigation'), path: '/members', icon: 'members', desc: t('search.desc.members') }] : []),
     { title: t('title.siteSettings'), category: t('search.cat.settings'), path: '/site', icon: 'site', desc: t('search.desc.site') },
     { title: t('nav.users'), category: t('search.cat.settings'), path: '/users', icon: 'users', desc: t('search.desc.users') },
     { title: t('search.systemTelemetry'), category: t('search.cat.settings'), path: '/system', icon: 'system', desc: t('search.desc.system') },
     { title: t('title.account'), category: t('search.cat.account'), path: '/account', icon: 'account', desc: t('search.desc.account') },
-    { title: t('search.docs'), category: t('search.cat.help'), path: '/admin/docs', icon: 'docs', desc: t('search.desc.docs') },
   ]);
 
   const quickActions = $derived([
-    { title: t('search.newPage'), category: t('search.cat.quick'), path: '/pages/new', icon: 'add', desc: t('search.desc.newPage') },
-    { title: t('search.newArticle'), category: t('search.cat.quick'), path: '/news/new', icon: 'add', desc: t('search.desc.newArticle') },
-    { title: t('nav.uploadMedia'), category: t('search.cat.quick'), path: '/media', icon: 'upload', desc: t('search.desc.upload') },
+    ...(commerceEnabled ? [{ title: t('products.new'), category: t('search.cat.quick'), path: '/commerce/products/new', icon: 'add', desc: t('products.editor.titleNew') }] : []),
+    ...(pagesEnabled ? [{ title: t('search.newPage'), category: t('search.cat.quick'), path: '/pages/new', icon: 'add', desc: t('search.desc.newPage') }] : []),
+    ...(newsEnabled ? [{ title: t('search.newArticle'), category: t('search.cat.quick'), path: '/news/new', icon: 'add', desc: t('search.desc.newArticle') }] : []),
+    ...(mediaEnabled ? [{ title: t('nav.uploadMedia'), category: t('search.cat.quick'), path: '/media', icon: 'upload', desc: t('search.desc.upload') }] : []),
   ]);
 
   const collectionItems = $derived.by(() => {
@@ -82,35 +96,71 @@
         try {
           const results: Array<{ title: string; subtitle: string; path: string; icon: string }> = [];
 
-          // Search pages
-          try {
-            const pRes = await api.get<ApiResponse<any[]>>(`/api/v1/admin/pages?search=${encodeURIComponent(q)}&per_page=5`);
-            if (pRes?.data && Array.isArray(pRes.data)) {
-              for (const p of pRes.data) {
-                results.push({
-                  title: p.title || p.slug || t('dashboard.table.untitledPage'),
-                  subtitle: `${t('common.page')} • /${p.slug || ''}`,
-                  path: `/pages/${p.id}`,
-                  icon: 'pages',
-                });
+          // Search commerce products & orders when commerce is enabled
+          if (commerceEnabled) {
+            try {
+              const prodRes = await api.get<ApiResponse<any[]>>(`/api/v1/admin/content/products?q=${encodeURIComponent(q)}&limit=5`);
+              if (prodRes?.data && Array.isArray(prodRes.data)) {
+                for (const p of prodRes.data) {
+                  results.push({
+                    title: p.name || p.slug || p.id,
+                    subtitle: `${t('nav.products')} • /${p.slug || ''}`,
+                    path: `/commerce/products/${p.id}`,
+                    icon: 'collection',
+                  });
+                }
               }
-            }
-          } catch {}
+            } catch {}
+
+            try {
+              const ordRes = await api.get<ApiResponse<any[]>>(`/api/v1/admin/commerce/orders?q=${encodeURIComponent(q)}&limit=5`);
+              if (ordRes?.data && Array.isArray(ordRes.data)) {
+                for (const o of ordRes.data) {
+                  const label = o.order_number || `#${String(o.id || '').replace('order_', '').slice(0, 8).toUpperCase()}`;
+                  results.push({
+                    title: `${label}${o.guest_name ? ` — ${o.guest_name}` : ''}`,
+                    subtitle: `${t('nav.orders')} • ${o.guest_email || o.payment_status || ''}`,
+                    path: `/commerce?order=${encodeURIComponent(o.id)}`,
+                    icon: 'collection',
+                  });
+                }
+              }
+            } catch {}
+          }
+
+          // Search pages
+          if (pagesEnabled) {
+            try {
+              const pRes = await api.get<ApiResponse<any[]>>(`/api/v1/admin/pages?search=${encodeURIComponent(q)}&per_page=5`);
+              if (pRes?.data && Array.isArray(pRes.data)) {
+                for (const p of pRes.data) {
+                  results.push({
+                    title: p.title || p.slug || t('dashboard.table.untitledPage'),
+                    subtitle: `${t('common.page')} • /${p.slug || ''}`,
+                    path: `/pages/${p.id}`,
+                    icon: 'pages',
+                  });
+                }
+              }
+            } catch {}
+          }
 
           // Search news
-          try {
-            const nRes = await api.get<ApiResponse<any[]>>(`/api/v1/admin/news?search=${encodeURIComponent(q)}&per_page=5`);
-            if (nRes?.data && Array.isArray(nRes.data)) {
-              for (const n of nRes.data) {
-                results.push({
-                  title: n.title || n.slug || t('search.untitledArticle'),
-                  subtitle: `${t('search.article')} • ${n.published_at ? t('common.published') : t('common.draft')}`,
-                  path: `/news/${n.id}`,
-                  icon: 'news',
-                });
+          if (newsEnabled) {
+            try {
+              const nRes = await api.get<ApiResponse<any[]>>(`/api/v1/admin/news?search=${encodeURIComponent(q)}&per_page=5`);
+              if (nRes?.data && Array.isArray(nRes.data)) {
+                for (const n of nRes.data) {
+                  results.push({
+                    title: n.title || n.slug || t('search.untitledArticle'),
+                    subtitle: `${t('search.article')} • ${n.published_at ? t('common.published') : t('common.draft')}`,
+                    path: `/news/${n.id}`,
+                    icon: 'news',
+                  });
+                }
               }
-            }
-          } catch {}
+            } catch {}
+          }
 
           liveResults = results;
         } finally {

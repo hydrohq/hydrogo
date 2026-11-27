@@ -327,20 +327,46 @@
       .map((act) => {
         let href = act.href || '';
         if (!href) return null;
-        if (href.includes('{slug}')) {
-          const slugVal = String(formData.slug ?? '').trim();
-          if (!slugVal) return null;
-          href = href.replaceAll('{slug}', encodeURIComponent(slugVal));
-        }
-        if (href.includes('{id}')) {
-          if (!recordId) return null;
-          href = href.replaceAll('{id}', encodeURIComponent(recordId));
-        }
+        let missingToken = false;
+        href = href.replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, token: string) => {
+          const rawVal = token === 'id' ? recordId : formData[token];
+          const val = String(rawVal ?? '').trim();
+          if (!val) {
+            missingToken = true;
+            return '';
+          }
+          return encodeURIComponent(val);
+        });
+        if (missingToken) return null;
         const fullHref = href.startsWith('/') ? `${base}${href}` : href;
         return { label: act.label, href: fullHref, isSvg: href.toLowerCase().endsWith('.svg') };
       })
       .filter((a): a is { label: string; href: string; isSvg: boolean } => a !== null);
   });
+
+  async function handleDelete() {
+    if (!collection || !recordId || singleton) return;
+    const itemName = collection.singular || collection.label || type;
+    const ok = await confirmAction({
+      title: t('schema.deleteTitle', { name: itemName }),
+      description: t('schema.deleteDescription'),
+      confirmLabel: t('schema.deleteItem'),
+      cancelLabel: t('common.cancel'),
+      variant: 'danger',
+    });
+    if (!ok) return;
+    saving = true;
+    errorMessage = null;
+    try {
+      await api.delete(`${endpoint}/${encodeURIComponent(recordId)}`);
+      router.setDirty(false);
+      router.navigate(`/content/${type}`);
+    } catch (err) {
+      errorMessage = formatApiError(err, t('schema.err.deleteItem'));
+    } finally {
+      saving = false;
+    }
+  }
 
   const useTwoColumn = $derived(
     !useSettingsGrid &&
@@ -637,6 +663,14 @@
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
+        {#if !singleton && !isNew && recordId && auth.hasPermission('admin.content.write')}
+          <button
+            type="button"
+            disabled={saving}
+            class="h-8 px-3 rounded-md border border-destructive/30 bg-background hover:bg-destructive/10 text-xs font-medium text-destructive transition-colors cursor-pointer shadow-xs"
+            onclick={handleDelete}
+          >{t('schema.deleteItem')}</button>
+        {/if}
         {#if collection.workflow?.enabled || usesDrafts(collection)}
           <button
             type="button"

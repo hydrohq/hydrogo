@@ -131,6 +131,22 @@ describe('UsersView', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/api/v1/admin/users/u1/disable', {}));
   });
 
+  it('re-enables a disabled staff member through the confirm dialog', async () => {
+    auth.user = { id: 'me', role: 'admin', email: 'admin@example.com' } as any;
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/api/v1/admin/users') return Promise.resolve({ data: [user({ active: false })] });
+      return Promise.resolve({ data: [] });
+    });
+    vi.mocked(api.post).mockResolvedValue({});
+    render(UsersView, { props: {} });
+    await waitFor(() => expect(screen.getByText('bob@example.com')).toBeTruthy());
+
+    await fireEvent.click(screen.getByText('Enable'));
+    await fireEvent.click(screen.getByText('Activate'));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/api/v1/admin/users/u1/enable', {}));
+  });
+
   it('creates a system API key and lists it afterwards', async () => {
     // Arrange
     auth.user = { id: 'me', role: 'admin', email: 'admin@example.com' } as any;
@@ -149,5 +165,6 @@ describe('UsersView', () => {
 
     // Assert
     await waitFor(() => expect(screen.getByDisplayValue('hgk_live_123')).toBeTruthy());
+    expect(api.post).toHaveBeenCalledWith('/api/v1/admin/api-keys', { name: 'CI', scope: 'read' });
   });
 });

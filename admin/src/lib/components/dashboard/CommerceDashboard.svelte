@@ -3,6 +3,7 @@
   import { api } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import { t } from '$lib/i18n/index.svelte';
+  import { schema } from '$lib/stores/schema.svelte';
 
   interface Order {
     id: string;
@@ -48,14 +49,21 @@
 
   const safe = <T,>(p: Promise<T>, fallback: T) => p.catch(() => { partial = true; return fallback; });
 
+  const hasReviews = $derived(Boolean(schema.getCollection('reviews')));
+  const hasReturnRequests = $derived(Boolean(schema.getCollection('return_requests')));
+
   onMount(() => {
     void load();
     void safe(api.get<{ data: { count: number } }>('/api/v1/admin/commerce/refunds-required/count'), { data: { count: 0 } }).then((r) => (refunds = r.data.count));
-    void safe(api.get<{ data: unknown[] }>('/api/v1/admin/content/reviews?status=draft&limit=100'), { data: [] }).then((r) => (pendingReviews = r.data.length));
+    if (schema.getCollection('reviews')) {
+      void safe(api.get<{ data: unknown[] }>('/api/v1/admin/content/reviews?status=draft&limit=100'), { data: [] }).then((r) => (pendingReviews = r.data.length));
+    }
     void safe(api.get<{ data: { variant_id: string; available: number }[] }>('/api/v1/admin/commerce/stock/low?threshold=3'), { data: [] }).then((r) => (lowStock = r.data));
-    void safe(api.get<{ data: { status?: string }[] }>('/api/v1/admin/content/return_requests?limit=100'), { data: [] }).then(
-      (r) => (openReturns = r.data.filter((x) => !x.status || x.status === 'beklemede' || x.status === 'onaylandi' || x.status === 'kargoda').length)
-    );
+    if (schema.getCollection('return_requests')) {
+      void safe(api.get<{ data: { status?: string }[] }>('/api/v1/admin/content/return_requests?limit=100'), { data: [] }).then(
+        (r) => (openReturns = r.data.filter((x) => !x.status || x.status === 'beklemede' || x.status === 'onaylandi' || x.status === 'kargoda').length)
+      );
+    }
   });
 
   const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -96,10 +104,10 @@
   ]);
   const queueItems = $derived([
     { label: t('dashboard.commerce.refunds'), value: String(refunds), note: t('dashboard.commerce.refundsNote'), to: '/commerce/refunds-required', alert: refunds > 0, tone: 'bg-destructive' },
-    { label: t('dashboard.commerce.reviews'), value: String(pendingReviews), note: t('dashboard.commerce.reviewsNote'), to: '/content/reviews', alert: pendingReviews > 0, tone: 'bg-amber-500' },
-    { label: t('dashboard.commerce.returns'), value: String(openReturns), note: t('dashboard.commerce.returnsNote'), to: '/content/return_requests', alert: openReturns > 0, tone: 'bg-amber-500' },
+    ...(hasReviews ? [{ label: t('dashboard.commerce.reviews'), value: String(pendingReviews), note: t('dashboard.commerce.reviewsNote'), to: '/content/reviews', alert: pendingReviews > 0, tone: 'bg-amber-500' }] : []),
+    ...(hasReturnRequests ? [{ label: t('dashboard.commerce.returns'), value: String(openReturns), note: t('dashboard.commerce.returnsNote'), to: '/content/return_requests', alert: openReturns > 0, tone: 'bg-amber-500' }] : []),
     { label: t('dashboard.commerce.lowStock'), value: String(lowStock.length), note: t('dashboard.commerce.lowStockNote'), to: '/commerce/stock', alert: lowStock.length > 0, tone: 'bg-amber-500' },
-    { label: t('dashboard.commerce.members'), value: members.toLocaleString(), note: visitors > 0 ? `${visitors} visitors today` : t('dashboard.commerce.membersNote'), to: '/members', alert: false, tone: 'bg-muted-foreground' },
+    { label: t('dashboard.commerce.members'), value: members.toLocaleString(), note: visitors > 0 ? t('dashboard.commerce.visitorsToday', { count: visitors }) : t('dashboard.commerce.membersNote'), to: '/members', alert: false, tone: 'bg-muted-foreground' },
   ]);
   const periodTotal = $derived(days.reduce((acc, d) => acc + d.total, 0));
 </script>

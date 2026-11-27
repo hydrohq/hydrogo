@@ -20,6 +20,17 @@
     last_active_at?: string;
   }
 
+  function normalizeSession(raw: Record<string, any>): SessionItem {
+    return {
+      id: String(raw.id ?? raw.ID ?? ''),
+      ip_address: raw.ip_address ?? raw.IPAddress ?? '',
+      user_agent: raw.user_agent ?? raw.UserAgent ?? '',
+      current: Boolean(raw.current ?? raw.Current),
+      created_at: raw.created_at ?? raw.CreatedAt,
+      last_active_at: raw.last_active_at ?? raw.last_seen_at ?? raw.LastSeenAt,
+    };
+  }
+
   interface PersonalToken {
     id: string;
     name: string;
@@ -45,6 +56,7 @@
   let mfaEnrolling = $state(false);
   let mfaSecret = $state<string | null>(null);
   let mfaQrData = $state<string | null>(null);
+  let mfaRecoveryCodes = $state<string[]>([]);
   let mfaCode = $state('');
   let mfaDisablePassword = $state('');
   let mfaDisableCode = $state('');
@@ -82,11 +94,11 @@
     passwordSuccess = null;
 
     if (newPassword !== confirmPassword) {
-      passwordError = 'New passwords do not match.';
+      passwordError = t('account.passwordMismatch');
       return;
     }
     if (newPassword.length < 8) {
-      passwordError = 'New password must be at least 8 characters long.';
+      passwordError = t('account.passwordTooShort');
       return;
     }
 
@@ -95,13 +107,15 @@
       await api.post('/auth/me/credentials', {
         current_password: currentPassword,
         new_password: newPassword,
+        confirm_password: confirmPassword,
+        invalidate_other_sessions: true,
       });
-      passwordSuccess = 'Password updated successfully.';
+      passwordSuccess = t('account.passwordUpdated');
       currentPassword = '';
       newPassword = '';
       confirmPassword = '';
     } catch (err: any) {
-      passwordError = err.message || 'Failed to update password. Verify your current password.';
+      passwordError = err.message || t('account.passwordFailed');
     } finally {
       passwordLoading = false;
     }
@@ -112,14 +126,20 @@
     mfaError = null;
     mfaSuccess = null;
     try {
-      const res = await api.post<ApiResponse<{ secret: string; qr_svg?: string; url?: string }>>('/api/v1/admin/account/mfa/enroll', {});
-      if (res?.data) {
-        mfaSecret = res.data.secret;
-        mfaQrData = res.data.qr_svg || res.data.url || null;
+      const res = await api.post<any>('/api/v1/admin/account/mfa/enroll', {});
+      const payload = res?.data ?? res;
+      if (payload && (payload.secret || payload.Secret)) {
+        mfaSecret = payload.secret || payload.Secret;
+        mfaQrData = payload.qr_svg || payload.url || payload.otpauth_url || payload.provisioning || payload.Provisioning || null;
+        mfaRecoveryCodes = Array.isArray(payload.recovery_codes)
+          ? payload.recovery_codes
+          : Array.isArray(payload.RecoveryCodes)
+            ? payload.RecoveryCodes
+            : [];
         mfaEnrolling = true;
       }
     } catch (err: any) {
-      mfaError = err.message || 'Failed to initiate 2FA enrollment.';
+      mfaError = err.message || t('account.mfaEnrollFailed');
     } finally {
       mfaLoading = false;
     }
@@ -134,13 +154,14 @@
       await api.post('/api/v1/admin/account/mfa/enable', {
         code: mfaCode.trim(),
       });
-      mfaSuccess = 'Two-factor authentication has been successfully enabled!';
+      mfaSuccess = t('account.mfaEnabled');
       mfaEnrolling = false;
       mfaSecret = null;
+      mfaRecoveryCodes = [];
       mfaCode = '';
       await auth.checkAuth();
     } catch (err: any) {
-      mfaError = err.message || 'Invalid verification code. Please check your authenticator app.';
+      mfaError = err.message || t('account.mfaInvalidCode');
     } finally {
       mfaLoading = false;
     }
@@ -148,7 +169,7 @@
 
   async function handleDisableMFA(e: SubmitEvent) {
     e.preventDefault();
-    if (!mfaDisablePassword || !mfaDisableCode) return;
+    if (!mfaDisableCode) return;
     mfaLoading = true;
     mfaError = null;
     mfaSuccess = null;
@@ -157,12 +178,12 @@
         password: mfaDisablePassword,
         code: mfaDisableCode,
       });
-      mfaSuccess = 'Two-factor authentication has been disabled.';
+      mfaSuccess = t('account.mfaDisabled');
       mfaDisablePassword = '';
       mfaDisableCode = '';
       await auth.checkAuth();
     } catch (err: any) {
-      mfaError = err.message || 'Failed to disable 2FA. Verify your password and 6-digit code.';
+      mfaError = err.message || t('account.mfaDisableFailed');
     } finally {
       mfaLoading = false;
     }
@@ -171,12 +192,13 @@
   async function loadSessions() {
     loadingSessions = true;
     try {
-      const res = await api.get<ApiResponse<SessionItem[]>>('/auth/me/sessions');
-      if (res?.data && Array.isArray(res.data)) {
-        sessions = res.data;
-      } else {
-        sessions = [];
-      }
+      const res = await api.get<any>('/auth/me/sessions');
+      const rawList = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res?.sessions)
+          ? res.sessions
+          : [];
+      sessions = rawList.map(normalizeSession);
     } catch (e) {
       console.warn('Load sessions failed:', e);
       sessions = [];
@@ -190,7 +212,7 @@
     revokeSuccess = null;
     try {
       await api.post('/auth/me/sessions/revoke-others', {});
-      revokeSuccess = 'All other active sessions have been signed out.';
+      revokeSuccess = t('account.sessionsRevoked');
       await loadSessions();
     } catch (e: any) {
       console.warn('Revoke sessions failed:', e);
@@ -432,7 +454,7 @@
 
           <div class="pt-2">
             <Button type="submit" disabled={passwordLoading}>
-              {passwordLoading ? 'Updating Password...' : 'Save Password'}
+              {passwordLoading ? t('account.updatingPassword') : t('account.savePassword')}
             </Button>
           </div>
         </form>
@@ -465,7 +487,7 @@
               <p class="text-[11px] text-muted-foreground mt-0.5">{t('account.mfaAppHelp')}</p>
             </div>
             <Button variant="outline" onclick={handleStartMFAEnroll} disabled={mfaLoading}>
-              {mfaLoading ? 'Loading...' : 'Setup Authenticator'}
+              {mfaLoading ? t('common.loading') : t('account.setupAuthenticator')}
             </Button>
           </div>
 
@@ -510,6 +532,16 @@
                 <code class="px-2.5 py-1 rounded bg-muted border border-border font-mono text-xs select-all text-foreground">{mfaSecret}</code>
               </div>
             {/if}
+            {#if mfaRecoveryCodes.length > 0}
+              <div>
+                <span class="block text-[11px] font-medium text-muted-foreground mb-1">{t('account.mfaRecoveryCodes')}</span>
+                <div class="grid grid-cols-2 gap-1.5 p-2.5 rounded bg-muted border border-border font-mono text-xs select-all text-foreground">
+                  {#each mfaRecoveryCodes as rc}
+                    <span>{rc}</span>
+                  {/each}
+                </div>
+              </div>
+            {/if}
 
             <h4 class="text-xs font-semibold text-foreground pt-2">{t('account.mfaStep2')}</h4>
             <form onsubmit={handleConfirmMFAEnable} class="space-y-3">
@@ -532,7 +564,7 @@
             <p class="text-xs text-muted-foreground mt-0.5">{t('account.sessionsHelp')}</p>
           </div>
           <Button variant="outline" onclick={handleRevokeOtherSessions} disabled={revokingSessions || sessions.length <= 1}>
-            {revokingSessions ? 'Revoking...' : 'Sign Out Other Sessions'}
+            {revokingSessions ? t('account.revokingSessions') : t('account.signOutOthers')}
           </Button>
         </div>
 
@@ -556,12 +588,12 @@
                   </div>
                   <div class="grid text-left leading-tight min-w-0">
                     <div class="flex items-center gap-2">
-                      <span class="text-xs font-semibold text-foreground truncate">{s.user_agent || 'Browser session'}</span>
+                      <span class="text-xs font-semibold text-foreground truncate">{s.user_agent || t('account.browserSession')}</span>
                       {#if s.current}
                         <Badge variant="outline" class="text-[10px] bg-primary/10 text-primary border-primary/20">{t('account.thisDevice')}</Badge>
                       {/if}
                     </div>
-                    <span class="text-[11px] text-muted-foreground font-mono mt-0.5">{s.ip_address || '127.0.0.1'} • Last active: {s.last_active_at ? new Date(s.last_active_at).toLocaleString() : 'Just now'}</span>
+                    <span class="text-[11px] text-muted-foreground font-mono mt-0.5">{s.ip_address || '127.0.0.1'} • {t('account.lastActive', { time: s.last_active_at ? new Date(s.last_active_at).toLocaleString(i18n.locale) : t('account.justNow') })}</span>
                   </div>
                 </div>
               </div>
@@ -615,7 +647,7 @@
 
         <div class="pt-2">
           <Button onclick={handleExportUserData} disabled={exporting}>
-            {exporting ? 'Generating JSON Export...' : 'Download My Data (JSON)'}
+            {exporting ? t('account.generatingExport') : t('account.downloadExport')}
           </Button>
         </div>
       </div>
@@ -640,7 +672,7 @@
             setTimeout(() => (copiedToken = false), 2000);
           }}
         >
-          {copiedToken ? 'Copied!' : 'Copy'}
+          {copiedToken ? t('common.copied') : t('common.copy')}
         </Button>
       </div>
       <div class="flex justify-end pt-2">

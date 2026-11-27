@@ -45,6 +45,7 @@ export const en = {
   'media.picker.selected': 'Selected: {name}',
   'media.picker.deselect': 'Deselect',
   'media.picker.choose': 'Choose Asset',
+  'media.upload.failed': 'File upload failed. Supported image formats: JPG, PNG, WebP, GIF, AVIF.',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -94,4 +95,5 @@ export const tr: Record<keyof typeof en, string> = {
   'media.picker.selected': 'Seçilen: {name}',
   'media.picker.deselect': 'Seçimi Kaldır',
   'media.picker.choose': 'Dosyayı Seç',
+  'media.upload.failed': 'Dosya yüklenemedi. Desteklenen görsel biçimleri: JPG, PNG, WebP, GIF, AVIF (HEIC dosyalarını JPG/PNG olarak yükleyin).',
 };

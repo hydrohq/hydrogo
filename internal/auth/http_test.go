@@ -517,6 +517,7 @@ func TestAdminUserManagementMutationDeniesExplicitPermissionOverride(t *testing.
 		{"role", h.updateUserRole},
 		{"permissions", h.updateUserPermissions},
 		{"disable", h.disableUser},
+		{"enable", h.enableUser},
 		{"invite", h.issueInvite},
 		{"password reset link", h.adminPasswordResetLink},
 	}
@@ -591,6 +592,7 @@ func TestAdminUserMutationEndpointsRejectEditorAndViewer(t *testing.T) {
 		{"role", h.updateUserRole},
 		{"permissions", h.updateUserPermissions},
 		{"disable", h.disableUser},
+		{"enable", h.enableUser},
 		{"invite", h.issueInvite},
 		{"password reset link", h.adminPasswordResetLink},
 	}
@@ -628,8 +630,8 @@ func TestAdminUserMutationRoutesEnforceRolesAndCSRF(t *testing.T) {
 		mux.Handle(route.Pattern, route.Handler)
 		endpoints = append(endpoints, endpoint{method: method, path: strings.NewReplacer("{id}", "target-user").Replace(path)})
 	}
-	if len(endpoints) != 5 {
-		t.Fatalf("registered %d Admin user mutations, want five", len(endpoints))
+	if len(endpoints) != 6 {
+		t.Fatalf("registered %d Admin user mutations, want six", len(endpoints))
 	}
 	secured := security.CSRFMiddleware(false, nil)(mux)
 	users := []struct {
@@ -883,5 +885,45 @@ func TestLoginRateLimitBypassByChangingEmail(t *testing.T) {
 		t.Fatalf("VULNERABILITY: Rate limit bypassed by changing email! Expected 429, got 401")
 	} else if third.Code != http.StatusTooManyRequests {
 		t.Fatalf("Expected 429, got %d", third.Code)
+	}
+}
+
+func TestChangeCredentialsJSONAndEnableUser(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	hash, err := HashPassword("OldStrongPassphrase!123", TestArgon2Params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := &User{ID: "u1", Email: "admin@example.com", PasswordHash: hash, Role: RoleAdmin, Active: true}
+	audit := &httpAudit{}
+	service := NewAuthService(httpUserRepo{user: user}, &httpSessionRepo{}, nil, TestArgon2Params)
+	h := HTTPHandler{
+		Service:      service,
+		Audit:        audit,
+		Transactions: database.NewTransactor(db),
+	}
+
+	body := `{"current_password":"OldStrongPassphrase!123","new_password":"NewStrongPassphrase!456","confirm_password":"NewStrongPassphrase!456","invalidate_other_sessions":false}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/me/credentials", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	h.changeCredentials(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("JSON changeCredentials status = %d body = %q, want 204", rec.Code, rec.Body.String())
+	}
+
+	enableReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/users/u2/enable", nil)
+	enableReq.SetPathValue("id", "u2")
+	enableReq = enableReq.WithContext(WithUser(enableReq.Context(), user))
+	enableRec := httptest.NewRecorder()
+	h.enableUser(enableRec, enableReq)
+	if enableRec.Code != http.StatusNoContent {
+		t.Fatalf("enableUser status = %d body = %q, want 204", enableRec.Code, enableRec.Body.String())
 	}
 }

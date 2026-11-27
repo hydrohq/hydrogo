@@ -33,6 +33,7 @@
   let mediaItems = $state<MediaAsset[]>([]);
   let loading = $state(false);
   let uploading = $state(false);
+  let uploadError = $state<string | null>(null);
   let fileInput: HTMLInputElement | null = $state(null);
   let selectedId = $state<string | null>(null);
   let search = $state('');
@@ -61,7 +62,7 @@
   async function loadMedia() {
     loading = true;
     try {
-      const res = await api.get<ApiResponse<MediaAsset[]>>('/api/v1/admin/media');
+      const res = await api.get<ApiResponse<MediaAsset[]>>('/api/v1/admin/media', { params: { limit: 200 } });
       if (res && res.data) {
         mediaItems = Array.isArray(res.data) ? res.data : [];
       }
@@ -77,6 +78,7 @@
     if (!target.files || target.files.length === 0) return;
 
     uploading = true;
+    uploadError = null;
     try {
       // Several files at once; the last one uploaded is left selected.
       for (const file of [...target.files]) {
@@ -88,8 +90,9 @@
         if (res && res.data) selectedId = res.data.asset_id || res.data.id;
       }
       await loadMedia();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Upload failed:', e);
+      uploadError = e?.message ? `${t('media.upload.failed')} (${e.message})` : t('media.upload.failed');
     } finally {
       uploading = false;
       if (target) target.value = '';
@@ -161,6 +164,12 @@
         {/if}
       </button>
     </div>
+
+    {#if uploadError}
+      <div class="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs" role="alert">
+        {uploadError}
+      </div>
+    {/if}
 
     {#if loading}
       <div class="py-16 flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">

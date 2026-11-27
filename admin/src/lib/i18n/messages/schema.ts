@@ -92,6 +92,8 @@ export const en = {
   'schema.relationSelected': '{count} selected',
   'schema.relationMatches': 'Matching records',
   'schema.relationNoMatch': 'No matching records found.',
+  'schema.deleteItem': 'Delete',
+  'schema.err.deleteItem': 'Failed to delete item',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -188,4 +190,6 @@ export const tr: Record<keyof typeof en, string> = {
   'schema.relationSelected': '{count} seçili',
   'schema.relationMatches': 'Eşleşen kayıtlar',
   'schema.relationNoMatch': 'Eşleşen kayıt bulunamadı.',
+  'schema.deleteItem': 'Sil',
+  'schema.err.deleteItem': 'Kayıt silinemedi',
 };

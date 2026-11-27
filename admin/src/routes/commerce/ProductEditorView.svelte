@@ -590,7 +590,7 @@ export interface ProductRecord {
           onclick={() => setTab('media')}
           class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === 'media' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
         >
-          Photos & Video
+          {t('commerce.media.title')}
         </button>
         {#each extensionTabs as ext (ext.id)}
           <button

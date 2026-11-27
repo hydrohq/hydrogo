@@ -65,14 +65,18 @@ describe('AccountView', () => {
     expect(api.post).toHaveBeenCalledWith('/auth/me/credentials', {
       current_password: 'oldpass1',
       new_password: 'newpassword1',
+      confirm_password: 'newpassword1',
+      invalidate_other_sessions: true,
     });
   });
 
-  it('loads and lists active sessions', async () => {
+  it('loads and lists active sessions from both data and sessions shapes', async () => {
     // Arrange
     auth.user = { role: 'admin', email: 'ada@example.com' } as any;
     vi.mocked(api.get).mockImplementation((url: string) => {
-      if (url === '/auth/me/sessions') return Promise.resolve({ data: [{ id: 's1', ip_address: '1.2.3.4', current: true }] });
+      if (url === '/auth/me/sessions') {
+        return Promise.resolve({ sessions: [{ ID: 's1', IPAddress: '1.2.3.4', Current: true }] });
+      }
       return Promise.resolve({ data: [] });
     });
     render(AccountView, { props: {} });
