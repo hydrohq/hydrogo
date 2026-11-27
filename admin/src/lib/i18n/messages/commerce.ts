@@ -220,6 +220,13 @@ export const en = {
   'commerce.confirm.invoiceButton': 'Yes, issue invoice',
   'commerce.order.refundIssuedInvoiceConfirm': 'Refund the payment to the customer and return stock? Warning: An official invoice has already been issued for this order; you must also cancel it or create a return invoice in fatura sağlayıcısı.',
   'commerce.confirm.keep': 'Cancel',
+  'commerce.media.uploadFailed': 'Upload failed.',
+  'commerce.variants.stockError': 'Stock error',
+  'commerce.extras.invoiceInfo': 'Invoice details',
+  'commerce.extras.invoiceType': 'Type',
+  'commerce.extras.invoiceCompany': 'Company',
+  'commerce.extras.invoiceTaxOffice': 'Tax office',
+  'commerce.extras.notProvided': '— (not provided)',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -444,4 +451,11 @@ export const tr: Record<keyof typeof en, string> = {
   'commerce.confirm.invoiceButton': 'Evet, faturayı kes',
   'commerce.order.refundIssuedInvoiceConfirm': 'Ödeme müşteriye iade edilip stok geri alınsın mı? Uyarı: Bu sipariş için kesilmiş resmi fatura var; fatura sağlayıcısı panelinden faturayı iptal etmeniz veya iade faturası kesmeniz gerekir.',
   'commerce.confirm.keep': 'Vazgeç',
+  'commerce.media.uploadFailed': 'Yükleme başarısız oldu.',
+  'commerce.variants.stockError': 'Stok hatası',
+  'commerce.extras.invoiceInfo': 'Fatura bilgisi',
+  'commerce.extras.invoiceType': 'Tür',
+  'commerce.extras.invoiceCompany': 'Ünvan',
+  'commerce.extras.invoiceTaxOffice': 'Vergi dairesi',
+  'commerce.extras.notProvided': '— (girilmedi)',
 };

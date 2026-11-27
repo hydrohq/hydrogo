@@ -76,7 +76,7 @@
     } catch (err: any) {
       if (!isPublicPath(router.path)) {
         fatalError = {
-          message: err?.message || 'Failed to initialize application.',
+          message: err?.message || t('error.initFailed'),
           code: err?.code || (err?.status ? `HTTP_${err.status}` : undefined),
           requestId: err?.requestId || err?.request_id || undefined,
           status: err?.status,
@@ -292,7 +292,7 @@
   <ConfirmDialog
     open={router.showUnsavedModal}
     title={t('error.unsavedTitle')}
-    description={router.dirtyMessage}
+    description={router.dirtyMessage || t('error.unsavedDefault')}
     confirmLabel={t('error.leaveAnyway')}
     cancelLabel={t('error.stayAndEdit')}
     variant="destructive"

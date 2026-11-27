@@ -421,12 +421,12 @@
             });
             variantId = retryRes.data?.id;
           } catch (retryErr: unknown) {
-            const rMsg = (retryErr as Error)?.message || 'Error';
+            const rMsg = (retryErr as Error)?.message || t('common.error');
             creationErrors = [...creationErrors, `${combo.color} / ${combo.size}: ${rMsg}`];
             continue;
           }
         } else {
-          const msg = (err as Error)?.message || 'Error';
+          const msg = (err as Error)?.message || t('common.error');
           creationErrors = [...creationErrors, `${combo.color} / ${combo.size}: ${msg}`];
           continue;
         }
@@ -439,7 +439,7 @@
             available: stockVal,
           });
         } catch (stockErr: unknown) {
-          const sMsg = (stockErr as Error)?.message || 'Stock error';
+          const sMsg = (stockErr as Error)?.message || t('commerce.variants.stockError');
           creationErrors = [...creationErrors, `${combo.color} / ${combo.size} (${t('products.col.stock')}): ${sMsg}`];
         }
       }

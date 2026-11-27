@@ -84,8 +84,8 @@
 {#if entries.length > 0}
   <div class="rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
     <div class="flex items-center justify-between mb-2">
-      <span class="text-[11px] font-medium text-muted-foreground">Activity distribution</span>
-      <span class="font-mono text-[11px] text-muted-foreground">{entries.length} loaded / {total} total</span>
+      <span class="text-[11px] font-medium text-muted-foreground">{t('audit.distribution')}</span>
+      <span class="font-mono text-[11px] text-muted-foreground">{t('audit.loadedOfTotal', { loaded: entries.length, total })}</span>
     </div>
     <div class="flex items-end gap-1 h-12" aria-hidden="true">
       {#each activityBuckets as bucket, i (i)}
@@ -93,7 +93,7 @@
         <div
           class="flex-1 rounded-t-xs transition-all {bucket.errors > 0 ? 'bg-destructive/75' : bucket.total > 0 ? 'bg-primary/70' : 'bg-muted'}"
           style="height: {heightPct}%"
-          title="{bucket.total} events ({bucket.errors} alerts)"
+          title={t('audit.bucketTooltip', { total: bucket.total, errors: bucket.errors })}
         ></div>
       {/each}
     </div>
@@ -146,15 +146,15 @@
               </div>
               <div class="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                 <span class="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-foreground/90">
-                  <span>actor:</span>
+                  <span>{t('audit.meta.actor')}</span>
                   <span>{entry.actor}</span>
                 </span>
-                <span class="rounded bg-muted px-1.5 py-0.5">resource: {entry.resource}</span>
+                <span class="rounded bg-muted px-1.5 py-0.5">{t('audit.meta.resource')} {entry.resource}</span>
                 {#if entry.target}
-                  <span class="rounded bg-muted px-1.5 py-0.5 truncate max-w-[180px]" title={entry.target}>target: {entry.target}</span>
+                  <span class="rounded bg-muted px-1.5 py-0.5 truncate max-w-[180px]" title={entry.target}>{t('audit.meta.target')} {entry.target}</span>
                 {/if}
                 {#if meta?.status}
-                  <span class="rounded px-1.5 py-0.5 {meta.status >= 400 ? 'bg-destructive/15 text-destructive' : 'bg-muted'}">status: {meta.status}</span>
+                  <span class="rounded px-1.5 py-0.5 {meta.status >= 400 ? 'bg-destructive/15 text-destructive' : 'bg-muted'}">{t('audit.meta.status')} {meta.status}</span>
                 {/if}
                 {#if meta?.ip}
                   <span class="rounded bg-muted px-1.5 py-0.5">ip: {meta.ip}</span>

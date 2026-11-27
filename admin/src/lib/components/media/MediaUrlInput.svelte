@@ -17,7 +17,7 @@
   <input {id} type="text" bind:value {placeholder} class="h-9 min-w-0 flex-1 basis-40 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs" />
   <button type="button" onclick={() => (open = true)} class="h-9 shrink-0 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground shadow-xs transition-colors hover:bg-accent cursor-pointer">{t('products.editor.browse')}</button>
   {#if value}
-    <button type="button" aria-label="Clear" onclick={() => (value = '')} class="h-9 shrink-0 rounded-md border border-input bg-background px-2.5 text-xs text-muted-foreground shadow-xs transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer">✕</button>
+    <button type="button" aria-label={t('common.clear')} onclick={() => (value = '')} class="h-9 shrink-0 rounded-md border border-input bg-background px-2.5 text-xs text-muted-foreground shadow-xs transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer">✕</button>
   {/if}
 </div>
 

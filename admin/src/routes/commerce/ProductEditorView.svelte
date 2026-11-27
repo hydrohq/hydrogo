@@ -602,7 +602,7 @@ export interface ProductRecord {
             onclick={() => setTab(ext.id)}
             class="pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer {activeTab === ext.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
           >
-            {ext.label}
+            {typeof ext.label === 'function' ? ext.label() : ext.label}
           </button>
         {/each}
       </div>

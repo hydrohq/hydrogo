@@ -31,18 +31,18 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
       <label for="b-name" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.company')}</label>
-      <Input id="b-name" type="text" bind:value={business.name} placeholder="Acme Studio" />
+      <Input id="b-name" type="text" bind:value={business.name} placeholder={t('site.biz.companyPlaceholder')} />
     </div>
     <div>
       <label for="b-legal" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.legal')}</label>
-      <Input id="b-legal" type="text" bind:value={business.legal_name} placeholder="Acme Studio Inc." />
+      <Input id="b-legal" type="text" bind:value={business.legal_name} placeholder={t('site.biz.legalPlaceholder')} />
     </div>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
     <div>
       <label for="b-tax-office" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.taxOffice')}</label>
-      <Input id="b-tax-office" type="text" bind:value={business.tax_office} placeholder="Downtown Tax Office" />
+      <Input id="b-tax-office" type="text" bind:value={business.tax_office} placeholder={t('site.biz.taxOfficePlaceholder')} />
     </div>
     <div>
       <label for="b-tax" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.tax')}</label>
@@ -76,15 +76,15 @@
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
     <div class="md:col-span-2">
       <label for="b-addr" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.address')}</label>
-      <Input id="b-addr" type="text" bind:value={business.address} placeholder="1 Main Street" />
+      <Input id="b-addr" type="text" bind:value={business.address} placeholder={t('site.biz.addressPlaceholder')} />
     </div>
     <div>
       <label for="b-city" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.city')}</label>
-      <Input id="b-city" type="text" bind:value={business.city} placeholder="Springfield" />
+      <Input id="b-city" type="text" bind:value={business.city} placeholder={t('site.biz.cityPlaceholder')} />
     </div>
     <div>
       <label for="b-country" class="block text-xs font-medium text-foreground mb-1">{t('site.biz.country')}</label>
-      <Input id="b-country" type="text" bind:value={business.country} placeholder="United States" />
+      <Input id="b-country" type="text" bind:value={business.country} placeholder={t('site.biz.countryPlaceholder')} />
     </div>
   </div>
 

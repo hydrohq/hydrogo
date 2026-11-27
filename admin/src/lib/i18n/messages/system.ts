@@ -136,6 +136,12 @@ export const en = {
   'system.jobs.deleting': 'Deleting...',
   'system.jobs.deleteTitle': 'Delete dead-letter job',
   'system.jobs.deleteDescription': 'Permanently remove job \'{id}\'? This cannot be undone.',
+  'system.updating': 'Updating...',
+  'system.updateTo': 'Update to {version}',
+  'system.updatingTo': 'Updating to {version}...',
+  'system.updatedTo': 'Updated to {version}',
+  'system.restartRequested': 'Restart requested ({version})',
+  'system.updateFailed': 'Update failed',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -276,4 +282,10 @@ export const tr: Record<keyof typeof en, string> = {
   'system.jobs.deleting': 'Siliniyor...',
   'system.jobs.deleteTitle': 'Dead-letter işi sil',
   'system.jobs.deleteDescription': '\'{id}\' işini kalıcı olarak sil? Bu geri alınamaz.',
+  'system.updating': 'Güncelleniyor...',
+  'system.updateTo': '{version} sürümüne güncelle',
+  'system.updatingTo': '{version} sürümüne güncelleniyor...',
+  'system.updatedTo': '{version} sürümüne güncellendi',
+  'system.restartRequested': 'Yeniden başlatma istendi ({version})',
+  'system.updateFailed': 'Güncelleme başarısız',
 };

@@ -72,6 +72,7 @@ export const en = {
   'news.taxonomy.empty': 'No taxonomy terms found matching the current filter.',
   'news.taxonomy.term': 'term',
   'news.taxonomy.deleteTerm': 'Delete term',
+  'news.featured': 'Featured',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -148,4 +149,5 @@ export const tr: Record<keyof typeof en, string> = {
   'news.taxonomy.empty': 'Geçerli filtreyle eşleşen terim bulunamadı.',
   'news.taxonomy.term': 'terim',
   'news.taxonomy.deleteTerm': 'Terimi sil',
+  'news.featured': 'Öne Çıkan',
 };

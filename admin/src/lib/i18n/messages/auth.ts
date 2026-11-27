@@ -107,6 +107,12 @@ export const en = {
   'account.justNow': 'Just now',
   'account.downloadExport': 'Download My Data (JSON)',
   'account.generatingExport': 'Generating JSON Export...',
+  'login.failed': 'Login failed. Please check your credentials.',
+  'login.showPassword': 'Show password',
+  'login.hidePassword': 'Hide password',
+  'login.demoBannerPrefix': 'This is a live demo of',
+  'login.demoBannerSuffix': '. Demo data resets periodically.',
+  'account.tokenIssueFailed': 'Failed to issue personal token.',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -218,4 +224,10 @@ export const tr: Record<keyof typeof en, string> = {
   'account.justNow': 'Az önce',
   'account.downloadExport': 'Verilerimi İndir (JSON)',
   'account.generatingExport': 'JSON Arşivi Hazırlanıyor...',
+  'login.failed': 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.',
+  'login.showPassword': 'Parolayı göster',
+  'login.hidePassword': 'Parolayı gizle',
+  'login.demoBannerPrefix': 'Bu,',
+  'login.demoBannerSuffix': 'için canlı bir demodur. Demo verileri düzenli olarak sıfırlanır.',
+  'account.tokenIssueFailed': 'Kişisel erişim anahtarı oluşturulamadı.',
 };

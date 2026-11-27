@@ -21,11 +21,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label for="site-name" class="block text-xs font-medium text-foreground mb-1">{t('site.general.name')}</label>
-        <Input id="site-name" type="text" bind:value={settings['site.name']} placeholder="Acme Studio" />
+        <Input id="site-name" type="text" bind:value={settings['site.name']} placeholder={t('site.general.namePlaceholder')} />
       </div>
       <div>
         <label for="site-title" class="block text-xs font-medium text-foreground mb-1">{t('site.general.title')}</label>
-        <Input id="site-title" type="text" bind:value={settings['site.title']} placeholder="Acme Studio | Modern Web Experiences" />
+        <Input id="site-title" type="text" bind:value={settings['site.title']} placeholder={t('site.general.titlePlaceholder')} />
       </div>
     </div>
 
@@ -41,18 +41,18 @@
       </div>
       <div>
         <label for="site-logo-url" class="block text-xs font-medium text-foreground mb-1">{t('site.general.logo')}</label>
-        <MediaUrlInput id="site-logo-url" bind:value={settings['appearance.logo_url']} placeholder="/brand/logo.svg or https://..." />
+        <MediaUrlInput id="site-logo-url" bind:value={settings['appearance.logo_url']} placeholder={t('site.general.logoPlaceholder')} />
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label for="favicon-url" class="block text-xs font-medium text-foreground mb-1">{t('site.general.favicon')}</label>
-        <MediaUrlInput id="favicon-url" bind:value={settings['appearance.favicon_url']} placeholder="/favicon.svg or https://..." />
+        <MediaUrlInput id="favicon-url" bind:value={settings['appearance.favicon_url']} placeholder={t('site.general.faviconPlaceholder')} />
       </div>
       <div>
         <label for="social-img" class="block text-xs font-medium text-foreground mb-1">{t('site.general.socialImage')}</label>
-        <MediaUrlInput id="social-img" bind:value={settings['appearance.social_image_url']} placeholder="/media/... or https://..." />
+        <MediaUrlInput id="social-img" bind:value={settings['appearance.social_image_url']} placeholder={t('site.general.socialImagePlaceholder')} />
       </div>
     </div>
 
@@ -85,7 +85,7 @@
         id="sf-announcement"
         rows={3}
         bind:value={settings['storefront.announcement_bar']}
-        placeholder={'Free shipping on all orders | /shipping\nSame-day dispatch | /shipping'}
+        placeholder={t('site.storefront.announcementPlaceholder')}
         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
       ></textarea>
       <p class="text-[11px] text-muted-foreground mt-1">{t('site.storefront.announcementHelp')}</p>
@@ -94,11 +94,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label for="sf-whatsapp" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.whatsapp')}</label>
-        <Input id="sf-whatsapp" type="tel" bind:value={settings['storefront.whatsapp_number']} placeholder="+1 555 000 0000" />
+        <Input id="sf-whatsapp" type="tel" bind:value={settings['storefront.whatsapp_number']} placeholder="+90 555 000 00 00" />
       </div>
       <div>
         <label for="sf-tagline" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.footerTagline')}</label>
-        <Input id="sf-tagline" type="text" bind:value={settings['storefront.footer_tagline']} placeholder="Modern digital storefront." />
+        <Input id="sf-tagline" type="text" bind:value={settings['storefront.footer_tagline']} placeholder={t('site.storefront.footerTaglinePlaceholder')} />
       </div>
     </div>
 
@@ -107,16 +107,16 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="sf-hero-eyebrow" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroEyebrow')}</label>
-          <Input id="sf-hero-eyebrow" type="text" bind:value={settings['storefront.hero_eyebrow']} placeholder="Acme Studio" />
+          <Input id="sf-hero-eyebrow" type="text" bind:value={settings['storefront.hero_eyebrow']} placeholder={t('site.general.namePlaceholder')} />
         </div>
         <div>
           <label for="sf-hero-title" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroTitle')}</label>
-          <Input id="sf-hero-title" type="text" bind:value={settings['storefront.hero_title']} placeholder="Built for speed | and scale" />
+          <Input id="sf-hero-title" type="text" bind:value={settings['storefront.hero_title']} placeholder={t('site.storefront.heroTitlePlaceholder')} />
         </div>
       </div>
       <div>
         <label for="sf-hero-sub" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroSubtitle')}</label>
-        <Input id="sf-hero-sub" type="text" bind:value={settings['storefront.hero_subtitle']} placeholder="Explore the new collection..." />
+        <Input id="sf-hero-sub" type="text" bind:value={settings['storefront.hero_subtitle']} placeholder={t('site.storefront.heroSubtitlePlaceholder')} />
       </div>
       <div>
         <label for="sf-hero-img" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroImage')}</label>
@@ -125,7 +125,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="sf-hero-cta" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroCtaLabel')}</label>
-          <Input id="sf-hero-cta" type="text" bind:value={settings['storefront.hero_cta_label']} placeholder="Browse Catalog" />
+          <Input id="sf-hero-cta" type="text" bind:value={settings['storefront.hero_cta_label']} placeholder={t('site.storefront.heroCtaPlaceholder')} />
         </div>
         <div>
           <label for="sf-hero-href" class="block text-xs font-medium text-foreground mb-1">{t('site.storefront.heroCtaHref')}</label>

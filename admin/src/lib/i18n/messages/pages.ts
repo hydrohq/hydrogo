@@ -104,6 +104,12 @@ export const en = {
   'pages.blocks.whatsapp': 'WhatsApp Number',
   'pages.blocks.tone': 'Tone',
   'pages.blocks.removeItem': 'Remove',
+  'pages.blocks.toneInfo': 'Info',
+  'pages.blocks.toneSuccess': 'Success',
+  'pages.blocks.toneWarning': 'Warning',
+  'pages.blocks.toneTip': 'Tip',
+  'pages.blocks.buttonLabelPlaceholder': 'Shop Now',
+  'pages.blocks.imageUrlPlaceholder': '/media/hero.jpg or https://...',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -212,4 +218,10 @@ export const tr: Record<keyof typeof en, string> = {
   'pages.blocks.whatsapp': 'WhatsApp Numarası',
   'pages.blocks.tone': 'Görünüm Tonu',
   'pages.blocks.removeItem': 'Kaldır',
+  'pages.blocks.toneInfo': 'Bilgi',
+  'pages.blocks.toneSuccess': 'Başarılı',
+  'pages.blocks.toneWarning': 'Uyarı',
+  'pages.blocks.toneTip': 'İpucu',
+  'pages.blocks.buttonLabelPlaceholder': 'Alışverişe Başla',
+  'pages.blocks.imageUrlPlaceholder': '/media/hero.jpg veya https://...',
 };

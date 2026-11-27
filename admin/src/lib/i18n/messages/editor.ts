@@ -80,6 +80,12 @@ export const en = {
   'ai.err.generateFailed': 'Failed to generate AI suggestion. Check your AI provider settings.',
   'ai.appliedSuccess': 'AI suggestion applied to editor!',
   'ai.assist': 'AI Assist',
+  'editor.forCommands': 'for commands',
+  'editor.enterLinkUrl': 'Enter link URL:',
+  'editor.badgeList': 'List',
+  'editor.badgeQuote': 'Quote',
+  'editor.badgeHr': 'HR',
+  'ai.titleLabel': 'Title:',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -164,4 +170,10 @@ export const tr: Record<keyof typeof en, string> = {
   'ai.err.generateFailed': 'Yapay zeka önerisi oluşturulamadı. Sağlayıcı ayarlarınızı kontrol edin.',
   'ai.appliedSuccess': 'Yapay zeka önerisi düzenleyiciye uygulandı!',
   'ai.assist': 'Yapay Zeka Asistanı',
+  'editor.forCommands': 'komutlar için',
+  'editor.enterLinkUrl': 'Bağlantı URL\'sini girin:',
+  'editor.badgeList': 'Liste',
+  'editor.badgeQuote': 'Alıntı',
+  'editor.badgeHr': 'Çizgi',
+  'ai.titleLabel': 'Başlık:',
 };

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { t } from '$lib/i18n/index.svelte';
   import Sidebar from './Sidebar.svelte';
   import Header from './Header.svelte';
 
@@ -22,16 +23,16 @@
     {#if isDemoMode}
       <div class="flex items-center justify-between gap-3 border-b border-border bg-muted/60 px-4 py-1.5 text-xs text-muted-foreground">
         <span>
-          <strong class="font-medium text-foreground">Live Demo</strong> - Running in your browser via <code class="font-mono text-[11px]">localStorage</code> (no database).
+          <strong class="font-medium text-foreground">{t('demo.liveBadge')}</strong> - {t('demo.runningInBrowser')} <code class="font-mono text-[11px]">localStorage</code> {t('demo.noDatabase')}
         </span>
         <div class="flex items-center gap-3 shrink-0">
-          <a href="/" class="hover:text-foreground underline underline-offset-2">Back to site</a>
+          <a href="/" class="hover:text-foreground underline underline-offset-2">{t('demo.backToSite')}</a>
           <button
             type="button"
             onclick={handleResetDemo}
             class="rounded border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-accent cursor-pointer"
           >
-            Reset Demo Data
+            {t('demo.resetData')}
           </button>
         </div>
       </div>

@@ -58,10 +58,10 @@
   }
 
   function formatActiveTime(secs: number): string {
-    if (secs <= 2) return 'Active now';
-    if (secs < 60) return `${secs}s ago`;
+    if (secs <= 2) return t('presence.activeNow');
+    if (secs < 60) return t('presence.secondsAgo', { count: secs });
     const mins = Math.floor(secs / 60);
-    return `${mins}m ago`;
+    return t('presence.minutesAgo', { count: mins });
   }
 </script>
 
@@ -150,7 +150,7 @@
             {/each}
           </div>
           <p class="mt-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 p-1.5 rounded leading-tight">
-            Concurrent edits may overwrite the most recently saved changes.
+            {t('presence.overwriteWarn')}
           </p>
         </div>
       {/if}

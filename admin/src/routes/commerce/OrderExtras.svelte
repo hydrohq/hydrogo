@@ -134,15 +134,15 @@
 
   {#if invoice}
     <section>
-      <h3 class="mb-2 font-medium text-muted-foreground">Fatura bilgisi</h3>
+      <h3 class="mb-2 font-medium text-muted-foreground">{t('commerce.extras.invoiceInfo')}</h3>
       <dl class="grid grid-cols-[8rem_1fr] gap-y-1 rounded-md border border-border bg-muted/40 p-3">
-        <dt class="text-muted-foreground">Tür</dt><dd class="capitalize">{invoice.invoice_type}</dd>
+        <dt class="text-muted-foreground">{t('commerce.extras.invoiceType')}</dt><dd class="capitalize">{invoice.invoice_type}</dd>
         {#if invoice.invoice_type === 'kurumsal'}
-          <dt class="text-muted-foreground">Unvan</dt><dd>{invoice.company_name}</dd>
+          <dt class="text-muted-foreground">{t('commerce.extras.invoiceCompany')}</dt><dd>{invoice.company_name}</dd>
           <dt class="text-muted-foreground">VKN</dt><dd class="font-mono">{invoice.vkn}</dd>
-          <dt class="text-muted-foreground">Vergi dairesi</dt><dd>{invoice.tax_office}</dd>
+          <dt class="text-muted-foreground">{t('commerce.extras.invoiceTaxOffice')}</dt><dd>{invoice.tax_office}</dd>
         {:else}
-          <dt class="text-muted-foreground">TCKN</dt><dd class="font-mono">{invoice.tckn || '— (girilmedi)'}</dd>
+          <dt class="text-muted-foreground">TCKN</dt><dd class="font-mono">{invoice.tckn || t('commerce.extras.notProvided')}</dd>
         {/if}
       </dl>
     </section>

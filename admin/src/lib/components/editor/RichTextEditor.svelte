@@ -75,7 +75,7 @@
       id: 'bullet',
       title: t('slash.bullet'),
       description: t('slash.bulletDesc'),
-      badge: 'List',
+      badge: t('editor.badgeList'),
       action: (ed) => ed.chain().focus().toggleBulletList().run(),
     },
     {
@@ -89,7 +89,7 @@
       id: 'quote',
       title: t('slash.quote'),
       description: t('slash.quoteDesc'),
-      badge: 'Quote',
+      badge: t('editor.badgeQuote'),
       action: (ed) => ed.chain().focus().toggleBlockquote().run(),
     },
     {
@@ -103,7 +103,7 @@
       id: 'divider',
       title: t('slash.divider'),
       description: t('slash.dividerDesc'),
-      badge: 'HR',
+      badge: t('editor.badgeHr'),
       action: (ed) => ed.chain().focus().setHorizontalRule().run(),
     },
   ]);
@@ -347,7 +347,7 @@
       </span>
       <div class="flex items-center gap-2">
         <span class="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded border border-border">
-          <kbd class="font-bold">/</kbd> for commands
+          <kbd class="font-bold">/</kbd> {t('editor.forCommands')}
         </span>
         <span class="text-[11px] text-muted-foreground font-mono">
           {t(currentBlockType)}
@@ -378,7 +378,7 @@
           position={bubbleMenuPos}
           onOpenLink={() => {
             const previousUrl = editor?.getAttributes('link').href || '';
-            const nextUrl = window.prompt('Enter link URL:', previousUrl);
+            const nextUrl = window.prompt(t('editor.enterLinkUrl'), previousUrl);
             if (nextUrl !== null) {
               if (nextUrl.trim() === '') {
                 editor?.chain().focus().unsetLink().run();

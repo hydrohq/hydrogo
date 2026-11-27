@@ -83,6 +83,13 @@ export const en = {
   'audit.ok': 'OK',
   'audit.rejected': 'Rejected',
   'audit.details': 'Details',
+  'audit.distribution': 'Activity distribution',
+  'audit.loadedOfTotal': '{loaded} loaded / {total} total',
+  'audit.bucketTooltip': '{total} events ({errors} alerts)',
+  'audit.meta.actor': 'actor:',
+  'audit.meta.resource': 'resource:',
+  'audit.meta.target': 'target:',
+  'audit.meta.status': 'status:',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -170,4 +177,11 @@ export const tr: Record<keyof typeof en, string> = {
   'audit.ok': 'Tamam',
   'audit.rejected': 'Reddedildi',
   'audit.details': 'Ayrıntılar',
+  'audit.distribution': 'Etkinlik dağılımı',
+  'audit.loadedOfTotal': '{loaded} yüklendi / toplam {total}',
+  'audit.bucketTooltip': '{total} olay ({errors} uyarı)',
+  'audit.meta.actor': 'kullanıcı:',
+  'audit.meta.resource': 'kaynak:',
+  'audit.meta.target': 'hedef:',
+  'audit.meta.status': 'durum:',
 };

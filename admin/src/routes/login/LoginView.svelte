@@ -46,7 +46,7 @@
         mfaRequired = true;
       }
     } catch (err: any) {
-      errorMessage = err.message || 'Login failed. Please check your credentials.';
+      errorMessage = err.message || t('login.failed');
     } finally {
       loading = false;
     }
@@ -56,7 +56,7 @@
 <div class="min-h-screen w-full flex flex-col bg-background text-foreground">
   {#if isDemoHost}
     <div class="w-full border-b border-border bg-muted/50 px-4 py-2 text-center text-xs text-muted-foreground">
-      This is a live demo of <strong class="font-medium text-foreground">HydroGo</strong>. Demo data resets periodically.
+      {t('login.demoBannerPrefix')} <strong class="font-medium text-foreground">HydroGo</strong>{t('login.demoBannerSuffix')}
     </div>
   {/if}
 
@@ -107,7 +107,7 @@
           <button
             type="button"
             onclick={() => (showPassword = !showPassword)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
             class="absolute right-2.5 bottom-2 p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             {#if showPassword}

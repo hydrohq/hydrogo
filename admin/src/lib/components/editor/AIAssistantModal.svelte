@@ -210,7 +210,7 @@
           <div class="flex flex-col gap-2 p-3 bg-muted/20 border border-border/60 rounded-md">
             <span class="text-xs font-semibold text-muted-foreground">{t('ai.currentVersion')}</span>
             <div class="text-xs font-medium text-foreground line-clamp-2">
-              <span class="text-muted-foreground">Title:</span> {currentTitle || t('ai.empty')}
+              <span class="text-muted-foreground">{t('ai.titleLabel')}</span> {currentTitle || t('ai.empty')}
             </div>
             <div class="text-xs text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">
               {currentBody || t('ai.empty')}
@@ -221,7 +221,7 @@
           <div class="flex flex-col gap-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
             <span class="text-xs font-semibold text-primary">{t('ai.suggestedVersion')}</span>
             <div class="text-xs font-medium text-foreground line-clamp-2">
-              <span class="text-muted-foreground">Title:</span> {suggestion.title}
+              <span class="text-muted-foreground">{t('ai.titleLabel')}</span> {suggestion.title}
             </div>
             <div class="text-xs text-foreground whitespace-pre-wrap max-h-48 overflow-y-auto font-sans">
               {suggestion.body}

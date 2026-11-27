@@ -38,11 +38,14 @@
   let formTitle = $state('');
   let formId = $state('');
   let formRecipients = $state('');
-  let formFields = $state<FormField[]>([
-    { id: 'name', label: 'Full Name', type: 'text', required: true },
-    { id: 'email', label: 'Email Address', type: 'email', required: true },
-    { id: 'message', label: 'Message', type: 'textarea', required: true },
-  ]);
+  function defaultFormFields(): FormField[] {
+    return [
+      { id: 'name', label: t('site.forms.defaultName'), type: 'text', required: true },
+      { id: 'email', label: t('site.forms.defaultEmail'), type: 'email', required: true },
+      { id: 'message', label: t('site.forms.defaultMessage'), type: 'textarea', required: true },
+    ];
+  }
+  let formFields = $state<FormField[]>(defaultFormFields());
   let autoresponder = $state(false);
   let autoSubject = $state('');
   let autoBody = $state('');
@@ -93,11 +96,7 @@
     formTitle = '';
     formId = '';
     formRecipients = '';
-    formFields = [
-      { id: 'name', label: 'Full Name', type: 'text', required: true },
-      { id: 'email', label: 'Email Address', type: 'email', required: true },
-      { id: 'message', label: 'Message', type: 'textarea', required: true },
-    ];
+    formFields = defaultFormFields();
     autoresponder = false;
     autoSubject = '';
     autoBody = '';
@@ -110,7 +109,7 @@
     formId = f.id;
     formRecipients = (f.notification_recipients || []).join(', ');
     formFields = f.fields && f.fields.length > 0 ? JSON.parse(JSON.stringify(f.fields)) : [
-      { id: 'email', label: 'Email', type: 'email', required: true },
+      { id: 'email', label: t('common.email'), type: 'email', required: true },
     ];
     autoresponder = !!f.autoresponder;
     autoSubject = f.autoresponder_subject || '';

@@ -374,15 +374,15 @@
             >
               <div class="flex items-center justify-between text-[10px] font-semibold">
                 {#if previewTokens.header_variant === 'centered'}
-                  <span class="opacity-50">Menu</span>
-                  <span>Brand</span>
-                  <span style="color: {previewTokens.accent};">Cart</span>
+                  <span class="opacity-50">{t('site.themes.wireMenu')}</span>
+                  <span>{t('site.themes.wireBrand')}</span>
+                  <span style="color: {previewTokens.accent};">{t('site.themes.wireCart')}</span>
                 {:else}
-                  <span>Brand</span>
+                  <span>{t('site.themes.wireBrand')}</span>
                   <div class="flex items-center gap-2 opacity-60">
-                    <span>Shop</span>
-                    <span>Journal</span>
-                    <span style="color: {previewTokens.accent};">Cart</span>
+                    <span>{t('site.themes.wireShop')}</span>
+                    <span>{t('site.themes.wireJournal')}</span>
+                    <span style="color: {previewTokens.accent};">{t('site.themes.wireCart')}</span>
                   </div>
                 {/if}
               </div>
@@ -510,10 +510,10 @@
           onchange={(e) => updateToken('radius', (e.currentTarget as HTMLSelectElement).value)}
           class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground"
         >
-          <option value="none">none (0px)</option>
-          <option value="sm">sm (4px)</option>
-          <option value="md">md (8px)</option>
-          <option value="lg">lg (12px)</option>
+          <option value="none">{t('site.themes.radiusNone')}</option>
+          <option value="sm">{t('site.themes.radiusSm')}</option>
+          <option value="md">{t('site.themes.radiusMd')}</option>
+          <option value="lg">{t('site.themes.radiusLg')}</option>
         </select>
       </label>
 
@@ -538,9 +538,9 @@
           onchange={(e) => updateToken('header_variant', (e.currentTarget as HTMLSelectElement).value)}
           class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground"
         >
-          <option value="split">Split</option>
-          <option value="centered">Centered</option>
-          <option value="minimal">Minimal</option>
+          <option value="split">{t('site.themes.headerSplit')}</option>
+          <option value="centered">{t('site.themes.headerCentered')}</option>
+          <option value="minimal">{t('site.themes.headerMinimal')}</option>
         </select>
       </label>
     </div>

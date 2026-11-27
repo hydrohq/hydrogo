@@ -218,7 +218,7 @@
                       <td class="px-4 py-3 font-medium text-foreground max-w-sm">
                         <div class="flex items-center gap-2">
                           {#if item.featured}
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-3.5 text-amber-500 shrink-0" aria-label="Featured"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-3.5 text-amber-500 shrink-0" aria-label={t('news.featured')}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                           {/if}
                           <span class="truncate">{item.title}</span>
                         </div>

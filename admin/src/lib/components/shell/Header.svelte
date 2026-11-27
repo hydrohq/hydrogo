@@ -145,13 +145,13 @@
         aria-disabled="true"
         onclick={() => (showCopilotDrawer = true)}
         class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground h-8 px-2.5 rounded-md border border-border bg-muted/40 opacity-75 cursor-not-allowed shadow-xs"
-        title={`${t('copilot.title')} (Soon)`}
+        title={`${t('copilot.title')} (${t('common.soon')})`}
       >
         <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
         </svg>
         <span class="hidden sm:inline">{t('copilot.button')}</span>
-        <span class="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">Soon</span>
+        <span class="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">{t('common.soon')}</span>
       </button>
       {/if}
 

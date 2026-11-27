@@ -15,7 +15,7 @@ export interface ProductTabContext {
 
 export interface ProductTabDescriptor {
   id: string;
-  label: string;
+  label: string | (() => string);
   visible?: (ctx: ProductTabContext) => boolean;
 }
 

@@ -660,7 +660,7 @@
               onclick={() => copyText(selectedEntry?.before_json || '', 'before-json')}
               class="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
             >
-              {copiedId === 'before-json' ? '✓ Copied' : 'Copy'}
+              {copiedId === 'before-json' ? `✓ ${t('common.copied')}` : t('common.copy')}
             </button>
           </div>
           <pre class="p-3 bg-muted rounded-xl text-foreground font-mono text-[11px] overflow-x-auto whitespace-pre-wrap">{selectedEntry.before_json}</pre>
@@ -676,7 +676,7 @@
               onclick={() => copyText(selectedEntry?.after_json || '', 'after-json')}
               class="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
             >
-              {copiedId === 'after-json' ? '✓ Copied' : 'Copy'}
+              {copiedId === 'after-json' ? `✓ ${t('common.copied')}` : t('common.copy')}
             </button>
           </div>
           <pre class="p-3 bg-muted rounded-xl text-foreground font-mono text-[11px] overflow-x-auto whitespace-pre-wrap">{selectedEntry.after_json}</pre>

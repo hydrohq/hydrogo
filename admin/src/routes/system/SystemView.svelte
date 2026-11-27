@@ -166,7 +166,7 @@
     if (!updates?.update_available || !updates?.can_self_update || updating) return;
     updating = true;
     updateError = null;
-    updateMessage = `Updating to ${updates.latest_version}...`;
+    updateMessage = t('system.updatingTo', { version: updates.latest_version });
     const targetVersion = updates.latest_version;
     try {
       await api.post('/api/v1/admin/system/updates/apply', { confirm: true });
@@ -176,7 +176,7 @@
           const res = await api.get<ApiResponse<SystemInfo>>('/api/v1/admin/system/info');
           if (res?.data?.version === targetVersion) {
             await loadData();
-            updateMessage = `Updated to ${targetVersion}`;
+            updateMessage = t('system.updatedTo', { version: targetVersion });
             updating = false;
             return;
           }
@@ -185,9 +185,9 @@
         }
       }
       await loadData();
-      updateMessage = `Restart requested (${targetVersion})`;
+      updateMessage = t('system.restartRequested', { version: targetVersion });
     } catch (e: any) {
-      updateError = e?.message || 'Update failed';
+      updateError = e?.message || t('system.updateFailed');
       updateMessage = null;
     } finally {
       updating = false;
@@ -422,7 +422,7 @@
                   <Badge variant="warning" class="font-mono text-[10px]">{updates.latest_version}</Badge>
                   {#if updates.can_self_update}
                     <Button size="sm" variant="primary" class="h-6 px-2.5 text-[11px] cursor-pointer" disabled={updating} onclick={applySelfUpdate}>
-                      {updating ? 'Updating...' : `Update to ${updates.latest_version}`}
+                      {updating ? t('system.updating') : t('system.updateTo', { version: updates.latest_version })}
                     </Button>
                   {/if}
                 {/if}

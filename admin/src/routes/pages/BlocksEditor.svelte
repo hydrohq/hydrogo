@@ -299,7 +299,7 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label={t('pages.blocks.buttonLabel')}
-                  placeholder="Shop Now"
+                  placeholder={t('pages.blocks.buttonLabelPlaceholder')}
                   value={data.button_label ?? data.button_text ?? ''}
                   oninput={(e) => {
                     const val = (e.target as HTMLInputElement).value;
@@ -322,7 +322,7 @@
                   <MediaUrlInput
                     id={`block-media-${index}`}
                     bind:value={() => data.image_url || '', (val) => patchBlock(index, { image_url: val })}
-                    placeholder="/media/hero.jpg or https://..."
+                    placeholder={t('pages.blocks.imageUrlPlaceholder')}
                   />
                 </div>
               {/if}
@@ -596,10 +596,10 @@
                     onchange={(e) => patchBlock(index, { tone: (e.currentTarget as HTMLSelectElement).value })}
                     class="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground"
                   >
-                    <option value="info">info</option>
-                    <option value="success">success</option>
-                    <option value="warning">warning</option>
-                    <option value="tip">tip</option>
+                    <option value="info">{t('pages.blocks.toneInfo')}</option>
+                    <option value="success">{t('pages.blocks.toneSuccess')}</option>
+                    <option value="warning">{t('pages.blocks.toneWarning')}</option>
+                    <option value="tip">{t('pages.blocks.toneTip')}</option>
                   </select>
                 </label>
               </div>

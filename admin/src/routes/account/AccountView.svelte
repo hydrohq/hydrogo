@@ -251,7 +251,7 @@
       issuedTokenValue = res?.data?.token || res?.data?.key || null;
       await loadTokens();
     } catch (err: any) {
-      tokenError = err.message || 'Failed to issue personal token.';
+      tokenError = err.message || t('account.tokenIssueFailed');
     } finally {
       creatingToken = false;
     }

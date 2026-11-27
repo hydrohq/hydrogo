@@ -49,6 +49,10 @@ export const en = {
   'api.error.network': 'Unknown network error',
   'api.error.generic': 'An error occurred',
   'common.saved': 'Saved',
+  'common.clear': 'Clear',
+  'common.soon': 'Soon',
+  'common.preview': 'Preview',
+  'common.error': 'Error',
 } as const;
 
 export const tr: Record<keyof typeof en, string> = {
@@ -102,4 +106,8 @@ export const tr: Record<keyof typeof en, string> = {
   'api.error.network': 'Ağ bağlantı hatası oluştu',
   'api.error.generic': 'Bir hata oluştu',
   'common.saved': 'Kaydedildi',
+  'common.clear': 'Temizle',
+  'common.soon': 'Yakında',
+  'common.preview': 'Önizleme',
+  'common.error': 'Hata',
 };

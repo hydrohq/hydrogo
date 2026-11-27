@@ -357,7 +357,7 @@
                 <div class="size-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center shrink-0">
                   <img
                     src={formData[key]}
-                    alt="Preview"
+                    alt={t('common.preview')}
                     class="size-full object-cover"
                     onerror={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />

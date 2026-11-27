@@ -81,7 +81,7 @@
       }
       await load();
     } catch (err) {
-      error = msg(err, 'Upload failed.');
+      error = msg(err, t('commerce.media.uploadFailed'));
       await load();
     } finally {
       busy = false;
