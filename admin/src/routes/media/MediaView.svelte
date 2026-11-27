@@ -82,6 +82,8 @@
       for (let i = 0; i < files.length; i++) {
         const formData = new FormData();
         formData.append('file', files[i]);
+        formData.append('visibility', 'public');
+        formData.append('ready', 'true');
         if (selectedFolder) {
           formData.append('folder_id', selectedFolder);
         }

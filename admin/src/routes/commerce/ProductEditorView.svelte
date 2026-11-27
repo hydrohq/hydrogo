@@ -3,6 +3,7 @@
   import { api, ApiClientError } from '$lib/api/client';
   import { router } from '$lib/router.svelte';
   import { schema } from '$lib/stores/schema.svelte';
+  import { confirmAction } from '$lib/confirm';
   import { t } from '$lib/i18n/index.svelte';
   import PageSpinner from '$lib/components/ui/PageSpinner.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -24,9 +25,48 @@
   let { id }: Props = $props();
 
   const isNew = $derived(id === 'new');
+  const CORE_PRODUCT_KEYS = new Set([
+    'id',
+    'version',
+    'status',
+    'created_at',
+    'updated_at',
+    'locale',
+    'expanded',
+    'name',
+    'slug',
+    'category',
+    'description',
+    'cover_image',
+    'base_price',
+    'currency',
+    'compare_at_price',
+    'genuine_leather',
+    'sku',
+    'seo_title',
+    'seo_description',
+  ]);
+  const productCollection = $derived(schema.getCollection('products'));
   const hasGenuineLeatherField = $derived(
-    Boolean(schema.getCollection('products')?.fields?.some((f) => (f.id || f.name) === 'genuine_leather'))
+    Boolean(productCollection?.fields?.some((f) => (f.id || f.name) === 'genuine_leather'))
   );
+  const extraSchemaFields = $derived(
+    (productCollection?.fields ?? []).filter((f) => {
+      const k = f.id || f.name || '';
+      return k && !CORE_PRODUCT_KEYS.has(k);
+    })
+  );
+  const previewHref = $derived.by(() => {
+    const slug = formData.slug?.trim();
+    if (!slug) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const tpl = productCollection?.actions?.find((a) => a.href?.includes('{slug}'))?.href;
+    if (tpl) {
+      const rel = tpl.replaceAll('{slug}', encodeURIComponent(slug));
+      return /^https?:\/\//i.test(rel) ? rel : `${origin}${rel.startsWith('/') ? '' : '/'}${rel}`;
+    }
+    return `${origin}/products/${encodeURIComponent(slug)}`;
+  });
 
 export interface ProductRecord {
   id: string;
@@ -55,6 +95,7 @@ export interface ProductRecord {
   let loading = $state(id !== 'new');
   let saving = $state(false);
   let publishing = $state(false);
+  let deleting = $state(false);
   let errorMessage = $state('');
   let successMessage = $state('');
   let fieldErrors = $state<Record<string, string>>({});
@@ -63,6 +104,7 @@ export interface ProductRecord {
   let mediaPickerOpen = $state(false);
   let showAdvanced = $state(false);
   let slugEditedManually = $state(false);
+  let extraData = $state<Record<string, unknown>>({});
 
   let formData = $state({
     name: '',
@@ -74,7 +116,6 @@ export interface ProductRecord {
     currency: 'TRY',
     compare_at_price: '' as string | number,
     genuine_leather: false,
-    is_bestseller: false,
     sku: '',
     seo_title: '',
     seo_description: '',
@@ -184,6 +225,14 @@ export interface ProductRecord {
         catId = data.category;
       }
 
+      const preserved: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (!CORE_PRODUCT_KEYS.has(k)) {
+          preserved[k] = v;
+        }
+      }
+      extraData = preserved;
+
       formData = {
         name: data.name ?? '',
         slug: data.slug ?? '',
@@ -194,7 +243,6 @@ export interface ProductRecord {
         currency: data.currency || 'TRY',
         compare_at_price: data.compare_at_price != null ? data.compare_at_price : '',
         genuine_leather: Boolean(data.genuine_leather),
-        is_bestseller: Boolean(data.is_bestseller),
         sku: data.sku ?? '',
         seo_title: data.seo_title ?? '',
         seo_description: data.seo_description ?? '',
@@ -253,6 +301,7 @@ export interface ProductRecord {
     saving = true;
     try {
       const payload: Record<string, unknown> = {
+        ...extraData,
         name: formData.name.trim(),
         slug: formData.slug.trim(),
         category: formData.category || null,
@@ -264,11 +313,28 @@ export interface ProductRecord {
           formData.compare_at_price !== '' && formData.compare_at_price != null && !isNaN(Number(formData.compare_at_price))
             ? Number(formData.compare_at_price)
             : null,
-        is_bestseller: Boolean(formData.is_bestseller),
         sku: formData.sku.trim() || null,
         seo_title: formData.seo_title.trim() || null,
         seo_description: formData.seo_description.trim() || null,
       };
+      for (const f of extraSchemaFields) {
+        const key = (f.id || f.name)!;
+        const val = extraData[key];
+        if (f.kind === 'boolean') {
+          payload[key] = Boolean(val);
+        } else if (f.kind === 'number') {
+          if (val === '' || val === null || val === undefined) {
+            delete payload[key];
+          } else {
+            const n = Number(val);
+            if (!Number.isNaN(n)) payload[key] = n;
+          }
+        } else if (typeof val === 'string') {
+          const trimmed = val.trim();
+          if (trimmed) payload[key] = trimmed;
+          else delete payload[key];
+        }
+      }
       if (hasGenuineLeatherField) {
         payload.genuine_leather = Boolean(formData.genuine_leather);
       }
@@ -334,6 +400,40 @@ export interface ProductRecord {
     }
   }
 
+  async function handleDeleteProduct() {
+    if (isNew || !product || deleting) return;
+    const confirmed = await confirmAction({
+      title: t('products.editor.deleteTitle'),
+      description: t('products.editor.deleteConfirm', { name: formData.name || product.name || id }),
+      confirmLabel: t('products.editor.delete'),
+      cancelLabel: t('common.cancel'),
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
+
+    deleting = true;
+    errorMessage = '';
+    try {
+      // Clean up child product_images and variants first so relations never block deletion or leave orphans.
+      const [imgsRes, varsRes] = await Promise.all([
+        api.get<{ data?: Array<{ id: string }> }>('/api/v1/admin/content/product_images', { params: { 'filter[product]': id, limit: 100 } }).catch(() => ({ data: [] })),
+        api.get<{ data?: Array<{ id: string }> }>('/api/v1/admin/content/variants', { params: { 'filter[product]': id, limit: 100 } }).catch(() => ({ data: [] })),
+      ]);
+      for (const img of imgsRes.data ?? []) {
+        await api.delete(`/api/v1/admin/content/product_images/${img.id}`).catch(() => {});
+      }
+      for (const v of varsRes.data ?? []) {
+        await api.delete(`/api/v1/admin/content/variants/${v.id}`).catch(() => {});
+      }
+      await api.delete(`/api/v1/admin/content/products/${id}`);
+      router.navigate('/commerce/products');
+    } catch (err: unknown) {
+      errorMessage = err instanceof ApiClientError ? (err.message || t('products.editor.deleteError')) : t('products.editor.deleteError');
+    } finally {
+      deleting = false;
+    }
+  }
+
   onMount(() => {
     syncTabFromHash();
     if (typeof window !== 'undefined') {
@@ -387,11 +487,11 @@ export interface ProductRecord {
       </div>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <!-- Preview link (hidden when new) -->
-      {#if !isNew && formData.slug}
+      {#if !isNew && previewHref}
         <a
-          href={`${typeof window !== 'undefined' ? window.location.origin : ''}/products/${encodeURIComponent(formData.slug)}`}
+          href={previewHref}
           target="_blank"
           rel="noopener noreferrer"
           class="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-foreground transition-colors shadow-xs"
@@ -403,6 +503,18 @@ export interface ProductRecord {
           </svg>
           <span>{t('products.editor.preview')}</span>
         </a>
+      {/if}
+
+      <!-- Delete product (hidden when new) -->
+      {#if !isNew}
+        <Button
+          variant="danger"
+          size="sm"
+          loading={deleting}
+          onclick={handleDeleteProduct}
+        >
+          {t('products.editor.delete')}
+        </Button>
       {/if}
 
       <!-- Publish / Unpublish (hidden when new) -->
@@ -651,6 +763,61 @@ export interface ProductRecord {
                 />
                 <span class="text-xs font-medium text-foreground">{t('products.editor.genuineLeather')}</span>
               </label>
+            </div>
+          {/if}
+
+          <!-- Dynamic project-specific schema fields on products (e.g. is_bestseller, origin, net_weight, storage_conditions, display_order) -->
+          {#if extraSchemaFields.length > 0}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4">
+              {#each extraSchemaFields as field (field.id || field.name)}
+                {@const fKey = (field.id || field.name)!}
+                {#if field.kind === 'boolean'}
+                  <div class="sm:col-span-2 flex items-center">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(extraData[fKey])}
+                        onchange={(e) => { extraData[fKey] = (e.currentTarget as HTMLInputElement).checked; }}
+                        class="size-4 rounded border-input text-primary focus:ring-ring"
+                      />
+                      <span class="text-xs font-medium text-foreground">{field.label || fKey}</span>
+                    </label>
+                  </div>
+                {:else if field.kind === 'textarea'}
+                  <div class="sm:col-span-2 flex flex-col gap-1.5">
+                    <label for="product-extra-{fKey}" class="text-xs font-medium text-foreground">{field.label || fKey}</label>
+                    <textarea
+                      id="product-extra-{fKey}"
+                      rows="3"
+                      value={String(extraData[fKey] ?? '')}
+                      oninput={(e) => { extraData[fKey] = (e.currentTarget as HTMLTextAreaElement).value; }}
+                      class="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                    ></textarea>
+                  </div>
+                {:else if field.kind === 'number'}
+                  <div class="flex flex-col gap-1.5">
+                    <label for="product-extra-{fKey}" class="text-xs font-medium text-foreground">{field.label || fKey}</label>
+                    <input
+                      id="product-extra-{fKey}"
+                      type="number"
+                      value={extraData[fKey] != null ? String(extraData[fKey]) : ''}
+                      oninput={(e) => { extraData[fKey] = (e.currentTarget as HTMLInputElement).value; }}
+                      class="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                    />
+                  </div>
+                {:else}
+                  <div class="flex flex-col gap-1.5">
+                    <label for="product-extra-{fKey}" class="text-xs font-medium text-foreground">{field.label || fKey}</label>
+                    <input
+                      id="product-extra-{fKey}"
+                      type="text"
+                      value={String(extraData[fKey] ?? '')}
+                      oninput={(e) => { extraData[fKey] = (e.currentTarget as HTMLInputElement).value; }}
+                      class="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring shadow-xs"
+                    />
+                  </div>
+                {/if}
+              {/each}
             </div>
           {/if}
 

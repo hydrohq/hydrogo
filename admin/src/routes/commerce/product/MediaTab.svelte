@@ -74,8 +74,10 @@
       for (const file of files) {
         const form = new FormData();
         form.append('file', file);
-        const res = await api.upload<{ data: { url?: string; path?: string; id: string; mime_type?: string; content_type?: string } }>('/api/v1/admin/media', form);
-        await addRecord(res.data);
+        form.append('visibility', 'public');
+        form.append('ready', 'true');
+        const res = await api.upload<{ data: { url?: string; path?: string; id: string; asset_id?: string; mime_type?: string; content_type?: string } }>('/api/v1/admin/media', form);
+        await addRecord({ ...res.data, id: res.data.id || res.data.asset_id || '' });
       }
       await load();
     } catch (err) {

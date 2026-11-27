@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { api, ApiClientError } from '$lib/api/client';
   import { auth } from '$lib/stores/auth.svelte';
+  import { schema } from '$lib/stores/schema.svelte';
   import { router } from '$lib/router.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Badge from '$lib/components/ui/Badge.svelte';
@@ -342,7 +343,7 @@
       <div class="pt-3 border-t border-border space-y-3">
         {#if canWrite && selected.payment_status === 'paid'}
           <Button variant="danger" size="sm" class="w-full mb-2" loading={actionLoading} onclick={refundSelected}>
-            {t('commerce.order.refund')} (Refund Payment)
+            {t('commerce.order.refund')}
           </Button>
         {:else if canWrite && selected.payment_status === 'pending'}
           <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
@@ -362,7 +363,7 @@
           </div>
         {:else if selected.payment_status === 'refunded'}
           <div class="p-3 rounded-lg bg-muted text-xs text-muted-foreground text-center">
-            This order has already been refunded.
+            {t('commerce.order.alreadyRefunded')}
           </div>
         {/if}
         <OrderShippingPanel
@@ -416,16 +417,18 @@
         </div>
 
         <div class="flex items-center gap-2 w-full sm:w-auto">
-          <a
-            href="/admin/content/return_requests"
-            class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-xs font-medium text-foreground transition-colors shrink-0 shadow-xs"
-          >
-            <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 14 4 9 9 4"></polyline>
-              <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
-            </svg>
-            Refund and Cancellation Requests
-          </a>
+          {#if schema.getCollection('return_requests')}
+            <a
+              href="/admin/content/return_requests"
+              class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background hover:bg-muted text-xs font-medium text-foreground transition-colors shrink-0 shadow-xs"
+            >
+              <svg class="size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 14 4 9 9 4"></polyline>
+                <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
+              </svg>
+              {t('commerce.orders.returnRequests')}
+            </a>
+          {/if}
           <div class="relative w-full sm:w-64">
             <svg class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="11" cy="11" r="8"></circle>

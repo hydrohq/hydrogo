@@ -82,8 +82,10 @@
       for (const file of [...target.files]) {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await api.upload<ApiResponse<MediaAsset>>('/api/v1/admin/media', formData);
-        if (res && res.data) selectedId = res.data.id;
+        formData.append('visibility', 'public');
+        formData.append('ready', 'true');
+        const res = await api.upload<ApiResponse<MediaAsset & { asset_id?: string }>>('/api/v1/admin/media', formData);
+        if (res && res.data) selectedId = res.data.asset_id || res.data.id;
       }
       await loadMedia();
     } catch (e) {

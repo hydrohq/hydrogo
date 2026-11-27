@@ -27,6 +27,7 @@ vi.mock('$lib/api/client', () => {
       get: vi.fn(),
       post: vi.fn(),
       put: vi.fn(),
+      delete: vi.fn().mockResolvedValue({}),
     },
     ApiClientError: MockApiClientError,
   };
